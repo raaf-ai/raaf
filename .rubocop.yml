@@ -1,0 +1,66 @@
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'vendor/**/*'
+    - 'tmp/**/*'
+
+Style/Documentation:
+  Enabled: false
+
+Naming/PredicateMethod:
+  Enabled: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - 'examples/**/*'
+
+# Reasonable Metrics Configuration
+# Disable the most problematic metrics cops that don't add much value
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+# Keep but relax the useful metrics cops
+Metrics/ClassLength:
+  Max: 400  # Allow larger classes for complex domain logic
+
+Metrics/ModuleLength:
+  Max: 400  # Allow larger modules
+
+Metrics/MethodLength:
+  Max: 80   # Allow longer methods for complex logic like streaming
+  Exclude:
+    - 'spec/**/*'  # Test methods can be longer
+
+Metrics/BlockLength:
+  Max: 60   # Allow longer blocks for complex operations
+  Exclude:
+    - 'spec/**/*'
+    - '*.gemspec'
+    - 'Rakefile'
+
+Metrics/ParameterLists:
+  Max: 6    # Allow up to 6 parameters (reasonable for Ruby)
+  CountKeywordArgs: false  # Don't count keyword arguments
+
+# Keep block nesting reasonable
+Metrics/BlockNesting:
+  Max: 5    # Allow one more level for complex nested operations
+
+# Allow reasonable collection sizes
+Metrics/CollectionLiteralLength:
+  LengthThreshold: 20

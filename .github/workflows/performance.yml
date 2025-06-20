@@ -1,0 +1,264 @@
+name: Performance
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run performance tests weekly on Sundays at 3 AM UTC
+    - cron: '0 3 * * 0'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+
+    - name: Install dependencies
+      run: |
+        bundle install
+        gem install benchmark-ips
+        gem install memory_profiler
+
+    - name: Run benchmarks
+      run: |
+        echo "Running performance benchmarks..."
+        
+        # Create benchmark script
+        cat << 'EOF' > benchmark.rb
+        #!/usr/bin/env ruby
+        require 'benchmark/ips'
+        require 'memory_profiler'
+        require 'bundler/setup'
+        require_relative 'lib/openai_agents'
+        
+        puts "🚀 OpenAI Agents Ruby Performance Benchmarks"
+        puts "=" * 50
+        
+        # Agent creation benchmark
+        puts "\n📊 Agent Creation Performance:"
+        Benchmark.ips do |x|
+          x.report("Agent.new") do
+            OpenAIAgents::Agent.new(
+              name: "BenchmarkAgent",
+              instructions: "Test agent for benchmarking",
+              model: "gpt-4"
+            )
+          end
+        end
+        
+        # Tool addition benchmark
+        puts "\n📊 Tool Addition Performance:"
+        agent = OpenAIAgents::Agent.new(name: "Test", instructions: "Test", model: "gpt-4")
+        test_tool = proc { |x| x * 2 }
+        
+        Benchmark.ips do |x|
+          x.report("add_tool") do
+            agent.add_tool(test_tool)
+          end
+        end
+        
+        # Memory usage analysis
+        puts "\n💾 Memory Usage Analysis:"
+        report = MemoryProfiler.report do
+          10.times do
+            agent = OpenAIAgents::Agent.new(
+              name: "MemoryTest#{rand(1000)}",
+              instructions: "Memory test agent",
+              model: "gpt-4"
+            )
+            agent.add_tool(proc { |x| x })
+          end
+        end
+        
+        puts "Total allocated: #{report.total_allocated} bytes"
+        puts "Total retained: #{report.total_retained} bytes"
+        
+        EOF
+        
+        ruby benchmark.rb
+
+    - name: Memory leak detection
+      run: |
+        echo "Checking for memory leaks..."
+        
+        cat << 'EOF' > memory_test.rb
+        require 'bundler/setup'
+        require_relative 'lib/openai_agents'
+        require 'objspace'
+        
+        puts "🔍 Memory Leak Detection"
+        puts "=" * 30
+        
+        # Track object counts before
+        ObjectSpace.count_objects.each { |k, v| puts "Before #{k}: #{v}" if k.to_s.include?('T_') }
+        
+        # Create and destroy many agents
+        1000.times do |i|
+          agent = OpenAIAgents::Agent.new(
+            name: "Agent#{i}",
+            instructions: "Test agent #{i}",
+            model: "gpt-4"
+          )
+          agent = nil
+        end
+        
+        # Force garbage collection
+        GC.start
+        
+        puts "\nAfter creating/destroying 1000 agents:"
+        ObjectSpace.count_objects.each { |k, v| puts "After #{k}: #{v}" if k.to_s.include?('T_') }
+        
+        EOF
+        
+        ruby memory_test.rb
+
+    - name: Load testing
+      run: |
+        echo "Running load tests..."
+        
+        cat << 'EOF' > load_test.rb
+        require 'bundler/setup'
+        require_relative 'lib/openai_agents'
+        require 'benchmark'
+        
+        puts "⚡ Load Testing"
+        puts "=" * 20
+        
+        # Test concurrent agent creation
+        time = Benchmark.measure do
+          threads = []
+          100.times do |i|
+            threads << Thread.new do
+              agent = OpenAIAgents::Agent.new(
+                name: "LoadAgent#{i}",
+                instructions: "Load test agent",
+                model: "gpt-4"
+              )
+              # Simulate some work
+              sleep(0.001)
+            end
+          end
+          threads.each(&:join)
+        end
+        
+        puts "Created 100 agents concurrently in #{time.real.round(3)} seconds"
+        puts "Average time per agent: #{(time.real / 100 * 1000).round(2)}ms"
+        
+        EOF
+        
+        ruby load_test.rb
+
+  profiling:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+
+    - name: Install profiling tools
+      run: |
+        bundle install
+        gem install ruby-prof
+        gem install stackprof
+
+    - name: CPU profiling
+      run: |
+        echo "Running CPU profiling..."
+        
+        cat << 'EOF' > cpu_profile.rb
+        require 'ruby-prof'
+        require 'bundler/setup'
+        require_relative 'lib/openai_agents'
+        
+        puts "🔥 CPU Profiling"
+        puts "=" * 20
+        
+        RubyProf.start
+        
+        # Code to profile
+        100.times do
+          agent = OpenAIAgents::Agent.new(
+            name: "ProfileAgent",
+            instructions: "CPU profiling test",
+            model: "gpt-4"
+          )
+          
+          # Add some tools
+          agent.add_tool(proc { |x| x * 2 })
+          agent.add_tool(proc { |x| x + 1 })
+        end
+        
+        result = RubyProf.stop
+        
+        # Print a flat profile to text
+        printer = RubyProf::FlatPrinter.new(result)
+        puts "\nTop 10 methods by total time:"
+        printer.print(STDOUT, min_percent: 1)
+        
+        EOF
+        
+        ruby cpu_profile.rb
+
+    - name: Upload profiling results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results
+        path: |
+          *.prof
+          *.html
+        retention-days: 7
+
+  size-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Analyze gem size
+      run: |
+        echo "📦 Gem Size Analysis"
+        echo "=" * 25
+        
+        # Calculate total size
+        total_size=$(du -sh . | cut -f1)
+        echo "Total repository size: $total_size"
+        
+        # Library size
+        lib_size=$(du -sh lib 2>/dev/null | cut -f1 || echo "0")
+        echo "Library size: $lib_size"
+        
+        # Examples size
+        examples_size=$(du -sh examples 2>/dev/null | cut -f1 || echo "0")
+        echo "Examples size: $examples_size"
+        
+        # Documentation size
+        docs_size=$(du -sh *.md 2>/dev/null | awk '{sum+=$1} END {print sum "K"}' || echo "0")
+        echo "Documentation size: $docs_size"
+        
+        # File counts
+        echo ""
+        echo "📊 File Statistics:"
+        echo "Ruby files: $(find lib -name '*.rb' | wc -l)"
+        echo "Test files: $(find spec -name '*.rb' 2>/dev/null | wc -l || echo 0)"
+        echo "Example files: $(find examples -name '*.rb' 2>/dev/null | wc -l || echo 0)"
+        
+        # Lines of code
+        echo ""
+        echo "📏 Lines of Code:"
+        echo "Library LOC: $(find lib -name '*.rb' -exec wc -l {} \; | awk '{sum += $1} END {print sum}' || echo 0)"
+        echo "Test LOC: $(find spec -name '*.rb' -exec wc -l {} \; 2>/dev/null | awk '{sum += $1} END {print sum}' || echo 0)"
+        echo "Total LOC: $(find . -name '*.rb' -not -path './vendor/*' -exec wc -l {} \; | awk '{sum += $1} END {print sum}' || echo 0)"

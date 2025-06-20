@@ -1,0 +1,97 @@
+PATH
+  remote: .
+  specs:
+    openai_agents (0.1.0)
+      async (~> 2.0)
+      base64 (~> 0.1)
+      json (~> 2.0)
+      net-http (~> 0.3)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    ast (2.4.3)
+    async (2.25.0)
+      console (~> 1.29)
+      fiber-annotation
+      io-event (~> 1.11)
+      metrics (~> 0.12)
+      traces (~> 0.15)
+    base64 (0.3.0)
+    console (1.31.0)
+      fiber-annotation
+      fiber-local (~> 1.1)
+      json
+    diff-lcs (1.6.2)
+    fiber-annotation (0.2.0)
+    fiber-local (1.1.0)
+      fiber-storage
+    fiber-storage (1.0.1)
+    io-event (1.11.0)
+    json (2.12.2)
+    language_server-protocol (3.17.0.5)
+    lint_roller (1.1.0)
+    metrics (0.12.2)
+    net-http (0.6.0)
+      uri
+    parallel (1.27.0)
+    parser (3.3.8.0)
+      ast (~> 2.4.1)
+      racc
+    prism (1.4.0)
+    racc (1.8.1)
+    rainbow (3.1.1)
+    rake (13.3.0)
+    regexp_parser (2.10.0)
+    rspec (3.13.1)
+      rspec-core (~> 3.13.0)
+      rspec-expectations (~> 3.13.0)
+      rspec-mocks (~> 3.13.0)
+    rspec-collection_matchers (1.2.1)
+      rspec-expectations (>= 2.99.0.beta1)
+    rspec-core (3.13.4)
+      rspec-support (~> 3.13.0)
+    rspec-expectations (3.13.5)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.13.0)
+    rspec-mocks (3.13.5)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.13.0)
+    rspec-support (3.13.4)
+    rubocop (1.77.0)
+      json (~> 2.3)
+      language_server-protocol (~> 3.17.0.2)
+      lint_roller (~> 1.1.0)
+      parallel (~> 1.10)
+      parser (>= 3.3.0.2)
+      rainbow (>= 2.2.2, < 4.0)
+      regexp_parser (>= 2.9.3, < 3.0)
+      rubocop-ast (>= 1.45.1, < 2.0)
+      ruby-progressbar (~> 1.7)
+      unicode-display_width (>= 2.4.0, < 4.0)
+    rubocop-ast (1.45.1)
+      parser (>= 3.3.7.2)
+      prism (~> 1.4)
+    ruby-progressbar (1.13.0)
+    traces (0.15.2)
+    unicode-display_width (3.1.4)
+      unicode-emoji (~> 4.0, >= 4.0.4)
+    unicode-emoji (4.0.4)
+    uri (1.0.3)
+    yard (0.9.37)
+
+PLATFORMS
+  ruby
+  x86_64-darwin-24
+
+DEPENDENCIES
+  bundler (~> 2.0)
+  openai_agents!
+  rake (~> 13.0)
+  rspec (~> 3.0)
+  rspec-collection_matchers (~> 1.2)
+  rubocop (~> 1.21)
+  yard (~> 0.9)
+
+BUNDLED WITH
+   2.5.23
