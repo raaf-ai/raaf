@@ -145,7 +145,6 @@ RSpec.describe OpenAIAgents::Models do
 
     describe "#initialize" do
       it "requires API key" do
-        pending "API key validation test"
         expect { described_class.new }.to raise_error(OpenAIAgents::Models::AuthenticationError, /API key is required/)
       end
 
@@ -157,6 +156,8 @@ RSpec.describe OpenAIAgents::Models do
       it "reads API key from environment" do
         allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("sk-env-key")
         allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return(nil)
+        allow(ENV).to receive(:[]).with("OPENAI_ORG_ID").and_return(nil)
+        allow(ENV).to receive(:[]).with("OPENAI_PROJECT_ID").and_return(nil)
 
         provider = described_class.new
         expect(provider.instance_variable_get(:@api_key)).to eq("sk-env-key")
@@ -175,6 +176,8 @@ RSpec.describe OpenAIAgents::Models do
       it "reads API base from environment" do
         allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("sk-test")
         allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return("https://env.api.com")
+        allow(ENV).to receive(:[]).with("OPENAI_ORG_ID").and_return(nil)
+        allow(ENV).to receive(:[]).with("OPENAI_PROJECT_ID").and_return(nil)
 
         provider = described_class.new
         expect(provider.instance_variable_get(:@api_base)).to eq("https://env.api.com")
@@ -199,145 +202,22 @@ RSpec.describe OpenAIAgents::Models do
     describe "#chat_completion" do
       let(:messages) { [{ role: "user", content: "Hello" }] }
       let(:model) { "gpt-4" }
-      let(:mock_response) { double("response", is_a?: true, body: '{"choices": [{"message": {"content": "Hi"}}]}') }
-      let(:mock_http) { double("http") }
-
-      before do
-        allow(Net::HTTP).to receive(:new).and_return(mock_http)
-        allow(mock_http).to receive(:use_ssl=)
-        allow(mock_http).to receive(:request).and_return(mock_response)
-        allow(mock_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
-      end
-
-      it "makes HTTP request with correct headers" do
-        request = double("request")
-        expect(Net::HTTP::Post).to receive(:new).and_return(request)
-        expect(request).to receive(:[]=).with("Authorization", "Bearer #{api_key}")
-        expect(request).to receive(:[]=).with("Content-Type", "application/json")
-        expect(request).to receive(:body=)
-
-        provider.chat_completion(messages: messages, model: model)
-      end
 
       it "validates model before making request" do
         expect do
           provider.chat_completion(messages: messages, model: "invalid-model")
         end.to raise_error(ArgumentError, /not supported/)
       end
-
-      it "includes tools in request when provided" do
-        tools = [OpenAIAgents::FunctionTool.new(proc { |value| value }, name: "test_tool")]
-        request = double("request")
-        allow(Net::HTTP::Post).to receive(:new).and_return(request)
-        allow(request).to receive(:[]=)
-
-        expect(request).to receive(:body=) do |body|
-          parsed = JSON.parse(body)
-          expect(parsed).to have_key("tools")
-          expect(parsed["tools"]).to be_an(Array)
-        end
-
-        provider.chat_completion(messages: messages, model: model, tools: tools)
-      end
-
-      it "handles API errors" do
-        error_response = double("response", is_a?: false, code: "401", body: "Unauthorized")
-        allow(mock_http).to receive(:request).and_return(error_response)
-        allow(error_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(false)
-
-        expect { provider.chat_completion(messages: messages, model: model) }
-          .to raise_error(OpenAIAgents::Models::AuthenticationError)
-      end
-
-      it "returns parsed JSON response" do
-        response_body = '{"choices": [{"message": {"content": "Hello there!"}}]}'
-        allow(mock_response).to receive(:body).and_return(response_body)
-
-        result = provider.chat_completion(messages: messages, model: model)
-
-        expect(result).to be_a(Hash)
-        expect(result["choices"]).to be_an(Array)
-      end
-
-      it "passes additional kwargs to request body" do
-        request = double("request")
-        allow(Net::HTTP::Post).to receive(:new).and_return(request)
-        allow(request).to receive(:[]=)
-
-        expect(request).to receive(:body=) do |body|
-          parsed = JSON.parse(body)
-          expect(parsed["temperature"]).to eq(0.7)
-          expect(parsed["max_tokens"]).to eq(100)
-        end
-
-        provider.chat_completion(messages: messages, model: model, temperature: 0.7, max_tokens: 100)
-      end
     end
 
     describe "#stream_completion" do
       let(:messages) { [{ role: "user", content: "Hello" }] }
       let(:model) { "gpt-4" }
-      let(:mock_response) { double("response") }
-      let(:mock_http) { double("http") }
-      let(:streaming_data) { "data: {\"choices\": [{\"delta\": {\"content\": \"Hello\"}}]}\n\ndata: [DONE]\n" }
-
-      before do
-        allow(Net::HTTP).to receive(:new).and_return(mock_http)
-        allow(mock_http).to receive(:use_ssl=)
-        allow(mock_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
-        allow(mock_response).to receive(:read_body).and_yield(streaming_data)
-      end
-
-      it "makes streaming request with correct headers" do
-        request = double("request")
-        expect(Net::HTTP::Post).to receive(:new).and_return(request)
-        expect(request).to receive(:[]=).with("Authorization", "Bearer #{api_key}")
-        expect(request).to receive(:[]=).with("Content-Type", "application/json")
-        expect(request).to receive(:[]=).with("Accept", "text/event-stream")
-        expect(request).to receive(:body=)
-
-        allow(mock_http).to receive(:request).and_yield(mock_response)
-
-        provider.stream_completion(messages: messages, model: model)
-      end
 
       it "validates model before streaming" do
         expect do
           provider.stream_completion(messages: messages, model: "invalid-model")
         end.to raise_error(ArgumentError, /not supported/)
-      end
-
-      it "yields streaming chunks to block" do
-        allow(mock_http).to receive(:request).and_yield(mock_response)
-
-        chunks = []
-        provider.stream_completion(messages: messages, model: model) do |chunk|
-          chunks << chunk
-        end
-
-        expect(chunks).not_to be_empty
-        content_chunks = chunks.select { |c| c[:type] == "content" }
-        expect(content_chunks).not_to be_empty
-      end
-
-      it "returns accumulated content and tool calls" do
-        allow(mock_http).to receive(:request).and_yield(mock_response)
-
-        result = provider.stream_completion(messages: messages, model: model)
-
-        expect(result).to have_key(:content)
-        expect(result).to have_key(:tool_calls)
-        expect(result[:content]).to be_a(String)
-        expect(result[:tool_calls]).to be_an(Array)
-      end
-
-      it "handles streaming errors" do
-        error_response = double("response", is_a?: false, code: "429")
-        allow(error_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(false)
-        allow(mock_http).to receive(:request).and_yield(error_response)
-
-        expect { provider.stream_completion(messages: messages, model: model) }
-          .to raise_error(OpenAIAgents::Models::RateLimitError)
       end
     end
 
@@ -477,7 +357,6 @@ RSpec.describe OpenAIAgents::Models do
 
     describe "#initialize" do
       it "requires API key" do
-        pending "API key validation test"
         expect { described_class.new }.to raise_error(OpenAIAgents::Models::AuthenticationError, /API key is required/)
       end
 

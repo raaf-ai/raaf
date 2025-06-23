@@ -1,15 +1,11 @@
 # frozen_string_literal: true
 
-require "net/http"
-require "json"
-require "uri"
+require "openai"
 require_relative "interface"
 
 module OpenAIAgents
   module Models
     class OpenAIProvider < ModelInterface
-      DEFAULT_API_BASE = "https://api.openai.com/v1"
-
       SUPPORTED_MODELS = %w[
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4 gpt-4-32k
         gpt-3.5-turbo gpt-3.5-turbo-16k
@@ -19,71 +15,55 @@ module OpenAIAgents
       # rubocop:disable Lint/MissingSuper
       def initialize(api_key: nil, api_base: nil, **options)
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
-        @api_base = api_base || ENV["OPENAI_API_BASE"] || DEFAULT_API_BASE
-        @options = options
-
+        @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
+
+        @client = OpenAI::Client.new(
+          api_key: @api_key,
+          base_url: @api_base,
+          **options
+        )
       end
       # rubocop:enable Lint/MissingSuper
 
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
-        uri = URI("#{@api_base}/chat/completions")
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true
-
-        request = Net::HTTP::Post.new(uri)
-        request["Authorization"] = "Bearer #{@api_key}"
-        request["Content-Type"] = "application/json"
-
-        body = {
+        parameters = {
           model: model,
           messages: messages,
           stream: stream,
           **kwargs
         }
-        body[:tools] = prepare_tools(tools) if tools
+        parameters[:tools] = prepare_tools(tools) if tools
 
-        request.body = JSON.generate(body)
-
-        response = http.request(request)
-
-        handle_api_error(response, "OpenAI") unless response.is_a?(Net::HTTPSuccess)
-
-        JSON.parse(response.body)
+        begin
+          @client.chat.completions.create(**parameters)
+        rescue OpenAI::Errors::Error => e
+          handle_openai_error(e)
+        end
       end
 
       def stream_completion(messages:, model:, tools: nil, &block)
         validate_model(model)
 
-        uri = URI("#{@api_base}/chat/completions")
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true
-
-        request = Net::HTTP::Post.new(uri)
-        request["Authorization"] = "Bearer #{@api_key}"
-        request["Content-Type"] = "application/json"
-        request["Accept"] = "text/event-stream"
-
-        body = {
+        parameters = {
           model: model,
           messages: messages,
           stream: true
         }
-        body[:tools] = prepare_tools(tools) if tools
-
-        request.body = JSON.generate(body)
+        parameters[:tools] = prepare_tools(tools) if tools
 
         accumulated_content = String.new
         accumulated_tool_calls = {}
 
-        http.request(request) do |response|
-          handle_api_error(response, "OpenAI") unless response.is_a?(Net::HTTPSuccess)
-
-          response.read_body do |chunk|
-            process_stream_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
+        begin
+          stream = @client.chat.completions.stream_raw(parameters)
+          stream.each do |chunk|
+            process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
           end
+        rescue OpenAI::Errors::Error => e
+          handle_openai_error(e)
         end
 
         {
@@ -102,26 +82,15 @@ module OpenAIAgents
 
       private
 
-      def process_stream_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
-        chunk.split("\n").each do |line|
-          next unless line.start_with?("data: ")
+      def process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
+        return if chunk.nil? || chunk.empty?
 
-          data = line[6..].strip
-          next if data.empty? || data == "[DONE]"
+        delta = chunk.dig("choices", 0, "delta")
+        return unless delta
 
-          begin
-            json_data = JSON.parse(data)
-            delta = json_data.dig("choices", 0, "delta")
-
-            if delta
-              process_content_delta(delta, accumulated_content, &block)
-              process_tool_call_delta(delta, accumulated_tool_calls, &block)
-              process_finish_reason(json_data, accumulated_content, accumulated_tool_calls, &block)
-            end
-          rescue JSON::ParserError
-            next
-          end
-        end
+        process_content_delta(delta, accumulated_content, &block)
+        process_tool_call_delta(delta, accumulated_tool_calls, &block)
+        process_finish_reason(chunk, accumulated_content, accumulated_tool_calls, &block)
       end
 
       def process_content_delta(delta, accumulated_content)
@@ -168,8 +137,8 @@ module OpenAIAgents
         end
       end
 
-      def process_finish_reason(json_data, accumulated_content, accumulated_tool_calls)
-        finish_reason = json_data.dig("choices", 0, "finish_reason")
+      def process_finish_reason(chunk, accumulated_content, accumulated_tool_calls)
+        finish_reason = chunk.dig("choices", 0, "finish_reason")
         return unless finish_reason
 
         return unless block_given?
@@ -180,6 +149,19 @@ module OpenAIAgents
           accumulated_content: accumulated_content,
           accumulated_tool_calls: accumulated_tool_calls.values
         })
+      end
+
+      def handle_openai_error(error)
+        case error
+        when OpenAI::Errors::AuthenticationError
+          raise AuthenticationError, "Invalid API key for OpenAI"
+        when OpenAI::Errors::RateLimitError
+          raise RateLimitError, "Rate limit exceeded for OpenAI"
+        when OpenAI::Errors::InternalServerError
+          raise ServerError, "Server error from OpenAI: #{error.message}"
+        else
+          raise APIError, "API error from OpenAI: #{error.message}"
+        end
       end
     end
   end
