@@ -66,19 +66,25 @@ module OpenAIAgents
         raise ValidationError, "Expected object at #{path}, got #{data.class}" unless data.is_a?(Hash)
 
         # Check required fields
-        schema[:required]&.each do |field|
-          field_key = field.to_s
-          unless data.key?(field) || data.key?(field_key)
-            raise ValidationError, "Missing required field '#{field}' at #{path}"
+        required_fields = schema[:required]
+        if required_fields.is_a?(Array)
+          required_fields.each do |field|
+            field_key = field.to_s
+            unless data.key?(field) || data.key?(field_key)
+              raise ValidationError, "Missing required field '#{field}' at #{path}"
+            end
           end
         end
 
         # Validate properties
-        schema[:properties]&.each do |key, prop_schema|
-          key_str = key.to_s
-          if data.key?(key) || data.key?(key_str)
-            value = data[key] || data[key_str]
-            validate_type(value, prop_schema, "#{path}.#{key}")
+        properties = schema[:properties]
+        if properties.is_a?(Hash)
+          properties.each do |key, prop_schema|
+            key_str = key.to_s
+            if data.key?(key) || data.key?(key_str)
+              value = data[key] || data[key_str]
+              validate_type(value, prop_schema, "#{path}.#{key}")
+            end
           end
         end
 

@@ -15,6 +15,10 @@ require_relative "../lib/openai_agents"
 puts "🚀 OpenAI Agents Ruby - Complete Features Showcase"
 puts "=" * 70
 
+# Set demo API keys for testing
+ENV["OPENAI_API_KEY"] ||= "sk-demo-key-for-testing"
+ENV["ANTHROPIC_API_KEY"] ||= "sk-ant-demo-key-for-testing"
+
 # =============================================================================
 # 1. Configuration Management
 # =============================================================================
@@ -26,7 +30,7 @@ config = OpenAIAgents::Configuration.new(environment: "development")
 
 # Set configuration values
 config.set("openai.api_key", "sk-demo-key-for-testing")
-config.set("agent.default_model", "gpt-4")
+config.set("agent.default_model", "gpt-4.1") # Using latest GPT-4.1 model
 config.set("agent.max_turns", 15)
 
 puts "✅ Configuration loaded:"
@@ -103,11 +107,10 @@ puts "-" * 40
 
 # Register a custom extension
 OpenAIAgents::Extensions.register(:demo_extension) do |ext|
-  ext.name = "Demo Extension"
-  ext.type = :tool
-  ext.version = "1.0.0"
-  ext.description = "A demonstration extension"
-  ext.author = "OpenAI Agents Ruby Team"
+  ext.type(:tool)
+  ext.version("1.0.0")
+  ext.description("A demonstration extension")
+  ext.author("OpenAI Agents Ruby Team")
 
   ext.setup do |config|
     puts "    🔧 Setting up Demo Extension with config environment: #{config&.environment}"
@@ -170,7 +173,7 @@ customer_support = OpenAIAgents::Agent.new(
 technical_support = OpenAIAgents::Agent.new(
   name: "TechnicalSupport",
   instructions: "You are a technical support specialist. You handle complex technical issues and troubleshooting.",
-  model: "gpt-4",
+  model: "gpt-4.1", # Latest model with superior coding capabilities
   max_turns: 20
 )
 
@@ -199,9 +202,22 @@ file_search = OpenAIAgents::Tools::FileSearchTool.new(
   max_results: 5
 )
 
+# Create hosted tools (using OpenAI's hosted services)
 web_search = OpenAIAgents::Tools::WebSearchTool.new(
-  search_engine: "duckduckgo",
-  max_results: 3
+  user_location: { type: "approximate", city: "San Francisco" },
+  search_context_size: "high"
+)
+
+# Hosted file search tool (alternative to local file search)
+hosted_file_search = OpenAIAgents::Tools::HostedFileSearchTool.new(
+  file_ids: ["file-abc123", "file-def456"], # Replace with actual uploaded file IDs
+  ranking_options: { "boost_for_code_snippets" => true }
+)
+
+# Hosted computer tool (alternative to local computer control)
+hosted_computer = OpenAIAgents::Tools::HostedComputerTool.new(
+  display_width_px: 1920,
+  display_height_px: 1080
 )
 
 # Add tools to agents
@@ -209,9 +225,18 @@ customer_support.add_tool(file_search)
 technical_support.add_tool(file_search)
 technical_support.add_tool(web_search)
 
+# Demonstrate hosted tools (optional - comment out if not using)
+# technical_support.add_tool(hosted_file_search)
+# technical_support.add_tool(hosted_computer)
+
 puts "✅ Advanced tools configured:"
-puts "  File Search Tool: #{customer_support.tools.any? { |t| t.name == "file_search" }}"
-puts "  Web Search Tool: #{technical_support.tools.any? { |t| t.name == "web_search" }}"
+puts "  Local File Search Tool: #{customer_support.tools.any? { |t| t.name == "file_search" }}"
+puts "  Web Search Tool: #{technical_support.tools.any? { |t| t.name == "web_search_preview" }}"
+puts "  Location: #{web_search.user_location[:city]} (#{web_search.user_location[:type]})"
+puts "  Context Size: #{web_search.search_context_size}"
+puts "  Hosted Tools Available:"
+puts "    - HostedFileSearchTool (#{hosted_file_search.file_ids.length} files)"
+puts "    - HostedComputerTool (#{hosted_computer.display_width_px}x#{hosted_computer.display_height_px})"
 
 # =============================================================================
 # 6. Advanced Handoff System
@@ -528,6 +553,69 @@ puts "     repl = OpenAIAgents::REPL.new(agent: customer_support, tracer: tracer
 puts "     repl.start"
 
 # =============================================================================
+# 13. Batch Processing with 50% Cost Savings
+# =============================================================================
+puts "\n13. 📦 Batch Processing (50% Cost Savings)"
+puts "-" * 40
+
+# Create batch processor
+batch_processor = OpenAIAgents::BatchProcessor.new
+
+# Prepare sample batch requests
+batch_requests = [
+  {
+    model: "gpt-4.1",
+    messages: [
+      { role: "user", content: "What is the capital of France?" }
+    ],
+    max_tokens: 100
+  },
+  {
+    model: "gpt-4.1-mini", 
+    messages: [
+      { role: "user", content: "Explain machine learning in simple terms." }
+    ],
+    max_tokens: 150
+  },
+  {
+    model: "gpt-4.1",
+    messages: [
+      { role: "user", content: "Write a short poem about coding." }
+    ],
+    max_tokens: 200
+  }
+]
+
+puts "✅ Batch processor created:"
+puts "  Requests prepared: #{batch_requests.length}"
+puts "  Models used: gpt-4.1, gpt-4.1-mini"
+puts "  Cost savings: 50% compared to individual requests"
+
+# Example of submitting a batch (commented out to avoid actual API calls in demo)
+puts "\n📋 Example batch submission:"
+puts "  batch = batch_processor.submit_batch("
+puts "    batch_requests,"
+puts "    description: 'Sample batch processing demo',"
+puts "    completion_window: '24h'"
+puts "  )"
+puts ""
+puts "  # Wait for completion (with progress monitoring)"
+puts "  results = batch_processor.wait_for_completion(batch['id'])"
+puts ""
+puts "  # Process results"
+puts "  results.each do |result|"
+puts "    puts result['response']['choices'][0]['message']['content']"
+puts "  end"
+
+puts "\n🎯 Batch API Benefits:"
+puts "  💰 50% cost reduction compared to individual API calls"
+puts "  📦 Process up to 50,000 requests per batch"
+puts "  ⏱️  24-hour completion window"
+puts "  📊 Built-in progress monitoring and status tracking"
+puts "  🔄 Automatic retry and error handling"
+puts "  📈 Perfect for data processing, evaluations, and bulk operations"
+
+# =============================================================================
 # Summary and Next Steps
 # =============================================================================
 puts "\n#{"=" * 70}"
@@ -547,6 +635,8 @@ puts "   🛡️  Guardrails - Safety and validation systems"
 puts "   📋 Structured Output - Schema validation and formatting"
 puts "   📊 Analytics - Real-time monitoring and reporting"
 puts "   💻 REPL Interface - Interactive development environment"
+puts "   📦 Batch Processing - 50% cost savings on bulk operations"
+puts "   🚀 Latest Models - GPT-4.1 series with improved capabilities"
 
 puts "\n🚀 FRAMEWORK STATUS:"
 puts "   ✅ 100% Feature Parity with Python OpenAI Agents"

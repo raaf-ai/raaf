@@ -459,11 +459,14 @@ module OpenAIAgents
       def get_events_for_period(period)
         case period
         when :today
-          start_time = Time.now.utc.beginning_of_day
+          now = Time.now.utc
+          start_time = Time.utc(now.year, now.month, now.day)
         when :week
-          start_time = Time.now.utc.beginning_of_week
+          now = Time.now.utc
+          start_time = Time.utc(now.year, now.month, now.day) - ((now.wday - 1) * 24 * 60 * 60)
         when :month
-          start_time = Time.now.utc.beginning_of_month
+          now = Time.now.utc
+          start_time = Time.utc(now.year, now.month, 1)
         when :all
           start_time = nil
         else
@@ -539,6 +542,101 @@ module OpenAIAgents
                      .transform_values { |evs| { count: evs.length, latest: evs.last } }
       end
 
+      def calculate_events_per_hour(events)
+        return 0 if events.empty?
+
+        # Group events by hour
+        now = Time.now.utc
+        hours_ago = now - (24 * 60 * 60) # Last 24 hours
+        recent_events = events.select { |e| e[:timestamp] && e[:timestamp] > hours_ago }
+        
+        return 0 if recent_events.empty?
+        
+        # Calculate events per hour over the last 24 hours
+        recent_events.length / 24.0
+      end
+
+      def find_peak_hour(events)
+        return nil if events.empty?
+
+        # Group events by hour of day
+        hourly_counts = events.group_by { |e| e[:timestamp]&.hour || 0 }
+                              .transform_values(&:length)
+        
+        return nil if hourly_counts.empty?
+        
+        peak_hour, max_count = hourly_counts.max_by { |_hour, count| count }
+        { hour: peak_hour, count: max_count }
+      end
+
+      def analyze_response_times(events)
+        api_events = events.select { |e| e[:type] == :api_call && e[:duration] }
+        return { average: 0, min: 0, max: 0, count: 0 } if api_events.empty?
+
+        durations = api_events.map { |e| e[:duration] }
+        {
+          average: durations.sum.to_f / durations.length,
+          min: durations.min,
+          max: durations.max,
+          count: durations.length
+        }
+      end
+
+      def group_analytics(events, group_by)
+        return {} unless events.is_a?(Array) && group_by
+
+        case group_by
+        when :agent
+          group_by_agent(events)
+        when :provider
+          group_by_provider(events)
+        when :model
+          group_by_model(events)
+        when :hour
+          group_by_hour(events)
+        else
+          {}
+        end
+      end
+
+      def group_by_agent(events)
+        events.group_by { |e| e.dig(:metadata, :agent) || "unknown" }
+              .transform_values do |agent_events|
+                {
+                  interactions: agent_events.count,
+                  total_tokens: agent_events.sum { |e| e.dig(:tokens_used, :total_tokens) || 0 },
+                  total_cost: agent_events.sum { |e| e[:cost] || 0 },
+                  avg_duration: calculate_average(agent_events, :duration)
+                }
+              end
+      end
+
+      def group_by_provider(events)
+        events.group_by { |e| e[:provider] || "unknown" }
+              .transform_values do |provider_events|
+                {
+                  api_calls: provider_events.count,
+                  total_tokens: provider_events.sum { |e| e.dig(:tokens_used, :total_tokens) || 0 },
+                  total_cost: provider_events.sum { |e| e[:cost] || 0 }
+                }
+              end
+      end
+
+      def group_by_model(events)
+        events.group_by { |e| e[:model] || "unknown" }
+              .transform_values do |model_events|
+                {
+                  api_calls: model_events.count,
+                  total_tokens: model_events.sum { |e| e.dig(:tokens_used, :total_tokens) || 0 }
+                }
+              end
+      end
+
+      def group_by_hour(events)
+        events.group_by { |e| e[:timestamp]&.hour || 0 }
+              .transform_values { |hour_events| { count: hour_events.length } }
+      end
+
       def calculate_average(events, field)
         values = events.map { |e| e[field] }.compact
         return 0 if values.empty?
@@ -603,15 +701,13 @@ module OpenAIAgents
       def check_alerts
         return unless @enable_real_time
 
-        # rubocop:disable Lint/SelfAssignment
-        dashboard_data = dashboard_data
-        # rubocop:enable Lint/SelfAssignment
+        data = dashboard_data
 
         @alerts.each do |name, alert|
-          triggered = alert[:condition].call(dashboard_data)
+          triggered = alert[:condition].call(data)
 
           if triggered && !alert[:triggered]
-            handle_alert_triggered(name, dashboard_data)
+            handle_alert_triggered(name, data)
             alert[:triggered] = true
           elsif !triggered && alert[:triggered]
             alert[:triggered] = false
