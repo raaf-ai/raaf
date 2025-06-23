@@ -201,8 +201,7 @@ module OpenAIAgents
         request = Net::HTTP::Post.new(uri)
         # Important: Clear any default User-Agent that Net::HTTP might set
         request.delete('User-Agent')
-        request["Authorization"] = "Bearer #{@api_key[0..10]}..." if debug
-        request["Authorization"] = "Bearer #{@api_key}" unless debug
+        request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
         # DO NOT set User-Agent - Python SDK doesn't set it either
         request["OpenAI-Beta"] = "traces=v1"
@@ -242,7 +241,13 @@ module OpenAIAgents
           puts "\n[OpenAI Processor] === DEBUG: HTTP Request Details ==="
           puts "URL: #{uri}"
           puts "Headers:"
-          request.each_header { |key, value| puts "  #{key}: #{key == 'authorization' ? value[0..20] + '...' : value}" }
+          request.each_header { |key, value| 
+            if key.downcase == 'authorization' && value.start_with?('Bearer ')
+              puts "  #{key}: Bearer #{value[7..17]}..."
+            else
+              puts "  #{key}: #{value}"
+            end
+          }
           puts "\nPayload Structure:"
           puts "  - Data array contains #{payload_items.size} items:"
           puts "    [0] Trace object - ID: #{trace_data[:id]}, Workflow: #{trace_data[:workflow_name]}"
@@ -269,7 +274,7 @@ module OpenAIAgents
           puts "Headers:"
           response.each_header { |key, value| puts "  #{key}: #{value}" }
           puts "\nBody (first 500 chars):"
-          puts response.body[0..500]
+          puts response.body ? response.body[0..500] : "(empty)"
           puts "=== End DEBUG ===" 
         end
         
