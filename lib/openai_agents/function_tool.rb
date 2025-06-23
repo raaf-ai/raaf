@@ -66,23 +66,25 @@ module OpenAIAgents
 
     def extract_parameters(callable)
       # Extract parameter information from the callable
-      params = {}
+      properties = {}
+      required = []
 
       if callable.respond_to?(:parameters)
         callable.parameters.each do |type, name|
           case type
           when :req, :keyreq
-            params[name] = { type: "string", required: true }
+            properties[name] = { type: "string", description: "#{name} parameter" }
+            required << name.to_s
           when :opt, :key
-            params[name] = { type: "string", required: false }
+            properties[name] = { type: "string", description: "#{name} parameter" }
           end
         end
       end
 
       {
         type: "object",
-        properties: params,
-        required: params.select { |_, v| v[:required] }.keys
+        properties: properties,
+        required: required
       }
     end
   end

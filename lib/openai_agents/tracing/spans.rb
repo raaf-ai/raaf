@@ -10,8 +10,8 @@ module OpenAIAgents
                   :attributes, :events, :status, :kind
 
       def initialize(name:, trace_id: nil, parent_id: nil, kind: :internal)
-        @span_id = SecureRandom.hex(8)
-        @trace_id = trace_id || SecureRandom.hex(16)
+        @span_id = "span_#{SecureRandom.hex(12)}" # 24 chars hex
+        @trace_id = trace_id || "trace_#{SecureRandom.hex(16)}" # 32 chars hex
         @parent_id = parent_id
         @name = name
         @kind = kind
@@ -102,7 +102,7 @@ module OpenAIAgents
 
       def start_span(name, kind: :internal, parent: nil)
         parent_span = parent || @span_stack.last
-        trace_id = parent_span&.trace_id || SecureRandom.hex(16)
+        trace_id = parent_span&.trace_id || "trace_#{SecureRandom.hex(16)}"
         parent_id = parent_span&.span_id
 
         span = Span.new(

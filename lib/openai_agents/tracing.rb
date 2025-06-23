@@ -2,6 +2,8 @@
 
 require "json"
 require "time"
+require_relative "tracing/spans"
+require_relative "tracing/openai_processor"
 
 module OpenAIAgents
   class Tracer
