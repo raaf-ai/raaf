@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
-require "openai"
 require_relative "interface"
+require_relative "../http_client"
 
 module OpenAIAgents
   module Models
     class OpenAIProvider < ModelInterface
       SUPPORTED_MODELS = %w[
+        gpt-4.1 gpt-4.1-mini gpt-4.1-nano
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4 gpt-4-32k
         gpt-3.5-turbo gpt-3.5-turbo-16k
         o1-preview o1-mini
@@ -18,7 +19,7 @@ module OpenAIAgents
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
 
-        @client = OpenAI::Client.new(
+        @client = HTTPClient::Client.new(
           api_key: @api_key,
           base_url: @api_base,
           **options
@@ -29,6 +30,79 @@ module OpenAIAgents
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
+        # Check if we have hosted tools that require Responses API
+        if tools && has_hosted_tools?(tools)
+          responses_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
+        else
+          standard_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
+        end
+      end
+
+      def responses_completion(messages:, model:, tools: nil, **kwargs)
+        # Use Responses API for hosted tools like web_search
+        require "net/http"
+        require "json"
+        
+        uri = URI("https://api.openai.com/v1/responses")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        
+        request = Net::HTTP::Post.new(uri)
+        request["Authorization"] = "Bearer #{@api_key}"
+        request["Content-Type"] = "application/json"
+        
+        # Convert messages to input format
+        input = messages.last[:content] if messages.last
+        
+        prepared_tools = prepare_tools_for_responses_api(tools)
+        
+        body = {
+          model: model,
+          input: input,
+          tools: prepared_tools,
+          **kwargs
+        }
+        
+        request.body = body.to_json
+        
+        response = http.request(request)
+        handle_responses_api_response(response)
+      end
+
+      private
+
+      def prepare_tools_for_responses_api(tools)
+        return nil if tools.nil? || tools.empty?
+
+        tools.map do |tool|
+          case tool
+          when Hash
+            # Assume hash already has correct format, but ensure name is at top level
+            if tool[:function] && tool[:function][:name] && !tool[:name]
+              tool.merge(name: tool[:function][:name])
+            else
+              tool
+            end
+          when FunctionTool
+            # Convert FunctionTool to Responses API format with top-level name
+            {
+              type: "function",
+              name: tool.name,
+              function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters
+              }
+            }
+          when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
+            tool.to_tool_definition
+          else
+            raise ArgumentError, "Invalid tool type: #{tool.class}"
+          end
+        end
+      end
+
+      def standard_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         parameters = {
           model: model,
           messages: messages,
@@ -39,9 +113,61 @@ module OpenAIAgents
 
         begin
           @client.chat.completions.create(**parameters)
-        rescue OpenAI::Errors::Error => e
+        rescue HTTPClient::Error => e
           handle_openai_error(e)
         end
+      end
+
+      def has_hosted_tools?(tools)
+        return false unless tools
+
+        tools.any? do |tool|
+          case tool
+          when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
+            true
+          when Hash
+            tool[:type] == "web_search" || tool[:type] == "file_search" || tool[:type] == "computer"
+          else
+            false
+          end
+        end
+      end
+
+      def handle_responses_api_response(response)
+        case response.code
+        when "200"
+          data = JSON.parse(response.body)
+          puts "DEBUG: Raw Responses API response: #{data.inspect}"
+          # Convert to standard chat completion format
+          {
+            "choices" => [
+              {
+                "message" => {
+                  "role" => "assistant",
+                  "content" => extract_content_from_responses(data)
+                },
+                "finish_reason" => "stop"
+              }
+            ]
+          }
+        when "401"
+          raise AuthenticationError, "Invalid API key for OpenAI"
+        when "429"
+          raise RateLimitError, "Rate limit exceeded for OpenAI"
+        else
+          raise APIError, "Responses API Error: #{response.code} - #{response.body}"
+        end
+      end
+
+      def extract_content_from_responses(data)
+        if data["output"] && data["output"].any?
+          content = data["output"][0]
+          if content["content"] && content["content"].any?
+            return content["content"][0]["text"]
+          end
+        end
+        
+        data["text"] || "No content returned"
       end
 
       def stream_completion(messages:, model:, tools: nil, &block)
@@ -62,7 +188,7 @@ module OpenAIAgents
           stream.each do |chunk|
             process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
           end
-        rescue OpenAI::Errors::Error => e
+        rescue HTTPClient::Error => e
           handle_openai_error(e)
         end
 
@@ -153,12 +279,18 @@ module OpenAIAgents
 
       def handle_openai_error(error)
         case error
-        when OpenAI::Errors::AuthenticationError
+        when HTTPClient::AuthenticationError
           raise AuthenticationError, "Invalid API key for OpenAI"
-        when OpenAI::Errors::RateLimitError
+        when HTTPClient::RateLimitError
           raise RateLimitError, "Rate limit exceeded for OpenAI"
-        when OpenAI::Errors::InternalServerError
+        when HTTPClient::InternalServerError
           raise ServerError, "Server error from OpenAI: #{error.message}"
+        when HTTPClient::BadRequestError
+          raise APIError, "Bad request to OpenAI: #{error.message}"
+        when HTTPClient::APIConnectionError
+          raise APIError, "Connection error to OpenAI: #{error.message}"
+        when HTTPClient::APITimeoutError
+          raise APIError, "Timeout error from OpenAI: #{error.message}"
         else
           raise APIError, "API error from OpenAI: #{error.message}"
         end

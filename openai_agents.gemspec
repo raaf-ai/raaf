@@ -33,7 +33,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "async", "~> 2.0"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "net-http", "~> 0.3"
-  spec.add_dependency "openai", "~> 0.9"
 
   # base64 was moved to a bundled gem in Ruby 3.4+
   spec.add_dependency "base64", "~> 0.1"

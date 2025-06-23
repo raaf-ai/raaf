@@ -6,6 +6,32 @@ require_relative "../function_tool"
 
 module OpenAIAgents
   module Tools
+    # Hosted file search tool for OpenAI API
+    class HostedFileSearchTool
+      attr_reader :file_ids, :ranking_options
+
+      def initialize(file_ids: [], ranking_options: nil)
+        @file_ids = Array(file_ids)
+        @ranking_options = ranking_options
+      end
+
+      def name
+        "file_search"
+      end
+
+      def to_tool_definition
+        {
+          type: "file_search",
+          name: "file_search",
+          file_search: {
+            file_ids: @file_ids,
+            ranking_options: @ranking_options
+          }.compact
+        }
+      end
+    end
+
+    # Local file search tool implementation
     class FileSearchTool < FunctionTool
       def initialize(search_paths: ["."], file_extensions: nil, max_results: 10)
         @search_paths = Array(search_paths)

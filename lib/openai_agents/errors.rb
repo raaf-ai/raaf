@@ -12,4 +12,14 @@ module OpenAIAgents
   class TracingError < Error; end
 
   class MaxTurnsError < Error; end
+
+  class BatchError < Error; end
+
+  class AuthenticationError < Error; end
+
+  class RateLimitError < Error; end
+
+  class ServerError < Error; end
+
+  class APIError < Error; end
 end

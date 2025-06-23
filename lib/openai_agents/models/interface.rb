@@ -47,6 +47,8 @@ module OpenAIAgents
             tool
           when FunctionTool
             tool.to_h
+          when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
+            tool.to_tool_definition
           else
             raise ArgumentError, "Invalid tool type: #{tool.class}"
           end

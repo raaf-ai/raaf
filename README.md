@@ -12,19 +12,24 @@ A comprehensive Ruby implementation of OpenAI Agents for building sophisticated 
 
 ### Core Framework
 - **🤖 Multi-Agent Workflows** - Specialized agents with intelligent routing
-- **🔧 Advanced Tool Integration** - File search, web search, computer automation
+- **🔧 Advanced Tool Integration** - File search, web search, computer automation, code interpreter
 - **↔️ Smart Agent Handoffs** - Context-aware routing with capability matching
 - **📡 Real-time Streaming** - Live response streaming with event handling
 - **📊 Comprehensive Tracing** - Span-based monitoring and visualization
-- **🎯 Provider Agnostic** - Support for OpenAI, Anthropic, Gemini, and 100+ LLMs
+- **🎯 Provider Agnostic** - Support for OpenAI, Anthropic, Gemini, Cohere, Groq, Ollama, Together AI, and 100+ LLMs
+- **🔌 MCP Support** - Model Context Protocol integration for tools and resources
 
 ### Advanced Capabilities
 - **🎤 Voice Workflows** - Complete speech-to-text and text-to-speech pipeline
-- **🛡️ Enterprise Guardrails** - Safety, validation, and compliance systems
+- **🛡️ Enterprise Guardrails** - Safety, validation, compliance, and tripwire systems
 - **📋 Structured Outputs** - Schema validation and formatted responses
 - **🔌 Extensions Framework** - Plugin architecture for custom functionality
 - **📈 Usage Analytics** - Resource monitoring and cost tracking
 - **⚙️ Configuration Management** - Environment-based configuration system
+- **🔄 Tool Context Management** - State persistence and execution tracking
+- **🔁 Retry Logic** - Automatic retry with exponential backoff
+- **🖥️ Code Execution** - Safe sandboxed Python/Ruby code interpreter
+- **🔧 Shell Commands** - Controlled local shell tool with safety features
 
 ### Developer Experience
 - **💻 Interactive REPL** - Real-time agent development and testing

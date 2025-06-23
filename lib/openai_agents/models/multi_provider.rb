@@ -2,6 +2,10 @@
 
 require_relative "openai_provider"
 require_relative "anthropic_provider"
+require_relative "cohere_provider"
+require_relative "groq_provider"
+require_relative "ollama_provider"
+require_relative "together_provider"
 
 module OpenAIAgents
   module Models
@@ -10,7 +14,11 @@ module OpenAIAgents
         @providers ||= {
           "openai" => OpenAIProvider,
           "anthropic" => AnthropicProvider,
-          "gemini" => GeminiProvider
+          "gemini" => GeminiProvider,
+          "cohere" => CohereProvider,
+          "groq" => GroqProvider,
+          "ollama" => OllamaProvider,
+          "together" => TogetherProvider
         }
       end
 
@@ -33,6 +41,15 @@ module OpenAIAgents
           "anthropic"
         when /^gemini-/
           "gemini"
+        when /^command-/
+          "cohere"
+        when /^llama/, /^mixtral/, /^gemma/
+          # Could be Groq, Together, or Ollama - default to Groq for speed
+          "groq"
+        when /^meta-llama/, /^mistralai/, /^NousResearch/, /^togethercomputer/
+          "together"
+        when /^codellama/, /^phi/, /^orca/, /^vicuna/
+          "ollama"
         # rubocop:disable Lint/DuplicateBranch
         else
           "openai" # Default fallback

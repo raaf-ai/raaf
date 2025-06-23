@@ -3,9 +3,12 @@
 require_relative "openai_agents/version"
 require_relative "openai_agents/agent"
 require_relative "openai_agents/runner"
+require_relative "openai_agents/run_config"
 require_relative "openai_agents/function_tool"
 require_relative "openai_agents/tracing"
 require_relative "openai_agents/streaming"
+require_relative "openai_agents/batch_processor"
+require_relative "openai_agents/http_client"
 require_relative "openai_agents/errors"
 
 # Advanced features
@@ -17,6 +20,10 @@ require_relative "openai_agents/guardrails"
 require_relative "openai_agents/structured_output"
 require_relative "openai_agents/result"
 require_relative "openai_agents/tracing/spans"
+require_relative "openai_agents/tracing/trace_provider"
+require_relative "openai_agents/tracing/batch_processor"
+require_relative "openai_agents/tracing/openai_processor"
+require_relative "openai_agents/tracing/otel_adapter"
 require_relative "openai_agents/visualization"
 require_relative "openai_agents/debugging"
 require_relative "openai_agents/repl"
@@ -128,4 +135,20 @@ module OpenAIAgents
   #     puts "OpenAI Agents error: #{e.message}"
   #   end
   class Error < StandardError; end
+  
+  ##
+  # Global tracer access
+  #
+  # @return [OpenAIAgents::Tracing::SpanTracer] The global tracer instance
+  def self.tracer(name = nil)
+    Tracing::TraceProvider.tracer(name)
+  end
+  
+  ##
+  # Configure global tracing
+  #
+  # @yield [OpenAIAgents::Tracing::TraceProvider] The trace provider for configuration
+  def self.configure_tracing(&block)
+    Tracing::TraceProvider.configure(&block)
+  end
 end

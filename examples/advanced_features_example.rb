@@ -39,15 +39,21 @@ file_search = OpenAIAgents::Tools::FileSearchTool.new(
   max_results: 5
 )
 
-# Web search tool
+# Web search tool with Python-compatible location format
 web_search = OpenAIAgents::Tools::WebSearchTool.new(
-  search_engine: "duckduckgo",
-  max_results: 3
+  user_location: "San Francisco, CA",
+  search_context_size: "medium"
 )
 
 # Computer control tool (with restricted actions for safety)
 computer_tool = OpenAIAgents::Tools::ComputerTool.new(
   allowed_actions: [:screenshot]
+)
+
+# Alternative: Use hosted computer tool
+hosted_computer_tool = OpenAIAgents::Tools::HostedComputerTool.new(
+  display_width_px: 1280,
+  display_height_px: 720
 )
 
 # Add tools to agent
@@ -57,8 +63,9 @@ openai_agent.add_tool(computer_tool)
 
 puts "✅ Added advanced tools:"
 puts "  - File Search Tool (searches .rb, .md files)"
-puts "  - Web Search Tool (DuckDuckGo)"
+puts "  - Web Search Tool (OpenAI hosted, location: #{web_search.user_location})"
 puts "  - Computer Tool (screenshot only)"
+puts "  - Hosted Computer Tool available (#{hosted_computer_tool.display_width_px}x#{hosted_computer_tool.display_height_px})"
 
 # 3. Guardrails System
 puts "\n3. Guardrails System"

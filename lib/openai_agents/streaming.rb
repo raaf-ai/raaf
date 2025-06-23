@@ -2,15 +2,91 @@
 
 require "net/http"
 require "json"
+require_relative "models/openai_provider"
 
 module OpenAIAgents
   class StreamingClient
-    def initialize(api_key:, api_base: "https://api.openai.com/v1")
+    def initialize(api_key:, api_base: "https://api.openai.com/v1", provider: nil)
       @api_key = api_key
       @api_base = api_base
+      @provider = provider || Models::OpenAIProvider.new(api_key: api_key, api_base: api_base)
     end
 
     def stream_completion(messages:, model:, tools: nil)
+      # Check if we have hosted tools that require Responses API
+      if tools && has_hosted_tools?(tools)
+        stream_with_responses_api(messages: messages, model: model, tools: tools)
+      else
+        stream_with_chat_api(messages: messages, model: model, tools: tools)
+      end
+    end
+
+    private
+
+    def has_hosted_tools?(tools)
+      return false unless tools
+
+      tools.any? do |tool|
+        case tool
+        when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
+          true
+        when Hash
+          tool[:type] == "web_search" || tool[:type] == "file_search" || tool[:type] == "computer"
+        else
+          false
+        end
+      end
+    end
+
+    def stream_with_responses_api(messages:, model:, tools:)
+      uri = URI("https://api.openai.com/v1/responses")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+
+      request = Net::HTTP::Post.new(uri)
+      request["Authorization"] = "Bearer #{@api_key}"
+      request["Content-Type"] = "application/json"
+
+      # Convert messages to input format for Responses API
+      input = messages.last[:content] || messages.last["content"] if messages.last
+
+      body = {
+        model: model,
+        input: input,
+        stream: true,
+        tools: prepare_tools_for_responses_api(tools)
+      }
+
+      request.body = JSON.generate(body)
+
+      accumulated_content = ""
+
+      http.request(request) do |response|
+        response.read_body do |chunk|
+          chunk.split("\n").each do |line|
+            next unless line.start_with?("data: ")
+
+            data = line[6..].strip
+            next if data.empty? || data == "[DONE]"
+
+            begin
+              json_data = JSON.parse(data)
+              content = extract_content_from_responses_stream(json_data)
+              if content
+                accumulated_content += content
+                yield(content) if block_given?
+              end
+            rescue JSON::ParserError
+              # Skip invalid JSON
+            end
+          end
+        end
+      end
+
+      { content: accumulated_content }
+    end
+
+    def stream_with_chat_api(messages:, model:, tools:)
       uri = URI("#{@api_base}/chat/completions")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -108,6 +184,29 @@ module OpenAIAgents
         content: accumulated_content,
         tool_calls: accumulated_tool_calls.values
       }
+    end
+
+    def prepare_tools_for_responses_api(tools)
+      tools.map do |tool|
+        case tool
+        when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
+          tool.to_tool_definition
+        when Hash
+          tool
+        else
+          # Convert FunctionTool to hash format
+          tool.respond_to?(:to_h) ? tool.to_h : tool
+        end
+      end
+    end
+
+    def extract_content_from_responses_stream(event)
+      # Extract content from Responses API streaming event
+      if event["output"] && event["output"][0] && event["output"][0]["content"]
+        content = event["output"][0]["content"][0]["text"]
+        return content if content
+      end
+      nil
     end
   end
 

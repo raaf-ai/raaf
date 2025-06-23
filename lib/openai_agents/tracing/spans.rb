@@ -171,9 +171,10 @@ module OpenAIAgents
     class SpanTracer
       attr_reader :context, :processors
 
-      def initialize
+      def initialize(provider = nil)
         @context = SpanContext.new
         @processors = []
+        @provider = provider
         @config = {
           max_spans_per_trace: 1000,
           max_events_per_span: 100,
@@ -190,9 +191,7 @@ module OpenAIAgents
         span.attributes = attributes unless attributes.empty?
 
         # Notify processors
-        @processors.each do |processor|
-          processor.on_start(span) if processor.respond_to?(:on_start)
-        end
+        notify_processors(:on_span_start, span)
 
         if block_given?
           begin
@@ -209,9 +208,7 @@ module OpenAIAgents
             raise
           ensure
             @context.finish_span(span)
-            @processors.each do |processor|
-              processor.on_end(span) if processor.respond_to?(:on_end)
-            end
+            notify_processors(:on_span_end, span)
           end
         else
           span
@@ -236,9 +233,7 @@ module OpenAIAgents
         finished_span = @context.finish_span(span)
 
         if finished_span
-          @processors.each do |processor|
-            processor.on_end(finished_span) if processor.respond_to?(:on_end)
-          end
+          notify_processors(:on_span_end, finished_span)
         end
 
         finished_span
@@ -273,37 +268,79 @@ module OpenAIAgents
         @context.clear
       end
 
+      def flush
+        # Flush all processors that support it
+        @processors.each do |processor|
+          processor.flush if processor.respond_to?(:flush)
+        end
+      end
+
       # Convenience methods for common span types
-      def agent_span(agent_name, **attributes)
+      def agent_span(agent_name, **attributes, &block)
         start_span("agent.#{agent_name}", kind: :agent,
-                                          "agent.name" => agent_name, **attributes)
+                                          "agent.name" => agent_name, **attributes, &block)
       end
 
-      def tool_span(tool_name, **attributes)
+      def tool_span(tool_name, **attributes, &block)
         start_span("tool.#{tool_name}", kind: :tool,
-                                        "tool.name" => tool_name, **attributes)
+                                        "tool.name" => tool_name, **attributes, &block)
       end
 
-      def llm_span(model_name, **attributes)
+      def llm_span(model_name, **attributes, &block)
         start_span("llm.completion", kind: :llm,
-                                     "llm.model" => model_name, **attributes)
+                                     "llm.model" => model_name, **attributes, &block)
       end
 
-      def handoff_span(from_agent, to_agent, **attributes)
+      def handoff_span(from_agent, to_agent, **attributes, &block)
         start_span("handoff", kind: :handoff,
                               "handoff.from" => from_agent,
                               "handoff.to" => to_agent,
-                              **attributes)
+                              **attributes, &block)
+      end
+      
+      def span(name, type: nil, **attributes, &block)
+        kind = type || :internal
+        start_span(name, kind: kind, **attributes, &block)
+      end
+      
+      def set_attributes(attributes)
+        span = current_span
+        attributes.each { |k, v| span&.set_attribute(k, v) }
+      end
+      
+      def record_exception(exception)
+        span = current_span
+        return unless span
+        
+        span.set_status(:error, description: exception.message)
+        span.add_event("exception", attributes: {
+          "exception.type" => exception.class.name,
+          "exception.message" => exception.message,
+          "exception.stacktrace" => exception.backtrace&.first(10)&.join("\n")
+        })
+      end
+      
+      private
+      
+      def notify_processors(method, span)
+        processors = @processors.dup
+        processors += @provider.processors if @provider&.respond_to?(:processors)
+        
+        processors.each do |processor|
+          processor.send(method, span) if processor.respond_to?(method)
+        rescue StandardError => e
+          warn "[SpanTracer] Error in processor.#{method}: #{e.message}"
+        end
       end
     end
 
     # Span processors
     class ConsoleSpanProcessor
-      def on_start(span)
+      def on_span_start(span)
         puts "[SPAN START] #{span.name} (#{span.span_id})"
       end
 
-      def on_end(span)
+      def on_span_end(span)
         duration = span.duration ? "#{(span.duration * 1000).round(2)}ms" : "unknown"
         status_icon = span.status == :error ? "❌" : "✅"
         puts "[SPAN END] #{status_icon} #{span.name} (#{span.span_id}) - #{duration}"
@@ -319,11 +356,11 @@ module OpenAIAgents
         @filename = filename
       end
 
-      def on_start(span)
+      def on_span_start(span)
         write_span_event("start", span)
       end
 
-      def on_end(span)
+      def on_span_end(span)
         write_span_event("end", span)
       end
 
@@ -349,11 +386,11 @@ module OpenAIAgents
         @spans = []
       end
 
-      def on_start(span)
+      def on_span_start(span)
         # Could track start events if needed
       end
 
-      def on_end(span)
+      def on_span_end(span)
         @spans << span.to_h
       end
 

@@ -81,7 +81,9 @@ module OpenAIAgents
     #   @return [String] the LLM model this agent uses (e.g., "gpt-4", "claude-3-sonnet")
     # @!attribute [rw] max_turns
     #   @return [Integer] maximum number of conversation turns before stopping
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns
+    # @!attribute [rw] output_schema
+    #   @return [Hash, nil] JSON schema for structured output validation
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema
 
     ##
     # Creates a new Agent instance
@@ -115,6 +117,7 @@ module OpenAIAgents
       @handoffs = (options[:handoffs] || []).dup
       @model = options[:model] || "gpt-4"
       @max_turns = options[:max_turns] || 10
+      @output_schema = options[:output_schema]
     end
 
     ##
@@ -150,8 +153,11 @@ module OpenAIAgents
         @tools << FunctionTool.new(tool)
       when FunctionTool
         @tools << tool
+      when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool, OpenAIAgents::Tools::HostedWebSearchTool
+        @tools << tool
       else
-        raise ToolError, "Tool must be a Proc, Method, or FunctionTool"
+        raise ToolError,
+              "Tool must be a Proc, Method, FunctionTool, or hosted tool (WebSearchTool, HostedFileSearchTool, HostedComputerTool)"
       end
     end
 

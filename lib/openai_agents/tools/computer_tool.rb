@@ -6,6 +6,34 @@ require_relative "../function_tool"
 
 module OpenAIAgents
   module Tools
+    # Hosted computer use tool for OpenAI API
+    class HostedComputerTool
+      attr_reader :display_width_px, :display_height_px, :display_number
+
+      def initialize(display_width_px: 1024, display_height_px: 768, display_number: nil)
+        @display_width_px = display_width_px
+        @display_height_px = display_height_px
+        @display_number = display_number
+      end
+
+      def name
+        "computer"
+      end
+
+      def to_tool_definition
+        {
+          type: "computer",
+          name: "computer",
+          computer: {
+            display_width_px: @display_width_px,
+            display_height_px: @display_height_px,
+            display_number: @display_number
+          }.compact
+        }
+      end
+    end
+
+    # Local computer control tool implementation
     class ComputerTool < FunctionTool
       def initialize(allowed_actions: %i[screenshot click type scroll], screen_size: nil)
         @allowed_actions = allowed_actions

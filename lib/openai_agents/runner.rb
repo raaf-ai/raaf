@@ -5,87 +5,234 @@ require "json"
 require "net/http"
 require "uri"
 require_relative "agent"
-require_relative "tracing"
-require_relative "tracing/spans"
 require_relative "errors"
+require_relative "models/openai_provider"
+require_relative "tracing/trace_provider"
+require_relative "structured_output"
 
 module OpenAIAgents
   class Runner
     attr_reader :agent, :tracer
 
-    def initialize(agent:, tracer: nil)
+    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false)
       @agent = agent
-      @tracer = tracer || setup_default_tracer
-      @api_key = ENV.fetch("OPENAI_API_KEY", nil)
-      @api_base = ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
+      @provider = provider || Models::OpenAIProvider.new
+      @disabled_tracing = disabled_tracing || ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
+      @tracer = tracer || (!@disabled_tracing ? OpenAIAgents.tracer : nil)
     end
 
-    def run(messages, stream: false)
-      # Start main execution span
-      @tracer.start_span("agent.run", kind: :agent, 
-                         "agent.name" => @agent.name, 
-                         "messages.count" => messages.size) do |run_span|
-        
-        conversation = messages.dup
-        current_agent = @agent
-        turns = 0
+    def run(messages, stream: false, config: nil, **kwargs)
+      # Handle both config object and legacy parameters
+      if config.nil? && !kwargs.empty?
+        # Legacy support: create config from kwargs
+        config = RunConfig.new(
+          stream: stream,
+          workflow_name: kwargs[:workflow_name] || "Agent workflow",
+          trace_id: kwargs[:trace_id],
+          group_id: kwargs[:group_id],
+          metadata: kwargs[:metadata],
+          **kwargs
+        )
+      elsif config.nil?
+        config = RunConfig.new(stream: stream)
+      end
+      
+      # Check if tracing is disabled
+      if config.tracing_disabled || @disabled_tracing || @tracer.nil?
+        return run_without_tracing(messages, config: config)
+      end
+      
+      # Set trace metadata if supported
+      if @tracer.respond_to?(:set_trace_metadata)
+        @tracer.set_trace_metadata({
+          workflow_name: config.workflow_name,
+          trace_id: config.trace_id,
+          group_id: config.group_id,
+          metadata: config.metadata
+        })
+      end
+      
+      run_with_tracing(messages, config: config, parent_span: nil)
+    end
+    
+    private
+    
+    def run_with_tracing(messages, config:, parent_span: nil)
+      @current_config = config  # Store for tool calls
+      conversation = messages.dup
+      current_agent = @agent
+      turns = 0
 
-        while turns < current_agent.max_turns
-          @tracer.start_span("agent.turn", kind: :agent,
-                            "turn.number" => turns,
-                            "agent.name" => current_agent.name) do |turn_span|
+      max_turns = config.max_turns || current_agent.max_turns
+      
+      while turns < max_turns
+        # Wrap each agent execution in an agent_span (matching Python implementation)
+        agent_result = @tracer.agent_span(current_agent.name || "agent") do |agent_span|
+          # Set agent span attributes to match Python implementation
+          agent_span.set_attribute("agent.name", current_agent.name || "agent")
+          agent_span.set_attribute("agent.handoffs", current_agent.handoffs.map(&:name))
+          agent_span.set_attribute("agent.tools", current_agent.tools&.map(&:name) || [])
+          agent_span.set_attribute("agent.output_type", "text")
+          
+          # Prepare messages for API call
+          api_messages = build_messages(conversation, current_agent)
 
-            # Prepare messages for API call
-            api_messages = build_messages(conversation, current_agent)
-
-            # Make API call
-            response = if stream
-                         stream_completion(api_messages, current_agent)
-                       else
-                         create_completion(api_messages, current_agent)
-                       end
-
-            turn_span.set_attribute("response.model", response.dig("model"))
-            turn_span.set_attribute("response.usage.prompt_tokens", response.dig("usage", "prompt_tokens"))
-            turn_span.set_attribute("response.usage.completion_tokens", response.dig("usage", "completion_tokens"))
-
-            # Process response
-            result = process_response(response, current_agent, conversation)
-
-            turns += 1
-
-            # Check for handoff
-            if result[:handoff]
-              handoff_agent = current_agent.find_handoff(result[:handoff])
-              raise HandoffError, "Cannot handoff to '#{result[:handoff]}'" unless handoff_agent
-
-              @tracer.handoff_span(current_agent.name, handoff_agent.name) do |handoff_span|
-                handoff_span.set_attribute("handoff.reason", result[:handoff])
-                current_agent = handoff_agent
-                turns = 0 # Reset turn counter for new agent
+          # Make API call using provider (generation_span in Python)
+          model = config.model || current_agent.model
+          response = @tracer.llm_span(model) do |llm_span|
+            llm_span.set_attribute("llm.request.model", current_agent.model)
+            
+            # Only include sensitive data if enabled
+            if config.trace_include_sensitive_data
+              llm_span.set_attribute("llm.request.messages", api_messages)
+            else
+              # Redact message content but keep structure
+              redacted_messages = api_messages.map do |msg|
+                { role: msg[:role], content: "[REDACTED]" }
               end
-              next
+              llm_span.set_attribute("llm.request.messages", redacted_messages)
             end
-
-            # Check if we're done
-            break if result[:done]
-
-            # Check max turns for current agent
-            raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
+            
+            llm_span.set_attribute("llm.request.tools", current_agent.tools&.map(&:name) || [])
+            llm_span.add_event("generation.start")
+            
+            # Merge config parameters with API call
+            model_params = config.to_model_params
+            
+            resp = if config.stream
+                     @provider.stream_completion(
+                       messages: api_messages,
+                       model: model,
+                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       **model_params
+                     )
+                   else
+                     @provider.chat_completion(
+                       messages: api_messages,
+                       model: model,
+                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       stream: false,
+                       **model_params
+                     )
+                   end
+            
+            # Extract usage if available
+            if resp.is_a?(Hash) && resp["usage"]
+              llm_span.set_attribute("llm.usage.prompt_tokens", resp["usage"]["prompt_tokens"])
+              llm_span.set_attribute("llm.usage.completion_tokens", resp["usage"]["completion_tokens"])
+              llm_span.set_attribute("llm.usage.total_tokens", resp["usage"]["total_tokens"])
+            end
+            
+            # Set response content
+            if resp.is_a?(Hash) && resp.dig("choices", 0, "message")
+              if config.trace_include_sensitive_data
+                llm_span.set_attribute("llm.response.content", resp.dig("choices", 0, "message", "content") || "")
+              else
+                llm_span.set_attribute("llm.response.content", "[REDACTED]")
+              end
+            end
+            
+            llm_span.add_event("generation.complete")
+            resp
           end
+
+          # Process response
+          process_response(response, current_agent, conversation)
+        end # End of agent_span
+
+        turns += 1
+
+        # Check for handoff
+        if agent_result[:handoff]
+          handoff_agent = current_agent.find_handoff(agent_result[:handoff])
+          raise HandoffError, "Cannot handoff to '#{agent_result[:handoff]}'" unless handoff_agent
+
+          @tracer.handoff_span(current_agent.name || "agent", handoff_agent.name || agent_result[:handoff]) do |handoff_span|
+            handoff_span.add_event("handoff.initiated", attributes: {
+              "handoff.from" => current_agent.name || "agent",
+              "handoff.to" => handoff_agent.name || agent_result[:handoff]
+            })
+          end
+          
+          current_agent = handoff_agent
+          turns = 0 # Reset turn counter for new agent
+          next
         end
 
-        run_span.set_attribute("run.final_agent", current_agent.name)
-        run_span.set_attribute("run.total_turns", turns)
-        run_span.set_attribute("run.status", "completed")
+        # Check if we're done
+        break if agent_result[:done]
 
-        {
-          messages: conversation,
-          agent: current_agent,
-          turns: turns,
-          traces: respond_to?(:export_spans) ? @tracer.export_spans : @tracer.traces
-        }
+        # Check max turns for current agent
+        raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
       end
+
+      {
+        messages: conversation,
+        agent: current_agent,
+        turns: turns
+      }
+    end
+    
+    def run_without_tracing(messages, config:)
+      @current_config = config  # Store for tool calls
+      conversation = messages.dup
+      current_agent = @agent
+      turns = 0
+
+      max_turns = config.max_turns || current_agent.max_turns
+      
+      while turns < max_turns
+        # Prepare messages for API call
+        api_messages = build_messages(conversation, current_agent)
+
+        # Make API call using provider (supports hosted tools)
+        model = config.model || current_agent.model
+        model_params = config.to_model_params
+        
+        response = if config.stream
+                     @provider.stream_completion(
+                       messages: api_messages,
+                       model: model,
+                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       **model_params
+                     )
+                   else
+                     @provider.chat_completion(
+                       messages: api_messages,
+                       model: model,
+                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       stream: false,
+                       **model_params
+                     )
+                   end
+
+        # Process response
+        result = process_response(response, current_agent, conversation)
+
+        turns += 1
+
+        # Check for handoff
+        if result[:handoff]
+          handoff_agent = current_agent.find_handoff(result[:handoff])
+          raise HandoffError, "Cannot handoff to '#{result[:handoff]}'" unless handoff_agent
+
+          current_agent = handoff_agent
+          turns = 0 # Reset turn counter for new agent
+          next
+        end
+
+        # Check if we're done
+        break if result[:done]
+
+        # Check max turns for current agent
+        raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
+      end
+
+      {
+        messages: conversation,
+        agent: current_agent,
+        turns: turns
+      }
     end
 
     def run_async(messages, stream: false)
@@ -94,15 +241,21 @@ module OpenAIAgents
       end
     end
 
-    private
-
     def build_messages(conversation, agent)
       system_message = {
         role: "system",
         content: build_system_prompt(agent)
       }
 
-      [system_message] + conversation
+      # Convert to symbol keys for consistency with provider expectations
+      formatted_conversation = conversation.map do |msg|
+        {
+          role: msg[:role] || msg["role"],
+          content: msg[:content] || msg["content"]
+        }
+      end
+
+      [system_message] + formatted_conversation
     end
 
     def build_system_prompt(agent)
@@ -128,69 +281,11 @@ module OpenAIAgents
       prompt
     end
 
-    def create_completion(messages, agent)
-      @tracer.llm_span(agent.model, 
-                       "llm.request.type" => "chat.completions",
-                       "llm.request.model" => agent.model) do |llm_span|
-        
-        uri = URI("#{@api_base}/chat/completions")
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true
-
-        request = Net::HTTP::Post.new(uri)
-        request["Authorization"] = "Bearer #{@api_key}"
-        request["Content-Type"] = "application/json"
-
-        tools = agent.tools? ? agent.tools.map(&:to_h) : nil
-
-        body = {
-          model: agent.model,
-          messages: messages,
-          max_tokens: 1000
-        }
-        body[:tools] = tools if tools
-
-        llm_span.set_attribute("llm.request.messages", messages)
-        llm_span.set_attribute("llm.request.max_tokens", 1000)
-        llm_span.set_attribute("llm.request.tools.count", tools&.size || 0)
-
-        request.body = JSON.generate(body)
-
-        response = http.request(request)
-        parsed_response = JSON.parse(response.body)
-
-        # Add response attributes to span
-        if parsed_response["usage"]
-          llm_span.set_attribute("llm.usage.prompt_tokens", parsed_response["usage"]["prompt_tokens"])
-          llm_span.set_attribute("llm.usage.completion_tokens", parsed_response["usage"]["completion_tokens"])
-          llm_span.set_attribute("llm.usage.total_tokens", parsed_response["usage"]["total_tokens"])
-        end
-        
-        # Add response content
-        if parsed_response.dig("choices", 0, "message", "content")
-          llm_span.set_attribute("llm.response.content", parsed_response.dig("choices", 0, "message", "content"))
-        end
-        
-        if parsed_response["error"]
-          llm_span.set_status(:error, description: parsed_response["error"]["message"])
-        else
-          llm_span.set_status(:ok)
-        end
-
-        parsed_response
-      end
-    end
-
-    def stream_completion(messages, agent)
-      # Simplified streaming implementation
-      # In a real implementation, you'd handle Server-Sent Events
-      create_completion(messages, agent)
-    end
 
     def process_response(response, agent, conversation)
       # Handle error responses
       if response["error"]
-        @tracer.add_event("api_error", error: response["error"])
+        puts "[Runner] API Error: #{response['error']}"
         return { done: true, handoff: nil, error: response["error"] }
       end
 
@@ -203,8 +298,16 @@ module OpenAIAgents
       # Build assistant message - handle both content and tool calls
       assistant_message = { role: "assistant" }
       
-      # Add content if present and not null
-      assistant_message[:content] = message["content"] if message["content"]
+      # Add content - set to empty string if null to avoid API errors
+      content = message["content"] || ""
+      
+      # Validate structured output if agent has output schema
+      if agent.output_schema && !content.empty? && !message["tool_calls"]
+        validated_content = validate_structured_output(content, agent.output_schema)
+        assistant_message[:content] = validated_content
+      else
+        assistant_message[:content] = content
+      end
       
       # Add tool calls if present
       assistant_message[:tool_calls] = message["tool_calls"] if message["tool_calls"]
@@ -212,6 +315,7 @@ module OpenAIAgents
       # Only add message to conversation if it has content or tool calls
       if assistant_message[:content] || assistant_message[:tool_calls]
         conversation << assistant_message
+        puts "[Runner] Added assistant message with #{assistant_message[:tool_calls]&.size || 0} tool calls"
       end
 
       result = { done: false, handoff: nil }
@@ -234,61 +338,108 @@ module OpenAIAgents
     end
 
     def process_tool_calls(tool_calls, agent, conversation)
+      puts "[Runner] Processing #{tool_calls.size} tool calls"
+      
       tool_calls.each do |tool_call|
         tool_name = tool_call.dig("function", "name")
         arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
 
-        @tracer.tool_span(tool_name, 
-                          "tool.call_id" => tool_call["id"],
-                          "tool.arguments" => arguments) do |tool_span|
+        puts "[Runner] Executing tool: #{tool_name} with call_id: #{tool_call['id']}"
+
+        begin
+          puts "[Runner] About to execute agent.execute_tool(#{tool_name}, #{arguments})"
           
-          begin
-            result = agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
+          # function_span in Python implementation
+          result = if @tracer && !@disabled_tracing
+                     # Get config from instance variable set by run methods
+                     trace_sensitive = @current_config&.trace_include_sensitive_data != false
+                     
+                     @tracer.tool_span(tool_name) do |tool_span|
+                       tool_span.set_attribute("function.name", tool_name)
+                       
+                       if trace_sensitive
+                         tool_span.set_attribute("function.input", arguments)
+                       else
+                         tool_span.set_attribute("function.input", "[REDACTED]")
+                       end
+                       
+                       tool_span.add_event("function.start")
+                       
+                       res = agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
+                       
+                       if trace_sensitive
+                         tool_span.set_attribute("function.output", res.to_s[0..1000]) # Limit size
+                       else
+                         tool_span.set_attribute("function.output", "[REDACTED]")
+                       end
+                       
+                       tool_span.add_event("function.complete")
+                       res
+                     end
+                   else
+                     agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
+                   end
+                   
+          puts "[Runner] Tool execution returned: #{result.class.name}"
+          puts "[Runner] Tool result: #{result.to_s[0..200]}..."
 
-            conversation << {
-              role: "tool",
-              tool_call_id: tool_call["id"],
-              content: result.to_s
-            }
-
-            tool_span.set_attribute("tool.result", result.to_s[0...1000]) # Limit size
-            tool_span.set_status(:ok)
-          rescue StandardError => e
-            conversation << {
-              role: "tool",
-              tool_call_id: tool_call["id"],
-              content: "Error: #{e.message}"
-            }
-
-            tool_span.set_status(:error, description: e.message)
-            tool_span.add_event("exception", 
-                               "exception.type" => e.class.name,
-                               "exception.message" => e.message)
+          tool_message = {
+            role: "tool",
+            tool_call_id: tool_call["id"],
+            content: result.to_s
+          }
+          
+          conversation << tool_message
+          puts "[Runner] Added tool message to conversation. Total messages: #{conversation.size}"
+          
+        rescue StandardError => e
+          puts "[Runner] Tool execution error: #{e.message}"
+          puts "[Runner] Error backtrace: #{e.backtrace[0..2].join('\n')}"
+          
+          if @tracer && !@disabled_tracing
+            @tracer.record_exception(e)
           end
+          
+          error_message = {
+            role: "tool",
+            tool_call_id: tool_call["id"],
+            content: "Error: #{e.message}"
+          }
+          
+          conversation << error_message
+          puts "[Runner] Added error message to conversation. Total messages: #{conversation.size}"
         end
       end
 
+      puts "[Runner] Tool processing complete. Conversation now has #{conversation.size} messages"
       false # Continue conversation after tool calls
     end
-
-    private
-
-    def setup_default_tracer
-      # Always use SpanTracer for consistency
-      tracer = OpenAIAgents::Tracing::SpanTracer.new
-
-      # Only add processors if tracing is enabled
-      unless ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "1"
-        # Add OpenAI processor if API key is available
-        if @api_key || ENV["OPENAI_API_KEY"]
-          tracer.add_processor(OpenAIAgents::Tracing::OpenAIProcessor.new)
+    
+    def validate_structured_output(content, schema)
+      # Try to parse as JSON if it looks like JSON
+      if content.strip.start_with?("{", "[")
+        begin
+          data = JSON.parse(content)
+          validator = StructuredOutput::ResponseFormatter.new(schema)
+          result = validator.format_response(data)
+          
+          if result[:valid]
+            # Return the validated data as JSON string
+            JSON.generate(result[:data])
+          else
+            # Log validation error but return original content
+            puts "[Runner] Structured output validation failed: #{result[:error]}"
+            content
+          end
+        rescue JSON::ParserError => e
+          # Not valid JSON, return as-is
+          puts "[Runner] Failed to parse structured output as JSON: #{e.message}"
+          content
         end
-        
-        # Always add console processor for local debugging (unless tracing disabled)
-        tracer.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new) if $DEBUG
+      else
+        # Not JSON format, return as-is
+        content
       end
-
-      tracer
     end
   end
 end
