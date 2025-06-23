@@ -102,7 +102,9 @@ module OpenAIAgents
 
       def start_span(name, kind: :internal, parent: nil)
         parent_span = parent || @span_stack.last
-        trace_id = parent_span&.trace_id || "trace_#{SecureRandom.hex(16)}"
+        # Use current trace's ID if available
+        current_trace = defined?(Context) ? Context.current_trace : nil
+        trace_id = current_trace&.trace_id || parent_span&.trace_id || "trace_#{SecureRandom.hex(16)}"
         parent_id = parent_span&.span_id
 
         span = Span.new(
@@ -296,6 +298,43 @@ module OpenAIAgents
                               "handoff.from" => from_agent,
                               "handoff.to" => to_agent,
                               **attributes, &block)
+      end
+      
+      def guardrail_span(guardrail_name, **attributes, &block)
+        start_span("guardrail.#{guardrail_name}", kind: :guardrail,
+                                                  "guardrail.name" => guardrail_name, **attributes, &block)
+      end
+      
+      def mcp_list_tools_span(server, **attributes, &block)
+        start_span("mcp.list_tools", kind: :mcp_list_tools,
+                                     "mcp.server" => server, **attributes, &block)
+      end
+      
+      def response_span(format, **attributes, &block)
+        start_span("response.format", kind: :response,
+                                      "response.format" => format, **attributes, &block)
+      end
+      
+      def speech_group_span(name, **attributes, &block)
+        start_span("speech_group.#{name}", kind: :speech_group,
+                                           "speech_group.name" => name, **attributes, &block)
+      end
+      
+      def speech_span(model, **attributes, &block)
+        start_span("speech.synthesis", kind: :speech,
+                                       "speech.model" => model, **attributes, &block)
+      end
+      
+      def transcription_span(model, **attributes, &block)
+        start_span("transcription", kind: :transcription,
+                                    "transcription.model" => model, **attributes, &block)
+      end
+      
+      def custom_span(name, data = {}, **attributes, &block)
+        start_span("custom.#{name}", kind: :custom,
+                                     "custom.name" => name,
+                                     "custom.data" => data,
+                                     **attributes, &block)
       end
       
       def span(name, type: nil, **attributes, &block)

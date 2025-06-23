@@ -27,6 +27,10 @@ module OpenAIAgents
         def add_processor(processor)
           instance.add_processor(processor)
         end
+        
+        def set_processors(*processors)
+          instance.set_processors(*processors)
+        end
 
         def shutdown
           instance.shutdown
@@ -74,6 +78,20 @@ module OpenAIAgents
 
       def add_processor(processor)
         @processors << processor unless @disabled
+      end
+      
+      def set_processors(*processors)
+        unless @disabled
+          # Shutdown existing processors
+          @processors.each do |processor|
+            processor.shutdown if processor.respond_to?(:shutdown)
+          rescue StandardError => e
+            warn "[TraceProvider] Error shutting down processor: #{e.message}"
+          end
+          
+          # Replace with new processors
+          @processors = processors
+        end
       end
 
       def remove_processor(processor)

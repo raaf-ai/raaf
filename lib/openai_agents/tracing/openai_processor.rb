@@ -32,7 +32,14 @@ module OpenAIAgents
       def on_span_end(span)
         @mutex.synchronize do
           @current_trace_id ||= span.trace_id
-          @span_buffer << transform_span(span)
+          
+          # Handle trace spans specially
+          if span.kind == :trace && span.attributes["trace.workflow_name"]
+            @workflow_name = span.attributes["trace.workflow_name"]
+          end
+          
+          transformed = transform_span(span)
+          @span_buffer << transformed if transformed
           
           if @span_buffer.size >= @batch_size
             flush_spans
@@ -54,8 +61,18 @@ module OpenAIAgents
         
         spans_by_trace.each do |trace_id, trace_spans|
           @current_trace_id = trace_id
-          transformed_spans = trace_spans.map { |span| transform_span(span) }
-          send_spans(transformed_spans)
+          
+          # Find trace span if any
+          trace_span = trace_spans.find { |s| s.kind == :trace }
+          
+          # Extract workflow name from trace span or use default
+          if trace_span
+            @workflow_name = trace_span.attributes["trace.workflow_name"] || @workflow_name
+          end
+          
+          # Transform spans, filtering out nils
+          transformed_spans = trace_spans.map { |span| transform_span(span) }.compact
+          send_spans(transformed_spans) unless transformed_spans.empty?
         end
       rescue StandardError => e
         warn "Failed to export spans to OpenAI: #{e.message}" 
@@ -76,19 +93,28 @@ module OpenAIAgents
       private
 
       def transform_span(span)
+        # Skip trace spans - they're handled separately
+        return nil if span.kind == :trace
+        
         # Create the span object with required fields
+        span_data = create_span_data(span)
+        return nil unless span_data
+        
         {
           object: "trace.span",
           id: span.span_id,
           trace_id: span.trace_id,
           started_at: span.start_time.utc.strftime('%Y-%m-%dT%H:%M:%S.%3NZ'),
           ended_at: span.end_time&.utc&.strftime('%Y-%m-%dT%H:%M:%S.%3NZ'),
-          span_data: create_span_data(span)
+          span_data: span_data
         }
       end
 
       def create_span_data(span)
         data = case span.kind
+        when :trace
+          # Trace spans are handled differently - they become the trace object
+          return nil
         when :agent
           {
             type: "agent",
@@ -111,13 +137,56 @@ module OpenAIAgents
             type: "function",
             name: span.attributes["function.name"] || span.attributes["tool.name"] || span.name,
             input: span.attributes["function.input"] || span.attributes["tool.arguments"],
-            output: span.attributes["function.output"] || span.attributes["tool.result"]
+            output: span.attributes["function.output"] || span.attributes["tool.result"],
+            mcp_data: span.attributes["function.mcp_data"] || span.attributes["tool.mcp_data"]
           }
         when :handoff
           {
             type: "handoff",
             from_agent: span.attributes["handoff.from"],
             to_agent: span.attributes["handoff.to"]
+          }
+        when :guardrail
+          {
+            type: "guardrail",
+            name: span.attributes["guardrail.name"] || span.name,
+            triggered: span.attributes["guardrail.triggered"] || false
+          }
+        when :mcp_list_tools
+          {
+            type: "mcp_tools",
+            server: span.attributes["mcp.server"],
+            result: span.attributes["mcp.result"] || span.attributes["mcp.tools"] || []
+          }
+        when :response
+          {
+            type: "response",
+            response: span.attributes["response.response"],
+            input: span.attributes["response.input"]
+          }
+        when :speech_group
+          {
+            type: "speech_group",
+            input: span.attributes["speech_group.input"]
+          }
+        when :speech
+          {
+            type: "speech",
+            input: span.attributes["speech.input"],
+            output: span.attributes["speech.output"],
+            output_format: span.attributes["speech.output_format"] || "pcm",
+            model: span.attributes["speech.model"],
+            model_config: span.attributes["speech.model_config"],
+            first_content_at: span.attributes["speech.first_content_at"]
+          }
+        when :transcription
+          {
+            type: "transcription",
+            input: span.attributes["transcription.input"],
+            input_format: span.attributes["transcription.input_format"] || "pcm",
+            output: span.attributes["transcription.output"],
+            model: span.attributes["transcription.model"],
+            model_config: span.attributes["transcription.model_config"]
           }
         else
           {
@@ -127,8 +196,8 @@ module OpenAIAgents
           }
         end
         
-        # Don't include parent_span_id in span_data - the API doesn't accept it there
-        data
+        # Remove nil values to match Python implementation
+        data.compact
       end
 
 

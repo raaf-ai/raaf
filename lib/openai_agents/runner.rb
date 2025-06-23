@@ -42,17 +42,24 @@ module OpenAIAgents
         return run_without_tracing(messages, config: config)
       end
       
-      # Set trace metadata if supported
-      if @tracer.respond_to?(:set_trace_metadata)
-        @tracer.set_trace_metadata({
-          workflow_name: config.workflow_name,
-          trace_id: config.trace_id,
-          group_id: config.group_id,
-          metadata: config.metadata
-        })
-      end
+      # Check if we're already inside a trace
+      require_relative "tracing/trace"
+      current_trace = Tracing::Context.current_trace
       
-      run_with_tracing(messages, config: config, parent_span: nil)
+      if current_trace && current_trace.active?
+        # We're inside an existing trace, just run normally
+        run_with_tracing(messages, config: config, parent_span: nil)
+      else
+        # Create a new trace for this run
+        workflow_name = config.workflow_name || "Agent workflow"
+        
+        Tracing.trace(workflow_name, 
+                     trace_id: config.trace_id,
+                     group_id: config.group_id,
+                     metadata: config.metadata) do |trace|
+          run_with_tracing(messages, config: config, parent_span: nil)
+        end
+      end
     end
     
     private
