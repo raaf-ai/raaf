@@ -2,6 +2,8 @@
 
 require_relative "function_tool"
 require_relative "errors"
+require_relative "lifecycle"
+require_relative "prompts"
 
 module OpenAIAgents
   ##
@@ -83,7 +85,11 @@ module OpenAIAgents
     #   @return [Integer] maximum number of conversation turns before stopping
     # @!attribute [rw] output_schema
     #   @return [Hash, nil] JSON schema for structured output validation
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema
+    # @!attribute [rw] hooks
+    #   @return [AgentHooks, nil] lifecycle hooks for this specific agent
+    # @!attribute [rw] prompt
+    #   @return [Prompt, DynamicPromptFunction, Hash, Proc, nil] prompt configuration for Responses API
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema, :hooks, :prompt
 
     ##
     # Creates a new Agent instance
@@ -112,12 +118,14 @@ module OpenAIAgents
     #   )
     def initialize(name:, instructions: nil, **options)
       @name = name
-      @instructions = instructions
+      self.instructions = instructions # Use setter to support dynamic instructions
       @tools = (options[:tools] || []).dup
       @handoffs = (options[:handoffs] || []).dup
       @model = options[:model] || "gpt-4"
       @max_turns = options[:max_turns] || 10
       @output_schema = options[:output_schema]
+      @hooks = options[:hooks]
+      @prompt = options[:prompt]
     end
 
     ##

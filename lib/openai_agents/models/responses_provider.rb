@@ -21,6 +21,11 @@ module OpenAIAgents
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
       end
 
+      # Indicates this provider supports prompts (for Responses API)
+      def supports_prompts?
+        true
+      end
+
       def chat_completion(messages:, model:, tools: nil, stream: false, **)
         validate_model(model)
         responses_completion(messages: messages, model: model, tools: tools, **)
@@ -84,6 +89,13 @@ module OpenAIAgents
           input: input
         }
         body[:instructions] = instructions if instructions
+        
+        # Add prompt support if provided
+        if kwargs[:prompt]
+          body[:prompt] = kwargs[:prompt]
+          kwargs = kwargs.dup
+          kwargs.delete(:prompt)
+        end
 
         # Convert response_format to text.format for Responses API (matching Python implementation)
         if kwargs[:response_format]

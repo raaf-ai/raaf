@@ -74,6 +74,9 @@ module OpenAIAgents
     # @return [Hash] Additional model-specific parameters
     attr_accessor :model_kwargs
 
+    # @return [RunHooks, nil] Lifecycle hooks for this run
+    attr_accessor :hooks
+
     def initialize(
       max_turns: nil,
       trace_id: nil,

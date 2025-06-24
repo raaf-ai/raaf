@@ -1,0 +1,315 @@
+# frozen_string_literal: true
+
+require "async"
+require_relative "../runner"
+require_relative "base"
+
+module OpenAIAgents
+  module Async
+    # Async version of the Runner class that provides true async/await support
+    class Runner < OpenAIAgents::Runner
+      include Base
+
+      def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false)
+        super
+        # Ensure provider supports async if available
+        if @provider.respond_to?(:async_chat_completion)
+          @async_provider = @provider
+        else
+          # Wrap synchronous provider
+          @async_provider = AsyncProviderWrapper.new(@provider)
+        end
+      end
+
+      # Async version of run - returns a Task that can be awaited
+      def run_async(messages, stream: false, config: nil, **kwargs)
+        Async do
+          # Normalize messages input
+          messages = normalize_messages(messages)
+          
+          # Create config
+          config = create_config(config, stream, kwargs)
+          
+          # Run with or without tracing
+          if should_trace?(config)
+            await run_with_tracing_async(messages, config: config)
+          else
+            await run_without_tracing_async(messages, config: config)
+          end
+        end
+      end
+
+      # Synchronous run that waits for async completion
+      def run(messages, stream: false, config: nil, **kwargs)
+        task = run_async(messages, stream: stream, config: config, **kwargs)
+        task.wait
+      end
+
+      private
+
+      def create_config(config, stream, kwargs)
+        if config.nil? && !kwargs.empty?
+          RunConfig.new(
+            stream: stream,
+            workflow_name: kwargs[:workflow_name] || "Agent workflow",
+            trace_id: kwargs[:trace_id],
+            group_id: kwargs[:group_id],
+            metadata: kwargs[:metadata],
+            **kwargs
+          )
+        elsif config.nil?
+          RunConfig.new(stream: stream)
+        else
+          config
+        end
+      end
+
+      def should_trace?(config)
+        !config.tracing_disabled && !@disabled_tracing && !@tracer.nil?
+      end
+
+      async def run_with_tracing_async(messages, config:, parent_span: nil)
+        @current_config = config
+        conversation = messages.dup
+        current_agent = @agent
+        turns = 0
+        max_turns = config.max_turns || current_agent.max_turns
+
+        while turns < max_turns
+          # Create agent span
+          agent_result = await create_agent_span_async(current_agent) do |agent_span|
+            # Get response from provider
+            response_result = await get_response_async(
+              current_agent, 
+              conversation, 
+              config, 
+              agent_span
+            )
+
+            # Process response
+            if response_result[:handoff]
+              handoff_agent = current_agent.find_handoff(response_result[:handoff])
+              if handoff_agent
+                current_agent = handoff_agent
+                turns = 0
+                agent_span.set_attribute("agent.handoff", handoff_agent.name)
+              end
+            end
+
+            # Handle tool calls asynchronously
+            if response_result[:tool_calls]
+              tool_results = await process_tool_calls_async(
+                response_result[:tool_calls],
+                current_agent,
+                conversation,
+                config
+              )
+              conversation.concat(tool_results)
+            end
+
+            response_result
+          end
+
+          conversation << agent_result[:message] if agent_result[:message]
+          turns += 1
+
+          # Check if we're done
+          if !agent_result[:tool_calls] && !agent_result[:handoff]
+            break
+          end
+        end
+
+        raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
+
+        Result.new(
+          success: true,
+          messages: conversation,
+          agent: current_agent,
+          metadata: {
+            turns: turns,
+            trace_id: config.trace_id
+          }
+        )
+      end
+
+      async def run_without_tracing_async(messages, config:)
+        conversation = messages.dup
+        current_agent = @agent
+        turns = 0
+        max_turns = config.max_turns || current_agent.max_turns
+
+        while turns < max_turns
+          # Get response from provider
+          response = await @async_provider.async_chat_completion(
+            messages: prepare_messages(conversation, current_agent),
+            model: current_agent.model,
+            tools: current_agent.tools? ? current_agent.tools.map(&:to_h) : nil,
+            output_schema: current_agent.output_schema,
+            **extract_model_params(config)
+          )
+
+          # Process response
+          result = process_response(response)
+          conversation << result[:message] if result[:message]
+
+          # Handle handoff
+          if result[:handoff]
+            handoff_agent = current_agent.find_handoff(result[:handoff])
+            if handoff_agent
+              current_agent = handoff_agent
+              turns = 0
+            end
+          end
+
+          # Handle tool calls
+          if result[:tool_calls]
+            tool_results = await process_tool_calls_async(
+              result[:tool_calls],
+              current_agent,
+              conversation,
+              config
+            )
+            conversation.concat(tool_results)
+          end
+
+          turns += 1
+
+          # Check if we're done
+          if !result[:tool_calls] && !result[:handoff]
+            break
+          end
+        end
+
+        raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
+
+        Result.new(
+          success: true,
+          messages: conversation,
+          agent: current_agent,
+          metadata: { turns: turns }
+        )
+      end
+
+      async def get_response_async(agent, conversation, config, agent_span)
+        # Create response span as child of agent span
+        @tracer.start_span(
+          "response.#{agent.model || "unknown"}", 
+          kind: :response,
+          parent: agent_span
+        ) do |response_span|
+          response_span.set_attribute("response.model", agent.model || "unknown")
+          
+          # Make async API call
+          response = await @async_provider.async_chat_completion(
+            messages: prepare_messages(conversation, agent),
+            model: agent.model,
+            tools: agent.tools? ? agent.tools.map(&:to_h) : nil,
+            output_schema: agent.output_schema,
+            **extract_model_params(config)
+          )
+
+          # Set response attributes
+          if response["usage"]
+            response_span.set_attribute("response.usage.input_tokens", response["usage"]["prompt_tokens"] || 0)
+            response_span.set_attribute("response.usage.output_tokens", response["usage"]["completion_tokens"] || 0)
+          end
+
+          process_response(response)
+        end
+      end
+
+      async def process_tool_calls_async(tool_calls, agent, conversation, config)
+        # Process tool calls in parallel
+        tasks = tool_calls.map do |tool_call|
+          async do
+            process_single_tool_call_async(tool_call, agent, config)
+          end
+        end
+
+        # Wait for all tool calls to complete
+        results = await await_all(*tasks)
+        results.compact
+      end
+
+      async def process_single_tool_call_async(tool_call, agent, config)
+        tool_name = tool_call["function"]["name"]
+        tool_args = JSON.parse(tool_call["function"]["arguments"] || "{}")
+
+        # Create tool span if tracing
+        result = if @tracer && should_trace?(config)
+          @tracer.start_span("tool.#{tool_name}", kind: :tool) do |tool_span|
+            tool_span.set_attribute("tool.name", tool_name)
+            tool_span.set_attribute("tool.arguments", tool_args.to_json)
+            
+            # Execute tool asynchronously if it supports async
+            tool_result = if agent.respond_to?(:execute_tool_async)
+              await agent.execute_tool_async(tool_name, **tool_args)
+            else
+              agent.execute_tool(tool_name, **tool_args)
+            end
+
+            tool_span.set_attribute("tool.result", tool_result.to_s[0..1000])
+            tool_result
+          end
+        else
+          # Execute without tracing
+          if agent.respond_to?(:execute_tool_async)
+            await agent.execute_tool_async(tool_name, **tool_args)
+          else
+            agent.execute_tool(tool_name, **tool_args)
+          end
+        end
+
+        # Return tool message
+        {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: result.to_s
+        }
+      rescue StandardError => e
+        {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: "Error: #{e.message}"
+        }
+      end
+
+      async def create_agent_span_async(agent, &block)
+        if @tracer
+          # Create root agent span
+          original_stack = @tracer.instance_variable_get(:@context).instance_variable_get(:@span_stack).dup
+          @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, [])
+          
+          result = @tracer.start_span("agent.#{agent.name || "agent"}", kind: :agent) do |span|
+            span.set_attribute("agent.name", agent.name || "agent")
+            span.set_attribute("agent.handoffs", safe_map_names(agent.handoffs))
+            span.set_attribute("agent.tools", safe_map_names(agent.tools))
+            span.set_attribute("agent.output_type", "str")
+            
+            await yield(span)
+          end
+          
+          @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_stack)
+          result
+        else
+          await yield(nil)
+        end
+      end
+
+      # Wrapper for synchronous providers to make them async-compatible
+      class AsyncProviderWrapper
+        include Base
+
+        def initialize(sync_provider)
+          @sync_provider = sync_provider
+        end
+
+        def async_chat_completion(**kwargs)
+          Async do
+            @sync_provider.chat_completion(**kwargs)
+          end
+        end
+      end
+    end
+  end
+end

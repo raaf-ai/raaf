@@ -12,6 +12,8 @@ require_relative "strict_schema"
 require_relative "structured_output"
 require_relative "result"
 require_relative "run_config"
+require_relative "run_context"
+require_relative "lifecycle"
 
 module OpenAIAgents
   class Runner
@@ -24,7 +26,7 @@ module OpenAIAgents
       @tracer = tracer || (@disabled_tracing ? nil : OpenAIAgents.tracer)
     end
 
-    def run(messages, stream: false, config: nil, **kwargs)
+    def run(messages, stream: false, config: nil, hooks: nil, **kwargs)
       # Normalize messages input - handle both string and array formats
       messages = normalize_messages(messages)
 
@@ -42,6 +44,9 @@ module OpenAIAgents
       elsif config.nil?
         config = RunConfig.new(stream: stream)
       end
+
+      # Store hooks in config for later use
+      config.hooks = hooks if hooks
 
       # Check if tracing is disabled
       if config.tracing_disabled || @disabled_tracing || @tracer.nil?
@@ -76,11 +81,37 @@ module OpenAIAgents
 
     private
 
+    # Helper method to safely call hooks
+    def call_hook(hook_method, context_wrapper, *args)
+      # Call run-level hooks
+      if @current_config&.hooks&.respond_to?(hook_method)
+        @current_config.hooks.send(hook_method, context_wrapper, *args)
+      end
+
+      # Call agent-level hooks if applicable
+      agent = args.first if args.first.is_a?(Agent)
+      if agent&.hooks&.respond_to?(hook_method.to_s.sub("on_", "on_"))
+        agent.hooks.send(hook_method.to_s.sub("on_", "on_"), context_wrapper, *args)
+      end
+    rescue StandardError => e
+      warn "Error in hook #{hook_method}: #{e.message}"
+    end
+
     def run_with_tracing(messages, config:, parent_span: nil)
       @current_config = config # Store for tool calls
       conversation = messages.dup
       current_agent = @agent
       turns = 0
+
+      # Create run context for hooks
+      context = RunContext.new(
+        messages: conversation,
+        metadata: config.metadata || {},
+        trace_id: config.trace_id,
+        group_id: config.group_id
+      )
+      context_wrapper = RunContextWrapper.new(context)
+      @current_context_wrapper = context_wrapper # Store for access in other methods
 
       max_turns = config.max_turns || current_agent.max_turns
 
@@ -91,6 +122,13 @@ module OpenAIAgents
         @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, [])
 
         agent_result = @tracer.start_span("agent.#{current_agent.name || "agent"}", kind: :agent) do |agent_span|
+          # Update context for current agent
+          context.current_agent = current_agent
+          context.current_turn = turns
+
+          # Call agent start hooks
+          call_hook(:on_agent_start, context_wrapper, current_agent)
+          
           # Set agent span attributes to match Python implementation
           agent_span.set_attribute("agent.name", current_agent.name || "agent")
           agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
@@ -98,7 +136,7 @@ module OpenAIAgents
           agent_span.set_attribute("agent.output_type", "str")
 
           # Prepare messages for API call
-          api_messages = build_messages(conversation, current_agent)
+          api_messages = build_messages(conversation, current_agent, context_wrapper)
           model = config.model || current_agent.model
 
           # Add comprehensive agent span attributes matching Python implementation
@@ -128,6 +166,12 @@ module OpenAIAgents
                 schema: strict_schema
               }
             }
+          end
+
+          # Add prompt support for Responses API
+          if current_agent.prompt && @provider.respond_to?(:supports_prompts?) && @provider.supports_prompts?
+            prompt_input = PromptUtil.to_model_input(current_agent.prompt, context_wrapper, current_agent)
+            model_params[:prompt] = prompt_input if prompt_input
           end
 
           response = if config.stream
@@ -177,6 +221,12 @@ module OpenAIAgents
           handoff_agent = current_agent.find_handoff(agent_result[:handoff])
           raise HandoffError, "Cannot handoff to '#{agent_result[:handoff]}'" unless handoff_agent
 
+          # Call handoff hooks
+          call_hook(:on_handoff, context_wrapper, current_agent, handoff_agent)
+          
+          # Update context for handoff tracking
+          context_wrapper.add_handoff(current_agent, handoff_agent)
+
           @tracer.handoff_span(current_agent.name || "agent",
                                handoff_agent.name || agent_result[:handoff]) do |handoff_span|
             handoff_span.add_event("handoff.initiated", attributes: {
@@ -197,6 +247,12 @@ module OpenAIAgents
         raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
       end
 
+      # Get final output for agent end hook
+      final_output = conversation.last[:content] if conversation.last[:role] == "assistant"
+      
+      # Call agent end hooks
+      call_hook(:on_agent_end, context_wrapper, current_agent, final_output)
+      
       RunResult.success(
         messages: conversation,
         last_agent: current_agent,
@@ -281,10 +337,10 @@ module OpenAIAgents
       )
     end
 
-    def build_messages(conversation, agent)
+    def build_messages(conversation, agent, context_wrapper = nil)
       system_message = {
         role: "system",
-        content: build_system_prompt(agent)
+        content: build_system_prompt(agent, context_wrapper)
       }
 
       # Convert to symbol keys for consistency with provider expectations
@@ -298,10 +354,17 @@ module OpenAIAgents
       [system_message] + formatted_conversation
     end
 
-    def build_system_prompt(agent)
+    def build_system_prompt(agent, context_wrapper = nil)
       prompt = ""
       prompt += "Name: #{agent.name}\n" if agent.name
-      prompt += "Instructions: #{agent.instructions}\n" if agent.instructions
+      
+      # Get instructions (may be dynamic)
+      instructions = if agent.respond_to?(:get_instructions)
+        agent.get_instructions(context_wrapper)
+      else
+        agent.instructions
+      end
+      prompt += "Instructions: #{instructions}\n" if instructions
 
       if agent.tools?
         prompt += "\nAvailable tools:\n"
@@ -360,7 +423,11 @@ module OpenAIAgents
       result = { done: false, handoff: nil }
 
       # Check for tool calls
-      result[:done] = process_tool_calls(message["tool_calls"], agent, conversation) if message["tool_calls"]
+      if message["tool_calls"]
+        # Pass context_wrapper if we have it (only in run_with_tracing)
+        context_wrapper = @current_context_wrapper if defined?(@current_context_wrapper)
+        result[:done] = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper)
+      end
 
       # Check for handoff
       if message["content"]&.include?("HANDOFF:")
@@ -374,12 +441,20 @@ module OpenAIAgents
       result
     end
 
-    def process_tool_calls(tool_calls, agent, conversation)
+    def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil)
       puts "[Runner] Processing #{tool_calls.size} tool calls"
 
       tool_calls.each do |tool_call|
         tool_name = tool_call.dig("function", "name")
         arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
+        
+        # Find the tool object
+        tool = agent.tools.find { |t| t.name == tool_name }
+        
+        # Call tool start hooks if context is available
+        if context_wrapper && tool
+          call_hook(:on_tool_start, context_wrapper, agent, tool, arguments)
+        end
 
         puts "[Runner] Executing tool: #{tool_name} with call_id: #{tool_call["id"]}"
 
@@ -419,6 +494,11 @@ module OpenAIAgents
 
           puts "[Runner] Tool execution returned: #{result.class.name}"
           puts "[Runner] Tool result: #{result.to_s[0..200]}..."
+          
+          # Call tool end hooks if context is available
+          if context_wrapper && tool
+            call_hook(:on_tool_end, context_wrapper, agent, tool, result)
+          end
 
           tool_message = {
             role: "tool",

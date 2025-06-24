@@ -31,6 +31,7 @@ Gem::Specification.new do |spec|
 
   # Dependencies
   spec.add_dependency "async", "~> 2.0"
+  spec.add_dependency "async-http", "~> 0.60"
   spec.add_dependency "concurrent-ruby", "~> 1.1"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "logger", "~> 1.4"
