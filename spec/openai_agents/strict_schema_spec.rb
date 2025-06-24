@@ -343,7 +343,7 @@ RSpec.describe OpenAIAgents::StrictSchema do
             age: { type: "integer" },
             email: { type: "string" }
           },
-          required: ["name", "age"]
+          required: %w[name age]
         }
 
         result = described_class.ensure_strict_json_schema(schema)
@@ -361,9 +361,9 @@ RSpec.describe OpenAIAgents::StrictSchema do
       end
 
       it "handles non-hash schema gracefully" do
-        expect {
+        expect do
           described_class.ensure_strict_json_schema("not a hash")
-        }.to raise_error(TypeError, /Expected.*to be a hash/)
+        end.to raise_error(TypeError, /Expected.*to be a hash/)
       end
     end
   end

@@ -38,7 +38,7 @@ Gem::Specification.new do |spec|
 
   # base64 was moved to a bundled gem in Ruby 3.4+
   spec.add_dependency "base64", "~> 0.1"
-  
+
   # fiddle will be removed from default gems in Ruby 3.5+
   spec.add_dependency "fiddle", "~> 1.0"
 end

@@ -24,9 +24,9 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       end
 
       it "raises SchemaError for invalid schema" do
-        expect {
+        expect do
           OpenAIAgents::StructuredOutput::BaseSchema.new(nil)
-        }.to raise_error(OpenAIAgents::StructuredOutput::SchemaError, "Schema must be a hash")
+        end.to raise_error(OpenAIAgents::StructuredOutput::SchemaError, "Schema must be a hash")
       end
     end
 
@@ -39,30 +39,30 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
 
       it "raises ValidationError for missing required fields" do
         invalid_data = { "age" => 25 }
-        expect {
+        expect do
           base_schema.validate(invalid_data)
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Missing required field 'name'/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Missing required field 'name'/)
       end
 
       it "raises ValidationError for wrong type" do
         invalid_data = { "name" => "Alice", "age" => "twenty-five" }
-        expect {
+        expect do
           base_schema.validate(invalid_data)
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected number.*got String/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected number.*got String/)
       end
 
       it "raises ValidationError for out of range values" do
         invalid_data = { "name" => "Alice", "age" => 200 }
-        expect {
+        expect do
           base_schema.validate(invalid_data)
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /greater than maximum 150/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /greater than maximum 150/)
       end
 
       it "raises ValidationError for additional properties when not allowed" do
         invalid_data = { "name" => "Alice", "age" => 25, "city" => "Seattle" }
-        expect {
+        expect do
           base_schema.validate(invalid_data)
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Additional property 'city' not allowed/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Additional property 'city' not allowed/)
       end
     end
 
@@ -157,10 +157,10 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
 
       it "supports enum constraints" do
         schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
-          string :status, enum: ["active", "inactive", "pending"]
+          string :status, enum: %w[active inactive pending]
         end
 
-        expect(schema.schema[:properties][:status][:enum]).to eq(["active", "inactive", "pending"])
+        expect(schema.schema[:properties][:status][:enum]).to eq(%w[active inactive pending])
       end
     end
   end
@@ -191,33 +191,33 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       end
 
       it "validates correct array" do
-        valid_data = ["item1", "item2"]
+        valid_data = %w[item1 item2]
         result = array_schema.validate(valid_data)
         expect(result).to eq(valid_data)
       end
 
       it "raises ValidationError for non-array" do
-        expect {
+        expect do
           array_schema.validate("not an array")
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected array/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected array/)
       end
 
       it "raises ValidationError for too few items" do
-        expect {
+        expect do
           array_schema.validate([])
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /has fewer than 1 items/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /has fewer than 1 items/)
       end
 
       it "raises ValidationError for too many items" do
-        expect {
-          array_schema.validate(["a", "b", "c", "d"])
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /has more than 3 items/)
+        expect do
+          array_schema.validate(%w[a b c d])
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /has more than 3 items/)
       end
 
       it "raises ValidationError for wrong item type" do
-        expect {
+        expect do
           array_schema.validate(["string", 123])
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected string/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected string/)
       end
     end
   end
@@ -229,14 +229,14 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
           min_length: 1,
           max_length: 50,
           pattern: "^[A-Za-z]+$",
-          enum: ["admin", "user", "guest"]
+          enum: %w[admin user guest]
         )
 
         expect(schema.schema[:type]).to eq("string")
         expect(schema.schema[:minLength]).to eq(1)
         expect(schema.schema[:maxLength]).to eq(50)
         expect(schema.schema[:pattern]).to eq("^[A-Za-z]+$")
-        expect(schema.schema[:enum]).to eq(["admin", "user", "guest"])
+        expect(schema.schema[:enum]).to eq(%w[admin user guest])
       end
     end
 
@@ -256,33 +256,33 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       end
 
       it "raises ValidationError for non-string" do
-        expect {
+        expect do
           string_schema.validate(123)
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected string/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected string/)
       end
 
       it "raises ValidationError for too short string" do
-        expect {
+        expect do
           string_schema.validate("A")
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is shorter than 2 characters/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is shorter than 2 characters/)
       end
 
       it "raises ValidationError for too long string" do
-        expect {
+        expect do
           string_schema.validate("VeryLongName")
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is longer than 10 characters/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is longer than 10 characters/)
       end
 
       it "raises ValidationError for pattern mismatch" do
-        expect {
+        expect do
           string_schema.validate("Alice123")
-        }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /doesn't match pattern/)
+        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /doesn't match pattern/)
       end
 
       context "with enum constraint" do
         let(:enum_schema) do
           OpenAIAgents::StructuredOutput::StringSchema.new(
-            enum: ["red", "green", "blue"]
+            enum: %w[red green blue]
           )
         end
 
@@ -292,9 +292,9 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
         end
 
         it "raises ValidationError for invalid enum value" do
-          expect {
+          expect do
             enum_schema.validate("yellow")
-          }.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is not one of/)
+          end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is not one of/)
         end
       end
     end
@@ -325,7 +325,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       end
 
       it "returns error for invalid data" do
-        data = { "age" => 25 }  # missing required name
+        data = { "age" => 25 } # missing required name
         result = formatter.format_response(data)
         expect(result[:data]).to eq(data)
         expect(result[:valid]).to be false
@@ -350,7 +350,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       end
 
       it "returns error for schema violation" do
-        json_string = '{"age": 25}'  # missing required name
+        json_string = '{"age": 25}' # missing required name
         result = formatter.validate_and_format(json_string)
         expect(result[:data]).to eq({ "age" => 25 })
         expect(result[:valid]).to be false

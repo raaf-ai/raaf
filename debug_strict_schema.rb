@@ -20,7 +20,7 @@ original_schema = {
       items: { type: "string" }
     }
   },
-  required: ["name", "age", "city"],
+  required: %w[name age city],
   additionalProperties: false
 }
 
@@ -35,14 +35,14 @@ puts JSON.pretty_generate(strict_schema)
 
 puts "\nRequired fields:"
 puts "Original: #{original_schema[:required]}"
-puts "Strict: #{strict_schema['required']}"
+puts "Strict: #{strict_schema["required"]}"
 
 puts "\nAll properties keys:"
 puts original_schema[:properties].keys
-puts strict_schema['properties'].keys
+puts strict_schema["properties"].keys
 
 # Test that it includes email in required
-if strict_schema['required'].include?('email')
+if strict_schema["required"].include?("email")
   puts "✅ Email is now required in strict schema"
 else
   puts "❌ Email is missing from required in strict schema"

@@ -41,7 +41,7 @@ module OpenAIAgents
         # Check if tracing is actually enabled (not a NoOpTracer)
         if current_tracer && !current_tracer.is_a?(OpenAIAgents::Tracing::NoOpTracer)
           # Create a response span exactly like Python - only response_id attribute
-          result = current_tracer.start_span("POST /v1/responses", kind: :response) do |response_span|
+          current_tracer.start_span("POST /v1/responses", kind: :response) do |response_span|
             # Make the actual API call
             response = call_responses_api(
               model: model,
@@ -56,7 +56,7 @@ module OpenAIAgents
             # Convert response to chat completion format for compatibility
             convert_response_to_chat_format(response)
           end
-          result
+
         else
           # No tracing, just make the API call directly
           response = call_responses_api(
@@ -84,7 +84,7 @@ module OpenAIAgents
           input: input
         }
         body[:instructions] = instructions if instructions
-        
+
         # Convert response_format to text.format for Responses API (matching Python implementation)
         if kwargs[:response_format]
           response_format = kwargs[:response_format]

@@ -14,6 +14,7 @@ module OpenAIAgents
 
       def initialize(schema = {})
         raise SchemaError, "Schema must be a hash" unless schema.is_a?(Hash)
+
         @schema = schema
         @required_fields = schema[:required] || []
         validate_schema!

@@ -21,7 +21,7 @@ user_schema = {
       items: { type: "string" }
     }
   },
-  required: ["name", "age", "city"],
+  required: %w[name age city],
   additionalProperties: false
 }
 
@@ -54,50 +54,48 @@ puts "\n📝 Test input: #{test_message}"
 
 if ENV["OPENAI_API_KEY"] && ENV["OPENAI_API_KEY"].start_with?("sk-")
   puts "\n🚀 Testing with real OpenAI API..."
-  
+
   begin
     # Run the agent
     result = runner.run([{
-      role: "user",
-      content: test_message
-    }])
-    
+                          role: "user",
+                          content: test_message
+                        }])
+
     response_content = result.messages.last[:content]
     puts "\n📤 Raw response: #{response_content}"
-    
+
     # Parse and validate JSON
     begin
       parsed_data = JSON.parse(response_content)
       puts "✅ Response is valid JSON"
       puts "📋 Parsed data: #{parsed_data}"
-      
+
       # Validate against schema
       schema_validator = OpenAIAgents::StructuredOutput::BaseSchema.new(user_schema)
       validated_data = schema_validator.validate(parsed_data)
       puts "✅ Schema validation passed!"
       puts "✨ Final validated data: #{validated_data}"
-      
+
       # Check required fields
-      required_fields = ["name", "age", "city"]
+      required_fields = %w[name age city]
       missing_fields = required_fields.select { |field| !parsed_data.key?(field) }
-      
+
       if missing_fields.empty?
         puts "✅ All required fields present"
       else
         puts "❌ Missing required fields: #{missing_fields}"
       end
-      
     rescue JSON::ParserError => e
       puts "❌ Failed to parse as JSON: #{e.message}"
     rescue OpenAIAgents::StructuredOutput::ValidationError => e
       puts "❌ Schema validation failed: #{e.message}"
     end
-    
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error during execution: #{e.message}"
     puts "Backtrace: #{e.backtrace.first(3)}"
   end
-  
+
 else
   puts "\n⚠️  OPENAI_API_KEY not set or invalid"
   puts "Set a valid OpenAI API key to test with real API"
@@ -110,10 +108,10 @@ puts "\n=== Testing Schema Validation Only ==="
 mock_data = {
   "name" => "John Doe",
   "age" => 30,
-  "email" => "john@example.com", 
+  "email" => "john@example.com",
   "city" => "New York",
   "occupation" => "Developer",
-  "interests" => ["coding", "music"]
+  "interests" => %w[coding music]
 }
 
 puts "Mock data: #{mock_data}"

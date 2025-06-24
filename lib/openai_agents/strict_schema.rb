@@ -31,16 +31,14 @@ module OpenAIAgents
       def empty_schema
         {
           "additionalProperties" => false,
-          "type" => "object", 
+          "type" => "object",
           "properties" => {},
           "required" => []
         }
       end
 
       def ensure_strict_json_schema_recursive(json_schema, path:, root:)
-        unless json_schema.is_a?(Hash)
-          raise TypeError, "Expected #{json_schema} to be a hash; path=#{path}"
-        end
+        raise TypeError, "Expected #{json_schema} to be a hash; path=#{path}" unless json_schema.is_a?(Hash)
 
         # Handle $defs
         if json_schema["$defs"].is_a?(Hash)
@@ -52,7 +50,8 @@ module OpenAIAgents
         # Handle definitions
         if json_schema["definitions"].is_a?(Hash)
           json_schema["definitions"].each do |definition_name, definition_schema|
-            ensure_strict_json_schema_recursive(definition_schema, path: [*path, "definitions", definition_name], root: root)
+            ensure_strict_json_schema_recursive(definition_schema, path: [*path, "definitions", definition_name],
+                                                                   root: root)
           end
         end
 
@@ -61,7 +60,7 @@ module OpenAIAgents
         # Object types - ensure additionalProperties is false and all properties are required
         if type == "object"
           json_schema["additionalProperties"] = false unless json_schema.key?("additionalProperties")
-          
+
           if json_schema["additionalProperties"] == true
             raise ArgumentError, "additionalProperties should not be set to true for strict schemas"
           end
@@ -78,7 +77,8 @@ module OpenAIAgents
 
         # Arrays
         if type == "array" && json_schema["items"].is_a?(Hash)
-          json_schema["items"] = ensure_strict_json_schema_recursive(json_schema["items"], path: [*path, "items"], root: root)
+          json_schema["items"] =
+            ensure_strict_json_schema_recursive(json_schema["items"], path: [*path, "items"], root: root)
         end
 
         # Unions (anyOf)
@@ -92,7 +92,8 @@ module OpenAIAgents
         if json_schema["allOf"].is_a?(Array)
           if json_schema["allOf"].length == 1
             # Flatten single allOf
-            flattened = ensure_strict_json_schema_recursive(json_schema["allOf"][0], path: [*path, "allOf", "0"], root: root)
+            flattened = ensure_strict_json_schema_recursive(json_schema["allOf"][0], path: [*path, "allOf", "0"],
+                                                                                     root: root)
             json_schema.merge!(flattened)
             json_schema.delete("allOf")
           else

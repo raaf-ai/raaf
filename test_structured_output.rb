@@ -20,7 +20,7 @@ simple_schema = {
     age: { type: "integer", minimum: 0 },
     email: { type: "string" }
   },
-  required: ["name", "age"]
+  required: %w[name age]
 }
 
 puts "Schema: #{simple_schema}"
@@ -33,15 +33,15 @@ valid_data = { "name" => "John", "age" => 30, "email" => "john@example.com" }
 begin
   result = schema_obj.validate(valid_data)
   puts "✅ Valid data passed: #{result}"
-rescue => e
+rescue StandardError => e
   puts "❌ Validation failed: #{e.message}"
 end
 
 invalid_data = { "name" => "John" } # Missing required 'age'
 begin
-  result = schema_obj.validate(invalid_data)
+  schema_obj.validate(invalid_data)
   puts "❌ Invalid data should have failed"
-rescue => e
+rescue StandardError => e
   puts "✅ Invalid data correctly rejected: #{e.message}"
 end
 
@@ -50,7 +50,7 @@ puts "\n3. Testing ObjectSchema builder..."
 user_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
   string :name, required: true, minLength: 1
   integer :age, required: true, minimum: 0, maximum: 150
-  string :email, pattern: '.*@.*'
+  string :email, pattern: ".*@.*"
   boolean :active, required: true
 end
 
@@ -69,14 +69,14 @@ puts "Agent created with schema: #{agent.output_schema}"
 
 # 5. Check if the schema gets passed to the model provider
 puts "\n5. Checking model provider integration..."
-runner = OpenAIAgents::Runner.new(agent: agent)
+OpenAIAgents::Runner.new(agent: agent)
 
 # Mock test - just verify the setup doesn't error
 begin
   puts "Runner created successfully"
   puts "Agent model: #{agent.model}"
   puts "Agent has output_schema: #{!agent.output_schema.nil?}"
-rescue => e
+rescue StandardError => e
   puts "❌ Error creating runner: #{e.message}"
 end
 

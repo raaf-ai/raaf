@@ -52,9 +52,9 @@ puts "1. Testing basic structured output:"
 puts "Input: 'Tell me about the iPhone 15 Pro'"
 
 result = runner.run([{
-  role: "user",
-  content: "Tell me about the iPhone 15 Pro"
-}])
+                      role: "user",
+                      content: "Tell me about the iPhone 15 Pro"
+                    }])
 
 response_content = result.messages.last[:content]
 puts "✅ Raw JSON response: #{response_content}"

@@ -19,7 +19,7 @@ schema = {
     age: { type: "integer" },
     city: { type: "string" }
   },
-  required: ["name", "age"]
+  required: %w[name age]
 }
 
 agent = OpenAIAgents::Agent.new(
@@ -67,7 +67,7 @@ puts
 fix_code = <<~RUBY
   # In Runner#run method, after line ~205:
   model_params = config.to_model_params
-  
+
   # Add structured output support
   if current_agent.output_schema
     model_params[:response_format] = {
@@ -87,18 +87,18 @@ puts "\n=== Test the workaround ==="
 
 if ENV["OPENAI_API_KEY"] && ENV["OPENAI_API_KEY"].start_with?("sk-")
   puts "Testing with real API key..."
-  
+
   runner = OpenAIAgents::Runner.new(agent: agent)
-  
+
   begin
     result = runner.run(
       [{ role: "user", content: "My name is John, I'm 30 years old, and I live in New York" }],
       config: config
     )
-    
+
     response_content = result.messages.last[:content]
     puts "Response: #{response_content}"
-    
+
     # Try to parse as JSON
     begin
       parsed = JSON.parse(response_content)
@@ -106,8 +106,7 @@ if ENV["OPENAI_API_KEY"] && ENV["OPENAI_API_KEY"].start_with?("sk-")
     rescue JSON::ParserError
       puts "❌ Response is not valid JSON"
     end
-    
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error: #{e.message}"
   end
 else

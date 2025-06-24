@@ -13,14 +13,14 @@ puts "3. Passes response_format to OpenAI API with format:"
 puts
 
 python_format = <<~FORMAT
-{
-  "type": "json_schema",
-  "json_schema": {
-    "name": "final_output",
-    "strict": true,
-    "schema": <actual_schema>
+  {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "final_output",
+      "strict": true,
+      "schema": <actual_schema>
+    }
   }
-}
 FORMAT
 
 puts python_format
@@ -33,20 +33,20 @@ puts "2. This should happen around line 205-220 in runner.rb"
 puts
 
 fix_code = <<~RUBY
-# In Runner#run method, after building model_params:
-model_params = config.to_model_params
+  # In Runner#run method, after building model_params:
+  model_params = config.to_model_params
 
-# Add structured output support (like Python implementation)
-if current_agent.output_schema
-  model_params[:response_format] = {
-    type: "json_schema",
-    json_schema: {
-      name: "final_output",
-      strict: true,
-      schema: current_agent.output_schema
+  # Add structured output support (like Python implementation)
+  if current_agent.output_schema
+    model_params[:response_format] = {
+      type: "json_schema",
+      json_schema: {
+        name: "final_output",
+        strict: true,
+        schema: current_agent.output_schema
+      }
     }
-  }
-end
+  end
 RUBY
 
 puts fix_code
@@ -61,13 +61,13 @@ require_relative "lib/openai_agents"
 
 # Monkey patch the Runner to add response_format support
 module RunnerPatch
-  def run(messages, stream: false, config: nil, **kwargs)
+  def run(messages, stream: false, config: nil, **)
     messages = [messages] if messages.is_a?(String)
     config ||= OpenAIAgents::RunConfig.new
-    
+
     # Important: Apply the fix here
     model_params = config.to_model_params
-    
+
     # Add structured output support (THE FIX)
     if @agent.output_schema
       model_params[:response_format] = {
@@ -80,9 +80,9 @@ module RunnerPatch
       }
       puts "✅ Added response_format to model_params: #{model_params[:response_format]}"
     end
-    
+
     # Call original method with our modified model_params
-    super(messages, stream: stream, config: config.merge(OpenAIAgents::RunConfig.new(**model_params)), **kwargs)
+    super(messages, stream: stream, config: config.merge(OpenAIAgents::RunConfig.new(**model_params)), **)
   end
 end
 
@@ -99,7 +99,7 @@ schema = {
     age: { type: "integer" },
     city: { type: "string" }
   },
-  required: ["name", "age"]
+  required: %w[name age]
 }
 
 agent = OpenAIAgents::Agent.new(
@@ -115,30 +115,29 @@ puts "\n🧪 Testing with schema: #{schema}"
 
 if ENV["OPENAI_API_KEY"] && ENV["OPENAI_API_KEY"].start_with?("sk-")
   puts "Testing with real API..."
-  
+
   begin
     result = runner.run([{
-      role: "user", 
-      content: "My name is John Doe, I'm 25 years old, and I live in San Francisco"
-    }])
-    
+                          role: "user",
+                          content: "My name is John Doe, I'm 25 years old, and I live in San Francisco"
+                        }])
+
     response = result.messages.last[:content]
     puts "📤 Response: #{response}"
-    
+
     # Validate JSON
     parsed = JSON.parse(response)
     puts "✅ Valid JSON response: #{parsed}"
-    
+
     # Validate schema
     schema_validator = OpenAIAgents::StructuredOutput::BaseSchema.new(schema)
     validated = schema_validator.validate(parsed)
     puts "✅ Schema validation passed: #{validated}"
-    
   rescue JSON::ParserError => e
     puts "❌ Response is not valid JSON: #{e.message}"
   rescue OpenAIAgents::StructuredOutput::ValidationError => e
     puts "❌ Schema validation failed: #{e.message}"
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error: #{e.message}"
   end
 else

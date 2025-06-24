@@ -119,7 +119,7 @@ module OpenAIAgents
           if current_agent.output_schema
             # Apply strict schema rules (all properties become required)
             strict_schema = StrictSchema.ensure_strict_json_schema(current_agent.output_schema)
-            
+
             model_params[:response_format] = {
               type: "json_schema",
               json_schema: {
@@ -224,7 +224,7 @@ module OpenAIAgents
         if current_agent.output_schema
           # Apply strict schema rules (all properties become required)
           strict_schema = StrictSchema.ensure_strict_json_schema(current_agent.output_schema)
-          
+
           model_params[:response_format] = {
             type: "json_schema",
             json_schema: {

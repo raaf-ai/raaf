@@ -12,7 +12,7 @@ RSpec.describe "Structured Output Integration" do
         email: { type: "string" },
         active: { type: "boolean" }
       },
-      required: ["name", "age"],
+      required: %w[name age],
       additionalProperties: false
     }
   end
@@ -283,9 +283,9 @@ RSpec.describe "Structured Output Integration" do
       end
 
       it "propagates provider errors" do
-        expect {
+        expect do
           runner.run(messages)
-        }.to raise_error(OpenAIAgents::APIError, "API failed")
+        end.to raise_error(OpenAIAgents::APIError, "API failed")
       end
     end
 

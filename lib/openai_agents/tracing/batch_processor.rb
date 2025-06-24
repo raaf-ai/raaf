@@ -387,7 +387,7 @@ module OpenAIAgents
           # Signal not supported on this platform, skip
         end
 
-        # Note: Finalizer removed to avoid "finalizer references object to be finalized" warning
+        # NOTE: Finalizer removed to avoid "finalizer references object to be finalized" warning
         # Cleanup is handled by signal handlers and global atexit registration
       end
     end
