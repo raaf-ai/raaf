@@ -191,9 +191,11 @@ module OpenAIAgents
           object: "trace.span",
           id: span.span_id,
           trace_id: span.trace_id,
-          started_at: span.start_time.utc.strftime('%Y-%m-%dT%H:%M:%S.%3NZ'),
-          ended_at: span.end_time&.utc&.strftime('%Y-%m-%dT%H:%M:%S.%3NZ'),
-          span_data: span_data
+          parent_id: span.parent_id,
+          started_at: span.start_time.utc.strftime('%Y-%m-%dT%H:%M:%S.%6N+00:00'),
+          ended_at: span.end_time&.utc&.strftime('%Y-%m-%dT%H:%M:%S.%6N+00:00'),
+          span_data: span_data,
+          error: span.attributes["error"] || nil
         }
       end
 
@@ -218,41 +220,24 @@ module OpenAIAgents
             name: span.attributes["agent.name"] || span.name,
             handoffs: span.attributes["agent.handoffs"] || [],
             tools: span.attributes["agent.tools"] || [],
-            output_type: span.attributes["agent.output_type"] || "text",
-            model: span.attributes["agent.model"],
-            instructions: span.attributes["agent.instructions"],
-            input: span.attributes["agent.input"],
-            output: span.attributes["agent.output"],
-            tokens: span.attributes["agent.tokens"]
+            output_type: span.attributes["agent.output_type"] || "str"
           }.compact
         when :llm
-          # Handle both "POST /v1/responses" spans and legacy "generation" spans
-          if span.name == "POST /v1/responses"
-            {
-              type: "generation",
-              input: span.attributes["llm.request.messages"] || [],
-              output: format_llm_output(span),
-              model: span.attributes["llm.request.model"] || span.attributes["llm.model"],
-              model_config: extract_model_config(span),
-              usage: extract_usage(span)
-            }
-          else
-            {
-              type: "generation",
-              input: span.attributes["llm.request.messages"] || [],
-              output: format_llm_output(span),
-              model: span.attributes["llm.request.model"] || span.attributes["llm.model"],
-              model_config: extract_model_config(span),
-              usage: extract_usage(span)
-            }
-          end
+          {
+            type: "generation",
+            input: span.attributes["llm.request.messages"] || [],
+            output: format_llm_output(span),
+            model: span.attributes["llm.request.model"],
+            model_config: extract_model_config(span),
+            usage: extract_usage(span)
+          }
         when :tool
           {
             type: "function",
-            name: span.attributes["function.name"] || span.attributes["tool.name"] || span.name,
-            input: span.attributes["function.input"] || span.attributes["tool.arguments"],
-            output: span.attributes["function.output"] || span.attributes["tool.result"],
-            mcp_data: span.attributes["function.mcp_data"] || span.attributes["tool.mcp_data"]
+            name: span.attributes["function.name"] || span.name,
+            input: span.attributes["function.input"],
+            output: span.attributes["function.output"],
+            mcp_data: span.attributes["function.mcp_data"]
           }
         when :handoff
           {
@@ -275,9 +260,8 @@ module OpenAIAgents
         when :response
           {
             type: "response",
-            response: span.attributes["response.response"],
-            input: span.attributes["response.input"]
-          }
+            response_id: span.attributes["response_id"]
+          }.compact
         when :speech_group
           {
             type: "speech_group",
@@ -323,9 +307,24 @@ module OpenAIAgents
       # @api private
       def extract_model_config(span)
         {
+          temperature: span.attributes["llm.request.temperature"],
+          top_p: span.attributes["llm.request.top_p"],
+          frequency_penalty: span.attributes["llm.request.frequency_penalty"],
+          presence_penalty: span.attributes["llm.request.presence_penalty"],
+          tool_choice: span.attributes["llm.request.tool_choice"],
+          parallel_tool_calls: span.attributes["llm.request.parallel_tool_calls"],
+          truncation: span.attributes["llm.request.truncation"],
           max_tokens: span.attributes["llm.request.max_tokens"],
-          temperature: span.attributes["llm.request.temperature"]
-        }.compact
+          reasoning: span.attributes["llm.request.reasoning"],
+          metadata: span.attributes["llm.request.metadata"],
+          store: span.attributes["llm.request.store"],
+          include_usage: span.attributes["llm.request.include_usage"],
+          extra_query: span.attributes["llm.request.extra_query"],
+          extra_body: span.attributes["llm.request.extra_body"],
+          extra_headers: span.attributes["llm.request.extra_headers"],
+          extra_args: span.attributes["llm.request.extra_args"],
+          base_url: span.attributes["llm.request.base_url"] || "https://api.openai.com/v1/"
+        }
       end
 
       # Extracts token usage from LLM span attributes
@@ -351,10 +350,15 @@ module OpenAIAgents
         content = span.attributes["llm.response.content"]
         return [] unless content
         
-        # The API expects an array of message objects for output
+        # The API expects an array of message objects for output (matching Python format)
         [{
+          content: content,
+          refusal: nil,
           role: "assistant",
-          content: content
+          annotations: [],
+          audio: nil,
+          function_call: nil,
+          tool_calls: nil
         }]
       end
 
@@ -442,10 +446,8 @@ module OpenAIAgents
           object: "trace",
           id: @current_trace_id,
           workflow_name: @workflow_name,
-          metadata: {
-            "sdk.language" => "ruby",
-            "sdk.version" => OpenAIAgents::VERSION
-          }
+          group_id: nil,
+          metadata: nil
         }
         payload_items << trace_data
         

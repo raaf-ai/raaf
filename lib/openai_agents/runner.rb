@@ -6,7 +6,7 @@ require "net/http"
 require "uri"
 require_relative "agent"
 require_relative "errors"
-require_relative "models/openai_provider"
+require_relative "models/responses_provider"
 require_relative "tracing/trace_provider"
 require_relative "structured_output"
 require_relative "result"
@@ -18,7 +18,7 @@ module OpenAIAgents
 
     def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false)
       @agent = agent
-      @provider = provider || Models::OpenAIProvider.new
+      @provider = provider || Models::ResponsesProvider.new
       @disabled_tracing = disabled_tracing || ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
       @tracer = tracer || (!@disabled_tracing ? OpenAIAgents.tracer : nil)
     end
@@ -78,13 +78,17 @@ module OpenAIAgents
       max_turns = config.max_turns || current_agent.max_turns
       
       while turns < max_turns
-        # Wrap each agent execution in an agent_span (matching Python implementation)
-        agent_result = @tracer.agent_span(current_agent.name || "agent") do |agent_span|
+        # Create agent span as root span (matching Python implementation where agent span has parent_id: null)
+        # Temporarily clear the span stack to make this span root
+        original_span_stack = @tracer.instance_variable_get(:@context).instance_variable_get(:@span_stack).dup
+        @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, [])
+        
+        agent_result = @tracer.start_span("agent.#{current_agent.name || 'agent'}", kind: :agent) do |agent_span|
           # Set agent span attributes to match Python implementation
           agent_span.set_attribute("agent.name", current_agent.name || "agent")
           agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
           agent_span.set_attribute("agent.tools", safe_map_names(current_agent.tools))
-          agent_span.set_attribute("agent.output_type", "text")
+          agent_span.set_attribute("agent.output_type", "str")
           
           # Prepare messages for API call
           api_messages = build_messages(conversation, current_agent)
@@ -100,63 +104,26 @@ module OpenAIAgents
           end
           agent_span.set_attribute("agent.model", model)
 
-          # Make API call using provider - name it to match Python's "POST /v1/responses"
-          response = @tracer.start_span("POST /v1/responses", kind: :llm) do |llm_span|
-            llm_span.set_attribute("llm.request.model", model)
-            
-            # Only include sensitive data if enabled
-            if config.trace_include_sensitive_data
-              llm_span.set_attribute("llm.request.messages", api_messages)
-            else
-              # Redact message content but keep structure
-              redacted_messages = api_messages.map do |msg|
-                { role: msg[:role], content: "[REDACTED]" }
-              end
-              llm_span.set_attribute("llm.request.messages", redacted_messages)
-            end
-            
-            llm_span.set_attribute("llm.request.tools", current_agent.tools&.map(&:name) || [])
-            llm_span.add_event("generation.start")
-            
-            # Merge config parameters with API call
-            model_params = config.to_model_params
-            
-            resp = if config.stream
-                     @provider.stream_completion(
-                       messages: api_messages,
-                       model: model,
-                       tools: current_agent.tools? ? current_agent.tools : nil,
-                       **model_params
-                     )
-                   else
-                     @provider.chat_completion(
-                       messages: api_messages,
-                       model: model,
-                       tools: current_agent.tools? ? current_agent.tools : nil,
-                       stream: false,
-                       **model_params
-                     )
-                   end
-            
-            # Extract usage if available
-            if resp.is_a?(Hash) && resp["usage"]
-              llm_span.set_attribute("llm.usage.prompt_tokens", resp["usage"]["prompt_tokens"])
-              llm_span.set_attribute("llm.usage.completion_tokens", resp["usage"]["completion_tokens"])
-              llm_span.set_attribute("llm.usage.total_tokens", resp["usage"]["total_tokens"])
-            end
-            
-            # Set response content
-            if resp.is_a?(Hash) && resp.dig("choices", 0, "message")
-              if config.trace_include_sensitive_data
-                llm_span.set_attribute("llm.response.content", resp.dig("choices", 0, "message", "content") || "")
-              else
-                llm_span.set_attribute("llm.response.content", "[REDACTED]")
-              end
-            end
-            
-            llm_span.add_event("generation.complete")
-            resp
-          end
+          # Make API call using provider - the ResponsesProvider handles its own tracing
+          # Merge config parameters with API call
+          model_params = config.to_model_params
+          
+          response = if config.stream
+                       @provider.stream_completion(
+                         messages: api_messages,
+                         model: model,
+                         tools: current_agent.tools? ? current_agent.tools : nil,
+                         **model_params
+                       )
+                     else
+                       @provider.chat_completion(
+                         messages: api_messages,
+                         model: model,
+                         tools: current_agent.tools? ? current_agent.tools : nil,
+                         stream: false,
+                         **model_params
+                       )
+                     end
 
           # Set agent output after API call
           if config.trace_include_sensitive_data
@@ -173,7 +140,12 @@ module OpenAIAgents
           end
 
           # Process response
-          process_response(response, current_agent, conversation)
+          result = process_response(response, current_agent, conversation)
+          
+          # Restore original span stack
+          @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_span_stack)
+          
+          result
         end # End of agent_span
 
         turns += 1
