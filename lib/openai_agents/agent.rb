@@ -153,7 +153,7 @@ module OpenAIAgents
         @tools << FunctionTool.new(tool)
       when FunctionTool
         @tools << tool
-      when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool, OpenAIAgents::Tools::HostedWebSearchTool
+      when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
         @tools << tool
       else
         raise ToolError,

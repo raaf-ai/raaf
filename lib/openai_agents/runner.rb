@@ -67,6 +67,12 @@ module OpenAIAgents
       end
     end
 
+    def run_async(messages, stream: false, config: nil, **kwargs)
+      Async do
+        run(messages, stream: stream, config: config, **kwargs)
+      end
+    end
+
     private
 
     def run_with_tracing(messages, config:, parent_span: nil)
@@ -242,12 +248,6 @@ module OpenAIAgents
         last_agent: current_agent,
         turns: turns
       )
-    end
-
-    def run_async(messages, stream: false)
-      Async do
-        run(messages, stream: stream)
-      end
     end
 
     def build_messages(conversation, agent)
