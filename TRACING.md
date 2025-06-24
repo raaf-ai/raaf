@@ -1,15 +1,18 @@
-# Tracing in OpenAI Agents Ruby
+# Tracing and Monitoring
 
-The OpenAI Agents Ruby library includes comprehensive tracing functionality that provides visibility into agent execution, tool calls, and LLM interactions. The tracing system is compatible with OpenTelemetry and integrates with the OpenAI platform's trace visualization.
+Comprehensive observability for OpenAI Agents Ruby with automatic instrumentation, OpenAI dashboard integration, and flexible export options.
 
-## Features
+## Overview
 
-- **Automatic Instrumentation**: Traces are automatically created for agent runs, LLM calls, tool executions, and handoffs
-- **OpenAI Platform Integration**: Send traces to OpenAI's dashboard for visualization
-- **OpenTelemetry Compatibility**: Export traces to any OTLP-compatible backend
-- **Flexible Processors**: Console, file, memory, and custom trace processors
-- **Background Processing**: Efficient batching and async trace export
-- **Zero-config**: Works out of the box with sensible defaults
+The tracing system provides complete visibility into agent execution, automatically capturing:
+
+- **Agent Operations** - Complete conversation flows and handoffs
+- **LLM Interactions** - API calls, token usage, and response times  
+- **Tool Executions** - Function calls and results
+- **Performance Metrics** - Duration, costs, and error rates
+- **Custom Events** - Application-specific monitoring points
+
+All traces are sent to the OpenAI platform dashboard for visualization and analysis.
 
 ## Quick Start
 
