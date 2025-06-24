@@ -189,7 +189,7 @@ module OpenAIAgents
         # Wait for worker thread to finish (with shorter timeout for responsiveness)
         if @worker_thread.alive?
           puts "[BatchTraceProcessor] Waiting for worker thread to finish..." if debug
-          thread_finished = !!@worker_thread.join(2.0) # 2 second timeout
+          thread_finished = !@worker_thread.join(2.0).nil? # 2 second timeout
           puts "[BatchTraceProcessor] Worker thread #{thread_finished ? "finished" : "timed out"}" if debug
         else
           thread_finished = true
@@ -387,12 +387,8 @@ module OpenAIAgents
           # Signal not supported on this platform, skip
         end
 
-        # Finalizer as absolute last resort (but less critical now)
-        finalizer_proc = proc do
-          # NOTE: Can't access instance variables in finalizer
-          puts "[BatchTraceProcessor] Finalizer executing..." if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        end
-        ObjectSpace.define_finalizer(self, finalizer_proc)
+        # Note: Finalizer removed to avoid "finalizer references object to be finalized" warning
+        # Cleanup is handled by signal handlers and global atexit registration
       end
     end
   end
