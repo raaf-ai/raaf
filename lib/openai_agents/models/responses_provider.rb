@@ -38,9 +38,10 @@ module OpenAIAgents
         # Get the current tracer from the trace context
         current_tracer = OpenAIAgents.tracer
 
-        if current_tracer
+        # Check if tracing is actually enabled (not a NoOpTracer)
+        if current_tracer && !current_tracer.is_a?(OpenAIAgents::Tracing::NoOpTracer)
           # Create a response span exactly like Python - only response_id attribute
-          current_tracer.start_span("POST /v1/responses", kind: :response) do |response_span|
+          result = current_tracer.start_span("POST /v1/responses", kind: :response) do |response_span|
             # Make the actual API call
             response = call_responses_api(
               model: model,
@@ -55,6 +56,7 @@ module OpenAIAgents
             # Convert response to chat completion format for compatibility
             convert_response_to_chat_format(response)
           end
+          result
         else
           # No tracing, just make the API call directly
           response = call_responses_api(
@@ -82,7 +84,27 @@ module OpenAIAgents
           input: input
         }
         body[:instructions] = instructions if instructions
-        body.merge!(kwargs)
+        
+        # Convert response_format to text.format for Responses API (matching Python implementation)
+        if kwargs[:response_format]
+          response_format = kwargs[:response_format]
+          if response_format[:type] == "json_schema" && response_format[:json_schema]
+            body[:text] = {
+              format: {
+                type: "json_schema",
+                name: response_format[:json_schema][:name],
+                schema: response_format[:json_schema][:schema],
+                strict: response_format[:json_schema][:strict]
+              }
+            }
+          end
+          # Remove response_format from kwargs since we converted it to text
+          kwargs_without_response_format = kwargs.dup
+          kwargs_without_response_format.delete(:response_format)
+          body.merge!(kwargs_without_response_format)
+        else
+          body.merge!(kwargs)
+        end
 
         request.body = body.to_json
 
@@ -112,17 +134,25 @@ module OpenAIAgents
         return nil unless response && response["output"]
 
         # Extract the text content from response output
-        content = if response["output"].is_a?(Array)
-                    response["output"].map do |item|
-                      if item.is_a?(Hash)
-                        item["text"] || item["content"] || item.to_s
-                      else
-                        item.to_s
-                      end
-                    end.join("")
-                  elsif response["output"].is_a?(Hash)
-                    response["output"]["text"] || response["output"]["content"] || response["output"].to_s
+        # New Responses API format: output is array of message objects with content arrays
+        content = if response["output"].is_a?(Array) && !response["output"].empty?
+                    # Get the first output item (should be the assistant message)
+                    output_item = response["output"][0]
+                    if output_item.is_a?(Hash) && output_item["content"].is_a?(Array)
+                      # Extract text from content array
+                      output_item["content"].map do |content_item|
+                        if content_item.is_a?(Hash) && content_item["type"] == "output_text"
+                          content_item["text"] || ""
+                        else
+                          content_item.to_s
+                        end
+                      end.join
+                    else
+                      # Fallback for older format
+                      output_item["text"] || output_item["content"] || output_item.to_s
+                    end
                   else
+                    # Fallback for other formats
                     response["output"].to_s
                   end
 

@@ -130,7 +130,7 @@ module OpenAIAgents
           @http_client.post_stream("#{@api_base}/chat", body: body) do |chunk|
             # Parse SSE chunk and convert to OpenAI format
             if chunk.start_with?("data: ")
-              data = chunk[6..-1].strip
+              data = chunk[6..].strip
               unless data == "[DONE]"
                 begin
                   parsed = JSON.parse(data)

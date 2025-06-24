@@ -265,7 +265,7 @@ module OpenAIAgents
         Dir.glob(File.join(@workspace_dir, "**/*")).each do |path|
           next unless File.file?(path)
 
-          relative_path = path.sub(@workspace_dir + "/", "")
+          relative_path = path.sub("#{@workspace_dir}/", "")
           stat = File.stat(path)
 
           # Skip files that are too large

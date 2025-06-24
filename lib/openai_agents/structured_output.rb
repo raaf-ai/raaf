@@ -13,6 +13,7 @@ module OpenAIAgents
       attr_reader :schema, :required_fields
 
       def initialize(schema = {})
+        raise SchemaError, "Schema must be a hash" unless schema.is_a?(Hash)
         @schema = schema
         @required_fields = schema[:required] || []
         validate_schema!
@@ -34,8 +35,6 @@ module OpenAIAgents
       private
 
       def validate_schema!
-        raise SchemaError, "Schema must be a hash" unless @schema.is_a?(Hash)
-
         return if @schema[:type]
 
         raise SchemaError, "Schema must have a type"

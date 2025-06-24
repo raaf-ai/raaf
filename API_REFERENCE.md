@@ -7,13 +7,14 @@ Complete Ruby API documentation for OpenAI Agents.
 1. [Agent Class](#agent-class)
 2. [Runner Classes](#runner-classes)
 3. [Tools](#tools)
-4. [Tracing](#tracing)
-5. [Guardrails](#guardrails)
-6. [Configuration](#configuration)
-7. [Usage Tracking](#usage-tracking)
-8. [Extensions](#extensions)
-9. [Voice](#voice)
-10. [Models](#models)
+4. [Structured Output](#structured-output)
+5. [Tracing](#tracing)
+6. [Guardrails](#guardrails)
+7. [Configuration](#configuration)
+8. [Usage Tracking](#usage-tracking)
+9. [Extensions](#extensions)
+10. [Voice](#voice)
+11. [Models](#models)
 
 ## Agent Class
 
@@ -28,7 +29,8 @@ OpenAIAgents::Agent.new(
   model: String,                   # Optional: LLM model (default: "gpt-4")
   max_turns: Integer,              # Optional: Max conversation turns (default: 10)
   tools: Array,                    # Optional: Pre-configured tools
-  handoffs: Array                  # Optional: Pre-configured handoff agents
+  handoffs: Array,                 # Optional: Pre-configured handoff agents
+  output_schema: Hash              # Optional: JSON schema for structured output
 )
 ```
 
@@ -221,6 +223,186 @@ weather_tool = OpenAIAgents::FunctionTool.new(
 )
 
 agent.add_tool(weather_tool)
+```
+
+## Structured Output
+
+Schema-based output validation and enforcement for consistent agent responses.
+
+### BaseSchema
+
+Core schema validation class.
+
+```ruby
+# Constructor
+OpenAIAgents::StructuredOutput::BaseSchema.new(schema)
+
+# Methods
+schema.validate(data)                    # Validate data against schema
+schema.to_h                             # Get schema as hash
+schema.to_json                          # Get schema as JSON string
+```
+
+### ObjectSchema
+
+Builder class for object schemas.
+
+```ruby
+# Constructor
+OpenAIAgents::StructuredOutput::ObjectSchema.new(
+  properties: Hash,                     # Property definitions
+  required: Array,                      # Required property names
+  additional_properties: Boolean        # Allow additional properties
+)
+
+# Builder Pattern
+schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+  string :name, required: true, minLength: 1
+  integer :age, required: true, minimum: 0, maximum: 150
+  string :email, pattern: '.*@.*'
+  boolean :active, required: true
+  array :tags, items: { type: "string" }, minItems: 1
+  object :address, properties: {
+    street: { type: "string" },
+    city: { type: "string" }
+  }, required: ["city"]
+  
+  # Constraints
+  required :name, :age, :active
+  no_additional_properties
+end
+```
+
+### ArraySchema
+
+Schema for array validation.
+
+```ruby
+OpenAIAgents::StructuredOutput::ArraySchema.new(
+  items: Hash,                          # Schema for array items
+  min_items: Integer,                   # Minimum array length
+  max_items: Integer                    # Maximum array length
+)
+```
+
+### StringSchema
+
+Schema for string validation.
+
+```ruby
+OpenAIAgents::StructuredOutput::StringSchema.new(
+  min_length: Integer,                  # Minimum string length
+  max_length: Integer,                  # Maximum string length
+  pattern: String,                      # Regex pattern
+  enum: Array                          # Allowed values
+)
+```
+
+### ResponseFormatter
+
+Response validation and formatting.
+
+```ruby
+# Constructor
+formatter = OpenAIAgents::StructuredOutput::ResponseFormatter.new(schema)
+
+# Methods
+formatter.format_response(data)         # Validate and format data
+formatter.validate_and_format(json_string)  # Parse JSON and validate
+```
+
+### StrictSchema
+
+Utilities for strict schema compliance (OpenAI requirement).
+
+```ruby
+# Ensure schema meets OpenAI strict requirements
+strict_schema = OpenAIAgents::StrictSchema.ensure_strict_json_schema(schema)
+
+# Features:
+# - All object properties become required
+# - additionalProperties set to false
+# - Nested objects processed recursively
+# - Handles arrays, unions (anyOf), intersections (allOf)
+```
+
+### Usage Examples
+
+```ruby
+# Basic schema usage
+schema = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    age: { type: "integer" }
+  },
+  required: ["name"],
+  additionalProperties: false
+}
+
+# Agent with structured output
+agent = OpenAIAgents::Agent.new(
+  name: "DataExtractor",
+  instructions: "Extract information as JSON.",
+  model: "gpt-4o",
+  output_schema: schema
+)
+
+# Validation
+validator = OpenAIAgents::StructuredOutput::BaseSchema.new(schema)
+begin
+  validated_data = validator.validate(response_data)
+  puts "Valid: #{validated_data}"
+rescue OpenAIAgents::StructuredOutput::ValidationError => e
+  puts "Invalid: #{e.message}"
+end
+
+# Complex schema with builder
+user_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+  string :first_name, required: true, minLength: 1
+  string :last_name, required: true, minLength: 1
+  integer :age, minimum: 0, maximum: 150
+  string :email, pattern: '^[^@]+@[^@]+\.[^@]+$'
+  array :hobbies, items: { type: "string" }
+  object :address, properties: {
+    street: { type: "string" },
+    city: { type: "string" },
+    zipcode: { type: "string", pattern: '^\d{5}$' }
+  }, required: ["city"]
+  
+  required :first_name, :last_name
+  no_additional_properties
+end
+
+# Use with agent
+profile_agent = OpenAIAgents::Agent.new(
+  name: "ProfileExtractor",
+  instructions: "Extract user profile information.",
+  model: "gpt-4o",
+  output_schema: user_schema.to_h
+)
+```
+
+### Error Handling
+
+```ruby
+# Custom exceptions
+OpenAIAgents::StructuredOutput::ValidationError   # Schema validation failed
+OpenAIAgents::StructuredOutput::SchemaError      # Invalid schema definition
+
+# Usage
+begin
+  result = runner.run(messages)
+  response = result.messages.last[:content]
+  data = JSON.parse(response)
+  validated = schema.validate(data)
+rescue JSON::ParserError => e
+  puts "Invalid JSON: #{e.message}"
+rescue OpenAIAgents::StructuredOutput::ValidationError => e
+  puts "Schema validation failed: #{e.message}"
+rescue OpenAIAgents::StructuredOutput::SchemaError => e
+  puts "Invalid schema: #{e.message}"
+end
 ```
 
 ## Tracing

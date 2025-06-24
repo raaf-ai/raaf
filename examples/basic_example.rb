@@ -90,8 +90,8 @@ rescue OpenAIAgents::Error => e
 
   # Demonstrate tool execution directly
   puts "\n=== Tool Execution Demo ==="
-  puts "Weather result: #{get_weather('Paris')}"
-  puts "Calculation result: #{calculate('15 * 23')}"
+  puts "Weather result: #{get_weather("Paris")}"
+  puts "Calculation result: #{calculate("15 * 23")}"
 end
 
 puts "\n=== Agent Configuration ==="

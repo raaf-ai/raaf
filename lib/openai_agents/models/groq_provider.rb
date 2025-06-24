@@ -134,7 +134,7 @@ module OpenAIAgents
           @http_client.post_stream("#{@api_base}/chat/completions", body: body) do |chunk|
             # Parse SSE chunk
             if chunk.start_with?("data: ")
-              data = chunk[6..-1].strip
+              data = chunk[6..].strip
 
               if data == "[DONE]"
                 # Final chunk - return accumulated data

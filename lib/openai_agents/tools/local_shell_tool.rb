@@ -168,7 +168,7 @@ module OpenAIAgents
         return "" if text.nil?
 
         if text.length > @max_output
-          text[0...@max_output] + "\n... (truncated)"
+          "#{text[0...@max_output]}\n... (truncated)"
         else
           text
         end

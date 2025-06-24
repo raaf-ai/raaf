@@ -211,7 +211,8 @@ module OpenAIAgents
         tools: safe_map_to_h(@tools),
         handoffs: safe_map_names(@handoffs),
         model: @model,
-        max_turns: @max_turns
+        max_turns: @max_turns,
+        output_schema: @output_schema
       }
     end
 

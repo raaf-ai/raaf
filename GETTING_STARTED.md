@@ -8,9 +8,10 @@ This guide will walk you through building AI-powered applications with OpenAI Ag
 2. [Core Concepts](#core-concepts)
 3. [Building Your First Agent](#building-your-first-agent)
 4. [Adding Tools](#adding-tools)
-5. [Multi-Agent Workflows](#multi-agent-workflows)
-6. [Enterprise Features](#enterprise-features)
-7. [Next Steps](#next-steps)
+5. [Structured Output](#structured-output)
+6. [Multi-Agent Workflows](#multi-agent-workflows)
+7. [Enterprise Features](#enterprise-features)
+8. [Next Steps](#next-steps)
 
 ## Installation & Setup
 
@@ -185,6 +186,146 @@ agent.add_tool(file_search)
 agent.add_tool(web_search)
 agent.add_tool(computer_tool)
 ```
+
+## Structured Output
+
+OpenAI Agents Ruby supports enforced structured output using JSON schemas. This ensures your agents return data in a specific format that your application can reliably parse and use.
+
+### Basic Structured Output
+
+```ruby
+# Define a JSON schema for your desired output format
+user_schema = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    age: { type: "integer", minimum: 0, maximum: 150 },
+    email: { type: "string" },
+    city: { type: "string" }
+  },
+  required: ["name", "age", "city"],
+  additionalProperties: false
+}
+
+# Create agent with structured output
+agent = OpenAIAgents::Agent.new(
+  name: "UserExtractor", 
+  instructions: "Extract user information from the input and return as JSON.",
+  model: "gpt-4o",
+  output_schema: user_schema
+)
+
+# Use the agent
+runner = OpenAIAgents::Runner.new(agent: agent)
+result = runner.run("Hi, I'm Sarah, 28 years old from Seattle. Email: sarah@example.com")
+
+# The response is guaranteed to match the schema
+response = result.messages.last[:content]
+# => '{"name":"Sarah","age":28,"email":"sarah@example.com","city":"Seattle"}'
+
+user_data = JSON.parse(response)
+puts "Welcome #{user_data['name']} from #{user_data['city']}!"
+```
+
+### Using Schema Builder
+
+For complex schemas, use the built-in schema builder:
+
+```ruby
+# Build schema programmatically
+product_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+  string :product_name, required: true, minLength: 1
+  number :price, required: true, minimum: 0
+  string :category, enum: %w[electronics clothing food other], required: true
+  array :features, items: { type: "string" }, minItems: 1, required: true
+  boolean :in_stock, required: true
+end
+
+# Use with agent
+agent = OpenAIAgents::Agent.new(
+  name: "ProductAnalyzer",
+  instructions: "Analyze product information and structure it according to the schema.",
+  model: "gpt-4o", 
+  output_schema: product_schema.to_h
+)
+```
+
+### Validation and Error Handling
+
+```ruby
+begin
+  result = runner.run("Tell me about the MacBook Pro")
+  response_json = result.messages.last[:content]
+  
+  # Parse and validate
+  product_data = JSON.parse(response_json)
+  
+  # Additional validation using the schema
+  validator = OpenAIAgents::StructuredOutput::BaseSchema.new(product_schema.to_h)
+  validated_data = validator.validate(product_data)
+  
+  puts "Valid product data: #{validated_data}"
+  
+rescue JSON::ParserError => e
+  puts "Invalid JSON returned: #{e.message}"
+rescue OpenAIAgents::StructuredOutput::ValidationError => e
+  puts "Schema validation failed: #{e.message}"
+end
+```
+
+### Advanced Schema Features
+
+```ruby
+# Complex nested schema
+order_schema = {
+  type: "object",
+  properties: {
+    order_id: { type: "string" },
+    customer: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        email: { type: "string", pattern: ".*@.*" }
+      },
+      required: ["name", "email"]
+    },
+    items: {
+      type: "array",
+      items: {
+        type: "object", 
+        properties: {
+          product: { type: "string" },
+          quantity: { type: "integer", minimum: 1 },
+          price: { type: "number", minimum: 0 }
+        },
+        required: ["product", "quantity", "price"]
+      },
+      minItems: 1
+    },
+    total: { type: "number", minimum: 0 }
+  },
+  required: ["order_id", "customer", "items", "total"],
+  additionalProperties: false
+}
+
+# Agent will enforce this exact structure
+order_agent = OpenAIAgents::Agent.new(
+  name: "OrderProcessor",
+  instructions: "Process order information into the required JSON format.",
+  model: "gpt-4o",
+  output_schema: order_schema
+)
+```
+
+### Best Practices
+
+1. **Keep schemas focused**: Design schemas for specific use cases rather than trying to handle everything
+2. **Use clear property names**: Make field names descriptive and consistent
+3. **Set appropriate constraints**: Use minimum/maximum values, string patterns, and enums to ensure data quality
+4. **Handle validation errors**: Always include error handling for parsing and validation
+5. **Test with edge cases**: Verify your schemas work with various input types
+
+**Note**: Structured output is enforced at the API level, meaning the language model is constrained to return only valid JSON matching your schema. This is more reliable than post-processing validation alone.
 
 ## Multi-Agent Workflows
 

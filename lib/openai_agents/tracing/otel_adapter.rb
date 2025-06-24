@@ -23,7 +23,7 @@ module OpenAIAgents
           name: span.name,
           kind: SPAN_KIND_MAP[span.kind] || :internal,
           start_time: span.start_time.to_i * 1_000_000_000, # Convert to nanoseconds
-          end_time: span.end_time ? span.end_time.to_i * 1_000_000_000 : nil,
+          end_time: (span.end_time&.to_i&.* 1_000_000_000),
           attributes: transform_attributes(span.attributes),
           events: transform_events(span.events),
           status: transform_status(span.status),

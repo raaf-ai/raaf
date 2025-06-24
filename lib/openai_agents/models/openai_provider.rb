@@ -75,9 +75,9 @@ module OpenAIAgents
         "OpenAI"
       end
 
-      def stream_completion(messages:, model:, tools: nil, **kwargs)
+      def stream_completion(messages:, model:, tools: nil, **)
         validate_model(model)
-        standard_completion(messages: messages, model: model, tools: tools, stream: true, **kwargs)
+        standard_completion(messages: messages, model: model, tools: tools, stream: true, **)
       end
 
       private
@@ -172,9 +172,9 @@ module OpenAIAgents
       end
 
       def extract_content_from_responses(data)
-        if data["output"] && data["output"].any?
+        if data["output"]&.any?
           content = data["output"][0]
-          return content["content"][0]["text"] if content["content"] && content["content"].any?
+          return content["content"][0]["text"] if content["content"]&.any?
         end
 
         data["text"] || "No content returned"

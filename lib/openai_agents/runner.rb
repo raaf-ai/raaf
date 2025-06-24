@@ -8,6 +8,7 @@ require_relative "agent"
 require_relative "errors"
 require_relative "models/responses_provider"
 require_relative "tracing/trace_provider"
+require_relative "strict_schema"
 require_relative "structured_output"
 require_relative "result"
 require_relative "run_config"
@@ -51,7 +52,7 @@ module OpenAIAgents
       require_relative "tracing/trace"
       current_trace = Tracing::Context.current_trace
 
-      if current_trace && current_trace.active?
+      if current_trace&.active?
         # We're inside an existing trace, just run normally
         run_with_tracing(messages, config: config, parent_span: nil)
       else
@@ -114,6 +115,21 @@ module OpenAIAgents
           # Merge config parameters with API call
           model_params = config.to_model_params
 
+          # Add structured output support (matching Python implementation)
+          if current_agent.output_schema
+            # Apply strict schema rules (all properties become required)
+            strict_schema = StrictSchema.ensure_strict_json_schema(current_agent.output_schema)
+            
+            model_params[:response_format] = {
+              type: "json_schema",
+              json_schema: {
+                name: "final_output",
+                strict: true,
+                schema: strict_schema
+              }
+            }
+          end
+
           response = if config.stream
                        @provider.stream_completion(
                          messages: api_messages,
@@ -152,7 +168,7 @@ module OpenAIAgents
           @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_span_stack)
 
           result
-        end # End of agent_span
+        end
 
         turns += 1
 
@@ -203,6 +219,21 @@ module OpenAIAgents
         # Make API call using provider (supports hosted tools)
         model = config.model || current_agent.model
         model_params = config.to_model_params
+
+        # Add structured output support (matching Python implementation)
+        if current_agent.output_schema
+          # Apply strict schema rules (all properties become required)
+          strict_schema = StrictSchema.ensure_strict_json_schema(current_agent.output_schema)
+          
+          model_params[:response_format] = {
+            type: "json_schema",
+            json_schema: {
+              name: "final_output",
+              strict: true,
+              schema: strict_schema
+            }
+          }
+        end
 
         response = if config.stream
                      @provider.stream_completion(

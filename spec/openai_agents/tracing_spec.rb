@@ -4,9 +4,14 @@ require "spec_helper"
 
 RSpec.describe OpenAIAgents::Tracing do
   describe ".tracer" do
-    it "returns a SpanTracer instance" do
+    it "returns a tracer instance" do
       tracer = described_class.tracer
-      expect(tracer).to be_a(OpenAIAgents::Tracing::SpanTracer)
+      # When tracing is disabled, returns NoOpTracer; otherwise SpanTracer
+      if ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
+        expect(tracer).to be_a(OpenAIAgents::Tracing::NoOpTracer)
+      else
+        expect(tracer).to be_a(OpenAIAgents::Tracing::SpanTracer)
+      end
     end
   end
 

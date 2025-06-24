@@ -468,6 +468,19 @@ module OpenAIAgents
         NoOpSpan.new
       end
 
+      # Creates and starts a no-op span (mirrors Python implementation)
+      #
+      # @param name [String] Span name (ignored)
+      # @param kind [Symbol, nil] Span kind (ignored)
+      # @param attributes [Hash] Span attributes (ignored)
+      # @yield [span] Optional block to execute
+      # @yieldparam span [NoOpSpan] A no-op span instance
+      # @return [NoOpSpan] A no-op span
+      def start_span(_name, kind: nil, **_attributes)
+        yield NoOpSpan.new if block_given?
+        NoOpSpan.new
+      end
+
       # Creates a no-op agent span
       #
       # @param name [String] Agent name (ignored)

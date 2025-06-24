@@ -75,7 +75,7 @@ module OpenAIAgents
             chunk.split("\n").each do |line|
               next unless line.start_with?("data: ")
 
-              data = line[6..-1]
+              data = line[6..]
               next if data == "[DONE]"
 
               begin
@@ -177,9 +177,9 @@ module OpenAIAgents
 
       def extract_search_results(data)
         # Extract the final output from the response
-        if data["output"] && data["output"].any?
+        if data["output"]&.any?
           content = data["output"][0]
-          return content["content"][0]["text"] if content["content"] && content["content"].any?
+          return content["content"][0]["text"] if content["content"]&.any?
         end
 
         # Fallback if structure is different

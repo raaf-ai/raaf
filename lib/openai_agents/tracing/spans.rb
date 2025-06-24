@@ -753,7 +753,7 @@ module OpenAIAgents
       # @api private
       def notify_processors(method, span)
         processors = @processors.dup
-        processors += @provider.processors if @provider&.respond_to?(:processors)
+        processors += @provider.processors if @provider.respond_to?(:processors)
 
         processors.each do |processor|
           processor.send(method, span) if processor.respond_to?(method)

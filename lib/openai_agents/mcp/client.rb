@@ -313,7 +313,7 @@ module OpenAIAgents
       end
 
       def read_messages
-        while line = @stdout.gets
+        while (line = @stdout.gets)
           begin
             message = JSON.parse(line)
             handle_message(message)

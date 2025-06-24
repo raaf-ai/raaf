@@ -3,7 +3,8 @@
 
 require_relative "../lib/openai_agents"
 
-# Example demonstrating structured output and RunConfig features
+# Example demonstrating WORKING structured output functionality
+# This example shows how to enforce JSON schema compliance at the API level
 
 unless ENV["OPENAI_API_KEY"]
   puts "ERROR: OPENAI_API_KEY environment variable is required"
@@ -11,7 +12,8 @@ unless ENV["OPENAI_API_KEY"]
   exit 1
 end
 
-puts "=== Structured Output Example ==="
+puts "=== OpenAI Agents Ruby - Structured Output Example ==="
+puts "This demonstrates enforced structured output using JSON schemas"
 puts
 
 # Define a schema for product information
@@ -28,26 +30,57 @@ end
 product_agent = OpenAIAgents::Agent.new(
   name: "ProductAnalyzer",
   instructions: <<~INSTRUCTIONS,
-    You are a product information analyzer. When asked about a product,#{" "}
-    respond ONLY with a JSON object matching the required schema.
-    The schema includes: name, description, price, category, features array, and in_stock boolean.
+    You are a product information analyzer. Extract product information from user input
+    and return it as a JSON object that exactly matches the provided schema.
+    
+    Be accurate with pricing information and categorize products appropriately.
+    If you don't know specific details, make reasonable estimates.
   INSTRUCTIONS
   model: "gpt-4o",
   output_schema: product_schema.to_h
 )
+
+puts "Schema enforced by agent:"
+puts JSON.pretty_generate(product_schema.to_h)
+puts
 
 # Create runner
 runner = OpenAIAgents::Runner.new(agent: product_agent)
 
 # Example 1: Basic structured output
 puts "1. Testing basic structured output:"
-messages = [{
+puts "Input: 'Tell me about the iPhone 15 Pro'"
+
+result = runner.run([{
   role: "user",
   content: "Tell me about the iPhone 15 Pro"
-}]
+}])
 
-result = runner.run(messages)
-puts "Response: #{result[:messages].last[:content]}"
+response_content = result.messages.last[:content]
+puts "✅ Raw JSON response: #{response_content}"
+
+# Parse and validate the response
+begin
+  parsed_product = JSON.parse(response_content)
+  puts "✅ Successfully parsed JSON"
+  
+  # Validate against our schema
+  validator = OpenAIAgents::StructuredOutput::BaseSchema.new(product_schema.to_h)
+  validated_product = validator.validate(parsed_product)
+  puts "✅ Schema validation passed"
+  
+  puts "📱 Product Details:"
+  puts "   Name: #{validated_product['name']}"
+  puts "   Price: $#{validated_product['price']}"
+  puts "   Category: #{validated_product['category']}"
+  puts "   In Stock: #{validated_product['in_stock'] ? 'Yes' : 'No'}"
+  puts "   Features: #{validated_product['features'].join(', ')}"
+  
+rescue JSON::ParserError => e
+  puts "❌ JSON parsing failed: #{e.message}"
+rescue OpenAIAgents::StructuredOutput::ValidationError => e
+  puts "❌ Schema validation failed: #{e.message}"
+end
 puts
 
 # Example 2: Using RunConfig for customization

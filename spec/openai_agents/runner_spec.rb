@@ -9,7 +9,12 @@ RSpec.describe OpenAIAgents::Runner do
   describe "#initialize" do
     it "creates a runner with an agent" do
       expect(runner.agent).to eq(agent)
-      expect(runner.tracer).to be_a(OpenAIAgents::Tracing::SpanTracer)
+      # When tracing is disabled, tracer may be nil
+      if ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
+        expect(runner.tracer).to be_nil
+      else
+        expect(runner.tracer).to be_a(OpenAIAgents::Tracing::SpanTracer)
+      end
     end
 
     it "accepts a custom tracer" do

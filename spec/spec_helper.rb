@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
+
+# Disable tracing during tests to prevent API calls and console noise
+ENV["OPENAI_AGENTS_DISABLE_TRACING"] = "true"
+
 require "openai_agents"
 require "rspec/collection_matchers"
 

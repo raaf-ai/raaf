@@ -214,7 +214,6 @@ module OpenAIAgents
     end
   end
 
-
   # Module-level convenience methods
   class << self
     # Create a trace
