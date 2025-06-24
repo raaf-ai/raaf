@@ -7,11 +7,55 @@ require_relative "../version"
 
 module OpenAIAgents
   module Tracing
-    # OpenAI Platform Processor - Sends spans to OpenAI's traces ingestion endpoint
+    # Processor that sends spans to OpenAI's traces ingestion endpoint
     #
-    # This processor sends span data to OpenAI's tracing backend for visualization
-    # in the OpenAI platform dashboard at https://platform.openai.com/traces
+    # OpenAIProcessor is responsible for:
+    # - Transforming span data into OpenAI's expected format
+    # - Batching spans for efficient network usage
+    # - Sending traces to the OpenAI platform dashboard
+    # - Handling authentication and API communication
+    #
+    # ## Configuration
+    #
+    # The processor can be configured via initialization parameters or
+    # environment variables:
+    #
+    # - `OPENAI_API_KEY` - Required for authentication
+    # - `OPENAI_ORG_ID` - Optional organization ID
+    # - `OPENAI_PROJECT_ID` - Optional project ID
+    # - `OPENAI_AGENTS_TRACE_DEBUG` - Enable debug output
+    #
+    # ## Span Format
+    #
+    # The processor transforms Ruby span objects into the OpenAI traces
+    # API format, which includes:
+    # - Trace object with workflow metadata
+    # - Individual span objects with type-specific data
+    #
+    # @see https://platform.openai.com/traces OpenAI Traces Dashboard
+    #
+    # @example Direct usage (usually not needed)
+    #   processor = OpenAIProcessor.new(
+    #     api_key: "sk-...",
+    #     batch_size: 100
+    #   )
+    #   tracer.add_processor(processor)
+    #
+    # @example Typical usage via TraceProvider
+    #   # Automatically configured when OPENAI_API_KEY is set
+    #   runner = OpenAIAgents::Runner.new(agent: agent)
+    #   runner.run(messages)  # Traces sent automatically
     class OpenAIProcessor
+      # Creates a new OpenAI processor
+      #
+      # @param api_key [String, nil] OpenAI API key. Defaults to OPENAI_API_KEY env var
+      # @param base_url [String, nil] Base URL for OpenAI API. Defaults to https://api.openai.com
+      # @param batch_size [Integer] Number of spans to buffer before sending. Default: 50
+      # @param workflow_name [String, nil] Default workflow name. Default: "openai-agents-ruby"
+      # @param organization [String, nil] Organization ID. Defaults to OPENAI_ORG_ID env var
+      # @param project [String, nil] Project ID. Defaults to OPENAI_PROJECT_ID env var
+      #
+      # @raise [ArgumentError] If api_key is not provided and OPENAI_API_KEY is not set
       def initialize(api_key: nil, base_url: nil, batch_size: 50, workflow_name: nil, organization: nil, project: nil)
         @api_key = api_key || ENV["OPENAI_API_KEY"]
         @organization = organization || ENV["OPENAI_ORG_ID"]
@@ -25,10 +69,24 @@ module OpenAIAgents
         @current_trace_id = nil
       end
 
+      # Called when a span starts
+      #
+      # OpenAI's traces API only processes completed spans, so this method
+      # is a no-op. Span data is collected when the span ends.
+      #
+      # @param span [Span] The span that started
+      # @return [void]
       def on_span_start(span)
         # OpenAI processes spans on completion, not on start
       end
 
+      # Called when a span ends
+      #
+      # Transforms the span to OpenAI format and adds it to the buffer.
+      # If the buffer reaches the batch size, automatically flushes.
+      #
+      # @param span [Span] The span that ended
+      # @return [void]
       def on_span_end(span)
         @mutex.synchronize do
           @current_trace_id ||= span.trace_id
@@ -47,7 +105,15 @@ module OpenAIAgents
         end
       end
 
-      # Export a batch of spans (called by BatchTraceProcessor)
+      # Exports a batch of spans to OpenAI
+      #
+      # This method is typically called by BatchTraceProcessor with accumulated
+      # spans. It groups spans by trace ID and sends them to the OpenAI API.
+      #
+      # @param spans [Array<Span>] Array of spans to export
+      # @return [void]
+      #
+      # @api private
       def export(spans)
         return if spans.empty?
         
@@ -79,19 +145,40 @@ module OpenAIAgents
         warn e.backtrace.first(5).join("\n") if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
       end
 
-      # Force flush any remaining spans
+      # Forces immediate export of any buffered spans
+      #
+      # Call this method to ensure all pending span data is sent to OpenAI,
+      # typically before application shutdown or at critical checkpoints.
+      #
+      # @return [void]
+      #
+      # @example
+      #   processor.force_flush
+      #   sleep(1)  # Allow time for network request
       def force_flush
         @mutex.synchronize do
           flush_spans if @span_buffer.any?
         end
       end
       
+      # Shuts down the processor
+      #
+      # Flushes any remaining spans and releases resources.
+      # After shutdown, the processor should not be used.
+      #
+      # @return [void]
       def shutdown
         force_flush
       end
 
       private
 
+      # Transforms a Ruby span object into OpenAI's expected format
+      #
+      # @param span [Span] The span to transform
+      # @return [Hash, nil] Transformed span data or nil if span should be skipped
+      #
+      # @api private
       def transform_span(span)
         # Skip trace spans - they're handled separately
         return nil if span.kind == :trace
@@ -110,6 +197,16 @@ module OpenAIAgents
         }
       end
 
+      # Creates type-specific span data based on span kind
+      #
+      # Each span type has specific fields required by the OpenAI API.
+      # This method extracts the appropriate attributes and formats them
+      # according to the API specification.
+      #
+      # @param span [Span] The span to process
+      # @return [Hash, nil] Type-specific span data or nil
+      #
+      # @api private
       def create_span_data(span)
         data = case span.kind
         when :trace
@@ -117,21 +214,38 @@ module OpenAIAgents
           return nil
         when :agent
           {
-            type: "agent",
+            type: "agent", 
             name: span.attributes["agent.name"] || span.name,
             handoffs: span.attributes["agent.handoffs"] || [],
             tools: span.attributes["agent.tools"] || [],
-            output_type: span.attributes["agent.output_type"] || "text"
-          }
+            output_type: span.attributes["agent.output_type"] || "text",
+            model: span.attributes["agent.model"],
+            instructions: span.attributes["agent.instructions"],
+            input: span.attributes["agent.input"],
+            output: span.attributes["agent.output"],
+            tokens: span.attributes["agent.tokens"]
+          }.compact
         when :llm
-          {
-            type: "generation",
-            input: span.attributes["llm.request.messages"] || [],
-            output: format_llm_output(span),
-            model: span.attributes["llm.request.model"] || span.attributes["llm.model"],
-            model_config: extract_model_config(span),
-            usage: extract_usage(span)
-          }
+          # Handle both "POST /v1/responses" spans and legacy "generation" spans
+          if span.name == "POST /v1/responses"
+            {
+              type: "generation",
+              input: span.attributes["llm.request.messages"] || [],
+              output: format_llm_output(span),
+              model: span.attributes["llm.request.model"] || span.attributes["llm.model"],
+              model_config: extract_model_config(span),
+              usage: extract_usage(span)
+            }
+          else
+            {
+              type: "generation",
+              input: span.attributes["llm.request.messages"] || [],
+              output: format_llm_output(span),
+              model: span.attributes["llm.request.model"] || span.attributes["llm.model"],
+              model_config: extract_model_config(span),
+              usage: extract_usage(span)
+            }
+          end
         when :tool
           {
             type: "function",
@@ -201,6 +315,12 @@ module OpenAIAgents
       end
 
 
+      # Extracts model configuration from LLM span attributes
+      #
+      # @param span [Span] The LLM span
+      # @return [Hash] Model configuration with nil values removed
+      #
+      # @api private
       def extract_model_config(span)
         {
           max_tokens: span.attributes["llm.request.max_tokens"],
@@ -208,6 +328,12 @@ module OpenAIAgents
         }.compact
       end
 
+      # Extracts token usage from LLM span attributes
+      #
+      # @param span [Span] The LLM span
+      # @return [Hash] Token usage data with nil values removed
+      #
+      # @api private
       def extract_usage(span)
         {
           input_tokens: span.attributes["llm.usage.prompt_tokens"],
@@ -215,6 +341,12 @@ module OpenAIAgents
         }.compact
       end
 
+      # Formats LLM output as expected by OpenAI traces API
+      #
+      # @param span [Span] The LLM span
+      # @return [Array<Hash>] Array of message objects
+      #
+      # @api private
       def format_llm_output(span)
         content = span.attributes["llm.response.content"]
         return [] unless content
@@ -226,6 +358,15 @@ module OpenAIAgents
         }]
       end
 
+      # Flattens nested attributes for custom span data
+      #
+      # Converts nested hashes into dot-notation keys and ensures
+      # all values are strings for JSON serialization.
+      #
+      # @param attributes [Hash] Span attributes to flatten
+      # @return [Hash] Flattened attributes with string values
+      #
+      # @api private
       def flatten_attributes(attributes)
         result = {}
         attributes.each do |key, value|
@@ -241,6 +382,9 @@ module OpenAIAgents
         result
       end
 
+      # Flushes buffered spans to the OpenAI API
+      #
+      # @api private
       def flush_spans
         return if @span_buffer.empty?
         
@@ -257,6 +401,16 @@ module OpenAIAgents
         warn "Failed to send spans to OpenAI: #{e.message}" if $DEBUG
       end
 
+      # Sends spans to the OpenAI traces API
+      #
+      # Constructs the HTTP request with proper authentication and formatting,
+      # sends the trace data, and handles the response. Debug output can be
+      # enabled via OPENAI_AGENTS_TRACE_DEBUG environment variable.
+      #
+      # @param spans [Array<Hash>] Transformed span data to send
+      # @return [void]
+      #
+      # @api private
       def send_spans(spans)
         debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
         

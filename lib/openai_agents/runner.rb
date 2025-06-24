@@ -9,6 +9,8 @@ require_relative "errors"
 require_relative "models/openai_provider"
 require_relative "tracing/trace_provider"
 require_relative "structured_output"
+require_relative "result"
+require_relative "run_config"
 
 module OpenAIAgents
   class Runner
@@ -22,6 +24,9 @@ module OpenAIAgents
     end
 
     def run(messages, stream: false, config: nil, **kwargs)
+      # Normalize messages input - handle both string and array formats
+      messages = normalize_messages(messages)
+      
       # Handle both config object and legacy parameters
       if config.nil? && !kwargs.empty?
         # Legacy support: create config from kwargs
@@ -77,17 +82,27 @@ module OpenAIAgents
         agent_result = @tracer.agent_span(current_agent.name || "agent") do |agent_span|
           # Set agent span attributes to match Python implementation
           agent_span.set_attribute("agent.name", current_agent.name || "agent")
-          agent_span.set_attribute("agent.handoffs", current_agent.handoffs.map(&:name))
-          agent_span.set_attribute("agent.tools", current_agent.tools&.map(&:name) || [])
+          agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
+          agent_span.set_attribute("agent.tools", safe_map_names(current_agent.tools))
           agent_span.set_attribute("agent.output_type", "text")
           
           # Prepare messages for API call
           api_messages = build_messages(conversation, current_agent)
-
-          # Make API call using provider (generation_span in Python)
           model = config.model || current_agent.model
-          response = @tracer.llm_span(model) do |llm_span|
-            llm_span.set_attribute("llm.request.model", current_agent.model)
+
+          # Add comprehensive agent span attributes matching Python implementation
+          if config.trace_include_sensitive_data
+            agent_span.set_attribute("agent.instructions", current_agent.instructions || "")
+            agent_span.set_attribute("agent.input", conversation.last&.dig(:content) || "")
+          else
+            agent_span.set_attribute("agent.instructions", "[REDACTED]")
+            agent_span.set_attribute("agent.input", "[REDACTED]")
+          end
+          agent_span.set_attribute("agent.model", model)
+
+          # Make API call using provider - name it to match Python's "POST /v1/responses"
+          response = @tracer.start_span("POST /v1/responses", kind: :llm) do |llm_span|
+            llm_span.set_attribute("llm.request.model", model)
             
             # Only include sensitive data if enabled
             if config.trace_include_sensitive_data
@@ -143,6 +158,20 @@ module OpenAIAgents
             resp
           end
 
+          # Set agent output after API call
+          if config.trace_include_sensitive_data
+            assistant_response = response.dig("choices", 0, "message", "content") || ""
+            agent_span.set_attribute("agent.output", assistant_response)
+          else
+            agent_span.set_attribute("agent.output", "[REDACTED]")
+          end
+
+          # Add token information to agent span to match Python format
+          if response.is_a?(Hash) && response["usage"]
+            total_tokens = response["usage"]["total_tokens"]
+            agent_span.set_attribute("agent.tokens", "#{total_tokens} total") if total_tokens
+          end
+
           # Process response
           process_response(response, current_agent, conversation)
         end # End of agent_span
@@ -173,11 +202,11 @@ module OpenAIAgents
         raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
       end
 
-      {
+      RunResult.success(
         messages: conversation,
-        agent: current_agent,
+        last_agent: current_agent,
         turns: turns
-      }
+      )
     end
     
     def run_without_tracing(messages, config:)
@@ -235,11 +264,11 @@ module OpenAIAgents
         raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
       end
 
-      {
+      RunResult.success(
         messages: conversation,
-        agent: current_agent,
+        last_agent: current_agent,
         turns: turns
-      }
+      )
     end
 
     def run_async(messages, stream: false)
@@ -447,6 +476,34 @@ module OpenAIAgents
         # Not JSON format, return as-is
         content
       end
+    end
+    
+    def normalize_messages(messages)
+      case messages
+      when String
+        # Convert string to user message
+        [{ role: "user", content: messages }]
+      when Array
+        # Already an array, return as-is
+        messages
+      else
+        # Convert to string then to user message
+        [{ role: "user", content: messages.to_s }]
+      end
+    end
+    
+    def safe_map_names(collection)
+      return [] unless collection.respond_to?(:map)
+      
+      collection.map do |item|
+        if item.respond_to?(:name)
+          item.name
+        else
+          item.to_s
+        end
+      end
+    rescue
+      []
     end
   end
 end
