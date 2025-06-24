@@ -92,10 +92,10 @@ module OpenAIAgents
       #   ) do
       #     # Your workflow code
       #   end
-      def trace(workflow_name, **options, &block)
-        Trace.create(workflow_name, **options, &block)
+      def trace(workflow_name, **, &)
+        Trace.create(workflow_name, **, &)
       end
-      
+
       # Adds a custom trace processor to receive span events
       #
       # Processors receive notifications when spans start and end, allowing
@@ -112,17 +112,17 @@ module OpenAIAgents
       #     def on_span_start(span)
       #       puts "Span started: #{span.name}"
       #     end
-      #     
+      #
       #     def on_span_end(span)
       #       puts "Span ended: #{span.name} (#{span.duration}ms)"
       #     end
       #   end
-      #   
+      #
       #   OpenAIAgents::Tracing.add_trace_processor(MyProcessor.new)
       def add_trace_processor(processor)
         TraceProvider.add_processor(processor)
       end
-      
+
       # Replaces all trace processors with the provided ones
       #
       # This method removes all existing processors (including the default
@@ -139,7 +139,7 @@ module OpenAIAgents
       def set_trace_processors(*processors)
         TraceProvider.set_processors(*processors)
       end
-      
+
       # Returns the global tracer instance
       #
       # The tracer provides methods for creating spans of various types.
@@ -156,14 +156,14 @@ module OpenAIAgents
       def tracer
         TraceProvider.tracer
       end
-      
+
       # Checks if tracing is globally disabled
       #
       # @return [Boolean] true if tracing is disabled
       def disabled?
         TraceProvider.disabled?
       end
-      
+
       # Disables tracing globally
       #
       # This prevents any new traces or spans from being created.
@@ -175,7 +175,7 @@ module OpenAIAgents
       def disable!
         TraceProvider.disable!
       end
-      
+
       # Enables tracing globally
       #
       # Re-enables tracing after it has been disabled. If no processors
@@ -187,7 +187,7 @@ module OpenAIAgents
       def enable!
         TraceProvider.enable!
       end
-      
+
       # Forces all processors to flush buffered data immediately
       #
       # Use this to ensure all trace data is sent before your application
@@ -200,7 +200,7 @@ module OpenAIAgents
       def force_flush
         TraceProvider.force_flush
       end
-      
+
       # Shuts down the tracing system
       #
       # This method flushes all pending data and releases resources.
@@ -213,7 +213,7 @@ module OpenAIAgents
       end
     end
   end
-  
+
   # Legacy Tracer class for backward compatibility
   class Tracer
     attr_reader :traces
@@ -277,7 +277,7 @@ module OpenAIAgents
       end
     end
   end
-  
+
   # Module-level convenience methods
   class << self
     # Create a trace
@@ -286,10 +286,10 @@ module OpenAIAgents
     #   OpenAIAgents.trace("My Workflow") do
     #     # Your code here
     #   end
-    def trace(workflow_name, **options, &block)
-      Tracing.trace(workflow_name, **options, &block)
+    def trace(workflow_name, **, &)
+      Tracing.trace(workflow_name, **, &)
     end
-    
+
     # Get the global tracer instance
     def tracer
       @tracer ||= Tracing.tracer

@@ -39,7 +39,7 @@ module OpenAIAgents
 
       # Convert batch of spans to OTLP format
       def self.to_otlp_batch(spans)
-        resource_spans = spans.group_by(&:trace_id).map do |trace_id, trace_spans|
+        resource_spans = spans.group_by(&:trace_id).map do |_trace_id, trace_spans|
           {
             resource: {
               attributes: [
@@ -66,8 +66,6 @@ module OpenAIAgents
           resource_spans: resource_spans
         }
       end
-
-      private
 
       def self.normalize_trace_id(trace_id)
         # OpenTelemetry expects 32 hex chars (128 bits)
@@ -201,34 +199,30 @@ module OpenAIAgents
 
       # Convenience method to set up OTLP exporter
       def self.configure_otlp(endpoint: nil, headers: nil)
-        begin
-          require "opentelemetry/exporter/otlp"
-          
-          exporter = OpenTelemetry::Exporter::OTLP::Exporter.new(
-            endpoint: endpoint || ENV["OTEL_EXPORTER_OTLP_ENDPOINT"] || "http://localhost:4318/v1/traces",
-            headers: headers || ENV["OTEL_EXPORTER_OTLP_HEADERS"] || {}
-          )
-          
-          use_otel_exporter(exporter)
-        rescue LoadError
-          warn "OpenTelemetry OTLP exporter not available. Install 'opentelemetry-exporter-otlp' gem."
-        end
+        require "opentelemetry/exporter/otlp"
+
+        exporter = OpenTelemetry::Exporter::OTLP::Exporter.new(
+          endpoint: endpoint || ENV["OTEL_EXPORTER_OTLP_ENDPOINT"] || "http://localhost:4318/v1/traces",
+          headers: headers || ENV["OTEL_EXPORTER_OTLP_HEADERS"] || {}
+        )
+
+        use_otel_exporter(exporter)
+      rescue LoadError
+        warn "OpenTelemetry OTLP exporter not available. Install 'opentelemetry-exporter-otlp' gem."
       end
 
       # Convenience method to set up Jaeger exporter
       def self.configure_jaeger(endpoint: nil)
-        begin
-          require "opentelemetry/exporter/jaeger"
-          
-          exporter = OpenTelemetry::Exporter::Jaeger::AgentExporter.new(
-            host: endpoint&.split(":")&.first || ENV["JAEGER_HOST"] || "localhost",
-            port: endpoint&.split(":")&.last&.to_i || ENV["JAEGER_PORT"]&.to_i || 6831
-          )
-          
-          use_otel_exporter(exporter)
-        rescue LoadError
-          warn "OpenTelemetry Jaeger exporter not available. Install 'opentelemetry-exporter-jaeger' gem."
-        end
+        require "opentelemetry/exporter/jaeger"
+
+        exporter = OpenTelemetry::Exporter::Jaeger::AgentExporter.new(
+          host: endpoint&.split(":")&.first || ENV["JAEGER_HOST"] || "localhost",
+          port: endpoint&.split(":")&.last&.to_i || ENV["JAEGER_PORT"]&.to_i || 6831
+        )
+
+        use_otel_exporter(exporter)
+      rescue LoadError
+        warn "OpenTelemetry Jaeger exporter not available. Install 'opentelemetry-exporter-jaeger' gem."
       end
     end
   end

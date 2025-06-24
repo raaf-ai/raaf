@@ -25,52 +25,52 @@ module OpenAIAgents
   class RunConfig
     # @return [Integer] Maximum number of agent turns (default: from agent)
     attr_accessor :max_turns
-    
+
     # @return [String, nil] Custom trace ID for this run
     attr_accessor :trace_id
-    
+
     # @return [String, nil] Group ID to link related traces
     attr_accessor :group_id
-    
+
     # @return [Hash, nil] Custom metadata for tracing
     attr_accessor :metadata
-    
+
     # @return [Boolean] Whether to disable tracing for this run
     attr_accessor :tracing_disabled
-    
+
     # @return [Boolean] Whether to include sensitive data in traces
     attr_accessor :trace_include_sensitive_data
-    
+
     # @return [Float, nil] Temperature for model sampling (0.0-2.0)
     attr_accessor :temperature
-    
+
     # @return [Integer, nil] Maximum tokens to generate
     attr_accessor :max_tokens
-    
+
     # @return [Boolean] Whether to stream responses
     attr_accessor :stream
-    
+
     # @return [String, nil] Override model for this run
     attr_accessor :model
-    
+
     # @return [String] Workflow name for tracing
     attr_accessor :workflow_name
-    
+
     # @return [Float, nil] Top-p sampling parameter
     attr_accessor :top_p
-    
+
     # @return [Array<String>, nil] Stop sequences
     attr_accessor :stop
-    
+
     # @return [Float, nil] Frequency penalty (-2.0 to 2.0)
     attr_accessor :frequency_penalty
-    
+
     # @return [Float, nil] Presence penalty (-2.0 to 2.0)
     attr_accessor :presence_penalty
-    
+
     # @return [String, nil] User identifier for rate limiting
     attr_accessor :user
-    
+
     # @return [Hash] Additional model-specific parameters
     attr_accessor :model_kwargs
 
@@ -115,31 +115,31 @@ module OpenAIAgents
     # Merge with another RunConfig, with other taking precedence
     def merge(other)
       return self unless other
-      
+
       result = self.class.new
-      
+
       # Copy all instance variables
       instance_variables.each do |var|
         value = instance_variable_get(var)
         other_value = other.instance_variable_get(var) if other.instance_variable_defined?(var)
-        
+
         # Use other's value if defined and not nil
         final_value = if other.instance_variable_defined?(var) && !other_value.nil?
                         other_value
                       else
                         value
                       end
-                      
+
         result.instance_variable_set(var, final_value)
       end
-      
+
       result
     end
 
     # Convert to hash for API calls
     def to_model_params
       params = {}
-      
+
       params[:temperature] = temperature if temperature
       params[:max_tokens] = max_tokens if max_tokens
       params[:top_p] = top_p if top_p
@@ -148,10 +148,10 @@ module OpenAIAgents
       params[:presence_penalty] = presence_penalty if presence_penalty
       params[:user] = user if user
       params[:stream] = stream if stream
-      
+
       # Merge any additional model kwargs
       params.merge!(model_kwargs) if model_kwargs
-      
+
       params
     end
 

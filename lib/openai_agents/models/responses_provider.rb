@@ -15,29 +15,29 @@ module OpenAIAgents
         o1-preview o1-mini
       ].freeze
 
-      def initialize(api_key: nil, api_base: nil, **options)
+      def initialize(api_key: nil, api_base: nil, **_options)
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
       end
 
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **)
         validate_model(model)
-        responses_completion(messages: messages, model: model, tools: tools, **kwargs)
+        responses_completion(messages: messages, model: model, tools: tools, **)
       end
 
       private
 
       def validate_model(model)
         return if SUPPORTED_MODELS.include?(model)
-        
-        warn "Model #{model} is not in the list of supported models: #{SUPPORTED_MODELS.join(', ')}"
+
+        warn "Model #{model} is not in the list of supported models: #{SUPPORTED_MODELS.join(", ")}"
       end
 
       def responses_completion(messages:, model:, **kwargs)
         # Get the current tracer from the trace context
         current_tracer = OpenAIAgents.tracer
-        
+
         if current_tracer
           # Create a response span exactly like Python - only response_id attribute
           current_tracer.start_span("POST /v1/responses", kind: :response) do |response_span|
@@ -48,12 +48,10 @@ module OpenAIAgents
               instructions: extract_system_instructions(messages),
               **kwargs
             )
-            
+
             # Set only the response_id attribute like Python ResponseSpanData.export()
-            if response && response["id"]
-              response_span.set_attribute("response_id", response["id"])
-            end
-            
+            response_span.set_attribute("response_id", response["id"]) if response && response["id"]
+
             # Convert response to chat completion format for compatibility
             convert_response_to_chat_format(response)
           end
@@ -89,12 +87,12 @@ module OpenAIAgents
         request.body = body.to_json
 
         response = http.request(request)
-        
-        if response.code.start_with?("2")
-          JSON.parse(response.body)
-        else
+
+        unless response.code.start_with?("2")
           raise APIError, "Responses API returned #{response.code}: #{response.body}"
         end
+
+        JSON.parse(response.body)
       end
 
       def extract_input_from_messages(messages)
@@ -115,22 +113,22 @@ module OpenAIAgents
 
         # Extract the text content from response output
         content = if response["output"].is_a?(Array)
-                   response["output"].map { |item| 
-                     if item.is_a?(Hash)
-                       item["text"] || item["content"] || item.to_s
-                     else
-                       item.to_s 
-                     end
-                   }.join("")
-                 elsif response["output"].is_a?(Hash)
-                   response["output"]["text"] || response["output"]["content"] || response["output"].to_s
-                 else
-                   response["output"].to_s
-                 end
+                    response["output"].map do |item|
+                      if item.is_a?(Hash)
+                        item["text"] || item["content"] || item.to_s
+                      else
+                        item.to_s
+                      end
+                    end.join("")
+                  elsif response["output"].is_a?(Hash)
+                    response["output"]["text"] || response["output"]["content"] || response["output"].to_s
+                  else
+                    response["output"].to_s
+                  end
 
         {
           "id" => response["id"],
-          "object" => "chat.completion", 
+          "object" => "chat.completion",
           "created" => Time.now.to_i,
           "model" => response["model"] || "gpt-4o",
           "choices" => [

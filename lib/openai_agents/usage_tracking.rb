@@ -549,9 +549,9 @@ module OpenAIAgents
         now = Time.now.utc
         hours_ago = now - (24 * 60 * 60) # Last 24 hours
         recent_events = events.select { |e| e[:timestamp] && e[:timestamp] > hours_ago }
-        
+
         return 0 if recent_events.empty?
-        
+
         # Calculate events per hour over the last 24 hours
         recent_events.length / 24.0
       end
@@ -562,9 +562,9 @@ module OpenAIAgents
         # Group events by hour of day
         hourly_counts = events.group_by { |e| e[:timestamp]&.hour || 0 }
                               .transform_values(&:length)
-        
+
         return nil if hourly_counts.empty?
-        
+
         peak_hour, max_count = hourly_counts.max_by { |_hour, count| count }
         { hour: peak_hour, count: max_count }
       end

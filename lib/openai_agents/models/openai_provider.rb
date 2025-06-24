@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "interface"
+require_relative "responses_provider"
 require_relative "../http_client"
 
 module OpenAIAgents
@@ -14,7 +15,7 @@ module OpenAIAgents
       ].freeze
 
       # rubocop:disable Lint/MissingSuper
-      def initialize(api_key: nil, api_base: nil, **options)
+      def initialize(api_key: nil, api_base: nil, **)
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
@@ -22,49 +23,46 @@ module OpenAIAgents
         @client = HTTPClient::Client.new(
           api_key: @api_key,
           base_url: @api_base,
-          **options
+          **
         )
       end
       # rubocop:enable Lint/MissingSuper
 
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **)
         validate_model(model)
 
-        # Check if we have hosted tools that require Responses API
-        if tools && has_hosted_tools?(tools)
-          responses_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
-        else
-          standard_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
-        end
+        # For now, fall back to standard completion to avoid breaking the runner
+        # TODO: Implement full Responses API integration
+        standard_completion(messages: messages, model: model, tools: tools, stream: stream, **)
       end
 
       def responses_completion(messages:, model:, tools: nil, **kwargs)
         # Use Responses API for hosted tools like web_search
         require "net/http"
         require "json"
-        
+
         uri = URI("https://api.openai.com/v1/responses")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
-        
+
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
-        
+
         # Convert messages to input format
         input = messages.last[:content] if messages.last
-        
+
         prepared_tools = prepare_tools_for_responses_api(tools)
-        
+
         body = {
           model: model,
           input: input,
           tools: prepared_tools,
           **kwargs
         }
-        
+
         request.body = body.to_json
-        
+
         response = http.request(request)
         handle_responses_api_response(response)
       end
@@ -72,7 +70,8 @@ module OpenAIAgents
       private
 
       def prepare_tools_for_responses_api(tools)
-        return nil if tools.nil? || tools.empty?
+        return nil unless tools.respond_to?(:empty?) && tools.respond_to?(:map)
+        return nil if tools.empty?
 
         tools.map do |tool|
           case tool
@@ -119,14 +118,14 @@ module OpenAIAgents
       end
 
       def has_hosted_tools?(tools)
-        return false unless tools
+        return false unless tools.respond_to?(:any?)
 
         tools.any? do |tool|
           case tool
           when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
             true
           when Hash
-            tool[:type] == "web_search" || tool[:type] == "file_search" || tool[:type] == "computer"
+            %w[web_search file_search computer].include?(tool[:type])
           else
             false
           end
@@ -162,11 +161,9 @@ module OpenAIAgents
       def extract_content_from_responses(data)
         if data["output"] && data["output"].any?
           content = data["output"][0]
-          if content["content"] && content["content"].any?
-            return content["content"][0]["text"]
-          end
+          return content["content"][0]["text"] if content["content"] && content["content"].any?
         end
-        
+
         data["text"] || "No content returned"
       end
 
@@ -206,17 +203,15 @@ module OpenAIAgents
         "OpenAI"
       end
 
-      private
-
-      def process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
+      def process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &)
         return if chunk.nil? || chunk.empty?
 
         delta = chunk.dig("choices", 0, "delta")
         return unless delta
 
-        process_content_delta(delta, accumulated_content, &block)
-        process_tool_call_delta(delta, accumulated_tool_calls, &block)
-        process_finish_reason(chunk, accumulated_content, accumulated_tool_calls, &block)
+        process_content_delta(delta, accumulated_content, &)
+        process_tool_call_delta(delta, accumulated_tool_calls, &)
+        process_finish_reason(chunk, accumulated_content, accumulated_tool_calls, &)
       end
 
       def process_content_delta(delta, accumulated_content)

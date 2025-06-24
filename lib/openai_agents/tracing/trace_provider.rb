@@ -62,8 +62,8 @@ module OpenAIAgents
         # @yield [provider] Configuration block
         # @yieldparam provider [TraceProvider] The provider instance
         # @return [void]
-        def configure(&block)
-          instance.configure(&block)
+        def configure(&)
+          instance.configure(&)
         end
 
         # Returns a tracer instance
@@ -81,7 +81,7 @@ module OpenAIAgents
         def add_processor(processor)
           instance.add_processor(processor)
         end
-        
+
         # Replaces all processors with the provided ones
         #
         # @param processors [Array<Object>] New processors
@@ -128,7 +128,7 @@ module OpenAIAgents
 
       # @return [Array<Object>] Active span processors
       attr_reader :processors
-      
+
       # @return [Boolean] Whether tracing is disabled
       attr_reader :disabled
 
@@ -141,7 +141,7 @@ module OpenAIAgents
         @tracers = {}
         @disabled = ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
         @shutdown = false
-        
+
         # Set up default processors based on environment
         setup_default_processors unless @disabled
       end
@@ -170,7 +170,7 @@ module OpenAIAgents
       # @return [SpanTracer, NoOpTracer] The tracer instance
       def tracer(name = nil)
         return NoOpTracer.new if @disabled
-        
+
         name ||= "openai-agents"
         @tracers[name] ||= SpanTracer.new(self)
       end
@@ -189,7 +189,7 @@ module OpenAIAgents
       def add_processor(processor)
         @processors << processor unless @disabled
       end
-      
+
       # Replaces all processors with new ones
       #
       # This method shuts down existing processors before replacing them.
@@ -198,17 +198,17 @@ module OpenAIAgents
       # @param processors [Array<Object>] New processors to use
       # @return [void]
       def set_processors(*processors)
-        unless @disabled
-          # Shutdown existing processors
-          @processors.each do |processor|
-            processor.shutdown if processor.respond_to?(:shutdown)
-          rescue StandardError => e
-            warn "[TraceProvider] Error shutting down processor: #{e.message}"
-          end
-          
-          # Replace with new processors
-          @processors = processors
+        return if @disabled
+
+        # Shutdown existing processors
+        @processors.each do |processor|
+          processor.shutdown if processor.respond_to?(:shutdown)
+        rescue StandardError => e
+          warn "[TraceProvider] Error shutting down processor: #{e.message}"
         end
+
+        # Replace with new processors
+        @processors = processors
       end
 
       # Removes a specific processor
@@ -238,7 +238,7 @@ module OpenAIAgents
       # @api private
       def on_span_start(span)
         return if @disabled || @shutdown
-        
+
         @processors.each do |processor|
           processor.on_span_start(span) if processor.respond_to?(:on_span_start)
         rescue StandardError => e
@@ -258,7 +258,7 @@ module OpenAIAgents
       # @api private
       def on_span_end(span)
         return if @disabled || @shutdown
-        
+
         @processors.each do |processor|
           processor.on_span_end(span) if processor.respond_to?(:on_span_end)
         rescue StandardError => e
@@ -285,7 +285,7 @@ module OpenAIAgents
       #   end
       def shutdown
         return if @shutdown
-        
+
         @shutdown = true
         @processors.each do |processor|
           processor.shutdown if processor.respond_to?(:shutdown)
@@ -393,13 +393,44 @@ module OpenAIAgents
           )
           add_processor(batch_processor)
           puts "[TraceProvider] OpenAI trace processor added" if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        else
-          puts "[TraceProvider] No OPENAI_API_KEY found, skipping OpenAI processor" if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+
+          # Register TracerProvider-level atexit handler (Python-style)
+          register_global_atexit
+        elsif ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+          if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+            puts "[TraceProvider] No OPENAI_API_KEY found, skipping OpenAI processor"
+          end
         end
 
         # Add console processor in development
-        if ENV["OPENAI_AGENTS_ENVIRONMENT"] == "development" || ENV["OPENAI_AGENTS_TRACE_CONSOLE"] == "true"
-          add_processor(ConsoleSpanProcessor.new)
+        return unless ENV["OPENAI_AGENTS_ENVIRONMENT"] == "development" || ENV["OPENAI_AGENTS_TRACE_CONSOLE"] == "true"
+
+        add_processor(ConsoleSpanProcessor.new)
+      end
+
+      # Register global atexit handler like Python's TracerProvider
+      def register_global_atexit
+        return if @global_atexit_registered
+
+        @global_atexit_registered = true
+
+        at_exit do
+          puts "[TraceProvider] Global atexit handler executing..." if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+          shutdown_all_processors
+        end
+      end
+
+      # Shutdown all processors with Python-style synchronous fallback
+      def shutdown_all_processors
+        @processors.each do |processor|
+          if processor.respond_to?(:shutdown)
+            if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+              puts "[TraceProvider] Shutting down processor: #{processor.class.name}"
+            end
+            processor.shutdown
+          end
+        rescue StandardError => e
+          warn "[TraceProvider] Error shutting down processor #{processor.class.name}: #{e.message}"
         end
       end
     end
@@ -416,7 +447,7 @@ module OpenAIAgents
     #
     # @example Usage is identical to SpanTracer
     #   tracer = TraceProvider.tracer  # Returns NoOpTracer when disabled
-    #   
+    #
     #   tracer.span("operation") do |span|
     #     span.set_attribute("key", "value")  # No-op
     #     # Your code runs normally
@@ -432,7 +463,7 @@ module OpenAIAgents
       # @yield [span] Optional block to execute
       # @yieldparam span [NoOpSpan] A no-op span instance
       # @return [NoOpSpan] A no-op span
-      def span(name, type: nil, **attributes)
+      def span(_name, type: nil, **_attributes)
         yield NoOpSpan.new if block_given?
         NoOpSpan.new
       end
@@ -443,8 +474,8 @@ module OpenAIAgents
       # @param attributes [Hash] Span attributes (ignored)
       # @yield [span] Optional block to execute
       # @return [NoOpSpan] A no-op span
-      def agent_span(name, **attributes, &block)
-        span(name, type: :agent, **attributes, &block)
+      def agent_span(name, **attributes, &)
+        span(name, type: :agent, **attributes, &)
       end
 
       # Creates a no-op tool span
@@ -453,8 +484,8 @@ module OpenAIAgents
       # @param attributes [Hash] Span attributes (ignored)
       # @yield [span] Optional block to execute
       # @return [NoOpSpan] A no-op span
-      def tool_span(name, **attributes, &block)
-        span(name, type: :tool, **attributes, &block)
+      def tool_span(name, **attributes, &)
+        span(name, type: :tool, **attributes, &)
       end
 
       # Creates a no-op LLM span
@@ -463,8 +494,8 @@ module OpenAIAgents
       # @param attributes [Hash] Span attributes (ignored)
       # @yield [span] Optional block to execute
       # @return [NoOpSpan] A no-op span
-      def llm_span(model, **attributes, &block)
-        span("llm_call", type: :llm, model: model, **attributes, &block)
+      def llm_span(model, **attributes, &)
+        span("llm_call", type: :llm, model: model, **attributes, &)
       end
 
       # Creates a no-op handoff span
@@ -474,8 +505,8 @@ module OpenAIAgents
       # @param attributes [Hash] Span attributes (ignored)
       # @yield [span] Optional block to execute
       # @return [NoOpSpan] A no-op span
-      def handoff_span(from_agent, to_agent, **attributes, &block)
-        span("handoff", type: :handoff, from: from_agent, to: to_agent, **attributes, &block)
+      def handoff_span(from_agent, to_agent, **attributes, &)
+        span("handoff", type: :handoff, from: from_agent, to: to_agent, **attributes, &)
       end
     end
 
@@ -492,29 +523,29 @@ module OpenAIAgents
       # @param value [Object] Attribute value (ignored)
       # @return [void]
       def set_attribute(key, value); end
-      
+
       # Sets multiple attributes (no-op)
       # @param attributes [Hash] Attributes to set (ignored)
       # @return [void]
       def set_attributes(attributes); end
-      
+
       # Adds an event (no-op)
       # @param name [String] Event name (ignored)
       # @param attributes [Hash] Event attributes (ignored)
       # @return [void]
       def add_event(name, attributes = {}); end
-      
+
       # Sets span status (no-op)
       # @param status [Symbol] Status code (ignored)
       # @param message [String, nil] Status message (ignored)
       # @return [void]
       def set_status(status, message = nil); end
-      
+
       # Records an exception (no-op)
       # @param exception [Exception] Exception to record (ignored)
       # @return [void]
       def record_exception(exception); end
-      
+
       # Ends the span (no-op)
       # @return [void]
       def end_span; end

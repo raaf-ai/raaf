@@ -22,22 +22,22 @@ puts
 puts "1. Basic MCP client connection:"
 begin
   # Create MCP client
-  client = OpenAIAgents::MCP::MCPClient.new(transport: :stdio)
-  
+  OpenAIAgents::MCP::MCPClient.new(transport: :stdio)
+
   # Connect to an MCP server (example: filesystem MCP server)
   # In real usage, you would have an actual MCP server executable
   server_path = ENV["MCP_SERVER_PATH"] || "mcp-server-filesystem"
-  
+
   puts "Attempting to connect to MCP server at: #{server_path}"
-  
+
   # This would connect to a real MCP server
   # client.connect("stdio://#{server_path}")
-  
+
   # For demo purposes, we'll show what would happen:
   puts "Would connect to: stdio://#{server_path}"
   puts "Server capabilities would include: resources, tools, prompts"
   puts
-rescue => e
+rescue StandardError => e
   puts "Note: MCP server connection failed (expected in demo): #{e.message}"
   puts
 end
@@ -61,7 +61,7 @@ class SimulatedMCPTool
       }
     )
   end
-  
+
   def self.create_file_tool
     OpenAIAgents::FunctionTool.new(
       proc { |path:| "MCP File Content: #{path}" },
@@ -86,7 +86,7 @@ mcp_agent = OpenAIAgents::Agent.new(
     You can search for information and read files through the MCP protocol.
     Use these tools to help answer user questions.
   INSTRUCTIONS
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 # Add simulated MCP tools
@@ -109,34 +109,34 @@ puts
 # Example 3: MCP integration pattern
 puts "3. Full MCP integration pattern:"
 puts <<~PATTERN
-# Real-world MCP integration would look like:
+  # Real-world MCP integration would look like:
 
-# 1. Initialize MCP integration
-mcp = OpenAIAgents::MCP::MCPIntegration.new(
-  "stdio://path/to/mcp-server",
-  transport: :stdio
-)
+  # 1. Initialize MCP integration
+  mcp = OpenAIAgents::MCP::MCPIntegration.new(
+    "stdio://path/to/mcp-server",
+    transport: :stdio
+  )
 
-# 2. Create agent with all MCP tools automatically
-agent = mcp.create_agent(
-  name: "SmartAgent",
-  instructions: "You have access to MCP tools and resources."
-)
+  # 2. Create agent with all MCP tools automatically
+  agent = mcp.create_agent(
+    name: "SmartAgent",
+    instructions: "You have access to MCP tools and resources."
+  )
 
-# 3. List available resources
-resources = mcp.resource_adapter.list_resources
-puts "Available resources: \#{resources.map(&:name)}"
+  # 3. List available resources
+  resources = mcp.resource_adapter.list_resources
+  puts "Available resources: \#{resources.map(&:name)}"
 
-# 4. List available tools
-tools = mcp.tool_adapter.get_all_tools
-puts "Available tools: \#{tools.map(&:name)}"
+  # 4. List available tools
+  tools = mcp.tool_adapter.get_all_tools
+  puts "Available tools: \#{tools.map(&:name)}"
 
-# 5. Use the agent normally
-runner = OpenAIAgents::Runner.new(agent: agent)
-result = runner.run(messages)
+  # 5. Use the agent normally
+  runner = OpenAIAgents::Runner.new(agent: agent)
+  result = runner.run(messages)
 
-# 6. Clean up
-mcp.disconnect
+  # 6. Clean up
+  mcp.disconnect
 PATTERN
 puts
 
@@ -173,7 +173,7 @@ end
 resource_agent = OpenAIAgents::Agent.new(
   name: "ResourceAgent",
   instructions: "You can read MCP resources. Use the resource reader when asked about documents.",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 resource_agent.add_tool(SimulatedResourceAdapter.create_resource_tool)
@@ -192,66 +192,66 @@ puts
 # Example 5: MCP prompt templates
 puts "5. MCP prompt template usage:"
 puts <<~PROMPTS
-# MCP servers can provide prompt templates:
+  # MCP servers can provide prompt templates:
 
-# Get available prompts
-prompts = mcp.prompt_adapter.list_prompts
-# => [
-#   { name: "code_review", description: "Review code for issues" },
-#   { name: "explain_concept", description: "Explain technical concepts" }
-# ]
+  # Get available prompts
+  prompts = mcp.prompt_adapter.list_prompts
+  # => [
+  #   { name: "code_review", description: "Review code for issues" },
+  #   { name: "explain_concept", description: "Explain technical concepts" }
+  # ]
 
-# Use a prompt template
-prompt_content = mcp.prompt_adapter.get_prompt(
-  "code_review",
-  language: "ruby",
-  focus: "security"
-)
+  # Use a prompt template
+  prompt_content = mcp.prompt_adapter.get_prompt(
+    "code_review",
+    language: "ruby",
+    focus: "security"
+  )
 
-# Create agent from prompt
-review_agent = mcp.prompt_adapter.create_agent_from_prompt(
-  "code_review",
-  agent_name: "CodeReviewer",
-  language: "ruby"
-)
+  # Create agent from prompt
+  review_agent = mcp.prompt_adapter.create_agent_from_prompt(
+    "code_review",
+    agent_name: "CodeReviewer",
+    language: "ruby"
+  )
 PROMPTS
 
 # Example 6: Advanced MCP patterns
 puts "6. Advanced MCP usage patterns:"
 puts <<~ADVANCED
-# Combining multiple MCP servers
-servers = [
-  "stdio://mcp-filesystem",
-  "stdio://mcp-github",
-  "stdio://mcp-database"
-]
+  # Combining multiple MCP servers
+  servers = [
+    "stdio://mcp-filesystem",
+    "stdio://mcp-github",
+    "stdio://mcp-database"
+  ]
 
-agents = servers.map do |server|
-  mcp = OpenAIAgents::MCP::MCPIntegration.new(server)
-  mcp.create_agent(name: "Agent_\#{server}")
-end
-
-# Create supervisor agent that can delegate
-supervisor = OpenAIAgents::Agent.new(
-  name: "Supervisor",
-  instructions: "Delegate tasks to specialized MCP agents"
-)
-
-agents.each { |agent| supervisor.add_handoff(agent) }
-
-# Dynamic tool loading based on context
-def load_contextual_tools(mcp, context)
-  all_tools = mcp.tool_adapter.get_all_tools
-  
-  case context
-  when :development
-    all_tools.select { |t| t.name.match?(/code|git|test/) }
-  when :research
-    all_tools.select { |t| t.name.match?(/search|read|analyze/) }
-  else
-    all_tools
+  agents = servers.map do |server|
+    mcp = OpenAIAgents::MCP::MCPIntegration.new(server)
+    mcp.create_agent(name: "Agent_\#{server}")
   end
-end
+
+  # Create supervisor agent that can delegate
+  supervisor = OpenAIAgents::Agent.new(
+    name: "Supervisor",
+    instructions: "Delegate tasks to specialized MCP agents"
+  )
+
+  agents.each { |agent| supervisor.add_handoff(agent) }
+
+  # Dynamic tool loading based on context
+  def load_contextual_tools(mcp, context)
+    all_tools = mcp.tool_adapter.get_all_tools
+  #{"  "}
+    case context
+    when :development
+      all_tools.select { |t| t.name.match?(/code|git|test/) }
+    when :research
+      all_tools.select { |t| t.name.match?(/search|read|analyze/) }
+    else
+      all_tools
+    end
+  end
 ADVANCED
 
 puts "\n=== Example Complete ==="

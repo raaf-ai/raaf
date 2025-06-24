@@ -25,9 +25,9 @@ module OpenAIAgents
     #   end
     class GroqProvider < ModelInterface
       include RetryableProvider
-      
+
       API_BASE = "https://api.groq.com/openai/v1"
-      
+
       # Groq's available models as of 2024
       SUPPORTED_MODELS = %w[
         llama-3.3-70b-versatile
@@ -47,26 +47,26 @@ module OpenAIAgents
 
       def initialize(api_key: nil, api_base: nil, **options)
         super
-        @api_key ||= ENV["GROQ_API_KEY"]
+        @api_key ||= ENV.fetch("GROQ_API_KEY", nil)
         @api_base ||= api_base || API_BASE
-        
+
         raise AuthenticationError, "Groq API key is required" unless @api_key
-        
+
         @http_client = HTTPClient.new(default_headers: {
-          "Authorization" => "Bearer #{@api_key}",
-          "Content-Type" => "application/json"
-        })
+                                        "Authorization" => "Bearer #{@api_key}",
+                                        "Content-Type" => "application/json"
+                                      })
       end
 
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
-        
+
         body = {
           model: model,
           messages: messages,
           stream: stream
         }
-        
+
         # Add tools if provided (Groq supports function calling on select models)
         if tools && !tools.empty?
           if model.include?("tool-use")
@@ -76,7 +76,7 @@ module OpenAIAgents
             puts "[GroqProvider] Warning: Model #{model} may not support tools. Consider using a tool-use model."
           end
         end
-        
+
         # Add optional parameters (Groq supports most OpenAI parameters)
         body[:temperature] = kwargs[:temperature] if kwargs[:temperature]
         body[:max_tokens] = kwargs[:max_tokens] if kwargs[:max_tokens]
@@ -86,13 +86,13 @@ module OpenAIAgents
         body[:frequency_penalty] = kwargs[:frequency_penalty] if kwargs[:frequency_penalty]
         body[:seed] = kwargs[:seed] if kwargs[:seed]
         body[:user] = kwargs[:user] if kwargs[:user]
-        
+
         if stream
           stream_response(body, &block)
         else
           with_retry("chat_completion") do
             response = @http_client.post("#{@api_base}/chat/completions", body: body)
-            
+
             if response.success?
               response.parsed_body
             else
@@ -124,63 +124,68 @@ module OpenAIAgents
 
       private
 
-      def stream_response(body, &block)
+      def stream_response(body)
         body[:stream] = true
-        
+
         with_retry("stream_completion") do
           accumulated_content = ""
           accumulated_tool_calls = []
-          
+
           @http_client.post_stream("#{@api_base}/chat/completions", body: body) do |chunk|
             # Parse SSE chunk
             if chunk.start_with?("data: ")
               data = chunk[6..-1].strip
-              
+
               if data == "[DONE]"
                 # Final chunk - return accumulated data
-                yield({
-                  type: "done",
-                  content: accumulated_content,
-                  tool_calls: accumulated_tool_calls
-                }) if block_given?
+                if block_given?
+                  yield({
+                    type: "done",
+                    content: accumulated_content,
+                    tool_calls: accumulated_tool_calls
+                  })
+                end
               else
                 begin
                   parsed = JSON.parse(data)
-                  
+
                   # Extract content from the chunk
                   if parsed.dig("choices", 0, "delta", "content")
                     content = parsed["choices"][0]["delta"]["content"]
                     accumulated_content += content
-                    
-                    yield({
-                      type: "content",
-                      content: content,
-                      accumulated_content: accumulated_content
-                    }) if block_given?
+
+                    if block_given?
+                      yield({
+                        type: "content",
+                        content: content,
+                        accumulated_content: accumulated_content
+                      })
+                    end
                   end
-                  
+
                   # Handle tool calls in streaming
                   if parsed.dig("choices", 0, "delta", "tool_calls")
                     tool_calls = parsed["choices"][0]["delta"]["tool_calls"]
                     accumulated_tool_calls.concat(tool_calls)
-                    
-                    yield({
-                      type: "tool_calls",
-                      tool_calls: tool_calls,
-                      accumulated_tool_calls: accumulated_tool_calls
-                    }) if block_given?
+
+                    if block_given?
+                      yield({
+                        type: "tool_calls",
+                        tool_calls: tool_calls,
+                        accumulated_tool_calls: accumulated_tool_calls
+                      })
+                    end
                   end
-                  
+
                   # Check for finish reason
-                  if parsed.dig("choices", 0, "finish_reason")
+                  if parsed.dig("choices", 0, "finish_reason") && block_given? && block_given?
                     yield({
                       type: "finish",
                       finish_reason: parsed["choices"][0]["finish_reason"],
                       content: accumulated_content,
                       tool_calls: accumulated_tool_calls
-                    }) if block_given?
+                    })
                   end
-                  
                 rescue JSON::ParserError => e
                   # Log but continue - some chunks might be partial
                   puts "[GroqProvider] Failed to parse streaming chunk: #{e.message}"
@@ -188,7 +193,7 @@ module OpenAIAgents
               end
             end
           end
-          
+
           # Return final accumulated data
           {
             content: accumulated_content,
@@ -196,7 +201,7 @@ module OpenAIAgents
           }
         end
       end
-      
+
       # Override handle_api_error to add Groq-specific error handling
       def handle_api_error(response, provider)
         case response.code.to_i
@@ -211,7 +216,7 @@ module OpenAIAgents
           begin
             error_data = JSON.parse(response.body)
             error_message = error_data.dig("error", "message") || response.body
-          rescue
+          rescue StandardError
             error_message = response.body
           end
           raise APIError, "Groq API error: #{error_message}"

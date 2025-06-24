@@ -60,9 +60,9 @@ module OpenAIAgents
     # @param api_key [String, nil] OpenAI API key (defaults to ENV["OPENAI_API_KEY"])
     # @param api_base [String] Base URL for API calls
     def initialize(api_key: nil, api_base: BASE_URL)
-      @api_key = api_key || ENV["OPENAI_API_KEY"]
+      @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
       @api_base = api_base
-      
+
       raise ArgumentError, "OpenAI API key is required" unless @api_key
     end
 
@@ -96,7 +96,7 @@ module OpenAIAgents
 
       # Create JSONL file for batch requests
       jsonl_file = create_batch_file(requests)
-      
+
       begin
         # Upload the file
         file_response = upload_file(jsonl_file.path)
@@ -112,7 +112,7 @@ module OpenAIAgents
         batch_data[:metadata] = metadata if metadata
 
         response = make_request("POST", "/batches", batch_data)
-        
+
         response
       ensure
         jsonl_file&.close
@@ -132,9 +132,9 @@ module OpenAIAgents
     #   puts status["status"] # => "in_progress", "completed", "failed", etc.
     def check_status(batch_id)
       response = make_request("GET", "/batches/#{batch_id}")
-      
+
       yield(response) if block_given?
-      
+
       response
     end
 
@@ -152,10 +152,10 @@ module OpenAIAgents
     #   results.each { |result| puts result["response"]["choices"][0]["message"]["content"] }
     def wait_for_completion(batch_id, poll_interval: 30, max_wait_time: 3600)
       start_time = Time.now
-      
+
       loop do
         status = check_status(batch_id)
-        
+
         case status["status"]
         when "completed"
           return retrieve_results(status["output_file_id"])
@@ -185,17 +185,17 @@ module OpenAIAgents
     def retrieve_results(output_file_id)
       # Download the output file
       file_content = download_file(output_file_id)
-      
+
       # Parse JSONL results
       results = []
       file_content.each_line do |line|
         line = line.strip
         next if line.empty?
-        
+
         result = JSON.parse(line)
         results << result
       end
-      
+
       results
     end
 
@@ -208,11 +208,11 @@ module OpenAIAgents
     def list_batches(limit: 20, after: nil)
       params = { limit: limit }
       params[:after] = after if after
-      
+
       query_string = params.map { |k, v| "#{k}=#{v}" }.join("&")
       path = "/batches"
       path += "?#{query_string}" unless query_string.empty?
-      
+
       make_request("GET", path)
     end
 
@@ -230,7 +230,7 @@ module OpenAIAgents
 
     def create_batch_file(requests)
       temp_file = Tempfile.new(["batch_requests", ".jsonl"])
-      
+
       requests.each_with_index do |request, index|
         batch_request = {
           custom_id: "request-#{index}",
@@ -238,20 +238,20 @@ module OpenAIAgents
           url: "/v1/chat/completions",
           body: request
         }
-        
+
         temp_file.puts(JSON.generate(batch_request))
       end
-      
+
       temp_file.flush
       temp_file
     end
 
     def upload_file(file_path)
       uri = URI("#{@api_base}/files")
-      
+
       # Create multipart form data
       boundary = "----WebKitFormBoundary#{SecureRandom.hex(16)}"
-      
+
       file_content = File.read(file_path)
       body = []
       body << "--#{boundary}"
@@ -264,7 +264,7 @@ module OpenAIAgents
       body << ""
       body << file_content
       body << "--#{boundary}--"
-      
+
       post_body = body.join("\r\n")
 
       http = Net::HTTP.new(uri.host, uri.port)
@@ -288,7 +288,7 @@ module OpenAIAgents
       request["Authorization"] = "Bearer #{@api_key}"
 
       response = http.request(request)
-      
+
       unless response.is_a?(Net::HTTPSuccess)
         raise BatchError, "Failed to download file: #{response.code} #{response.body}"
       end
@@ -324,7 +324,11 @@ module OpenAIAgents
       when "200", "201"
         JSON.parse(response.body)
       when "400"
-        error_data = JSON.parse(response.body) rescue {}
+        error_data = begin
+          JSON.parse(response.body)
+        rescue StandardError
+          {}
+        end
         raise BatchError, "Bad request: #{error_data.dig("error", "message") || response.body}"
       when "401"
         raise AuthenticationError, "Invalid API key"
@@ -337,5 +341,4 @@ module OpenAIAgents
       end
     end
   end
-
 end

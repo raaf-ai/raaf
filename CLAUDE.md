@@ -6,70 +6,84 @@ This repository contains a comprehensive Ruby implementation of OpenAI Agents fo
 
 This is a Ruby gem that provides 100% feature parity with the Python OpenAI Agents library, plus additional enterprise-grade capabilities. The gem enables building multi-agent AI workflows with advanced features like voice interactions, guardrails, usage tracking, and comprehensive monitoring.
 
+**CRITICAL**: This Ruby implementation now maintains **exact structural alignment** with the Python OpenAI Agents SDK, using identical APIs, endpoints, and tracing formats.
+
+## Development Memories
+
+- **ALWAYS** look at the Python implementation and keep as close as possible
+- Ruby now uses OpenAI Responses API by default (matching Python)
+- Agent spans are root spans with `parent_id: null` (matching Python exactly)
+- Response spans are children of agent spans (matching Python hierarchy)
+- All trace payloads are structurally identical to Python
+- Use `ResponsesProvider` by default instead of `OpenAIProvider`
+
 ## Architecture Overview
 
 ### Core Components
 
 - **Agent (`lib/openai_agents/agent.rb`)** - Main agent class with tools and handoff capabilities
-- **Runner (`lib/openai_agents/runner.rb`)** - Executes agent conversations and manages flow
+- **Runner (`lib/openai_agents/runner.rb`)** - Executes agent conversations using ResponsesProvider by default
+- **ResponsesProvider (`lib/openai_agents/models/responses_provider.rb`)** - **NEW DEFAULT** - Uses OpenAI Responses API matching Python
+- **OpenAIProvider (`lib/openai_agents/models/openai_provider.rb`)** - Legacy Chat Completions API provider
 - **FunctionTool (`lib/openai_agents/function_tool.rb`)** - Wraps Ruby methods/procs as agent tools
-- **Tracing (`lib/openai_agents/tracing/`)** - Comprehensive span-based monitoring system
-- **Models (`lib/openai_agents/models/`)** - Multi-provider abstraction (OpenAI, Anthropic, Gemini)
+- **Tracing (`lib/openai_agents/tracing/`)** - Comprehensive span-based monitoring **exactly matching Python**
 
-### Advanced Features
+### Key Development Patterns
 
-- **Guardrails (`lib/openai_agents/guardrails.rb`)** - Safety and validation systems
-- **Voice Workflows (`lib/openai_agents/voice/`)** - Speech-to-text and text-to-speech pipeline
-- **Usage Tracking (`lib/openai_agents/usage_tracking.rb`)** - Analytics and monitoring
-- **Configuration (`lib/openai_agents/configuration.rb`)** - Environment-based settings
-- **Extensions (`lib/openai_agents/extensions.rb`)** - Plugin architecture
-- **Advanced Handoffs (`lib/openai_agents/handoffs/`)** - Context-aware agent routing
-- **Structured Output (`lib/openai_agents/structured_output.rb`)** - Schema validation
-- **Advanced Tools (`lib/openai_agents/tools/`)** - File search, web search, computer control
-- **Visualization (`lib/openai_agents/visualization.rb`)** - Workflow and trace visualization
-- **REPL (`lib/openai_agents/repl.rb`)** - Interactive development environment
-- **Debugging (`lib/openai_agents/debugging.rb`)** - Enhanced debugging capabilities
-
-## Key Development Patterns
-
-### 1. Agent Creation Pattern
+### 1. Agent Creation Pattern (Updated)
 ```ruby
+# Default pattern now uses ResponsesProvider (matching Python)
 agent = OpenAIAgents::Agent.new(
-  name: "AgentName",
-  instructions: "System prompt",
-  model: "gpt-4",
-  max_turns: 10
+  name: "Assistant",
+  instructions: "You are a helpful assistant.",
+  model: "gpt-4o"  # Uses ResponsesProvider by default
+)
+
+# Explicit provider specification if needed
+runner = OpenAIAgents::Runner.new(
+  agent: agent,
+  provider: OpenAIAgents::Models::ResponsesProvider.new  # Default
 )
 ```
 
-### 2. Tool Integration Pattern
+### 2. Basic Usage Example
 ```ruby
-def custom_tool(param)
-  # Tool implementation
+require_relative 'lib/openai_agents'
+
+# Create agent
+agent = OpenAIAgents::Agent.new(
+  name: "Assistant",
+  instructions: "You are a helpful assistant.",
+  model: "gpt-4o"
+)
+
+# Run conversation (uses ResponsesProvider automatically)
+runner = OpenAIAgents::Runner.new(agent: agent)
+result = runner.run("Hello, tell me about Ruby programming.")
+
+puts result.messages.last[:content]
+```
+
+### 3. Tool Integration Pattern
+```ruby
+def get_weather(location)
+  "The weather in #{location} is sunny and 72°F"
 end
 
-agent.add_tool(method(:custom_tool))
+agent.add_tool(method(:get_weather))
 ```
 
-### 3. Multi-Agent Handoff Pattern
+### 4. Tracing Pattern (Updated)
 ```ruby
-agent1.add_handoff(agent2)
-# OR advanced handoffs
-handoff_manager = OpenAIAgents::Handoffs::AdvancedHandoff.new
-handoff_manager.add_agent(agent1, capabilities: [:support])
-```
-
-### 4. Configuration Pattern
-```ruby
-config = OpenAIAgents::Configuration.new(environment: "production")
-config.set("agent.default_model", "gpt-4")
-```
-
-### 5. Tracing Pattern
-```ruby
+# Tracing now matches Python structure exactly
 tracer = OpenAIAgents::Tracing::SpanTracer.new
-tracer.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new)
+tracer.add_processor(OpenAIAgents::Tracing::OpenAIProcessor.new)
 runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
+
+# Generates identical traces to Python:
+# - Agent span with parent_id: null (root)
+# - Response span as child of agent span
+# - Uses POST /v1/responses endpoint
 ```
 
 ## File Structure
@@ -77,283 +91,85 @@ runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
 ```
 lib/openai_agents/
 ├── agent.rb                    # Core agent implementation
-├── runner.rb                   # Agent execution engine
-├── function_tool.rb            # Tool wrapper system
-├── errors.rb                   # Custom exceptions
-├── streaming.rb                # Streaming responses
-├── configuration.rb            # Environment-based config
-├── extensions.rb               # Plugin architecture
-├── guardrails.rb               # Safety systems
-├── structured_output.rb        # Schema validation
-├── usage_tracking.rb           # Analytics and monitoring
-├── result.rb                   # Response structures
-├── repl.rb                     # Interactive development
-├── visualization.rb            # Workflow visualization
-├── debugging.rb                # Enhanced debugging
+├── runner.rb                   # Agent execution engine (uses ResponsesProvider)
 ├── models/                     # Multi-provider support
-│   ├── interface.rb
-│   ├── openai_provider.rb
-│   ├── anthropic_provider.rb
-│   └── multi_provider.rb
-├── tracing/                    # Monitoring system
+│   ├── responses_provider.rb   # NEW DEFAULT - OpenAI Responses API
+│   ├── openai_provider.rb      # Legacy Chat Completions API
+│   └── interface.rb
+├── tracing/                    # Monitoring system (Python-aligned)
+│   ├── openai_processor.rb     # Sends traces to OpenAI (Python format)
 │   └── spans.rb
-├── handoffs/                   # Advanced handoffs
-│   └── advanced_handoff.rb
-├── voice/                      # Voice workflows
-│   └── voice_workflow.rb
-└── tools/                      # Advanced tools
-    ├── file_search_tool.rb
-    ├── web_search_tool.rb
-    └── computer_tool.rb
+└── ...
 ```
 
 ## Common Commands
 
 ### Development Commands
 ```bash
-# Install dependencies
-bundle install
+# Basic example
+ruby -e "
+require_relative 'lib/openai_agents'
+agent = OpenAIAgents::Agent.new(name: 'Assistant', instructions: 'Be helpful', model: 'gpt-4o')
+runner = OpenAIAgents::Runner.new(agent: agent)
+result = runner.run('Hello')
+puts result.messages.last[:content]
+"
 
-# Run tests (if available)
-bundle exec rspec
-
-# Run linting (if configured)
-bundle exec rubocop
-
-# Start interactive Ruby session with gem loaded
-bundle exec irb -r ./lib/openai_agents
-
-# Run the comprehensive example
-ruby examples/complete_features_showcase.rb
-```
-
-### Git Commands
-```bash
-# Check status
-git status
-
-# Stage all changes
-git add .
-
-# Commit changes
-git commit -m "Description of changes"
-
-# View commit history
-git log --oneline
+# With tracing (Python-compatible format)
+export OPENAI_AGENTS_TRACE_DEBUG=true
+ruby your_script.rb
 ```
 
 ### Environment Setup
 ```bash
-# Required API keys
+# Required API key
 export OPENAI_API_KEY="your-openai-key"
-export ANTHROPIC_API_KEY="your-anthropic-key"
-export GEMINI_API_KEY="your-gemini-key"
 
-# Optional configuration
-export OPENAI_AGENTS_ENVIRONMENT="development"
-export OPENAI_AGENTS_LOG_LEVEL="info"
+# Optional tracing debug
+export OPENAI_AGENTS_TRACE_DEBUG="true"
 ```
 
-## Testing and Examples
+## Key Differences from Legacy Implementation
 
-### Key Example Files
-- `examples/complete_features_showcase.rb` - Comprehensive demonstration of all features
-- `examples/basic_example.rb` - Simple agent with tools (if exists)
-- `examples/multi_agent_example.rb` - Multi-agent workflows (if exists)
+### ✅ What Changed (Python Alignment)
+1. **Default Provider**: Now uses `ResponsesProvider` instead of `OpenAIProvider`
+2. **API Endpoint**: Uses `POST /v1/responses` instead of `POST /v1/chat/completions`
+3. **Trace Structure**: Agent spans are root spans (`parent_id: null`)
+4. **Span Format**: Includes `error: null` field matching Python
+5. **Timestamps**: Microsecond precision with timezone (`+00:00`)
 
-### Running Examples
-```bash
-# Run the complete showcase (demonstrates all features)
-ruby examples/complete_features_showcase.rb
-
-# Run with debugging
-ruby -d examples/complete_features_showcase.rb
-```
-
-## Common Issues and Solutions
-
-### 1. Missing API Keys
-- **Issue**: Agent fails with authentication error
-- **Solution**: Set the appropriate environment variables (OPENAI_API_KEY, etc.)
-
-### 2. Model Not Found
-- **Issue**: "Model not found" error
-- **Solution**: Check model name spelling and provider availability
-
-### 3. Tool Execution Errors
-- **Issue**: Tools fail to execute
-- **Solution**: Ensure tool methods are properly defined and accessible
-
-### 4. Handoff Failures
-- **Issue**: Agent handoffs don't work
-- **Solution**: Check that target agents are properly added with `add_handoff`
-
-## Key Configuration Files
-
-### Gemspec
-- `openai_agents.gemspec` - Gem specification and dependencies
-
-### Documentation
-- `README.md` - Basic quick start guide
-- `README_COMPREHENSIVE.md` - Complete documentation with examples
-- `CLAUDE.md` - This file (development guide)
-
-## Development Guidelines
-
-### Code Style
-- Follow Ruby community conventions
-- Use meaningful variable and method names
-- Add comprehensive documentation to all public methods
-- Include examples in method documentation
-
-### Error Handling
-- Use custom exception classes that inherit from `OpenAIAgents::Error`
-- Provide descriptive error messages
-- Handle API failures gracefully
-
-### Testing Strategy
-- Write unit tests for core functionality
-- Include integration tests for multi-agent workflows
-- Test error conditions and edge cases
-- Mock external API calls in tests
-
-### Documentation Standards
-- Use RDoc format for method documentation
-- Include parameter types and descriptions
-- Provide usage examples
-- Document exceptions that may be raised
-
-## Debugging Tips
-
-### 1. Enable Tracing
+### 🔄 Migration Guide
 ```ruby
-tracer = OpenAIAgents::Tracing::SpanTracer.new
-tracer.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new)
+# OLD (Legacy)
+runner = OpenAIAgents::Runner.new(
+  agent: agent,
+  provider: OpenAIAgents::Models::OpenAIProvider.new
+)
+
+# NEW (Python-aligned, now default)
+runner = OpenAIAgents::Runner.new(agent: agent)
+# Automatically uses ResponsesProvider
 ```
 
-### 2. Use REPL for Interactive Development
+## Debugging and Validation
+
+### Compare with Python
 ```ruby
-repl = OpenAIAgents::REPL.new(agent: agent, tracer: tracer)
-repl.start
+# Ruby implementation now generates identical trace structure to:
+# - Python OpenAI Agents SDK
+# - Same span hierarchy (agent -> response)
+# - Same field names and types
+# - Same API endpoints
+
+# Enable debug output to verify
+ENV["OPENAI_AGENTS_TRACE_DEBUG"] = "true"
 ```
 
-### 3. Check Usage Analytics
-```ruby
-tracker = OpenAIAgents::UsageTracking::UsageTracker.new
-analytics = tracker.analytics(:today)
-puts analytics.inspect
-```
+### Trace Verification
+The Ruby traces now match Python exactly:
+- Trace object with workflow metadata
+- Agent span as root (`parent_id: null`)
+- Response span as child of agent
+- Identical field structure and types
 
-### 4. Enable Debug Logging
-```ruby
-require 'logger'
-logger = Logger.new(STDOUT)
-logger.level = Logger::DEBUG
-```
-
-## Performance Considerations
-
-### 1. Token Usage
-- Monitor token consumption with usage tracking
-- Set appropriate `max_turns` to control conversation length
-- Use streaming for long responses
-
-### 2. API Rate Limits
-- Implement rate limiting with guardrails
-- Use exponential backoff for retries
-- Monitor API usage patterns
-
-### 3. Memory Management
-- Clean up old tracing data periodically
-- Use appropriate retention policies for usage data
-- Monitor session cache sizes
-
-## Security Best Practices
-
-### 1. API Key Management
-- Never commit API keys to version control
-- Use environment variables for sensitive data
-- Rotate keys regularly
-
-### 2. Input Validation
-- Use guardrails for content safety
-- Validate input schemas
-- Implement length limits
-
-### 3. Output Sanitization
-- Validate structured outputs
-- Filter sensitive information
-- Implement content safety checks
-
-## Extension Development
-
-### Creating Custom Tools
-```ruby
-class CustomTool < OpenAIAgents::FunctionTool
-  def initialize
-    super(
-      proc { |input| process(input) },
-      name: "custom_tool",
-      description: "Custom tool description"
-    )
-  end
-  
-  private
-  
-  def process(input)
-    # Tool implementation
-  end
-end
-```
-
-### Creating Extensions
-```ruby
-class MyExtension < OpenAIAgents::Extensions::BaseExtension
-  def self.extension_info
-    {
-      name: :my_extension,
-      type: :tool,
-      version: "1.0.0"
-    }
-  end
-  
-  def setup(config)
-    # Extension setup
-  end
-  
-  def activate
-    # Extension activation
-  end
-end
-```
-
-## Monitoring and Analytics
-
-### Usage Tracking Setup
-```ruby
-tracker = OpenAIAgents::UsageTracking::UsageTracker.new
-tracker.add_alert(:cost_limit) { |usage| usage[:total_cost_today] > 50.0 }
-```
-
-### Getting Analytics
-```ruby
-analytics = tracker.analytics(:today, group_by: :agent)
-dashboard = tracker.dashboard_data
-report = tracker.generate_report(:month)
-```
-
-## Production Deployment
-
-### Configuration
-- Use production environment settings
-- Enable comprehensive logging
-- Set up monitoring and alerting
-- Configure appropriate retention policies
-
-### Monitoring
-- Track API usage and costs
-- Monitor agent performance
-- Set up alerts for anomalies
-- Generate regular usage reports
-
-This guide should help you navigate and contribute to the OpenAI Agents Ruby codebase effectively. The repository contains a comprehensive, production-ready framework with extensive documentation and examples.
+This ensures both implementations appear identically in OpenAI dashboard.

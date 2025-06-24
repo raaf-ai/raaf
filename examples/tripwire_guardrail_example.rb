@@ -26,7 +26,7 @@ tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new(
     /DELETE FROM/i,
     /rm -rf/i
   ],
-  keywords: ["hack", "exploit", "virus", "malware"]
+  keywords: %w[hack exploit virus malware]
 )
 
 # Test content
@@ -38,14 +38,12 @@ test_contents = [
 ]
 
 test_contents.each do |content|
-  begin
-    tripwire.check_input(content)
-    puts "✓ Safe: #{content[0..50]}..."
-  rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
-    puts "✗ BLOCKED: #{content[0..50]}..."
-    puts "  Reason: #{e.message}"
-    puts "  Triggered by: #{e.triggered_by}"
-  end
+  tripwire.check_input(content)
+  puts "✓ Safe: #{content[0..50]}..."
+rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
+  puts "✗ BLOCKED: #{content[0..50]}..."
+  puts "  Reason: #{e.message}"
+  puts "  Triggered by: #{e.triggered_by}"
 end
 puts
 
@@ -57,7 +55,7 @@ fraud_tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new do |content|
   urgent = content.match?(/urgent|immediately|asap|right now/i)
   money = content.match?(/\$\d+|transfer|wire|payment/i)
   suspicious = content.match?(/bitcoin|crypto|western union/i)
-  
+
   (urgent && money) || suspicious
 end
 
@@ -69,12 +67,10 @@ fraud_tests = [
 ]
 
 fraud_tests.each do |content|
-  begin
-    fraud_tripwire.check_input(content)
-    puts "✓ Safe: #{content}"
-  rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
-    puts "✗ FRAUD ALERT: #{content}"
-  end
+  fraud_tripwire.check_input(content)
+  puts "✓ Safe: #{content}"
+rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException
+  puts "✗ FRAUD ALERT: #{content}"
 end
 puts
 
@@ -91,13 +87,11 @@ dangerous_tools = [
 ]
 
 dangerous_tools.each do |tool|
-  begin
-    tool_tripwire.check_tool_call(tool[:name], tool[:args])
-    puts "✓ Allowed: #{tool[:name]}(#{tool[:args]})"
-  rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
-    puts "✗ BLOCKED: #{tool[:name]}(#{tool[:args]})"
-    puts "  Reason: #{e.message}"
-  end
+  tool_tripwire.check_tool_call(tool[:name], tool[:args])
+  puts "✓ Allowed: #{tool[:name]}(#{tool[:args]})"
+rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
+  puts "✗ BLOCKED: #{tool[:name]}(#{tool[:args]})"
+  puts "  Reason: #{e.message}"
 end
 puts
 
@@ -116,12 +110,10 @@ sql_tests = [
 
 puts "\nSQL Injection Detection:"
 sql_tests.each do |query|
-  begin
-    sql_tripwire.check_input(query)
-    puts "✓ Safe SQL: #{query[0..40]}..."
-  rescue => e
-    puts "✗ SQL INJECTION: #{query[0..40]}..."
-  end
+  sql_tripwire.check_input(query)
+  puts "✓ Safe SQL: #{query[0..40]}..."
+rescue StandardError
+  puts "✗ SQL INJECTION: #{query[0..40]}..."
 end
 
 # Path traversal tripwire
@@ -136,12 +128,10 @@ path_tests = [
 
 puts "\nPath Traversal Detection:"
 path_tests.each do |path|
-  begin
-    path_tripwire.check_input(path)
-    puts "✓ Safe path: #{path}"
-  rescue => e
-    puts "✗ PATH TRAVERSAL: #{path}"
-  end
+  path_tripwire.check_input(path)
+  puts "✓ Safe path: #{path}"
+rescue StandardError
+  puts "✗ PATH TRAVERSAL: #{path}"
 end
 puts
 
@@ -158,7 +148,7 @@ end
 code_agent = OpenAIAgents::Agent.new(
   name: "CodeAssistant",
   instructions: "You help users write and execute code safely.",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 code_agent.add_tool(
@@ -179,15 +169,13 @@ code_tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new(
     /os\.system/,
     /subprocess/
   ],
-  keywords: ["rm", "delete", "format", "drop"]
+  keywords: %w[rm delete format drop]
 )
 
 # Wrap the agent's execute_tool method to include tripwire
 original_execute = code_agent.method(:execute_tool)
 code_agent.define_singleton_method(:execute_tool) do |name, **kwargs|
-  if name == "execute_code"
-    code_tripwire.check_tool_call(name, kwargs)
-  end
+  code_tripwire.check_tool_call(name, kwargs) if name == "execute_code"
   original_execute.call(name, **kwargs)
 end
 
@@ -201,13 +189,11 @@ test_codes = [
 
 puts "\nProtected code execution:"
 test_codes.each do |test|
-  begin
-    result = code_agent.execute_tool("execute_code", **test)
-    puts "✓ Executed: #{test[:code][0..40]}..."
-  rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
-    puts "✗ BLOCKED: #{test[:code][0..40]}..."
-    puts "  Security violation: #{e.triggered_by}"
-  end
+  code_agent.execute_tool("execute_code", **test)
+  puts "✓ Executed: #{test[:code][0..40]}..."
+rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
+  puts "✗ BLOCKED: #{test[:code][0..40]}..."
+  puts "  Security violation: #{e.triggered_by}"
 end
 puts
 
@@ -227,12 +213,10 @@ security_tests = [
 
 puts "\nComprehensive security scan:"
 security_tests.each do |content|
-  begin
-    security_tripwire.check_input(content)
-    puts "✓ Passed all checks: #{content[0..40]}..."
-  rescue => e
-    puts "✗ SECURITY VIOLATION: #{content[0..40]}..."
-  end
+  security_tripwire.check_input(content)
+  puts "✓ Passed all checks: #{content[0..40]}..."
+rescue StandardError
+  puts "✗ SECURITY VIOLATION: #{content[0..40]}..."
 end
 puts
 
@@ -240,16 +224,14 @@ puts
 puts "7. Tripwire statistics and logging:"
 
 stats_tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new(
-  keywords: ["danger", "risk"]
+  keywords: %w[danger risk]
 )
 
 # Trigger it a few times
 ["safe content", "danger zone", "risky business", "all good"].each do |content|
-  begin
-    stats_tripwire.check_input(content)
-  rescue
-    # Ignore exceptions for stats demo
-  end
+  stats_tripwire.check_input(content)
+rescue StandardError
+  # Ignore exceptions for stats demo
 end
 
 stats = stats_tripwire.stats
@@ -259,7 +241,7 @@ puts "- Patterns configured: #{stats[:patterns]}"
 puts "- Keywords configured: #{stats[:keywords]}"
 puts "- Recent triggers: #{stats[:trigger_log].size}"
 stats[:trigger_log].each do |log|
-  puts "  - #{log[:timestamp].strftime('%H:%M:%S')}: #{log[:message]}"
+  puts "  - #{log[:timestamp].strftime("%H:%M:%S")}: #{log[:message]}"
 end
 
 puts "\n=== Example Complete ==="

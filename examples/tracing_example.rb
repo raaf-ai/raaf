@@ -17,7 +17,7 @@ end
 OpenAIAgents.configure_tracing do |config|
   # Add console processor for development
   config.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new)
-  
+
   # Add file processor to save traces
   config.add_processor(OpenAIAgents::Tracing::FileSpanProcessor.new("traces.jsonl"))
 end
@@ -25,18 +25,16 @@ end
 agent = OpenAIAgents::Agent.new(
   name: "MathAssistant",
   instructions: "You are a helpful math assistant. Use the calculator tool for calculations.",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 # Add a calculator tool
 def calculate(expression:)
-  begin
-    # Simple eval for demo - in production use a proper math parser
-    result = eval(expression)
-    "The result of #{expression} is #{result}"
-  rescue => e
-    "Error calculating #{expression}: #{e.message}"
-  end
+  # Simple eval for demo - in production use a proper math parser
+  result = eval(expression)
+  "The result of #{expression} is #{result}"
+rescue StandardError => e
+  "Error calculating #{expression}: #{e.message}"
 end
 
 agent.add_tool(
@@ -76,24 +74,24 @@ if tracer.respond_to?(:trace_summary)
 end
 
 # Example of manual tracing
-puts "\n" + "-" * 50
+puts "\n" + ("-" * 50)
 puts "Manual tracing example:"
 
 tracer = OpenAIAgents.tracer
 tracer.span("custom_operation", type: :internal) do |span|
   span.set_attribute("operation.type", "demo")
   span.add_event("Starting custom work")
-  
+
   # Simulate some work
   sleep(0.1)
-  
+
   span.add_event("Work completed")
 end
 
 # Example with OpenTelemetry compatibility (if gems are installed)
 begin
   require "opentelemetry/exporter/otlp"
-  
+
   puts "\nConfiguring OpenTelemetry OTLP exporter..."
   OpenAIAgents::Tracing::OTelBridge.configure_otlp(
     endpoint: "http://localhost:4318/v1/traces"

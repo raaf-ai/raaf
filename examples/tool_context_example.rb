@@ -69,7 +69,7 @@ info_tool = OpenAIAgents::ContextualTool.new(
 
 # Execute tools
 puts "Greeting: #{greet_tool.execute}"
-puts "Update: #{update_tool.execute(theme: 'dark')}"
+puts "Update: #{update_tool.execute(theme: "dark")}"
 puts "Info: #{info_tool.execute}"
 puts
 
@@ -168,17 +168,15 @@ puts "4. Context-aware agent with session management:"
 context_manager = OpenAIAgents::ContextManager.new
 
 # Create contexts for different sessions
-context_manager.create_context("session_1", 
-  initial_data: { user: "Bob", credits: 100 }
-)
-context_manager.create_context("session_2", 
-  initial_data: { user: "Carol", credits: 50 }
-)
+context_manager.create_context("session_1",
+                               initial_data: { user: "Bob", credits: 100 })
+context_manager.create_context("session_2",
+                               initial_data: { user: "Carol", credits: 50 })
 
 # Tool that uses session context
 def use_credits(amount:, context:, session_id: nil)
   current_credits = context.get("credits", 0)
-  
+
   if current_credits >= amount
     new_credits = current_credits - amount
     context.set("credits", new_credits)
@@ -192,7 +190,7 @@ end
 agent = OpenAIAgents::Agent.new(
   name: "ContextAgent",
   instructions: "You are a helpful assistant that manages user credits.",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 agent.context_manager = context_manager
@@ -206,10 +204,10 @@ agent.add_contextual_tool(
 )
 
 # Simulate tool execution for different sessions
-["session_1", "session_2"].each do |session|
+%w[session_1 session_2].each do |session|
   ctx = context_manager.get_context(session)
-  puts "\n#{ctx.get('user')}'s session:"
-  
+  puts "\n#{ctx.get("user")}'s session:"
+
   # Execute tool with session context
   tool = OpenAIAgents::ContextualTool.new(
     method(:use_credits),
@@ -217,7 +215,7 @@ agent.add_contextual_tool(
     description: "Use credits",
     context: ctx
   )
-  
+
   puts tool.execute(amount: 30)
   puts tool.execute(amount: 30)
 end
@@ -229,12 +227,12 @@ puts "\n5. Context persistence:"
 export_data = context.export
 puts "Exported context: #{export_data[:id]}"
 puts "Created at: #{export_data[:created_at]}"
-puts "Data keys: #{export_data[:data].keys.join(', ')}"
+puts "Data keys: #{export_data[:data].keys.join(", ")}"
 
 # Import context
 imported_context = OpenAIAgents::ToolContext.import(export_data)
 puts "Imported context ID: #{imported_context.id}"
-puts "User name from imported: #{imported_context.get('user_name')}"
+puts "User name from imported: #{imported_context.get("user_name")}"
 puts
 
 # Example 6: Thread-safe operations
@@ -265,7 +263,7 @@ threads = 5.times.map do |i|
 end
 
 threads.each(&:join)
-puts "Final counter value: #{safe_context.get('counter')}"
+puts "Final counter value: #{safe_context.get("counter")}"
 puts
 
 # Example 7: Aggregate statistics

@@ -45,23 +45,22 @@ def calculate_safe(expression)
   end
 end
 
-# Create an agent
+# Create an agent using the new Python-aligned defaults
 agent = OpenAIAgents::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant that can get weather information and perform calculations.",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 # Add tools
 agent.add_tool(method(:get_weather))
 agent.add_tool(method(:calculate))
 
-# Create a tracer with console output
-tracer = OpenAIAgents::Tracer.new
-tracer.add_processor(OpenAIAgents::ConsoleProcessor.new)
+# Create a tracer (now uses ResponsesProvider by default, matching Python)
+tracer = OpenAIAgents.tracer
 
 # Create runner
-OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
+runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
 
 # Example conversation
 
@@ -72,10 +71,17 @@ puts "Tools: #{agent.tools.map(&:name).join(", ")}"
 puts "\n=== Conversation ==="
 
 begin
-  # NOTE: This would require a valid OPENAI_API_KEY environment variable
-  # result = runner.run(messages)
-
-  # For demo purposes, let's show the structure
+  # Run a conversation (requires OPENAI_API_KEY environment variable)
+  messages = [{ role: "user", content: "What's the weather like in Paris and what's 15 * 23?" }]
+  result = runner.run(messages)
+  
+  puts "User: What's the weather like in Paris and what's 15 * 23?"
+  puts "Assistant: #{result.final_output}"
+  puts "\nTurns: #{result.turns}"
+  puts "Agent: #{result.agent_name}"
+rescue OpenAIAgents::Error => e
+  puts "Error: #{e.message}"
+  puts "\n=== Demo Mode ==="
   puts "User: What's the weather like in Paris and what's 15 * 23?"
   puts "\nAgent would:"
   puts "1. Call get_weather(city: 'Paris')"
@@ -84,10 +90,8 @@ begin
 
   # Demonstrate tool execution directly
   puts "\n=== Tool Execution Demo ==="
-  puts "Weather result: #{agent.execute_tool("get_weather", city: "Paris")}"
-  puts "Calculation result: #{agent.execute_tool("calculate", expression: "15 * 23")}"
-rescue OpenAIAgents::Error => e
-  puts "Error: #{e.message}"
+  puts "Weather result: #{get_weather('Paris')}"
+  puts "Calculation result: #{calculate('15 * 23')}"
 end
 
 puts "\n=== Agent Configuration ==="

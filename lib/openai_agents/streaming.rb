@@ -31,7 +31,7 @@ module OpenAIAgents
         when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
           true
         when Hash
-          tool[:type] == "web_search" || tool[:type] == "file_search" || tool[:type] == "computer"
+          %w[web_search file_search computer].include?(tool[:type])
         else
           false
         end
@@ -48,7 +48,7 @@ module OpenAIAgents
       request["Content-Type"] = "application/json"
 
       # Convert messages to input format for Responses API
-      input = messages.last[:content] || messages.last["content"] if messages.last
+      input = safe_extract_last_message_content(messages)
 
       body = {
         model: model,
@@ -284,6 +284,17 @@ module OpenAIAgents
         turns: turns,
         traces: @tracer.traces
       }
+    end
+
+    private
+
+    def safe_extract_last_message_content(messages)
+      return "" unless messages.is_a?(Array) && !messages.empty?
+
+      last_message = messages.last
+      return "" unless last_message.is_a?(Hash)
+
+      last_message[:content] || last_message["content"] || ""
     end
   end
 end

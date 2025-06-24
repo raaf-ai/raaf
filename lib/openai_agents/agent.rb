@@ -208,8 +208,8 @@ module OpenAIAgents
       {
         name: @name,
         instructions: @instructions,
-        tools: @tools.map(&:to_h),
-        handoffs: @handoffs.map(&:name),
+        tools: safe_map_to_h(@tools),
+        handoffs: safe_map_names(@handoffs),
         model: @model,
         max_turns: @max_turns
       }
@@ -285,6 +285,36 @@ module OpenAIAgents
       raise ToolError, "Tool '#{tool_name}' not found" unless tool
 
       tool.call(**)
+    end
+
+    private
+
+    def safe_map_to_h(collection)
+      return [] unless collection.respond_to?(:map)
+
+      collection.map do |item|
+        if item.respond_to?(:to_h)
+          item.to_h
+        else
+          item.to_s
+        end
+      end
+    rescue StandardError
+      []
+    end
+
+    def safe_map_names(collection)
+      return [] unless collection.respond_to?(:map)
+
+      collection.map do |item|
+        if item.respond_to?(:name)
+          item.name
+        else
+          item.to_s
+        end
+      end
+    rescue StandardError
+      []
     end
   end
 end

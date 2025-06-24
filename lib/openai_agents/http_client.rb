@@ -32,7 +32,7 @@ module OpenAIAgents
         @chat ||= ChatResource.new(self)
       end
 
-      def make_request(method, path, body: nil, headers: {}, stream: false, &block)
+      def make_request(method, path, body: nil, headers: {}, stream: false)
         uri = URI("#{@base_url}#{path}")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
@@ -59,8 +59,7 @@ module OpenAIAgents
 
         if stream
           # Handle streaming response
-          accumulated_content = String.new
-          accumulated_tool_calls = {}
+          String.new
 
           http.request(request) do |response|
             handle_error_response(response) unless response.is_a?(Net::HTTPSuccess)
@@ -99,7 +98,7 @@ module OpenAIAgents
         end
 
         error_message = error_data.dig("error", "message") || "Unknown error"
-        error_type = error_data.dig("error", "type") || "api_error"
+        error_data.dig("error", "type") || "api_error"
 
         case response.code
         when "400"
@@ -155,11 +154,11 @@ module OpenAIAgents
         @client.make_request("POST", "/chat/completions", body: parameters)
       end
 
-      def stream_raw(parameters, &block)
+      def stream_raw(parameters, &)
         stream_parameters = parameters.merge(stream: true)
-        @client.make_request("POST", "/chat/completions", 
-                           body: stream_parameters, 
-                           stream: true, &block)
+        @client.make_request("POST", "/chat/completions",
+                             body: stream_parameters,
+                             stream: true, &)
       end
     end
 

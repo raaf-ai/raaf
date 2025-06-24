@@ -12,7 +12,7 @@ module OpenAIAgents
     # @example Basic usage
     #   class MyProvider < ModelInterface
     #     include RetryableProvider
-    #     
+    #
     #     def chat_completion(**kwargs)
     #       with_retry { api_call(**kwargs) }
     #     end
@@ -71,8 +71,8 @@ module OpenAIAgents
         end
       end
 
-      def initialize(*args, **kwargs)
-        super(*args, **kwargs) if defined?(super)
+      def initialize(*, **)
+        super if defined?(super)
         @retry_config = self.class.default_retry_config
       end
 
@@ -85,49 +85,44 @@ module OpenAIAgents
       def with_retry(method_name = nil)
         attempts = 0
         last_error = nil
-        
+
         loop do
           attempts += 1
-          
+
           begin
             result = yield
-            
+
             # Check for HTTP responses that need retry
-            if should_retry_response?(result)
-              raise RetryableError.new("HTTP #{result.code}", result)
-            end
-            
+            raise RetryableError.new("HTTP #{result.code}", result) if should_retry_response?(result)
+
             return result
-            
           rescue *@retry_config[:exceptions] => e
             last_error = e
-            
+
             if attempts >= @retry_config[:max_attempts]
               log_retry_failure(method_name, attempts, e)
               raise
             end
-            
+
             delay = calculate_delay(attempts)
             log_retry_attempt(method_name, attempts, e, delay)
             sleep(delay)
-            
           rescue StandardError => e
             # Check if this is a wrapped HTTP error we should retry
-            if retryable_error?(e)
-              last_error = e
-              
-              if attempts >= @retry_config[:max_attempts]
-                log_retry_failure(method_name, attempts, e)
-                raise
-              end
-              
-              delay = calculate_delay(attempts)
-              log_retry_attempt(method_name, attempts, e, delay)
-              sleep(delay)
-            else
-              # Non-retryable error, re-raise immediately
+            raise unless retryable_error?(e)
+
+            last_error = e
+
+            if attempts >= @retry_config[:max_attempts]
+              log_retry_failure(method_name, attempts, e)
               raise
             end
+
+            delay = calculate_delay(attempts)
+            log_retry_attempt(method_name, attempts, e, delay)
+            sleep(delay)
+
+            # Non-retryable error, re-raise immediately
           end
         end
       end
@@ -136,11 +131,11 @@ module OpenAIAgents
 
       def calculate_delay(attempt)
         # Exponential backoff with jitter
-        base = @retry_config[:base_delay] * (@retry_config[:multiplier] ** (attempt - 1))
-        
+        base = @retry_config[:base_delay] * (@retry_config[:multiplier]**(attempt - 1))
+
         # Cap at max delay
         delay = [base, @retry_config[:max_delay]].min
-        
+
         # Add jitter (±jitter%)
         jitter_amount = delay * @retry_config[:jitter]
         delay + (rand * 2 * jitter_amount) - jitter_amount
@@ -148,14 +143,14 @@ module OpenAIAgents
 
       def should_retry_response?(response)
         return false unless response.respond_to?(:code)
-        
+
         @retry_config[:status_codes].include?(response.code.to_i)
       end
 
       def retryable_error?(error)
         # Check if error message indicates a retryable condition
         error_message = error.message.to_s.downcase
-        
+
         retryable_patterns = [
           /rate limit/i,
           /too many requests/i,
@@ -165,33 +160,33 @@ module OpenAIAgents
           /timeout/i,
           /temporarily unavailable/i
         ]
-        
+
         retryable_patterns.any? { |pattern| error_message.match?(pattern) }
       end
 
       def log_retry_attempt(method, attempt, error, delay)
         return unless @retry_config[:logger]
-        
+
         @retry_config[:logger].warn(
           "[RetryableProvider] Attempt #{attempt}/#{@retry_config[:max_attempts]} " \
-          "for #{method || 'operation'} failed: #{error.class} - #{error.message}. " \
+          "for #{method || "operation"} failed: #{error.class} - #{error.message}. " \
           "Retrying in #{delay.round(2)}s..."
         )
       end
 
       def log_retry_failure(method, attempts, error)
         return unless @retry_config[:logger]
-        
+
         @retry_config[:logger].error(
           "[RetryableProvider] All #{attempts} attempts failed " \
-          "for #{method || 'operation'}: #{error.class} - #{error.message}"
+          "for #{method || "operation"}: #{error.class} - #{error.message}"
         )
       end
 
       # Custom error class for retryable HTTP responses
       class RetryableError < StandardError
         attr_reader :response
-        
+
         def initialize(message, response = nil)
           super(message)
           @response = response
@@ -202,16 +197,16 @@ module OpenAIAgents
     # Convenience wrapper for adding retry to any provider
     class RetryableProviderWrapper
       include RetryableProvider
-      
+
       def initialize(provider, **retry_options)
         @provider = provider
         @retry_config = self.class.default_retry_config.merge(retry_options)
       end
 
-      def method_missing(method, *args, **kwargs, &block)
+      def method_missing(method, ...)
         if @provider.respond_to?(method)
           with_retry(method) do
-            @provider.send(method, *args, **kwargs, &block)
+            @provider.send(method, ...)
           end
         else
           super

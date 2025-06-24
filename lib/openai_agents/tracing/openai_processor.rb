@@ -57,9 +57,9 @@ module OpenAIAgents
       #
       # @raise [ArgumentError] If api_key is not provided and OPENAI_API_KEY is not set
       def initialize(api_key: nil, base_url: nil, batch_size: 50, workflow_name: nil, organization: nil, project: nil)
-        @api_key = api_key || ENV["OPENAI_API_KEY"]
-        @organization = organization || ENV["OPENAI_ORG_ID"]
-        @project = project || ENV["OPENAI_PROJECT_ID"]
+        @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
+        @organization = organization || ENV.fetch("OPENAI_ORG_ID", nil)
+        @project = project || ENV.fetch("OPENAI_PROJECT_ID", nil)
         @base_url = base_url || "https://api.openai.com"
         @traces_endpoint = "#{@base_url}/v1/traces/ingest"
         @batch_size = batch_size
@@ -90,18 +90,16 @@ module OpenAIAgents
       def on_span_end(span)
         @mutex.synchronize do
           @current_trace_id ||= span.trace_id
-          
+
           # Handle trace spans specially
           if span.kind == :trace && span.attributes["trace.workflow_name"]
             @workflow_name = span.attributes["trace.workflow_name"]
           end
-          
+
           transformed = transform_span(span)
           @span_buffer << transformed if transformed
-          
-          if @span_buffer.size >= @batch_size
-            flush_spans
-          end
+
+          flush_spans if @span_buffer.size >= @batch_size
         end
       end
 
@@ -116,32 +114,30 @@ module OpenAIAgents
       # @api private
       def export(spans)
         return if spans.empty?
-        
+
         unless @api_key
           warn "OPENAI_API_KEY is not set, skipping trace export"
           return
         end
-        
+
         # Group spans by trace_id
         spans_by_trace = spans.group_by(&:trace_id)
-        
+
         spans_by_trace.each do |trace_id, trace_spans|
           @current_trace_id = trace_id
-          
+
           # Find trace span if any
           trace_span = trace_spans.find { |s| s.kind == :trace }
-          
+
           # Extract workflow name from trace span or use default
-          if trace_span
-            @workflow_name = trace_span.attributes["trace.workflow_name"] || @workflow_name
-          end
-          
+          @workflow_name = trace_span.attributes["trace.workflow_name"] || @workflow_name if trace_span
+
           # Transform spans, filtering out nils
           transformed_spans = trace_spans.map { |span| transform_span(span) }.compact
           send_spans(transformed_spans) unless transformed_spans.empty?
         end
       rescue StandardError => e
-        warn "Failed to export spans to OpenAI: #{e.message}" 
+        warn "Failed to export spans to OpenAI: #{e.message}"
         warn e.backtrace.first(5).join("\n") if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
       end
 
@@ -160,7 +156,7 @@ module OpenAIAgents
           flush_spans if @span_buffer.any?
         end
       end
-      
+
       # Shuts down the processor
       #
       # Flushes any remaining spans and releases resources.
@@ -182,18 +178,18 @@ module OpenAIAgents
       def transform_span(span)
         # Skip trace spans - they're handled separately
         return nil if span.kind == :trace
-        
+
         # Create the span object with required fields
         span_data = create_span_data(span)
         return nil unless span_data
-        
+
         {
           object: "trace.span",
           id: span.span_id,
           trace_id: span.trace_id,
           parent_id: span.parent_id,
-          started_at: span.start_time.utc.strftime('%Y-%m-%dT%H:%M:%S.%6N+00:00'),
-          ended_at: span.end_time&.utc&.strftime('%Y-%m-%dT%H:%M:%S.%6N+00:00'),
+          started_at: span.start_time.utc.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
+          ended_at: span.end_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
           span_data: span_data,
           error: span.attributes["error"] || nil
         }
@@ -211,93 +207,92 @@ module OpenAIAgents
       # @api private
       def create_span_data(span)
         data = case span.kind
-        when :trace
-          # Trace spans are handled differently - they become the trace object
-          return nil
-        when :agent
-          {
-            type: "agent", 
-            name: span.attributes["agent.name"] || span.name,
-            handoffs: span.attributes["agent.handoffs"] || [],
-            tools: span.attributes["agent.tools"] || [],
-            output_type: span.attributes["agent.output_type"] || "str"
-          }.compact
-        when :llm
-          {
-            type: "generation",
-            input: span.attributes["llm.request.messages"] || [],
-            output: format_llm_output(span),
-            model: span.attributes["llm.request.model"],
-            model_config: extract_model_config(span),
-            usage: extract_usage(span)
-          }
-        when :tool
-          {
-            type: "function",
-            name: span.attributes["function.name"] || span.name,
-            input: span.attributes["function.input"],
-            output: span.attributes["function.output"],
-            mcp_data: span.attributes["function.mcp_data"]
-          }
-        when :handoff
-          {
-            type: "handoff",
-            from_agent: span.attributes["handoff.from"],
-            to_agent: span.attributes["handoff.to"]
-          }
-        when :guardrail
-          {
-            type: "guardrail",
-            name: span.attributes["guardrail.name"] || span.name,
-            triggered: span.attributes["guardrail.triggered"] || false
-          }
-        when :mcp_list_tools
-          {
-            type: "mcp_tools",
-            server: span.attributes["mcp.server"],
-            result: span.attributes["mcp.result"] || span.attributes["mcp.tools"] || []
-          }
-        when :response
-          {
-            type: "response",
-            response_id: span.attributes["response_id"]
-          }.compact
-        when :speech_group
-          {
-            type: "speech_group",
-            input: span.attributes["speech_group.input"]
-          }
-        when :speech
-          {
-            type: "speech",
-            input: span.attributes["speech.input"],
-            output: span.attributes["speech.output"],
-            output_format: span.attributes["speech.output_format"] || "pcm",
-            model: span.attributes["speech.model"],
-            model_config: span.attributes["speech.model_config"],
-            first_content_at: span.attributes["speech.first_content_at"]
-          }
-        when :transcription
-          {
-            type: "transcription",
-            input: span.attributes["transcription.input"],
-            input_format: span.attributes["transcription.input_format"] || "pcm",
-            output: span.attributes["transcription.output"],
-            model: span.attributes["transcription.model"],
-            model_config: span.attributes["transcription.model_config"]
-          }
-        else
-          {
-            type: "custom",
-            name: span.name,
-            data: flatten_attributes(span.attributes)
-          }
-        end
-        
+               when :trace
+                 # Trace spans are handled differently - they become the trace object
+                 return nil
+               when :agent
+                 {
+                   type: "agent",
+                   name: span.attributes["agent.name"] || span.name,
+                   handoffs: span.attributes["agent.handoffs"] || [],
+                   tools: span.attributes["agent.tools"] || [],
+                   output_type: span.attributes["agent.output_type"] || "str"
+                 }.compact
+               when :llm
+                 {
+                   type: "generation",
+                   input: span.attributes["llm.request.messages"] || [],
+                   output: format_llm_output(span),
+                   model: span.attributes["llm.request.model"],
+                   model_config: extract_model_config(span),
+                   usage: extract_usage(span)
+                 }
+               when :tool
+                 {
+                   type: "function",
+                   name: span.attributes["function.name"] || span.name,
+                   input: span.attributes["function.input"],
+                   output: span.attributes["function.output"],
+                   mcp_data: span.attributes["function.mcp_data"]
+                 }
+               when :handoff
+                 {
+                   type: "handoff",
+                   from_agent: span.attributes["handoff.from"],
+                   to_agent: span.attributes["handoff.to"]
+                 }
+               when :guardrail
+                 {
+                   type: "guardrail",
+                   name: span.attributes["guardrail.name"] || span.name,
+                   triggered: span.attributes["guardrail.triggered"] || false
+                 }
+               when :mcp_list_tools
+                 {
+                   type: "mcp_tools",
+                   server: span.attributes["mcp.server"],
+                   result: span.attributes["mcp.result"] || span.attributes["mcp.tools"] || []
+                 }
+               when :response
+                 {
+                   type: "response",
+                   response_id: span.attributes["response_id"]
+                 }.compact
+               when :speech_group
+                 {
+                   type: "speech_group",
+                   input: span.attributes["speech_group.input"]
+                 }
+               when :speech
+                 {
+                   type: "speech",
+                   input: span.attributes["speech.input"],
+                   output: span.attributes["speech.output"],
+                   output_format: span.attributes["speech.output_format"] || "pcm",
+                   model: span.attributes["speech.model"],
+                   model_config: span.attributes["speech.model_config"],
+                   first_content_at: span.attributes["speech.first_content_at"]
+                 }
+               when :transcription
+                 {
+                   type: "transcription",
+                   input: span.attributes["transcription.input"],
+                   input_format: span.attributes["transcription.input_format"] || "pcm",
+                   output: span.attributes["transcription.output"],
+                   model: span.attributes["transcription.model"],
+                   model_config: span.attributes["transcription.model_config"]
+                 }
+               else
+                 {
+                   type: "custom",
+                   name: span.name,
+                   data: flatten_attributes(span.attributes)
+                 }
+               end
+
         # Remove nil values to match Python implementation
         data.compact
       end
-
 
       # Extracts model configuration from LLM span attributes
       #
@@ -349,7 +344,7 @@ module OpenAIAgents
       def format_llm_output(span)
         content = span.attributes["llm.response.content"]
         return [] unless content
-        
+
         # The API expects an array of message objects for output (matching Python format)
         [{
           content: content,
@@ -391,7 +386,7 @@ module OpenAIAgents
       # @api private
       def flush_spans
         return if @span_buffer.empty?
-        
+
         unless @api_key
           warn "OPENAI_API_KEY is not set, skipping trace export"
           return
@@ -417,9 +412,9 @@ module OpenAIAgents
       # @api private
       def send_spans(spans)
         debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        
+
         puts "[OpenAI Processor] Sending #{spans.size} spans to #{@traces_endpoint}"
-        
+
         uri = URI(@traces_endpoint)
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
@@ -427,12 +422,12 @@ module OpenAIAgents
 
         request = Net::HTTP::Post.new(uri)
         # Important: Clear any default User-Agent that Net::HTTP might set
-        request.delete('User-Agent')
+        request.delete("User-Agent")
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
         # DO NOT set User-Agent - Python SDK doesn't set it either
         request["OpenAI-Beta"] = "traces=v1"
-        
+
         # Add optional headers if set (matching Python SDK)
         request["OpenAI-Organization"] = @organization if @organization
         request["OpenAI-Project"] = @project if @project
@@ -440,7 +435,7 @@ module OpenAIAgents
         # Based on the error, it seems the API expects a flatter structure
         # where each span is a separate item in the data array, not nested
         payload_items = []
-        
+
         # First add the trace object (without spans)
         trace_data = {
           object: "trace",
@@ -450,7 +445,7 @@ module OpenAIAgents
           metadata: nil
         }
         payload_items << trace_data
-        
+
         # Then add each span as a separate item
         spans.each do |span|
           payload_items << span
@@ -459,40 +454,48 @@ module OpenAIAgents
         payload = {
           data: payload_items
         }
-        
+
         request.body = JSON.generate(payload)
 
         if debug
           puts "\n[OpenAI Processor] === DEBUG: HTTP Request Details ==="
           puts "URL: #{uri}"
           puts "Headers:"
-          request.each_header { |key, value| 
-            if key.downcase == 'authorization' && value.start_with?('Bearer ')
+          request.each_header do |key, value|
+            if key.downcase == "authorization" && value.start_with?("Bearer ")
               puts "  #{key}: Bearer #{value[7..17]}..."
             else
               puts "  #{key}: #{value}"
             end
-          }
+          end
           puts "\nPayload Structure:"
           puts "  - Data array contains #{payload_items.size} items:"
           puts "    [0] Trace object - ID: #{trace_data[:id]}, Workflow: #{trace_data[:workflow_name]}"
           spans.each_with_index do |span, i|
-            span_type = span[:span_data][:type] rescue "unknown"
-            span_name = span[:span_data][:name] rescue span[:id]
-            puts "    [#{i+1}] Span - #{span_type} - #{span_name}"
+            span_type = begin
+              span[:span_data][:type]
+            rescue StandardError
+              "unknown"
+            end
+            span_name = begin
+              span[:span_data][:name]
+            rescue StandardError
+              span[:id]
+            end
+            puts "    [#{i + 1}] Span - #{span_type} - #{span_name}"
           end
           puts "\nFull Payload (first 1000 chars):"
           puts JSON.pretty_generate(payload)[0..1000]
-          puts "=== End DEBUG ===" 
+          puts "=== End DEBUG ==="
         end
 
         puts "[OpenAI Processor] Sending request to OpenAI traces API..."
         start_time = Time.now
         response = http.request(request)
         duration = Time.now - start_time
-        
+
         puts "[OpenAI Processor] Response: #{response.code} - #{response.message} (#{(duration * 1000).round(2)}ms)"
-        
+
         if debug
           puts "\n[OpenAI Processor] === DEBUG: HTTP Response Details ==="
           puts "Status: #{response.code} #{response.message}"
@@ -500,13 +503,10 @@ module OpenAIAgents
           response.each_header { |key, value| puts "  #{key}: #{value}" }
           puts "\nBody (first 500 chars):"
           puts response.body ? response.body[0..500] : "(empty)"
-          puts "=== End DEBUG ===" 
+          puts "=== End DEBUG ==="
         end
-        
-        unless response.code.start_with?("2")
-          puts "[OpenAI Processor] Error body: #{response.body}"
-          warn "OpenAI traces API returned #{response.code}: #{response.body}"
-        else
+
+        if response.code.start_with?("2")
           puts "[OpenAI Processor] ✅ Successfully sent traces to OpenAI"
           if debug && response.body && !response.body.empty?
             begin
@@ -516,6 +516,9 @@ module OpenAIAgents
               # Response might be empty for 204 No Content
             end
           end
+        else
+          puts "[OpenAI Processor] Error body: #{response.body}"
+          warn "OpenAI traces API returned #{response.code}: #{response.body}"
         end
       end
     end

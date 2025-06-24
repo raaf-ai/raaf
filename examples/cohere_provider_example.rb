@@ -27,7 +27,7 @@ response = provider.chat_completion(
   model: "command-r"
 )
 
-puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
+puts "Response: #{response.dig("choices", 0, "message", "content")}"
 puts
 
 # Example 2: Using tools with Cohere
@@ -41,11 +41,11 @@ def get_weather(location:, unit: "celsius")
     "London" => { celsius: 12, fahrenheit: 54 },
     "Tokyo" => { celsius: 18, fahrenheit: 64 }
   }
-  
+
   temp = temperatures[location] || { celsius: 20, fahrenheit: 68 }
   temp_value = unit == "celsius" ? temp[:celsius] : temp[:fahrenheit]
-  
-  "The current temperature in #{location} is #{temp_value}°#{unit == 'celsius' ? 'C' : 'F'}"
+
+  "The current temperature in #{location} is #{temp_value}°#{unit == "celsius" ? "C" : "F"}"
 end
 
 # Create an agent with Cohere model
@@ -89,7 +89,7 @@ cohere_agent = OpenAIAgents::Agent.new(
 )
 
 openai_agent = OpenAIAgents::Agent.new(
-  name: "CreativeWriter", 
+  name: "CreativeWriter",
   instructions: "You are a creative writer using GPT-4. Write engaging stories and poems.",
   model: "gpt-4"
 )
@@ -144,7 +144,7 @@ response = retryable_provider.chat_completion(
   model: "command-r"
 )
 
-puts "Response with retry wrapper: #{response.dig('choices', 0, 'message', 'content')}"
+puts "Response with retry wrapper: #{response.dig("choices", 0, "message", "content")}"
 puts
 
 puts "=== Example Complete ==="

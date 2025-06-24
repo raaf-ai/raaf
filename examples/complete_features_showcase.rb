@@ -30,7 +30,7 @@ config = OpenAIAgents::Configuration.new(environment: "development")
 
 # Set configuration values
 config.set("openai.api_key", "sk-demo-key-for-testing")
-config.set("agent.default_model", "gpt-4.1") # Using latest GPT-4.1 model
+config.set("agent.default_model", "gpt-4o") # Using Python-aligned default model
 config.set("agent.max_turns", 15)
 
 puts "✅ Configuration loaded:"
@@ -173,14 +173,14 @@ customer_support = OpenAIAgents::Agent.new(
 technical_support = OpenAIAgents::Agent.new(
   name: "TechnicalSupport",
   instructions: "You are a technical support specialist. You handle complex technical issues and troubleshooting.",
-  model: "gpt-4.1", # Latest model with superior coding capabilities
+  model: "gpt-4o", # Python-aligned default model
   max_turns: 20
 )
 
 billing_specialist = OpenAIAgents::Agent.new(
   name: "BillingSpecialist",
   instructions: "You are a billing specialist. You handle all billing inquiries, refunds, and payment issues.",
-  model: "claude-3-sonnet-20240229",
+  model: "claude-3-5-sonnet-20241022",
   max_turns: 10
 )
 
@@ -210,7 +210,7 @@ web_search = OpenAIAgents::Tools::WebSearchTool.new(
 
 # Hosted file search tool (alternative to local file search)
 hosted_file_search = OpenAIAgents::Tools::HostedFileSearchTool.new(
-  file_ids: ["file-abc123", "file-def456"], # Replace with actual uploaded file IDs
+  file_ids: %w[file-abc123 file-def456], # Replace with actual uploaded file IDs
   ranking_options: { "boost_for_code_snippets" => true }
 )
 
@@ -347,9 +347,8 @@ puts "    📱 Streaming voice sessions"
 puts "\n8. 📈 Enhanced Tracing and Visualization"
 puts "-" * 40
 
-# Create enhanced tracer
-tracer = OpenAIAgents::Tracing::SpanTracer.new
-tracer.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new)
+# Create enhanced tracer (now uses ResponsesProvider by default, matching Python)
+tracer = OpenAIAgents.tracer
 
 puts "✅ Enhanced tracing configured:"
 
@@ -559,26 +558,26 @@ puts "\n13. 📦 Batch Processing (50% Cost Savings)"
 puts "-" * 40
 
 # Create batch processor
-batch_processor = OpenAIAgents::BatchProcessor.new
+OpenAIAgents::BatchProcessor.new
 
 # Prepare sample batch requests
 batch_requests = [
   {
-    model: "gpt-4.1",
+    model: "gpt-4o",
     messages: [
       { role: "user", content: "What is the capital of France?" }
     ],
     max_tokens: 100
   },
   {
-    model: "gpt-4.1-mini", 
+    model: "gpt-4.1-mini",
     messages: [
       { role: "user", content: "Explain machine learning in simple terms." }
     ],
     max_tokens: 150
   },
   {
-    model: "gpt-4.1",
+    model: "gpt-4o",
     messages: [
       { role: "user", content: "Write a short poem about coding." }
     ],
@@ -588,7 +587,7 @@ batch_requests = [
 
 puts "✅ Batch processor created:"
 puts "  Requests prepared: #{batch_requests.length}"
-puts "  Models used: gpt-4.1, gpt-4.1-mini"
+puts "  Models used: gpt-4o, gpt-4o-mini"
 puts "  Cost savings: 50% compared to individual requests"
 
 # Example of submitting a batch (commented out to avoid actual API calls in demo)

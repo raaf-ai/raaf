@@ -25,7 +25,7 @@ module OpenAIAgents
     class TripwireGuardrail < BaseGuardrail
       class TripwireException < StandardError
         attr_reader :triggered_by, :content, :metadata
-        
+
         def initialize(message, triggered_by:, content:, metadata: {})
           super(message)
           @triggered_by = triggered_by
@@ -33,7 +33,7 @@ module OpenAIAgents
           @metadata = metadata
         end
       end
-      
+
       def initialize(patterns: [], keywords: [], custom_detector: nil, &block)
         super()
         @patterns = patterns
@@ -42,15 +42,15 @@ module OpenAIAgents
         @triggered_count = 0
         @trigger_log = []
       end
-      
+
       def check_input(content)
         check_content(content, "input")
       end
-      
+
       def check_output(content)
         check_content(content, "output")
       end
-      
+
       def check_tool_call(tool_name, arguments)
         # Check tool name
         if dangerous_tool?(tool_name)
@@ -60,11 +60,11 @@ module OpenAIAgents
             content: { tool: tool_name, arguments: arguments }
           )
         end
-        
+
         # Check arguments
         arg_string = arguments.to_s
         check_content(arg_string, "tool_arguments")
-        
+
         # Tool-specific checks
         case tool_name
         when /shell|command|exec/i
@@ -75,7 +75,7 @@ module OpenAIAgents
           check_file_operation(arguments)
         end
       end
-      
+
       # Get statistics about tripwire triggers
       def stats
         {
@@ -86,66 +86,66 @@ module OpenAIAgents
           has_custom_detector: !@custom_detector.nil?
         }
       end
-      
+
       # Reset the tripwire state
       def reset!
         @triggered_count = 0
         @trigger_log.clear
       end
-      
+
       private
-      
+
       def check_content(content, context)
         return unless content
-        
+
         content_str = content.to_s
-        
+
         # Check patterns
         @patterns.each do |pattern|
-          if content_str.match?(pattern)
-            trigger_tripwire(
-              "Dangerous pattern detected: #{pattern.inspect}",
-              triggered_by: "pattern",
-              content: content_str,
-              metadata: { context: context, pattern: pattern.to_s }
-            )
-          end
+          next unless content_str.match?(pattern)
+
+          trigger_tripwire(
+            "Dangerous pattern detected: #{pattern.inspect}",
+            triggered_by: "pattern",
+            content: content_str,
+            metadata: { context: context, pattern: pattern.to_s }
+          )
         end
-        
+
         # Check keywords
         content_lower = content_str.downcase
         @keywords.each do |keyword|
-          if content_lower.include?(keyword)
+          next unless content_lower.include?(keyword)
+
+          trigger_tripwire(
+            "Dangerous keyword detected: '#{keyword}'",
+            triggered_by: "keyword",
+            content: content_str,
+            metadata: { context: context, keyword: keyword }
+          )
+        end
+
+        # Check custom detector
+        return unless @custom_detector
+
+        begin
+          if @custom_detector.call(content_str)
             trigger_tripwire(
-              "Dangerous keyword detected: '#{keyword}'",
-              triggered_by: "keyword",
+              "Custom detector triggered",
+              triggered_by: "custom",
               content: content_str,
-              metadata: { context: context, keyword: keyword }
+              metadata: { context: context }
             )
           end
-        end
-        
-        # Check custom detector
-        if @custom_detector
-          begin
-            if @custom_detector.call(content_str)
-              trigger_tripwire(
-                "Custom detector triggered",
-                triggered_by: "custom",
-                content: content_str,
-                metadata: { context: context }
-              )
-            end
-          rescue => e
-            # Don't let custom detector errors break the flow
-            puts "[TripwireGuardrail] Custom detector error: #{e.message}"
-          end
+        rescue StandardError => e
+          # Don't let custom detector errors break the flow
+          puts "[TripwireGuardrail] Custom detector error: #{e.message}"
         end
       end
-      
+
       def trigger_tripwire(message, triggered_by:, content:, metadata: {})
         @triggered_count += 1
-        
+
         log_entry = {
           timestamp: Time.now,
           message: message,
@@ -153,9 +153,9 @@ module OpenAIAgents
           content_preview: content.to_s[0..100],
           metadata: metadata
         }
-        
+
         @trigger_log << log_entry
-        
+
         # Throw the tripwire exception
         raise TripwireException.new(
           message,
@@ -164,17 +164,17 @@ module OpenAIAgents
           metadata: metadata
         )
       end
-      
+
       def dangerous_tool?(tool_name)
         dangerous_tools = %w[
           rm delete destroy
           eval exec system
           __send__ send instance_eval class_eval module_eval
         ]
-        
+
         dangerous_tools.any? { |danger| tool_name.to_s.downcase.include?(danger) }
       end
-      
+
       def check_shell_command(arguments)
         dangerous_commands = %w[
           rm curl wget
@@ -185,99 +185,99 @@ module OpenAIAgents
           nc netcat
           base64
         ]
-        
+
         command = arguments[:command] || arguments["command"] || ""
-        
+
         dangerous_commands.each do |cmd|
-          if command.include?(cmd)
-            trigger_tripwire(
-              "Dangerous shell command: #{cmd}",
-              triggered_by: "shell_command",
-              content: command,
-              metadata: { command: cmd }
-            )
-          end
+          next unless command.include?(cmd)
+
+          trigger_tripwire(
+            "Dangerous shell command: #{cmd}",
+            triggered_by: "shell_command",
+            content: command,
+            metadata: { command: cmd }
+          )
         end
       end
-      
+
       def check_sql_query(arguments)
         dangerous_sql = [
           /DROP\s+(TABLE|DATABASE)/i,
           /DELETE\s+FROM/i,
           /TRUNCATE/i,
-          /INSERT\s+INTO\s+.*\s+VALUES.*\;.*\;/i, # SQL injection pattern
+          /INSERT\s+INTO\s+.*\s+VALUES.*;.*;/i, # SQL injection pattern
           /UNION\s+SELECT/i,
           /OR\s+1\s*=\s*1/i
         ]
-        
+
         query = arguments[:query] || arguments["query"] || ""
-        
+
         dangerous_sql.each do |pattern|
-          if query.match?(pattern)
-            trigger_tripwire(
-              "Dangerous SQL detected",
-              triggered_by: "sql_query",
-              content: query,
-              metadata: { pattern: pattern.to_s }
-            )
-          end
+          next unless query.match?(pattern)
+
+          trigger_tripwire(
+            "Dangerous SQL detected",
+            triggered_by: "sql_query",
+            content: query,
+            metadata: { pattern: pattern.to_s }
+          )
         end
       end
-      
+
       def check_file_operation(arguments)
         dangerous_paths = [
           %r{^/etc/},
           %r{^/sys/},
           %r{^/root/},
-          %r{\.\.}, # Directory traversal
-          %r{~}, # Home directory expansion
-          %r{^\$} # Environment variable
+          /\.\./, # Directory traversal
+          /~/, # Home directory expansion
+          /^\$/ # Environment variable
         ]
-        
-        path = arguments[:path] || arguments[:file_path] || 
+
+        path = arguments[:path] || arguments[:file_path] ||
                arguments["path"] || arguments["file_path"] || ""
-        
+
         dangerous_paths.each do |pattern|
-          if path.match?(pattern)
-            trigger_tripwire(
-              "Dangerous file path detected",
-              triggered_by: "file_path",
-              content: path,
-              metadata: { pattern: pattern.to_s }
-            )
-          end
+          next unless path.match?(pattern)
+
+          trigger_tripwire(
+            "Dangerous file path detected",
+            triggered_by: "file_path",
+            content: path,
+            metadata: { pattern: pattern.to_s }
+          )
         end
       end
     end
-    
+
     # Composite tripwire that combines multiple tripwires
     class CompositeTripwire < TripwireGuardrail
       def initialize
         super(patterns: [], keywords: [])
         @tripwires = []
       end
-      
+
       def add_tripwire(tripwire)
         @tripwires << tripwire
         self
       end
-      
+
       def check_input(content)
         @tripwires.each { |t| t.check_input(content) }
         super
       end
-      
+
       def check_output(content)
         @tripwires.each { |t| t.check_output(content) }
         super
       end
-      
+
       def check_tool_call(tool_name, arguments)
         @tripwires.each { |t| t.check_tool_call(tool_name, arguments) }
         super
       end
     end
-    
+
     # Pre-configured tripwires for common security concerns
     module CommonTripwires
       # SQL injection prevention
@@ -292,7 +292,7 @@ module OpenAIAgents
           ]
         )
       end
-      
+
       # Command injection prevention
       def self.command_injection
         TripwireGuardrail.new(
@@ -303,21 +303,21 @@ module OpenAIAgents
             /\$\([^)]*rm[^)]*\)/,
             /&&\s*rm\s+/i
           ],
-          keywords: ["eval", "exec", "system", "__send__"]
+          keywords: %w[eval exec system __send__]
         )
       end
-      
+
       # Path traversal prevention
       def self.path_traversal
         TripwireGuardrail.new(
           patterns: [
-            /\.\.[\/\\]/,
+            %r{\.\.[/\\]},
             /\.\.%2[Ff]/,
             /%2[Ee]\s*%2[Ee]/
           ]
         )
       end
-      
+
       # Sensitive data exposure
       def self.sensitive_data
         TripwireGuardrail.new(
@@ -331,7 +331,7 @@ module OpenAIAgents
           ]
         )
       end
-      
+
       # Financial fraud detection
       def self.financial_fraud
         TripwireGuardrail.new(
@@ -341,12 +341,12 @@ module OpenAIAgents
             urgent = content.match?(/urgent|immediately|asap|now/i)
             money = content.match?(/\$\d+|\d+\s*(?:usd|dollars|euros|pounds)/i)
             transfer = content.match?(/transfer|send|wire|payment/i)
-            
+
             urgent && money && transfer
           end
         )
       end
-      
+
       # Create a combined security tripwire
       def self.all_security
         CompositeTripwire.new.tap do |composite|

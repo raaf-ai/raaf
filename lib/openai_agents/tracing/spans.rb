@@ -15,7 +15,7 @@ module OpenAIAgents
     # ## Span Types (Kinds)
     #
     # - `:agent` - Agent execution spans
-    # - `:llm` - LLM generation spans  
+    # - `:llm` - LLM generation spans
     # - `:tool` - Tool/function execution spans
     # - `:handoff` - Agent handoff spans
     # - `:custom` - User-defined spans
@@ -35,10 +35,10 @@ module OpenAIAgents
     #     parent_id: parent_span&.span_id,
     #     kind: :internal
     #   )
-    #   
+    #
     #   span.set_attribute("db.statement", "SELECT * FROM users")
     #   span.add_event("query.started")
-    #   
+    #
     #   begin
     #     result = execute_query()
     #     span.set_status(:ok)
@@ -51,31 +51,31 @@ module OpenAIAgents
     class Span
       # @return [String] Unique identifier for this span
       attr_reader :span_id
-      
+
       # @return [String] Trace ID this span belongs to
       attr_reader :trace_id
-      
+
       # @return [String, nil] Parent span ID if this is a child span
       attr_reader :parent_id
-      
+
       # @return [String] Human-readable name for the operation
       attr_reader :name
-      
+
       # @return [Time] When the span started
       attr_reader :start_time
-      
+
       # @return [Time, nil] When the span ended
       attr_reader :end_time
-      
+
       # @return [Hash] Key-value attributes attached to the span
       attr_reader :attributes
-      
+
       # @return [Array<Hash>] Time-stamped events within the span
       attr_reader :events
-      
+
       # @return [Symbol] Current status (:ok, :error, :cancelled)
       attr_reader :status
-      
+
       # @return [Symbol] Type of span (agent, llm, tool, etc.)
       attr_reader :kind
 
@@ -238,8 +238,8 @@ module OpenAIAgents
       #
       # @param args [Array] Arguments passed to JSON.generate
       # @return [String] JSON representation of the span
-      def to_json(*args)
-        JSON.generate(to_h, *args)
+      def to_json(*)
+        JSON.generate(to_h, *)
       end
     end
 
@@ -253,7 +253,7 @@ module OpenAIAgents
     class SpanContext
       # @return [Span, nil] The currently active span
       attr_reader :current_span
-      
+
       # @return [String, nil] The current trace ID
       attr_reader :trace_id
 
@@ -365,13 +365,13 @@ module OpenAIAgents
     #     # Agent execution
     #   end
     #
-    #   tracer.llm_span("gpt-4") do |span|
-    #     # LLM call
+    #   tracer.http_span("POST /v1/responses") do |span|
+    #     # HTTP API call
     #   end
     class SpanTracer
       # @return [SpanContext] The span context manager
       attr_reader :context
-      
+
       # @return [Array<Object>] Registered span processors
       attr_reader :processors
 
@@ -495,9 +495,7 @@ module OpenAIAgents
       def finish_span(span = nil)
         finished_span = @context.finish_span(span)
 
-        if finished_span
-          notify_processors(:on_span_end, finished_span)
-        end
+        notify_processors(:on_span_end, finished_span) if finished_span
 
         finished_span
       end
@@ -572,9 +570,9 @@ module OpenAIAgents
       #     span.set_attribute("agent.version", "1.0")
       #     agent.process_request(message)
       #   end
-      def agent_span(agent_name, **attributes, &block)
+      def agent_span(agent_name, **attributes, &)
         start_span("agent.#{agent_name}", kind: :agent,
-                                          "agent.name" => agent_name, **attributes, &block)
+                                          "agent.name" => agent_name, **attributes, &)
       end
 
       # Creates a tool/function execution span
@@ -583,20 +581,9 @@ module OpenAIAgents
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def tool_span(tool_name, **attributes, &block)
+      def tool_span(tool_name, **attributes, &)
         start_span("tool.#{tool_name}", kind: :tool,
-                                        "tool.name" => tool_name, **attributes, &block)
-      end
-
-      # Creates an LLM generation span
-      #
-      # @param model_name [String] Name of the model
-      # @param attributes [Hash] Additional span attributes
-      # @yield [span] Block to execute within the span
-      # @return [Object] Result of the block
-      def llm_span(model_name, **attributes, &block)
-        start_span("llm.completion", kind: :llm,
-                                     "llm.model" => model_name, **attributes, &block)
+                                        "tool.name" => tool_name, **attributes, &)
       end
 
       # Creates an HTTP API request span (matching Python implementation)
@@ -605,8 +592,8 @@ module OpenAIAgents
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def http_span(endpoint, **attributes, &block)
-        start_span(endpoint, kind: :llm, **attributes, &block)
+      def http_span(endpoint, **attributes, &)
+        start_span(endpoint, kind: :llm, **attributes, &)
       end
 
       # Creates an agent handoff span
@@ -616,79 +603,79 @@ module OpenAIAgents
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def handoff_span(from_agent, to_agent, **attributes, &block)
+      def handoff_span(from_agent, to_agent, **attributes, &)
         start_span("handoff", kind: :handoff,
                               "handoff.from" => from_agent,
                               "handoff.to" => to_agent,
-                              **attributes, &block)
+                              **attributes, &)
       end
-      
+
       # Creates a guardrail evaluation span
       #
       # @param guardrail_name [String] Name of the guardrail
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def guardrail_span(guardrail_name, **attributes, &block)
+      def guardrail_span(guardrail_name, **attributes, &)
         start_span("guardrail.#{guardrail_name}", kind: :guardrail,
-                                                  "guardrail.name" => guardrail_name, **attributes, &block)
+                                                  "guardrail.name" => guardrail_name, **attributes, &)
       end
-      
+
       # Creates an MCP tool listing span
       #
       # @param server [String] MCP server name
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def mcp_list_tools_span(server, **attributes, &block)
+      def mcp_list_tools_span(server, **attributes, &)
         start_span("mcp.list_tools", kind: :mcp_list_tools,
-                                     "mcp.server" => server, **attributes, &block)
+                                     "mcp.server" => server, **attributes, &)
       end
-      
+
       # Creates a response formatting span
       #
       # @param format [String] Response format type
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def response_span(format, **attributes, &block)
+      def response_span(format, **attributes, &)
         start_span("response.format", kind: :response,
-                                      "response.format" => format, **attributes, &block)
+                                      "response.format" => format, **attributes, &)
       end
-      
+
       # Creates a speech group span for grouping audio operations
       #
       # @param name [String] Group name
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def speech_group_span(name, **attributes, &block)
+      def speech_group_span(name, **attributes, &)
         start_span("speech_group.#{name}", kind: :speech_group,
-                                           "speech_group.name" => name, **attributes, &block)
+                                           "speech_group.name" => name, **attributes, &)
       end
-      
+
       # Creates a text-to-speech span
       #
       # @param model [String] TTS model name
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def speech_span(model, **attributes, &block)
+      def speech_span(model, **attributes, &)
         start_span("speech.synthesis", kind: :speech,
-                                       "speech.model" => model, **attributes, &block)
+                                       "speech.model" => model, **attributes, &)
       end
-      
+
       # Creates a speech-to-text transcription span
       #
       # @param model [String] Transcription model name
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def transcription_span(model, **attributes, &block)
+      def transcription_span(model, **attributes, &)
         start_span("transcription", kind: :transcription,
-                                    "transcription.model" => model, **attributes, &block)
+                                    "transcription.model" => model, **attributes, &)
       end
-      
+
       # Creates a custom span for user-defined operations
       #
       # @param name [String] Custom operation name
@@ -702,13 +689,13 @@ module OpenAIAgents
       #     span.set_attribute("validation.type", "schema")
       #     validate_records()
       #   end
-      def custom_span(name, data = {}, **attributes, &block)
+      def custom_span(name, data = {}, **attributes, &)
         start_span("custom.#{name}", kind: :custom,
                                      "custom.name" => name,
                                      "custom.data" => data,
-                                     **attributes, &block)
+                                     **attributes, &)
       end
-      
+
       # Generic span creation with optional type
       #
       # @param name [String] Span name
@@ -716,11 +703,11 @@ module OpenAIAgents
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def span(name, type: nil, **attributes, &block)
+      def span(name, type: nil, **attributes, &)
         kind = type || :internal
-        start_span(name, kind: kind, **attributes, &block)
+        start_span(name, kind: kind, **attributes, &)
       end
-      
+
       # Sets multiple attributes on the current span
       #
       # @param attributes [Hash] Attributes to set
@@ -729,7 +716,7 @@ module OpenAIAgents
         span = current_span
         attributes.each { |k, v| span&.set_attribute(k, v) }
       end
-      
+
       # Records an exception in the current span
       #
       # This sets the span status to error and adds an exception event
@@ -748,17 +735,17 @@ module OpenAIAgents
       def record_exception(exception)
         span = current_span
         return unless span
-        
+
         span.set_status(:error, description: exception.message)
         span.add_event("exception", attributes: {
-          "exception.type" => exception.class.name,
-          "exception.message" => exception.message,
-          "exception.stacktrace" => exception.backtrace&.first(10)&.join("\n")
-        })
+                         "exception.type" => exception.class.name,
+                         "exception.message" => exception.message,
+                         "exception.stacktrace" => exception.backtrace&.first(10)&.join("\n")
+                       })
       end
-      
+
       private
-      
+
       # Notifies all processors of a span event
       #
       # @param method [Symbol] Method to call on processors
@@ -767,7 +754,7 @@ module OpenAIAgents
       def notify_processors(method, span)
         processors = @processors.dup
         processors += @provider.processors if @provider&.respond_to?(:processors)
-        
+
         processors.each do |processor|
           processor.send(method, span) if processor.respond_to?(method)
         rescue StandardError => e
@@ -867,9 +854,9 @@ module OpenAIAgents
     # @example Collect spans for analysis
     #   processor = MemorySpanProcessor.new
     #   tracer.add_processor(processor)
-    #   
+    #
     #   # ... perform operations ...
-    #   
+    #
     #   spans = processor.spans
     #   failed_spans = spans.select { |s| s[:status] == :error }
     class MemorySpanProcessor

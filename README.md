@@ -79,22 +79,43 @@ def get_weather(city)
   "The weather in #{city} is sunny with 22°C"
 end
 
-# Create an agent
+# Create an agent (now uses ResponsesProvider by default, matching Python)
 agent = OpenAIAgents::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant that can get weather information.",
-  model: "gpt-4"
+  model: "gpt-4o"  # Recommended model for Responses API
 )
 
 # Add tools
 agent.add_tool(method(:get_weather))
 
-# Create and run
+# Create and run (automatically uses ResponsesProvider matching Python)
 runner = OpenAIAgents::Runner.new(agent: agent)
-messages = [{ role: "user", content: "What's the weather in Paris?" }]
+result = runner.run("What's the weather in Paris?")
 
-result = runner.run(messages)
-puts result[:messages].last[:content]
+puts result.messages.last[:content]
+```
+
+### Python-Compatible Tracing
+
+```ruby
+require 'openai_agents'
+
+# Enable tracing that matches Python structure exactly
+agent = OpenAIAgents::Agent.new(
+  name: "Assistant",
+  instructions: "You are a helpful assistant.",
+  model: "gpt-4o"
+)
+
+runner = OpenAIAgents::Runner.new(agent: agent)
+result = runner.run("Hello, world!")
+
+# Generates identical traces to Python:
+# - Agent span as root (parent_id: null)
+# - Response span as child of agent span
+# - Uses POST /v1/responses endpoint
+# - Identical field structure and types
 ```
 
 ## 🏗️ Core Concepts

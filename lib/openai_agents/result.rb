@@ -324,6 +324,75 @@ module OpenAIAgents
     end
   end
 
+  # Run result class that matches Python implementation
+  class RunResult < Result
+    attr_reader :messages, :last_agent, :turns, :final_output
+
+    def initialize(success: true, messages: [], last_agent: nil, turns: 0, **)
+      @messages = messages.dup
+      @last_agent = last_agent
+      @turns = turns
+      @final_output = extract_final_output(messages)
+
+      super(success: success, data: {
+        messages: @messages,
+        last_agent: agent_name,
+        turns: @turns
+      }, **)
+    end
+
+    def agent_name
+      @last_agent&.name || "unknown"
+    end
+
+    def to_input_list
+      @messages.dup
+    end
+
+    def final_output_as(type)
+      case type.to_s.downcase
+      when "string"
+        @final_output.to_s
+      when "json"
+        begin
+          JSON.parse(@final_output.to_s)
+        rescue JSON::ParserError
+          @final_output
+        end
+      else
+        @final_output
+      end
+    end
+
+    def to_h
+      {
+        messages: @messages,
+        last_agent: @last_agent,
+        turns: @turns,
+        final_output: @final_output
+      }
+    end
+
+    def self.success(messages: [], last_agent: nil, turns: 0, **)
+      new(success: true, messages: messages, last_agent: last_agent, turns: turns, **)
+    end
+
+    def self.failure(error:, messages: [], last_agent: nil, turns: 0, **)
+      new(success: false, error: error, messages: messages, last_agent: last_agent, turns: turns, **)
+    end
+
+    private
+
+    def extract_final_output(messages)
+      # Find the last assistant message content
+      assistant_messages = messages.select { |msg| msg[:role] == "assistant" }
+      return "" if assistant_messages.empty?
+
+      last_message = assistant_messages.last
+      last_message[:content] || ""
+    end
+  end
+
   # Result builder for complex operations
   class ResultBuilder
     def initialize

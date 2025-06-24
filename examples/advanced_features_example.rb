@@ -15,7 +15,7 @@ puts "-" * 30
 openai_agent = OpenAIAgents::Agent.new(
   name: "OpenAI_Assistant",
   instructions: "You are an OpenAI-powered assistant",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 anthropic_agent = OpenAIAgents::Agent.new(
@@ -238,7 +238,7 @@ puts "\nExample: Create production-ready agent setup"
 production_agent = OpenAIAgents::Agent.new(
   name: "ProductionAgent",
   instructions: "You are a production assistant with safety guardrails",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 # Add production guardrails

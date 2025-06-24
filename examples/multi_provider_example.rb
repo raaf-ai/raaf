@@ -12,11 +12,11 @@ puts
 
 # Check for required API keys
 providers_config = {
-  openai: { key: ENV["OPENAI_API_KEY"], required: true },
-  anthropic: { key: ENV["ANTHROPIC_API_KEY"], required: false },
-  cohere: { key: ENV["COHERE_API_KEY"], required: false },
-  groq: { key: ENV["GROQ_API_KEY"], required: false },
-  together: { key: ENV["TOGETHER_API_KEY"], required: false }
+  openai: { key: ENV.fetch("OPENAI_API_KEY", nil), required: true },
+  anthropic: { key: ENV.fetch("ANTHROPIC_API_KEY", nil), required: false },
+  cohere: { key: ENV.fetch("COHERE_API_KEY", nil), required: false },
+  groq: { key: ENV.fetch("GROQ_API_KEY", nil), required: false },
+  together: { key: ENV.fetch("TOGETHER_API_KEY", nil), required: false }
 }
 
 # Check which providers are available
@@ -32,7 +32,7 @@ providers_config.each do |provider, config|
   end
 end
 
-puts "\nAvailable providers: #{available_providers.join(', ')}"
+puts "\nAvailable providers: #{available_providers.join(", ")}"
 puts
 
 # Example 1: Using different providers directly
@@ -43,9 +43,9 @@ if available_providers.include?(:openai)
   openai = OpenAIAgents::Models::OpenAIProvider.new
   response = openai.chat_completion(
     messages: [{ role: "user", content: "Say hello in one sentence." }],
-    model: "gpt-4"
+    model: "gpt-4o"
   )
-  puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
+  puts "Response: #{response.dig("choices", 0, "message", "content")}"
 end
 
 if available_providers.include?(:anthropic)
@@ -55,7 +55,7 @@ if available_providers.include?(:anthropic)
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "claude-3-opus-20240229"
   )
-  puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
+  puts "Response: #{response.dig("choices", 0, "message", "content")}"
 end
 
 if available_providers.include?(:groq)
@@ -65,22 +65,22 @@ if available_providers.include?(:groq)
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "llama3-8b-8192"
   )
-  puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
+  puts "Response: #{response.dig("choices", 0, "message", "content")}"
 end
 
 # Example 2: Ollama for local models
 puts "\n2. Local model with Ollama:"
 begin
   ollama = OpenAIAgents::Models::OllamaProvider.new
-  puts "Available local models: #{ollama.list_models.map { |m| m[:name] }.join(', ')}"
-  
+  puts "Available local models: #{ollama.list_models.map { |m| m[:name] }.join(", ")}"
+
   # Try to use a local model
   if ollama.supported_models.any?
     response = ollama.chat_completion(
       messages: [{ role: "user", content: "Say hello in one sentence." }],
       model: ollama.supported_models.first
     )
-    puts "Local model response: #{response.dig('choices', 0, 'message', 'content')}"
+    puts "Local model response: #{response.dig("choices", 0, "message", "content")}"
   end
 rescue OpenAIAgents::Models::ConnectionError => e
   puts "Ollama not running: #{e.message}"
@@ -108,7 +108,7 @@ if available_providers.include?(:openai)
   creative_agent = OpenAIAgents::Agent.new(
     name: "CreativeWriter",
     instructions: "You are a creative writer. Write engaging, imaginative content.",
-    model: "gpt-4"
+    model: "gpt-4o"
   )
   agents << { agent: creative_agent, provider: :openai }
 end
@@ -135,38 +135,38 @@ provider_times = {}
 
 available_providers.each do |provider_name|
   next if provider_name == :ollama # Skip local for speed test
-  
+
   provider = case provider_name
-  when :openai
-    OpenAIAgents::Models::OpenAIProvider.new
-  when :anthropic
-    OpenAIAgents::Models::AnthropicProvider.new
-  when :cohere
-    OpenAIAgents::Models::CohereProvider.new
-  when :groq
-    OpenAIAgents::Models::GroqProvider.new
-  when :together
-    OpenAIAgents::Models::TogetherProvider.new
-  end
-  
+             when :openai
+               OpenAIAgents::Models::OpenAIProvider.new
+             when :anthropic
+               OpenAIAgents::Models::AnthropicProvider.new
+             when :cohere
+               OpenAIAgents::Models::CohereProvider.new
+             when :groq
+               OpenAIAgents::Models::GroqProvider.new
+             when :together
+               OpenAIAgents::Models::TogetherProvider.new
+             end
+
   model = case provider_name
-  when :openai then "gpt-3.5-turbo"
-  when :anthropic then "claude-3-haiku-20240307"
-  when :cohere then "command-r"
-  when :groq then "llama3-8b-8192"
-  when :together then "meta-llama/Llama-3-8b-chat-hf"
-  end
-  
+          when :openai then "gpt-3.5-turbo"
+          when :anthropic then "claude-3-haiku-20240307"
+          when :cohere then "command-r"
+          when :groq then "llama3-8b-8192"
+          when :together then "meta-llama/Llama-3-8b-chat-hf"
+          end
+
   begin
     start_time = Time.now
     response = provider.chat_completion(messages: test_message, model: model)
     elapsed = Time.now - start_time
-    
-    answer = response.dig('choices', 0, 'message', 'content')
+
+    answer = response.dig("choices", 0, "message", "content")
     provider_times[provider_name] = { time: elapsed, answer: answer }
-    
+
     puts "#{provider_name}: #{elapsed.round(3)}s - Answer: #{answer}"
-  rescue => e
+  rescue StandardError => e
     puts "#{provider_name}: Error - #{e.message}"
   end
 end
@@ -180,23 +180,23 @@ streaming_message = [{
 }]
 
 available_providers.each do |provider_name|
-  next unless [:openai, :groq, :together].include?(provider_name)
-  
+  next unless %i[openai groq together].include?(provider_name)
+
   provider = case provider_name
-  when :openai
-    OpenAIAgents::Models::OpenAIProvider.new
-  when :groq
-    OpenAIAgents::Models::GroqProvider.new
-  when :together
-    OpenAIAgents::Models::TogetherProvider.new
-  end
-  
+             when :openai
+               OpenAIAgents::Models::OpenAIProvider.new
+             when :groq
+               OpenAIAgents::Models::GroqProvider.new
+             when :together
+               OpenAIAgents::Models::TogetherProvider.new
+             end
+
   model = case provider_name
-  when :openai then "gpt-3.5-turbo"
-  when :groq then "llama3-8b-8192"
-  when :together then "meta-llama/Llama-3-8b-chat-hf"
-  end
-  
+          when :openai then "gpt-3.5-turbo"
+          when :groq then "llama3-8b-8192"
+          when :together then "meta-llama/Llama-3-8b-chat-hf"
+          end
+
   puts "\n#{provider_name} streaming:"
   begin
     provider.stream_completion(messages: streaming_message, model: model) do |chunk|
@@ -204,7 +204,7 @@ available_providers.each do |provider_name|
       $stdout.flush
     end
     puts
-  rescue => e
+  rescue StandardError => e
     puts "Streaming error: #{e.message}"
   end
 end
@@ -213,7 +213,7 @@ end
 puts "\n6. Automatic provider selection:"
 
 models_to_test = [
-  "gpt-4",
+  "gpt-4o",
   "claude-3-opus-20240229",
   "command-r",
   "llama3-70b-8192",
@@ -236,18 +236,16 @@ if available_providers.include?(:groq)
     base_delay: 1.0,
     logger: Logger.new($stdout)
   )
-  
+
   puts "Testing retry logic with rapid requests..."
   3.times do |i|
-    begin
-      response = retry_provider.chat_completion(
-        messages: [{ role: "user", content: "Test #{i}" }],
-        model: "llama3-8b-8192"
-      )
-      puts "Request #{i + 1}: Success"
-    rescue => e
-      puts "Request #{i + 1}: Failed - #{e.message}"
-    end
+    response = retry_provider.chat_completion(
+      messages: [{ role: "user", content: "Test #{i}" }],
+      model: "llama3-8b-8192"
+    )
+    puts "Request #{i + 1}: Success"
+  rescue StandardError => e
+    puts "Request #{i + 1}: Failed - #{e.message}"
   end
 end
 

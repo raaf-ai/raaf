@@ -32,7 +32,7 @@ module OpenAIAgents
     class LocalShellTool < FunctionTool
       DEFAULT_TIMEOUT = 30 # seconds
       DEFAULT_MAX_OUTPUT = 10_000 # characters
-      
+
       # Default safe commands
       DEFAULT_ALLOWED_COMMANDS = %w[
         ls cat head tail grep find wc sort uniq cut awk sed
@@ -61,9 +61,9 @@ module OpenAIAgents
         @timeout = timeout
         @max_output = max_output
         @env_vars = env_vars
-        
+
         validate_working_dir!
-        
+
         super(
           method(:execute_command),
           name: "local_shell",
@@ -84,20 +84,20 @@ module OpenAIAgents
           cmd = command
           arguments = Array(args)
         end
-        
+
         # Validate command
         validate_command!(cmd)
-        
+
         # Determine working directory
         cwd = working_dir || @working_dir
         validate_directory!(cwd)
-        
+
         # Build full command
         full_command = [cmd] + arguments
-        
+
         # Execute with timeout
         output, error, status = nil
-        
+
         Timeout.timeout(@timeout) do
           output, error, status = Open3.capture3(
             @env_vars,
@@ -106,11 +106,11 @@ module OpenAIAgents
             unsetenv_others: false
           )
         end
-        
+
         # Truncate output if needed
         output = truncate_output(output)
         error = truncate_output(error)
-        
+
         {
           command: full_command.join(" "),
           stdout: output,
@@ -119,7 +119,6 @@ module OpenAIAgents
           success: status.success?,
           working_dir: cwd
         }
-        
       rescue Timeout::Error
         {
           command: full_command&.join(" ") || command,
@@ -136,42 +135,38 @@ module OpenAIAgents
 
       def validate_command!(command)
         cmd_name = File.basename(command.to_s).split.first
-        
+
         if BLOCKED_COMMANDS.include?(cmd_name)
           raise SecurityError, "Command '#{cmd_name}' is blocked for security reasons"
         end
-        
-        unless @allowed_commands.include?(cmd_name)
-          raise SecurityError, "Command '#{cmd_name}' is not in the allowed list"
-        end
+
+        return if @allowed_commands.include?(cmd_name)
+
+        raise SecurityError, "Command '#{cmd_name}' is not in the allowed list"
       end
 
       def validate_working_dir!
-        unless Dir.exist?(@working_dir)
-          raise ArgumentError, "Working directory does not exist: #{@working_dir}"
-        end
-        
-        unless File.readable?(@working_dir)
-          raise ArgumentError, "Working directory is not readable: #{@working_dir}"
-        end
+        raise ArgumentError, "Working directory does not exist: #{@working_dir}" unless Dir.exist?(@working_dir)
+
+        return if File.readable?(@working_dir)
+
+        raise ArgumentError, "Working directory is not readable: #{@working_dir}"
       end
 
       def validate_directory!(dir)
         expanded = File.expand_path(dir)
-        
-        unless Dir.exist?(expanded)
-          raise ArgumentError, "Directory does not exist: #{dir}"
-        end
-        
+
+        raise ArgumentError, "Directory does not exist: #{dir}" unless Dir.exist?(expanded)
+
         # Prevent directory traversal attacks
-        unless expanded.start_with?(File.expand_path(@working_dir))
-          raise SecurityError, "Directory access outside of working directory not allowed"
-        end
+        return if expanded.start_with?(File.expand_path(@working_dir))
+
+        raise SecurityError, "Directory access outside of working directory not allowed"
       end
 
       def truncate_output(text)
         return "" if text.nil?
-        
+
         if text.length > @max_output
           text[0...@max_output] + "\n... (truncated)"
         else
@@ -220,18 +215,18 @@ module OpenAIAgents
           dig nslookup ping traceroute
           ssh scp rsync
         ]
-        
+
         options[:allowed_commands] ||= extended_commands
-        super(**options)
+        super
       end
 
       # Add pipe support
       def execute_pipeline(commands:)
         validate_pipeline!(commands)
-        
+
         # Build pipeline command
         pipeline = commands.map { |cmd| Shellwords.join(cmd) }.join(" | ")
-        
+
         # Execute as shell command
         execute_command(command: "sh", args: ["-c", pipeline])
       end

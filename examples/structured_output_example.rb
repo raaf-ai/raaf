@@ -19,7 +19,7 @@ product_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
   string :name, required: true, minLength: 1
   string :description, required: true
   number :price, required: true, minimum: 0
-  string :category, enum: ["electronics", "clothing", "food", "other"], required: true
+  string :category, enum: %w[electronics clothing food other], required: true
   array :features, items: { type: "string" }, minItems: 1, required: true
   boolean :in_stock, required: true
 end
@@ -28,11 +28,11 @@ end
 product_agent = OpenAIAgents::Agent.new(
   name: "ProductAnalyzer",
   instructions: <<~INSTRUCTIONS,
-    You are a product information analyzer. When asked about a product, 
+    You are a product information analyzer. When asked about a product,#{" "}
     respond ONLY with a JSON object matching the required schema.
     The schema includes: name, description, price, category, features array, and in_stock boolean.
   INSTRUCTIONS
-  model: "gpt-4",
+  model: "gpt-4o",
   output_schema: product_schema.to_h
 )
 
@@ -54,9 +54,9 @@ puts
 puts "2. Testing with RunConfig:"
 
 config = OpenAIAgents::RunConfig.new(
-  temperature: 0.3,  # Lower temperature for more consistent output
+  temperature: 0.3, # Lower temperature for more consistent output
   max_tokens: 500,
-  trace_include_sensitive_data: false,  # Redact sensitive data in traces
+  trace_include_sensitive_data: false, # Redact sensitive data in traces
   metadata: { example: "structured_output" }
 )
 
@@ -80,7 +80,7 @@ def lookup_price(product_name:)
     "airpods pro" => 249.99,
     "ipad air" => 599.99
   }
-  
+
   price = prices[product_name.downcase] || 999.99
   "The current price for #{product_name} is $#{price}"
 end
@@ -91,7 +91,7 @@ smart_agent = OpenAIAgents::Agent.new(
     You are a smart product analyzer. Use the price lookup tool to get accurate prices.
     Always respond with a JSON object matching the product schema.
   INSTRUCTIONS
-  model: "gpt-4",
+  model: "gpt-4o",
   output_schema: product_schema.to_h
 )
 
@@ -127,7 +127,7 @@ puts "4. Testing invalid output handling:"
 unreliable_agent = OpenAIAgents::Agent.new(
   name: "UnreliableAgent",
   instructions: "You sometimes make mistakes with JSON formatting.",
-  model: "gpt-4",
+  model: "gpt-4o",
   output_schema: product_schema.to_h
 )
 

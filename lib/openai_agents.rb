@@ -135,7 +135,7 @@ module OpenAIAgents
   #     puts "OpenAI Agents error: #{e.message}"
   #   end
   class Error < StandardError; end
-  
+
   ##
   # Global tracer access
   #
@@ -143,12 +143,12 @@ module OpenAIAgents
   def self.tracer(name = nil)
     Tracing::TraceProvider.tracer(name)
   end
-  
+
   ##
   # Configure global tracing
   #
   # @yield [OpenAIAgents::Tracing::TraceProvider] The trace provider for configuration
-  def self.configure_tracing(&block)
-    Tracing::TraceProvider.configure(&block)
+  def self.configure_tracing(&)
+    Tracing::TraceProvider.configure(&)
   end
 end

@@ -27,9 +27,9 @@ module OpenAIAgents
     #   )
     class CohereProvider < ModelInterface
       include RetryableProvider
-      
+
       API_BASE = "https://api.cohere.com/v2"
-      
+
       SUPPORTED_MODELS = %w[
         command-r-plus-08-2024
         command-r-plus
@@ -37,7 +37,7 @@ module OpenAIAgents
         command-r
         command-r7b-12-2024
       ].freeze
-      
+
       # Role mapping from OpenAI format to Cohere format
       ROLE_MAPPING = {
         "system" => "system",
@@ -48,35 +48,33 @@ module OpenAIAgents
 
       def initialize(api_key: nil, api_base: nil, **options)
         super
-        @api_key ||= ENV["COHERE_API_KEY"]
+        @api_key ||= ENV.fetch("COHERE_API_KEY", nil)
         @api_base ||= api_base || API_BASE
         @http_client = HTTPClient.new(default_headers: {
-          "Authorization" => "Bearer #{@api_key}",
-          "Content-Type" => "application/json",
-          "Accept" => "application/json",
-          "X-Client-Name" => "openai-agents-ruby"
-        })
+                                        "Authorization" => "Bearer #{@api_key}",
+                                        "Content-Type" => "application/json",
+                                        "Accept" => "application/json",
+                                        "X-Client-Name" => "openai-agents-ruby"
+                                      })
       end
 
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
-        
+
         # Convert messages to Cohere format
         cohere_messages, system_prompt = convert_messages(messages)
-        
+
         body = {
           model: model,
           messages: cohere_messages
         }
-        
+
         # Add system prompt if present
         body[:system] = system_prompt if system_prompt
-        
+
         # Add tools if provided
-        if tools && !tools.empty?
-          body[:tools] = convert_tools(tools)
-        end
-        
+        body[:tools] = convert_tools(tools) if tools && !tools.empty?
+
         # Add optional parameters
         body[:temperature] = kwargs[:temperature] if kwargs[:temperature]
         body[:max_tokens] = kwargs[:max_tokens] if kwargs[:max_tokens]
@@ -85,13 +83,13 @@ module OpenAIAgents
         body[:frequency_penalty] = kwargs[:frequency_penalty] if kwargs[:frequency_penalty]
         body[:presence_penalty] = kwargs[:presence_penalty] if kwargs[:presence_penalty]
         body[:seed] = kwargs[:seed] if kwargs[:seed]
-        
+
         if stream
           stream_completion(messages: messages, model: model, tools: tools, **kwargs)
         else
           with_retry("chat_completion") do
             response = @http_client.post("#{@api_base}/chat", body: body)
-            
+
             if response.success?
               convert_response(response.parsed_body)
             else
@@ -103,24 +101,22 @@ module OpenAIAgents
 
       def stream_completion(messages:, model:, tools: nil, **kwargs)
         validate_model(model)
-        
+
         # Convert messages to Cohere format
         cohere_messages, system_prompt = convert_messages(messages)
-        
+
         body = {
           model: model,
           messages: cohere_messages,
           stream: true
         }
-        
+
         # Add system prompt if present
         body[:system] = system_prompt if system_prompt
-        
+
         # Add tools if provided
-        if tools && !tools.empty?
-          body[:tools] = convert_tools(tools)
-        end
-        
+        body[:tools] = convert_tools(tools) if tools && !tools.empty?
+
         # Add optional parameters from kwargs
         body[:temperature] = kwargs[:temperature] if kwargs[:temperature]
         body[:max_tokens] = kwargs[:max_tokens] if kwargs[:max_tokens]
@@ -129,7 +125,7 @@ module OpenAIAgents
         body[:frequency_penalty] = kwargs[:frequency_penalty] if kwargs[:frequency_penalty]
         body[:presence_penalty] = kwargs[:presence_penalty] if kwargs[:presence_penalty]
         body[:seed] = kwargs[:seed] if kwargs[:seed]
-        
+
         with_retry("stream_completion") do
           @http_client.post_stream("#{@api_base}/chat", body: body) do |chunk|
             # Parse SSE chunk and convert to OpenAI format
@@ -162,11 +158,11 @@ module OpenAIAgents
       def convert_messages(messages)
         system_messages = []
         chat_messages = []
-        
+
         messages.each do |msg|
           role = msg[:role] || msg["role"]
           content = msg[:content] || msg["content"]
-          
+
           case role
           when "system"
             system_messages << content
@@ -185,17 +181,17 @@ module OpenAIAgents
             }
           end
         end
-        
+
         # Combine system messages if multiple
         system_prompt = system_messages.join("\n\n") unless system_messages.empty?
-        
+
         [chat_messages, system_prompt]
       end
 
       def convert_tools(tools)
         tools.map do |tool|
           tool_def = prepare_tools([tool]).first
-          
+
           {
             type: "function",
             function: {
@@ -210,7 +206,7 @@ module OpenAIAgents
       def convert_response(cohere_response)
         # Extract the message content
         message = cohere_response["message"]
-        
+
         # Build OpenAI-compatible response
         response = {
           "id" => cohere_response["id"] || "chat-#{SecureRandom.hex(12)}",
@@ -226,22 +222,22 @@ module OpenAIAgents
             "finish_reason" => map_finish_reason(cohere_response["finish_reason"])
           }]
         }
-        
+
         # Add tool calls if present
         if message["tool_calls"]
           response["choices"][0]["message"]["tool_calls"] = convert_tool_calls(message["tool_calls"])
         end
-        
+
         # Add usage information if available
         if cohere_response["usage"]
           response["usage"] = {
             "prompt_tokens" => cohere_response["usage"]["billed_units"]["input_tokens"] || 0,
             "completion_tokens" => cohere_response["usage"]["billed_units"]["output_tokens"] || 0,
-            "total_tokens" => (cohere_response["usage"]["billed_units"]["input_tokens"] || 0) + 
-                            (cohere_response["usage"]["billed_units"]["output_tokens"] || 0)
+            "total_tokens" => (cohere_response["usage"]["billed_units"]["input_tokens"] || 0) +
+                              (cohere_response["usage"]["billed_units"]["output_tokens"] || 0)
           }
         end
-        
+
         response
       end
 
@@ -322,12 +318,14 @@ module OpenAIAgents
               "delta" => {},
               "finish_reason" => map_finish_reason(cohere_chunk["finish_reason"])
             }],
-            "usage" => cohere_chunk["usage"] ? {
-              "prompt_tokens" => cohere_chunk["usage"]["billed_units"]["input_tokens"] || 0,
-              "completion_tokens" => cohere_chunk["usage"]["billed_units"]["output_tokens"] || 0,
-              "total_tokens" => (cohere_chunk["usage"]["billed_units"]["input_tokens"] || 0) + 
-                              (cohere_chunk["usage"]["billed_units"]["output_tokens"] || 0)
-            } : nil
+            "usage" => if cohere_chunk["usage"]
+                         {
+                           "prompt_tokens" => cohere_chunk["usage"]["billed_units"]["input_tokens"] || 0,
+                           "completion_tokens" => cohere_chunk["usage"]["billed_units"]["output_tokens"] || 0,
+                           "total_tokens" => (cohere_chunk["usage"]["billed_units"]["input_tokens"] || 0) +
+                             (cohere_chunk["usage"]["billed_units"]["output_tokens"] || 0)
+                         }
+                       end
           }
         else
           # Unknown event type, return minimal chunk

@@ -55,19 +55,19 @@ def solve_equation(equation)
   "Solution for #{equation}: This would solve the equation"
 end
 
-# Create specialized agents
+# Create specialized agents using Python-aligned defaults
 weather_agent = OpenAIAgents::Agent.new(
   name: "WeatherAgent",
   instructions: "You are a weather specialist. You can provide weather information and forecasts. " \
                 "If asked about math, handoff to MathAgent.",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 math_agent = OpenAIAgents::Agent.new(
   name: "MathAgent",
   instructions: "You are a math specialist. You can perform calculations and solve equations. " \
                 "If asked about weather, handoff to WeatherAgent.",
-  model: "gpt-4"
+  model: "gpt-4o"
 )
 
 # Add tools to agents
@@ -81,12 +81,11 @@ math_agent.add_tool(method(:solve_equation))
 weather_agent.add_handoff(math_agent)
 math_agent.add_handoff(weather_agent)
 
-# Create tracer
-tracer = OpenAIAgents::Tracer.new
-tracer.add_processor(OpenAIAgents::ConsoleProcessor.new)
+# Create tracer (now uses ResponsesProvider by default, matching Python)
+tracer = OpenAIAgents.tracer
 
 # Create runner starting with weather agent
-OpenAIAgents::Runner.new(agent: weather_agent, tracer: tracer)
+runner = OpenAIAgents::Runner.new(agent: weather_agent, tracer: tracer)
 
 puts "=== Multi-Agent System Example ==="
 puts "Weather Agent Tools: #{weather_agent.tools.map(&:name).join(", ")}"

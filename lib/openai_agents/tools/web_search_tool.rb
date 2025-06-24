@@ -12,14 +12,14 @@ module OpenAIAgents
     # Uses OpenAI Responses API for actual web search functionality
     class WebSearchTool < FunctionTool
       BASE_URL = "https://api.openai.com/v1/responses"
-      
+
       attr_reader :user_location, :search_context_size
 
       def initialize(user_location: nil, search_context_size: "medium", api_key: nil)
         @user_location = normalize_user_location(user_location)
         @search_context_size = validate_search_context_size(search_context_size)
-        @api_key = api_key || ENV["OPENAI_API_KEY"]
-        
+        @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
+
         raise ArgumentError, "OpenAI API key is required for web search" unless @api_key
 
         super(method(:web_search),
@@ -38,7 +38,7 @@ module OpenAIAgents
         "Web search error: #{e.message}"
       end
 
-      def search_with_streaming(query, &block)
+      def search_with_streaming(query)
         uri = URI(BASE_URL)
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
@@ -73,20 +73,20 @@ module OpenAIAgents
           response.read_body do |chunk|
             # Process Server-Sent Events
             chunk.split("\n").each do |line|
-              if line.start_with?("data: ")
-                data = line[6..-1]
-                next if data == "[DONE]"
+              next unless line.start_with?("data: ")
 
-                begin
-                  event = JSON.parse(data)
-                  content = process_stream_event(event)
-                  if content
-                    accumulated_content << content
-                    yield(content) if block_given?
-                  end
-                rescue JSON::ParserError
-                  # Skip invalid JSON
+              data = line[6..-1]
+              next if data == "[DONE]"
+
+              begin
+                event = JSON.parse(data)
+                content = process_stream_event(event)
+                if content
+                  accumulated_content << content
+                  yield(content) if block_given?
                 end
+              rescue JSON::ParserError
+                # Skip invalid JSON
               end
             end
           end
@@ -163,7 +163,11 @@ module OpenAIAgents
         when "429"
           raise "Rate limit exceeded. Please try again later."
         when "400"
-          error_data = JSON.parse(response.body) rescue {}
+          error_data = begin
+            JSON.parse(response.body)
+          rescue StandardError
+            {}
+          end
           error_msg = error_data.dig("error", "message") || "Bad request"
           raise "API Error: #{error_msg}"
         else
@@ -175,15 +179,11 @@ module OpenAIAgents
         # Extract the final output from the response
         if data["output"] && data["output"].any?
           content = data["output"][0]
-          if content["content"] && content["content"].any?
-            return content["content"][0]["text"]
-          end
+          return content["content"][0]["text"] if content["content"] && content["content"].any?
         end
 
         # Fallback if structure is different
-        if data["text"]
-          return data["text"]
-        end
+        return data["text"] if data["text"]
 
         "Web search completed but no results returned."
       end
@@ -215,8 +215,9 @@ module OpenAIAgents
       def validate_search_context_size(size)
         valid_sizes = %w[low medium high]
         unless valid_sizes.include?(size)
-          raise ArgumentError, "search_context_size must be one of: #{valid_sizes.join(', ')}"
+          raise ArgumentError, "search_context_size must be one of: #{valid_sizes.join(", ")}"
         end
+
         size
       end
     end

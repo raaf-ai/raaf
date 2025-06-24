@@ -21,7 +21,7 @@ unless ENV["OPENAI_API_KEY"]
 end
 
 puts "\n📦 Creating Batch Processor..."
-batch_processor = OpenAIAgents::BatchProcessor.new
+OpenAIAgents::BatchProcessor.new
 
 # =============================================================================
 # 1. Basic Batch Processing
@@ -83,7 +83,7 @@ customer_inquiries = [
   "How do I cancel my subscription and get a refund for this month?"
 ]
 
-customer_batch_requests = customer_inquiries.map.with_index do |inquiry, index|
+customer_batch_requests = customer_inquiries.map.with_index do |inquiry, _index|
   {
     model: "gpt-4.1",
     messages: [
@@ -156,7 +156,7 @@ code_snippets = [
     code: "def fibonacci(n)\n  return n if n <= 1\n  fibonacci(n-1) + fibonacci(n-2)\nend"
   },
   {
-    language: "Python", 
+    language: "Python",
     code: "def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[0]\n    return quicksort([x for x in arr[1:] if x < pivot]) + [pivot] + quicksort([x for x in arr[1:] if x >= pivot])"
   },
   {
@@ -209,7 +209,7 @@ puts ""
 puts "  # Monitor progress"
 puts "  batch_processor.check_status(batch['id']) do |status|"
 puts "    progress = status['request_counts']"
-puts "    puts \"Progress: #{progress['completed']}/#{progress['total']}\""
+puts "    puts \"Progress: #{progress["completed"]}/#{progress["total"]}\""
 puts "  end"
 puts ""
 puts "  # Wait for completion with custom settings"
@@ -226,8 +226,8 @@ puts "\n6. 💰 Cost Analysis and Benefits"
 puts "-" * 40
 
 # Calculate potential savings
-individual_cost_per_request = 0.03  # Example cost per request
-batch_discount = 0.5  # 50% discount
+individual_cost_per_request = 0.03 # Example cost per request
+batch_discount = 0.5 # 50% discount
 total_requests = basic_requests.length + customer_batch_requests.length + analysis_batch_requests.length + code_review_requests.length
 
 individual_total_cost = total_requests * individual_cost_per_request
