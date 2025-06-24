@@ -73,10 +73,10 @@ module OpenAIAgents
         callable.parameters.each do |type, name|
           case type
           when :req, :keyreq
-            properties[name] = { type: "string", description: "#{name} parameter" }
-            required << name.to_s
+            properties[name] = { type: "string", description: "#{name} parameter", required: true }
+            required << name
           when :opt, :key
-            properties[name] = { type: "string", description: "#{name} parameter" }
+            properties[name] = { type: "string", description: "#{name} parameter", required: false }
           end
         end
       end

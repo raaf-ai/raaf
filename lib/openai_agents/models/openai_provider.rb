@@ -67,6 +67,19 @@ module OpenAIAgents
         handle_responses_api_response(response)
       end
 
+      def supported_models
+        SUPPORTED_MODELS
+      end
+
+      def provider_name
+        "OpenAI"
+      end
+
+      def stream_completion(messages:, model:, tools: nil, **kwargs)
+        validate_model(model)
+        standard_completion(messages: messages, model: model, tools: tools, stream: true, **kwargs)
+      end
+
       private
 
       def prepare_tools_for_responses_api(tools)
@@ -165,42 +178,6 @@ module OpenAIAgents
         end
 
         data["text"] || "No content returned"
-      end
-
-      def stream_completion(messages:, model:, tools: nil, &block)
-        validate_model(model)
-
-        parameters = {
-          model: model,
-          messages: messages,
-          stream: true
-        }
-        parameters[:tools] = prepare_tools(tools) if tools
-
-        accumulated_content = String.new
-        accumulated_tool_calls = {}
-
-        begin
-          stream = @client.chat.completions.stream_raw(parameters)
-          stream.each do |chunk|
-            process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
-          end
-        rescue HTTPClient::Error => e
-          handle_openai_error(e)
-        end
-
-        {
-          content: accumulated_content,
-          tool_calls: accumulated_tool_calls.values
-        }
-      end
-
-      def supported_models
-        SUPPORTED_MODELS
-      end
-
-      def provider_name
-        "OpenAI"
       end
 
       def process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &)

@@ -145,6 +145,7 @@ RSpec.describe OpenAIAgents::Models do
 
     describe "#initialize" do
       it "requires API key" do
+        allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return(nil)
         expect { described_class.new }.to raise_error(OpenAIAgents::Models::AuthenticationError, /API key is required/)
       end
 

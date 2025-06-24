@@ -9,33 +9,27 @@ RSpec.describe OpenAIAgents::Runner do
   describe "#initialize" do
     it "creates a runner with an agent" do
       expect(runner.agent).to eq(agent)
-      expect(runner.tracer).to be_a(OpenAIAgents::Tracer)
+      expect(runner.tracer).to be_a(OpenAIAgents::Tracing::SpanTracer)
     end
 
     it "accepts a custom tracer" do
-      custom_tracer = OpenAIAgents::Tracer.new
+      custom_tracer = OpenAIAgents::Tracing::SpanTracer.new
       runner = described_class.new(agent: agent, tracer: custom_tracer)
 
       expect(runner.tracer).to eq(custom_tracer)
     end
 
-    it "sets up API configuration from environment" do
-      allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("test-key")
-      allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return("https://custom.api.com/v1")
-
+    it "uses ResponsesProvider by default" do
       runner = described_class.new(agent: agent)
 
-      expect(runner.instance_variable_get(:@api_key)).to eq("test-key")
-      expect(runner.instance_variable_get(:@api_base)).to eq("https://custom.api.com/v1")
+      expect(runner.instance_variable_get(:@provider)).to be_a(OpenAIAgents::Models::ResponsesProvider)
     end
 
-    it "uses default API base when not set in environment" do
-      allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("test-key")
-      allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return(nil)
+    it "accepts a custom provider" do
+      custom_provider = OpenAIAgents::Models::OpenAIProvider.new
+      runner = described_class.new(agent: agent, provider: custom_provider)
 
-      runner = described_class.new(agent: agent)
-
-      expect(runner.instance_variable_get(:@api_base)).to eq("https://api.openai.com/v1")
+      expect(runner.instance_variable_get(:@provider)).to eq(custom_provider)
     end
   end
 
