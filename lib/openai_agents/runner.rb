@@ -302,11 +302,11 @@ module OpenAIAgents
           # Process response
           result = process_response(response, current_agent, conversation)
 
-          # Restore original span stack
-          @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_span_stack)
-
           result
         end
+
+        # Restore original span stack after span block completes
+        @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_span_stack)
 
         turns += 1
 
