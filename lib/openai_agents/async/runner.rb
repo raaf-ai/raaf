@@ -246,7 +246,7 @@ module OpenAIAgents
                                      agent.execute_tool(tool_name, **tool_args)
                                    end
 
-                     tool_span.set_attribute("tool.result", tool_result.to_s[0..1000])
+                     tool_span.set_attribute("tool.result", format_tool_result(tool_result)[0..1000])
                      tool_result
                    end
                  elsif agent.respond_to?(:execute_tool_async)
@@ -260,7 +260,7 @@ module OpenAIAgents
         {
           role: "tool",
           tool_call_id: tool_call["id"],
-          content: result.to_s
+          content: format_tool_result(result)
         }
       rescue StandardError => e
         {
@@ -304,6 +304,20 @@ module OpenAIAgents
           Async do
             @sync_provider.chat_completion(**kwargs)
           end
+        end
+      end
+
+      # Format tool results for proper JSON serialization instead of Ruby hash syntax
+      def format_tool_result(result)
+        case result
+        when Hash, Array
+          # Convert structured data to JSON to avoid Ruby hash syntax (=>) 
+          result.to_json
+        when nil
+          ""
+        else
+          # For simple values (strings, numbers, etc.), use to_s
+          result.to_s
         end
       end
     end

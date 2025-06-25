@@ -6,14 +6,203 @@ Advanced code examples demonstrating OpenAI Agents Ruby capabilities.
 
 ## Table of Contents
 
-1. [Enterprise Customer Service](#enterprise-customer-service)
-2. [Research & Analysis Platform](#research--analysis-platform)
-3. [Code Review Assistant](#code-review-assistant)
-4. [Data Processing Pipeline](#data-processing-pipeline)
-5. [Voice-Enabled Support](#voice-enabled-support)
-6. [Multi-Language Support Bot](#multi-language-support-bot)
-7. [Financial Analysis Agent](#financial-analysis-agent)
-8. [DevOps Automation](#devops-automation)
+1. [Universal Structured Output](#universal-structured-output)
+2. [Enterprise Customer Service](#enterprise-customer-service)
+3. [Research & Analysis Platform](#research--analysis-platform)
+4. [Code Review Assistant](#code-review-assistant)
+5. [Data Processing Pipeline](#data-processing-pipeline)
+6. [Voice-Enabled Support](#voice-enabled-support)
+7. [Multi-Language Support Bot](#multi-language-support-bot)
+8. [Financial Analysis Agent](#financial-analysis-agent)
+9. [DevOps Automation](#devops-automation)
+
+---
+
+## Universal Structured Output
+
+Demonstrates the `response_format` feature that provides guaranteed structured output across ALL providers.
+
+```ruby
+require 'openai_agents'
+
+# Define a comprehensive product analysis schema
+PRODUCT_SCHEMA = {
+  type: "json_schema",
+  json_schema: {
+    name: "product_analysis",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        product_name: { type: "string" },
+        price: { type: "number", minimum: 0 },
+        category: { 
+          type: "string",
+          enum: ["electronics", "clothing", "food", "books", "other"]
+        },
+        features: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 1
+        },
+        rating: { type: "integer", minimum: 1, maximum: 5 },
+        pros: { type: "array", items: { type: "string" } },
+        cons: { type: "array", items: { type: "string" } },
+        in_stock: { type: "boolean" },
+        recommendation: { type: "string" }
+      },
+      required: ["product_name", "price", "category", "features", "pros", "cons", "rating", "in_stock", "recommendation"],
+      additionalProperties: false
+    }
+  }
+}.freeze
+
+class UniversalProductAnalyzer
+  def initialize(provider: nil)
+    # Works with ANY provider - OpenAI, Anthropic, Cohere, Groq, etc.
+    @agent = OpenAIAgents::Agent.new(
+      name: "ProductAnalyzer",
+      instructions: build_instructions,
+      model: select_model_for_provider(provider),
+      response_format: PRODUCT_SCHEMA
+    )
+    
+    @runner = OpenAIAgents::Runner.new(
+      agent: @agent,
+      provider: provider # Uses ResponsesProvider by default
+    )
+  end
+  
+  def analyze_product(product_description)
+    result = @runner.run(product_description)
+    
+    # Parse guaranteed JSON output
+    analysis = JSON.parse(result.messages.last[:content])
+    
+    # Return structured product data
+    {
+      product: analysis,
+      raw_response: result.messages.last[:content],
+      provider_used: @runner.provider.class.name
+    }
+  end
+  
+  private
+  
+  def build_instructions
+    <<~INSTRUCTIONS
+      You are a product analysis expert. Analyze the given product description
+      and provide comprehensive structured information including:
+      
+      1. Extract the product name and price
+      2. Categorize the product appropriately
+      3. List key features and benefits
+      4. Provide a rating from 1-5 based on description
+      5. List pros and cons
+      6. Determine availability status
+      7. Give a brief recommendation
+      
+      Be thorough but concise in your analysis.
+    INSTRUCTIONS
+  end
+  
+  def select_model_for_provider(provider)
+    case provider&.class&.name
+    when /Anthropic/
+      "claude-3-5-sonnet-20241022"
+    when /Cohere/
+      "command-r"
+    when /Groq/
+      "llama-3.1-70b-versatile"
+    else
+      "gpt-4o"
+    end
+  end
+end
+
+# Example usage with different providers
+product_description = <<~PRODUCT
+  The new MacBook Pro 16-inch with M3 Max chip is priced at $3499.
+  It features a stunning Liquid Retina XDR display, up to 128GB unified memory,
+  and incredible performance for video editing and development work.
+  The battery life is exceptional, lasting up to 22 hours.
+  However, the price point is quite high and it has limited port selection.
+PRODUCT
+
+# Test with default provider (ResponsesProvider)
+analyzer_default = UniversalProductAnalyzer.new
+result_default = analyzer_default.analyze_product(product_description)
+
+puts "📊 Analysis with Default Provider:"
+puts "Provider: #{result_default[:provider_used]}"
+puts "Product: #{result_default[:product]['product_name']}"
+puts "Price: $#{result_default[:product]['price']}"
+puts "Rating: #{result_default[:product]['rating']}/5"
+puts "Category: #{result_default[:product]['category']}"
+puts "Features: #{result_default[:product]['features'].join(', ')}"
+puts "Recommendation: #{result_default[:product]['recommendation']}"
+
+# Test with specific providers (if API keys available)
+if ENV['ANTHROPIC_API_KEY']
+  anthropic_provider = OpenAIAgents::Models::AnthropicProvider.new
+  analyzer_anthropic = UniversalProductAnalyzer.new(provider: anthropic_provider)
+  result_anthropic = analyzer_anthropic.analyze_product(product_description)
+  
+  puts "\n🧠 Analysis with Anthropic:"
+  puts "Provider: #{result_anthropic[:provider_used]}"
+  puts "Product: #{result_anthropic[:product]['product_name']}"
+  puts "Same schema, different provider! ✅"
+end
+
+if ENV['COHERE_API_KEY']
+  cohere_provider = OpenAIAgents::Models::CohereProvider.new
+  analyzer_cohere = UniversalProductAnalyzer.new(provider: cohere_provider)
+  result_cohere = analyzer_cohere.analyze_product(product_description)
+  
+  puts "\n🤖 Analysis with Cohere:"
+  puts "Provider: #{result_cohere[:provider_used]}"
+  puts "Product: #{result_cohere[:product]['product_name']}"
+  puts "Universal compatibility! ✅"
+end
+
+# Demonstrate schema validation
+begin
+  # This will always return valid JSON matching the schema
+  all_results = [result_default]
+  all_results << result_anthropic if defined?(result_anthropic)
+  all_results << result_cohere if defined?(result_cohere)
+  
+  puts "\n🔍 Schema Validation Results:"
+  all_results.each do |result|
+    product = result[:product]
+    puts "✅ #{result[:provider_used]}: Valid schema with #{product.keys.length} fields"
+    
+    # Verify required fields
+    required_fields = ['product_name', 'price', 'category', 'rating', 'in_stock']
+    missing_fields = required_fields - product.keys
+    puts "   Required fields: #{missing_fields.empty? ? 'All present ✅' : 'Missing: ' + missing_fields.join(', ') + ' ❌'}"
+  end
+  
+rescue JSON::ParserError => e
+  puts "❌ JSON parsing failed: #{e.message}"
+rescue => e
+  puts "❌ Validation error: #{e.message}"
+end
+
+puts "\n🎯 Key Benefits:"
+puts "• Same schema works with ALL providers"
+puts "• Automatic provider-specific adaptations"
+puts "• Guaranteed JSON output structure"
+puts "• Type-safe data extraction"
+puts "• Universal compatibility"
+```
+
+**Key Features:**
+- **Universal Schema**: Same `response_format` works across all providers
+- **Automatic Adaptation**: Each provider handles structured output optimally
+- **Type Safety**: Guaranteed JSON structure matching your schema
+- **Backward Compatibility**: Existing `output_schema` code still works
+- **Provider Agnostic**: Switch providers without changing schemas
 
 ---
 

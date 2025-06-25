@@ -30,7 +30,8 @@ OpenAIAgents::Agent.new(
   max_turns: Integer,              # Optional: Max conversation turns (default: 10)
   tools: Array,                    # Optional: Pre-configured tools
   handoffs: Array,                 # Optional: Pre-configured handoff agents
-  output_schema: Hash              # Optional: JSON schema for structured output
+  response_format: Hash,           # Optional: Modern structured output format (all providers)
+  output_schema: Hash              # Optional: Legacy structured output (deprecated)
 )
 ```
 
@@ -74,6 +75,29 @@ agent = OpenAIAgents::Agent.new(
   max_turns: 15,
   tools: [lookup_order_tool],
   handoffs: [technical_agent]
+)
+
+# Agent with structured output (modern approach)
+agent = OpenAIAgents::Agent.new(
+  name: "DataExtractor",
+  instructions: "Extract and structure data from user input.",
+  model: "gpt-4o",
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "user_data",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          email: { type: "string" }
+        },
+        required: ["name"],
+        additionalProperties: false
+      }
+    }
+  }
 )
 ```
 
@@ -240,7 +264,88 @@ agent.add_tool(weather_tool)
 
 ## Structured Output
 
-Schema-based output validation and enforcement for consistent agent responses.
+Universal structured output that works across ALL providers using modern `response_format` or legacy `output_schema` approaches.
+
+### Response Format (Recommended)
+
+Modern approach using OpenAI-compatible `response_format` parameter that works with all providers.
+
+```ruby
+# Basic response_format usage
+agent = OpenAIAgents::Agent.new(
+  name: "ExtractorAgent",
+  model: "gpt-4o",
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "output_format",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          field1: { type: "string" },
+          field2: { type: "integer" }
+        },
+        required: ["field1"],
+        additionalProperties: false
+      }
+    }
+  }
+)
+
+# Works with ANY provider automatically:
+# - OpenAI: Native JSON schema support
+# - Anthropic: Enhanced system prompts
+# - Cohere: JSON object mode + schema
+# - Groq: Direct parameter passthrough
+# - Others: Intelligent adaptation
+```
+
+### Provider Compatibility
+
+| Provider | Implementation | Native Support |
+|----------|----------------|----------------|
+| OpenAI | Direct `response_format` | ✅ Full |
+| Groq | Direct `response_format` | ✅ Full |
+| Anthropic | Enhanced system prompts | 🔄 Adapted |
+| Cohere | JSON object + schema | 🔄 Adapted |
+| Others | Prompt enhancement | 🔄 Adapted |
+
+### Legacy Output Schema
+
+Original approach using `output_schema` parameter (still supported for backward compatibility).
+
+### Migration Guide
+
+```ruby
+# OLD: Legacy output_schema approach
+agent_old = OpenAIAgents::Agent.new(
+  name: "LegacyAgent",
+  model: "gpt-4o",
+  output_schema: {
+    type: "object",
+    properties: { name: { type: "string" } }
+  }
+)
+
+# NEW: Modern response_format approach (recommended)
+agent_new = OpenAIAgents::Agent.new(
+  name: "ModernAgent",
+  model: "gpt-4o",
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "my_schema",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: { name: { type: "string" } },
+        additionalProperties: false
+      }
+    }
+  }
+)
+```
 
 ### BaseSchema
 

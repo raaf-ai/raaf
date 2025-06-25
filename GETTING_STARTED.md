@@ -224,12 +224,52 @@ agent.add_tool(computer_tool)
 
 ## Structured Output
 
-OpenAI Agents Ruby supports enforced structured output using JSON schemas. This ensures your agents return data in a specific format that your application can reliably parse and use.
+OpenAI Agents Ruby provides **universal structured output** that works across ALL providers using the modern `response_format` parameter. This ensures your agents return data in a specific format that your application can reliably parse and use.
 
-### Basic Structured Output
+### Modern Response Format (Recommended)
 
 ```ruby
-# Define a JSON schema for your desired output format
+# Define structured output using response_format (works with ALL providers)
+agent = OpenAIAgents::Agent.new(
+  name: "UserExtractor", 
+  instructions: "Extract user information from the input and return as JSON.",
+  model: "gpt-4o",
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "user_info",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          age: { type: "integer", minimum: 0, maximum: 150 },
+          email: { type: "string" },
+          city: { type: "string" }
+        },
+        required: ["name", "age", "city"],
+        additionalProperties: false
+      }
+    }
+  }
+)
+
+# Works with ANY provider - OpenAI, Anthropic, Cohere, Groq, etc.
+runner = OpenAIAgents::Runner.new(agent: agent)
+result = runner.run("Hi, I'm Sarah, 28 years old from Seattle. Email: sarah@example.com")
+
+# The response is guaranteed to match the schema across ALL providers
+response = result.messages.last[:content]
+# => '{"name":"Sarah","age":28,"email":"sarah@example.com","city":"Seattle"}'
+
+user_data = JSON.parse(response)
+puts "Welcome #{user_data['name']} from #{user_data['city']}!"
+```
+
+### Legacy Output Schema (Still Supported)
+
+```ruby
+# Legacy approach using output_schema (still works but response_format is preferred)
 user_schema = {
   type: "object",
   properties: {
@@ -242,25 +282,88 @@ user_schema = {
   additionalProperties: false
 }
 
-# Create agent with structured output
 agent = OpenAIAgents::Agent.new(
   name: "UserExtractor", 
   instructions: "Extract user information from the input and return as JSON.",
   model: "gpt-4o",
-  output_schema: user_schema
+  output_schema: user_schema  # Legacy approach
+)
+```
+
+### Cross-Provider Compatibility
+
+The `response_format` feature works seamlessly across ALL providers with automatic adaptations:
+
+```ruby
+# Same schema definition works with any provider
+user_schema = {
+  type: "json_schema",
+  json_schema: {
+    name: "user_info",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        email: { type: "string" }
+      },
+      required: ["name"],
+      additionalProperties: false
+    }
+  }
+}
+
+# OpenAI - Native JSON schema support
+openai_agent = OpenAIAgents::Agent.new(
+  name: "OpenAIExtractor",
+  model: "gpt-4o",
+  response_format: user_schema
+)
+openai_runner = OpenAIAgents::Runner.new(
+  agent: openai_agent,
+  provider: OpenAIAgents::Models::OpenAIProvider.new
 )
 
-# Use the agent
-runner = OpenAIAgents::Runner.new(agent: agent)
-result = runner.run("Hi, I'm Sarah, 28 years old from Seattle. Email: sarah@example.com")
+# Anthropic - Enhanced system prompts with schema
+anthropic_agent = OpenAIAgents::Agent.new(
+  name: "AnthropicExtractor",
+  model: "claude-3-5-sonnet-20241022",
+  response_format: user_schema
+)
+anthropic_runner = OpenAIAgents::Runner.new(
+  agent: anthropic_agent,
+  provider: OpenAIAgents::Models::AnthropicProvider.new
+)
 
-# The response is guaranteed to match the schema
-response = result.messages.last[:content]
-# => '{"name":"Sarah","age":28,"email":"sarah@example.com","city":"Seattle"}'
+# Cohere - JSON object format with schema instructions
+cohere_agent = OpenAIAgents::Agent.new(
+  name: "CohereExtractor",
+  model: "command-r",
+  response_format: user_schema
+)
+cohere_runner = OpenAIAgents::Runner.new(
+  agent: cohere_agent,
+  provider: OpenAIAgents::Models::CohereProvider.new
+)
 
-user_data = JSON.parse(response)
-puts "Welcome #{user_data['name']} from #{user_data['city']}!"
+# All produce identical structured output!
+input = "My name is John and email is john@example.com"
+results = [
+  openai_runner.run(input),
+  anthropic_runner.run(input),
+  cohere_runner.run(input)
+].map { |r| JSON.parse(r.messages.last[:content]) }
+
+# All results follow the same schema structure
+results.each { |r| puts "Name: #{r['name']}, Email: #{r['email']}" }
 ```
+
+### Provider-Specific Adaptations
+
+- **OpenAI/Groq**: Native `response_format` support
+- **Anthropic**: Automatic system message enhancement with schema instructions  
+- **Cohere**: Conversion to `json_object` format with schema guidance
+- **Others**: Intelligent prompt enhancement for structured output
 
 ### Using Schema Builder
 

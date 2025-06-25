@@ -15,6 +15,7 @@ A comprehensive Ruby implementation of OpenAI Agents for building sophisticated 
 - **📡 Real-time Streaming** - Live response streaming with event handling
 - **📊 Comprehensive Tracing** - OpenAI dashboard integration with span-based monitoring
 - **🎯 Multi-Provider Support** - OpenAI, Anthropic, Gemini, Cohere, Groq, Ollama, and 100+ LLMs
+- **📋 Universal Structured Output** - JSON schema enforcement across ALL providers
 - **🛡️ Enterprise Guardrails** - Safety, validation, compliance, and cost controls
 - **🎤 Voice Workflows** - Complete speech-to-text and text-to-speech pipeline
 - **📈 Usage Analytics** - Resource monitoring, cost tracking, and business insights
@@ -61,6 +62,42 @@ runner = OpenAIAgents::Runner.new(agent: agent)
 result = runner.run("What's the weather in Paris?")
 
 puts result.messages.last[:content]
+```
+
+### Structured Output Example
+
+```ruby
+# Universal structured output across ALL providers
+agent = OpenAIAgents::Agent.new(
+  name: "DataExtractor",
+  instructions: "Extract user information as JSON.",
+  model: "gpt-4o",
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "user_info",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          age: { type: "integer" },
+          email: { type: "string" }
+        },
+        required: ["name", "age"],
+        additionalProperties: false
+      }
+    }
+  }
+)
+
+# Works with ANY provider - OpenAI, Anthropic, Cohere, Groq, etc.
+runner = OpenAIAgents::Runner.new(agent: agent)
+result = runner.run("I'm Alice, 25, alice@example.com")
+
+# Guaranteed JSON output matching your schema
+user_data = JSON.parse(result.messages.last[:content])
+puts "Hello #{user_data['name']}, age #{user_data['age']}!"
 ```
 
 ### Multi-Agent Example

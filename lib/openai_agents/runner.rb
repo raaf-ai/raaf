@@ -603,7 +603,7 @@ module OpenAIAgents
         {
           role: "tool",
           tool_call_id: tool_call["id"],
-          content: result.to_s
+          content: format_tool_result(result)
         }
       rescue StandardError => e
         puts "[Runner] Tool execution error: #{e.message}"
@@ -637,7 +637,7 @@ module OpenAIAgents
         res = agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
 
         if trace_sensitive
-          tool_span.set_attribute("function.output", res.to_s[0..1000]) # Limit size
+          tool_span.set_attribute("function.output", format_tool_result(res)[0..1000]) # Limit size
         else
           tool_span.set_attribute("function.output", "[REDACTED]")
         end
@@ -694,12 +694,29 @@ module OpenAIAgents
       collection.map do |item|
         if item.respond_to?(:name)
           item.name
+        elsif item.is_a?(Hash)
+          # For hash tools like { type: "web_search" }, return JSON instead of Ruby hash syntax
+          item.to_json
         else
           item.to_s
         end
       end
     rescue StandardError
       []
+    end
+
+    # Format tool results for proper JSON serialization instead of Ruby hash syntax
+    def format_tool_result(result)
+      case result
+      when Hash, Array
+        # Convert structured data to JSON to avoid Ruby hash syntax (=>) 
+        result.to_json
+      when nil
+        ""
+      else
+        # For simple values (strings, numbers, etc.), use to_s
+        result.to_s
+      end
     end
   end
 end

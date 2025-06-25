@@ -264,7 +264,8 @@ module OpenAIAgents
                   if content_item.is_a?(Hash) && content_item["type"] == "output_text"
                     content_item["text"] || ""
                   else
-                    content_item.to_s
+                    # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
+                    content_item.is_a?(Hash) ? content_item.to_json : content_item.to_s
                   end
                 end.join
               elsif item["type"] == "output_text"
@@ -274,13 +275,16 @@ module OpenAIAgents
               elsif item["content"]
                 item["content"]
               else
-                # Skip tool call items, only extract text content
+                # Skip tool call items and web search metadata, only extract text content
                 next if item["type"] == "function_call" || item["function"]
+                next if item["type"] == "web_search_call" || item["id"]&.start_with?("ws_")
 
-                item.to_s
+                # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
+                item.is_a?(Hash) ? item.to_json : item.to_s
               end
             else
-              item.to_s
+              # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
+              item.is_a?(Hash) ? item.to_json : item.to_s
             end
           end.compact.join
         elsif output.is_a?(Hash)
@@ -290,14 +294,16 @@ module OpenAIAgents
           elsif output["content"]
             output["content"]
           else
-            # Don't include tool call results as content
+            # Don't include tool call results or web search metadata as content
             return "" if output["type"] == "function_call" || output["function"]
+            return "" if output["type"] == "web_search_call" || output["id"]&.start_with?("ws_")
 
-            output.to_s
+            # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
+            output.is_a?(Hash) ? output.to_json : output.to_s
           end
         else
-          # Fallback for other formats
-          output.to_s
+          # Fallback for other formats - convert hashes to JSON to avoid Ruby hash syntax
+          output.is_a?(Hash) ? output.to_json : output.to_s
         end
       end
 
