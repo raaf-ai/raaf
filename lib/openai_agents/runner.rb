@@ -26,7 +26,7 @@ module OpenAIAgents
       @tracer = tracer || (@disabled_tracing ? nil : OpenAIAgents.tracer)
     end
 
-    def run(messages, stream: false, config: nil, hooks: nil, **kwargs)
+    def run(messages, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, **kwargs)
       # Normalize messages input - handle both string and array formats
       messages = normalize_messages(messages)
 
@@ -47,6 +47,8 @@ module OpenAIAgents
 
       # Store hooks in config for later use
       config.hooks = hooks if hooks
+      config.input_guardrails = input_guardrails if input_guardrails
+      config.output_guardrails = output_guardrails if output_guardrails
 
       # Check if tracing is disabled
       if config.tracing_disabled || @disabled_tracing || @tracer.nil?
@@ -80,6 +82,52 @@ module OpenAIAgents
     end
 
     private
+
+    # Run input guardrails for an agent
+    def run_input_guardrails(context_wrapper, agent, input)
+      # Collect all guardrails (run-level and agent-level)
+      guardrails = []
+      guardrails.concat(@current_config.input_guardrails) if @current_config&.input_guardrails
+      guardrails.concat(agent.input_guardrails) if agent.respond_to?(:input_guardrails)
+      
+      return if guardrails.empty?
+      
+      guardrails.each do |guardrail|
+        result = guardrail.run(context_wrapper, agent, input)
+        
+        if result.tripwire_triggered?
+          raise Guardrails::InputGuardrailTripwireTriggered.new(
+            "Input guardrail '#{guardrail.get_name}' triggered",
+            triggered_by: guardrail.get_name,
+            content: input,
+            metadata: result.output.output_info
+          )
+        end
+      end
+    end
+
+    # Run output guardrails for an agent
+    def run_output_guardrails(context_wrapper, agent, output)
+      # Collect all guardrails (run-level and agent-level)
+      guardrails = []
+      guardrails.concat(@current_config.output_guardrails) if @current_config&.output_guardrails
+      guardrails.concat(agent.output_guardrails) if agent.respond_to?(:output_guardrails)
+      
+      return if guardrails.empty?
+      
+      guardrails.each do |guardrail|
+        result = guardrail.run(context_wrapper, agent, output)
+        
+        if result.tripwire_triggered?
+          raise Guardrails::OutputGuardrailTripwireTriggered.new(
+            "Output guardrail '#{guardrail.get_name}' triggered",
+            triggered_by: guardrail.get_name,
+            content: output,
+            metadata: result.output.output_info
+          )
+        end
+      end
+    end
 
     # Helper method to safely call hooks
     def call_hook(hook_method, context_wrapper, *args)
@@ -128,6 +176,12 @@ module OpenAIAgents
 
           # Call agent start hooks
           call_hook(:on_agent_start, context_wrapper, current_agent)
+          
+          # Run input guardrails
+          current_input = conversation.last[:content] if conversation.last && conversation.last[:role] == "user"
+          if current_input
+            run_input_guardrails(context_wrapper, current_agent, current_input)
+          end
           
           # Set agent span attributes to match Python implementation
           agent_span.set_attribute("agent.name", current_agent.name || "agent")
@@ -249,6 +303,11 @@ module OpenAIAgents
 
       # Get final output for agent end hook
       final_output = conversation.last[:content] if conversation.last[:role] == "assistant"
+      
+      # Run output guardrails
+      if final_output
+        run_output_guardrails(context_wrapper, current_agent, final_output)
+      end
       
       # Call agent end hooks
       call_hook(:on_agent_end, context_wrapper, current_agent, final_output)

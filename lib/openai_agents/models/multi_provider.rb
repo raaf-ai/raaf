@@ -6,6 +6,7 @@ require_relative "cohere_provider"
 require_relative "groq_provider"
 require_relative "ollama_provider"
 require_relative "together_provider"
+require_relative "litellm_provider"
 
 module OpenAIAgents
   module Models
@@ -18,7 +19,8 @@ module OpenAIAgents
           "cohere" => CohereProvider,
           "groq" => GroqProvider,
           "ollama" => OllamaProvider,
-          "together" => TogetherProvider
+          "together" => TogetherProvider,
+          "litellm" => LitellmProvider
         }
       end
 

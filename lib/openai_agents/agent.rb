@@ -4,6 +4,9 @@ require_relative "function_tool"
 require_relative "errors"
 require_relative "lifecycle"
 require_relative "prompts"
+require_relative "guardrails"
+require_relative "handoffs"
+require_relative "agent_output"
 
 module OpenAIAgents
   ##
@@ -78,18 +81,26 @@ module OpenAIAgents
     # @!attribute [rw] tools
     #   @return [Array<FunctionTool>] array of tools available to this agent
     # @!attribute [rw] handoffs
-    #   @return [Array<Agent>] array of agents this agent can hand off to
+    #   @return [Array<Agent, Handoff>] array of agents or handoff objects this agent can hand off to
     # @!attribute [rw] model
     #   @return [String] the LLM model this agent uses (e.g., "gpt-4", "claude-3-sonnet")
     # @!attribute [rw] max_turns
     #   @return [Integer] maximum number of conversation turns before stopping
     # @!attribute [rw] output_schema
-    #   @return [Hash, nil] JSON schema for structured output validation
+    #   @return [Hash, nil] JSON schema for structured output validation (deprecated, use output_type)
+    # @!attribute [rw] output_type
+    #   @return [Class, AgentOutputSchemaBase, nil] the expected output type for the agent
     # @!attribute [rw] hooks
     #   @return [AgentHooks, nil] lifecycle hooks for this specific agent
     # @!attribute [rw] prompt
     #   @return [Prompt, DynamicPromptFunction, Hash, Proc, nil] prompt configuration for Responses API
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema, :hooks, :prompt
+    # @!attribute [rw] input_guardrails
+    #   @return [Array<InputGuardrail>] input validation guardrails
+    # @!attribute [rw] output_guardrails
+    #   @return [Array<OutputGuardrail>] output validation guardrails
+    # @!attribute [rw] handoff_description
+    #   @return [String, nil] description of when/why to handoff to this agent
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description
 
     ##
     # Creates a new Agent instance
@@ -124,8 +135,15 @@ module OpenAIAgents
       @model = options[:model] || "gpt-4"
       @max_turns = options[:max_turns] || 10
       @output_schema = options[:output_schema]
+      @output_type = options[:output_type]
       @hooks = options[:hooks]
       @prompt = options[:prompt]
+      @input_guardrails = (options[:input_guardrails] || []).dup
+      @output_guardrails = (options[:output_guardrails] || []).dup
+      @handoff_description = options[:handoff_description]
+      
+      # Handle output_type configuration
+      configure_output_type
     end
 
     ##
@@ -170,14 +188,14 @@ module OpenAIAgents
     end
 
     ##
-    # Adds another agent as a handoff target
+    # Adds a handoff target
     #
     # Handoffs allow agents to transfer control to other specialized agents during
     # a conversation, enabling complex multi-agent workflows.
     #
-    # @param agent [Agent] the agent to add as a handoff target
+    # @param handoff [Agent, Handoff] the agent or handoff object to add
     # @return [void]
-    # @raise [HandoffError] if the parameter is not an Agent instance
+    # @raise [HandoffError] if the parameter is not an Agent or Handoff instance
     #
     # @example Set up agent handoffs
     #   support_agent = OpenAIAgents::Agent.new(name: "Support")
@@ -188,10 +206,19 @@ module OpenAIAgents
     #
     #   # Support can hand off back to sales
     #   support_agent.add_handoff(sales_agent)
-    def add_handoff(agent)
-      raise HandoffError, "Handoff must be an Agent" unless agent.is_a?(Agent)
+    #
+    # @example Use handoff objects for more control
+    #   handoff = OpenAIAgents.handoff(
+    #     support_agent,
+    #     tool_description_override: "Transfer to support for technical issues"
+    #   )
+    #   sales_agent.add_handoff(handoff)
+    def add_handoff(handoff)
+      unless handoff.is_a?(Agent) || handoff.is_a?(Handoff)
+        raise HandoffError, "Handoff must be an Agent or Handoff object"
+      end
 
-      @handoffs << agent
+      @handoffs << handoff
     end
 
     ##
@@ -235,14 +262,21 @@ module OpenAIAgents
     #   agent.can_handoff_to?("OtherAgent") # => true
     #   agent.can_handoff_to?("UnknownAgent") # => false
     def can_handoff_to?(agent_name)
-      @handoffs.any? { |agent| agent.name == agent_name }
+      @handoffs.any? do |handoff|
+        case handoff
+        when Agent
+          handoff.name == agent_name
+        when Handoff
+          handoff.agent_name == agent_name
+        end
+      end
     end
 
     ##
-    # Finds a handoff target agent by name
+    # Finds a handoff target by name
     #
     # @param agent_name [String] name of the target agent
-    # @return [Agent, nil] the target agent if found, nil otherwise
+    # @return [Agent, Handoff, nil] the target agent or handoff if found, nil otherwise
     #
     # @example
     #   target = agent.find_handoff("SupportAgent")
@@ -250,7 +284,14 @@ module OpenAIAgents
     #     puts "Found handoff target: #{target.name}"
     #   end
     def find_handoff(agent_name)
-      @handoffs.find { |agent| agent.name == agent_name }
+      @handoffs.find do |handoff|
+        case handoff
+        when Agent
+          handoff.name == agent_name
+        when Handoff
+          handoff.agent_name == agent_name
+        end
+      end
     end
 
     ##
@@ -296,7 +337,94 @@ module OpenAIAgents
       tool.call(**)
     end
 
+    ##
+    # Adds an input guardrail to the agent
+    #
+    # @param guardrail [Guardrails::InputGuardrail] The guardrail to add
+    #
+    # @example Add a profanity guardrail
+    #   agent.add_input_guardrail(
+    #     OpenAIAgents::Guardrails.profanity_guardrail
+    #   )
+    def add_input_guardrail(guardrail)
+      unless guardrail.is_a?(Guardrails::InputGuardrail)
+        raise ArgumentError, "Expected InputGuardrail, got #{guardrail.class}"
+      end
+      @input_guardrails << guardrail
+    end
+
+    ##
+    # Adds an output guardrail to the agent
+    #
+    # @param guardrail [Guardrails::OutputGuardrail] The guardrail to add
+    #
+    # @example Add a length guardrail
+    #   agent.add_output_guardrail(
+    #     OpenAIAgents::Guardrails.length_guardrail(max_length: 1000)
+    #   )
+    def add_output_guardrail(guardrail)
+      unless guardrail.is_a?(Guardrails::OutputGuardrail)
+        raise ArgumentError, "Expected OutputGuardrail, got #{guardrail.class}"
+      end
+      @output_guardrails << guardrail
+    end
+
+    ##
+    # Gets the output schema for the agent
+    #
+    # Returns the JSON schema for structured output, either from output_schema
+    # directly or derived from output_type.
+    #
+    # @return [Hash, nil] the JSON schema or nil if no structured output
+    def get_output_schema
+      return @output_schema if @output_schema
+      return nil unless @output_type_schema
+      
+      @output_type_schema.json_schema
+    rescue => e
+      puts "[Agent] Warning: Could not get output schema: #{e.message}"
+      nil
+    end
+
+    ##
+    # Validates output against the agent's output type
+    #
+    # @param output [String, Object] the output to validate
+    # @return [Object] the validated output
+    # @raise [ModelBehaviorError] if validation fails
+    def validate_output(output)
+      return output unless @output_type_schema
+      
+      if output.is_a?(String) && !@output_type_schema.plain_text?
+        # Try to parse and validate JSON
+        @output_type_schema.validate_json(output)
+      else
+        # Direct validation
+        TypeAdapter.new(@output_type || String).validate(output)
+      end
+    end
+
     private
+
+    def configure_output_type
+      return unless @output_type
+
+      # If output_type is already an AgentOutputSchemaBase, use it directly
+      if @output_type.is_a?(AgentOutputSchemaBase)
+        @output_type_schema = @output_type
+      else
+        # Create an AgentOutputSchema from the type
+        @output_type_schema = AgentOutputSchema.new(@output_type, strict_json_schema: true)
+      end
+
+      # If we don't have an output_schema but have output_type, derive it
+      if @output_schema.nil? && !@output_type_schema.plain_text?
+        @output_schema = @output_type_schema.json_schema
+      end
+    rescue => e
+      puts "[Agent] Warning: Could not configure output type: #{e.message}"
+      @output_type_schema = nil
+    end
 
     def safe_map_to_h(collection)
       return [] unless collection.respond_to?(:map)
@@ -316,10 +444,13 @@ module OpenAIAgents
       return [] unless collection.respond_to?(:map)
 
       collection.map do |item|
-        if item.respond_to?(:name)
+        case item
+        when Agent
           item.name
+        when Handoff
+          item.agent_name
         else
-          item.to_s
+          item.respond_to?(:name) ? item.name : item.to_s
         end
       end
     rescue StandardError

@@ -77,6 +77,12 @@ module OpenAIAgents
     # @return [RunHooks, nil] Lifecycle hooks for this run
     attr_accessor :hooks
 
+    # @return [Array<Guardrails::InputGuardrail>, nil] Input guardrails for this run
+    attr_accessor :input_guardrails
+
+    # @return [Array<Guardrails::OutputGuardrail>, nil] Output guardrails for this run
+    attr_accessor :output_guardrails
+
     def initialize(
       max_turns: nil,
       trace_id: nil,
