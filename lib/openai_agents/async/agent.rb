@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "async"
+require "async/barrier"
 require_relative "../agent"
 require_relative "base"
 
@@ -11,13 +12,13 @@ module OpenAIAgents
       include Base
 
       # Execute a tool asynchronously
-      async def execute_tool_async(tool_name, **kwargs)
+      def execute_tool_async(tool_name, **kwargs)
         tool = find_tool(tool_name)
         raise ToolError, "Tool '#{tool_name}' not found" unless tool
 
         # Check if tool supports async execution
         if tool.respond_to?(:call_async)
-          await tool.call_async(**kwargs)
+          tool.call_async(**kwargs)
         elsif tool.respond_to?(:async) && tool.async
           # Tool has async flag set
           Async do
@@ -32,25 +33,29 @@ module OpenAIAgents
       end
 
       # Execute multiple tools in parallel
-      async def execute_tools_async(tool_calls)
-        tasks = tool_calls.map do |tool_call|
-          tool_name = tool_call[:name] || tool_call["name"]
-          tool_args = tool_call[:arguments] || tool_call["arguments"] || {}
+      def execute_tools_async(tool_calls)
+        Async do |task|
+          barrier = Async::Barrier.new
+          
+          tool_calls.each do |tool_call|
+            tool_name = tool_call[:name] || tool_call["name"]
+            tool_args = tool_call[:arguments] || tool_call["arguments"] || {}
 
-          async do
-            {
-              name: tool_name,
-              result: execute_tool_async(tool_name, **tool_args)
-            }
-          rescue StandardError => e
-            {
-              name: tool_name,
-              error: e.message
-            }
+            barrier.async do
+              {
+                name: tool_name,
+                result: execute_tool_async(tool_name, **tool_args)
+              }
+            rescue StandardError => e
+              {
+                name: tool_name,
+                error: e.message
+              }
+            end
           end
-        end
 
-        await await_all(*tasks)
+          barrier.wait
+        end
       end
 
       # Add async tool support
@@ -92,10 +97,10 @@ module OpenAIAgents
       end
 
       # Async version of call
-      async def call_async(**kwargs)
+      def call_async(**kwargs)
         if @async
           # Function is already async, just call it
-          await @function.call(**kwargs)
+          @function.call(**kwargs)
         else
           # Wrap synchronous function in async block
           Async do

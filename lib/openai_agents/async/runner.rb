@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "async"
+require "async/barrier"
 require_relative "../runner"
 require_relative "base"
 
@@ -32,9 +33,9 @@ module OpenAIAgents
 
           # Run with or without tracing
           if should_trace?(config)
-            await run_with_tracing_async(messages, config: config)
+            run_with_tracing_async(messages, config: config)
           else
-            await run_without_tracing_async(messages, config: config)
+            run_without_tracing_async(messages, config: config)
           end
         end
       end
@@ -68,7 +69,7 @@ module OpenAIAgents
         !config.tracing_disabled && !@disabled_tracing && !@tracer.nil?
       end
 
-      async def run_with_tracing_async(messages, config:, parent_span: nil)
+      def run_with_tracing_async(messages, config:, parent_span: nil)
         @current_config = config
         conversation = messages.dup
         current_agent = @agent
@@ -77,9 +78,9 @@ module OpenAIAgents
 
         while turns < max_turns
           # Create agent span
-          agent_result = await create_agent_span_async(current_agent) do |agent_span|
+          agent_result = create_agent_span_async(current_agent) do |agent_span|
             # Get response from provider
-            response_result = await get_response_async(
+            response_result = get_response_async(
               current_agent,
               conversation,
               config,
@@ -98,7 +99,7 @@ module OpenAIAgents
 
             # Handle tool calls asynchronously
             if response_result[:tool_calls]
-              tool_results = await process_tool_calls_async(
+              tool_results = process_tool_calls_async(
                 response_result[:tool_calls],
                 current_agent,
                 conversation,
@@ -130,7 +131,7 @@ module OpenAIAgents
         )
       end
 
-      async def run_without_tracing_async(messages, config:)
+      def run_without_tracing_async(messages, config:)
         conversation = messages.dup
         current_agent = @agent
         turns = 0
@@ -138,7 +139,7 @@ module OpenAIAgents
 
         while turns < max_turns
           # Get response from provider
-          response = await @async_provider.async_chat_completion(
+          response = @async_provider.async_chat_completion(
             messages: prepare_messages(conversation, current_agent),
             model: current_agent.model,
             tools: current_agent.tools? ? current_agent.tools.map(&:to_h) : nil,
@@ -161,7 +162,7 @@ module OpenAIAgents
 
           # Handle tool calls
           if result[:tool_calls]
-            tool_results = await process_tool_calls_async(
+            tool_results = process_tool_calls_async(
               result[:tool_calls],
               current_agent,
               conversation,
@@ -186,7 +187,7 @@ module OpenAIAgents
         )
       end
 
-      async def get_response_async(agent, conversation, config, agent_span)
+      def get_response_async(agent, conversation, config, agent_span)
         # Create response span as child of agent span
         @tracer.start_span(
           "response.#{agent.model || "unknown"}",
@@ -196,7 +197,7 @@ module OpenAIAgents
           response_span.set_attribute("response.model", agent.model || "unknown")
 
           # Make async API call
-          response = await @async_provider.async_chat_completion(
+          response = @async_provider.async_chat_completion(
             messages: prepare_messages(conversation, agent),
             model: agent.model,
             tools: agent.tools? ? agent.tools.map(&:to_h) : nil,
@@ -214,20 +215,25 @@ module OpenAIAgents
         end
       end
 
-      async def process_tool_calls_async(tool_calls, agent, conversation, config)
-        # Process tool calls in parallel
-        tasks = tool_calls.map do |tool_call|
-          async do
-            process_single_tool_call_async(tool_call, agent, config)
-          end
-        end
+      def process_tool_calls_async(tool_calls, agent, conversation, config)
+        # Process tool calls in parallel using Async::Barrier
+        Async do |task|
+          barrier = Async::Barrier.new
 
-        # Wait for all tool calls to complete
-        results = await await_all(*tasks)
-        results.compact
+          # Start all tool call tasks
+          tool_calls.each do |tool_call|
+            barrier.async do
+              process_single_tool_call_async(tool_call, agent, config)
+            end
+          end
+
+          # Wait for all to complete and collect results
+          results = barrier.wait
+          results.compact
+        end
       end
 
-      async def process_single_tool_call_async(tool_call, agent, config)
+      def process_single_tool_call_async(tool_call, agent, config)
         tool_name = tool_call["function"]["name"]
         tool_args = JSON.parse(tool_call["function"]["arguments"] || "{}")
 
@@ -239,7 +245,7 @@ module OpenAIAgents
 
                      # Execute tool asynchronously if it supports async
                      tool_result = if agent.respond_to?(:execute_tool_async)
-                                     await agent.execute_tool_async(tool_name, **tool_args)
+                                     agent.execute_tool_async(tool_name, **tool_args)
                                    else
                                      agent.execute_tool(tool_name, **tool_args)
                                    end
@@ -249,7 +255,7 @@ module OpenAIAgents
                    end
                  elsif agent.respond_to?(:execute_tool_async)
                    # Execute without tracing
-                   await agent.execute_tool_async(tool_name, **tool_args)
+                   agent.execute_tool_async(tool_name, **tool_args)
                  else
                    agent.execute_tool(tool_name, **tool_args)
                  end
@@ -268,7 +274,7 @@ module OpenAIAgents
         }
       end
 
-      async def create_agent_span_async(agent, &)
+      def create_agent_span_async(agent, &)
         if @tracer
           # Create root agent span
           original_stack = @tracer.instance_variable_get(:@context).instance_variable_get(:@span_stack).dup
@@ -280,13 +286,13 @@ module OpenAIAgents
             span.set_attribute("agent.tools", safe_map_names(agent.tools))
             span.set_attribute("agent.output_type", "str")
 
-            await yield(span)
+            yield(span)
           end
 
           @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_stack)
           result
         else
-          await yield(nil)
+          yield(nil)
         end
       end
 

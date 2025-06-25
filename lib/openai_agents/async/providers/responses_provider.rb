@@ -20,14 +20,14 @@ module OpenAIAgents
         end
 
         # Async version of chat_completion
-        async def async_chat_completion(messages:, model: nil, tools: nil, response_format: nil, **kwargs)
+        def async_chat_completion(messages:, model: nil, tools: nil, response_format: nil, **kwargs)
           model ||= @default_model || "gpt-4o-mini"
 
           # Build request body
           body = build_request_body(messages, model, tools, response_format, kwargs)
 
           # Make async HTTP request
-          response = await make_async_request("/v1/responses", body)
+          response = make_async_request("/v1/responses", body)
 
           # Parse and return response
           parse_response(response)
@@ -49,7 +49,7 @@ module OpenAIAgents
           @async_client ||= Async::HTTP::Client.new(@endpoint)
         end
 
-        async def make_async_request(path, body)
+        def make_async_request(path, body)
           headers = build_headers
 
           # Create request
@@ -64,16 +64,16 @@ module OpenAIAgents
           )
 
           # Send request and get response
-          response = await async_client.call(request)
+          response = async_client.call(request)
 
           # Check response status
           unless response.success?
-            error_body = await response.read
+            error_body = response.read
             handle_error(response.status, error_body)
           end
 
           # Read and parse response body
-          response_body = await response.read
+          response_body = response.read
           JSON.parse(response_body)
         rescue Async::TimeoutError => e
           raise APIError, "Request timeout: #{e.message}"
