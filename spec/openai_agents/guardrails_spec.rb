@@ -13,7 +13,7 @@ RSpec.describe OpenAIAgents::Guardrails do
   end
 
   describe OpenAIAgents::Guardrails::InputGuardrail do
-    let(:guardrail_function) { proc { |context, agent, input| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: false) } }
+    let(:guardrail_function) { proc { |_context, _agent, _input| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: false) } }
     let(:guardrail) { described_class.new(guardrail_function, name: "test_guardrail") }
 
     describe "#initialize" do
@@ -60,7 +60,7 @@ RSpec.describe OpenAIAgents::Guardrails do
   end
 
   describe OpenAIAgents::Guardrails::OutputGuardrail do
-    let(:guardrail_function) { proc { |context, agent, output| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: false) } }
+    let(:guardrail_function) { proc { |_context, _agent, _output| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: false) } }
     let(:guardrail) { described_class.new(guardrail_function, name: "test_output_guardrail") }
 
     describe "#initialize" do
@@ -114,7 +114,7 @@ RSpec.describe OpenAIAgents::Guardrails do
   end
 
   describe OpenAIAgents::Guardrails::InputGuardrailResult do
-    let(:guardrail) { OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_,_,_| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: true) }) }
+    let(:guardrail) { OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_, _, _| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: true) }) }
     let(:output) { OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: true) }
     let(:result) { described_class.new(guardrail: guardrail, output: output) }
 
@@ -133,7 +133,7 @@ RSpec.describe OpenAIAgents::Guardrails do
   end
 
   describe OpenAIAgents::Guardrails::OutputGuardrailResult do
-    let(:guardrail) { OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_,_,_| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: true) }) }
+    let(:guardrail) { OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_, _, _| OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: true) }) }
     let(:agent) { double("agent") }
     let(:agent_output) { "test output" }
     let(:output) { OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(tripwire_triggered: true) }

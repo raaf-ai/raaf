@@ -87,8 +87,11 @@ module OpenAIAgents
         tools.map do |tool|
           case tool
           when Hash
-            # Assume hash already has correct format, but ensure name is at top level
-            if tool[:function] && tool[:function][:name] && !tool[:name]
+            # Handle simple web search tool format
+            if tool[:type] == "web_search" || tool["type"] == "web_search"
+              { type: "web_search" }
+            # Handle function tools
+            elsif tool[:function] && tool[:function][:name] && !tool[:name]
               tool.merge(name: tool[:function][:name])
             else
               tool
@@ -205,16 +208,26 @@ module OpenAIAgents
         # for compatibility with existing Ruby code
         return nil unless response && response["output"]
 
+        # Debug logging in development
+        if %w[development test].include?(ENV["RAILS_ENV"])
+          puts "[ResponsesProvider] Raw API response output: #{response["output"].inspect}"
+        end
+
         # Extract the text content from response output
         # Handle both tool calls and structured output properly
         content = extract_content_from_output(response["output"])
         tool_calls = extract_tool_calls_from_output(response["output"])
 
+        # Debug logging for tool calls
+        if tool_calls && ENV["RAILS_ENV"] == "development"
+          puts "[ResponsesProvider] Extracted tool calls: #{tool_calls.inspect}"
+        end
+
         message = {
           "role" => "assistant",
           "content" => content
         }
-        
+
         # Add tool calls if present
         message["tool_calls"] = tool_calls if tool_calls && !tool_calls.empty?
 
@@ -237,8 +250,6 @@ module OpenAIAgents
           }
         }
       end
-
-      private
 
       def extract_content_from_output(output)
         return "" unless output
@@ -265,6 +276,7 @@ module OpenAIAgents
               else
                 # Skip tool call items, only extract text content
                 next if item["type"] == "function_call" || item["function"]
+
                 item.to_s
               end
             else
@@ -280,6 +292,7 @@ module OpenAIAgents
           else
             # Don't include tool call results as content
             return "" if output["type"] == "function_call" || output["function"]
+
             output.to_s
           end
         else
@@ -292,37 +305,68 @@ module OpenAIAgents
         return nil unless output
 
         tool_calls = []
-        
+
         if output.is_a?(Array)
           output.each do |item|
             next unless item.is_a?(Hash)
-            
+
             # Check for function call format
-            if item["type"] == "function_call" || item["function"]
-              tool_call = {
-                "id" => item["id"] || item["call_id"] || "call_#{SecureRandom.hex(8)}",
-                "type" => "function",
-                "function" => {
-                  "name" => item["name"] || item.dig("function", "name"),
-                  "arguments" => item["arguments"] || item.dig("function", "arguments") || "{}"
-                }
+            next unless item["type"] == "function_call" || item["function"]
+
+            # Extract arguments properly - they might be in different formats
+            arguments = extract_function_arguments(item)
+
+            tool_call = {
+              "id" => item["id"] || item["call_id"] || "call_#{SecureRandom.hex(8)}",
+              "type" => "function",
+              "function" => {
+                "name" => item["name"] || item.dig("function", "name"),
+                "arguments" => arguments
               }
-              tool_calls << tool_call
-            end
+            }
+            tool_calls << tool_call
           end
         elsif output.is_a?(Hash) && (output["type"] == "function_call" || output["function"])
+          # Extract arguments properly - they might be in different formats
+          arguments = extract_function_arguments(output)
+
           tool_call = {
             "id" => output["id"] || output["call_id"] || "call_#{SecureRandom.hex(8)}",
-            "type" => "function", 
+            "type" => "function",
             "function" => {
               "name" => output["name"] || output.dig("function", "name"),
-              "arguments" => output["arguments"] || output.dig("function", "arguments") || "{}"
+              "arguments" => arguments
             }
           }
           tool_calls << tool_call
         end
 
         tool_calls.empty? ? nil : tool_calls
+      end
+
+      def extract_function_arguments(item)
+        # Try different sources for arguments
+        args = item["arguments"] || item.dig("function", "arguments")
+
+        # If arguments is already a string, return it
+        return args if args.is_a?(String) && args != "{}"
+
+        # If arguments is a hash, convert to JSON
+        return args.to_json if args.is_a?(Hash) && !args.empty?
+
+        # If no arguments found, check for direct parameters
+        if item["parameters"] || item.dig("function", "parameters")
+          params = item["parameters"] || item.dig("function", "parameters")
+          return params.to_json if params.is_a?(Hash) && !params.empty?
+          return params if params.is_a?(String) && params != "{}"
+        end
+
+        # For web search tools, provide a default query if none specified
+        tool_name = item["name"] || item.dig("function", "name")
+        return '{"query": "company information research"}' if tool_name&.include?("web_search")
+
+        # Default to empty object
+        "{}"
       end
     end
   end

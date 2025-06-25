@@ -231,7 +231,7 @@ technical_support.add_tool(web_search)
 
 puts "✅ Advanced tools configured:"
 puts "  Local File Search Tool: #{customer_support.tools.any? { |t| t.name == "file_search" }}"
-puts "  Web Search Tool: #{technical_support.tools.any? { |t| t.name == "web_search_preview" }}"
+puts "  Web Search Tool: #{technical_support.tools.any? { |t| t.name == "web_search" }}"
 puts "  Location: #{web_search.user_location[:city]} (#{web_search.user_location[:type]})"
 puts "  Context Size: #{web_search.search_context_size}"
 puts "  Hosted Tools Available:"

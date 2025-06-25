@@ -216,7 +216,7 @@ RSpec.describe OpenAIAgents::Agent do
     end
 
     it "returns true when input guardrails are set" do
-      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_,_,_| true })]
+      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_, _, _| true })]
       expect(agent.input_guardrails?).to be true
     end
   end
@@ -229,7 +229,7 @@ RSpec.describe OpenAIAgents::Agent do
     end
 
     it "returns true when output guardrails are set" do
-      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_,_,_| true })]
+      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_, _, _| true })]
       expect(agent.output_guardrails?).to be true
     end
   end
@@ -237,11 +237,11 @@ RSpec.describe OpenAIAgents::Agent do
   describe "bang methods for mutation" do
     let(:agent) do
       agent = described_class.new(name: "TestAgent")
-      agent.add_tool(proc { |_| nil })
+      agent.add_tool(proc { |_| })
       handoff_agent = described_class.new(name: "HandoffAgent")
       agent.add_handoff(handoff_agent)
-      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_,_,_| true })]
-      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_,_,_| true })]
+      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_, _, _| true })]
+      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_, _, _| true })]
       agent
     end
 

@@ -23,17 +23,14 @@ module OpenAIAgents
         raise ArgumentError, "OpenAI API key is required for web search" unless @api_key
 
         super(method(:web_search),
-              name: "web_search_preview",
+              name: "web_search",
               description: "Search the web for current information using OpenAI's hosted web search",
               parameters: web_search_parameters)
       end
 
       def web_search(query:, stream: false)
-        if stream
-          search_with_streaming(query)
-        else
-          search_with_responses_api(query)
-        end
+        # Use OpenAI's hosted web search through Responses API
+        search_with_responses_api(query)
       rescue StandardError => e
         "Web search error: #{e.message}"
       end
@@ -97,12 +94,13 @@ module OpenAIAgents
 
       def to_tool_definition
         {
-          type: "web_search",
+          type: "function",
           name: "web_search",
-          web_search: {
-            user_location: @user_location,
-            search_context_size: @search_context_size
-          }.compact
+          function: {
+            name: "web_search",
+            description: "Search the web for current information using OpenAI's hosted web search",
+            parameters: web_search_parameters
+          }
         }
       end
 

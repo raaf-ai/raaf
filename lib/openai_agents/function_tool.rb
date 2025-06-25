@@ -94,7 +94,14 @@ module OpenAIAgents
     # @param context [RunContextWrapper, nil] current run context
     # @return [Array<FunctionTool>] enabled tools only
     def self.enabled_tools(tools, context = nil)
-      tools.select { |tool| tool.enabled?(context) }
+      tools.select do |tool|
+        # Handle simple hash tools (like web_search) that don't have enabled? method
+        if tool.is_a?(Hash)
+          true # Simple hash tools are always enabled
+        else
+          tool.enabled?(context)
+        end
+      end
     end
 
     def to_h

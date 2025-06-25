@@ -473,7 +473,15 @@ module OpenAIAgents
       prompt_parts << "Instructions: #{instructions}" if instructions
 
       if agent.tools?
-        tool_descriptions = agent.tools.map { |tool| "- #{tool.name}: #{tool.description}" }
+        tool_descriptions = agent.tools.map do |tool|
+          if tool.is_a?(Hash)
+            # Handle simple hash tools like web_search
+            tool_type = tool[:type] || tool["type"]
+            "- #{tool_type}: Search the web for current information"
+          else
+            "- #{tool.name}: #{tool.description}"
+          end
+        end
         prompt_parts << "\nAvailable tools:\n#{tool_descriptions.join("\n")}"
       end
 
