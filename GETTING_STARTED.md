@@ -110,6 +110,32 @@ support_agent = OpenAIAgents::Agent.new(
 )
 ```
 
+### Ruby-Idiomatic Agent Creation
+
+The Ruby implementation supports idiomatic Ruby patterns:
+
+```ruby
+# Block-based configuration (Ruby-style)
+agent = OpenAIAgents::Agent.new(name: "Assistant") do |config|
+  config.instructions = "You are a helpful assistant"
+  config.model = "gpt-4o"
+  config.max_turns = 20
+  config.add_tool(calculator_tool)
+  config.add_handoff(other_agent)
+end
+
+# Dynamic tool execution (method_missing magic)
+result = agent.get_weather(city: "Tokyo")  # Direct method calls
+
+# Predicate methods for checking state
+if agent.tools? && agent.handoffs?
+  puts "Agent has tools and handoffs configured"
+end
+
+# Bang methods for destructive operations
+agent.reset_tools!.reset_handoffs!  # Method chaining
+```
+
 ### Understanding Agent Parameters
 
 - **`name`** - Unique identifier for the agent
@@ -160,6 +186,15 @@ lookup_order_tool = OpenAIAgents::FunctionTool.new(
 )
 
 agent.add_tool(lookup_order_tool)
+
+# Ruby-idiomatic tool usage
+if agent.tool_exists?(:lookup_order)
+  # Direct method call using method_missing
+  result = agent.lookup_order(order_id: "12345")
+  
+  # Or traditional approach
+  result = agent.execute_tool("lookup_order", order_id: "12345")
+end
 ```
 
 ### Built-in Advanced Tools

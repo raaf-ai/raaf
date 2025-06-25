@@ -13,12 +13,12 @@ module OpenAIAgents
       def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false)
         super
         # Ensure provider supports async if available
-        if @provider.respond_to?(:async_chat_completion)
-          @async_provider = @provider
-        else
-          # Wrap synchronous provider
-          @async_provider = AsyncProviderWrapper.new(@provider)
-        end
+        @async_provider = if @provider.respond_to?(:async_chat_completion)
+                            @provider
+                          else
+                            # Wrap synchronous provider
+                            AsyncProviderWrapper.new(@provider)
+                          end
       end
 
       # Async version of run - returns a Task that can be awaited
@@ -26,10 +26,10 @@ module OpenAIAgents
         Async do
           # Normalize messages input
           messages = normalize_messages(messages)
-          
+
           # Create config
           config = create_config(config, stream, kwargs)
-          
+
           # Run with or without tracing
           if should_trace?(config)
             await run_with_tracing_async(messages, config: config)
@@ -40,8 +40,8 @@ module OpenAIAgents
       end
 
       # Synchronous run that waits for async completion
-      def run(messages, stream: false, config: nil, **kwargs)
-        task = run_async(messages, stream: stream, config: config, **kwargs)
+      def run(messages, stream: false, config: nil, **)
+        task = run_async(messages, stream: stream, config: config, **)
         task.wait
       end
 
@@ -80,9 +80,9 @@ module OpenAIAgents
           agent_result = await create_agent_span_async(current_agent) do |agent_span|
             # Get response from provider
             response_result = await get_response_async(
-              current_agent, 
-              conversation, 
-              config, 
+              current_agent,
+              conversation,
+              config,
               agent_span
             )
 
@@ -114,9 +114,7 @@ module OpenAIAgents
           turns += 1
 
           # Check if we're done
-          if !agent_result[:tool_calls] && !agent_result[:handoff]
-            break
-          end
+          break if !agent_result[:tool_calls] && !agent_result[:handoff]
         end
 
         raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
@@ -175,9 +173,7 @@ module OpenAIAgents
           turns += 1
 
           # Check if we're done
-          if !result[:tool_calls] && !result[:handoff]
-            break
-          end
+          break if !result[:tool_calls] && !result[:handoff]
         end
 
         raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
@@ -193,12 +189,12 @@ module OpenAIAgents
       async def get_response_async(agent, conversation, config, agent_span)
         # Create response span as child of agent span
         @tracer.start_span(
-          "response.#{agent.model || "unknown"}", 
+          "response.#{agent.model || "unknown"}",
           kind: :response,
           parent: agent_span
         ) do |response_span|
           response_span.set_attribute("response.model", agent.model || "unknown")
-          
+
           # Make async API call
           response = await @async_provider.async_chat_completion(
             messages: prepare_messages(conversation, agent),
@@ -237,28 +233,26 @@ module OpenAIAgents
 
         # Create tool span if tracing
         result = if @tracer && should_trace?(config)
-          @tracer.start_span("tool.#{tool_name}", kind: :tool) do |tool_span|
-            tool_span.set_attribute("tool.name", tool_name)
-            tool_span.set_attribute("tool.arguments", tool_args.to_json)
-            
-            # Execute tool asynchronously if it supports async
-            tool_result = if agent.respond_to?(:execute_tool_async)
-              await agent.execute_tool_async(tool_name, **tool_args)
-            else
-              agent.execute_tool(tool_name, **tool_args)
-            end
+                   @tracer.start_span("tool.#{tool_name}", kind: :tool) do |tool_span|
+                     tool_span.set_attribute("tool.name", tool_name)
+                     tool_span.set_attribute("tool.arguments", tool_args.to_json)
 
-            tool_span.set_attribute("tool.result", tool_result.to_s[0..1000])
-            tool_result
-          end
-        else
-          # Execute without tracing
-          if agent.respond_to?(:execute_tool_async)
-            await agent.execute_tool_async(tool_name, **tool_args)
-          else
-            agent.execute_tool(tool_name, **tool_args)
-          end
-        end
+                     # Execute tool asynchronously if it supports async
+                     tool_result = if agent.respond_to?(:execute_tool_async)
+                                     await agent.execute_tool_async(tool_name, **tool_args)
+                                   else
+                                     agent.execute_tool(tool_name, **tool_args)
+                                   end
+
+                     tool_span.set_attribute("tool.result", tool_result.to_s[0..1000])
+                     tool_result
+                   end
+                 elsif agent.respond_to?(:execute_tool_async)
+                   # Execute without tracing
+                   await agent.execute_tool_async(tool_name, **tool_args)
+                 else
+                   agent.execute_tool(tool_name, **tool_args)
+                 end
 
         # Return tool message
         {
@@ -274,21 +268,21 @@ module OpenAIAgents
         }
       end
 
-      async def create_agent_span_async(agent, &block)
+      async def create_agent_span_async(agent, &)
         if @tracer
           # Create root agent span
           original_stack = @tracer.instance_variable_get(:@context).instance_variable_get(:@span_stack).dup
           @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, [])
-          
+
           result = @tracer.start_span("agent.#{agent.name || "agent"}", kind: :agent) do |span|
             span.set_attribute("agent.name", agent.name || "agent")
             span.set_attribute("agent.handoffs", safe_map_names(agent.handoffs))
             span.set_attribute("agent.tools", safe_map_names(agent.tools))
             span.set_attribute("agent.output_type", "str")
-            
+
             await yield(span)
           end
-          
+
           @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_stack)
           result
         else

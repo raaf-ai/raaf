@@ -161,22 +161,35 @@ tool.to_tool_definition          # Get OpenAI tool definition
 
 ### Built-in Tools
 
-#### FileSearchTool
+#### FileSearchTool (Local)
 
 ```ruby
+# Local file search tool for searching files on the filesystem
 OpenAIAgents::Tools::FileSearchTool.new(
-  search_paths: Array[String],     # Directories to search
-  file_extensions: Array[String],  # File types to include
-  max_results: Integer,            # Maximum results (default: 10)
-  exclude_patterns: Array[String]  # Patterns to exclude
+  search_paths: Array[String],     # Directories to search (default: ["."]) 
+  file_extensions: Array[String],  # File types to include (optional)
+  max_results: Integer             # Maximum results (default: 10)
 )
 ```
 
-#### WebSearchTool
+#### HostedFileSearchTool (OpenAI API)
 
 ```ruby
+# Hosted file search tool using OpenAI's file search API
+OpenAIAgents::Tools::HostedFileSearchTool.new(
+  file_ids: Array[String],         # OpenAI file IDs to search
+  ranking_options: Hash            # Search ranking options (optional)
+)
+```
+
+#### WebSearchTool (OpenAI Hosted)
+
+```ruby
+# OpenAI hosted web search tool using the Responses API
 OpenAIAgents::Tools::WebSearchTool.new(
-  search_engine: String,           # "duckduckgo", "google", "bing"
+  user_location: Hash,             # { type: "approximate", city: "San Francisco" }
+  search_context_size: String,     # "low", "medium", "high" (default: "medium")
+  api_key: String                  # OpenAI API key (optional, uses ENV)
   max_results: Integer,            # Maximum results (default: 5)
   api_key: String                 # Optional: API key for premium engines
 )

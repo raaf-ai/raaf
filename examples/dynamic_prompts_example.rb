@@ -12,21 +12,21 @@ puts "=== Example 1: Dynamic Instructions ==="
 # Create an agent with dynamic instructions that change based on context
 time_aware_agent = OpenAIAgents::Agent.new(
   name: "TimeAwareAssistant",
-  instructions: -> (context, agent) {
+  instructions: lambda { |context, _agent|
     hour = Time.now.hour
     greeting = case hour
-    when 0..11 then "Good morning"
-    when 12..17 then "Good afternoon"
-    else "Good evening"
-    end
+               when 0..11 then "Good morning"
+               when 12..17 then "Good afternoon"
+               else "Good evening"
+               end
     
     # Access context information
     message_count = context.messages.size
     
     "#{greeting}! You are a helpful assistant. " \
-    "This is message ##{message_count + 1} in our conversation. " \
-    "Current time: #{Time.now.strftime("%I:%M %p")}. " \
-    "Provide time-appropriate responses."
+      "This is message ##{message_count + 1} in our conversation. " \
+      "Current time: #{Time.now.strftime("%I:%M %p")}. " \
+      "Provide time-appropriate responses."
   },
   model: "gpt-4o-mini"
 )
@@ -38,10 +38,10 @@ puts "Response: #{result.messages.last[:content]}\n\n"
 
 # Follow-up to see message count change
 result = runner.run([
-  { role: "user", content: "What should I have for a meal?" },
-  { role: "assistant", content: result.messages.last[:content] },
-  { role: "user", content: "Any dessert suggestions?" }
-])
+                      { role: "user", content: "What should I have for a meal?" },
+                      { role: "assistant", content: result.messages.last[:content] },
+                      { role: "user", content: "Any dessert suggestions?" }
+                    ])
 puts "Follow-up response: #{result.messages.last[:content]}\n\n"
 
 puts "=" * 50
@@ -52,19 +52,19 @@ puts "\n=== Example 2: Context-Aware Instructions ==="
 # Agent that adapts based on conversation history
 adaptive_agent = OpenAIAgents::Agent.new(
   name: "AdaptiveAssistant",
-  instructions: -> (context, agent) {
+  instructions: lambda { |context, _agent|
     # Analyze conversation topics
     messages_text = context.messages.map { |m| m[:content] }.join(" ").downcase
     
     specialization = if messages_text.include?("code") || messages_text.include?("programming")
-      "You are a programming expert. Provide code examples and technical explanations."
-    elsif messages_text.include?("recipe") || messages_text.include?("cooking")
-      "You are a culinary expert. Provide detailed recipes and cooking tips."
-    elsif messages_text.include?("travel") || messages_text.include?("vacation")
-      "You are a travel advisor. Provide destination recommendations and travel tips."
-    else
-      "You are a helpful general assistant."
-    end
+                       "You are a programming expert. Provide code examples and technical explanations."
+                     elsif messages_text.include?("recipe") || messages_text.include?("cooking")
+                       "You are a culinary expert. Provide detailed recipes and cooking tips."
+                     elsif messages_text.include?("travel") || messages_text.include?("vacation")
+                       "You are a travel advisor. Provide destination recommendations and travel tips."
+                     else
+                       "You are a helpful general assistant."
+                     end
     
     "#{specialization} Adapt your expertise based on the user's needs."
   },
@@ -99,7 +99,7 @@ dynamic_prompt_agent = OpenAIAgents::Agent.new(
   name: "PersonalizedAssistant",
   instructions: "You are a personalized assistant that remembers user preferences.",
   model: "gpt-4o",
-  prompt: -> (data) {
+  prompt: lambda { |data|
     # Access context and agent from data
     context = data.context
     agent = data.agent
@@ -120,7 +120,7 @@ dynamic_prompt_agent = OpenAIAgents::Agent.new(
   }
 )
 
-# Note: Dynamic prompts work with ResponsesProvider which supports the Responses API
+# NOTE: Dynamic prompts work with ResponsesProvider which supports the Responses API
 runner = OpenAIAgents::Runner.new(
   agent: dynamic_prompt_agent,
   provider: OpenAIAgents::Models::ResponsesProvider.new
@@ -152,7 +152,7 @@ puts "\n=== Example 4: Multi-Agent Dynamic Handoffs ==="
 def create_dynamic_agent(name, specialties)
   OpenAIAgents::Agent.new(
     name: name,
-    instructions: -> (context, agent) {
+    instructions: lambda { |context, agent|
       # Check if we should suggest a handoff based on context
       last_message = context.messages.last[:content].downcase if context.messages.any?
       
@@ -161,8 +161,8 @@ def create_dynamic_agent(name, specialties)
       end.join("\n")
       
       "You are #{name}, specializing in #{specialties[name]}. " \
-      "Current conversation turn: #{context.current_turn}. " \
-      "If asked about something outside your expertise:\n#{handoff_hints}"
+        "Current conversation turn: #{context.current_turn}. " \
+        "If asked about something outside your expertise:\n#{handoff_hints}"
     },
     model: "gpt-4o-mini"
   )

@@ -36,11 +36,11 @@ module OpenAIAgents
         tasks = tool_calls.map do |tool_call|
           tool_name = tool_call[:name] || tool_call["name"]
           tool_args = tool_call[:arguments] || tool_call["arguments"] || {}
-          
+
           async do
             {
               name: tool_name,
-              result: await execute_tool_async(tool_name, **tool_args)
+              result: execute_tool_async(tool_name, **tool_args)
             }
           rescue StandardError => e
             {
@@ -62,8 +62,8 @@ module OpenAIAgents
           # Wrap existing tools to make them async-aware
           tool = AsyncFunctionTool.new(tool)
         end
-        
-        super(tool)
+
+        super
       end
 
       private
@@ -81,14 +81,14 @@ module OpenAIAgents
 
       def initialize(function, async: nil)
         super(function)
-        
+
         # Auto-detect if function is async
         @async = if async.nil?
-          function.respond_to?(:async) || 
-          (function.is_a?(Method) && function.parameters.any? { |type, _| type == :async })
-        else
-          async
-        end
+                   function.respond_to?(:async) ||
+                     (function.is_a?(Method) && function.parameters.any? { |type, _| type == :async })
+                 else
+                   async
+                 end
       end
 
       # Async version of call
@@ -105,13 +105,13 @@ module OpenAIAgents
       end
 
       # Regular call method
-      def call(**kwargs)
+      def call(**)
         if in_async_context? && @async
           # We're in async context and function is async
-          call_async(**kwargs).wait
+          call_async(**).wait
         else
           # Synchronous execution
-          super(**kwargs)
+          super
         end
       end
 

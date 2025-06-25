@@ -9,10 +9,8 @@ module OpenAIAgents
     # Base module for async support across OpenAI Agents
     module Base
       # Executes a block asynchronously, returning a Task
-      def async(&block)
-        Async do
-          yield
-        end
+      def async(&)
+        Async(&)
       end
 
       # Waits for multiple async tasks to complete
@@ -37,12 +35,10 @@ module OpenAIAgents
       end
 
       # Run a block with concurrency limit
-      def with_concurrency_limit(limit, &block)
+      def with_concurrency_limit(limit, &)
         semaphore = Async::Semaphore.new(limit)
         Async do
-          semaphore.async do
-            yield
-          end
+          semaphore.async(&)
         end
       end
 
@@ -58,15 +54,17 @@ module OpenAIAgents
 
       # Check if we're in an async context
       def in_async_context?
-        Async::Task.current? rescue false
+        Async::Task.current?
+      rescue StandardError
+        false
       end
 
       # Ensure we're in an async context
-      def ensure_async(&block)
+      def ensure_async(&)
         if in_async_context?
           yield
         else
-          Async { yield }.wait
+          Async(&).wait
         end
       end
     end
@@ -84,9 +82,7 @@ module OpenAIAgents
       def push(item)
         ensure_async do
           @mutex.synchronize do
-            while @max_size && @queue.size >= @max_size
-              @not_full.wait
-            end
+            @not_full.wait while @max_size && @queue.size >= @max_size
             @queue.push(item)
             @not_empty.signal
           end
@@ -96,9 +92,7 @@ module OpenAIAgents
       def pop
         ensure_async do
           @mutex.synchronize do
-            while @queue.empty?
-              @not_empty.wait
-            end
+            @not_empty.wait while @queue.empty?
             item = @queue.shift
             @not_full.signal if @max_size
             item
@@ -116,11 +110,11 @@ module OpenAIAgents
 
       private
 
-      def ensure_async(&block)
+      def ensure_async(&)
         if Async::Task.current?
           yield
         else
-          Async { yield }.wait
+          Async(&).wait
         end
       end
     end

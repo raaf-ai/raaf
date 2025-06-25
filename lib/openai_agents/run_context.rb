@@ -23,6 +23,7 @@ module OpenAIAgents
       input = []
       @messages.each do |msg|
         break if msg[:role] == "assistant"
+
         input << msg if msg[:role] == "user"
       end
       input
@@ -33,7 +34,7 @@ module OpenAIAgents
       # Find index of first assistant message
       first_assistant = @messages.find_index { |m| m[:role] == "assistant" }
       return [] unless first_assistant
-      
+
       @messages[first_assistant..]
     end
 
@@ -67,9 +68,7 @@ module OpenAIAgents
     # Add a message to the conversation
     def add_message(message)
       # Add agent name if current agent is set
-      if @current_agent && !message[:agent_name]
-        message = message.merge(agent_name: @current_agent.name)
-      end
+      message = message.merge(agent_name: @current_agent.name) if @current_agent && !message[:agent_name]
       @messages << message
     end
 

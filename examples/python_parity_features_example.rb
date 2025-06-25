@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative '../lib/openai_agents'
+require_relative "../lib/openai_agents"
 
 ##
 # Comprehensive example demonstrating all the new Python parity features
@@ -62,7 +62,7 @@ behavior_agent = OpenAIAgents::Agent.new(
   name: "Behavior Demo",
   instructions: "Use tools when needed",
   model: "gpt-4o",
-  tool_use_behavior: :stop_on_first_tool  # NEW: Python parity feature
+  tool_use_behavior: :stop_on_first_tool # NEW: Python parity feature
 )
 
 behavior_agent.add_tool(method(:example_tool))
@@ -161,7 +161,7 @@ conditional_function_tool = OpenAIAgents::FunctionTool.new(
   method(:conditional_tool),
   name: "conditional_tool",
   description: "A tool that's only enabled in certain contexts",
-  is_enabled: ->(context) { 
+  is_enabled: lambda { |_context| 
     # Example: only enable during business hours
     Time.now.hour.between?(9, 17)
   }
@@ -179,7 +179,7 @@ puts "Agent has #{dynamic_agent.enabled_tools.length} enabled tools"
 puts "\n7. 🛡️  Parallel Guardrails"
 puts "-" * 40
 
-input_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "length_check") do |context, agent, input|
+input_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "length_check") do |_context, _agent, input|
   if input.length > 1000
     OpenAIAgents::GuardrailFunctionOutput.new(tripwire_triggered: true)
   else
@@ -187,7 +187,7 @@ input_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "length_check")
   end
 end
 
-output_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "safety_check") do |context, agent, output|
+output_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "safety_check") do |_context, _agent, output|
   # Simple safety check
   if output.downcase.include?("unsafe")
     OpenAIAgents::GuardrailFunctionOutput.new(tripwire_triggered: true)

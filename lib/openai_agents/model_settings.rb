@@ -27,22 +27,22 @@ module OpenAIAgents
     # Core model parameters
     attr_accessor :temperature, :top_p, :frequency_penalty, :presence_penalty
     attr_accessor :max_tokens, :stop, :stream
-    
+
     # Tool-related parameters
     attr_accessor :tool_choice, :parallel_tool_calls
-    
+
     # Advanced parameters
     attr_accessor :truncation, :reasoning, :metadata, :store, :include_usage
-    
+
     # Request customization
     attr_accessor :extra_query, :extra_body, :extra_headers, :extra_args
-    
+
     # Response format
     attr_accessor :response_format
-    
+
     # Model-specific parameters
     attr_accessor :top_k, :repetition_penalty, :min_p, :typical_p
-    
+
     ##
     # Create new ModelSettings instance
     #
@@ -118,13 +118,13 @@ module OpenAIAgents
       @repetition_penalty = repetition_penalty
       @min_p = min_p
       @typical_p = typical_p
-      
+
       # Handle any additional kwargs
       kwargs.each do |key, value|
         instance_variable_set("@#{key}", value)
         self.class.attr_accessor(key) unless respond_to?(key)
       end
-      
+
       validate_parameters
     end
 
@@ -142,7 +142,7 @@ module OpenAIAgents
       else
         raise ArgumentError, "Can only merge with ModelSettings or Hash"
       end
-      
+
       self.class.new(**new_params)
     end
 
@@ -173,12 +173,12 @@ module OpenAIAgents
         min_p: @min_p,
         typical_p: @typical_p
       }.compact
-      
+
       # Add extra parameters
       base_params.merge!(@extra_query || {})
       base_params.merge!(@extra_body || {})
       base_params.merge!(@extra_args || {}) if @extra_args
-      
+
       # Format for specific provider
       case provider_format
       when :anthropic
@@ -250,16 +250,16 @@ module OpenAIAgents
 
     def validate_temperature
       return unless @temperature
-      
-      unless @temperature.is_a?(Numeric) && @temperature >= 0.0 && @temperature <= 2.0
-        raise ArgumentError, "temperature must be between 0.0 and 2.0"
-      end
+
+      return if @temperature.is_a?(Numeric) && @temperature >= 0.0 && @temperature <= 2.0
+
+      raise ArgumentError, "temperature must be between 0.0 and 2.0"
     end
 
     def validate_penalties
       [@frequency_penalty, @presence_penalty].each do |penalty|
         next unless penalty
-        
+
         unless penalty.is_a?(Numeric) && penalty >= -2.0 && penalty <= 2.0
           raise ArgumentError, "penalties must be between -2.0 and 2.0"
         end
@@ -268,108 +268,94 @@ module OpenAIAgents
 
     def validate_top_p
       return unless @top_p
-      
-      unless @top_p.is_a?(Numeric) && @top_p >= 0.0 && @top_p <= 1.0
-        raise ArgumentError, "top_p must be between 0.0 and 1.0"
-      end
+
+      return if @top_p.is_a?(Numeric) && @top_p >= 0.0 && @top_p <= 1.0
+
+      raise ArgumentError, "top_p must be between 0.0 and 1.0"
     end
 
     def validate_max_tokens
       return unless @max_tokens
-      
-      unless @max_tokens.is_a?(Integer) && @max_tokens > 0
-        raise ArgumentError, "max_tokens must be a positive integer"
-      end
+
+      return if @max_tokens.is_a?(Integer) && @max_tokens > 0
+
+      raise ArgumentError, "max_tokens must be a positive integer"
     end
 
     def validate_tool_choice
       return unless @tool_choice
-      
+
       valid_choices = %w[auto none required]
       return if valid_choices.include?(@tool_choice)
       return if @tool_choice.is_a?(Hash) # Custom tool choice
-      return if @tool_choice.is_a?(String) && @tool_choice.start_with?('function:')
-      
+      return if @tool_choice.is_a?(String) && @tool_choice.start_with?("function:")
+
       raise ArgumentError, "tool_choice must be 'auto', 'none', 'required', a hash, or 'function:name'"
     end
 
     def validate_truncation
       return unless @truncation
-      
+
       valid_truncation = %w[auto disabled]
-      unless valid_truncation.include?(@truncation)
-        raise ArgumentError, "truncation must be 'auto' or 'disabled'"
-      end
+      return if valid_truncation.include?(@truncation)
+
+      raise ArgumentError, "truncation must be 'auto' or 'disabled'"
     end
 
     # Provider-specific formatting
     def format_for_anthropic(params)
       # Anthropic-specific parameter mapping
       anthropic_params = params.dup
-      
+
       # Map max_tokens to max_tokens_to_sample for older Anthropic API
-      if anthropic_params[:max_tokens]
-        anthropic_params[:max_tokens_to_sample] = anthropic_params.delete(:max_tokens)
-      end
-      
+      anthropic_params[:max_tokens_to_sample] = anthropic_params.delete(:max_tokens) if anthropic_params[:max_tokens]
+
       # Remove unsupported parameters
       anthropic_params.delete(:frequency_penalty)
       anthropic_params.delete(:presence_penalty)
       anthropic_params.delete(:parallel_tool_calls)
       anthropic_params.delete(:truncation)
-      
+
       anthropic_params
     end
 
     def format_for_cohere(params)
       # Cohere-specific parameter mapping
       cohere_params = params.dup
-      
+
       # Map parameters to Cohere names
-      if cohere_params[:max_tokens]
-        cohere_params[:max_tokens] = cohere_params.delete(:max_tokens)
-      end
-      
-      if cohere_params[:stop]
-        cohere_params[:stop_sequences] = cohere_params.delete(:stop)
-      end
-      
+      cohere_params[:max_tokens] = cohere_params.delete(:max_tokens) if cohere_params[:max_tokens]
+
+      cohere_params[:stop_sequences] = cohere_params.delete(:stop) if cohere_params[:stop]
+
       # Remove unsupported parameters
       cohere_params.delete(:frequency_penalty)
       cohere_params.delete(:presence_penalty)
       cohere_params.delete(:top_p) # Cohere uses p instead
       cohere_params[:p] = params[:top_p] if params[:top_p]
-      
+
       cohere_params
     end
 
     def format_for_gemini(params)
       # Gemini-specific parameter mapping
       gemini_params = params.dup
-      
+
       # Gemini uses different parameter names
-      if gemini_params[:max_tokens]
-        gemini_params[:maxOutputTokens] = gemini_params.delete(:max_tokens)
-      end
-      
-      if gemini_params[:temperature]
-        gemini_params[:temperature] = gemini_params[:temperature]
-      end
-      
-      if gemini_params[:top_p]
-        gemini_params[:topP] = gemini_params.delete(:top_p)
-      end
-      
-      if gemini_params[:top_k]
-        gemini_params[:topK] = gemini_params.delete(:top_k)
-      end
-      
+      gemini_params[:maxOutputTokens] = gemini_params.delete(:max_tokens) if gemini_params[:max_tokens]
+
+      # temperature is already correctly named for Gemini
+
+      gemini_params[:topP] = gemini_params.delete(:top_p) if gemini_params[:top_p]
+
+      gemini_params[:topK] = gemini_params.delete(:top_k) if gemini_params[:top_k]
+
       # Remove unsupported parameters
       gemini_params.delete(:frequency_penalty)
       gemini_params.delete(:presence_penalty)
       gemini_params.delete(:tool_choice)
       gemini_params.delete(:parallel_tool_calls)
-      
+
       gemini_params
     end
   end

@@ -49,8 +49,8 @@ puts "=" * 50
 puts "\n=== Example 2: Custom Guardrails ==="
 
 # Create custom input guardrail
-no_competitor_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "competitor_check") do |context, agent, input|
-  competitors = ["ChatGPT", "Claude", "Gemini", "Copilot"]
+no_competitor_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "competitor_check") do |_context, _agent, input|
+  competitors = %w[ChatGPT Claude Gemini Copilot]
   input_text = input.to_s.downcase
   
   mentioned = competitors.select { |c| input_text.include?(c.downcase) }
@@ -72,9 +72,9 @@ no_competitor_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "compet
 end
 
 # Create custom output guardrail
-sentiment_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "positive_sentiment") do |context, agent, output|
+sentiment_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "positive_sentiment") do |_context, _agent, output|
   # Simple sentiment check (in production, use proper sentiment analysis)
-  negative_words = ["sorry", "cannot", "unable", "impossible", "error", "fail"]
+  negative_words = %w[sorry cannot unable impossible error fail]
   output_text = output.to_s.downcase
   
   negative_count = negative_words.count { |word| output_text.include?(word) }
@@ -127,7 +127,7 @@ puts "\n=== Example 3: JSON Schema Output Validation ==="
 # Define expected output schema
 user_schema = {
   type: "object",
-  required: ["name", "age", "email"],
+  required: %w[name age email],
   properties: {
     name: { type: "string" },
     age: { type: "integer", minimum: 0, maximum: 150 },
@@ -139,7 +139,7 @@ data_agent = OpenAIAgents::Agent.new(
   name: "DataAgent",
   instructions: "You extract user data and return it as JSON.",
   model: "gpt-4o-mini",
-  output_schema: user_schema,  # This ensures structured output
+  output_schema: user_schema, # This ensures structured output
   output_guardrails: [
     OpenAIAgents::Guardrails.json_schema_guardrail(schema: user_schema)
   ]
@@ -161,7 +161,7 @@ support_agent = OpenAIAgents::Agent.new(
   model: "gpt-4o-mini",
   input_guardrails: [
     OpenAIAgents::Guardrails.topic_relevance_guardrail(
-      allowed_topics: ["software", "hardware", "technical", "computer", "programming", "bug", "error"]
+      allowed_topics: %w[software hardware technical computer programming bug error]
     )
   ]
 )
@@ -217,7 +217,7 @@ puts "\n=== Example 6: Async Guardrails (if async is available) ==="
 
 if defined?(Async)
   # Create async-compatible guardrail
-  async_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "async_check") do |context, agent, input|
+  async_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "async_check") do |_context, _agent, _input|
     # Simulate async operation
     sleep(0.1)
     OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(

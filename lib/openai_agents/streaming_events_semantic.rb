@@ -13,7 +13,7 @@ module OpenAIAgents
         {
           event_id: @event_id,
           timestamp: @timestamp,
-          type: self.class.name.split('::').last.downcase
+          type: self.class.name.split("::").last.downcase
         }
       end
     end
@@ -86,7 +86,7 @@ module OpenAIAgents
         super.merge(
           agent_name: @agent.name,
           message_role: @message[:role],
-          message_preview: (@message[:content] || '')[0..100]
+          message_preview: (@message[:content] || "")[0..100]
         )
       end
     end
@@ -104,7 +104,7 @@ module OpenAIAgents
         super.merge(
           agent_name: @agent.name,
           message_role: @message[:role],
-          message_length: (@message[:content] || '').length
+          message_length: (@message[:content] || "").length
         )
       end
     end
@@ -122,8 +122,8 @@ module OpenAIAgents
       def to_h
         super.merge(
           agent_name: @agent.name,
-          tool_name: @tool_call['function']['name'],
-          tool_call_id: @tool_call['id']
+          tool_name: @tool_call["function"]["name"],
+          tool_call_id: @tool_call["id"]
         )
       end
     end
@@ -140,9 +140,9 @@ module OpenAIAgents
       def to_h
         super.merge(
           agent_name: @agent.name,
-          tool_name: @tool_call['function']['name'],
-          tool_call_id: @tool_call['id'],
-          arguments: @tool_call['function']['arguments']
+          tool_name: @tool_call["function"]["name"],
+          tool_call_id: @tool_call["id"],
+          arguments: @tool_call["function"]["arguments"]
         )
       end
     end
@@ -160,8 +160,8 @@ module OpenAIAgents
       def to_h
         super.merge(
           agent_name: @agent.name,
-          tool_name: @tool_call['function']['name'],
-          tool_call_id: @tool_call['id'],
+          tool_name: @tool_call["function"]["name"],
+          tool_call_id: @tool_call["id"],
           result_preview: @result.to_s[0..200]
         )
       end
@@ -180,8 +180,8 @@ module OpenAIAgents
       def to_h
         super.merge(
           agent_name: @agent.name,
-          tool_name: @tool_call['function']['name'],
-          tool_call_id: @tool_call['id'],
+          tool_name: @tool_call["function"]["name"],
+          tool_call_id: @tool_call["id"],
           error_message: @error.message,
           error_class: @error.class.name
         )
@@ -260,8 +260,8 @@ module OpenAIAgents
       def to_h
         super.merge(
           agent_name: @agent.name,
-          tool_call_id: @tool_call['id'],
-          tool_name: @tool_call['function']['name']
+          tool_call_id: @tool_call["id"],
+          tool_name: @tool_call["function"]["name"]
         )
       end
     end
@@ -327,7 +327,7 @@ module OpenAIAgents
       end
 
       def self.by_agent(agent_name)
-        ->(event) { 
+        lambda { |event|
           event.respond_to?(:agent) && event.agent&.name == agent_name
         }
       end

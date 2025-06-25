@@ -16,7 +16,7 @@ agent = OpenAIAgents::Async.agent(
 
 # Add async tools that simulate API calls
 agent.add_tool(
-  -> (query:) {
+  lambda { |query:|
     puts "[Search] Starting search for: #{query}"
     sleep(1) # Simulate API latency
     puts "[Search] Completed search for: #{query}"
@@ -25,17 +25,21 @@ agent.add_tool(
 )
 
 agent.add_tool(
-  -> (expression:) {
+  lambda { |expression:|
     puts "[Calculate] Starting calculation: #{expression}"
     sleep(0.5) # Simulate computation time
-    result = eval(expression) rescue "Invalid expression"
+    result = begin
+      eval(expression)
+    rescue StandardError
+      "Invalid expression"
+    end
     puts "[Calculate] Completed calculation: #{expression} = #{result}"
     "Result: #{result}"
   }
 )
 
 agent.add_tool(
-  -> (location:) {
+  lambda { |location:|
     puts "[Weather] Fetching weather for: #{location}"
     sleep(1.5) # Simulate API call
     puts "[Weather] Completed weather fetch for: #{location}"
@@ -57,7 +61,7 @@ Async do
   puts result.messages.last[:content]
 end
 
-puts "\n" + "="*50 + "\n"
+puts "\n" + ("=" * 50) + "\n"
 
 # Example 2: Parallel agent execution
 puts "=== Example 2: Parallel Agent Execution ==="
@@ -115,7 +119,7 @@ Async do |task|
   puts "(Note: Tasks ran in parallel, so total time is less than sum of individual tasks)"
 end
 
-puts "\n" + "="*50 + "\n"
+puts "\n" + ("=" * 50) + "\n"
 
 # Example 3: Async tool execution
 puts "=== Example 3: Direct Async Tool Execution ==="
@@ -136,10 +140,10 @@ Async do
   time = Benchmark.measure do
     # Execute multiple tools in parallel
     results = agent_instance.execute_tools_async([
-      { name: "search", arguments: { query: "Ruby concurrency" } },
-      { name: "calculate", arguments: { expression: "100 * 50 + 25" } },
-      { name: "weather", arguments: { location: "San Francisco" } }
-    ]).wait
+                                                   { name: "search", arguments: { query: "Ruby concurrency" } },
+                                                   { name: "calculate", arguments: { expression: "100 * 50 + 25" } },
+                                                   { name: "weather", arguments: { location: "San Francisco" } }
+                                                 ]).wait
 
     puts "\nTool execution results:"
     results.each do |result|

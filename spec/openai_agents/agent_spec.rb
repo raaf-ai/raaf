@@ -52,6 +52,18 @@ RSpec.describe OpenAIAgents::Agent do
       expect(agent.tools).not_to be(tools)
       expect(agent.handoffs).not_to be(handoffs)
     end
+
+    it "supports block-based configuration" do
+      agent = described_class.new(name: "TestAgent") do |agent|
+        agent.instructions = "Custom instructions via block"
+        agent.model = "gpt-3.5-turbo"
+        agent.add_tool(proc { |x| x * 2 })
+      end
+
+      expect(agent.instructions).to eq("Custom instructions via block")
+      expect(agent.model).to eq("gpt-3.5-turbo")
+      expect(agent.tools.size).to eq(1)
+    end
   end
 
   describe "#add_tool" do
@@ -166,6 +178,163 @@ RSpec.describe OpenAIAgents::Agent do
     it "returns true when tools are added" do
       agent.add_tool(proc { |value| value })
       expect(agent.tools?).to be true
+    end
+  end
+
+  describe "#handoffs?" do
+    let(:agent) { described_class.new(name: "TestAgent") }
+
+    it "returns false when no handoffs are added" do
+      expect(agent.handoffs?).to be false
+    end
+
+    it "returns true when handoffs are added" do
+      handoff_agent = described_class.new(name: "HandoffAgent")
+      agent.add_handoff(handoff_agent)
+      expect(agent.handoffs?).to be true
+    end
+  end
+
+  describe "#output_schema?" do
+    let(:agent) { described_class.new(name: "TestAgent") }
+
+    it "returns false when no output schema is set" do
+      expect(agent.output_schema?).to be false
+    end
+
+    it "returns true when output schema is set" do
+      agent_with_schema = described_class.new(name: "TestAgent", output_schema: String)
+      expect(agent_with_schema.output_schema?).to be true
+    end
+  end
+
+  describe "#input_guardrails?" do
+    let(:agent) { described_class.new(name: "TestAgent") }
+
+    it "returns false when no input guardrails are set" do
+      expect(agent.input_guardrails?).to be false
+    end
+
+    it "returns true when input guardrails are set" do
+      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_,_,_| true })]
+      expect(agent.input_guardrails?).to be true
+    end
+  end
+
+  describe "#output_guardrails?" do
+    let(:agent) { described_class.new(name: "TestAgent") }
+
+    it "returns false when no output guardrails are set" do
+      expect(agent.output_guardrails?).to be false
+    end
+
+    it "returns true when output guardrails are set" do
+      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_,_,_| true })]
+      expect(agent.output_guardrails?).to be true
+    end
+  end
+
+  describe "bang methods for mutation" do
+    let(:agent) do
+      agent = described_class.new(name: "TestAgent")
+      agent.add_tool(proc { |_| nil })
+      handoff_agent = described_class.new(name: "HandoffAgent")
+      agent.add_handoff(handoff_agent)
+      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_,_,_| true })]
+      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_,_,_| true })]
+      agent
+    end
+
+    describe "#reset_tools!" do
+      it "clears all tools and returns self" do
+        expect(agent.tools?).to be true
+        result = agent.reset_tools!
+        expect(agent.tools?).to be false
+        expect(result).to eq(agent)
+      end
+    end
+
+    describe "#reset_handoffs!" do
+      it "clears all handoffs and returns self" do
+        expect(agent.handoffs?).to be true
+        result = agent.reset_handoffs!
+        expect(agent.handoffs?).to be false
+        expect(result).to eq(agent)
+      end
+    end
+
+    describe "#reset_input_guardrails!" do
+      it "clears all input guardrails and returns self" do
+        expect(agent.input_guardrails?).to be true
+        result = agent.reset_input_guardrails!
+        expect(agent.input_guardrails?).to be false
+        expect(result).to eq(agent)
+      end
+    end
+
+    describe "#reset_output_guardrails!" do
+      it "clears all output guardrails and returns self" do
+        expect(agent.output_guardrails?).to be true
+        result = agent.reset_output_guardrails!
+        expect(agent.output_guardrails?).to be false
+        expect(result).to eq(agent)
+      end
+    end
+
+    describe "#reset!" do
+      it "clears everything and returns self" do
+        expect(agent.tools?).to be true
+        expect(agent.handoffs?).to be true
+        expect(agent.input_guardrails?).to be true
+        expect(agent.output_guardrails?).to be true
+
+        result = agent.reset!
+
+        expect(agent.tools?).to be false
+        expect(agent.handoffs?).to be false
+        expect(agent.input_guardrails?).to be false
+        expect(agent.output_guardrails?).to be false
+        expect(result).to eq(agent)
+      end
+    end
+  end
+
+  describe "dynamic method calls via method_missing" do
+    let(:agent) { described_class.new(name: "TestAgent") }
+
+    before do
+      agent.add_tool(OpenAIAgents::FunctionTool.new(
+                       proc { |value:| value * 2 },
+                       name: "double",
+                       description: "Doubles a number"
+                     ))
+      agent.add_tool(OpenAIAgents::FunctionTool.new(
+                       proc { |name:| "Hello, #{name}!" },
+                       name: "greet",
+                       description: "Greets a person"
+                     ))
+    end
+
+    it "allows calling tools as methods" do
+      result = agent.double(value: 5)
+      expect(result).to eq(10)
+    end
+
+    it "passes arguments correctly through method_missing" do
+      result = agent.greet(name: "Alice")
+      expect(result).to eq("Hello, Alice!")
+    end
+
+    it "raises NoMethodError for non-existent tools" do
+      expect do
+        agent.non_existent_tool
+      end.to raise_error(NoMethodError)
+    end
+
+    it "responds to tool methods via respond_to_missing?" do
+      expect(agent.respond_to?(:double)).to be true
+      expect(agent.respond_to?(:greet)).to be true
+      expect(agent.respond_to?(:non_existent_tool)).to be false
     end
   end
 

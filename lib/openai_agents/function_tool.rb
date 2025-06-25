@@ -54,13 +54,37 @@ module OpenAIAgents
           else
             @is_enabled.call(context)
           end
-        rescue => e
+        rescue StandardError => e
           warn "Error evaluating tool enabled state: #{e.message}"
           false
         end
       else
         !!@is_enabled
       end
+    end
+
+    ##
+    # Check if tool is callable (has valid callable)
+    #
+    # @return [Boolean] true if tool has a valid callable, false otherwise
+    def callable?
+      @callable.is_a?(Method) || @callable.is_a?(Proc)
+    end
+
+    ##
+    # Check if tool has parameters defined
+    #
+    # @return [Boolean] true if tool has parameters, false otherwise
+    def parameters?
+      @parameters && @parameters[:properties]&.any?
+    end
+
+    ##
+    # Check if tool has required parameters
+    #
+    # @return [Boolean] true if tool has required parameters, false otherwise
+    def required_parameters?
+      @parameters && @parameters[:required]&.any?
     end
 
     ##
@@ -89,10 +113,8 @@ module OpenAIAgents
     def extract_name(callable)
       if callable.is_a?(Method)
         callable.name.to_s
-      # rubocop:disable Lint/DuplicateBranch
-      elsif callable.respond_to?(:name)
+      elsif callable.respond_to?(:name) && callable.name
         callable.name.to_s
-      # rubocop:enable Lint/DuplicateBranch
       else
         "anonymous_function"
       end

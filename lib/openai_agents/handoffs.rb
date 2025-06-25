@@ -56,7 +56,7 @@ module OpenAIAgents
 
     # Default tool name for an agent
     def self.default_tool_name(agent)
-      "transfer_to_#{agent.name.downcase.gsub(/[^a-z0-9]+/, '_')}"
+      "transfer_to_#{agent.name.downcase.gsub(/[^a-z0-9]+/, "_")}"
     end
 
     # Default tool description for an agent
@@ -83,7 +83,7 @@ module OpenAIAgents
   module Handoffs
     class << self
       # Create a handoff from an agent
-      # 
+      #
       # @param agent [Agent] The agent to handoff to
       # @param tool_name_override [String, nil] Override for tool name
       # @param tool_description_override [String, nil] Override for tool description
@@ -106,38 +106,38 @@ module OpenAIAgents
 
         # Determine input schema
         input_json_schema = if input_type
-          # Create schema from input type
-          case input_type.name
-          when "String"
-            {
-              type: "object",
-              properties: {
-                input: { type: "string" }
-              },
-              required: ["input"]
-            }
-          when "Integer"
-            {
-              type: "object",
-              properties: {
-                input: { type: "integer" }
-              },
-              required: ["input"]
-            }
-          when "Hash"
-            # For Hash types, we need more specific schema
-            {
-              type: "object",
-              properties: {},
-              additionalProperties: true
-            }
-          else
-            # For custom classes, attempt to infer schema
-            infer_schema_from_type(input_type)
-          end
-        else
-          {} # Empty schema if no input type
-        end
+                              # Create schema from input type
+                              case input_type.name
+                              when "String"
+                                {
+                                  type: "object",
+                                  properties: {
+                                    input: { type: "string" }
+                                  },
+                                  required: ["input"]
+                                }
+                              when "Integer"
+                                {
+                                  type: "object",
+                                  properties: {
+                                    input: { type: "integer" }
+                                  },
+                                  required: ["input"]
+                                }
+                              when "Hash"
+                                # For Hash types, we need more specific schema
+                                {
+                                  type: "object",
+                                  properties: {},
+                                  additionalProperties: true
+                                }
+                              else
+                                # For custom classes, attempt to infer schema
+                                infer_schema_from_type(input_type)
+                              end
+                            else
+                              {} # Empty schema if no input type
+                            end
 
         # Ensure strict JSON schema
         input_json_schema = StrictSchema.ensure_strict_json_schema(input_json_schema) if input_json_schema.any?
@@ -153,23 +153,20 @@ module OpenAIAgents
             begin
               parsed_input = JSON.parse(input_json)
               validated_input = validate_input(parsed_input, input_type)
-              
+
               # Call the on_handoff function
-              if on_handoff.arity == 2
-                on_handoff.call(context_wrapper, validated_input)
-              else
-                raise ArgumentError, "on_handoff must take two arguments: context and input"
-              end
+              raise ArgumentError, "on_handoff must take two arguments: context and input" unless on_handoff.arity == 2
+
+              on_handoff.call(context_wrapper, validated_input)
             rescue JSON::ParserError => e
               raise ModelBehaviorError, "Invalid JSON input for handoff: #{e.message}"
             end
           elsif on_handoff
             # No input type, just call with context
-            if on_handoff.arity == 1
-              on_handoff.call(context_wrapper)
-            else
-              raise ArgumentError, "on_handoff must take one argument: context"
-            end
+            raise ArgumentError, "on_handoff must take one argument: context" unless on_handoff.arity == 1
+
+            on_handoff.call(context_wrapper)
+
           end
 
           # Return the agent
@@ -201,13 +198,11 @@ module OpenAIAgents
         handoff(
           agent,
           tool_description_override: description,
-          on_handoff: ->(context) {
+          on_handoff: lambda { |context|
             # Only proceed if condition is met
-            if condition.call(context)
-              true
-            else
-              raise HandoffError, "Handoff condition not met"
-            end
+            raise HandoffError, "Handoff condition not met" unless condition.call(context)
+
+            true
           }
         )
       end
@@ -218,15 +213,13 @@ module OpenAIAgents
           agent,
           tool_description_override: description,
           input_type: Hash,
-          on_handoff: ->(context, input) {
+          on_handoff: lambda { |_context, input|
             # Validate input against schema
             validator = StructuredOutput::ResponseFormatter.new(input_schema)
             result = validator.format_response(input)
-            
-            unless result[:valid]
-              raise HandoffError, "Invalid handoff input: #{result[:error]}"
-            end
-            
+
+            raise HandoffError, "Invalid handoff input: #{result[:error]}" unless result[:valid]
+
             true
           }
         )
@@ -273,7 +266,7 @@ module OpenAIAgents
   end
 
   # Convenience method at module level
-  def self.handoff(agent, **kwargs)
-    Handoffs.handoff(agent, **kwargs)
+  def self.handoff(agent, **)
+    Handoffs.handoff(agent, **)
   end
 end

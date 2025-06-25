@@ -3,6 +3,7 @@
 require "net/http"
 require "json"
 require "uri"
+require "securerandom"
 require_relative "interface"
 require_relative "../tracing/spans"
 
@@ -74,6 +75,11 @@ module OpenAIAgents
         end
       end
 
+      # Prepares tools for the Responses API format
+      #
+      # @param tools [Array] array of tools to prepare
+      # @return [Array, nil] prepared tools or nil if no tools
+      # @api private
       def prepare_tools_for_responses_api(tools)
         return nil unless tools.respond_to?(:empty?) && tools.respond_to?(:map)
         return nil if tools.empty?
@@ -99,11 +105,10 @@ module OpenAIAgents
               }
             }
           else
-            if tool.respond_to?(:to_tool_definition)
-              tool.to_tool_definition
-            else
-              raise ArgumentError, "Invalid tool type: #{tool.class}"
-            end
+            raise ArgumentError, "Invalid tool type: #{tool.class}" unless tool.respond_to?(:to_tool_definition)
+
+            tool.to_tool_definition
+
           end
         end
       end
@@ -123,7 +128,7 @@ module OpenAIAgents
           input: input
         }
         body[:instructions] = instructions if instructions
-        
+
         # Add prompt support if provided
         if kwargs[:prompt]
           body[:prompt] = kwargs[:prompt]
@@ -169,44 +174,49 @@ module OpenAIAgents
         JSON.parse(response.body)
       end
 
+      # Extracts input from messages for Responses API
+      #
+      # @param messages [Array] array of conversation messages
+      # @return [String] the last user message content
+      # @api private
       def extract_input_from_messages(messages)
         # Extract the last user message as input (matching Python behavior)
         user_msg = messages.reverse.find { |m| m[:role] == "user" }
         user_msg&.dig(:content) || ""
       end
 
+      # Extracts system instructions from messages
+      #
+      # @param messages [Array] array of conversation messages
+      # @return [String, nil] system message content if found
+      # @api private
       def extract_system_instructions(messages)
         system_msg = messages.find { |m| m[:role] == "system" }
         system_msg&.dig(:content)
       end
 
+      # Converts Responses API format to chat completion format
+      #
+      # @param response [Hash] the response from Responses API
+      # @return [Hash, nil] converted response in chat format
+      # @api private
       def convert_response_to_chat_format(response)
         # Convert OpenAI Responses API format to chat completion format
         # for compatibility with existing Ruby code
         return nil unless response && response["output"]
 
         # Extract the text content from response output
-        # New Responses API format: output is array of message objects with content arrays
-        content = if response["output"].is_a?(Array) && !response["output"].empty?
-                    # Get the first output item (should be the assistant message)
-                    output_item = response["output"][0]
-                    if output_item.is_a?(Hash) && output_item["content"].is_a?(Array)
-                      # Extract text from content array
-                      output_item["content"].map do |content_item|
-                        if content_item.is_a?(Hash) && content_item["type"] == "output_text"
-                          content_item["text"] || ""
-                        else
-                          content_item.to_s
-                        end
-                      end.join
-                    else
-                      # Fallback for older format
-                      output_item["text"] || output_item["content"] || output_item.to_s
-                    end
-                  else
-                    # Fallback for other formats
-                    response["output"].to_s
-                  end
+        # Handle both tool calls and structured output properly
+        content = extract_content_from_output(response["output"])
+        tool_calls = extract_tool_calls_from_output(response["output"])
+
+        message = {
+          "role" => "assistant",
+          "content" => content
+        }
+        
+        # Add tool calls if present
+        message["tool_calls"] = tool_calls if tool_calls && !tool_calls.empty?
 
         {
           "id" => response["id"],
@@ -216,11 +226,8 @@ module OpenAIAgents
           "choices" => [
             {
               "index" => 0,
-              "message" => {
-                "role" => "assistant",
-                "content" => content
-              },
-              "finish_reason" => "stop"
+              "message" => message,
+              "finish_reason" => tool_calls && !tool_calls.empty? ? "tool_calls" : "stop"
             }
           ],
           "usage" => response["usage"] || {
@@ -229,6 +236,93 @@ module OpenAIAgents
             "total_tokens" => 0
           }
         }
+      end
+
+      private
+
+      def extract_content_from_output(output)
+        return "" unless output
+
+        if output.is_a?(Array) && !output.empty?
+          # Handle array format - look for text content
+          output.map do |item|
+            if item.is_a?(Hash)
+              # Check for structured text content
+              if item["content"].is_a?(Array)
+                item["content"].map do |content_item|
+                  if content_item.is_a?(Hash) && content_item["type"] == "output_text"
+                    content_item["text"] || ""
+                  else
+                    content_item.to_s
+                  end
+                end.join
+              elsif item["type"] == "output_text"
+                item["text"] || ""
+              elsif item["text"]
+                item["text"]
+              elsif item["content"]
+                item["content"]
+              else
+                # Skip tool call items, only extract text content
+                next if item["type"] == "function_call" || item["function"]
+                item.to_s
+              end
+            else
+              item.to_s
+            end
+          end.compact.join
+        elsif output.is_a?(Hash)
+          # Handle single hash format
+          if output["text"]
+            output["text"]
+          elsif output["content"]
+            output["content"]
+          else
+            # Don't include tool call results as content
+            return "" if output["type"] == "function_call" || output["function"]
+            output.to_s
+          end
+        else
+          # Fallback for other formats
+          output.to_s
+        end
+      end
+
+      def extract_tool_calls_from_output(output)
+        return nil unless output
+
+        tool_calls = []
+        
+        if output.is_a?(Array)
+          output.each do |item|
+            next unless item.is_a?(Hash)
+            
+            # Check for function call format
+            if item["type"] == "function_call" || item["function"]
+              tool_call = {
+                "id" => item["id"] || item["call_id"] || "call_#{SecureRandom.hex(8)}",
+                "type" => "function",
+                "function" => {
+                  "name" => item["name"] || item.dig("function", "name"),
+                  "arguments" => item["arguments"] || item.dig("function", "arguments") || "{}"
+                }
+              }
+              tool_calls << tool_call
+            end
+          end
+        elsif output.is_a?(Hash) && (output["type"] == "function_call" || output["function"])
+          tool_call = {
+            "id" => output["id"] || output["call_id"] || "call_#{SecureRandom.hex(8)}",
+            "type" => "function", 
+            "function" => {
+              "name" => output["name"] || output.dig("function", "name"),
+              "arguments" => output["arguments"] || output.dig("function", "arguments") || "{}"
+            }
+          }
+          tool_calls << tool_call
+        end
+
+        tool_calls.empty? ? nil : tool_calls
       end
     end
   end

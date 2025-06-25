@@ -52,9 +52,8 @@ module OpenAIAgents
     attr_reader :function
 
     def initialize(function)
-      unless function.respond_to?(:call)
-        raise ArgumentError, "Dynamic prompt function must respond to :call"
-      end
+      raise ArgumentError, "Dynamic prompt function must respond to :call" unless function.respond_to?(:call)
+
       @function = function
     end
 
@@ -63,7 +62,7 @@ module OpenAIAgents
     # @return [Prompt] The generated prompt
     def call(data)
       result = @function.call(data)
-      
+
       # Handle different return types
       case result
       when Prompt
@@ -87,20 +86,20 @@ module OpenAIAgents
       return nil if prompt.nil?
 
       resolved_prompt = case prompt
-      when Prompt
-        prompt
-      when Hash
-        Prompt.from_hash(prompt)
-      when DynamicPromptFunction
-        prompt.call(DynamicPromptData.new(context: context, agent: agent))
-      when Proc, Method
-        # Wrap in DynamicPromptFunction for consistent behavior
-        DynamicPromptFunction.new(prompt).call(
-          DynamicPromptData.new(context: context, agent: agent)
-        )
-      else
-        raise TypeError, "Invalid prompt type: #{prompt.class}"
-      end
+                        when Prompt
+                          prompt
+                        when Hash
+                          Prompt.from_hash(prompt)
+                        when DynamicPromptFunction
+                          prompt.call(DynamicPromptData.new(context: context, agent: agent))
+                        when Proc, Method
+                          # Wrap in DynamicPromptFunction for consistent behavior
+                          DynamicPromptFunction.new(prompt).call(
+                            DynamicPromptData.new(context: context, agent: agent)
+                          )
+                        else
+                          raise TypeError, "Invalid prompt type: #{prompt.class}"
+                        end
 
       # Return in API format
       {
@@ -119,9 +118,8 @@ module OpenAIAgents
       attr_reader :function
 
       def initialize(function)
-        unless function.respond_to?(:call)
-          raise ArgumentError, "Dynamic instructions must respond to :call"
-        end
+        raise ArgumentError, "Dynamic instructions must respond to :call" unless function.respond_to?(:call)
+
         @function = function
       end
 
@@ -131,9 +129,8 @@ module OpenAIAgents
       # @return [String] The generated instructions
       def generate(context, agent)
         result = @function.call(context, agent)
-        unless result.is_a?(String)
-          raise TypeError, "Dynamic instructions must return a String, got #{result.class}"
-        end
+        raise TypeError, "Dynamic instructions must return a String, got #{result.class}" unless result.is_a?(String)
+
         result
       end
     end
@@ -141,6 +138,7 @@ module OpenAIAgents
     # Override instructions getter to support dynamic instructions
     def instructions
       return @instructions unless @instructions.is_a?(DynamicInstructions)
+
       # Return static placeholder for dynamic instructions
       "[Dynamic Instructions]"
     end
@@ -157,6 +155,7 @@ module OpenAIAgents
       case @instructions
       when DynamicInstructions
         raise ArgumentError, "Context required for dynamic instructions" unless context
+
         @instructions.generate(context, self)
       when String, nil
         @instructions
@@ -168,19 +167,19 @@ module OpenAIAgents
     # Set instructions (can be string or callable)
     def instructions=(value)
       @instructions = case value
-      when String, nil
-        value
-      when DynamicInstructions
-        value
-      when Proc, Method
-        DynamicInstructions.new(value)
-      else
-        if value.respond_to?(:call)
-          DynamicInstructions.new(value)
-        else
-          value.to_s
-        end
-      end
+                      when String, nil
+                        value
+                      when DynamicInstructions
+                        value
+                      when Proc, Method
+                        DynamicInstructions.new(value)
+                      else
+                        if value.respond_to?(:call)
+                          DynamicInstructions.new(value)
+                        else
+                          value.to_s
+                        end
+                      end
     end
   end
 end

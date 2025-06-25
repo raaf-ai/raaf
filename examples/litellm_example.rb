@@ -35,7 +35,7 @@ runner = OpenAIAgents::Runner.new(
 begin
   result = runner.run("What are the benefits of using LiteLLM?")
   puts "Response: #{result.messages.last[:content]}\n\n"
-rescue => e
+rescue StandardError => e
   puts "Error: #{e.message}"
   puts "Make sure LiteLLM is running: litellm --model gpt-3.5-turbo\n\n"
 end
@@ -61,7 +61,7 @@ runner = OpenAIAgents::Runner.new(agent: claude_agent, provider: claude_provider
 begin
   result = runner.run("Tell me about yourself in one sentence.")
   puts "Claude response: #{result.messages.last[:content]}\n\n"
-rescue => e
+rescue StandardError => e
   puts "Claude error: #{e.message}\n\n"
 end
 
@@ -81,7 +81,7 @@ runner = OpenAIAgents::Runner.new(agent: gemini_agent, provider: gemini_provider
 begin
   result = runner.run("What's unique about the Gemini model?")
   puts "Gemini response: #{result.messages.last[:content]}\n\n"
-rescue => e
+rescue StandardError => e
   puts "Gemini error: #{e.message}\n\n"
 end
 
@@ -127,7 +127,7 @@ runner = OpenAIAgents::Runner.new(
 begin
   result = runner.run("What's the weather in San Francisco?")
   puts "Tool response: #{result.messages.last[:content]}\n\n"
-rescue => e
+rescue StandardError => e
   puts "Tool error: #{e.message}\n\n"
 end
 
@@ -165,7 +165,7 @@ begin
   puts "Multi-agent response:"
   puts result.messages.last[:content]
   puts "\nLast agent: #{result.last_agent.name}\n\n"
-rescue => e
+rescue StandardError => e
   puts "Multi-agent error: #{e.message}\n\n"
 end
 
@@ -190,7 +190,7 @@ runner = OpenAIAgents::Runner.new(agent: local_agent, provider: local_provider)
 begin
   result = runner.run("What are the advantages of running models locally?")
   puts "Local model response: #{result.messages.last[:content]}\n\n"
-rescue => e
+rescue StandardError => e
   puts "Local model error: #{e.message}"
   puts "Make sure Ollama is running and llama2 is pulled\n\n"
 end

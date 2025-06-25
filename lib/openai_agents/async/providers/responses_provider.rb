@@ -22,21 +22,21 @@ module OpenAIAgents
         # Async version of chat_completion
         async def async_chat_completion(messages:, model: nil, tools: nil, output_schema: nil, **kwargs)
           model ||= @default_model || "gpt-4o-mini"
-          
+
           # Build request body
           body = build_request_body(messages, model, tools, output_schema, kwargs)
-          
+
           # Make async HTTP request
           response = await make_async_request("/v1/responses", body)
-          
+
           # Parse and return response
           parse_response(response)
         end
 
         # Synchronous wrapper
-        def chat_completion(**kwargs)
+        def chat_completion(**)
           if in_async_context?
-            async_chat_completion(**kwargs).wait
+            async_chat_completion(**).wait
           else
             # Fall back to synchronous implementation
             super
@@ -46,12 +46,12 @@ module OpenAIAgents
         private
 
         def async_client
-          @client ||= Async::HTTP::Client.new(@endpoint)
+          @async_client ||= Async::HTTP::Client.new(@endpoint)
         end
 
         async def make_async_request(path, body)
           headers = build_headers
-          
+
           # Create request
           request = Async::HTTP::Request.new(
             @endpoint.scheme,
@@ -65,7 +65,7 @@ module OpenAIAgents
 
           # Send request and get response
           response = await async_client.call(request)
-          
+
           # Check response status
           unless response.success?
             error_body = await response.read
@@ -96,9 +96,7 @@ module OpenAIAgents
           }
 
           # Add tools if provided
-          if tools && !tools.empty?
-            body[:tools] = tools.map { |tool| prepare_tool(tool) }
-          end
+          body[:tools] = tools.map { |tool| prepare_tool(tool) } if tools && !tools.empty?
 
           # Add output schema if provided
           if output_schema
@@ -115,16 +113,16 @@ module OpenAIAgents
 
           # Add additional parameters
           body.merge!(kwargs.slice(:temperature, :max_completion_tokens, :top_p, :frequency_penalty, :presence_penalty))
-          
+
           body
         end
 
         def parse_response(response)
           # Convert from Responses API format to chat completion format
-          if response["choices"] && response["choices"].first
+          if response["choices"]&.first
             choice = response["choices"].first
             message = choice["message"]
-            
+
             # Build response in expected format
             {
               "id" => response["id"],
@@ -144,7 +142,11 @@ module OpenAIAgents
         end
 
         def handle_error(status, body)
-          error_data = JSON.parse(body) rescue { "error" => { "message" => body } }
+          error_data = begin
+            JSON.parse(body)
+          rescue StandardError
+            { "error" => { "message" => body } }
+          end
           error_message = error_data.dig("error", "message") || "Unknown error"
 
           case status

@@ -43,7 +43,7 @@ module OpenAIAgents
       @output_type = output_type
       @strict_json_schema = strict_json_schema
       @is_wrapped = false
-      
+
       # Configure based on output type
       configure_schema
     end
@@ -62,6 +62,7 @@ module OpenAIAgents
 
     def json_schema
       raise UserError, "Output type is plain text, so no JSON schema is available" if plain_text?
+
       @output_schema
     end
 
@@ -71,7 +72,7 @@ module OpenAIAgents
       begin
         parsed = JSON.parse(json_str)
         validated = validate_against_type(parsed)
-        
+
         if @is_wrapped
           unless validated.is_a?(Hash)
             raise ModelBehaviorError, "Expected a Hash, got #{validated.class} for JSON: #{json_str}"
@@ -101,36 +102,36 @@ module OpenAIAgents
       # Check if we need to wrap the output
       @is_wrapped = !subclass_of_hash_or_structured?(@output_type)
 
-      if @is_wrapped
-        # Wrap in a dictionary
-        @output_schema = {
-          type: "object",
-          properties: {
-            WRAPPER_DICT_KEY => generate_schema_for_type(@output_type)
-          },
-          required: [WRAPPER_DICT_KEY],
-          additionalProperties: false
-        }
-      else
-        @output_schema = generate_schema_for_type(@output_type)
-      end
+      @output_schema = if @is_wrapped
+                         # Wrap in a dictionary
+                         {
+                           type: "object",
+                           properties: {
+                             WRAPPER_DICT_KEY => generate_schema_for_type(@output_type)
+                           },
+                           required: [WRAPPER_DICT_KEY],
+                           additionalProperties: false
+                         }
+                       else
+                         generate_schema_for_type(@output_type)
+                       end
 
       # Apply strict schema if requested
-      if @strict_json_schema
-        begin
-          @output_schema = StrictSchema.ensure_strict_json_schema(@output_schema)
-        rescue => e
-          raise UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
-                          "Either make the output type strict, or pass strict_json_schema: false"
-        end
+      return unless @strict_json_schema
+
+      begin
+        @output_schema = StrictSchema.ensure_strict_json_schema(@output_schema)
+      rescue StandardError
+        raise UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                         "Either make the output type strict, or pass strict_json_schema: false"
       end
     end
 
     def subclass_of_hash_or_structured?(type)
       return false unless type.is_a?(Class)
-      
+
       # Check if it's Hash or a structured type
-      type <= Hash || 
+      type <= Hash ||
         (defined?(type.json_schema) && type.respond_to?(:json_schema)) ||
         (defined?(type.schema) && type.respond_to?(:schema))
     end
@@ -144,7 +145,7 @@ module OpenAIAgents
           { type: "integer" }
         elsif type == Float
           { type: "number" }
-        elsif type == TrueClass || type == FalseClass
+        elsif [TrueClass, FalseClass].include?(type)
           { type: "boolean" }
         elsif type == Array
           { type: "array", items: {} }
@@ -166,7 +167,7 @@ module OpenAIAgents
     def infer_schema_from_class(klass)
       # Basic inference - can be extended
       properties = {}
-      
+
       # Try to get attributes from various sources
       if klass.respond_to?(:attributes)
         # ActiveRecord-style
@@ -182,7 +183,7 @@ module OpenAIAgents
               properties[key.to_s] = type_to_json_schema(value.class)
             end
           end
-        rescue
+        rescue StandardError
           # Can't instantiate, use basic object schema
         end
       end
@@ -198,7 +199,7 @@ module OpenAIAgents
       case type
       when String.class, "String"
         { type: "string" }
-      when Integer.class, "Integer", Fixnum.class, "Fixnum", Bignum.class, "Bignum"
+      when Integer.class, "Integer", "Fixnum", "Bignum"
         { type: "integer" }
       when Float.class, "Float", Numeric.class, "Numeric"
         { type: "number" }
@@ -225,9 +226,11 @@ module OpenAIAgents
         Float(data)
       when "Hash"
         raise ModelBehaviorError, "Expected Hash, got #{data.class}" unless data.is_a?(Hash)
+
         data
       when "Array"
         raise ModelBehaviorError, "Expected Array, got #{data.class}" unless data.is_a?(Array)
+
         data
       else
         # For custom types, attempt validation
@@ -239,15 +242,13 @@ module OpenAIAgents
 
     def validate_custom_type(data)
       # If the type has a from_json method, use it
-      if @output_type.respond_to?(:from_json)
-        return @output_type.from_json(data)
-      end
+      return @output_type.from_json(data) if @output_type.respond_to?(:from_json)
 
       # If the type has a new method and accepts a hash, try that
       if @output_type.respond_to?(:new) && data.is_a?(Hash)
         begin
           return @output_type.new(data)
-        rescue
+        rescue StandardError
           # Fall through to next attempt
         end
       end
@@ -259,6 +260,7 @@ module OpenAIAgents
     def type_to_string(type)
       return "nil" if type.nil?
       return type.name if type.respond_to?(:name)
+
       type.to_s
     end
   end
@@ -274,21 +276,13 @@ module OpenAIAgents
     def validate(value)
       case @type
       when Class
-        if value.is_a?(@type)
-          value
-        else
-          raise TypeError, "Expected #{@type}, got #{value.class}"
-        end
+        raise TypeError, "Expected #{@type}, got #{value.class}" unless value.is_a?(@type)
+
       when Module
-        if value.is_a?(@type)
-          value
-        else
-          raise TypeError, "Expected #{@type}, got #{value.class}"
-        end
-      else
+        raise TypeError, "Expected #{@type}, got #{value.class}" unless value.is_a?(@type)
         # For non-class types, just return the value
-        value
       end
+      value
     end
 
     def json_schema

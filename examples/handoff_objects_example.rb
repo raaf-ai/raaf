@@ -95,11 +95,9 @@ escalation_handoff = OpenAIAgents.handoff(
   escalation_agent,
   tool_description_override: "Escalate to senior support with priority and description",
   input_type: Hash,
-  on_handoff: ->(context, input) {
+  on_handoff: lambda { |_context, input|
     # Validate the input
-    unless input["priority"] && input["description"]
-      raise "Escalation requires priority and description"
-    end
+    raise "Escalation requires priority and description" unless input["priority"] && input["description"]
     
     # Log the escalation
     puts "[ESCALATION] Priority: #{input["priority"]}, Description: #{input["description"]}"
@@ -141,7 +139,7 @@ vip_agent = OpenAIAgents::Agent.new(
 vip_handoff = OpenAIAgents.handoff(
   vip_agent,
   tool_description_override: "Transfer to VIP support (only for premium customers)",
-  on_handoff: ->(context) {
+  on_handoff: lambda { |_context|
     # In real app, would check customer status
     # For demo, simulate VIP check
     is_vip = rand > 0.5
@@ -175,7 +173,7 @@ rescue OpenAIAgents::HandoffError => e
   puts "Handoff blocked: #{e.message}"
 end
 
-puts "\n" + "=" * 50
+puts "\n" + ("=" * 50)
 
 # 5. Complex Multi-Agent System with Handoff Objects
 puts "\n=== Example 5: Complex Multi-Agent System ==="
@@ -197,7 +195,7 @@ technical_agent = OpenAIAgents::Agent.new(
 def create_filtered_handoff(agent, filter_old_messages: false)
   OpenAIAgents.handoff(
     agent,
-    input_filter: ->(handoff_data) {
+    input_filter: lambda { |handoff_data|
       if filter_old_messages
         # Keep only recent messages
         recent_items = handoff_data.new_items.last(3)

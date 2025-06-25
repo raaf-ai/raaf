@@ -28,6 +28,31 @@ module OpenAIAgents
       @tracer = tracer || (@disabled_tracing ? nil : OpenAIAgents.tracer)
     end
 
+    ##
+    # Checks if tracing is enabled for this runner
+    #
+    # @return [Boolean] true if tracing is enabled, false otherwise
+    def tracing_enabled?
+      !@disabled_tracing && !@tracer.nil?
+    end
+
+    ##
+    # Checks if the runner is currently configured for streaming
+    #
+    # @return [Boolean] true if streaming is supported, false otherwise
+    def streaming_capable?
+      @provider.respond_to?(:stream_completion)
+    end
+
+    ##
+    # Checks if tools are available for the current agent
+    #
+    # @param context [RunContextWrapper, nil] current run context
+    # @return [Boolean] true if agent has tools available, false otherwise
+    def tools_available?(context = nil)
+      @agent.tools?(context)
+    end
+
     def run(messages, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, **kwargs)
       # Normalize messages input - handle both string and array formats
       messages = normalize_messages(messages)
@@ -87,7 +112,7 @@ module OpenAIAgents
     def run_streamed(messages, config: nil, **kwargs)
       # Normalize messages and config
       messages = normalize_messages(messages)
-      
+
       if config.nil? && !kwargs.empty?
         config = RunConfig.new(**kwargs)
       elsif config.nil?
@@ -105,7 +130,7 @@ module OpenAIAgents
 
       # Start streaming in background
       streaming_result.start_streaming
-      
+
       streaming_result
     end
 
@@ -117,20 +142,20 @@ module OpenAIAgents
       guardrails = []
       guardrails.concat(@current_config.input_guardrails) if @current_config&.input_guardrails
       guardrails.concat(agent.input_guardrails) if agent.respond_to?(:input_guardrails)
-      
+
       return if guardrails.empty?
-      
+
       guardrails.each do |guardrail|
         result = guardrail.run(context_wrapper, agent, input)
-        
-        if result.tripwire_triggered?
-          raise Guardrails::InputGuardrailTripwireTriggered.new(
-            "Input guardrail '#{guardrail.get_name}' triggered",
-            triggered_by: guardrail.get_name,
-            content: input,
-            metadata: result.output.output_info
-          )
-        end
+
+        next unless result.tripwire_triggered?
+
+        raise Guardrails::InputGuardrailTripwireTriggered.new(
+          "Input guardrail '#{guardrail.get_name}' triggered",
+          triggered_by: guardrail.get_name,
+          content: input,
+          metadata: result.output.output_info
+        )
       end
     end
 
@@ -140,33 +165,31 @@ module OpenAIAgents
       guardrails = []
       guardrails.concat(@current_config.output_guardrails) if @current_config&.output_guardrails
       guardrails.concat(agent.output_guardrails) if agent.respond_to?(:output_guardrails)
-      
+
       return if guardrails.empty?
-      
+
       guardrails.each do |guardrail|
         result = guardrail.run(context_wrapper, agent, output)
-        
-        if result.tripwire_triggered?
-          raise Guardrails::OutputGuardrailTripwireTriggered.new(
-            "Output guardrail '#{guardrail.get_name}' triggered",
-            triggered_by: guardrail.get_name,
-            content: output,
-            metadata: result.output.output_info
-          )
-        end
+
+        next unless result.tripwire_triggered?
+
+        raise Guardrails::OutputGuardrailTripwireTriggered.new(
+          "Output guardrail '#{guardrail.get_name}' triggered",
+          triggered_by: guardrail.get_name,
+          content: output,
+          metadata: result.output.output_info
+        )
       end
     end
 
     # Helper method to safely call hooks
     def call_hook(hook_method, context_wrapper, *args)
       # Call run-level hooks
-      if @current_config&.hooks&.respond_to?(hook_method)
-        @current_config.hooks.send(hook_method, context_wrapper, *args)
-      end
+      @current_config.hooks.send(hook_method, context_wrapper, *args) if @current_config&.hooks.respond_to?(hook_method)
 
       # Call agent-level hooks if applicable
       agent = args.first if args.first.is_a?(Agent)
-      if agent&.hooks&.respond_to?(hook_method.to_s.sub("on_", "on_"))
+      if agent&.hooks.respond_to?(hook_method.to_s.sub("on_", "on_"))
         agent.hooks.send(hook_method.to_s.sub("on_", "on_"), context_wrapper, *args)
       end
     rescue StandardError => e
@@ -204,13 +227,11 @@ module OpenAIAgents
 
           # Call agent start hooks
           call_hook(:on_agent_start, context_wrapper, current_agent)
-          
+
           # Run input guardrails
           current_input = conversation.last[:content] if conversation.last && conversation.last[:role] == "user"
-          if current_input
-            run_input_guardrails(context_wrapper, current_agent, current_input)
-          end
-          
+          run_input_guardrails(context_wrapper, current_agent, current_input) if current_input
+
           # Set agent span attributes to match Python implementation
           agent_span.set_attribute("agent.name", current_agent.name || "agent")
           agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
@@ -305,7 +326,7 @@ module OpenAIAgents
 
           # Call handoff hooks
           call_hook(:on_handoff, context_wrapper, current_agent, handoff_agent)
-          
+
           # Update context for handoff tracking
           context_wrapper.add_handoff(current_agent, handoff_agent)
 
@@ -331,15 +352,13 @@ module OpenAIAgents
 
       # Get final output for agent end hook
       final_output = conversation.last[:content] if conversation.last[:role] == "assistant"
-      
+
       # Run output guardrails
-      if final_output
-        run_output_guardrails(context_wrapper, current_agent, final_output)
-      end
-      
+      run_output_guardrails(context_wrapper, current_agent, final_output) if final_output
+
       # Call agent end hooks
       call_hook(:on_agent_end, context_wrapper, current_agent, final_output)
-      
+
       RunResult.success(
         messages: conversation,
         last_agent: current_agent,
@@ -442,33 +461,29 @@ module OpenAIAgents
     end
 
     def build_system_prompt(agent, context_wrapper = nil)
-      prompt = ""
-      prompt += "Name: #{agent.name}\n" if agent.name
-      
+      prompt_parts = []
+      prompt_parts << "Name: #{agent.name}" if agent.name
+
       # Get instructions (may be dynamic)
       instructions = if agent.respond_to?(:get_instructions)
-        agent.get_instructions(context_wrapper)
-      else
-        agent.instructions
-      end
-      prompt += "Instructions: #{instructions}\n" if instructions
+                       agent.get_instructions(context_wrapper)
+                     else
+                       agent.instructions
+                     end
+      prompt_parts << "Instructions: #{instructions}" if instructions
 
       if agent.tools?
-        prompt += "\nAvailable tools:\n"
-        agent.tools.each do |tool|
-          prompt += "- #{tool.name}: #{tool.description}\n"
-        end
+        tool_descriptions = agent.tools.map { |tool| "- #{tool.name}: #{tool.description}" }
+        prompt_parts << "\nAvailable tools:\n#{tool_descriptions.join("\n")}"
       end
 
       unless agent.handoffs.empty?
-        prompt += "\nAvailable handoffs:\n"
-        agent.handoffs.each do |handoff_agent|
-          prompt += "- #{handoff_agent.name}\n"
-        end
-        prompt += "\nTo handoff to another agent, include 'HANDOFF: <agent_name>' in your response.\n"
+        handoff_descriptions = agent.handoffs.map { |handoff_agent| "- #{handoff_agent.name}" }
+        prompt_parts << "\nAvailable handoffs:\n#{handoff_descriptions.join("\n")}"
+        prompt_parts << "\nTo handoff to another agent, include 'HANDOFF: <agent_name>' in your response."
       end
 
-      prompt
+      prompt_parts.join("\n")
     end
 
     def process_response(response, agent, conversation)
@@ -531,89 +546,91 @@ module OpenAIAgents
     def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil)
       puts "[Runner] Processing #{tool_calls.size} tool calls"
 
-      tool_calls.each do |tool_call|
-        tool_name = tool_call.dig("function", "name")
-        arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
-        
-        # Find the tool object
-        tool = agent.tools.find { |t| t.name == tool_name }
-        
-        # Call tool start hooks if context is available
-        if context_wrapper && tool
-          call_hook(:on_tool_start, context_wrapper, agent, tool, arguments)
-        end
-
-        puts "[Runner] Executing tool: #{tool_name} with call_id: #{tool_call["id"]}"
-
-        begin
-          puts "[Runner] About to execute agent.execute_tool(#{tool_name}, #{arguments})"
-
-          # function_span in Python implementation
-          result = if @tracer && !@disabled_tracing
-                     # Get config from instance variable set by run methods
-                     trace_sensitive = @current_config&.trace_include_sensitive_data != false
-
-                     @tracer.tool_span(tool_name) do |tool_span|
-                       tool_span.set_attribute("function.name", tool_name)
-
-                       if trace_sensitive
-                         tool_span.set_attribute("function.input", arguments)
-                       else
-                         tool_span.set_attribute("function.input", "[REDACTED]")
-                       end
-
-                       tool_span.add_event("function.start")
-
-                       res = agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
-
-                       if trace_sensitive
-                         tool_span.set_attribute("function.output", res.to_s[0..1000]) # Limit size
-                       else
-                         tool_span.set_attribute("function.output", "[REDACTED]")
-                       end
-
-                       tool_span.add_event("function.complete")
-                       res
-                     end
-                   else
-                     agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
-                   end
-
-          puts "[Runner] Tool execution returned: #{result.class.name}"
-          puts "[Runner] Tool result: #{result.to_s[0..200]}..."
-          
-          # Call tool end hooks if context is available
-          if context_wrapper && tool
-            call_hook(:on_tool_end, context_wrapper, agent, tool, result)
-          end
-
-          tool_message = {
-            role: "tool",
-            tool_call_id: tool_call["id"],
-            content: result.to_s
-          }
-
-          conversation << tool_message
-          puts "[Runner] Added tool message to conversation. Total messages: #{conversation.size}"
-        rescue StandardError => e
-          puts "[Runner] Tool execution error: #{e.message}"
-          puts "[Runner] Error backtrace: #{e.backtrace[0..2].join('\n')}"
-
-          @tracer.record_exception(e) if @tracer && !@disabled_tracing
-
-          error_message = {
-            role: "tool",
-            tool_call_id: tool_call["id"],
-            content: "Error: #{e.message}"
-          }
-
-          conversation << error_message
-          puts "[Runner] Added error message to conversation. Total messages: #{conversation.size}"
-        end
+      # Process each tool call and collect results using Ruby iterators
+      results = tool_calls.map do |tool_call|
+        process_single_tool_call(tool_call, agent, context_wrapper)
       end
+
+      # Add all results to conversation
+      results.each { |message| conversation << message }
 
       puts "[Runner] Tool processing complete. Conversation now has #{conversation.size} messages"
       false # Continue conversation after tool calls
+    end
+
+    def process_single_tool_call(tool_call, agent, context_wrapper)
+      tool_name = tool_call.dig("function", "name")
+      arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
+
+      # Find the tool object
+      tool = agent.tools.find { |t| t.name == tool_name }
+
+      # Call tool start hooks if context is available
+      call_hook(:on_tool_start, context_wrapper, agent, tool, arguments) if context_wrapper && tool
+
+      puts "[Runner] Executing tool: #{tool_name} with call_id: #{tool_call["id"]}"
+
+      begin
+        puts "[Runner] About to execute agent.execute_tool(#{tool_name}, #{arguments})"
+
+        # function_span in Python implementation
+        result = if @tracer && !@disabled_tracing
+                   execute_tool_with_tracing(tool_name, arguments, agent)
+                 else
+                   agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
+                 end
+
+        puts "[Runner] Tool execution returned: #{result.class.name}"
+        puts "[Runner] Tool result: #{result.to_s[0..200]}..."
+
+        # Call tool end hooks if context is available
+        call_hook(:on_tool_end, context_wrapper, agent, tool, result) if context_wrapper && tool
+
+        {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: result.to_s
+        }
+      rescue StandardError => e
+        puts "[Runner] Tool execution error: #{e.message}"
+        puts "[Runner] Error backtrace: #{e.backtrace[0..2].join('\n')}"
+
+        @tracer.record_exception(e) if @tracer && !@disabled_tracing
+
+        {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: "Error: #{e.message}"
+        }
+      end
+    end
+
+    def execute_tool_with_tracing(tool_name, arguments, agent)
+      # Get config from instance variable set by run methods
+      trace_sensitive = @current_config&.trace_include_sensitive_data != false
+
+      @tracer.tool_span(tool_name) do |tool_span|
+        tool_span.set_attribute("function.name", tool_name)
+
+        if trace_sensitive
+          tool_span.set_attribute("function.input", arguments)
+        else
+          tool_span.set_attribute("function.input", "[REDACTED]")
+        end
+
+        tool_span.add_event("function.start")
+
+        res = agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
+
+        if trace_sensitive
+          tool_span.set_attribute("function.output", res.to_s[0..1000]) # Limit size
+        else
+          tool_span.set_attribute("function.output", "[REDACTED]")
+        end
+
+        tool_span.add_event("function.complete")
+        res
+      end
     end
 
     def validate_structured_output(content, schema)

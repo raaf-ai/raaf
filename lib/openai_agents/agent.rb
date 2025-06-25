@@ -105,7 +105,8 @@ module OpenAIAgents
     #   @return [ToolUseBehavior::Base, String, Symbol, Proc] controls how tools are handled
     # @!attribute [rw] reset_tool_choice
     #   @return [Boolean] whether to reset tool choice after tool calls
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice
+    attr_writer :output_schema
 
     ##
     # Creates a new Agent instance
@@ -116,6 +117,7 @@ module OpenAIAgents
     # @param handoffs [Array<Agent>] agents this agent can hand off to
     # @param model [String] LLM model to use (default: "gpt-4")
     # @param max_turns [Integer] maximum conversation turns (default: 10)
+    # @param block [Block] optional configuration block for Ruby-style setup
     #
     # @example Create a basic agent
     #   agent = OpenAIAgents::Agent.new(
@@ -132,7 +134,16 @@ module OpenAIAgents
     #     handoffs: [support_agent],
     #     max_turns: 15
     #   )
-    def initialize(name:, instructions: nil, **options)
+    #
+    # @example Create an agent with block-based configuration (Ruby-idiomatic)
+    #   agent = OpenAIAgents::Agent.new(name: "Assistant") do |config|
+    #     config.instructions = "You are a helpful assistant"
+    #     config.model = "gpt-4o"
+    #     config.max_turns = 20
+    #     config.add_tool(calculator_tool)
+    #     config.add_handoff(other_agent)
+    #   end
+    def initialize(name:, instructions: nil, **options, &block)
       @name = name
       self.instructions = instructions # Use setter to support dynamic instructions
       @tools = (options[:tools] || []).dup
@@ -146,13 +157,16 @@ module OpenAIAgents
       @input_guardrails = (options[:input_guardrails] || []).dup
       @output_guardrails = (options[:output_guardrails] || []).dup
       @handoff_description = options[:handoff_description]
-      
+
       # Tool use behavior configuration
       @tool_use_behavior = ToolUseBehavior.from_config(options[:tool_use_behavior] || :run_llm_again)
       @reset_tool_choice = options.fetch(:reset_tool_choice, true)
-      
+
       # Handle output_type configuration
       configure_output_type
+
+      # Apply block-based configuration if provided (Ruby-idiomatic pattern)
+      yield(self) if block_given?
     end
 
     ##
@@ -320,20 +334,79 @@ module OpenAIAgents
     end
 
     ##
+    # Alias for tools? - more explicit naming
+    #
+    # @param context [RunContextWrapper, nil] current run context for dynamic tool filtering
+    # @return [Boolean] true if the agent has enabled tools, false otherwise
+    def has_tools?(context = nil)
+      tools?(context)
+    end
+
+    ##
+    # Checks if the agent has any handoffs available
+    #
+    # @return [Boolean] true if the agent has handoffs, false otherwise
+    #
+    # @example
+    #   if agent.handoffs?
+    #     puts "Agent can handoff to #{agent.handoffs.length} other agents"
+    #   end
+    def handoffs?
+      @handoffs.any?
+    end
+
+    ##
+    # Checks if the agent has an output schema defined
+    #
+    # @return [Boolean] true if the agent has output schema, false otherwise
+    #
+    # @example
+    #   if agent.output_schema?
+    #     puts "Agent uses structured output"
+    #   end
+    def output_schema?
+      !@output_schema.nil? || (!@output_type_schema.nil? && !@output_type_schema.plain_text?)
+    end
+
+    ##
+    # Checks if the agent has input guardrails
+    #
+    # @return [Boolean] true if the agent has input guardrails, false otherwise
+    def input_guardrails?
+      @input_guardrails.any?
+    end
+
+    ##
+    # Checks if the agent has output guardrails
+    #
+    # @return [Boolean] true if the agent has output guardrails, false otherwise
+    def output_guardrails?
+      @output_guardrails.any?
+    end
+
+    ##
+    # Checks if the agent has lifecycle hooks configured
+    #
+    # @return [Boolean] true if the agent has hooks, false otherwise
+    def hooks?
+      !@hooks.nil?
+    end
+
+    ##
     # Get all enabled tools for the given context
     #
     # @param context [RunContextWrapper, nil] current run context
-    # @return [Array<FunctionTool>] enabled tools only
+    # @return [Array<FunctionTool>] enabled tools only (always returns array, never nil)
     def enabled_tools(context = nil)
-      FunctionTool.enabled_tools(@tools, context)
+      FunctionTool.enabled_tools(@tools || [], context)
     end
 
     ##
     # Get all tools (including disabled ones)
     #
-    # @return [Array<FunctionTool>] all tools regardless of enabled state
+    # @return [Array<FunctionTool>] all tools regardless of enabled state (always returns array)
     def all_tools
-      @tools
+      @tools || []
     end
 
     ##
@@ -365,6 +438,53 @@ module OpenAIAgents
     end
 
     ##
+    # Check if a tool exists with the given name
+    #
+    # @param tool_name [String, Symbol] name of the tool to check
+    # @return [Boolean] true if tool exists, false otherwise
+    def tool_exists?(tool_name)
+      @tools.any? { |t| t.name == tool_name.to_s }
+    end
+
+    ##
+    # Handle dynamic method calls for tool execution
+    #
+    # This Ruby-idiomatic approach allows calling tools directly as methods:
+    # Instead of: agent.execute_tool("get_weather", city: "Paris")
+    # You can use: agent.get_weather(city: "Paris")
+    #
+    # @param method_name [Symbol] the method name (should match a tool name)
+    # @param args [Array] positional arguments
+    # @param kwargs [Hash] keyword arguments
+    # @param block [Proc] optional block (passed to tool if supported)
+    # @return [Object] the result from the tool execution
+    # @raise [NoMethodError] if no tool matches the method name
+    #
+    # @example Dynamic tool execution
+    #   # If agent has a "get_weather" tool:
+    #   result = agent.get_weather(city: "Tokyo")
+    #
+    #   # If agent has a "calculate" tool:
+    #   result = agent.calculate(expression: "2 + 2")
+    def method_missing(method_name, *, **, &)
+      if tool_exists?(method_name)
+        execute_tool(method_name.to_s, *, **)
+      else
+        super
+      end
+    end
+
+    ##
+    # Check if method responds to dynamic tool calls
+    #
+    # @param method_name [Symbol] method name to check
+    # @param include_private [Boolean] whether to include private methods
+    # @return [Boolean] true if method is supported
+    def respond_to_missing?(method_name, include_private = false)
+      tool_exists?(method_name) || super
+    end
+
+    ##
     # Adds an input guardrail to the agent
     #
     # @param guardrail [Guardrails::InputGuardrail] The guardrail to add
@@ -377,6 +497,7 @@ module OpenAIAgents
       unless guardrail.is_a?(Guardrails::InputGuardrail)
         raise ArgumentError, "Expected InputGuardrail, got #{guardrail.class}"
       end
+
       @input_guardrails << guardrail
     end
 
@@ -393,7 +514,70 @@ module OpenAIAgents
       unless guardrail.is_a?(Guardrails::OutputGuardrail)
         raise ArgumentError, "Expected OutputGuardrail, got #{guardrail.class}"
       end
+
       @output_guardrails << guardrail
+    end
+
+    ##
+    # Clears all tools from the agent (destructive operation)
+    #
+    # @return [Agent] self for method chaining
+    #
+    # @example Clear all tools
+    #   agent.reset_tools!
+    def reset_tools!
+      @tools.clear
+      self
+    end
+
+    ##
+    # Clears all handoffs from the agent (destructive operation)
+    #
+    # @return [Agent] self for method chaining
+    #
+    # @example Clear all handoffs
+    #   agent.reset_handoffs!
+    def reset_handoffs!
+      @handoffs.clear
+      self
+    end
+
+    ##
+    # Clears all input guardrails from the agent (destructive operation)
+    #
+    # @return [Agent] self for method chaining
+    def reset_input_guardrails!
+      @input_guardrails.clear
+      self
+    end
+
+    ##
+    # Clears all output guardrails from the agent (destructive operation)
+    #
+    # @return [Agent] self for method chaining
+    def reset_output_guardrails!
+      @output_guardrails.clear
+      self
+    end
+
+    ##
+    # Resets the agent to basic configuration (destructive operation)
+    #
+    # @return [Agent] self for method chaining
+    #
+    # @example Reset agent completely
+    #   agent.reset!
+    def reset!
+      reset_tools!
+      reset_handoffs!
+      reset_input_guardrails!
+      reset_output_guardrails!
+      @output_schema = nil
+      @output_type = nil
+      @output_type_schema = nil
+      @hooks = nil
+      @prompt = nil
+      self
     end
 
     ##
@@ -403,14 +587,21 @@ module OpenAIAgents
     # directly or derived from output_type.
     #
     # @return [Hash, nil] the JSON schema or nil if no structured output
-    def get_output_schema
+    def output_schema
       return @output_schema if @output_schema
       return nil unless @output_type_schema
-      
+
       @output_type_schema.json_schema
-    rescue => e
+    rescue StandardError => e
       puts "[Agent] Warning: Could not get output schema: #{e.message}"
       nil
+    end
+
+    ##
+    # Deprecated alias for backward compatibility
+    # @deprecated Use {#output_schema} instead
+    def get_output_schema
+      output_schema
     end
 
     ##
@@ -421,7 +612,7 @@ module OpenAIAgents
     # @raise [ModelBehaviorError] if validation fails
     def validate_output(output)
       return output unless @output_type_schema
-      
+
       if output.is_a?(String) && !@output_type_schema.plain_text?
         # Try to parse and validate JSON
         @output_type_schema.validate_json(output)
@@ -495,7 +686,7 @@ module OpenAIAgents
     #     tool_name: "consult_specialist",
     #     tool_description: "Consult the specialist about topic X"
     #   )
-    #   
+    #
     #   main_agent = Agent.new(name: "Main", tools: [tool])
     #
     # @example With custom output extractor
@@ -504,9 +695,9 @@ module OpenAIAgents
     #     run_result.messages.last[:content]
     #   end
     def as_tool(tool_name: nil, tool_description: nil, custom_output_extractor: nil, &block)
-      tool_name ||= @name.downcase.gsub(/\s+/, '_')
+      tool_name ||= @name.downcase.gsub(/\s+/, "_")
       tool_description ||= @handoff_description || "Delegate to #{@name}"
-      
+
       # Use block if provided, otherwise use custom_output_extractor
       output_extractor = block || custom_output_extractor || default_output_extractor
 
@@ -515,19 +706,19 @@ module OpenAIAgents
         # Create a runner for this agent
         require_relative "runner"
         runner = Runner.new(agent: self)
-        
+
         # Build input message
         input_message = if kwargs.any?
-          # Include kwargs in the input
-          formatted_input = "#{input_text}\n\nAdditional context: #{kwargs.to_json}"
-          formatted_input
-        else
-          input_text
-        end
-        
+                          # Include kwargs in the input
+                          formatted_input = "#{input_text}\n\nAdditional context: #{kwargs.to_json}"
+                          formatted_input
+                        else
+                          input_text
+                        end
+
         # Run the agent
         result = runner.run(input_message)
-        
+
         # Extract output using the provided extractor
         output_extractor.call(result)
       end
@@ -553,11 +744,31 @@ module OpenAIAgents
 
     private
 
+    # Configuration and setup methods
+
+    def configure_output_type
+      return unless @output_type
+
+      # If output_type is already an AgentOutputSchemaBase, use it directly
+      @output_type_schema = if @output_type.is_a?(AgentOutputSchemaBase)
+                              @output_type
+                            else
+                              # Create an AgentOutputSchema from the type
+                              AgentOutputSchema.new(@output_type, strict_json_schema: true)
+                            end
+
+      # If we don't have an output_schema but have output_type, derive it
+      @output_schema = @output_type_schema.json_schema if @output_schema.nil? && !@output_type_schema.plain_text?
+    rescue StandardError => e
+      puts "[Agent] Warning: Could not configure output type: #{e.message}"
+      @output_type_schema = nil
+    end
+
     def default_output_extractor
       proc do |run_result|
         # Extract the final assistant message content
         if run_result.respond_to?(:messages) && run_result.messages.any?
-          last_message = run_result.messages.reverse.find { |msg| msg[:role] == 'assistant' }
+          last_message = run_result.messages.reverse.find { |msg| msg[:role] == "assistant" }
           last_message&.dig(:content) || ""
         else
           run_result.to_s
@@ -565,33 +776,15 @@ module OpenAIAgents
       end
     end
 
-    def configure_output_type
-      return unless @output_type
-
-      # If output_type is already an AgentOutputSchemaBase, use it directly
-      if @output_type.is_a?(AgentOutputSchemaBase)
-        @output_type_schema = @output_type
-      else
-        # Create an AgentOutputSchema from the type
-        @output_type_schema = AgentOutputSchema.new(@output_type, strict_json_schema: true)
-      end
-
-      # If we don't have an output_schema but have output_type, derive it
-      if @output_schema.nil? && !@output_type_schema.plain_text?
-        @output_schema = @output_type_schema.json_schema
-      end
-    rescue => e
-      puts "[Agent] Warning: Could not configure output type: #{e.message}"
-      @output_type_schema = nil
-    end
+    # Collection processing utilities
 
     def safe_map_to_h(collection)
       return [] unless collection.respond_to?(:map)
 
-      collection.map do |item|
+      collection.filter_map do |item|
         if item.respond_to?(:to_h)
           item.to_h
-        else
+        elsif item.respond_to?(:to_s)
           item.to_s
         end
       end
@@ -602,7 +795,7 @@ module OpenAIAgents
     def safe_map_names(collection)
       return [] unless collection.respond_to?(:map)
 
-      collection.map do |item|
+      collection.filter_map do |item|
         case item
         when Agent
           item.name

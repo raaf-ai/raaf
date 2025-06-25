@@ -145,18 +145,64 @@ module OpenAIAgents
       result
     end
 
-    # Convert to hash for API calls
-    def to_model_params
-      params = {}
+    # Merge with another RunConfig in place (destructive operation)
+    #
+    # @param other [RunConfig] configuration to merge in
+    # @return [RunConfig] self for method chaining
+    #
+    # @example Merge configurations in place
+    #   config.merge!(other_config)
+    def merge!(other)
+      return self unless other
 
-      params[:temperature] = temperature if temperature
-      params[:max_tokens] = max_tokens if max_tokens
-      params[:top_p] = top_p if top_p
-      params[:stop] = stop if stop
-      params[:frequency_penalty] = frequency_penalty if frequency_penalty
-      params[:presence_penalty] = presence_penalty if presence_penalty
-      params[:user] = user if user
-      params[:stream] = stream if stream
+      # Update all instance variables from other
+      instance_variables.each do |var|
+        other_value = other.instance_variable_get(var) if other.instance_variable_defined?(var)
+
+        # Use other's value if defined and not nil
+        instance_variable_set(var, other_value) if other.instance_variable_defined?(var) && !other_value.nil?
+      end
+
+      self
+    end
+
+    # Reset all configuration to defaults (destructive operation)
+    #
+    # @return [RunConfig] self for method chaining
+    def reset!
+      @max_turns = nil
+      @trace_id = nil
+      @group_id = nil
+      @metadata = nil
+      @tracing_disabled = false
+      @trace_include_sensitive_data = true
+      @temperature = nil
+      @max_tokens = nil
+      @stream = false
+      @model = nil
+      @workflow_name = "Agent workflow"
+      @top_p = nil
+      @stop = nil
+      @frequency_penalty = nil
+      @presence_penalty = nil
+      @user = nil
+      @model_kwargs = {}
+      @hooks = nil
+      @input_guardrails = nil
+      @output_guardrails = nil
+      self
+    end
+
+    # Convert to hash for API calls using Ruby-idiomatic dynamic approach
+    def to_model_params
+      # Define parameters that should be included in model calls
+      model_params = %i[temperature max_tokens top_p stop frequency_penalty presence_penalty user stream]
+
+      # Use Ruby's send method for dynamic parameter mapping
+      params = model_params.each_with_object({}) do |param, hash|
+        value = send(param)
+        hash[param] = value if value
+      end
 
       # Merge any additional model kwargs
       params.merge!(model_kwargs) if model_kwargs

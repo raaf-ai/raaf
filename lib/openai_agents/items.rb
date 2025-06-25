@@ -16,11 +16,9 @@ module OpenAIAgents
 
       # Converts this item to an input item suitable for passing to the model
       def to_input_item
-        if @raw_item.is_a?(Hash)
-          @raw_item
-        else
-          raise ArgumentError, "Unexpected raw item type: #{@raw_item.class}"
-        end
+        raise ArgumentError, "Unexpected raw item type: #{@raw_item.class}" unless @raw_item.is_a?(Hash)
+
+        @raw_item
       end
     end
 
@@ -197,7 +195,7 @@ module OpenAIAgents
           # Handle array content (Responses API format)
           if content.is_a?(Array)
             text_parts = content.select { |part| part["type"] == "text" || part[:type] == :text }
-            return text_parts.map { |part| part["text"] || part[:text] }.join("")
+            return text_parts.map { |part| part["text"] || part[:text] }.join
           end
 
           ""

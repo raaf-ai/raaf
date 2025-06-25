@@ -91,7 +91,7 @@ weather_agent = OpenAIAgents::Agent.new(
 
 # Add a weather tool
 weather_agent.add_tool(
-  -> (location:) {
+  lambda { |location:|
     puts "[Weather API] Fetching weather for #{location}..."
     sleep(0.5) # Simulate API call
     "The weather in #{location} is sunny and 72°F with light winds."
@@ -107,7 +107,7 @@ general_agent = OpenAIAgents::Agent.new(
 
 # Add a search tool to general agent
 general_agent.add_tool(
-  -> (query:) {
+  lambda { |query:|
     puts "[Search API] Searching for: #{query}..."
     sleep(0.3) # Simulate API call
     "Found 5 results for '#{query}': Latest news, tutorials, and documentation."
@@ -180,12 +180,12 @@ error_agent = OpenAIAgents::Agent.new(
 
 # Add a tool that sometimes fails
 error_agent.add_tool(
-  -> (should_fail:) {
-    if should_fail
-      raise "Simulated tool failure!"
-    else
-      "Tool executed successfully"
-    end
+  lambda { |should_fail:|
+    raise "Simulated tool failure!" if should_fail
+      
+    
+    "Tool executed successfully"
+    
   }
 )
 
@@ -207,7 +207,7 @@ begin
     hooks: ErrorHandlingHooks.new
   )
   puts "\nResult: #{result.messages.last[:content]}"
-rescue => e
+rescue StandardError => e
   puts "\nExecution failed with: #{e.message}"
 end
 

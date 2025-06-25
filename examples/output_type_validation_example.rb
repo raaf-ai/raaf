@@ -49,7 +49,7 @@ class UserInfo
         age: { type: "integer", minimum: 0 },
         email: { type: "string", format: "email" }
       },
-      required: ["name", "age", "email"],
+      required: %w[name age email],
       additionalProperties: false
     }
   end
@@ -98,12 +98,12 @@ if content.is_a?(String) && content.start_with?("{")
     data = JSON.parse(content)
     user = UserInfo.from_json(data)
     puts "Parsed user: Name=#{user.name}, Age=#{user.age}, Email=#{user.email}"
-  rescue => e
+  rescue StandardError => e
     puts "Parse error: #{e.message}"
   end
 end
 
-puts "\n" + "=" * 50
+puts "\n" + ("=" * 50)
 
 # 4. Array Output Type
 puts "\n=== Example 4: Array Output Type ==="
@@ -131,7 +131,7 @@ class FlexibleOutputSchema < OpenAIAgents::AgentOutputSchemaBase
     @schema = {
       type: "object",
       properties: {
-        status: { type: "string", enum: ["success", "error", "pending"] },
+        status: { type: "string", enum: %w[success error pending] },
         data: { type: "object", additionalProperties: true },
         timestamp: { type: "string" }
       },
@@ -160,9 +160,7 @@ class FlexibleOutputSchema < OpenAIAgents::AgentOutputSchemaBase
     data = JSON.parse(json_str)
     
     # Basic validation
-    unless data.is_a?(Hash) && data["status"]
-      raise OpenAIAgents::ModelBehaviorError, "Missing required 'status' field"
-    end
+    raise OpenAIAgents::ModelBehaviorError, "Missing required 'status' field" unless data.is_a?(Hash) && data["status"]
     
     unless %w[success error pending].include?(data["status"])
       raise OpenAIAgents::ModelBehaviorError, "Invalid status: #{data["status"]}"
@@ -202,7 +200,7 @@ class Product
         price: { type: "number", minimum: 0 },
         in_stock: { type: "boolean" }
       },
-      required: ["name", "price", "in_stock"],
+      required: %w[name price in_stock],
       additionalProperties: false
     }
   end

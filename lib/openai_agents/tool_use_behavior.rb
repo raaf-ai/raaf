@@ -19,7 +19,7 @@ module OpenAIAgents
         results.each do |result|
           conversation << result
         end
-        
+
         { continue: true, done: false }
       end
     end
@@ -31,7 +31,7 @@ module OpenAIAgents
         results.each do |result|
           conversation << result
         end
-        
+
         { continue: false, done: true }
       end
     end
@@ -70,7 +70,7 @@ module OpenAIAgents
       def process_tool_result(agent, tool_calls, results, conversation)
         # Call custom function to determine behavior
         custom_result = @function.call(agent, tool_calls, results, conversation)
-        
+
         # Normalize result
         case custom_result
         when true, false
@@ -105,7 +105,7 @@ module OpenAIAgents
         if final_tools.any?
           # Extract final output using custom function
           final_output = @output_extractor.call(results, final_tools)
-          
+
           # Add final output as assistant message
           if final_output
             conversation << {
@@ -113,14 +113,14 @@ module OpenAIAgents
               content: final_output.to_s
             }
           end
-          
+
           { continue: false, done: true, final_output: final_output }
         else
           # Regular tool behavior - add results and continue
           results.each do |result|
             conversation << result
           end
-          
+
           { continue: true, done: false }
         end
       end

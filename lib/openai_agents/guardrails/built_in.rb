@@ -24,11 +24,11 @@ module OpenAIAgents
 
         def check_profanity(_context, _agent, input)
           content = extract_content(input)
-          
+
           @patterns.each do |pattern|
             if content.match?(pattern)
               return GuardrailFunctionOutput.new(
-                output_info: { 
+                output_info: {
                   matched_pattern: pattern.source,
                   content_snippet: content[0..100]
                 },
@@ -76,14 +76,12 @@ module OpenAIAgents
           detected_pii = []
 
           @patterns.each do |type, pattern|
-            if content.match?(pattern)
-              detected_pii << type
-            end
+            detected_pii << type if content.match?(pattern)
           end
 
           if detected_pii.any?
             GuardrailFunctionOutput.new(
-              output_info: { 
+              output_info: {
                 detected_pii_types: detected_pii,
                 message: "PII detected in input"
               },
@@ -120,10 +118,10 @@ module OpenAIAgents
 
         def check_length(_context, _agent, output)
           length = output.to_s.length
-          
+
           if length > @max_length
             GuardrailFunctionOutput.new(
-              output_info: { 
+              output_info: {
                 length: length,
                 max_length: @max_length,
                 exceeded_by: length - @max_length
@@ -132,7 +130,7 @@ module OpenAIAgents
             )
           else
             GuardrailFunctionOutput.new(
-              output_info: { 
+              output_info: {
                 length: length,
                 max_length: @max_length,
                 within_limit: true
@@ -154,37 +152,52 @@ module OpenAIAgents
 
         def validate_json(_context, _agent, output)
           # Try to parse as JSON
+          error_result = validate_and_parse_json(output)
+          return error_result if error_result
+
           data = case output
-          when String
-            begin
-              JSON.parse(output)
-            rescue JSON::ParserError => e
-              return GuardrailFunctionOutput.new(
-                output_info: { 
-                  error: "Invalid JSON",
-                  parse_error: e.message
-                },
-                tripwire_triggered: true
-              )
-            end
-          when Hash
-            output
-          else
-            return GuardrailFunctionOutput.new(
-              output_info: { 
-                error: "Output is not JSON",
-                output_type: output.class.name
+                 when String
+                   JSON.parse(output)
+                 when Hash
+                   output
+                 else
+                   return GuardrailFunctionOutput.new(
+                     output_info: {
+                       error: "Output must be JSON string or Hash",
+                       received_type: output.class.name
+                     },
+                     tripwire_triggered: true
+                   )
+                 end
+
+          # Validate against schema if data is available
+          validate_against_schema(data)
+        end
+
+        def validate_and_parse_json(output)
+          return nil unless output.is_a?(String)
+
+          begin
+            JSON.parse(output)
+            nil # No error
+          rescue JSON::ParserError => e
+            GuardrailFunctionOutput.new(
+              output_info: {
+                error: "Invalid JSON",
+                parse_error: e.message
               },
               tripwire_triggered: true
             )
           end
+        end
 
+        def validate_against_schema(data)
           # Validate against schema
-          validation_errors = validate_against_schema(data, @schema)
-          
+          validation_errors = schema_validation_errors(data, @schema)
+
           if validation_errors.any?
             GuardrailFunctionOutput.new(
-              output_info: { 
+              output_info: {
                 valid: false,
                 errors: validation_errors
               },
@@ -192,7 +205,7 @@ module OpenAIAgents
             )
           else
             GuardrailFunctionOutput.new(
-              output_info: { 
+              output_info: {
                 valid: true,
                 data: data
               },
@@ -201,26 +214,24 @@ module OpenAIAgents
           end
         end
 
-        def validate_against_schema(data, schema, path = "")
+        def schema_validation_errors(data, schema, path = "")
           errors = []
-          
+
           # Check type
           if schema[:type]
             expected_type = schema[:type]
             actual_type = case data
-            when Hash then "object"
-            when Array then "array"
-            when String then "string"
-            when Integer then "integer"
-            when Float then "number"
-            when TrueClass, FalseClass then "boolean"
-            when NilClass then "null"
-            else "unknown"
-            end
-            
-            if expected_type != actual_type
-              errors << "#{path}: Expected #{expected_type}, got #{actual_type}"
-            end
+                          when Hash then "object"
+                          when Array then "array"
+                          when String then "string"
+                          when Integer then "integer"
+                          when Float then "number"
+                          when TrueClass, FalseClass then "boolean"
+                          when NilClass then "null"
+                          else "unknown"
+                          end
+
+            errors << "#{path}: Expected #{expected_type}, got #{actual_type}" if expected_type != actual_type
           end
 
           # Object validation
@@ -242,11 +253,9 @@ module OpenAIAgents
           end
 
           # Array validation
-          if schema[:type] == "array" && data.is_a?(Array)
-            if schema[:items]
-              data.each_with_index do |item, index|
-                errors.concat(validate_against_schema(item, schema[:items], "#{path}[#{index}]"))
-              end
+          if schema[:type] == "array" && data.is_a?(Array) && schema[:items]
+            data.each_with_index do |item, index|
+              errors.concat(validate_against_schema(item, schema[:items], "#{path}[#{index}]"))
             end
           end
 
@@ -265,7 +274,7 @@ module OpenAIAgents
 
         def check_relevance(_context, _agent, input)
           content = extract_content(input).downcase
-          
+
           # Simple keyword matching - in production, use embeddings or LLM
           relevant = @allowed_topics.any? do |topic|
             keywords = topic.downcase.split(/\s+/)
@@ -274,7 +283,7 @@ module OpenAIAgents
 
           if relevant
             GuardrailFunctionOutput.new(
-              output_info: { 
+              output_info: {
                 on_topic: true,
                 allowed_topics: @allowed_topics
               },
@@ -282,7 +291,7 @@ module OpenAIAgents
             )
           else
             GuardrailFunctionOutput.new(
-              output_info: { 
+              output_info: {
                 on_topic: false,
                 allowed_topics: @allowed_topics,
                 message: "Input appears to be off-topic"

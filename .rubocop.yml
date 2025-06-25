@@ -46,6 +46,8 @@ Metrics/BlockLength:
     - 'spec/**/*'
     - '*.gemspec'
     - 'Rakefile'
+    - 'lib/openai_agents/runner.rb'  # Complex tracing blocks
+    - 'lib/openai_agents/streaming_events.rb'  # Event handler blocks
 
 Metrics/ParameterLists:
   Max: 6    # Allow up to 6 parameters (reasonable for Ruby)
@@ -137,12 +139,15 @@ Metrics/MethodLength:
     - 'spec/**/*'
     - 'lib/openai_agents/models/cohere_provider.rb'  # Stream conversion is complex
     - 'lib/openai_agents/tracing/openai_processor.rb'  # Span data creation is complex
+    - 'lib/openai_agents/runner.rb'  # Complex tracing logic
+    - 'lib/openai_agents/streaming_events.rb'  # Event streaming setup
 
 # Class length exceptions for complex classes
 Metrics/ClassLength:
   Max: 450  # Slightly increased for usage tracking
   Exclude:
     - 'spec/**/*'
+    - 'lib/openai_agents/runner.rb'  # Core runner with comprehensive tracing
 
 # Line length exceptions for specific files with long debug output
 Layout/LineLength:

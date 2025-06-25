@@ -1,4 +1,4 @@
-require 'async'
+require "async"
 
 module OpenAIAgents
   ##
@@ -72,12 +72,14 @@ module OpenAIAgents
     def self.process_guardrail_results(results, type = :input)
       # Check for any tripwires first
       tripwire_result = results.find(&:tripwire_triggered?)
-      
+
       if tripwire_result
-        error_class = type == :input ? 
-          Guardrails::InputGuardrailTripwireTriggered : 
-          Guardrails::OutputGuardrailTripwireTriggered
-          
+        error_class = if type == :input
+                        Guardrails::InputGuardrailTripwireTriggered
+                      else
+                        Guardrails::OutputGuardrailTripwireTriggered
+                      end
+
         raise error_class.new(
           "#{type.capitalize} guardrail '#{tripwire_result.guardrail.name}' triggered",
           triggered_by: tripwire_result.guardrail.name,
@@ -86,7 +88,7 @@ module OpenAIAgents
       end
 
       # Log any execution errors
-      error_results = results.select { |r| !r.success? }
+      error_results = results.reject(&:success?)
       error_results.each do |error_result|
         warn "Guardrail #{error_result.guardrail.name} failed: #{error_result.error}"
       end
@@ -112,35 +114,33 @@ module OpenAIAgents
       end
     end
 
-    private
-
     def self.async_available?
       defined?(Async) && Async.current_task
-    rescue
+    rescue StandardError
       false
     end
 
     def self.run_async_guardrails(guardrails, context_wrapper, agent, content)
       results = []
-      
+
       Async do |task|
         # Create tasks for each guardrail
         guardrail_tasks = guardrails.map do |guardrail|
           task.async do
             start_time = Time.now
-            
+
             begin
               result = guardrail.run(context_wrapper, agent, content)
               duration = Time.now - start_time
-              
+
               GuardrailResult.new(
                 guardrail: guardrail,
                 result: result,
                 duration: duration
               )
-            rescue => e
+            rescue StandardError => e
               duration = Time.now - start_time
-              
+
               GuardrailResult.new(
                 guardrail: guardrail,
                 error: e,
@@ -161,32 +161,32 @@ module OpenAIAgents
 
     def self.run_async_with_cancellation(guardrails, context_wrapper, agent, content)
       results = []
-      
+
       Async do |task|
         # Create tasks for each guardrail
         guardrail_tasks = guardrails.map do |guardrail|
           task.async do
             start_time = Time.now
-            
+
             begin
               result = guardrail.run(context_wrapper, agent, content)
               duration = Time.now - start_time
-              
+
               guardrail_result = GuardrailResult.new(
                 guardrail: guardrail,
                 result: result,
                 duration: duration
               )
-              
+
               # If this guardrail triggered a tripwire, cancel other tasks
               if guardrail_result.tripwire_triggered?
                 guardrail_tasks.each { |t| t.stop if t != task.current_task }
               end
-              
+
               guardrail_result
-            rescue => e
+            rescue StandardError => e
               duration = Time.now - start_time
-              
+
               GuardrailResult.new(
                 guardrail: guardrail,
                 error: e,
@@ -198,11 +198,9 @@ module OpenAIAgents
 
         # Wait for all tasks to complete or be cancelled
         guardrail_tasks.each do |guardrail_task|
-          begin
-            results << guardrail_task.wait
-          rescue Async::Stop
-            # Task was cancelled, skip
-          end
+          results << guardrail_task.wait
+        rescue Async::Stop
+          # Task was cancelled, skip
         end
       end
 
@@ -212,19 +210,19 @@ module OpenAIAgents
     def self.run_sync_guardrails(guardrails, context_wrapper, agent, content)
       guardrails.map do |guardrail|
         start_time = Time.now
-        
+
         begin
           result = guardrail.run(context_wrapper, agent, content)
           duration = Time.now - start_time
-          
+
           GuardrailResult.new(
             guardrail: guardrail,
             result: result,
             duration: duration
           )
-        rescue => e
+        rescue StandardError => e
           duration = Time.now - start_time
-          
+
           GuardrailResult.new(
             guardrail: guardrail,
             error: e,
@@ -247,15 +245,15 @@ module OpenAIAgents
       return { results: [], total_duration: 0, parallel: false } if guardrails.empty?
 
       start_time = Time.now
-      
+
       results = if parallel && async_available?
-        run_async_guardrails(guardrails, context_wrapper, agent, content)
-      else
-        run_sync_guardrails(guardrails, context_wrapper, agent, content)
-      end
-      
+                  run_async_guardrails(guardrails, context_wrapper, agent, content)
+                else
+                  run_sync_guardrails(guardrails, context_wrapper, agent, content)
+                end
+
       total_duration = Time.now - start_time
-      
+
       {
         results: results,
         total_duration: total_duration,

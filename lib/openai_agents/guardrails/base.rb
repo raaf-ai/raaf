@@ -6,6 +6,7 @@ module OpenAIAgents
   module Guardrails
     # Base exceptions for guardrails
     class GuardrailError < Error; end
+
     class TripwireException < GuardrailError
       attr_reader :triggered_by, :content, :metadata
 
@@ -16,7 +17,7 @@ module OpenAIAgents
         @metadata = metadata
       end
     end
-    
+
     class InputGuardrailTripwireTriggered < TripwireException; end
     class OutputGuardrailTripwireTriggered < TripwireException; end
 

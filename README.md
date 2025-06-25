@@ -1,6 +1,8 @@
 # OpenAI Agents Ruby
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/Version-0.1.0-blue.svg)](https://rubygems.org/gems/openai_agents)
+[![Ruby](https://img.shields.io/badge/Ruby-3.0%2B-red.svg)](https://www.ruby-lang.org/)
 
 A comprehensive Ruby implementation of OpenAI Agents for building sophisticated multi-agent AI workflows. This gem provides 100% feature parity with the Python OpenAI Agents library, plus additional enterprise-grade capabilities.
 
@@ -150,17 +152,19 @@ Comprehensive observability with OpenAI dashboard integration for debugging and 
 ## 💻 Development Experience
 
 ```ruby
-# Interactive REPL for testing
-repl = OpenAIAgents::REPL.new(agent: agent)
-repl.start
+# Ruby-idiomatic agent configuration
+agent = OpenAIAgents::Agent.new(name: "Assistant") do |config|
+  config.instructions = "You are a helpful assistant"
+  config.model = "gpt-4o"
+  config.add_tool(calculator_tool)
+end
 
-# Advanced debugging
-debugger = OpenAIAgents::Debugging::Debugger.new
-debugger.set_breakpoint("agent_run_start")
+# Dynamic tool execution
+result = agent.get_weather(city: "Tokyo")  # Direct method calls
 
 # Comprehensive tracing
-tracer = OpenAIAgents::Tracing::SpanTracer.new
-tracer.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new)
+tracer = OpenAIAgents.tracer
+runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
 ```
 
 ## 🤝 Community & Support

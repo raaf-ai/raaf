@@ -15,28 +15,28 @@ module OpenAIAgents
     extend OutputGuardrailBuilder
 
     # Convenience method to create a profanity guardrail
-    def self.profanity_guardrail(**options)
-      BuiltIn::ProfanityGuardrail.new(**options)
+    def self.profanity_guardrail(**)
+      BuiltIn::ProfanityGuardrail.new(**)
     end
 
     # Convenience method to create a PII guardrail
-    def self.pii_guardrail(**options)
-      BuiltIn::PIIGuardrail.new(**options)
+    def self.pii_guardrail(**)
+      BuiltIn::PIIGuardrail.new(**)
     end
 
     # Convenience method to create a length guardrail
-    def self.length_guardrail(**options)
-      BuiltIn::LengthGuardrail.new(**options)
+    def self.length_guardrail(**)
+      BuiltIn::LengthGuardrail.new(**)
     end
 
     # Convenience method to create a JSON schema guardrail
-    def self.json_schema_guardrail(**options)
-      BuiltIn::JSONSchemaGuardrail.new(**options)
+    def self.json_schema_guardrail(**)
+      BuiltIn::JSONSchemaGuardrail.new(**)
     end
 
     # Convenience method to create a topic relevance guardrail
-    def self.topic_relevance_guardrail(**options)
-      BuiltIn::TopicRelevanceGuardrail.new(**options)
+    def self.topic_relevance_guardrail(**)
+      BuiltIn::TopicRelevanceGuardrail.new(**)
     end
   end
 end

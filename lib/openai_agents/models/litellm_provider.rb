@@ -51,8 +51,8 @@ module OpenAIAgents
       def initialize(model:, base_url: nil, api_key: nil)
         @model = model
         @base_url = base_url || ENV["LITELLM_BASE_URL"] || "http://localhost:8000"
-        @api_key = api_key || ENV["LITELLM_API_KEY"] || ENV["OPENAI_API_KEY"]
-        
+        @api_key = api_key || ENV["LITELLM_API_KEY"] || ENV.fetch("OPENAI_API_KEY", nil)
+
         # Ensure base_url doesn't end with /
         @base_url = @base_url.chomp("/")
       end
@@ -68,7 +68,7 @@ module OpenAIAgents
       # Chat completion using LiteLLM
       def chat_completion(messages:, model: nil, tools: nil, stream: false, **kwargs)
         model ||= @model
-        
+
         # LiteLLM uses the standard OpenAI-compatible API format
         body = {
           model: model,
@@ -114,7 +114,11 @@ module OpenAIAgents
         response = http.request(request)
 
         unless response.code.start_with?("2")
-          error_body = JSON.parse(response.body) rescue { "error" => response.body }
+          error_body = begin
+            JSON.parse(response.body)
+          rescue StandardError
+            { "error" => response.body }
+          end
           handle_error(response.code.to_i, error_body)
         end
 
@@ -146,7 +150,7 @@ module OpenAIAgents
               # Parse SSE format
               chunk.split("\n").each do |line|
                 next if line.empty? || !line.start_with?("data: ")
-                
+
                 data = line[6..] # Remove "data: " prefix
                 next if data == "[DONE]"
 
@@ -165,7 +169,7 @@ module OpenAIAgents
         messages.map do |msg|
           role = msg[:role] || msg["role"]
           content = msg[:content] || msg["content"]
-          
+
           # Handle tool messages
           if role == "tool"
             {
@@ -175,12 +179,10 @@ module OpenAIAgents
             }
           else
             base_msg = { role: role, content: content }
-            
+
             # Add tool calls if present
-            if msg[:tool_calls] || msg["tool_calls"]
-              base_msg[:tool_calls] = msg[:tool_calls] || msg["tool_calls"]
-            end
-            
+            base_msg[:tool_calls] = msg[:tool_calls] || msg["tool_calls"] if msg[:tool_calls] || msg["tool_calls"]
+
             base_msg
           end
         end
@@ -213,16 +215,12 @@ module OpenAIAgents
         body[:presence_penalty] = kwargs[:presence_penalty] if kwargs[:presence_penalty]
         body[:stop] = kwargs[:stop] if kwargs[:stop]
         body[:seed] = kwargs[:seed] if kwargs[:seed]
-        
+
         # Response format
-        if kwargs[:response_format]
-          body[:response_format] = kwargs[:response_format]
-        end
+        body[:response_format] = kwargs[:response_format] if kwargs[:response_format]
 
         # Provider-specific parameters can be passed through extra_body
-        if kwargs[:extra_body].is_a?(Hash)
-          body.merge!(kwargs[:extra_body])
-        end
+        body.merge!(kwargs[:extra_body]) if kwargs[:extra_body].is_a?(Hash)
 
         # Some providers need special handling
         handle_provider_specifics(body, kwargs)
@@ -230,30 +228,30 @@ module OpenAIAgents
 
       def handle_provider_specifics(body, kwargs)
         case @model
-        when /^anthropic\//
+        when %r{^anthropic/}
           # Anthropic uses max_tokens instead of max_completion_tokens
           body[:max_tokens] ||= 4096
-          
+
           # Anthropic-specific system prompt handling
           if body[:messages].first && body[:messages].first[:role] == "system"
             system_msg = body[:messages].shift
             body[:system] = system_msg[:content]
           end
-          
-        when /^gemini\//
+
+        when %r{^gemini/}
           # Gemini specific adjustments
           body[:generation_config] = {
             temperature: body.delete(:temperature),
             max_output_tokens: body.delete(:max_tokens),
             top_p: body.delete(:top_p)
           }.compact
-          
-        when /^cohere\//
+
+        when %r{^cohere/}
           # Cohere specific parameters
           body[:max_tokens] ||= 4000
           body[:connectors] = kwargs[:connectors] if kwargs[:connectors]
-          
-        when /^replicate\//
+
+        when %r{^replicate/}
           # Replicate needs input wrapped
           body[:input] = {
             prompt: body[:messages].map { |m| "#{m[:role]}: #{m[:content]}" }.join("\n")
@@ -264,7 +262,7 @@ module OpenAIAgents
 
       def handle_error(status_code, error_body)
         error_message = extract_error_message(error_body)
-        
+
         case status_code
         when 400
           raise APIError, "Bad request: #{error_message}"
@@ -286,10 +284,10 @@ module OpenAIAgents
       def extract_error_message(error_body)
         case error_body
         when Hash
-          error_body.dig("error", "message") || 
-          error_body["error"] || 
-          error_body["message"] || 
-          error_body.to_s
+          error_body.dig("error", "message") ||
+            error_body["error"] ||
+            error_body["message"] ||
+            error_body.to_s
         when String
           error_body
         else
@@ -306,29 +304,29 @@ module OpenAIAgents
         gpt4o: "openai/gpt-4o",
         gpt4: "openai/gpt-4",
         gpt35: "openai/gpt-3.5-turbo",
-        
+
         # Anthropic
         claude3_opus: "anthropic/claude-3-opus-20240229",
         claude3_sonnet: "anthropic/claude-3-sonnet-20240229",
         claude3_haiku: "anthropic/claude-3-haiku-20240307",
         claude2: "anthropic/claude-2.1",
-        
+
         # Google
         gemini_pro: "gemini/gemini-pro",
         gemini_pro_vision: "gemini/gemini-pro-vision",
         palm2: "palm/chat-bison",
-        
+
         # Cohere
         command: "cohere/command",
         command_light: "cohere/command-light",
-        
+
         # Together AI
         llama2_70b: "together_ai/togethercomputer/llama-2-70b-chat",
         mistral_7b: "together_ai/mistralai/Mistral-7B-Instruct-v0.1",
-        
+
         # Replicate
         llama2_13b: "replicate/meta/llama-2-13b-chat",
-        
+
         # Ollama (local)
         ollama_llama2: "ollama/llama2",
         ollama_mistral: "ollama/mistral",
@@ -336,9 +334,9 @@ module OpenAIAgents
       }.freeze
 
       # Create a LiteLLM provider for a specific model
-      def self.provider(model_key_or_name, **options)
+      def self.provider(model_key_or_name, **)
         model_name = MODELS[model_key_or_name] || model_key_or_name.to_s
-        LitellmProvider.new(model: model_name, **options)
+        LitellmProvider.new(model: model_name, **)
       end
 
       # Get all available models

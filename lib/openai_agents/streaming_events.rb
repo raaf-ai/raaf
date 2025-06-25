@@ -228,7 +228,7 @@ module OpenAIAgents
     class ChatCompletionStreamHandler
       FAKE_RESPONSES_ID = "fake-responses-id"
 
-      def self.handle_stream(response, stream, &block)
+      def self.handle_stream(response, stream, &)
         usage = nil
         state = StreamingState.new
         sequence_number = SequenceNumber.new
@@ -358,23 +358,23 @@ module OpenAIAgents
           end
 
           # Handle tool calls
-          if delta["tool_calls"]
-            delta["tool_calls"].each do |tc_delta|
-              index = tc_delta["index"]
-              state.function_calls[index] ||= {
-                "id" => FAKE_RESPONSES_ID,
-                "arguments" => "",
-                "name" => "",
-                "type" => "function_call",
-                "call_id" => ""
-              }
+          next unless delta["tool_calls"]
 
-              if tc_delta["function"]
-                state.function_calls[index]["arguments"] += tc_delta["function"]["arguments"] || ""
-                state.function_calls[index]["name"] += tc_delta["function"]["name"] || ""
-              end
-              state.function_calls[index]["call_id"] += tc_delta["id"] || ""
+          delta["tool_calls"].each do |tc_delta|
+            index = tc_delta["index"]
+            state.function_calls[index] ||= {
+              "id" => FAKE_RESPONSES_ID,
+              "arguments" => "",
+              "name" => "",
+              "type" => "function_call",
+              "call_id" => ""
+            }
+
+            if tc_delta["function"]
+              state.function_calls[index]["arguments"] += tc_delta["function"]["arguments"] || ""
+              state.function_calls[index]["name"] += tc_delta["function"]["name"] || ""
             end
+            state.function_calls[index]["call_id"] += tc_delta["id"] || ""
           end
         end
 
@@ -444,7 +444,7 @@ module OpenAIAgents
 
         # Build final response
         outputs = []
-        
+
         if state.text_content_index_and_output || state.refusal_content_index_and_output
           assistant_msg = {
             "id" => FAKE_RESPONSES_ID,
@@ -454,9 +454,7 @@ module OpenAIAgents
             "status" => "completed"
           }
 
-          if state.text_content_index_and_output
-            assistant_msg["content"] << state.text_content_index_and_output[1]
-          end
+          assistant_msg["content"] << state.text_content_index_and_output[1] if state.text_content_index_and_output
 
           if state.refusal_content_index_and_output
             assistant_msg["content"] << state.refusal_content_index_and_output[1]
@@ -479,7 +477,7 @@ module OpenAIAgents
         # Create final response
         final_response = response.dup
         final_response["output"] = outputs
-        
+
         if usage
           final_response["usage"] = {
             "input_tokens" => usage["prompt_tokens"],

@@ -17,10 +17,10 @@ module OpenAIAgents
         @server_config = server_config
         @client = nil
         @available_tools = {}
-        
+
         # Initialize client and connect if requested
         initialize_client if auto_connect
-        
+
         # Create the MCP function
         mcp_function = create_mcp_function
 
@@ -52,10 +52,10 @@ module OpenAIAgents
       # @return [Array<String>] names of available tools
       def available_tool_names
         return [] unless @client&.connected?
-        
+
         begin
           @available_tools.keys
-        rescue => e
+        rescue StandardError => e
           warn "Error getting MCP tool names: #{e.message}"
           []
         end
@@ -75,23 +75,23 @@ module OpenAIAgents
       # @return [Boolean] true if refresh was successful
       def refresh_tools!
         return false unless @client&.connected?
-        
+
         begin
           tools_response = @client.list_tools
           @available_tools = {}
-          
-          tools_response['tools']&.each do |tool|
-            @available_tools[tool['name']] = {
-              name: tool['name'],
-              description: tool['description'],
-              input_schema: tool['inputSchema']
+
+          tools_response["tools"]&.each do |tool|
+            @available_tools[tool["name"]] = {
+              name: tool["name"],
+              description: tool["description"],
+              input_schema: tool["inputSchema"]
             }
           end
-          
+
           # Update parameters enum
           update_parameters_enum
           true
-        rescue => e
+        rescue StandardError => e
           warn "Error refreshing MCP tools: #{e.message}"
           false
         end
@@ -111,12 +111,12 @@ module OpenAIAgents
       # @return [Boolean] true if connection successful
       def connect!
         return true if connected?
-        
+
         begin
           @client = MCP::Client.new(@server_config)
           @client.connect
           refresh_tools!
-        rescue => e
+        rescue StandardError => e
           warn "Failed to connect to MCP server #{@server_name}: #{e.message}"
           false
         end
@@ -135,60 +135,56 @@ module OpenAIAgents
       def create_mcp_function
         proc do |tool_name:, arguments: {}|
           # Ensure connection
-          unless connected?
-            return "Error: Not connected to MCP server #{@server_name}"
-          end
+          return "Error: Not connected to MCP server #{@server_name}" unless connected?
 
           # Validate tool exists
           unless @available_tools.key?(tool_name)
-            available = @available_tools.keys.join(', ')
+            available = @available_tools.keys.join(", ")
             return "Error: Tool '#{tool_name}' not available. Available tools: #{available}"
           end
 
           # Call MCP tool
           begin
             response = @client.call_tool(tool_name, arguments)
-            
-            case response['result']
+
+            case response["result"]
             when Array
               # Multiple results - combine them
-              response['result'].map do |result|
+              response["result"].map do |result|
                 format_mcp_result(result)
               end.join("\n\n")
             when Hash
               # Single result
-              format_mcp_result(response['result'])
+              format_mcp_result(response["result"])
             else
               # Plain result
-              response['result'].to_s
+              response["result"].to_s
             end
-          rescue => e
+          rescue StandardError => e
             "Error calling MCP tool '#{tool_name}': #{e.message}"
           end
         end
       end
 
       def format_mcp_result(result)
-        case result['type']
-        when 'text'
-          result['text']
-        when 'image'
-          "[Image: #{result['data'][0..50]}...]"
-        when 'resource'
-          "[Resource: #{result['resource']['uri']}]"
+        case result["type"]
+        when "text"
+          result["text"]
+        when "image"
+          "[Image: #{result["data"][0..50]}...]"
+        when "resource"
+          "[Resource: #{result["resource"]["uri"]}]"
         else
           result.to_s
         end
       end
 
       def initialize_client
-        begin
-          @client = MCP::Client.new(@server_config)
-          @client.connect
-          refresh_tools!
-        rescue => e
-          warn "Failed to initialize MCP client for #{@server_name}: #{e.message}"
-        end
+        @client = MCP::Client.new(@server_config)
+        @client.connect
+        refresh_tools!
+      rescue StandardError => e
+        warn "Failed to initialize MCP client for #{@server_name}: #{e.message}"
       end
 
       def update_parameters_enum
@@ -237,9 +233,9 @@ module OpenAIAgents
       # @option config [Hash] :config server-specific configuration
       # @return [MCPTool] configured MCP tool
       def self.create_from_config(config)
-        server_name = config[:name] || config['name']
-        server_config = config[:config] || config['config'] || {}
-        
+        server_name = config[:name] || config["name"]
+        server_config = config[:config] || config["config"] || {}
+
         MCPTool.new(
           server_name: server_name,
           server_config: server_config
@@ -265,23 +261,23 @@ module OpenAIAgents
       #
       # @param prefix [String] environment variable prefix (default: 'MCP_SERVER')
       # @return [MCPTool, nil] configured MCP tool or nil if not found
-      def self.create_from_env(prefix: 'MCP_SERVER')
-        server_name = ENV["#{prefix}_NAME"]
+      def self.create_from_env(prefix: "MCP_SERVER")
+        server_name = ENV.fetch("#{prefix}_NAME", nil)
         return nil unless server_name
 
-        server_type = ENV["#{prefix}_TYPE"] || 'stdio'
-        
+        server_type = ENV["#{prefix}_TYPE"] || "stdio"
+
         # Collect config variables
         config = {}
         ENV.each do |key, value|
           if key.start_with?("#{prefix}_CONFIG_")
-            config_key = key.sub("#{prefix}_CONFIG_", '').downcase
+            config_key = key.sub("#{prefix}_CONFIG_", "").downcase
             config[config_key] = value
           end
         end
-        
-        config['type'] = server_type
-        
+
+        config["type"] = server_type
+
         MCPTool.new(
           server_name: server_name,
           server_config: config
