@@ -179,6 +179,12 @@ module OpenAIAgents
         # Skip trace spans - they're handled separately
         return nil if span.kind == :trace
 
+        # Skip LLM spans without valid usage data
+        if span.kind == :llm
+          usage = extract_usage(span)
+          return nil unless usage # OpenAI API requires usage data for LLM spans
+        end
+
         # Create the span object with required fields
         span_data = create_span_data(span)
         return nil unless span_data
@@ -219,14 +225,17 @@ module OpenAIAgents
                    output_type: span.attributes["agent.output_type"] || "str"
                  }.compact
                when :llm
-                 {
+                 data = {
                    type: "generation",
                    input: span.attributes["llm.request.messages"] || [],
                    output: format_llm_output(span),
                    model: span.attributes["llm.request.model"],
-                   model_config: extract_model_config(span),
-                   usage: extract_usage(span)
+                   model_config: extract_model_config(span)
                  }
+                 # Only include usage if we have valid data
+                 usage = extract_usage(span)
+                 data[:usage] = usage if usage
+                 data
                when :tool
                  {
                    type: "function",
@@ -329,10 +338,18 @@ module OpenAIAgents
       #
       # @api private
       def extract_usage(span)
+        # Extract usage data, ensuring we have valid integers
+        input_tokens = span.attributes["llm.usage.input_tokens"]
+        output_tokens = span.attributes["llm.usage.output_tokens"]
+
+        # Skip if we don't have valid token counts
+        return nil if input_tokens.nil? || output_tokens.nil?
+        return nil if input_tokens == 0 && output_tokens == 0
+
         {
-          input_tokens: span.attributes["llm.usage.prompt_tokens"],
-          output_tokens: span.attributes["llm.usage.completion_tokens"]
-        }.compact
+          input_tokens: input_tokens.to_i,
+          output_tokens: output_tokens.to_i
+        }
       end
 
       # Formats LLM output as expected by OpenAI traces API

@@ -26,6 +26,8 @@ module OpenAIAgents
       @provider = provider || Models::ResponsesProvider.new
       @disabled_tracing = disabled_tracing || ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : OpenAIAgents.tracer)
+
+      # NOTE: LLM span wrapper removed - ResponsesProvider now handles usage tracking directly
     end
 
     ##
@@ -276,13 +278,50 @@ module OpenAIAgents
                          **model_params
                        )
                      else
-                       @provider.chat_completion(
-                         messages: api_messages,
-                         model: model,
-                         tools: current_agent.tools? ? current_agent.tools : nil,
-                         stream: false,
-                         **model_params
-                       )
+                       # Create an LLM span for the API call
+                       @tracer.start_span("llm.#{model}", kind: :llm) do |llm_span|
+                         llm_response = @provider.chat_completion(
+                           messages: api_messages,
+                           model: model,
+                           tools: current_agent.tools? ? current_agent.tools : nil,
+                           stream: false,
+                           **model_params
+                         )
+
+                         # Capture usage data if available
+                         if llm_response.is_a?(Hash) && llm_response["usage"]
+                           usage = llm_response["usage"]
+                           # Only set usage attributes if we have actual token counts
+                           if usage["input_tokens"] && usage["output_tokens"] &&
+                              (usage["input_tokens"] > 0 || usage["output_tokens"] > 0)
+                             # Set individual usage attributes for OpenAI processor
+                             llm_span.set_attribute("llm.usage.input_tokens", usage["input_tokens"])
+                             llm_span.set_attribute("llm.usage.output_tokens", usage["output_tokens"])
+
+                             # Also set the full llm attribute for cost manager
+                             llm_span.set_attribute("llm", {
+                                                      "request" => {
+                                                        "model" => model,
+                                                        "messages" => api_messages
+                                                      },
+                                                      "response" => llm_response,
+                                                      "usage" => usage
+                                                    })
+                           end
+                         end
+
+                         # Always set request attributes
+                         llm_span.set_attribute("llm.request.model", model)
+                         llm_span.set_attribute("llm.request.messages", api_messages)
+
+                         # Set response content if available
+                         if llm_response.dig("choices", 0, "message", "content")
+                           llm_span.set_attribute("llm.response.content",
+                                                  llm_response["choices"][0]["message"]["content"])
+                         end
+
+                         llm_response
+                       end
                      end
 
           # Set agent output after API call
@@ -512,7 +551,8 @@ module OpenAIAgents
       if message["tool_calls"]
         # Pass context_wrapper if we have it (only in run_with_tracing)
         context_wrapper = @current_context_wrapper if defined?(@current_context_wrapper)
-        result[:done] = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper)
+        # Also pass the full response to capture OpenAI-hosted tool results
+        result[:done] = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper, response)
       end
 
       # Check for handoff
@@ -527,12 +567,12 @@ module OpenAIAgents
       result
     end
 
-    def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil)
+    def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil, full_response = nil)
       puts "[Runner] Processing #{tool_calls.size} tool calls"
 
       # Process each tool call and collect results using Ruby iterators
       results = tool_calls.map do |tool_call|
-        process_single_tool_call(tool_call, agent, context_wrapper)
+        process_single_tool_call(tool_call, agent, context_wrapper, full_response)
       end
 
       # Add all results to conversation
@@ -542,12 +582,59 @@ module OpenAIAgents
       false # Continue conversation after tool calls
     end
 
-    def process_single_tool_call(tool_call, agent, context_wrapper)
+    def process_single_tool_call(tool_call, agent, context_wrapper, full_response = nil)
       tool_name = tool_call.dig("function", "name")
       arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
 
-      # Find the tool object
-      tool = agent.tools.find { |t| t.name == tool_name }
+      # Check if this is an OpenAI-hosted tool (web_search, code_interpreter, etc.)
+      # These tools are executed by OpenAI, not locally
+      openai_hosted_tools = %w[web_search code_interpreter file_search]
+      if openai_hosted_tools.include?(tool_name)
+        puts "[Runner] Processing OpenAI-hosted tool: #{tool_name}"
+
+        # Extract the actual results from the response if available
+        tool_result = extract_openai_tool_result(tool_call["id"], full_response)
+        
+        # Create a detailed trace for the OpenAI-hosted tool
+        if @tracer && !@disabled_tracing
+          @tracer.tool_span(tool_name) do |tool_span|
+            tool_span.set_attribute("function.name", tool_name)
+            tool_span.set_attribute("function.input", arguments)
+            
+            # Add the actual results if we found them
+            if tool_result
+              tool_span.set_attribute("function.output", tool_result)
+              tool_span.set_attribute("function.has_results", true)
+            else
+              tool_span.set_attribute("function.output", "[Results embedded in assistant response]")
+              tool_span.set_attribute("function.has_results", false)
+            end
+            
+            tool_span.add_event("openai_hosted_tool")
+            
+            # Add detailed attributes for web_search
+            if tool_name == "web_search" && arguments["query"]
+              tool_span.set_attribute("web_search.query", arguments["query"])
+            end
+          end
+        end
+
+        # Return a message that includes extracted results if available
+        content = if tool_result
+                    "OpenAI-hosted tool '#{tool_name}' executed successfully."
+                  else
+                    "OpenAI-hosted tool '#{tool_name}' executed. Results in assistant response."
+                  end
+                    
+        return {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: content
+        }
+      end
+
+      # Find the tool object for local tools
+      tool = agent.tools.find { |t| t.respond_to?(:name) && t.name == tool_name }
 
       # Call tool start hooks if context is available
       call_hook(:on_tool_start, context_wrapper, agent, tool, arguments) if context_wrapper && tool
@@ -660,6 +747,35 @@ module OpenAIAgents
         # For simple values (strings, numbers, etc.), use to_s
         result.to_s
       end
+    end
+    
+    # Extract results from OpenAI-hosted tools in the response
+    def extract_openai_tool_result(tool_call_id, full_response)
+      return nil unless full_response
+      
+      # OpenAI sometimes includes tool results in a parallel structure
+      # Check if there's a tool_outputs or similar field
+      if full_response["tool_outputs"]
+        output = full_response["tool_outputs"].find { |o| o["tool_call_id"] == tool_call_id }
+        return output["output"] if output
+      end
+      
+      # For web_search, results might be embedded in the assistant's response
+      # We'll need to parse the assistant's message for structured results
+      choice = full_response.dig("choices", 0)
+      return nil unless choice
+      
+      message_content = choice.dig("message", "content")
+      return nil unless message_content
+      
+      # Look for structured search results in the content
+      # This is a heuristic approach - OpenAI might format results differently
+      if message_content.include?("search results") || message_content.include?("found the following")
+        # Return a summary indicating results are in the message
+        return "Search results embedded in assistant response: #{message_content[0..200]}..."
+      end
+      
+      nil
     end
   end
 end

@@ -44,6 +44,13 @@ runner = OpenAIAgents::Runner.new(
   agent: agent,
   provider: OpenAIAgents::Models::ResponsesProvider.new  # Default
 )
+
+# IMPORTANT: For token usage tracking and cost management, use OpenAIProvider
+# The ResponsesProvider (Responses API) doesn't return usage data
+runner = OpenAIAgents::Runner.new(
+  agent: agent,
+  provider: OpenAIAgents::Models::OpenAIProvider.new  # Use for token tracking
+)
 ```
 
 ### 2. Basic Usage Example

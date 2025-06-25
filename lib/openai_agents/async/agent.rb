@@ -104,8 +104,25 @@ module OpenAIAgents
       # Async version of call
       def call_async(**kwargs)
         Async do
-          @function.call(**kwargs)
+          if @callable.is_a?(Method)
+            @callable.call(**kwargs)
+          elsif @callable.is_a?(Proc)
+            # Handle both keyword and positional parameters for procs
+            params = @callable.parameters
+            if params.empty? || params.any? { |type, _| %i[keyreq key].include?(type) }
+              # Proc expects keyword arguments or no arguments
+              @callable.call(**kwargs)
+            else
+              # Proc expects positional arguments
+              args = params.map { |_type, name| kwargs[name] }
+              @callable.call(*args)
+            end
+          else
+            raise ToolError, "Callable must be a Method or Proc"
+          end
         end
+      rescue StandardError => e
+        raise ToolError, "Error executing tool '#{@name}': #{e.message}"
       end
 
       # Regular call method

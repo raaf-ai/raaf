@@ -1,0 +1,286 @@
+<% content_for :title, "Performance Analytics" %>
+<% content_for :breadcrumb do %>
+  <li class="breadcrumb-item"><%= link_to "Dashboard", dashboard_path %></li>
+  <li class="breadcrumb-item active" aria-current="page">Performance</li>
+<% end %>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Performance Analytics</h1>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-group me-2">
+      <%= link_to dashboard_performance_path(format: :json), 
+          class: "btn btn-sm btn-outline-secondary" do %>
+        <i class="bi bi-download me-1"></i>Export Data
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Time Range Filter -->
+<div class="filter-form">
+  <%= form_with url: dashboard_performance_path, method: :get, local: true, class: "row g-3" do |form| %>
+    <div class="col-md-4">
+      <%= form.datetime_local_field :start_time, 
+          value: params[:start_time] || 24.hours.ago.strftime("%Y-%m-%dT%H:%M"),
+          class: "form-control form-control-sm" %>
+      <label class="form-label">Start Time</label>
+    </div>
+    <div class="col-md-4">
+      <%= form.datetime_local_field :end_time,
+          value: params[:end_time] || Time.current.strftime("%Y-%m-%dT%H:%M"),
+          class: "form-control form-control-sm" %>
+      <label class="form-label">End Time</label>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+      <%= form.submit "Apply Filter", class: "btn btn-primary btn-sm me-2" %>
+      <%= link_to "Reset", dashboard_performance_path, class: "btn btn-outline-secondary btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<!-- Performance Metrics by Kind -->
+<div class="row mb-4">
+  <% @performance_by_kind.each do |kind, metrics| %>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-header d-flex align-items-center">
+          <%= kind_badge(kind) %>
+          <span class="ms-2 fw-bold"><%= kind.capitalize %></span>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-6">
+              <div class="h5 mb-0"><%= metrics[:total_spans] %></div>
+              <small class="text-muted">Total</small>
+            </div>
+            <div class="col-6">
+              <div class="h5 mb-0 text-<%= metrics[:success_rate] > 95 ? 'success' : metrics[:success_rate] > 80 ? 'warning' : 'danger' %>">
+                <%= metrics[:success_rate] %>%
+              </div>
+              <small class="text-muted">Success</small>
+            </div>
+          </div>
+          
+          <hr class="my-2">
+          
+          <dl class="row small mb-0">
+            <dt class="col-6">Avg Duration:</dt>
+            <dd class="col-6"><%= format_duration(metrics[:avg_duration_ms]) %></dd>
+            <dt class="col-6">P95 Duration:</dt>
+            <dd class="col-6"><%= format_duration(metrics[:p95_duration_ms]) %></dd>
+            <dt class="col-6">P99 Duration:</dt>
+            <dd class="col-6"><%= format_duration(metrics[:p99_duration_ms]) %></dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<!-- Performance Trends Chart -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Performance Over Time</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="performanceChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slowest Operations -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Slowest Operations (>1s)</h5>
+        <span class="badge bg-secondary"><%= @slowest_spans.count %></span>
+      </div>
+      <div class="card-body">
+        <% if @slowest_spans.any? %>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Operation</th>
+                  <th>Kind</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Trace</th>
+                  <th>Started</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @slowest_spans.each do |span| %>
+                  <tr>
+                    <td>
+                      <%= link_to span.name, span_path(span.span_id), 
+                          class: "text-decoration-none fw-bold" %>
+                      <br>
+                      <small class="text-muted font-monospace"><%= span.span_id %></small>
+                    </td>
+                    <td><%= kind_badge(span.kind) %></td>
+                    <td>
+                      <strong><%= format_duration(span.duration_ms) %></strong>
+                      <div class="duration-bar mt-1">
+                        <div class="duration-fill bg-warning" 
+                             style="width: <%= [span.duration_ms / @slowest_spans.first.duration_ms * 100, 100].min %>%"></div>
+                      </div>
+                    </td>
+                    <td><%= status_badge(span.status) %></td>
+                    <td>
+                      <% if span.trace %>
+                        <%= link_to span.trace.workflow_name, 
+                            trace_path(span.trace_id),
+                            class: "text-decoration-none" %>
+                      <% else %>
+                        <span class="text-muted">Unknown</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <%= span.start_time.strftime("%H:%M:%S") if span.start_time %>
+                      <br>
+                      <small class="text-muted"><%= time_ago_in_words(span.start_time) %> ago</small>
+                    </td>
+                    <td>
+                      <div class="btn-group" role="group">
+                        <%= link_to span_path(span.span_id), 
+                            class: "btn btn-sm btn-outline-primary" do %>
+                          <i class="bi bi-eye"></i>
+                        <% end %>
+                        <% if span.trace %>
+                          <%= link_to trace_path(span.trace_id), 
+                              class: "btn btn-sm btn-outline-secondary" do %>
+                            <i class="bi bi-diagram-3"></i>
+                          <% end %>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="text-center text-muted py-3">
+            <i class="bi bi-speedometer2 display-4"></i>
+            <h4>No slow operations found</h4>
+            <p>All operations completed in under 1 second during the selected time period.</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% content_for :javascript do %>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    <% if @performance_over_time.any? %>
+      // Performance over time chart
+      const ctx = document.getElementById('performanceChart').getContext('2d');
+      const chartData = <%= raw @performance_over_time.to_json %>;
+      
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartData.map(point => {
+            const date = new Date(point.timestamp);
+            return date.toLocaleTimeString();
+          }),
+          datasets: [
+            {
+              label: 'Average Duration (ms)',
+              data: chartData.map(point => point.avg_duration),
+              borderColor: 'rgb(54, 162, 235)',
+              backgroundColor: 'rgba(54, 162, 235, 0.1)',
+              tension: 0.1,
+              yAxisID: 'y'
+            },
+            {
+              label: 'P95 Duration (ms)',
+              data: chartData.map(point => point.p95_duration),
+              borderColor: 'rgb(255, 159, 64)',
+              backgroundColor: 'rgba(255, 159, 64, 0.1)',
+              tension: 0.1,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Span Count',
+              data: chartData.map(point => point.span_count),
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.1)',
+              tension: 0.1,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    if (context.dataset.yAxisID === 'y') {
+                      label += context.parsed.y.toFixed(2) + ' ms';
+                    } else {
+                      label += context.parsed.y;
+                    }
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Time'
+              }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Duration (ms)'
+              }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: {
+                display: true,
+                text: 'Span Count'
+              },
+              grid: {
+                drawOnChartArea: false,
+              },
+            }
+          }
+        }
+      });
+    <% end %>
+  });
+</script>
+<% end %>

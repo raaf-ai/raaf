@@ -1,0 +1,834 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <div>
+    <h1 class="h2">Span Details</h1>
+    <div class="text-muted">
+      <code><%= @span.span_id %></code>
+    </div>
+  </div>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-group me-2">
+      <% if @span.trace %>
+        <%= link_to trace_path(@span.trace_id), 
+            class: "btn btn-outline-primary" do %>
+          <i class="bi bi-diagram-3 me-1"></i>View Trace
+        <% end %>
+      <% end %>
+      <%= link_to span_path(@span.span_id, format: :json), 
+          class: "btn btn-outline-secondary" do %>
+        <i class="bi bi-download me-1"></i>Export JSON
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Span Overview -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Basic Information</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Name</dt>
+          <dd class="col-sm-8"><%= @span.name %></dd>
+          
+          <dt class="col-sm-4">Kind</dt>
+          <dd class="col-sm-8"><%= kind_badge(@span.kind) %></dd>
+          
+          <dt class="col-sm-4">Status</dt>
+          <dd class="col-sm-8"><%= status_badge(@span.status) %></dd>
+          
+          <dt class="col-sm-4">Duration</dt>
+          <dd class="col-sm-8"><%= format_duration(@span.duration_ms) %></dd>
+          
+          <dt class="col-sm-4">Start Time</dt>
+          <dd class="col-sm-8">
+            <% if @span.start_time %>
+              <%= @span.start_time.strftime("%Y-%m-%d %H:%M:%S.%3N") %>
+            <% else %>
+              -
+            <% end %>
+          </dd>
+          
+          <dt class="col-sm-4">End Time</dt>
+          <dd class="col-sm-8">
+            <% if @span.end_time %>
+              <%= @span.end_time.strftime("%Y-%m-%d %H:%M:%S.%3N") %>
+            <% else %>
+              -
+            <% end %>
+          </dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Relationships</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Trace ID</dt>
+          <dd class="col-sm-8">
+            <% if @span.trace %>
+              <%= link_to @span.trace_id, trace_path(@span.trace_id), 
+                  class: "font-monospace" %>
+            <% else %>
+              <code><%= @span.trace_id %></code>
+            <% end %>
+          </dd>
+          
+          <dt class="col-sm-4">Parent Span</dt>
+          <dd class="col-sm-8">
+            <% if @span.parent_span %>
+              <%= link_to @span.parent_id, span_path(@span.parent_id), 
+                  class: "font-monospace" %>
+            <% else %>
+              <span class="text-muted">Root span</span>
+            <% end %>
+          </dd>
+          
+          <dt class="col-sm-4">Children</dt>
+          <dd class="col-sm-8">
+            <% if @span.children.any? %>
+              <span class="badge bg-info"><%= @span.children.count %> children</span>
+            <% else %>
+              <span class="text-muted">No children</span>
+            <% end %>
+          </dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LLM Call Details (for AI spans) -->
+<% if @span.kind == "llm" && @span.span_attributes&.dig("llm") %>
+  <div class="card mb-4">
+    <div class="card-header bg-info text-white">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-robot me-2"></i>AI Call Details
+      </h5>
+    </div>
+    <div class="card-body">
+      <% llm_data = @span.span_attributes["llm"] %>
+      
+      <!-- Model and Usage -->
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <strong>Model:</strong> 
+          <code><%= llm_data.dig("request", "model") || "Unknown" %></code>
+        </div>
+        <div class="col-md-4">
+          <strong>Input Tokens:</strong> 
+          <span class="badge bg-secondary"><%= llm_data.dig("usage", "input_tokens") || 0 %></span>
+        </div>
+        <div class="col-md-4">
+          <strong>Output Tokens:</strong> 
+          <span class="badge bg-secondary"><%= llm_data.dig("usage", "output_tokens") || 0 %></span>
+        </div>
+      </div>
+      
+      <!-- Messages (Prompts) -->
+      <% if llm_data.dig("request", "messages").present? %>
+        <h6 class="mt-4 mb-3">Messages (Prompt)</h6>
+        <% llm_data["request"]["messages"].each do |message| %>
+          <div class="card mb-2 <%= 'bg-light' if message['role'] == 'system' %>">
+            <div class="card-header py-2">
+              <strong class="text-<%= message['role'] == 'system' ? 'primary' : message['role'] == 'user' ? 'success' : 'info' %>">
+                <%= message['role'].capitalize %>
+              </strong>
+            </div>
+            <div class="card-body py-2">
+              <% if message['content'].is_a?(String) %>
+                <pre class="mb-0" style="white-space: pre-wrap;"><%= message['content'] %></pre>
+              <% else %>
+                <pre class="mb-0"><code><%= JSON.pretty_generate(message['content']) %></code></pre>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+      
+      <!-- Response -->
+      <% if llm_data.dig("response", "choices").present? %>
+        <h6 class="mt-4 mb-3">Response</h6>
+        <% llm_data["response"]["choices"].each_with_index do |choice, index| %>
+          <div class="card mb-2 bg-light">
+            <div class="card-header py-2">
+              <strong class="text-warning">Assistant Response <%= "(Choice #{index + 1})" if llm_data["response"]["choices"].size > 1 %></strong>
+              <% if choice['finish_reason'] %>
+                <span class="badge bg-secondary float-end"><%= choice['finish_reason'] %></span>
+              <% end %>
+            </div>
+            <div class="card-body py-2">
+              <% if choice.dig('message', 'content') %>
+                <pre class="mb-0" style="white-space: pre-wrap;"><%= choice['message']['content'] %></pre>
+              <% elsif choice.dig('message', 'tool_calls') %>
+                <h6>Tool Calls:</h6>
+                <% choice['message']['tool_calls'].each do |tool_call| %>
+                  <div class="alert alert-secondary py-2 mb-2">
+                    <strong>Function:</strong> <code><%= tool_call.dig('function', 'name') %></code><br>
+                    <strong>Arguments:</strong>
+                    <pre class="mb-0 mt-1"><code><%= JSON.pretty_generate(JSON.parse(tool_call.dig('function', 'arguments') || '{}')) rescue tool_call.dig('function', 'arguments') %></code></pre>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+      
+      <!-- Additional Request Parameters -->
+      <% if llm_data["request"].keys.any? { |k| !["model", "messages"].include?(k) } %>
+        <h6 class="mt-4 mb-3">Request Parameters</h6>
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <tbody>
+              <% llm_data["request"].except("model", "messages").each do |key, value| %>
+                <tr>
+                  <td><strong><%= key.humanize %></strong></td>
+                  <td><code><%= value.inspect %></code></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% elsif @span.kind == "agent" && @span.span_attributes&.dig("agent") %>
+  <!-- Agent Details -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-person-badge me-2"></i>Agent Details
+      </h5>
+    </div>
+    <div class="card-body">
+      <% agent_data = @span.span_attributes["agent"] %>
+      
+      <!-- Agent Info -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <strong>Agent Name:</strong> 
+          <code><%= agent_data["name"] || "Unknown" %></code>
+        </div>
+        <div class="col-md-6">
+          <strong>Status:</strong> 
+          <%= status_badge(@span.status) %>
+        </div>
+      </div>
+      
+      <!-- Tools -->
+      <% if agent_data["tools"].present? %>
+        <h6 class="mt-3 mb-2">Available Tools</h6>
+        <div class="mb-3">
+          <% agent_data["tools"].each do |tool| %>
+            <span class="badge bg-secondary me-1"><%= tool %></span>
+          <% end %>
+        </div>
+      <% end %>
+      
+      <!-- Handoffs -->
+      <% if agent_data["handoffs"].present? %>
+        <h6 class="mt-3 mb-2">Available Handoffs</h6>
+        <div class="mb-3">
+          <% agent_data["handoffs"].each do |handoff| %>
+            <span class="badge bg-warning text-dark me-1"><%= handoff %></span>
+          <% end %>
+        </div>
+      <% end %>
+      
+      <!-- Agent Output -->
+      <% if agent_data["output"].present? %>
+        <h6 class="mt-4 mb-3">Agent Output</h6>
+        <% 
+          output = agent_data["output"]
+          # Try to parse as JSON if it's a string that looks like JSON
+          if output.is_a?(String) && (output.strip.start_with?('{') || output.strip.start_with?('['))
+            begin
+              parsed_json = JSON.parse(output)
+              output = parsed_json
+            rescue JSON::ParserError
+              # Keep as string if not valid JSON
+            end
+          end
+        %>
+        <% if output.is_a?(Hash) || output.is_a?(Array) %>
+          <pre class="mb-0" style="max-height: 600px; overflow-y: auto;"><code><%= JSON.pretty_generate(output) %></code></pre>
+        <% else %>
+          <pre class="mb-0" style="white-space: pre-wrap;"><%= output %></pre>
+        <% end %>
+      <% end %>
+      
+      <!-- Messages if present -->
+      <% if agent_data["messages"].present? %>
+        <h6 class="mt-4 mb-3">Agent Messages</h6>
+        <% agent_data["messages"].each do |message| %>
+          <div class="card mb-2">
+            <div class="card-header py-2">
+              <strong><%= message["role"]&.capitalize || "Message" %></strong>
+            </div>
+            <div class="card-body py-2">
+              <pre class="mb-0" style="white-space: pre-wrap;"><%= message["content"] %></pre>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+<% elsif @span.kind == "tool" && @span.span_attributes&.dig("function") %>
+  <!-- Tool Call Details -->
+  <div class="card mb-4 border-warning">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-tools me-2"></i>Tool Call Details
+      </h5>
+    </div>
+    <div class="card-body">
+      <% function_data = @span.span_attributes["function"] %>
+      
+      <!-- Tool Info -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <strong>Function Name:</strong> 
+          <code class="fs-5"><%= function_data["name"] || "Unknown" %></code>
+        </div>
+        <div class="col-md-6">
+          <strong>Status:</strong> 
+          <%= status_badge(@span.status) %>
+        </div>
+      </div>
+      
+      <!-- Function Input (Parameters) -->
+      <% if function_data["input"].present? %>
+        <h6 class="mt-4 mb-3">
+          <i class="bi bi-arrow-right-circle me-1"></i>Input Parameters
+        </h6>
+        <div class="card bg-light">
+          <div class="card-body">
+            <%
+              input = function_data["input"]
+              # Handle both string and hash inputs
+              if input.is_a?(String)
+                begin
+                  parsed_input = JSON.parse(input)
+                  input = parsed_input
+                rescue JSON::ParserError
+                  # Keep as string if not valid JSON
+                end
+              end
+            %>
+            <% if input.is_a?(Hash) %>
+              <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                  <tbody>
+                    <% input.each do |key, value| %>
+                      <tr>
+                        <td class="text-nowrap" style="width: 30%;"><strong><%= key %></strong></td>
+                        <td>
+                          <% if value.is_a?(Hash) || value.is_a?(Array) %>
+                            <pre class="mb-0" style="max-height: 200px; overflow-y: auto;"><code><%= JSON.pretty_generate(value) %></code></pre>
+                          <% elsif value.nil? %>
+                            <span class="text-muted">null</span>
+                          <% else %>
+                            <code><%= value.to_s.truncate(1000) %></code>
+                          <% end %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% else %>
+              <pre class="mb-0" style="white-space: pre-wrap;"><%= input %></pre>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+      
+      <!-- Function Output (Results) -->
+      <% if function_data["output"].present? %>
+        <h6 class="mt-4 mb-3">
+          <i class="bi bi-arrow-left-circle me-1"></i>Output Results
+        </h6>
+        <div class="card <%= @span.error? ? 'bg-danger-subtle' : 'bg-success-subtle' %>">
+          <div class="card-body">
+            <%
+              output = function_data["output"]
+              # Handle both string and structured outputs
+              if output.is_a?(String) && (output.strip.start_with?('{') || output.strip.start_with?('['))
+                begin
+                  parsed_output = JSON.parse(output)
+                  output = parsed_output
+                rescue JSON::ParserError
+                  # Keep as string if not valid JSON
+                end
+              end
+            %>
+            <% if output.is_a?(Hash) || output.is_a?(Array) %>
+              <pre class="mb-0" style="max-height: 400px; overflow-y: auto;"><code><%= JSON.pretty_generate(output) %></code></pre>
+            <% else %>
+              <pre class="mb-0" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"><%= output %></pre>
+            <% end %>
+          </div>
+        </div>
+      <% elsif @span.error? %>
+        <h6 class="mt-4 mb-3">
+          <i class="bi bi-x-circle me-1"></i>Tool Execution Failed
+        </h6>
+        <div class="alert alert-danger">
+          <% if @span.error_details[:exception_message] %>
+            <%= @span.error_details[:exception_message] %>
+          <% else %>
+            Tool execution failed without specific error message.
+          <% end %>
+        </div>
+      <% end %>
+      
+      <!-- Execution Time -->
+      <div class="mt-3 text-muted">
+        <small>
+          <i class="bi bi-clock me-1"></i>Execution time: <%= format_duration(@span.duration_ms) %>
+        </small>
+      </div>
+    </div>
+  </div>
+<% elsif @span.kind == "custom" && @span.span_attributes&.dig("custom") %>
+  <!-- Custom Operation Details -->
+  <div class="card mb-4 border-info">
+    <div class="card-header bg-info text-white">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-gear me-2"></i>Custom Operation Details
+      </h5>
+    </div>
+    <div class="card-body">
+      <% custom_data = @span.span_attributes["custom"] %>
+      
+      <!-- Operation Info -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <strong>Operation Name:</strong> 
+          <code class="fs-5"><%= custom_data["name"] || @span.name || "Unknown" %></code>
+        </div>
+        <div class="col-md-6">
+          <strong>Status:</strong> 
+          <%= status_badge(@span.status) %>
+        </div>
+      </div>
+      
+      <!-- Custom Data/Input -->
+      <% if custom_data["data"].present? %>
+        <h6 class="mt-4 mb-3">
+          <i class="bi bi-database me-1"></i>Operation Data
+        </h6>
+        <div class="card bg-light">
+          <div class="card-body">
+            <%
+              data = custom_data["data"]
+            %>
+            <% if data.is_a?(Hash) %>
+              <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                  <tbody>
+                    <% data.each do |key, value| %>
+                      <tr>
+                        <td class="text-nowrap" style="width: 30%;"><strong><%= key %></strong></td>
+                        <td>
+                          <% if value.is_a?(Hash) || value.is_a?(Array) %>
+                            <pre class="mb-0" style="max-height: 200px; overflow-y: auto;"><code><%= JSON.pretty_generate(value) %></code></pre>
+                          <% elsif value.nil? %>
+                            <span class="text-muted">null</span>
+                          <% else %>
+                            <code><%= value.to_s.truncate(1000) %></code>
+                          <% end %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% else %>
+              <pre class="mb-0" style="white-space: pre-wrap;"><%= data %></pre>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+      
+      <!-- Output/Result -->
+      <% output = @span.span_attributes&.dig("output") || @span.span_attributes&.dig("result") %>
+      <% if output.present? %>
+        <h6 class="mt-4 mb-3">
+          <i class="bi bi-check-circle me-1"></i>Operation Result
+        </h6>
+        <div class="card <%= @span.error? ? 'bg-danger-subtle' : 'bg-success-subtle' %>">
+          <div class="card-body">
+            <%
+              # Handle both string and structured outputs
+              if output.is_a?(String)
+                begin
+                  parsed_output = JSON.parse(output)
+                  output = parsed_output
+                rescue JSON::ParserError
+                  # Keep as string if not valid JSON
+                end
+              end
+            %>
+            <% if output.is_a?(Hash) || output.is_a?(Array) %>
+              <pre class="mb-0" style="max-height: 400px; overflow-y: auto;"><code><%= JSON.pretty_generate(output) %></code></pre>
+            <% else %>
+              <pre class="mb-0" style="white-space: pre-wrap;"><%= output %></pre>
+            <% end %>
+          </div>
+        </div>
+      <% elsif @span.error? %>
+        <h6 class="mt-4 mb-3">
+          <i class="bi bi-x-circle me-1"></i>Operation Failed
+        </h6>
+        <div class="alert alert-danger">
+          <% if @span.error_details[:exception_message] %>
+            <%= @span.error_details[:exception_message] %>
+          <% else %>
+            Operation failed without specific error message.
+          <% end %>
+        </div>
+      <% end %>
+      
+      <!-- Execution Time -->
+      <div class="mt-3 text-muted">
+        <small>
+          <i class="bi bi-clock me-1"></i>Execution time: <%= format_duration(@span.duration_ms) %>
+        </small>
+      </div>
+    </div>
+  </div>
+<% elsif @span.operation_details.any? %>
+  <!-- Generic Operation Details (for non-LLM spans) -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="card-title mb-0">Operation Details</h5>
+    </div>
+    <div class="card-body">
+      <pre class="mb-0"><code><%= JSON.pretty_generate(@span.operation_details) %></code></pre>
+    </div>
+  </div>
+<% end %>
+
+<!-- Error Details -->
+<% if @span.error? && @span.error_details.present? %>
+  <div class="card mb-4 border-danger">
+    <div class="card-header bg-danger text-white">
+      <h5 class="card-title mb-0">Error Details</h5>
+    </div>
+    <div class="card-body">
+      <% if @span.error_details[:exception_type] %>
+        <h6>Exception Type</h6>
+        <p><code><%= @span.error_details[:exception_type] %></code></p>
+      <% end %>
+      
+      <% if @span.error_details[:exception_message] %>
+        <h6>Error Message</h6>
+        <p><%= @span.error_details[:exception_message] %></p>
+      <% end %>
+      
+      <% if @span.error_details[:exception_stacktrace] %>
+        <h6>Stack Trace</h6>
+        <pre class="bg-light p-2"><code><%= @span.error_details[:exception_stacktrace] %></code></pre>
+      <% end %>
+      
+      <% if @span.error_details[:status_description] %>
+        <h6>Status Description</h6>
+        <p><%= @span.error_details[:status_description] %></p>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<!-- All Span Attributes -->
+<% if @span.span_attributes.present? %>
+  <div class="card mb-4">
+    <div class="card-header bg-dark text-white">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-database me-2"></i>All Span Attributes
+        <span class="badge bg-secondary float-end"><%= @span.span_attributes.keys.count %> attributes</span>
+      </h5>
+    </div>
+    <div class="card-body">
+      <!-- Display attributes in a more organized way -->
+      <div class="accordion" id="attributesAccordion">
+        <% @span.span_attributes.each_with_index do |(key, value), index| %>
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading<%= index %>">
+              <button class="accordion-button <%= index > 0 ? 'collapsed' : '' %>" type="button" 
+                      data-bs-toggle="collapse" data-bs-target="#collapse<%= index %>" 
+                      aria-expanded="<%= index == 0 ? 'true' : 'false' %>" aria-controls="collapse<%= index %>">
+                <strong><%= key %></strong>
+                <% if value.is_a?(Hash) %>
+                  <span class="badge bg-info ms-2"><%= value.keys.count %> keys</span>
+                <% elsif value.is_a?(Array) %>
+                  <span class="badge bg-warning ms-2"><%= value.count %> items</span>
+                <% elsif value.is_a?(String) && value.length > 100 %>
+                  <span class="badge bg-secondary ms-2"><%= value.length %> chars</span>
+                <% end %>
+              </button>
+            </h2>
+            <div id="collapse<%= index %>" class="accordion-collapse collapse <%= index == 0 ? 'show' : '' %>" 
+                 aria-labelledby="heading<%= index %>" data-bs-parent="#attributesAccordion">
+              <div class="accordion-body">
+                <% if value.is_a?(Hash) %>
+                  <% # Special handling for agent hash with output field
+                    if key == "agent" && value["output"].present?
+                      # Clone the hash and parse the output field if it's a JSON string
+                      display_value = value.dup
+                      if value["output"].is_a?(String) && (value["output"].strip.start_with?('{') || value["output"].strip.start_with?('['))
+                        begin
+                          display_value["output"] = JSON.parse(value["output"])
+                        rescue JSON::ParserError
+                          # Keep original if not valid JSON
+                        end
+                      end
+                      %><pre class="mb-0" style="max-height: 600px; overflow-y: auto;"><code><%= JSON.pretty_generate(display_value) %></code></pre><%
+                    else %>
+                      <pre class="mb-0" style="max-height: 600px; overflow-y: auto;"><code><%= JSON.pretty_generate(value) %></code></pre>
+                    <% end %>
+                <% elsif value.is_a?(Array) %>
+                  <pre class="mb-0" style="max-height: 600px; overflow-y: auto;"><code><%= JSON.pretty_generate(value) %></code></pre>
+                <% elsif value.is_a?(String) %>
+                  <% # Special handling for agent.output when it's a separate attribute
+                    if key == "agent.output" && (value.strip.start_with?('{') || value.strip.start_with?('['))
+                      begin
+                        parsed_json = JSON.parse(value)
+                        %><pre class="mb-0" style="max-height: 600px; overflow-y: auto;"><code><%= JSON.pretty_generate(parsed_json) %></code></pre><%
+                      rescue JSON::ParserError
+                        # Not valid JSON, show as regular string
+                        if value.length > 1000
+                          %><div style="max-height: 400px; overflow-y: auto;"><pre class="mb-0" style="white-space: pre-wrap;"><%= value %></pre></div><%
+                        else
+                          %><pre class="mb-0" style="white-space: pre-wrap;"><%= value %></pre><%
+                        end
+                      end
+                    elsif value.length > 1000 %>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                      <pre class="mb-0" style="white-space: pre-wrap;"><%= value %></pre>
+                    </div>
+                  <% else %>
+                    <pre class="mb-0" style="white-space: pre-wrap;"><%= value %></pre>
+                  <% end %>
+                <% elsif value.nil? %>
+                  <span class="text-muted">null</span>
+                <% else %>
+                  <code><%= value.inspect %></code>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+      
+      <!-- Raw JSON view option -->
+      <div class="mt-3">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" 
+                data-bs-target="#rawJsonView" aria-expanded="false" aria-controls="rawJsonView">
+          <i class="bi bi-code-slash me-1"></i>View Raw JSON
+        </button>
+        <div class="collapse mt-2" id="rawJsonView">
+          <pre class="bg-light p-3" style="max-height: 500px; overflow-y: auto;"><code><%= JSON.pretty_generate(@span.span_attributes) %></code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- Events -->
+<% if @span.events.present? && @span.events.any? %>
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="card-title mb-0">Events</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Name</th>
+              <th>Attributes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @span.event_timeline.each do |event| %>
+              <tr>
+                <td>
+                  <% if event['timestamp'] %>
+                    <%= Time.parse(event['timestamp']).strftime("%H:%M:%S.%3N") %>
+                  <% else %>
+                    -
+                  <% end %>
+                </td>
+                <td><%= event['name'] %></td>
+                <td>
+                  <% if event['attributes'].present? %>
+                    <pre class="mb-0"><code><%= JSON.pretty_generate(event['attributes']) %></code></pre>
+                  <% else %>
+                    -
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- Child Spans -->
+<% if @span.children.any? %>
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="card-title mb-0">Child Spans</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Span ID</th>
+              <th>Name</th>
+              <th>Kind</th>
+              <th>Status</th>
+              <th>Duration</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @span.children.each do |child| %>
+              <tr>
+                <td>
+                  <code class="text-truncate d-inline-block" style="max-width: 200px;">
+                    <%= child.span_id %>
+                  </code>
+                </td>
+                <td><%= child.name %></td>
+                <td><%= kind_badge(child.kind) %></td>
+                <td><%= status_badge(child.status) %></td>
+                <td><%= format_duration(child.duration_ms) %></td>
+                <td>
+                  <%= link_to span_path(child.span_id), 
+                      class: "btn btn-sm btn-outline-primary" do %>
+                    <i class="bi bi-eye"></i>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- Complete Span Record (Debug View) -->
+<div class="card">
+  <div class="card-header bg-secondary text-white">
+    <h5 class="card-title mb-0">
+      <i class="bi bi-bug me-2"></i>Complete Span Record (Debug View)
+    </h5>
+  </div>
+  <div class="card-body">
+    <p class="text-muted mb-3">
+      This section shows ALL data stored for this span, including system fields and database columns.
+    </p>
+    
+    <!-- Database Fields -->
+    <h6 class="mb-3">Database Fields</h6>
+    <div class="table-responsive mb-4">
+      <table class="table table-sm table-striped">
+        <tbody>
+          <tr>
+            <td width="30%"><strong>ID (Primary Key)</strong></td>
+            <td><code><%= @span.id %></code></td>
+          </tr>
+          <tr>
+            <td><strong>Span ID</strong></td>
+            <td><code><%= @span.span_id %></code></td>
+          </tr>
+          <tr>
+            <td><strong>Trace ID</strong></td>
+            <td><code><%= @span.trace_id %></code></td>
+          </tr>
+          <tr>
+            <td><strong>Parent ID</strong></td>
+            <td><code><%= @span.parent_id || 'null' %></code></td>
+          </tr>
+          <tr>
+            <td><strong>Name</strong></td>
+            <td><%= @span.name %></td>
+          </tr>
+          <tr>
+            <td><strong>Kind</strong></td>
+            <td><%= @span.kind %></td>
+          </tr>
+          <tr>
+            <td><strong>Status</strong></td>
+            <td><%= @span.status %></td>
+          </tr>
+          <tr>
+            <td><strong>Start Time</strong></td>
+            <td><%= @span.start_time&.iso8601(6) || 'null' %></td>
+          </tr>
+          <tr>
+            <td><strong>End Time</strong></td>
+            <td><%= @span.end_time&.iso8601(6) || 'null' %></td>
+          </tr>
+          <tr>
+            <td><strong>Duration (ms)</strong></td>
+            <td><%= @span.duration_ms || 'null' %></td>
+          </tr>
+          <tr>
+            <td><strong>Created At</strong></td>
+            <td><%= @span.created_at&.iso8601(6) %></td>
+          </tr>
+          <tr>
+            <td><strong>Updated At</strong></td>
+            <td><%= @span.updated_at&.iso8601(6) %></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Complete JSON Representation -->
+    <h6 class="mb-3">Complete JSON Representation</h6>
+    <pre class="bg-light p-3" style="max-height: 600px; overflow-y: auto;"><code><%= JSON.pretty_generate({
+      id: @span.id,
+      span_id: @span.span_id,
+      trace_id: @span.trace_id,
+      parent_id: @span.parent_id,
+      name: @span.name,
+      kind: @span.kind,
+      status: @span.status,
+      start_time: @span.start_time&.iso8601(6),
+      end_time: @span.end_time&.iso8601(6),
+      duration_ms: @span.duration_ms,
+      span_attributes: @span.span_attributes,
+      events: @span.events,
+      created_at: @span.created_at&.iso8601(6),
+      updated_at: @span.updated_at&.iso8601(6)
+    }) %></code></pre>
+    
+    <!-- ActiveRecord Attributes -->
+    <div class="mt-3">
+      <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" 
+              data-bs-target="#activeRecordAttributes" aria-expanded="false" aria-controls="activeRecordAttributes">
+        <i class="bi bi-gear me-1"></i>Show ActiveRecord Attributes
+      </button>
+      <div class="collapse mt-2" id="activeRecordAttributes">
+        <pre class="bg-light p-3"><code><%= @span.attributes.to_json %></code></pre>
+      </div>
+    </div>
+  </div>
+</div>

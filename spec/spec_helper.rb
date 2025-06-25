@@ -2,6 +2,15 @@
 
 require "bundler/setup"
 
+# Load Rails if available for testing Rails integrations
+begin
+  require "rails"
+  require "active_record"
+  require "action_controller"
+rescue LoadError
+  # Rails not available, skip Rails-specific tests
+end
+
 # Disable tracing during tests to prevent API calls and console noise
 ENV["OPENAI_AGENTS_DISABLE_TRACING"] = "true"
 

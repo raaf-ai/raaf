@@ -6,6 +6,7 @@ require "uri"
 require "securerandom"
 require_relative "interface"
 require_relative "../tracing/spans"
+require_relative "../token_estimator"
 
 module OpenAIAgents
   module Models
@@ -40,39 +41,17 @@ module OpenAIAgents
         warn "Model #{model} is not in the list of supported models: #{SUPPORTED_MODELS.join(", ")}"
       end
 
-      def responses_completion(messages:, model:, **kwargs)
-        # Get the current tracer from the trace context
-        current_tracer = OpenAIAgents.tracer
+      def responses_completion(messages:, model:, **)
+        # Make the actual API call
+        response = call_responses_api(
+          model: model,
+          input: extract_input_from_messages(messages),
+          instructions: extract_system_instructions(messages),
+          **
+        )
 
-        # Check if tracing is actually enabled (not a NoOpTracer)
-        if current_tracer && !current_tracer.is_a?(OpenAIAgents::Tracing::NoOpTracer)
-          # Create a response span exactly like Python - only response_id attribute
-          current_tracer.start_span("POST /v1/responses", kind: :response) do |response_span|
-            # Make the actual API call
-            response = call_responses_api(
-              model: model,
-              input: extract_input_from_messages(messages),
-              instructions: extract_system_instructions(messages),
-              **kwargs
-            )
-
-            # Set only the response_id attribute like Python ResponseSpanData.export()
-            response_span.set_attribute("response_id", response["id"]) if response && response["id"]
-
-            # Convert response to chat completion format for compatibility
-            convert_response_to_chat_format(response)
-          end
-
-        else
-          # No tracing, just make the API call directly
-          response = call_responses_api(
-            model: model,
-            input: extract_input_from_messages(messages),
-            instructions: extract_system_instructions(messages),
-            **kwargs
-          )
-          convert_response_to_chat_format(response)
-        end
+        # Convert response to chat completion format for compatibility
+        convert_response_to_chat_format(response, messages: messages, model: model)
       end
 
       # Prepares tools for the Responses API format
@@ -201,9 +180,11 @@ module OpenAIAgents
       # Converts Responses API format to chat completion format
       #
       # @param response [Hash] the response from Responses API
+      # @param messages [Array] the input messages for token estimation
+      # @param model [String] the model name for token estimation
       # @return [Hash, nil] converted response in chat format
       # @api private
-      def convert_response_to_chat_format(response)
+      def convert_response_to_chat_format(response, messages: [], model: "gpt-4o")
         # Convert OpenAI Responses API format to chat completion format
         # for compatibility with existing Ruby code
         return nil unless response && response["output"]
@@ -211,6 +192,7 @@ module OpenAIAgents
         # Debug logging in development
         if %w[development test].include?(ENV["RAILS_ENV"])
           puts "[ResponsesProvider] Raw API response output: #{response["output"].inspect}"
+          puts "[ResponsesProvider] Raw API usage: #{response["usage"].inspect}"
         end
 
         # Extract the text content from response output
@@ -231,11 +213,29 @@ module OpenAIAgents
         # Add tool calls if present
         message["tool_calls"] = tool_calls if tool_calls && !tool_calls.empty?
 
+        # Use actual usage if provided, otherwise estimate
+        usage = if response["usage"] && response["usage"]["input_tokens"] && response["usage"]["input_tokens"] > 0
+                  response["usage"]
+                else
+                  # Estimate token usage when not provided by the API
+                  estimated_usage = TokenEstimator.estimate_usage(
+                    messages: messages,
+                    response_content: content,
+                    model: response["model"] || model
+                  )
+
+                  if %w[development test].include?(ENV["RAILS_ENV"])
+                    puts "[ResponsesProvider] Estimated token usage: #{estimated_usage.inspect}"
+                  end
+
+                  estimated_usage
+                end
+
         {
           "id" => response["id"],
           "object" => "chat.completion",
           "created" => Time.now.to_i,
-          "model" => response["model"] || "gpt-4o",
+          "model" => response["model"] || model,
           "choices" => [
             {
               "index" => 0,
@@ -243,11 +243,7 @@ module OpenAIAgents
               "finish_reason" => tool_calls && !tool_calls.empty? ? "tool_calls" : "stop"
             }
           ],
-          "usage" => response["usage"] || {
-            "prompt_tokens" => 0,
-            "completion_tokens" => 0,
-            "total_tokens" => 0
-          }
+          "usage" => usage
         }
       end
 

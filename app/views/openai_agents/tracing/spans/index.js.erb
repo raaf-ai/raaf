@@ -1,0 +1,14 @@
+// Update the spans list via JavaScript
+console.log('Updating spans list...');
+
+// Replace the content
+var container = document.querySelector('#spans-container');
+if (container) {
+  container.innerHTML = '<%= j(render partial: "spans_list", locals: { spans: @spans }) %>';
+}
+
+// Update any counters or stats
+var totalCount = document.querySelector('#total-spans-count');
+if (totalCount) {
+  totalCount.textContent = '<%= @spans.count %>';
+}

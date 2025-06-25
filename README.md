@@ -13,7 +13,8 @@ A comprehensive Ruby implementation of OpenAI Agents for building sophisticated 
 - **🤖 Multi-Agent Workflows** - Specialized agents with intelligent routing
 - **🔧 Advanced Tool Integration** - File search, web search, computer automation, code interpreter
 - **📡 Real-time Streaming** - Live response streaming with event handling
-- **📊 Comprehensive Tracing** - OpenAI dashboard integration with span-based monitoring
+- **📊 Comprehensive Tracing** - OpenAI dashboard integration + Rails web interface with analytics
+- **🛤️ Rails Integration** - Complete mountable engine with database storage and web UI
 - **🎯 Multi-Provider Support** - OpenAI, Anthropic, Gemini, Cohere, Groq, Ollama, and 100+ LLMs
 - **📋 Universal Structured Output** - JSON schema enforcement across ALL providers
 - **🛡️ Enterprise Guardrails** - Safety, validation, compliance, and cost controls
@@ -124,6 +125,38 @@ runner = OpenAIAgents::Runner.new(agent: support_agent)
 result = runner.run("My API integration is failing with 500 errors")
 ```
 
+### Rails Integration Example
+
+```bash
+# Add to Gemfile and install
+gem 'openai_agents'
+bundle install
+
+# Generate Rails integration
+rails generate openai_agents:tracing:install
+rails db:migrate
+
+# Visit /tracing in your browser for web interface
+```
+
+```ruby
+# config/initializers/openai_agents_tracing.rb
+OpenAIAgents::Tracing.configure do |config|
+  config.auto_configure = true  # Automatically store traces in database
+  config.mount_path = '/tracing'
+end
+
+# app/jobs/application_job.rb
+class ApplicationJob < ActiveJob::Base
+  include OpenAIAgents::Tracing::RailsIntegrations::JobTracing
+end
+
+# Now all agent calls are automatically traced and visible at /tracing
+agent = OpenAIAgents::Agent.new(name: "Assistant", model: "gpt-4o")
+runner = OpenAIAgents::Runner.new(agent: agent)
+result = runner.run("Hello from Rails!")
+```
+
 ## 📚 Documentation
 
 ### Getting Started
@@ -135,6 +168,10 @@ result = runner.run("My API integration is failing with 500 errors")
 - **[Deployment Guide](DEPLOYMENT.md)** - Production setup, Docker, configuration
 - **[Security Guide](SECURITY.md)** - Security best practices and guidelines
 - **[Tracing Guide](TRACING.md)** - Monitoring and observability
+
+### Rails Integration
+- **[Rails Integration Guide](RAILS_INTEGRATION.md)** - Complete Rails integration with web UI
+- **[Rails Tracing Engine](TRACING_RAILS.md)** - Database storage and analytics dashboard
 
 ### Development
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project

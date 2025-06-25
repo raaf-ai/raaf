@@ -134,7 +134,10 @@ module OpenAIAgents
         enabled: true,
         processors: ["console"],
         export_format: "json",
-        max_spans_per_trace: 1000
+        max_spans_per_trace: 1000,
+        trace_include_sensitive_data: false,
+        detailed_tool_tracing: true,
+        capture_openai_tool_results: true
       },
 
       # Logging Configuration

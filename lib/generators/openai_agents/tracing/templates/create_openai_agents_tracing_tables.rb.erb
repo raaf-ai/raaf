@@ -1,0 +1,56 @@
+# frozen_string_literal: true
+
+class CreateOpenAIAgentsTracingTables < ActiveRecord::Migration<%= migration_version %>
+  def change
+    # Create traces table
+    create_table :openai_agents_tracing_traces do |t|
+      t.string :trace_id, null: false, limit: 40
+      t.string :workflow_name, null: false
+      t.string :group_id, limit: 255
+      t.text :metadata # JSON column for PostgreSQL, text for others
+      t.datetime :started_at
+      t.datetime :ended_at
+      t.string :status, default: 'pending', limit: 20
+      
+      t.timestamps
+    end
+
+    # Create spans table
+    create_table :openai_agents_tracing_spans do |t|
+      t.string :span_id, null: false, limit: 30
+      t.string :trace_id, null: false, limit: 40
+      t.string :parent_id, limit: 30
+      t.string :name, null: false
+      t.string :kind, default: 'internal', limit: 20
+      t.datetime :start_time
+      t.datetime :end_time
+      t.decimal :duration_ms, precision: 10, scale: 2
+      t.text :span_attributes # JSON column for PostgreSQL, text for others
+      t.text :events # JSON column for PostgreSQL, text for others
+      t.string :status, default: 'ok', limit: 20
+      
+      t.timestamps
+    end
+
+    # Add indexes for performance
+    add_index :openai_agents_tracing_traces, :trace_id, unique: true
+    add_index :openai_agents_tracing_traces, :workflow_name
+    add_index :openai_agents_tracing_traces, :status
+    add_index :openai_agents_tracing_traces, :started_at
+    add_index :openai_agents_tracing_traces, [:workflow_name, :started_at]
+
+    add_index :openai_agents_tracing_spans, :span_id, unique: true
+    add_index :openai_agents_tracing_spans, :trace_id
+    add_index :openai_agents_tracing_spans, :parent_id
+    add_index :openai_agents_tracing_spans, :kind
+    add_index :openai_agents_tracing_spans, :status
+    add_index :openai_agents_tracing_spans, :start_time
+    add_index :openai_agents_tracing_spans, [:trace_id, :start_time]
+    add_index :openai_agents_tracing_spans, [:kind, :start_time]
+    add_index :openai_agents_tracing_spans, :duration_ms
+
+    # Add foreign key constraint
+    add_foreign_key :openai_agents_tracing_spans, :openai_agents_tracing_traces,
+                    column: :trace_id, primary_key: :trace_id
+  end
+end

@@ -1,0 +1,25 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+    <h2 class="text-2xl font-bold text-red-800 mb-4">Error</h2>
+    
+    <% if local_assigns[:error] %>
+      <div class="mb-4">
+        <h3 class="text-lg font-semibold text-red-700">Message:</h3>
+        <p class="text-red-600"><%= error.message %></p>
+      </div>
+      
+      <% if Rails.env.development? %>
+        <div class="mt-6">
+          <h3 class="text-lg font-semibold text-red-700">Stack Trace:</h3>
+          <pre class="bg-red-100 p-4 rounded mt-2 text-xs overflow-x-auto"><%= error.backtrace&.first(10)&.join("\n") %></pre>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="text-red-600">An unexpected error occurred. Please try again later.</p>
+    <% end %>
+    
+    <div class="mt-6">
+      <%= link_to "Back to Traces", traces_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700" %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,322 @@
+<div class="costs-dashboard">
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h2>Cost Management Dashboard</h2>
+      <div class="time-range-selector">
+        <%= form_with url: costs_path, method: :get, local: false, data: { remote: true }, class: "time-range-form" do |f| %>
+          <%= f.select :timeframe, options_for_select([
+            ['Last 24 hours', '24h'],
+            ['Last 7 days', '7d'],
+            ['Last 30 days', '30d'],
+            ['Last 90 days', '90d']
+          ], params[:timeframe] || '24h'), {}, { class: "form-control", onchange: "this.form.submit();" } %>
+        <% end %>
+      </div>
+    </div>
+    
+    <!-- Tenant Filters -->
+    <div class="tenant-filters">
+      <%= form_with url: costs_path, method: :get, local: false, data: { remote: true }, class: "filters-form" do |f| %>
+        <div class="filter-group">
+          <%= f.text_field :tenant_id, placeholder: "Tenant ID", value: params[:tenant_id], class: "form-control form-control-sm" %>
+          <%= f.text_field :project_id, placeholder: "Project ID", value: params[:project_id], class: "form-control form-control-sm" %>
+          <%= f.text_field :user_id, placeholder: "User ID", value: params[:user_id], class: "form-control form-control-sm" %>
+          <%= f.submit "Filter", class: "btn btn-outline-primary btn-sm" %>
+          <% if params[:tenant_id] || params[:project_id] || params[:user_id] %>
+            <%= link_to "Clear", costs_path, class: "btn btn-outline-secondary btn-sm" %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Cost Summary Cards -->
+  <div class="cost-summary">
+    <div class="summary-cards">
+      <div class="summary-card total-cost">
+        <div class="card-header">
+          <h3>Total Cost</h3>
+          <i class="icon-dollar-sign"></i>
+        </div>
+        <div class="card-value">$<%= @cost_breakdown[:totals][:total_cost].round(4) %></div>
+        <div class="card-subtitle"><%= @cost_breakdown[:totals][:total_traces] %> traces</div>
+      </div>
+      
+      <div class="summary-card avg-cost">
+        <div class="card-header">
+          <h3>Avg Cost/Trace</h3>
+          <i class="icon-trending-up"></i>
+        </div>
+        <div class="card-value">$<%= @cost_breakdown[:totals][:avg_cost_per_trace].round(6) %></div>
+        <div class="card-subtitle">per request</div>
+      </div>
+      
+      <div class="summary-card token-usage">
+        <div class="card-header">
+          <h3>Token Usage</h3>
+          <i class="icon-hash"></i>
+        </div>
+        <div class="card-value"><%= number_with_delimiter(@cost_breakdown[:totals][:total_input_tokens] + @cost_breakdown[:totals][:total_output_tokens]) %></div>
+        <div class="card-subtitle">total tokens</div>
+        <% if Rails.env.development? %>
+          <div class="card-debug" style="font-size: 0.8em; margin-top: 5px; background: #f0f0f0; padding: 5px; border-radius: 3px;">
+            Input: <%= @cost_breakdown[:totals][:total_input_tokens] %><br>
+            Output: <%= @cost_breakdown[:totals][:total_output_tokens] %><br>
+            LLM Spans: <%= @cost_breakdown[:totals][:total_llm_calls] %><br>
+            Total Cost: $<%= @cost_breakdown[:totals][:total_cost] %><br>
+            <% if @cost_breakdown[:by_model].any? %>
+              Models: <%= @cost_breakdown[:by_model].keys.join(", ") %>
+            <% end %>
+          </div>
+        <% end %>
+        
+        <% # Check if we have any estimated usage data %>
+        <% has_estimated = false %>
+        <% if @cost_breakdown[:by_model].any? { |_, data| data[:llm_calls] > 0 } %>
+          <% # We have LLM calls, check if they're estimated %>
+          <% has_estimated = true %>
+          <div class="alert alert-info mt-2" style="font-size: 0.8em; padding: 8px;">
+            <strong>Note:</strong> Token usage shown may be estimated when using ResponsesProvider. 
+            For exact token counts, use OpenAIProvider:<br>
+            <code style="font-size: 0.9em;">OpenAIAgents::Runner.new(agent: agent, provider: OpenAIAgents::Models::OpenAIProvider.new)</code>
+          </div>
+        <% end %>
+      </div>
+      
+      <% if @budget_status %>
+      <div class="summary-card budget-status <%= @budget_status[:alert_triggered] ? 'alert' : '' %>">
+        <div class="card-header">
+          <h3>Budget Status</h3>
+          <i class="icon-<%= @budget_status[:is_over_budget] ? 'alert-triangle' : 'check-circle' %>"></i>
+        </div>
+        <div class="card-value"><%= @budget_status[:percentage_used].round(1) %>%</div>
+        <div class="card-subtitle">
+          $<%= @budget_status[:remaining].round(2) %> remaining
+        </div>
+      </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Charts and Breakdown -->
+  <div class="costs-content">
+    <div class="content-grid">
+      
+      <!-- Cost Breakdown by Model -->
+      <div class="breakdown-section">
+        <div class="section-header">
+          <h3>Cost by Model</h3>
+          <div class="section-actions">
+            <button class="btn btn-sm btn-outline-secondary" onclick="exportBreakdown('model')">Export</button>
+          </div>
+        </div>
+        <div class="breakdown-chart">
+          <canvas id="model-cost-chart"></canvas>
+        </div>
+        <div class="breakdown-table">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Cost</th>
+                <th>%</th>
+                <th>Traces</th>
+                <th>Tokens</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @cost_breakdown[:by_model].sort_by { |_, data| -data[:cost] }.each do |model, data| %>
+                <% percentage = (@cost_breakdown[:totals][:total_cost] > 0 ? (data[:cost] / @cost_breakdown[:totals][:total_cost] * 100) : 0).round(2) %>
+                <tr>
+                  <td><span class="model-badge"><%= model %></span></td>
+                  <td>$<%= data[:cost].round(4) %></td>
+                  <td><%= percentage %>%</td>
+                  <td><%= data[:traces] %></td>
+                  <td><%= number_with_delimiter(data[:input_tokens] + data[:output_tokens]) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Cost Breakdown by Workflow -->
+      <div class="breakdown-section">
+        <div class="section-header">
+          <h3>Cost by Workflow</h3>
+          <div class="section-actions">
+            <button class="btn btn-sm btn-outline-secondary" onclick="exportBreakdown('workflow')">Export</button>
+          </div>
+        </div>
+        <div class="breakdown-chart">
+          <canvas id="workflow-cost-chart"></canvas>
+        </div>
+        <div class="breakdown-table">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Cost</th>
+                <th>%</th>
+                <th>Traces</th>
+                <th>Avg/Trace</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @cost_breakdown[:by_workflow].sort_by { |_, data| -data[:cost] }.each do |workflow, data| %>
+                <% percentage = (@cost_breakdown[:totals][:total_cost] > 0 ? (data[:cost] / @cost_breakdown[:totals][:total_cost] * 100) : 0).round(2) %>
+                <% avg_per_trace = data[:traces] > 0 ? (data[:cost] / data[:traces]).round(6) : 0 %>
+                <tr>
+                  <td><span class="workflow-name"><%= truncate(workflow, length: 30) %></span></td>
+                  <td>$<%= data[:cost].round(4) %></td>
+                  <td><%= percentage %>%</td>
+                  <td><%= data[:traces] %></td>
+                  <td>$<%= avg_per_trace %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Hourly Cost Trends -->
+      <div class="trends-section">
+        <div class="section-header">
+          <h3>Cost Trends</h3>
+          <div class="trend-controls">
+            <button class="btn btn-sm btn-outline-primary" onclick="loadTrendData('daily')">Daily</button>
+            <button class="btn btn-sm btn-outline-primary" onclick="loadTrendData('hourly')">Hourly</button>
+          </div>
+        </div>
+        <div class="trends-chart">
+          <canvas id="cost-trends-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Cost Forecast -->
+      <% unless @forecast[:error] %>
+      <div class="forecast-section">
+        <div class="section-header">
+          <h3>30-Day Cost Forecast</h3>
+          <div class="forecast-info">
+            <span class="forecast-total">Projected: $<%= @forecast[:total_forecasted_cost].round(2) %></span>
+            <span class="forecast-trend <%= @forecast[:trend] %>"><%= @forecast[:trend].humanize %></span>
+          </div>
+        </div>
+        <div class="forecast-chart">
+          <canvas id="forecast-chart"></canvas>
+        </div>
+        <div class="forecast-summary">
+          <div class="forecast-stat">
+            <span class="label">Daily Average:</span>
+            <span class="value">$<%= @forecast[:avg_daily_cost].round(4) %></span>
+          </div>
+          <div class="forecast-stat">
+            <span class="label">Historical Average:</span>
+            <span class="value">$<%= @forecast[:historical_avg].round(4) %></span>
+          </div>
+        </div>
+      </div>
+      <% end %>
+
+      <!-- Tenant Breakdown (if multi-tenant) -->
+      <% if @cost_breakdown[:by_tenant].any? %>
+      <div class="tenant-section">
+        <div class="section-header">
+          <h3>Cost by Tenant</h3>
+          <div class="section-actions">
+            <button class="btn btn-sm btn-outline-secondary" onclick="exportBreakdown('tenant')">Export</button>
+          </div>
+        </div>
+        <div class="tenant-breakdown">
+          <% @cost_breakdown[:by_tenant].sort_by { |_, data| -data[:cost] }.first(10).each do |tenant, data| %>
+            <% percentage = (@cost_breakdown[:totals][:total_cost] > 0 ? (data[:cost] / @cost_breakdown[:totals][:total_cost] * 100) : 0).round(2) %>
+            <div class="tenant-item">
+              <div class="tenant-info">
+                <span class="tenant-id"><%= tenant %></span>
+                <span class="tenant-workflows"><%= data[:workflows].size %> workflows</span>
+              </div>
+              <div class="tenant-cost">
+                <span class="cost-amount">$<%= data[:cost].round(4) %></span>
+                <span class="cost-percentage"><%= percentage %>%</span>
+              </div>
+              <div class="tenant-bar">
+                <div class="bar-fill" style="width: <%= percentage %>%"></div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      <% end %>
+
+      <!-- Optimization Recommendations -->
+      <% if @recommendations.any? %>
+      <div class="optimization-section">
+        <div class="section-header">
+          <h3>Cost Optimization</h3>
+          <div class="optimization-summary">
+            <span class="potential-savings">
+              Potential savings: $<%= @recommendations.sum { |r| r[:potential_savings] || 0 }.round(2) %>
+            </span>
+          </div>
+        </div>
+        <div class="recommendations-list">
+          <% @recommendations.first(5).each do |recommendation| %>
+            <div class="recommendation-item">
+              <div class="recommendation-header">
+                <span class="recommendation-title"><%= recommendation[:title] %></span>
+                <span class="recommendation-impact badge badge-<%= recommendation[:impact] %>"><%= recommendation[:impact] %></span>
+                <span class="recommendation-effort badge badge-outline-<%= recommendation[:effort] %>"><%= recommendation[:effort] %> effort</span>
+              </div>
+              <div class="recommendation-description">
+                <%= recommendation[:description] %>
+              </div>
+              <% if recommendation[:potential_savings] %>
+              <div class="recommendation-savings">
+                Potential savings: $<%= recommendation[:potential_savings].round(2) %>
+              </div>
+              <% end %>
+            </div>
+          <% end %>
+          
+          <% if @recommendations.size > 5 %>
+          <div class="recommendations-more">
+            <%= link_to "View all #{@recommendations.size} recommendations", optimization_costs_path, class: "btn btn-outline-primary" %>
+          </div>
+          <% end %>
+        </div>
+      </div>
+      <% end %>
+
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="costs-loading" class="loading-overlay" style="display: none;">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading cost data...</div>
+</div>
+
+<script>
+  // Initialize cost dashboard data
+  window.costData = {
+    breakdown: <%= raw @cost_breakdown.to_json %>,
+    forecast: <%= raw @forecast.to_json %>,
+    budgetStatus: <%= raw (@budget_status || {}).to_json %>,
+    recommendations: <%= raw @recommendations.to_json %>
+  };
+  
+  // Configuration
+  window.costConfig = {
+    timeframe: '<%= params[:timeframe] || "24h" %>',
+    tenantFilters: {
+      tenant_id: '<%= params[:tenant_id] %>',
+      project_id: '<%= params[:project_id] %>',
+      user_id: '<%= params[:user_id] %>'
+    }
+  };
+</script>
+
+<%= javascript_include_tag 'openai_agents/tracing/costs_dashboard' %>
+<%= stylesheet_link_tag 'openai_agents/tracing/costs_dashboard' %>

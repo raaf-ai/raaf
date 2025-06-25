@@ -1,0 +1,370 @@
+<% content_for :title, "Error Analysis" %>
+<% content_for :breadcrumb do %>
+  <li class="breadcrumb-item"><%= link_to "Dashboard", dashboard_path %></li>
+  <li class="breadcrumb-item active" aria-current="page">Errors</li>
+<% end %>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Error Analysis</h1>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-group me-2">
+      <%= link_to dashboard_errors_path(format: :json), 
+          class: "btn btn-sm btn-outline-secondary" do %>
+        <i class="bi bi-download me-1"></i>Export Data
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Time Range Filter -->
+<div class="filter-form">
+  <%= form_with url: dashboard_errors_path, method: :get, local: true, class: "row g-3" do |form| %>
+    <div class="col-md-4">
+      <%= form.datetime_local_field :start_time, 
+          value: params[:start_time] || 24.hours.ago.strftime("%Y-%m-%dT%H:%M"),
+          class: "form-control form-control-sm" %>
+      <label class="form-label">Start Time</label>
+    </div>
+    <div class="col-md-4">
+      <%= form.datetime_local_field :end_time,
+          value: params[:end_time] || Time.current.strftime("%Y-%m-%dT%H:%M"),
+          class: "form-control form-control-sm" %>
+      <label class="form-label">End Time</label>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+      <%= form.submit "Apply Filter", class: "btn btn-primary btn-sm me-2" %>
+      <%= link_to "Reset", dashboard_errors_path, class: "btn btn-outline-secondary btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<!-- Error Overview -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card border-danger">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-danger"><%= @error_analysis[:total_errors] %></div>
+        <div class="text-muted">Total Errors</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-warning">
+          <%= @error_analysis[:errors_by_kind].values.sum > 0 ? 
+              @error_analysis[:errors_by_kind].keys.count : 0 %>
+        </div>
+        <div class="text-muted">Error Types</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-info">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-info">
+          <%= @error_analysis[:errors_by_workflow].keys.count %>
+        </div>
+        <div class="text-muted">Affected Workflows</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-secondary">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-secondary">
+          <%= @error_trends.any? ? @error_trends.last[:error_rate] : 0 %>%
+        </div>
+        <div class="text-muted">Current Error Rate</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Error Trends Chart -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Error Rate Over Time</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="errorTrendsChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Errors by Kind and Workflow -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Errors by Operation Type</h5>
+      </div>
+      <div class="card-body">
+        <% if @error_analysis[:errors_by_kind].any? %>
+          <% @error_analysis[:errors_by_kind].each do |kind, count| %>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <%= kind_badge(kind) %>
+                <span class="fw-bold"><%= kind.capitalize %></span>
+              </div>
+              <div>
+                <span class="badge bg-danger"><%= count %></span>
+              </div>
+            </div>
+            <div class="progress mb-3" style="height: 6px;">
+              <div class="progress-bar bg-danger" 
+                   style="width: <%= (count.to_f / @error_analysis[:total_errors] * 100).round(1) %>%"></div>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted">No errors found in the selected time period.</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Errors by Workflow</h5>
+      </div>
+      <div class="card-body">
+        <% if @error_analysis[:errors_by_workflow].any? %>
+          <% @error_analysis[:errors_by_workflow].sort_by { |_, count| -count }.first(10).each do |workflow, count| %>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <%= link_to workflow, traces_path(workflow: workflow, status: 'failed'), 
+                    class: "text-decoration-none" %>
+              </div>
+              <div>
+                <span class="badge bg-danger"><%= count %></span>
+              </div>
+            </div>
+            <div class="progress mb-3" style="height: 6px;">
+              <div class="progress-bar bg-danger" 
+                   style="width: <%= (count.to_f / @error_analysis[:total_errors] * 100).round(1) %>%"></div>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted">No workflow errors found.</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Errors -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Recent Errors</h5>
+        <span class="badge bg-danger"><%= @recent_errors.count %></span>
+      </div>
+      <div class="card-body">
+        <% if @recent_errors.any? %>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Operation</th>
+                  <th>Kind</th>
+                  <th>Workflow</th>
+                  <th>Error</th>
+                  <th>Duration</th>
+                  <th>Time</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @recent_errors.each do |span| %>
+                  <tr>
+                    <td>
+                      <%= link_to span.name, span_path(span.span_id), 
+                          class: "text-decoration-none fw-bold" %>
+                      <br>
+                      <small class="text-muted font-monospace"><%= span.span_id %></small>
+                    </td>
+                    <td><%= kind_badge(span.kind) %></td>
+                    <td>
+                      <% if span.trace %>
+                        <%= link_to span.trace.workflow_name, 
+                            trace_path(span.trace_id),
+                            class: "text-decoration-none" %>
+                      <% else %>
+                        <span class="text-muted">Unknown</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% error_details = span.error_details %>
+                      <% if error_details&.dig('exception_message') %>
+                        <div class="text-danger small">
+                          <%= truncate(error_details['exception_message'], length: 100) %>
+                        </div>
+                      <% elsif error_details&.dig('status_description') %>
+                        <div class="text-danger small">
+                          <%= truncate(error_details['status_description'], length: 100) %>
+                        </div>
+                      <% else %>
+                        <span class="text-muted">Unknown error</span>
+                      <% end %>
+                      
+                      <% if error_details&.dig('exception_type') %>
+                        <br>
+                        <small class="text-muted">
+                          Type: <code><%= error_details['exception_type'] %></code>
+                        </small>
+                      <% end %>
+                    </td>
+                    <td><%= format_duration(span.duration_ms) %></td>
+                    <td>
+                      <%= span.start_time.strftime("%H:%M:%S") if span.start_time %>
+                      <br>
+                      <small class="text-muted"><%= time_ago_in_words(span.start_time) %> ago</small>
+                    </td>
+                    <td>
+                      <div class="btn-group" role="group">
+                        <%= link_to span_path(span.span_id), 
+                            class: "btn btn-sm btn-outline-primary" do %>
+                          <i class="bi bi-eye"></i>
+                        <% end %>
+                        <% if span.trace %>
+                          <%= link_to trace_path(span.trace_id), 
+                              class: "btn btn-sm btn-outline-secondary" do %>
+                            <i class="bi bi-diagram-3"></i>
+                          <% end %>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-check-circle display-1 text-success"></i>
+            <h3>No Errors Found!</h3>
+            <p>No errors occurred during the selected time period.</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% content_for :javascript do %>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    <% if @error_trends.any? %>
+      // Error trends chart
+      const ctx = document.getElementById('errorTrendsChart').getContext('2d');
+      const chartData = <%= raw @error_trends.to_json %>;
+      
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartData.map(point => {
+            const date = new Date(point.timestamp);
+            return date.toLocaleTimeString();
+          }),
+          datasets: [
+            {
+              label: 'Error Rate (%)',
+              data: chartData.map(point => point.error_rate),
+              borderColor: 'rgb(220, 53, 69)',
+              backgroundColor: 'rgba(220, 53, 69, 0.1)',
+              tension: 0.1,
+              fill: true,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Total Spans',
+              data: chartData.map(point => point.total_spans),
+              borderColor: 'rgb(108, 117, 125)',
+              backgroundColor: 'rgba(108, 117, 125, 0.1)',
+              tension: 0.1,
+              fill: false,
+              yAxisID: 'y1'
+            },
+            {
+              label: 'Error Count',
+              data: chartData.map(point => point.error_spans),
+              borderColor: 'rgb(255, 193, 7)',
+              backgroundColor: 'rgba(255, 193, 7, 0.1)',
+              tension: 0.1,
+              fill: false,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    if (context.dataset.yAxisID === 'y') {
+                      label += context.parsed.y.toFixed(2) + '%';
+                    } else {
+                      label += context.parsed.y;
+                    }
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Time'
+              }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Error Rate (%)'
+              },
+              min: 0,
+              max: Math.max(100, Math.max(...chartData.map(p => p.error_rate)) * 1.1)
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: {
+                display: true,
+                text: 'Count'
+              },
+              grid: {
+                drawOnChartArea: false,
+              },
+            }
+          }
+        }
+      });
+    <% end %>
+  });
+</script>
+<% end %>

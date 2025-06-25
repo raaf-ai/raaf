@@ -1,0 +1,345 @@
+<% content_for :title, "Cost & Usage Analytics" %>
+<% content_for :breadcrumb do %>
+  <li class="breadcrumb-item"><%= link_to "Dashboard", dashboard_path %></li>
+  <li class="breadcrumb-item active" aria-current="page">Costs & Usage</li>
+<% end %>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Cost & Usage Analytics</h1>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-group me-2">
+      <%= link_to dashboard_costs_path(format: :json), 
+          class: "btn btn-sm btn-outline-secondary" do %>
+        <i class="bi bi-download me-1"></i>Export Data
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Time Range Filter -->
+<div class="filter-form">
+  <%= form_with url: dashboard_costs_path, method: :get, local: true, class: "row g-3" do |form| %>
+    <div class="col-md-4">
+      <%= form.datetime_local_field :start_time, 
+          value: params[:start_time] || 24.hours.ago.strftime("%Y-%m-%dT%H:%M"),
+          class: "form-control form-control-sm" %>
+      <label class="form-label">Start Time</label>
+    </div>
+    <div class="col-md-4">
+      <%= form.datetime_local_field :end_time,
+          value: params[:end_time] || Time.current.strftime("%Y-%m-%dT%H:%M"),
+          class: "form-control form-control-sm" %>
+      <label class="form-label">End Time</label>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+      <%= form.submit "Apply Filter", class: "btn btn-primary btn-sm me-2" %>
+      <%= link_to "Reset", dashboard_costs_path, class: "btn btn-outline-secondary btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<!-- Overall Usage Metrics -->
+<div class="row mb-4">
+  <div class="col">
+    <div class="card border-success">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-success">$<%= number_with_precision(@total_cost, precision: 4) %></div>
+        <div class="text-muted">Total Cost</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-primary"><%= number_with_delimiter(@cost_analysis[:total_tokens]) %></div>
+        <div class="text-muted">Total Tokens</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card border-info">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-info"><%= number_with_delimiter(@cost_analysis[:total_input_tokens]) %></div>
+        <div class="text-muted">Input Tokens</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card border-success">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-success"><%= number_with_delimiter(@cost_analysis[:total_output_tokens]) %></div>
+        <div class="text-muted">Output Tokens</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <div class="h3 mb-1 text-warning"><%= @cost_analysis[:total_llm_calls] %></div>
+        <div class="text-muted">LLM Calls</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Average Tokens per Call -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <div class="h4 mb-1"><%= @cost_analysis[:avg_tokens_per_call] %></div>
+        <div class="text-muted">Avg Tokens per Call</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <div class="h4 mb-1">
+          <%= @cost_analysis[:total_input_tokens] > 0 ? 
+              ((@cost_analysis[:total_output_tokens].to_f / @cost_analysis[:total_input_tokens]) * 100).round(1) : 0 %>%
+        </div>
+        <div class="text-muted">Output/Input Ratio</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <div class="h4 mb-1"><%= @cost_by_model.keys.count %></div>
+        <div class="text-muted">Models Used</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Usage by Model -->
+<% if @cost_by_model.any? %>
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Usage by Model</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Calls</th>
+                  <th>Cost</th>
+                  <th>Input Tokens</th>
+                  <th>Output Tokens</th>
+                  <th>Total Tokens</th>
+                  <th>Avg per Call</th>
+                  <th>Usage %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% total_tokens = @cost_analysis[:total_tokens] %>
+                <% @cost_by_model.sort_by { |_, stats| -stats[:total_tokens] }.each do |model, stats| %>
+                  <% model_cost = @model_costs[model] %>
+                  <tr>
+                    <td>
+                      <span class="badge bg-info"><%= model %></span>
+                    </td>
+                    <td><%= number_with_delimiter(stats[:call_count]) %></td>
+                    <td class="text-success">
+                      <strong>$<%= number_with_precision(model_cost&.dig(:cost) || 0.0, precision: 4) %></strong>
+                    </td>
+                    <td><%= number_with_delimiter(stats[:input_tokens]) %></td>
+                    <td><%= number_with_delimiter(stats[:output_tokens]) %></td>
+                    <td><strong><%= number_with_delimiter(stats[:total_tokens]) %></strong></td>
+                    <td>
+                      <%= stats[:call_count] > 0 ? 
+                          number_with_delimiter((stats[:total_tokens].to_f / stats[:call_count]).round) : 0 %>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <% percentage = total_tokens > 0 ? (stats[:total_tokens].to_f / total_tokens * 100).round(1) : 0 %>
+                        <span class="me-2"><%= percentage %>%</span>
+                        <div class="progress flex-grow-1" style="height: 6px;">
+                          <div class="progress-bar" style="width: <%= percentage %>%"></div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- Usage Over Time -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Token Usage Over Time</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="usageChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Consuming Workflows -->
+<% if @top_consuming_workflows.any? %>
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Top Consuming Workflows</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Workflow</th>
+                  <th>Traces</th>
+                  <th>LLM Calls</th>
+                  <th>Cost</th>
+                  <th>Total Tokens</th>
+                  <th>Avg per Trace</th>
+                  <th>Usage %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% total_tokens = @cost_analysis[:total_tokens] %>
+                <% @top_consuming_workflows.each do |workflow, stats| %>
+                  <tr>
+                    <td>
+                      <%= link_to workflow, traces_path(workflow: workflow), 
+                          class: "text-decoration-none fw-bold" %>
+                    </td>
+                    <td><%= number_with_delimiter(stats[:trace_count]) %></td>
+                    <td><%= number_with_delimiter(stats[:llm_calls]) %></td>
+                    <td class="text-success">
+                      <strong>$<%= number_with_precision(stats[:total_cost], precision: 4) %></strong>
+                    </td>
+                    <td><strong><%= number_with_delimiter(stats[:total_tokens]) %></strong></td>
+                    <td>
+                      <%= stats[:trace_count] > 0 ? 
+                          number_with_delimiter((stats[:total_tokens].to_f / stats[:trace_count]).round) : 0 %>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <% percentage = total_tokens > 0 ? (stats[:total_tokens].to_f / total_tokens * 100).round(1) : 0 %>
+                        <span class="me-2"><%= percentage %>%</span>
+                        <div class="progress flex-grow-1" style="height: 6px;">
+                          <div class="progress-bar bg-success" style="width: <%= percentage %>%"></div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<% content_for :javascript do %>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    <% if @usage_over_time.any? %>
+      // Usage over time chart
+      const ctx = document.getElementById('usageChart').getContext('2d');
+      const chartData = <%= raw @usage_over_time.to_json %>;
+      
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartData.map(point => {
+            const date = new Date(point.timestamp);
+            return date.toLocaleTimeString();
+          }),
+          datasets: [
+            {
+              label: 'Input Tokens',
+              data: chartData.map(point => point.input_tokens),
+              borderColor: 'rgb(54, 162, 235)',
+              backgroundColor: 'rgba(54, 162, 235, 0.1)',
+              tension: 0.1,
+              fill: false
+            },
+            {
+              label: 'Output Tokens',
+              data: chartData.map(point => point.output_tokens),
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.1)',
+              tension: 0.1,
+              fill: false
+            },
+            {
+              label: 'Total Tokens',
+              data: chartData.map(point => point.total_tokens),
+              borderColor: 'rgb(255, 99, 132)',
+              backgroundColor: 'rgba(255, 99, 132, 0.1)',
+              tension: 0.1,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    label += new Intl.NumberFormat().format(context.parsed.y) + ' tokens';
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Time'
+              }
+            },
+            y: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Tokens'
+              },
+              ticks: {
+                callback: function(value) {
+                  return new Intl.NumberFormat().format(value);
+                }
+              }
+            }
+          }
+        }
+      });
+    <% end %>
+  });
+</script>
+<% end %>

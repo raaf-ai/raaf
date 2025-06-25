@@ -6,8 +6,9 @@ Gem::Specification.new do |spec|
   spec.name = "openai_agents"
   spec.version = OpenAIAgents::VERSION
   spec.summary = "A Ruby implementation of OpenAI Agents for multi-agent AI workflows"
-  spec.description = "A lightweight yet powerful framework for building multi-agent workflows with Ruby. " \
-                     "Supports 100+ LLMs, async execution, tool integration, and agent handoffs."
+  spec.description = "A comprehensive Ruby framework for building multi-agent AI workflows. " \
+                     "Features 100+ LLM support, Rails integration with web UI, async execution, " \
+                     "advanced tracing, tool integration, and intelligent agent handoffs."
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
   spec.homepage = "https://github.com/enterprisemodules/openai-agents-ruby"
@@ -43,4 +44,14 @@ Gem::Specification.new do |spec|
 
   # fiddle will be removed from default gems in Ruby 3.5+
   spec.add_dependency "fiddle", "~> 1.0"
+
+  # Token counting
+  spec.add_dependency "tiktoken_ruby", "~> 0.0.5"
+
+  # Development and test dependencies
+  # rubocop:disable Gemspec/DevelopmentDependencies
+  spec.add_development_dependency "rails", ">= 6.0"
+  spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "rspec-collection_matchers", "~> 1.2"
+  # rubocop:enable Gemspec/DevelopmentDependencies
 end

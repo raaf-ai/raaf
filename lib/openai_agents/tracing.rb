@@ -7,6 +7,16 @@ require_relative "tracing/trace"
 require_relative "tracing/openai_processor"
 require_relative "tracing/trace_provider"
 
+# Load Rails engine and ActiveRecord processor if Rails is available
+begin
+  require "rails"
+  require_relative "tracing/engine"
+  require_relative "tracing/active_record_processor"
+  require_relative "tracing/rails_integrations"
+rescue LoadError
+  # Rails not available, skip Rails-specific components
+end
+
 module OpenAIAgents
   # Comprehensive tracing system for OpenAI Agents
   #
@@ -60,6 +70,23 @@ module OpenAIAgents
   # @see https://platform.openai.com/traces OpenAI Traces Dashboard
   module Tracing
     class << self
+      # Configuration object for tracing settings
+      attr_accessor :configuration
+
+      # Configure the tracing module
+      def configure
+        self.configuration ||= begin
+          require "active_support/ordered_options"
+          ActiveSupport::OrderedOptions.new
+        rescue LoadError
+          # Fallback to OpenStruct if ActiveSupport is not available
+          require "ostruct"
+          OpenStruct.new # rubocop:disable Style/OpenStructUse
+        end
+        yield(configuration) if block_given?
+        configuration
+      end
+
       # Creates a trace that groups multiple operations under a single workflow
       #
       # This method creates a new trace context that all subsequent operations
