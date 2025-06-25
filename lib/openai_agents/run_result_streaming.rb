@@ -423,5 +423,4 @@ module OpenAIAgents
   # Exception classes
   class InputGuardrailTripwireTriggered < StandardError; end
   class OutputGuardrailTripwireTriggered < StandardError; end
-  class MaxTurnsError < StandardError; end
 end

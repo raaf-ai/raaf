@@ -74,6 +74,40 @@ module OpenAIAgents
         end
       end
 
+      def prepare_tools_for_responses_api(tools)
+        return nil unless tools.respond_to?(:empty?) && tools.respond_to?(:map)
+        return nil if tools.empty?
+
+        tools.map do |tool|
+          case tool
+          when Hash
+            # Assume hash already has correct format, but ensure name is at top level
+            if tool[:function] && tool[:function][:name] && !tool[:name]
+              tool.merge(name: tool[:function][:name])
+            else
+              tool
+            end
+          when OpenAIAgents::FunctionTool
+            # Convert FunctionTool to Responses API format with top-level name
+            {
+              type: "function",
+              name: tool.name,
+              function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters
+              }
+            }
+          else
+            if tool.respond_to?(:to_tool_definition)
+              tool.to_tool_definition
+            else
+              raise ArgumentError, "Invalid tool type: #{tool.class}"
+            end
+          end
+        end
+      end
+
       def call_responses_api(model:, input:, instructions: nil, **kwargs)
         uri = URI("#{@api_base}/responses")
         http = Net::HTTP.new(uri.host, uri.port)
@@ -95,6 +129,12 @@ module OpenAIAgents
           body[:prompt] = kwargs[:prompt]
           kwargs = kwargs.dup
           kwargs.delete(:prompt)
+        end
+
+        # Process tools before merging kwargs
+        if kwargs[:tools]
+          kwargs = kwargs.dup
+          kwargs[:tools] = prepare_tools_for_responses_api(kwargs[:tools])
         end
 
         # Convert response_format to text.format for Responses API (matching Python implementation)

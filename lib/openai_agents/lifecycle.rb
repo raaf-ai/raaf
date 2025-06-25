@@ -146,54 +146,54 @@ module OpenAIAgents
   module AsyncHooks
     class RunHooks < OpenAIAgents::RunHooks
       # Async versions - override these in async subclasses
-      async def on_agent_start_async(context, agent)
+      def on_agent_start_async(context, agent)
         on_agent_start(context, agent)
       end
 
-      async def on_agent_end_async(context, agent, output)
+      def on_agent_end_async(context, agent, output)
         on_agent_end(context, agent, output)
       end
 
-      async def on_handoff_async(context, from_agent, to_agent)
+      def on_handoff_async(context, from_agent, to_agent)
         on_handoff(context, from_agent, to_agent)
       end
 
-      async def on_tool_start_async(context, agent, tool, arguments = {})
+      def on_tool_start_async(context, agent, tool, arguments = {})
         on_tool_start(context, agent, tool, arguments)
       end
 
-      async def on_tool_end_async(context, agent, tool, result)
+      def on_tool_end_async(context, agent, tool, result)
         on_tool_end(context, agent, tool, result)
       end
 
-      async def on_error_async(context, agent, error)
+      def on_error_async(context, agent, error)
         on_error(context, agent, error)
       end
     end
 
     class AgentHooks < OpenAIAgents::AgentHooks
       # Async versions - override these in async subclasses
-      async def on_start_async(context, agent)
+      def on_start_async(context, agent)
         on_start(context, agent)
       end
 
-      async def on_end_async(context, agent, output)
+      def on_end_async(context, agent, output)
         on_end(context, agent, output)
       end
 
-      async def on_handoff_async(context, agent, source)
+      def on_handoff_async(context, agent, source)
         on_handoff(context, agent, source)
       end
 
-      async def on_tool_start_async(context, agent, tool, arguments = {})
+      def on_tool_start_async(context, agent, tool, arguments = {})
         on_tool_start(context, agent, tool, arguments)
       end
 
-      async def on_tool_end_async(context, agent, tool, result)
+      def on_tool_end_async(context, agent, tool, result)
         on_tool_end(context, agent, tool, result)
       end
 
-      async def on_error_async(context, agent, error)
+      def on_error_async(context, agent, error)
         on_error(context, agent, error)
       end
     end

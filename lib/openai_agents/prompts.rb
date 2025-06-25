@@ -139,12 +139,15 @@ module OpenAIAgents
     end
 
     # Override instructions getter to support dynamic instructions
-    alias_method :static_instructions, :instructions
-
     def instructions
       return @instructions unless @instructions.is_a?(DynamicInstructions)
       # Return static placeholder for dynamic instructions
       "[Dynamic Instructions]"
+    end
+
+    # Alias to access original instructions method if needed
+    def static_instructions
+      @instructions
     end
 
     # Get actual instructions (static or dynamically generated)
