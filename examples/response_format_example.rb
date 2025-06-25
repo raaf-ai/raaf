@@ -35,7 +35,7 @@ USER_SCHEMA = {
           minItems: 1
         }
       },
-      required: ["name", "age", "email", "occupation", "interests"],
+      required: %w[name age email occupation interests],
       additionalProperties: false
     }
   }
@@ -54,7 +54,7 @@ PRODUCT_SCHEMA = {
         price: { type: "number", minimum: 0 },
         category: { 
           type: "string",
-          enum: ["electronics", "clothing", "food", "books", "other"]
+          enum: %w[electronics clothing food books other]
         },
         features: {
           type: "array",
@@ -72,7 +72,7 @@ PRODUCT_SCHEMA = {
         rating: { type: "integer", minimum: 1, maximum: 5 },
         in_stock: { type: "boolean" }
       },
-      required: ["product_name", "price", "category", "features", "pros", "cons", "rating", "in_stock"],
+      required: %w[product_name price category features pros cons rating in_stock],
       additionalProperties: false
     }
   }
@@ -84,7 +84,7 @@ def run_example_with_provider(provider_class, provider_name, api_key_env = nil)
 
   begin
     # Check API key
-    api_key = ENV[api_key_env] if api_key_env
+    api_key = ENV.fetch(api_key_env, nil) if api_key_env
     if api_key_env && !api_key
       puts "⚠️  Skipping #{provider_name} - #{api_key_env} not set"
       return
@@ -120,11 +120,10 @@ def run_example_with_provider(provider_class, provider_name, api_key_env = nil)
     puts "📋 Parsed data:"
     puts "   Name: #{user_data['name']}"
     puts "   Age: #{user_data['age']}"
-    puts "   Email: #{user_data['email']}" if user_data['email']
-    puts "   Occupation: #{user_data['occupation']}" if user_data['occupation']
-    puts "   Interests: #{user_data['interests']&.join(', ')}" if user_data['interests']
-
-  rescue => e
+    puts "   Email: #{user_data['email']}" if user_data["email"]
+    puts "   Occupation: #{user_data['occupation']}" if user_data["occupation"]
+    puts "   Interests: #{user_data['interests']&.join(', ')}" if user_data["interests"]
+  rescue StandardError => e
     puts "❌ Error with #{provider_name}: #{e.message}"
     puts "   This might be due to missing API key or provider configuration"
   end
@@ -145,31 +144,11 @@ def get_model_for_provider(provider_name)
   end
 end
 
-def demonstrate_migration
-  puts "\n🔄 Migration from output_schema to response_format"
-  puts "=" * 50
+def demonstrate_response_format
+  puts "\n🎯 Universal Structured Output with response_format"
+  puts "=" * 55
 
-  # Legacy approach (still works)
-  puts "\n📜 Legacy approach using output_schema:"
-  legacy_agent = OpenAIAgents::Agent.new(
-    name: "LegacyAgent",
-    instructions: "Extract user info as JSON",
-    model: "gpt-4o",
-    output_schema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        age: { type: "integer" }
-      },
-      required: ["name"]
-    }
-  )
-
-  puts "   Agent created with output_schema parameter"
-  puts "   ✅ Still works for backward compatibility"
-
-  # Modern approach (recommended)
-  puts "\n🆕 Modern approach using response_format:"
+  puts "\n🆕 Modern response_format approach:"
   modern_agent = OpenAIAgents::Agent.new(
     name: "ModernAgent",
     instructions: "Extract user info as JSON",
@@ -185,7 +164,7 @@ def demonstrate_migration
             name: { type: "string" },
             age: { type: "integer" }
           },
-          required: ["name"],
+          required: %w[name age],
           additionalProperties: false
         }
       }
@@ -196,6 +175,7 @@ def demonstrate_migration
   puts "   ✅ Works with ALL providers (OpenAI, Anthropic, Cohere, Groq, etc.)"
   puts "   ✅ Follows OpenAI standard format"
   puts "   ✅ Automatic provider-specific adaptations"
+  puts "   ✅ Guaranteed JSON schema compliance"
 end
 
 def demonstrate_complex_schema
@@ -231,18 +211,18 @@ def demonstrate_complex_schema
     puts "   Rating: #{product_data['rating']}/5"
     puts "   In Stock: #{product_data['in_stock'] ? 'Yes' : 'No'}"
     puts "   Features: #{product_data['features']&.join(', ')}"
-    puts "   Pros: #{product_data['pros']&.join(', ')}" if product_data['pros']
-    puts "   Cons: #{product_data['cons']&.join(', ')}" if product_data['cons']
+    puts "   Pros: #{product_data['pros']&.join(', ')}" if product_data["pros"]
+    puts "   Cons: #{product_data['cons']&.join(', ')}" if product_data["cons"]
     
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error: #{e.message}"
   end
 end
 
 # Main execution
 begin
-  # Demonstrate migration approach
-  demonstrate_migration
+  # Demonstrate response_format approach
+  demonstrate_response_format
 
   # Show complex schema usage
   demonstrate_complex_schema
@@ -267,18 +247,17 @@ begin
 
   puts "\n✨ Key Benefits of response_format:"
   puts "   🔄 Universal compatibility across ALL providers"
-  puts "   📝 OpenAI-standard format for easy migration"
+  puts "   📝 OpenAI-standard format"
   puts "   🔧 Automatic provider-specific adaptations"
   puts "   📊 Guaranteed structured output"
   puts "   🏗️  Type-safe JSON schema validation"
   
   puts "\n🎯 Usage Recommendations:"
-  puts "   ✅ Use response_format for new projects"
-  puts "   🔄 Migrate from output_schema when possible"
+  puts "   ✅ Use response_format for all projects"
   puts "   🌍 Works with any provider configuration"
-  puts "   📚 Follows OpenAI Agents Python SDK conventions"
-
-rescue => e
+  puts "   📚 Follows OpenAI standard conventions"
+  puts "   🚀 Future-proof and actively maintained"
+rescue StandardError => e
   puts "❌ Example failed: #{e.message}"
   puts "   Make sure OPENAI_API_KEY is set in your environment"
   puts "   Backtrace: #{e.backtrace.first(3).join('\n   ')}"

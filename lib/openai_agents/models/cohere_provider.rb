@@ -89,7 +89,7 @@ module OpenAIAgents
         if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
           # Enable JSON response format
           body[:response_format] = { type: "json_object" }
-          
+
           # Enhance system prompt with JSON schema instructions
           if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
             schema = kwargs[:response_format][:json_schema][:schema]
@@ -147,7 +147,7 @@ module OpenAIAgents
         if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
           # Enable JSON response format
           body[:response_format] = { type: "json_object" }
-          
+
           # Enhance system prompt with JSON schema instructions
           if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
             schema = kwargs[:response_format][:json_schema][:schema]

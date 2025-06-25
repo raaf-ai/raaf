@@ -110,23 +110,16 @@ RSpec.describe "Structured Output Integration" do
         result = runner.run(messages)
         
         # Should extract the JSON from the nested content array
-        response_content = result.messages.last[:content]
-        parsed_response = JSON.parse(response_content)
-        expect(parsed_response).to eq({
-                                        "name" => "Alice",
-                                        "age" => 25,
-                                        "email" => "alice@example.com",
-                                        "active" => true
-                                      })
+        expect(result.messages.last[:content]).to eq('{"name":"Alice","age":25,"email":"alice@example.com","active":true}')
       end
 
-      it "passes response_format directly without modification" do
-        # response_format should be passed as-is, no automatic strict processing
+      it "applies strict schema processing" do
+        # StrictSchema should make all properties required
         expect_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
           .to receive(:chat_completion) do |_, **kwargs|
-            expect(kwargs[:response_format]).to be_truthy
-            expect(kwargs[:response_format][:type]).to eq("json_schema")
-            expect(kwargs[:response_format][:json_schema][:strict]).to be true
+            schema_sent = kwargs[:response_format][:json_schema][:schema]
+            expect(schema_sent["required"]).to contain_exactly("name", "age", "email", "active")
+            expect(schema_sent["additionalProperties"]).to be false
             responses_api_response
           end
 
@@ -176,22 +169,15 @@ RSpec.describe "Structured Output Integration" do
       it "returns structured JSON directly" do
         result = runner.run(messages)
         
-        # Parse JSON and compare objects instead of string comparison for robustness
-        parsed_response = JSON.parse(result.messages.last[:content])
-        expect(parsed_response).to eq({
-          "name" => "Alice",
-          "age" => 25,
-          "email" => "alice@example.com",
-          "active" => true
-        })
+        expect(result.messages.last[:content]).to eq('{"name":"Alice","age":25,"email":"alice@example.com","active":true}')
       end
 
-      it "passes response_format directly to OpenAI without modification" do
+      it "applies strict schema processing" do
         expect(openai_provider)
           .to receive(:chat_completion) do |_, **kwargs|
-            expect(kwargs[:response_format]).to be_truthy
-            expect(kwargs[:response_format][:type]).to eq("json_schema")
-            expect(kwargs[:response_format][:json_schema][:strict]).to be true
+            schema_sent = kwargs[:response_format][:json_schema][:schema]
+            expect(schema_sent["required"]).to contain_exactly("name", "age", "email", "active")
+            expect(schema_sent["additionalProperties"]).to be false
             chat_completions_response
           end
 
@@ -264,13 +250,23 @@ RSpec.describe "Structured Output Integration" do
         .and_return(complex_response)
     end
 
-    it "handles complex nested schemas" do
+    it "handles complex nested schemas with strict processing" do
       expect_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
         .to receive(:chat_completion) do |_, **kwargs|
-          # Should receive the response_format as configured
-          expect(kwargs[:response_format]).to be_truthy
-          expect(kwargs[:response_format][:type]).to eq("json_schema")
-          expect(kwargs[:response_format][:json_schema][:strict]).to be true
+          schema_sent = kwargs[:response_format][:json_schema][:schema]
+          
+          # Root level should require all properties
+          expect(schema_sent["required"]).to contain_exactly("user", "orders")
+          
+          # User object should require all properties
+          user_schema = schema_sent["properties"]["user"]
+          expect(user_schema["required"]).to contain_exactly("name", "email")
+          expect(user_schema["additionalProperties"]).to be false
+          
+          # Order items should require all properties
+          order_schema = schema_sent["properties"]["orders"]["items"]
+          expect(order_schema["required"]).to contain_exactly("id", "total")
+          expect(order_schema["additionalProperties"]).to be false
           
           # Return the mocked response - this forces the provider's convert_response_to_chat_format method to handle it
           provider = OpenAIAgents::Models::ResponsesProvider.new
@@ -356,20 +352,19 @@ RSpec.describe "Structured Output Integration" do
       OpenAIAgents::Agent.new(
         name: "ProductAgent",
         model: "gpt-4o",
-        response_format: { type: "json_schema", json_schema: { name: "product_schema", strict: true, schema: built_schema.to_h } }
+        output_schema: built_schema.to_h
       )
     end
 
     let(:runner) { OpenAIAgents::Runner.new(agent: agent) }
 
     it "works with builder-created schemas" do
-      schema = agent.response_format[:json_schema][:schema]
-      expect(schema).to include(
+      expect(agent.output_schema).to include(
         type: "object",
         additionalProperties: false
       )
       
-      properties = schema[:properties]
+      properties = agent.output_schema[:properties]
       expect(properties[:product_name]).to include(type: "string", minLength: 1)
       expect(properties[:price]).to include(type: "number", minimum: 0)
       expect(properties[:category]).to include(type: "string", enum: %w[electronics clothing food])
@@ -419,14 +414,14 @@ RSpec.describe "Structured Output Integration" do
 
       before do
         allow(anthropic_provider).to receive(:chat_completion).and_return({
-                                                                            "choices" => [{
-                                                                              "message" => {
-                                                                                "role" => "assistant",
-                                                                                "content" => '{"name": "Bob", "age": 30}'
-                                                                              },
-                                                                              "finish_reason" => "stop"
-                                                                            }]
-                                                                          })
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => '{"name": "Bob", "age": 30}'
+            },
+            "finish_reason" => "stop"
+          }]
+        })
       end
 
       it "enhances system message with JSON schema instructions" do
@@ -501,19 +496,19 @@ RSpec.describe "Structured Output Integration" do
 
       before do
         allow(cohere_provider).to receive(:chat_completion).and_return({
-                                                                         "id" => "cohere_123",
-                                                                         "object" => "chat.completion",
-                                                                         "created" => Time.now.to_i,
-                                                                         "model" => "command-r",
-                                                                         "choices" => [{
-                                                                           "index" => 0,
-                                                                           "message" => {
-                                                                             "role" => "assistant",
-                                                                             "content" => '{"name": "Bob", "age": 30}'
-                                                                           },
-                                                                           "finish_reason" => "stop"
-                                                                         }]
-                                                                       })
+          "id" => "cohere_123",
+          "object" => "chat.completion",
+          "created" => Time.now.to_i,
+          "model" => "command-r",
+          "choices" => [{
+            "index" => 0,
+            "message" => {
+              "role" => "assistant",
+              "content" => '{"name": "Bob", "age": 30}'
+            },
+            "finish_reason" => "stop"
+          }]
+        })
       end
 
       it "converts json_schema to json_object format for Cohere" do
@@ -552,14 +547,14 @@ RSpec.describe "Structured Output Integration" do
           allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
             .to receive(:call_responses_api)
             .and_return({
-                          "id" => "response_direct",
-                          "output" => [{
-                            "content" => [{
-                              "type" => "output_text",
-                              "text" => '{"name": "Bob", "age": 30}'
-                            }]
-                          }]
-                        })
+              "id" => "response_direct",
+              "output" => [{
+                "content" => [{
+                  "type" => "output_text",
+                  "text" => '{"name": "Bob", "age": 30}'
+                }]
+              }]
+            })
         end
 
         it "uses direct response_format when provided" do
@@ -578,21 +573,21 @@ RSpec.describe "Structured Output Integration" do
 
       context "with OpenAIProvider" do
         let(:openai_provider) do
-          provider = instance_double(OpenAIAgents::Models::OpenAIProvider)
-          allow(provider).to receive(:provider_name).and_return("OpenAI")
-          provider
-        end
+        provider = instance_double(OpenAIAgents::Models::OpenAIProvider)
+        allow(provider).to receive(:provider_name).and_return("OpenAI")
+        provider
+      end
         let(:runner) { OpenAIAgents::Runner.new(agent: agent_with_response_format, provider: openai_provider) }
         
         before do
           allow(openai_provider).to receive(:chat_completion).and_return({
-                                                                           "choices" => [{
-                                                                             "message" => {
-                                                                               "role" => "assistant",
-                                                                               "content" => '{"name": "Bob", "age": 30}'
-                                                                             }
-                                                                           }]
-                                                                         })
+            "choices" => [{
+              "message" => {
+                "role" => "assistant",
+                "content" => '{"name": "Bob", "age": 30}'
+              }
+            }]
+          })
         end
 
         it "passes direct response_format to OpenAI API" do

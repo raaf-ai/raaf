@@ -3,8 +3,7 @@
 
 require_relative "../lib/openai_agents"
 
-# Example demonstrating structured output with both modern and legacy approaches
-# Shows response_format (recommended) and output_schema (legacy) methods
+# Example demonstrating structured output using modern response_format approach
 
 unless ENV["OPENAI_API_KEY"]
   puts "ERROR: OPENAI_API_KEY environment variable is required"
@@ -13,7 +12,7 @@ unless ENV["OPENAI_API_KEY"]
 end
 
 puts "=== OpenAI Agents Ruby - Structured Output Example ==="
-puts "Demonstrates both modern response_format and legacy output_schema approaches"
+puts "Demonstrates modern response_format approach for universal structured output"
 puts
 
 # Define a schema for product information
@@ -26,9 +25,9 @@ product_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
   boolean :in_stock, required: true
 end
 
-# Modern approach using response_format (RECOMMENDED)
-modern_agent = OpenAIAgents::Agent.new(
-  name: "ModernProductAnalyzer",
+# Create agent with structured output using response_format
+product_agent = OpenAIAgents::Agent.new(
+  name: "ProductAnalyzer",
   instructions: <<~INSTRUCTIONS,
     You are a product information analyzer. Extract product information from user input
     and return it as a JSON object that exactly matches the provided schema.
@@ -47,33 +46,18 @@ modern_agent = OpenAIAgents::Agent.new(
   }
 )
 
-# Legacy approach using output_schema (still supported)
-legacy_agent = OpenAIAgents::Agent.new(
-  name: "LegacyProductAnalyzer",
-  instructions: <<~INSTRUCTIONS,
-    You are a product information analyzer. Extract product information from user input
-    and return it as a JSON object that exactly matches the provided schema.
-    
-    Be accurate with pricing information and categorize products appropriately.
-    If you don't know specific details, make reasonable estimates.
-  INSTRUCTIONS
-  model: "gpt-4o",
-  output_schema: product_schema.to_h
-)
-
-puts "Schema enforced by both agents:"
+puts "Schema enforced by agent:"
 puts JSON.pretty_generate(product_schema.to_h)
 puts
 
-# Create runners for both approaches
-modern_runner = OpenAIAgents::Runner.new(agent: modern_agent)
-legacy_runner = OpenAIAgents::Runner.new(agent: legacy_agent)
+# Create runner
+runner = OpenAIAgents::Runner.new(agent: product_agent)
 
-# Example 1: Modern response_format approach
-puts "1. Testing modern response_format approach:"
+# Example 1: Basic structured output
+puts "1. Testing structured output with response_format:"
 puts "Input: 'Tell me about the iPhone 15 Pro'"
 
-result = modern_runner.run([{
+result = runner.run([{
                       role: "user",
                       content: "Tell me about the iPhone 15 Pro"
                     }])
@@ -105,85 +89,8 @@ rescue OpenAIAgents::StructuredOutput::ValidationError => e
 end
 puts
 
-# Example 2: Legacy output_schema approach (for comparison)
-puts "2. Testing legacy output_schema approach:"
-puts "Input: 'Tell me about the MacBook Air'"
-
-legacy_result = legacy_runner.run([{
-                      role: "user",
-                      content: "Tell me about the MacBook Air"
-                    }])
-
-legacy_content = legacy_result.messages.last[:content]
-puts "✅ Legacy approach JSON: #{legacy_content}"
-
-begin
-  legacy_parsed = JSON.parse(legacy_content)
-  puts "✅ Legacy approach also works! Both produce same structure."
-  puts "📱 Legacy Product: #{legacy_parsed['name']} - $#{legacy_parsed['price']}"
-rescue => e
-  puts "❌ Legacy parsing failed: #{e.message}"
-end
-puts
-
-# Example 3: Cross-provider compatibility
-puts "3. Testing cross-provider compatibility:"
-puts "Modern response_format works with ALL providers!"
-
-# Test with different providers if available
-if ENV['ANTHROPIC_API_KEY']
-  puts "\n🧠 Testing with Anthropic provider:"
-  anthropic_provider = OpenAIAgents::Models::AnthropicProvider.new
-  anthropic_agent = OpenAIAgents::Agent.new(
-    name: "AnthropicAnalyzer",
-    instructions: modern_agent.instructions,
-    model: "claude-3-5-sonnet-20241022",
-    response_format: modern_agent.response_format
-  )
-  anthropic_runner = OpenAIAgents::Runner.new(agent: anthropic_agent, provider: anthropic_provider)
-  
-  begin
-    anthropic_result = anthropic_runner.run([{ role: "user", content: "Tell me about AirPods Pro" }])
-    anthropic_content = anthropic_result.messages.last[:content]
-    puts "✅ Anthropic JSON: #{anthropic_content}"
-    
-    anthropic_parsed = JSON.parse(anthropic_content)
-    puts "✅ Same schema works with Anthropic! Product: #{anthropic_parsed['name']}"
-  rescue => e
-    puts "⚠️  Anthropic test failed: #{e.message}"
-  end
-else
-  puts "⚠️  Set ANTHROPIC_API_KEY to test Anthropic compatibility"
-end
-
-if ENV['COHERE_API_KEY']
-  puts "\n🤖 Testing with Cohere provider:"
-  cohere_provider = OpenAIAgents::Models::CohereProvider.new
-  cohere_agent = OpenAIAgents::Agent.new(
-    name: "CohereAnalyzer",
-    instructions: modern_agent.instructions,
-    model: "command-r",
-    response_format: modern_agent.response_format
-  )
-  cohere_runner = OpenAIAgents::Runner.new(agent: cohere_agent, provider: cohere_provider)
-  
-  begin
-    cohere_result = cohere_runner.run([{ role: "user", content: "Tell me about Tesla Model 3" }])
-    cohere_content = cohere_result.messages.last[:content]
-    puts "✅ Cohere JSON: #{cohere_content}"
-    
-    cohere_parsed = JSON.parse(cohere_content)
-    puts "✅ Same schema works with Cohere! Product: #{cohere_parsed['name']}"
-  rescue => e
-    puts "⚠️  Cohere test failed: #{e.message}"
-  end
-else
-  puts "⚠️  Set COHERE_API_KEY to test Cohere compatibility"
-end
-puts
-
-# Example 4: Using RunConfig for customization
-puts "4. Testing with RunConfig customization:"
+# Example 2: Using RunConfig for customization
+puts "2. Testing with RunConfig customization:"
 
 config = OpenAIAgents::RunConfig.new(
   temperature: 0.3, # Lower temperature for more consistent output
@@ -197,12 +104,12 @@ messages2 = [{
   content: "Describe a Tesla Model 3"
 }]
 
-result2 = modern_runner.run(messages2, config: config)
+result2 = runner.run(messages2, config: config)
 puts "Response: #{result2.messages.last[:content]}"
 puts
 
-# Example 5: Agent with tools and structured output
-puts "5. Testing agent with tools and modern response_format:"
+# Example 3: Agent with tools and structured output
+puts "3. Testing agent with tools and structured output:"
 
 # Add a price lookup tool
 def lookup_price(product_name:)
@@ -267,7 +174,14 @@ unreliable_agent = OpenAIAgents::Agent.new(
   name: "UnreliableAgent",
   instructions: "You sometimes make mistakes with JSON formatting.",
   model: "gpt-4o",
-  output_schema: product_schema.to_h
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "product_info",
+      strict: true,
+      schema: product_schema.to_h
+    }
+  }
 )
 
 runner3 = OpenAIAgents::Runner.new(agent: unreliable_agent)
@@ -281,25 +195,15 @@ result4 = runner3.run(messages4)
 puts "Response: #{result4.messages.last[:content]}"
 puts
 
-puts "\n=== Summary of Structured Output Approaches ==="
-puts "\n🎯 Modern response_format (RECOMMENDED):"
+puts "\n=== Structured Output Features ==="
+puts "\n🎯 response_format Benefits:"
 puts "• Works with ALL providers (OpenAI, Anthropic, Cohere, Groq, etc.)"
-puts "• Uses OpenAI-standard format for easy migration"
+puts "• Uses OpenAI-standard format"
 puts "• Automatic provider-specific adaptations"
-puts "• Future-proof and actively maintained"
-puts "• Better error handling and validation"
+puts "• Guaranteed JSON schema compliance"
+puts "• Type-safe structured output"
 
-puts "\n📜 Legacy output_schema (DEPRECATED):"
-puts "• Still works for backward compatibility"
-puts "• Limited to specific providers"
-puts "• Will be phased out in future versions"
-puts "• Migrate to response_format when possible"
-
-puts "\n🛣️ Migration Guide:"
-puts "OLD: output_schema: { type: 'object', properties: {...} }"
-puts "NEW: response_format: { type: 'json_schema', json_schema: { name: 'schema_name', strict: true, schema: {...} } }"
-
-puts "\n🎆 Provider Compatibility Matrix:"
+puts "\n🌆 Provider Compatibility:"
 puts "✓ OpenAI: Native JSON schema support"
 puts "✓ Groq: Direct response_format passthrough"
 puts "✓ Anthropic: Enhanced system prompts with schema"
@@ -307,4 +211,4 @@ puts "✓ Cohere: JSON object mode + schema instructions"
 puts "✓ Others: Intelligent prompt enhancement"
 
 puts "\n=== Example Complete ==="
-puts "Try setting ANTHROPIC_API_KEY or COHERE_API_KEY to test cross-provider compatibility!"
+puts "Universal structured output across all providers! 🎉"

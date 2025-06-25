@@ -20,11 +20,11 @@ module OpenAIAgents
         end
 
         # Async version of chat_completion
-        async def async_chat_completion(messages:, model: nil, tools: nil, output_schema: nil, **kwargs)
+        async def async_chat_completion(messages:, model: nil, tools: nil, response_format: nil, **kwargs)
           model ||= @default_model || "gpt-4o-mini"
 
           # Build request body
-          body = build_request_body(messages, model, tools, output_schema, kwargs)
+          body = build_request_body(messages, model, tools, response_format, kwargs)
 
           # Make async HTTP request
           response = await make_async_request("/v1/responses", body)
@@ -89,7 +89,7 @@ module OpenAIAgents
           }
         end
 
-        def build_request_body(messages, model, tools, output_schema, kwargs)
+        def build_request_body(messages, model, tools, response_format, kwargs)
           body = {
             model: model,
             messages: prepare_messages(messages)
@@ -98,18 +98,8 @@ module OpenAIAgents
           # Add tools if provided
           body[:tools] = tools.map { |tool| prepare_tool(tool) } if tools && !tools.empty?
 
-          # Add output schema if provided
-          if output_schema
-            schema = StrictSchema.ensure_strict_json_schema(output_schema)
-            body[:response_format] = {
-              type: "json_schema",
-              json_schema: {
-                name: "final_output",
-                strict: true,
-                schema: schema
-              }
-            }
-          end
+          # Add response format if provided
+          body[:response_format] = response_format if response_format
 
           # Add additional parameters
           body.merge!(kwargs.slice(:temperature, :max_completion_tokens, :top_p, :frequency_penalty, :presence_penalty))

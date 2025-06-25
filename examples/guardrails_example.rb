@@ -139,7 +139,14 @@ data_agent = OpenAIAgents::Agent.new(
   name: "DataAgent",
   instructions: "You extract user data and return it as JSON.",
   model: "gpt-4o-mini",
-  output_schema: user_schema, # This ensures structured output
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "user_info",
+      strict: true,
+      schema: user_schema
+    }
+  }, # This ensures structured output
   output_guardrails: [
     OpenAIAgents::Guardrails.json_schema_guardrail(schema: user_schema)
   ]

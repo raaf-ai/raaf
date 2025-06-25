@@ -89,9 +89,7 @@ module OpenAIAgents
 
         # Add response_format support for structured output
         # Groq supports JSON mode and some structured output features
-        if kwargs[:response_format]
-          body[:response_format] = kwargs[:response_format]
-        end
+        body[:response_format] = kwargs[:response_format] if kwargs[:response_format]
 
         if stream
           stream_response(body, &block)

@@ -124,9 +124,7 @@ module OpenAIAgents
         parameters[:tools] = prepare_tools(tools) if tools
 
         # Handle response_format for structured output
-        if kwargs[:response_format]
-          parameters[:response_format] = kwargs[:response_format]
-        end
+        parameters[:response_format] = kwargs[:response_format] if kwargs[:response_format]
 
         begin
           @client.chat.completions.create(**parameters)

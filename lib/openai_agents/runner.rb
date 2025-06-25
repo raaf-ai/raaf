@@ -257,19 +257,7 @@ module OpenAIAgents
           model_params = config.to_model_params
 
           # Add structured output support (matching Python implementation)
-          if current_agent.output_schema
-            # Apply strict schema rules (all properties become required)
-            strict_schema = StrictSchema.ensure_strict_json_schema(current_agent.output_schema)
-
-            model_params[:response_format] = {
-              type: "json_schema",
-              json_schema: {
-                name: "final_output",
-                strict: true,
-                schema: strict_schema
-              }
-            }
-          elsif current_agent.response_format
+          if current_agent.response_format
             # Use the response_format directly if provided
             model_params[:response_format] = current_agent.response_format
           end
@@ -386,19 +374,7 @@ module OpenAIAgents
         model_params = config.to_model_params
 
         # Add structured output support (matching Python implementation)
-        if current_agent.output_schema
-          # Apply strict schema rules (all properties become required)
-          strict_schema = StrictSchema.ensure_strict_json_schema(current_agent.output_schema)
-
-          model_params[:response_format] = {
-            type: "json_schema",
-            json_schema: {
-              name: "final_output",
-              strict: true,
-              schema: strict_schema
-            }
-          }
-        elsif current_agent.response_format
+        if current_agent.response_format
           # Use the response_format directly if provided
           model_params[:response_format] = current_agent.response_format
         end
@@ -519,13 +495,7 @@ module OpenAIAgents
       # Add content - set to empty string if null to avoid API errors
       content = message["content"] || ""
 
-      # Validate structured output if agent has output schema
-      if agent.output_schema && !content.empty? && !message["tool_calls"]
-        validated_content = validate_structured_output(content, agent.output_schema)
-        assistant_message[:content] = validated_content
-      else
-        assistant_message[:content] = content
-      end
+      assistant_message[:content] = content
 
       # Add tool calls if present
       assistant_message[:tool_calls] = message["tool_calls"] if message["tool_calls"]
@@ -647,33 +617,6 @@ module OpenAIAgents
       end
     end
 
-    def validate_structured_output(content, schema)
-      # Try to parse as JSON if it looks like JSON
-      if content.strip.start_with?("{", "[")
-        begin
-          data = JSON.parse(content)
-          validator = StructuredOutput::ResponseFormatter.new(schema)
-          result = validator.format_response(data)
-
-          if result[:valid]
-            # Return the validated data as JSON string
-            JSON.generate(result[:data])
-          else
-            # Log validation error but return original content
-            puts "[Runner] Structured output validation failed: #{result[:error]}"
-            content
-          end
-        rescue JSON::ParserError => e
-          # Not valid JSON, return as-is
-          puts "[Runner] Failed to parse structured output as JSON: #{e.message}"
-          content
-        end
-      else
-        # Not JSON format, return as-is
-        content
-      end
-    end
-
     def normalize_messages(messages)
       case messages
       when String
@@ -709,7 +652,7 @@ module OpenAIAgents
     def format_tool_result(result)
       case result
       when Hash, Array
-        # Convert structured data to JSON to avoid Ruby hash syntax (=>) 
+        # Convert structured data to JSON to avoid Ruby hash syntax (=>)
         result.to_json
       when nil
         ""

@@ -142,7 +142,6 @@ module OpenAIAgents
             messages: prepare_messages(conversation, current_agent),
             model: current_agent.model,
             tools: current_agent.tools? ? current_agent.tools.map(&:to_h) : nil,
-            output_schema: current_agent.output_schema,
             response_format: current_agent.response_format,
             **extract_model_params(config)
           )
@@ -201,7 +200,6 @@ module OpenAIAgents
             messages: prepare_messages(conversation, agent),
             model: agent.model,
             tools: agent.tools? ? agent.tools.map(&:to_h) : nil,
-            output_schema: agent.output_schema,
             response_format: agent.response_format,
             **extract_model_params(config)
           )
@@ -311,7 +309,7 @@ module OpenAIAgents
       def format_tool_result(result)
         case result
         when Hash, Array
-          # Convert structured data to JSON to avoid Ruby hash syntax (=>) 
+          # Convert structured data to JSON to avoid Ruby hash syntax (=>)
           result.to_json
         when nil
           ""

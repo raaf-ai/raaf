@@ -87,8 +87,6 @@ module OpenAIAgents
     #   @return [String] the LLM model this agent uses (e.g., "gpt-4", "claude-3-sonnet")
     # @!attribute [rw] max_turns
     #   @return [Integer] maximum number of conversation turns before stopping
-    # @!attribute [rw] output_schema
-    #   @return [Hash, nil] JSON schema for structured output validation (deprecated, use output_type)
     # @!attribute [rw] output_type
     #   @return [Class, AgentOutputSchemaBase, nil] the expected output type for the agent
     # @!attribute [rw] hooks
@@ -108,7 +106,6 @@ module OpenAIAgents
     # @!attribute [rw] response_format
     #   @return [Hash, nil] OpenAI response format for structured output (e.g., JSON schema)
     attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format
-    attr_writer :output_schema
 
     ##
     # Creates a new Agent instance
@@ -152,7 +149,6 @@ module OpenAIAgents
       @handoffs = (options[:handoffs] || []).dup
       @model = options[:model] || "gpt-4"
       @max_turns = options[:max_turns] || 10
-      @output_schema = options[:output_schema]
       @output_type = options[:output_type]
       @hooks = options[:hooks]
       @prompt = options[:prompt]
@@ -273,7 +269,7 @@ module OpenAIAgents
         handoffs: safe_map_names(@handoffs),
         model: @model,
         max_turns: @max_turns,
-        output_schema: @output_schema
+        response_format: @response_format
       }
     end
 
@@ -356,19 +352,6 @@ module OpenAIAgents
     #   end
     def handoffs?
       @handoffs.any?
-    end
-
-    ##
-    # Checks if the agent has an output schema defined
-    #
-    # @return [Boolean] true if the agent has output schema, false otherwise
-    #
-    # @example
-    #   if agent.output_schema?
-    #     puts "Agent uses structured output"
-    #   end
-    def output_schema?
-      !@output_schema.nil? || (!@output_type_schema.nil? && !@output_type_schema.plain_text?)
     end
 
     ##
@@ -575,36 +558,11 @@ module OpenAIAgents
       reset_handoffs!
       reset_input_guardrails!
       reset_output_guardrails!
-      @output_schema = nil
       @output_type = nil
       @output_type_schema = nil
       @hooks = nil
       @prompt = nil
       self
-    end
-
-    ##
-    # Gets the output schema for the agent
-    #
-    # Returns the JSON schema for structured output, either from output_schema
-    # directly or derived from output_type.
-    #
-    # @return [Hash, nil] the JSON schema or nil if no structured output
-    def output_schema
-      return @output_schema if @output_schema
-      return nil unless @output_type_schema
-
-      @output_type_schema.json_schema
-    rescue StandardError => e
-      puts "[Agent] Warning: Could not get output schema: #{e.message}"
-      nil
-    end
-
-    ##
-    # Deprecated alias for backward compatibility
-    # @deprecated Use {#output_schema} instead
-    def get_output_schema
-      output_schema
     end
 
     ##
@@ -654,7 +612,6 @@ module OpenAIAgents
         handoffs: @handoffs.dup,
         model: @model,
         max_turns: @max_turns,
-        output_schema: @output_schema,
         output_type: @output_type,
         hooks: @hooks,
         prompt: @prompt,
@@ -662,7 +619,8 @@ module OpenAIAgents
         output_guardrails: @output_guardrails.dup,
         handoff_description: @handoff_description,
         tool_use_behavior: @tool_use_behavior,
-        reset_tool_choice: @reset_tool_choice
+        reset_tool_choice: @reset_tool_choice,
+        response_format: @response_format
       }
 
       # Merge with overrides
@@ -759,9 +717,6 @@ module OpenAIAgents
                               # Create an AgentOutputSchema from the type
                               AgentOutputSchema.new(@output_type, strict_json_schema: true)
                             end
-
-      # If we don't have an output_schema but have output_type, derive it
-      @output_schema = @output_type_schema.json_schema if @output_schema.nil? && !@output_type_schema.plain_text?
     rescue StandardError => e
       puts "[Agent] Warning: Could not configure output type: #{e.message}"
       @output_type_schema = nil

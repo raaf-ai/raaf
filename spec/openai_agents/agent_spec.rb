@@ -195,19 +195,6 @@ RSpec.describe OpenAIAgents::Agent do
     end
   end
 
-  describe "#output_schema?" do
-    let(:agent) { described_class.new(name: "TestAgent") }
-
-    it "returns false when no output schema is set" do
-      expect(agent.output_schema?).to be false
-    end
-
-    it "returns true when output schema is set" do
-      agent_with_schema = described_class.new(name: "TestAgent", output_schema: String)
-      expect(agent_with_schema.output_schema?).to be true
-    end
-  end
-
   describe "#input_guardrails?" do
     let(:agent) { described_class.new(name: "TestAgent") }
 
