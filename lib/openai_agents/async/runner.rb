@@ -143,6 +143,7 @@ module OpenAIAgents
             model: current_agent.model,
             tools: current_agent.tools? ? current_agent.tools.map(&:to_h) : nil,
             output_schema: current_agent.output_schema,
+            response_format: current_agent.response_format,
             **extract_model_params(config)
           )
 
@@ -201,6 +202,7 @@ module OpenAIAgents
             model: agent.model,
             tools: agent.tools? ? agent.tools.map(&:to_h) : nil,
             output_schema: agent.output_schema,
+            response_format: agent.response_format,
             **extract_model_params(config)
           )
 

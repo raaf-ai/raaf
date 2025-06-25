@@ -105,7 +105,9 @@ module OpenAIAgents
     #   @return [ToolUseBehavior::Base, String, Symbol, Proc] controls how tools are handled
     # @!attribute [rw] reset_tool_choice
     #   @return [Boolean] whether to reset tool choice after tool calls
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice
+    # @!attribute [rw] response_format
+    #   @return [Hash, nil] OpenAI response format for structured output (e.g., JSON schema)
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format
     attr_writer :output_schema
 
     ##
@@ -157,6 +159,7 @@ module OpenAIAgents
       @input_guardrails = (options[:input_guardrails] || []).dup
       @output_guardrails = (options[:output_guardrails] || []).dup
       @handoff_description = options[:handoff_description]
+      @response_format = options[:response_format]
 
       # Tool use behavior configuration
       @tool_use_behavior = ToolUseBehavior.from_config(options[:tool_use_behavior] || :run_llm_again)

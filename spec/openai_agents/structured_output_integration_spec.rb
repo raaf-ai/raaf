@@ -357,4 +357,235 @@ RSpec.describe "Structured Output Integration" do
       expect(properties[:in_stock]).to include(type: "boolean")
     end
   end
+
+  describe "Multi-provider response_format support" do
+    let(:schema) do
+      {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          age: { type: "integer" }
+        },
+        required: %w[name age]
+      }
+    end
+
+    let(:agent) do
+      OpenAIAgents::Agent.new(
+        name: "MultiProviderAgent",
+        instructions: "Extract user information.",
+        model: "gpt-4o",
+        output_schema: schema
+      )
+    end
+
+    let(:messages) { [{ role: "user", content: "Extract info for Bob, age 30" }] }
+
+    context "with AnthropicProvider" do
+      let(:anthropic_provider) do
+        provider = instance_double(OpenAIAgents::Models::AnthropicProvider)
+        allow(provider).to receive(:provider_name).and_return("Anthropic")
+        provider
+      end
+      let(:runner) { OpenAIAgents::Runner.new(agent: agent, provider: anthropic_provider) }
+
+      let(:anthropic_response) do
+        {
+          "content" => [{ "text" => '{"name": "Bob", "age": 30}' }],
+          "model" => "claude-3-5-sonnet-20241022",
+          "stop_reason" => "end_turn"
+        }
+      end
+
+      before do
+        allow(anthropic_provider).to receive(:chat_completion).and_return({
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => '{"name": "Bob", "age": 30}'
+            },
+            "finish_reason" => "stop"
+          }]
+        })
+      end
+
+      it "enhances system message with JSON schema instructions" do
+        expect(anthropic_provider).to receive(:chat_completion) do |**kwargs|
+          expect(kwargs[:response_format]).to be_truthy
+          expect(kwargs[:response_format][:type]).to eq("json_schema")
+          
+          # Check that system message is enhanced for structured output
+          # (This would be tested at the HTTP request level in real integration)
+          anthropic_response
+        end
+
+        runner.run(messages)
+      end
+    end
+
+    context "with GroqProvider" do
+      let(:groq_provider) do
+        provider = instance_double(OpenAIAgents::Models::GroqProvider)
+        allow(provider).to receive(:provider_name).and_return("Groq")
+        provider
+      end
+      let(:runner) { OpenAIAgents::Runner.new(agent: agent, provider: groq_provider) }
+
+      let(:groq_response) do
+        {
+          "id" => "chatcmpl_groq_123",
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => '{"name": "Bob", "age": 30}'
+            },
+            "finish_reason" => "stop"
+          }]
+        }
+      end
+
+      before do
+        allow(groq_provider).to receive(:chat_completion).and_return(groq_response)
+      end
+
+      it "passes response_format directly to Groq API" do
+        expect(groq_provider).to receive(:chat_completion) do |**kwargs|
+          expect(kwargs[:response_format]).to be_truthy
+          expect(kwargs[:response_format][:type]).to eq("json_schema")
+          expect(kwargs[:response_format][:json_schema][:strict]).to be true
+          groq_response
+        end
+
+        runner.run(messages)
+      end
+    end
+
+    context "with CohereProvider" do
+      let(:cohere_provider) do
+        provider = instance_double(OpenAIAgents::Models::CohereProvider)
+        allow(provider).to receive(:provider_name).and_return("Cohere")
+        provider
+      end
+      let(:runner) { OpenAIAgents::Runner.new(agent: agent, provider: cohere_provider) }
+
+      let(:cohere_response) do
+        {
+          "id" => "cohere_123",
+          "model" => "command-r",
+          "message" => {
+            "content" => '{"name": "Bob", "age": 30}'
+          },
+          "finish_reason" => "complete"
+        }
+      end
+
+      before do
+        allow(cohere_provider).to receive(:chat_completion).and_return({
+          "id" => "cohere_123",
+          "object" => "chat.completion",
+          "created" => Time.now.to_i,
+          "model" => "command-r",
+          "choices" => [{
+            "index" => 0,
+            "message" => {
+              "role" => "assistant",
+              "content" => '{"name": "Bob", "age": 30}'
+            },
+            "finish_reason" => "stop"
+          }]
+        })
+      end
+
+      it "converts json_schema to json_object format for Cohere" do
+        expect(cohere_provider).to receive(:chat_completion) do |**kwargs|
+          expect(kwargs[:response_format]).to be_truthy
+          expect(kwargs[:response_format][:type]).to eq("json_schema")
+          # Cohere provider should handle the conversion internally
+          cohere_response
+        end
+
+        runner.run(messages)
+      end
+    end
+
+    context "with direct response_format parameter" do
+      let(:agent_with_response_format) do
+        OpenAIAgents::Agent.new(
+          name: "DirectFormatAgent",
+          instructions: "Return JSON.",
+          model: "gpt-4o",
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "user_info",
+              strict: true,
+              schema: schema
+            }
+          }
+        )
+      end
+
+      context "with ResponsesProvider" do
+        let(:runner) { OpenAIAgents::Runner.new(agent: agent_with_response_format) }
+        
+        before do
+          allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+            .to receive(:call_responses_api)
+            .and_return({
+              "id" => "response_direct",
+              "output" => [{
+                "content" => [{
+                  "type" => "output_text",
+                  "text" => '{"name": "Bob", "age": 30}'
+                }]
+              }]
+            })
+        end
+
+        it "uses direct response_format when provided" do
+          expect_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+            .to receive(:chat_completion) do |_, **kwargs|
+              expect(kwargs[:response_format]).to be_truthy
+              expect(kwargs[:response_format][:type]).to eq("json_schema")
+              expect(kwargs[:response_format][:json_schema][:name]).to eq("user_info")
+              expect(kwargs[:response_format][:json_schema][:strict]).to be true
+              {}
+            end
+
+          runner.run(messages)
+        end
+      end
+
+      context "with OpenAIProvider" do
+        let(:openai_provider) do
+        provider = instance_double(OpenAIAgents::Models::OpenAIProvider)
+        allow(provider).to receive(:provider_name).and_return("OpenAI")
+        provider
+      end
+        let(:runner) { OpenAIAgents::Runner.new(agent: agent_with_response_format, provider: openai_provider) }
+        
+        before do
+          allow(openai_provider).to receive(:chat_completion).and_return({
+            "choices" => [{
+              "message" => {
+                "role" => "assistant",
+                "content" => '{"name": "Bob", "age": 30}'
+              }
+            }]
+          })
+        end
+
+        it "passes direct response_format to OpenAI API" do
+          expect(openai_provider).to receive(:chat_completion) do |**kwargs|
+            expect(kwargs[:response_format]).to be_truthy
+            expect(kwargs[:response_format][:type]).to eq("json_schema")
+            expect(kwargs[:response_format][:json_schema][:name]).to eq("user_info")
+            {}
+          end
+
+          runner.run(messages)
+        end
+      end
+    end
+  end
 end

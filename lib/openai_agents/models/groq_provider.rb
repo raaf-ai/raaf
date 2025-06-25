@@ -87,6 +87,12 @@ module OpenAIAgents
         body[:seed] = kwargs[:seed] if kwargs[:seed]
         body[:user] = kwargs[:user] if kwargs[:user]
 
+        # Add response_format support for structured output
+        # Groq supports JSON mode and some structured output features
+        if kwargs[:response_format]
+          body[:response_format] = kwargs[:response_format]
+        end
+
         if stream
           stream_response(body, &block)
         else

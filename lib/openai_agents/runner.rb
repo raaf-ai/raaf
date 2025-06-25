@@ -269,6 +269,9 @@ module OpenAIAgents
                 schema: strict_schema
               }
             }
+          elsif current_agent.response_format
+            # Use the response_format directly if provided
+            model_params[:response_format] = current_agent.response_format
           end
 
           # Add prompt support for Responses API
@@ -395,6 +398,9 @@ module OpenAIAgents
               schema: strict_schema
             }
           }
+        elsif current_agent.response_format
+          # Use the response_format directly if provided
+          model_params[:response_format] = current_agent.response_format
         end
 
         response = if config.stream

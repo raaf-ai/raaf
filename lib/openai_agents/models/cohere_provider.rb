@@ -84,6 +84,23 @@ module OpenAIAgents
         body[:presence_penalty] = kwargs[:presence_penalty] if kwargs[:presence_penalty]
         body[:seed] = kwargs[:seed] if kwargs[:seed]
 
+        # Add response_format support - Cohere doesn't support JSON schema directly
+        # but we can use JSON response format for structured output
+        if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
+          # Enable JSON response format
+          body[:response_format] = { type: "json_object" }
+          
+          # Enhance system prompt with JSON schema instructions
+          if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
+            schema = kwargs[:response_format][:json_schema][:schema]
+            json_instruction = "\n\nIMPORTANT: Respond with valid JSON only. Follow this schema: #{schema.to_json}"
+            body[:system] = (body[:system] || "") + json_instruction
+          end
+        elsif kwargs[:response_format]
+          # Pass through other response formats
+          body[:response_format] = kwargs[:response_format]
+        end
+
         if stream
           stream_completion(messages: messages, model: model, tools: tools, **kwargs)
         else
@@ -125,6 +142,22 @@ module OpenAIAgents
         body[:frequency_penalty] = kwargs[:frequency_penalty] if kwargs[:frequency_penalty]
         body[:presence_penalty] = kwargs[:presence_penalty] if kwargs[:presence_penalty]
         body[:seed] = kwargs[:seed] if kwargs[:seed]
+
+        # Add response_format support for streaming
+        if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
+          # Enable JSON response format
+          body[:response_format] = { type: "json_object" }
+          
+          # Enhance system prompt with JSON schema instructions
+          if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
+            schema = kwargs[:response_format][:json_schema][:schema]
+            json_instruction = "\n\nIMPORTANT: Respond with valid JSON only. Follow this schema: #{schema.to_json}"
+            body[:system] = (body[:system] || "") + json_instruction
+          end
+        elsif kwargs[:response_format]
+          # Pass through other response formats
+          body[:response_format] = kwargs[:response_format]
+        end
 
         with_retry("stream_completion") do
           @http_client.post_stream("#{@api_base}/chat", body: body) do |chunk|

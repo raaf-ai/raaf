@@ -49,6 +49,17 @@ module OpenAIAgents
         body[:system] = system_message if system_message
         body[:tools] = convert_tools_to_anthropic(tools) if tools
 
+        # Add response_format support - Anthropic doesn't support JSON schema directly
+        # but we can enhance the system message for structured output
+        if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
+          json_instruction = "\n\nIMPORTANT: Please respond with valid JSON only. Do not include any other text or explanation."
+          if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
+            schema = kwargs[:response_format][:json_schema][:schema]
+            json_instruction += " Follow this JSON schema: #{schema.to_json}"
+          end
+          body[:system] = (body[:system] || "") + json_instruction
+        end
+
         request.body = JSON.generate(body)
 
         response = http.request(request)
@@ -82,6 +93,16 @@ module OpenAIAgents
         }
         body[:system] = system_message if system_message
         body[:tools] = convert_tools_to_anthropic(tools) if tools
+
+        # Add response_format support for streaming
+        if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
+          json_instruction = "\n\nIMPORTANT: Please respond with valid JSON only. Do not include any other text or explanation."
+          if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
+            schema = kwargs[:response_format][:json_schema][:schema]
+            json_instruction += " Follow this JSON schema: #{schema.to_json}"
+          end
+          body[:system] = (body[:system] || "") + json_instruction
+        end
 
         request.body = JSON.generate(body)
 
