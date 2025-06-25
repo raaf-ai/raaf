@@ -72,12 +72,12 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
         ).wait
 
         expect(result).to be_a(Hash)
-        expect(result["choices"]).to be_present
+        expect(result["choices"]).not_to be_empty
       end
     end
 
     it "uses default model when none specified" do
-      expect(provider).to receive(:make_async_request) do |path, body|
+      expect(provider).to receive(:make_async_request) do |_path, body|
         expect(body[:model]).to eq("gpt-4o-mini")
         mock_response_data
       end
@@ -98,7 +98,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
         }
       ]
 
-      expect(provider).to receive(:make_async_request) do |path, body|
+      expect(provider).to receive(:make_async_request) do |_path, body|
         expect(body[:tools]).to eq(tools)
         mock_response_data
       end
@@ -121,7 +121,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
         }
       }
 
-      expect(provider).to receive(:make_async_request) do |path, body|
+      expect(provider).to receive(:make_async_request) do |_path, body|
         expect(body[:response_format]).to eq(response_format)
         mock_response_data
       end
@@ -135,7 +135,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
     end
 
     it "includes additional parameters" do
-      expect(provider).to receive(:make_async_request) do |path, body|
+      expect(provider).to receive(:make_async_request) do |_path, body|
         expect(body[:temperature]).to eq(0.7)
         expect(body[:max_completion_tokens]).to eq(100)
         mock_response_data
@@ -196,33 +196,31 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
       allow(provider).to receive(:async_client).and_return(mock_client)
       allow(mock_response).to receive(:success?).and_return(true)
       allow(mock_response).to receive(:read).and_return(response_body)
-      allow(mock_client).to receive(:call).and_return(mock_response)
+      allow(mock_client).to receive(:post).and_return(mock_response)
     end
 
     it "creates proper HTTP request" do
-      expect(mock_client).to receive(:call) do |request|
-        expect(request).to be_a(Async::HTTP::Request)
-        expect(request.path).to eq("/v1/responses")
-        expect(request.method).to eq(:post)
+      expect(mock_client).to receive(:post) do |path, headers, _body|
+        expect(path).to eq("/v1/responses")
+        expect(headers["Content-Type"]).to eq("application/json")
         mock_response
       end
 
       Async do
-        provider.send(:make_async_request, "/v1/responses", { test: "data" }).wait
+        provider.send(:make_async_request, "/v1/responses", { test: "data" })
       end
     end
 
     it "includes proper headers" do
-      expect(mock_client).to receive(:call) do |request|
-        headers = request.headers
-        expect(headers["content-type"]).to eq("application/json")
-        expect(headers["authorization"]).to eq("Bearer #{api_key}")
-        expect(headers["openai-beta"]).to eq("agents-v1")
+      expect(mock_client).to receive(:post) do |_path, headers, _body|
+        expect(headers["Content-Type"]).to eq("application/json")
+        expect(headers["Authorization"]).to eq("Bearer #{api_key}")
+        expect(headers["OpenAI-Beta"]).to eq("agents-v1")
         mock_response
       end
 
       Async do
-        provider.send(:make_async_request, "/v1/responses", { test: "data" }).wait
+        provider.send(:make_async_request, "/v1/responses", { test: "data" })
       end
     end
 
@@ -238,7 +236,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
       allow(error_response).to receive(:success?).and_return(false)
       allow(error_response).to receive(:status).and_return(401)
       allow(error_response).to receive(:read).and_return('{"error": {"message": "Unauthorized"}}')
-      allow(mock_client).to receive(:call).and_return(error_response)
+      allow(mock_client).to receive(:post).and_return(error_response)
 
       Async do
         expect do
@@ -248,7 +246,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
     end
 
     it "handles timeout errors" do
-      allow(mock_client).to receive(:call).and_raise(Async::TimeoutError, "Request timed out")
+      allow(mock_client).to receive(:post).and_raise(Async::TimeoutError, "Request timed out")
 
       Async do
         expect do
@@ -258,7 +256,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
     end
 
     it "handles general request errors" do
-      allow(mock_client).to receive(:call).and_raise(StandardError, "Connection failed")
+      allow(mock_client).to receive(:post).and_raise(StandardError, "Connection failed")
 
       Async do
         expect do
@@ -284,7 +282,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
       )
 
       expect(body[:model]).to eq("gpt-4o")
-      expect(body[:messages]).to be_present
+      expect(body[:messages]).not_to be_empty
       expect(body[:tools]).to eq(tools)
       expect(body[:response_format]).to eq(response_format)
       expect(body[:temperature]).to eq(0.5)
@@ -305,7 +303,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
     it "converts responses API format to chat completion format" do
       responses_format = {
         "id" => "response_123",
-        "created" => 1234567890,
+        "created" => 1_234_567_890,
         "model" => "gpt-4o",
         "choices" => [
           {

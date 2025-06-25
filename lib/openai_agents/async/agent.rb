@@ -18,7 +18,9 @@ module OpenAIAgents
 
         # Check if tool supports async execution
         if tool.respond_to?(:call_async)
-          tool.call_async(**kwargs)
+          Async do
+            tool.call_async(**kwargs).wait
+          end
         elsif tool.respond_to?(:async) && tool.async
           # Tool has async flag set
           Async do
@@ -34,17 +36,19 @@ module OpenAIAgents
 
       # Execute multiple tools in parallel
       def execute_tools_async(tool_calls)
-        Async do |_task|
-          barrier = Async::Barrier.new
-
-          tool_calls.each do |tool_call|
+        Async do |task|
+          tasks = tool_calls.map do |tool_call|
             tool_name = tool_call[:name] || tool_call["name"]
             tool_args = tool_call[:arguments] || tool_call["arguments"] || {}
 
-            barrier.async do
+            # Convert string keys to symbol keys for Ruby keyword arguments
+            tool_args = tool_args.transform_keys(&:to_sym) if tool_args.respond_to?(:transform_keys)
+
+            task.async do
+              result = execute_tool_async(tool_name, **tool_args).wait
               {
                 name: tool_name,
-                result: execute_tool_async(tool_name, **tool_args)
+                result: result
               }
             rescue StandardError => e
               {
@@ -54,7 +58,8 @@ module OpenAIAgents
             end
           end
 
-          barrier.wait
+          # Wait for all tasks to complete and collect results
+          tasks.map(&:wait)
         end
       end
 
@@ -84,8 +89,8 @@ module OpenAIAgents
 
       attr_reader :async
 
-      def initialize(function, async: nil)
-        super(function)
+      def initialize(function, name: nil, description: nil, async: nil)
+        super(function, name: name, description: description)
 
         # Auto-detect if function is async
         @async = if async.nil?
@@ -98,14 +103,8 @@ module OpenAIAgents
 
       # Async version of call
       def call_async(**kwargs)
-        if @async
-          # Function is already async, just call it
+        Async do
           @function.call(**kwargs)
-        else
-          # Wrap synchronous function in async block
-          Async do
-            @function.call(**kwargs)
-          end
         end
       end
 

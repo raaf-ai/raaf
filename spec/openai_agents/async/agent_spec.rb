@@ -27,7 +27,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
     end
 
     let(:async_tool) do
-      OpenAIAgents::Async::Agent::AsyncFunctionTool.new(
+      OpenAIAgents::Async::AsyncFunctionTool.new(
         proc { |value:| value * 3 },
         name: "triple",
         async: true
@@ -69,7 +69,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
       Async do
         expect do
           agent.execute_tool_async("failing_tool").wait
-        end.to raise_error(StandardError, "Tool failed")
+        end.to raise_error(OpenAIAgents::ToolError, /Tool failed/)
       end
     end
   end
@@ -128,7 +128,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
         
         expect(results.size).to eq(2)
         expect(results[0][:result]).to eq(10)
-        expect(results[1][:error]).to eq("Tool failed")
+        expect(results[1][:error]).to match(/Tool failed/)
       end
     end
 
@@ -150,17 +150,17 @@ RSpec.describe OpenAIAgents::Async::Agent do
       agent.add_tool(tool_proc)
 
       added_tool = agent.tools.first
-      expect(added_tool).to be_a(OpenAIAgents::Async::Agent::AsyncFunctionTool)
+      expect(added_tool).to be_a(OpenAIAgents::Async::AsyncFunctionTool)
     end
 
     it "wraps methods in AsyncFunctionTool" do
-      def test_method(x:)
-        x + 1
+      def test_method(num:)
+        num + 1
       end
 
       agent.add_tool(method(:test_method))
       added_tool = agent.tools.first
-      expect(added_tool).to be_a(OpenAIAgents::Async::Agent::AsyncFunctionTool)
+      expect(added_tool).to be_a(OpenAIAgents::Async::AsyncFunctionTool)
     end
 
     it "preserves existing FunctionTool objects" do
@@ -173,7 +173,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
 
   describe "AsyncFunctionTool" do
     let(:sync_function) { proc { |value:| value * 2 } }
-    let(:async_tool) { OpenAIAgents::Async::Agent::AsyncFunctionTool.new(sync_function) }
+    let(:async_tool) { OpenAIAgents::Async::AsyncFunctionTool.new(sync_function) }
 
     describe "#initialize" do
       it "inherits from FunctionTool" do
@@ -185,7 +185,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
       end
 
       it "accepts explicit async flag" do
-        explicit_async_tool = OpenAIAgents::Async::Agent::AsyncFunctionTool.new(
+        explicit_async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
           sync_function, 
           async: true
         )
@@ -203,7 +203,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
 
       it "calls async functions directly when marked as async" do
         async_function = proc { |value:| value * 3 }
-        async_tool = OpenAIAgents::Async::Agent::AsyncFunctionTool.new(
+        async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
           async_function, 
           async: true
         )
@@ -223,7 +223,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
 
       it "uses async execution when in async context and tool is async" do
         async_function = proc { |value:| value * 3 }
-        async_tool = OpenAIAgents::Async::Agent::AsyncFunctionTool.new(
+        async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
           async_function,
           async: true
         )
@@ -240,7 +240,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
     describe "#to_h" do
       it "includes async flag in hash representation when async" do
         async_function = proc { |value:| value * 2 }
-        async_tool = OpenAIAgents::Async::Agent::AsyncFunctionTool.new(
+        async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
           async_function,
           async: true
         )
@@ -303,7 +303,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
       Async do
         expect do
           agent.execute_tool_async("failing_tool").wait
-        end.to raise_error(ArgumentError, "Invalid argument")
+        end.to raise_error(OpenAIAgents::ToolError, /Invalid argument/)
       end
     end
   end

@@ -3,6 +3,7 @@
 require "async"
 require "async/http"
 require "async/http/endpoint"
+require "json"
 require_relative "../../models/responses_provider"
 require_relative "../base"
 
@@ -14,8 +15,9 @@ module OpenAIAgents
         include OpenAIAgents::Async::Base
 
         def initialize(api_key: nil, base_url: nil, default_model: nil)
-          super
-          @endpoint = Async::HTTP::Endpoint.parse(@base_url)
+          super(api_key: api_key, api_base: base_url)
+          @default_model = default_model
+          @endpoint = ::Async::HTTP::Endpoint.parse(@api_base)
           @client = nil
         end
 
@@ -27,10 +29,12 @@ module OpenAIAgents
           body = build_request_body(messages, model, tools, response_format, kwargs)
 
           # Make async HTTP request
-          response = make_async_request("/v1/responses", body)
+          Async do
+            response = make_async_request("/v1/responses", body)
 
-          # Parse and return response
-          parse_response(response)
+            # Parse and return response
+            parse_response(response)
+          end
         end
 
         # Synchronous wrapper
@@ -46,39 +50,33 @@ module OpenAIAgents
         private
 
         def async_client
-          @async_client ||= Async::HTTP::Client.new(@endpoint)
+          @async_client ||= ::Async::HTTP::Client.new(@endpoint)
         end
 
         def make_async_request(path, body)
-          headers = build_headers
+          Async do
+            headers = build_headers
 
-          # Create request
-          request = Async::HTTP::Request.new(
-            @endpoint.scheme,
-            @endpoint.authority,
-            :post,
-            path,
-            nil,
-            Async::HTTP::Headers.new(headers),
-            Async::HTTP::Body::Buffered.wrap(JSON.generate(body))
-          )
+            # Send request using client
+            response = async_client.post(path, headers, JSON.generate(body))
 
-          # Send request and get response
-          response = async_client.call(request)
+            # Check response status
+            unless response.success?
+              error_body = response.read
+              handle_error(response.status, error_body)
+            end
 
-          # Check response status
-          unless response.success?
-            error_body = response.read
-            handle_error(response.status, error_body)
+            # Read and parse response body
+            response_body = response.read
+            JSON.parse(response_body)
+          rescue ::Async::TimeoutError => e
+            raise APIError, "Request timeout: #{e.message}"
+          rescue AuthenticationError, RateLimitError, ServerError, APIError
+            # Re-raise our custom errors as-is
+            raise
+          rescue StandardError => e
+            raise APIError, "Request failed: #{e.message}"
           end
-
-          # Read and parse response body
-          response_body = response.read
-          JSON.parse(response_body)
-        rescue Async::TimeoutError => e
-          raise APIError, "Request timeout: #{e.message}"
-        rescue StandardError => e
-          raise APIError, "Request failed: #{e.message}"
         end
 
         def build_headers
@@ -92,11 +90,11 @@ module OpenAIAgents
         def build_request_body(messages, model, tools, response_format, kwargs)
           body = {
             model: model,
-            messages: prepare_messages(messages)
+            messages: messages
           }
 
           # Add tools if provided
-          body[:tools] = tools.map { |tool| prepare_tool(tool) } if tools && !tools.empty?
+          body[:tools] = tools if tools && !tools.empty?
 
           # Add response format if provided
           body[:response_format] = response_format if response_format

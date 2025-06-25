@@ -3,6 +3,7 @@
 require "async"
 require "async/barrier"
 require_relative "../runner"
+require_relative "../result"
 require_relative "base"
 
 module OpenAIAgents
@@ -115,19 +116,15 @@ module OpenAIAgents
           turns += 1
 
           # Check if we're done
-          break if !agent_result[:tool_calls] && !agent_result[:handoff]
+          break if agent_result[:done]
         end
 
         raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
 
-        Result.new(
-          success: true,
+        RunResult.success(
           messages: conversation,
-          agent: current_agent,
-          metadata: {
-            turns: turns,
-            trace_id: config.trace_id
-          }
+          last_agent: current_agent,
+          turns: turns
         )
       end
 
@@ -140,15 +137,15 @@ module OpenAIAgents
         while turns < max_turns
           # Get response from provider
           response = @async_provider.async_chat_completion(
-            messages: prepare_messages(conversation, current_agent),
+            messages: build_messages(conversation, current_agent),
             model: current_agent.model,
             tools: current_agent.tools? ? current_agent.tools.map(&:to_h) : nil,
             response_format: current_agent.response_format,
-            **extract_model_params(config)
-          )
+            **config.to_model_params
+          ).wait
 
           # Process response
-          result = process_response(response)
+          result = process_response(response, current_agent, conversation)
           conversation << result[:message] if result[:message]
 
           # Handle handoff
@@ -174,16 +171,15 @@ module OpenAIAgents
           turns += 1
 
           # Check if we're done
-          break if !result[:tool_calls] && !result[:handoff]
+          break if result[:done]
         end
 
         raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
 
-        Result.new(
-          success: true,
+        RunResult.success(
           messages: conversation,
-          agent: current_agent,
-          metadata: { turns: turns }
+          last_agent: current_agent,
+          turns: turns
         )
       end
 
@@ -198,12 +194,12 @@ module OpenAIAgents
 
           # Make async API call
           response = @async_provider.async_chat_completion(
-            messages: prepare_messages(conversation, agent),
+            messages: build_messages(conversation, agent),
             model: agent.model,
             tools: agent.tools? ? agent.tools.map(&:to_h) : nil,
             response_format: agent.response_format,
-            **extract_model_params(config)
-          )
+            **config.to_model_params
+          ).wait
 
           # Set response attributes
           if response["usage"]
@@ -211,7 +207,7 @@ module OpenAIAgents
             response_span.set_attribute("response.usage.output_tokens", response["usage"]["completion_tokens"] || 0)
           end
 
-          process_response(response)
+          process_response(response, agent, conversation)
         end
       end
 
@@ -245,7 +241,7 @@ module OpenAIAgents
 
                      # Execute tool asynchronously if it supports async
                      tool_result = if agent.respond_to?(:execute_tool_async)
-                                     agent.execute_tool_async(tool_name, **tool_args)
+                                     agent.execute_tool_async(tool_name, **tool_args).wait
                                    else
                                      agent.execute_tool(tool_name, **tool_args)
                                    end
@@ -255,7 +251,7 @@ module OpenAIAgents
                    end
                  elsif agent.respond_to?(:execute_tool_async)
                    # Execute without tracing
-                   agent.execute_tool_async(tool_name, **tool_args)
+                   agent.execute_tool_async(tool_name, **tool_args).wait
                  else
                    agent.execute_tool(tool_name, **tool_args)
                  end

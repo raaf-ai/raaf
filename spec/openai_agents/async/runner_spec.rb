@@ -79,7 +79,7 @@ RSpec.describe OpenAIAgents::Async::Runner do
       
       Async do
         result = runner.run_async(messages, config: config).wait
-        expect(result).to be_successful
+        expect(result).to be_success
       end
     end
 
@@ -111,10 +111,10 @@ RSpec.describe OpenAIAgents::Async::Runner do
     let(:agent_with_tools) do
       agent = OpenAIAgents::Agent.new(name: "AsyncToolAgent")
       agent.add_tool(OpenAIAgents::FunctionTool.new(
-        proc { |x:| x * 2 },
-        name: "double",
-        description: "Doubles a number"
-      ))
+                       proc { |x:| x * 2 },
+                       name: "double",
+                       description: "Doubles a number"
+                     ))
       agent
     end
 
@@ -234,7 +234,7 @@ RSpec.describe OpenAIAgents::Async::Runner do
       Async do
         result = runner.run_async(messages).wait
         
-        expect(result).to be_successful
+        expect(result).to be_success
         expect(result.last_agent.name).to eq("HandoffAgent")
       end
     end
@@ -320,14 +320,26 @@ RSpec.describe OpenAIAgents::Async::Runner do
 
   describe "tracing support" do
     let(:tracer) { OpenAIAgents::Tracing::SpanTracer.new }
-    let(:runner) { described_class.new(agent: agent, tracer: tracer) }
+    let(:runner) { described_class.new(agent: agent, tracer: tracer, disabled_tracing: false) }
 
     before do
+      # Mock both sync and async methods to ensure compatibility
       allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
         .to receive(:chat_completion).and_return(mock_response)
+      allow_any_instance_of(OpenAIAgents::Async::Runner::AsyncProviderWrapper)
+        .to receive(:async_chat_completion).and_return(
+          Async { mock_response }
+        )
     end
 
     it "creates proper span hierarchy for async operations" do
+      # Temporarily enable tracing for this test
+      original_env = ENV.fetch("OPENAI_AGENTS_DISABLE_TRACING", nil)
+      ENV["OPENAI_AGENTS_DISABLE_TRACING"] = "false"
+      
+      # Create a new runner with tracing enabled
+      test_runner = described_class.new(agent: agent, tracer: tracer, disabled_tracing: false)
+      
       spans = []
       tracer.add_processor(double("processor").tap do |p|
         allow(p).to receive(:on_span_start)
@@ -335,13 +347,16 @@ RSpec.describe OpenAIAgents::Async::Runner do
       end)
 
       Async do
-        runner.run_async(messages).wait
+        test_runner.run_async(messages).wait
       end
 
       # Should have agent span
       agent_spans = spans.select { |s| s.kind == :agent }
       expect(agent_spans.size).to eq(1)
       expect(agent_spans.first.name).to include("AsyncTestAgent")
+      
+      # Restore environment
+      ENV["OPENAI_AGENTS_DISABLE_TRACING"] = original_env
     end
   end
 end

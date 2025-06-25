@@ -22,8 +22,8 @@ module OpenAIAgents
 
       # Creates an async-compatible HTTP client
       def async_http_client
-        @async_http_client ||= Async::HTTP::Client.new(
-          Async::HTTP::Endpoint.parse("https://api.openai.com")
+        @async_http_client ||= ::Async::HTTP::Client.new(
+          ::Async::HTTP::Endpoint.parse("https://api.openai.com")
         )
       end
 
@@ -36,7 +36,7 @@ module OpenAIAgents
 
       # Run a block with concurrency limit
       def with_concurrency_limit(limit, &)
-        semaphore = Async::Semaphore.new(limit)
+        semaphore = ::Async::Semaphore.new(limit)
         Async do
           semaphore.async(&)
         end
@@ -54,7 +54,7 @@ module OpenAIAgents
 
       # Check if we're in an async context
       def in_async_context?
-        Async::Task.current?
+        ::Async::Task.current?
       rescue StandardError
         false
       end
@@ -75,8 +75,8 @@ module OpenAIAgents
         @queue = []
         @max_size = max_size
         @mutex = Mutex.new
-        @not_empty = Async::Condition.new
-        @not_full = Async::Condition.new
+        @not_empty = ::Async::Condition.new
+        @not_full = ::Async::Condition.new
       end
 
       def push(item)
@@ -111,7 +111,7 @@ module OpenAIAgents
       private
 
       def ensure_async(&)
-        if Async::Task.current?
+        if ::Async::Task.current?
           yield
         else
           Async(&).wait
