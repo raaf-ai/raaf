@@ -7,6 +7,7 @@ require_relative "prompts"
 require_relative "guardrails"
 require_relative "handoffs"
 require_relative "agent_output"
+require_relative "tool_use_behavior"
 
 module OpenAIAgents
   ##
@@ -100,7 +101,11 @@ module OpenAIAgents
     #   @return [Array<OutputGuardrail>] output validation guardrails
     # @!attribute [rw] handoff_description
     #   @return [String, nil] description of when/why to handoff to this agent
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description
+    # @!attribute [rw] tool_use_behavior
+    #   @return [ToolUseBehavior::Base, String, Symbol, Proc] controls how tools are handled
+    # @!attribute [rw] reset_tool_choice
+    #   @return [Boolean] whether to reset tool choice after tool calls
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_schema, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice
 
     ##
     # Creates a new Agent instance
@@ -141,6 +146,10 @@ module OpenAIAgents
       @input_guardrails = (options[:input_guardrails] || []).dup
       @output_guardrails = (options[:output_guardrails] || []).dup
       @handoff_description = options[:handoff_description]
+      
+      # Tool use behavior configuration
+      @tool_use_behavior = ToolUseBehavior.from_config(options[:tool_use_behavior] || :run_llm_again)
+      @reset_tool_choice = options.fetch(:reset_tool_choice, true)
       
       # Handle output_type configuration
       configure_output_type
@@ -297,7 +306,8 @@ module OpenAIAgents
     ##
     # Checks if the agent has any tools available
     #
-    # @return [Boolean] true if the agent has tools, false otherwise
+    # @param context [RunContextWrapper, nil] current run context for dynamic tool filtering
+    # @return [Boolean] true if the agent has enabled tools, false otherwise
     #
     # @example
     #   if agent.tools?
@@ -305,8 +315,25 @@ module OpenAIAgents
     #   else
     #     puts "Agent has no tools"
     #   end
-    def tools?
-      !@tools.empty?
+    def tools?(context = nil)
+      enabled_tools(context).any?
+    end
+
+    ##
+    # Get all enabled tools for the given context
+    #
+    # @param context [RunContextWrapper, nil] current run context
+    # @return [Array<FunctionTool>] enabled tools only
+    def enabled_tools(context = nil)
+      FunctionTool.enabled_tools(@tools, context)
+    end
+
+    ##
+    # Get all tools (including disabled ones)
+    #
+    # @return [Array<FunctionTool>] all tools regardless of enabled state
+    def all_tools
+      @tools
     end
 
     ##
@@ -404,7 +431,139 @@ module OpenAIAgents
       end
     end
 
+    ##
+    # Clone the agent with optional parameter overrides
+    #
+    # Creates a new agent instance with the same configuration as this agent,
+    # but allows overriding specific parameters. This is useful for creating
+    # agent variants or for testing different configurations.
+    #
+    # @param kwargs [Hash] parameters to override in the clone
+    # @return [Agent] new agent instance with specified overrides
+    #
+    # @example Clone with different instructions
+    #   base_agent = Agent.new(name: "Assistant", instructions: "Be helpful")
+    #   specialized_agent = base_agent.clone(
+    #     name: "Code Assistant",
+    #     instructions: "Help with programming questions",
+    #     tools: [code_search_tool]
+    #   )
+    #
+    # @example Clone with different model
+    #   fast_agent = slow_agent.clone(model: "gpt-4o-mini")
+    def clone(**kwargs)
+      # Get current configuration
+      current_config = {
+        name: @name,
+        instructions: @instructions,
+        tools: @tools.dup,
+        handoffs: @handoffs.dup,
+        model: @model,
+        max_turns: @max_turns,
+        output_schema: @output_schema,
+        output_type: @output_type,
+        hooks: @hooks,
+        prompt: @prompt,
+        input_guardrails: @input_guardrails.dup,
+        output_guardrails: @output_guardrails.dup,
+        handoff_description: @handoff_description,
+        tool_use_behavior: @tool_use_behavior,
+        reset_tool_choice: @reset_tool_choice
+      }
+
+      # Merge with overrides
+      new_config = current_config.merge(kwargs)
+
+      # Create new agent
+      self.class.new(**new_config)
+    end
+
+    ##
+    # Convert this agent into a tool that can be used by other agents
+    #
+    # This creates a FunctionTool that wraps this agent, allowing other agents
+    # to delegate tasks to this agent as if it were a regular tool call.
+    #
+    # @param tool_name [String, nil] custom name for the tool (defaults to agent name)
+    # @param tool_description [String, nil] custom description for the tool
+    # @param custom_output_extractor [Proc, nil] custom function to extract final output
+    # @return [FunctionTool] tool that wraps this agent
+    #
+    # @example Convert agent to tool
+    #   specialist = Agent.new(name: "Specialist", instructions: "Expert in topic X")
+    #   tool = specialist.as_tool(
+    #     tool_name: "consult_specialist",
+    #     tool_description: "Consult the specialist about topic X"
+    #   )
+    #   
+    #   main_agent = Agent.new(name: "Main", tools: [tool])
+    #
+    # @example With custom output extractor
+    #   agent_tool = agent.as_tool do |run_result|
+    #     # Extract just the final message content
+    #     run_result.messages.last[:content]
+    #   end
+    def as_tool(tool_name: nil, tool_description: nil, custom_output_extractor: nil, &block)
+      tool_name ||= @name.downcase.gsub(/\s+/, '_')
+      tool_description ||= @handoff_description || "Delegate to #{@name}"
+      
+      # Use block if provided, otherwise use custom_output_extractor
+      output_extractor = block || custom_output_extractor || default_output_extractor
+
+      # Create a proc that runs this agent
+      agent_proc = proc do |input_text = "", **kwargs|
+        # Create a runner for this agent
+        require_relative "runner"
+        runner = Runner.new(agent: self)
+        
+        # Build input message
+        input_message = if kwargs.any?
+          # Include kwargs in the input
+          formatted_input = "#{input_text}\n\nAdditional context: #{kwargs.to_json}"
+          formatted_input
+        else
+          input_text
+        end
+        
+        # Run the agent
+        result = runner.run(input_message)
+        
+        # Extract output using the provided extractor
+        output_extractor.call(result)
+      end
+
+      # Create FunctionTool from the proc
+      FunctionTool.new(
+        name: tool_name,
+        description: tool_description,
+        function: agent_proc,
+        # Add parameters for input and optional kwargs
+        parameters: {
+          type: "object",
+          properties: {
+            input_text: {
+              type: "string",
+              description: "Input text to send to the #{@name} agent"
+            }
+          },
+          required: ["input_text"]
+        }
+      )
+    end
+
     private
+
+    def default_output_extractor
+      proc do |run_result|
+        # Extract the final assistant message content
+        if run_result.respond_to?(:messages) && run_result.messages.any?
+          last_message = run_result.messages.reverse.find { |msg| msg[:role] == 'assistant' }
+          last_message&.dig(:content) || ""
+        else
+          run_result.to_s
+        end
+      end
+    end
 
     def configure_output_type
       return unless @output_type

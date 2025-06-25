@@ -14,6 +14,8 @@ require_relative "result"
 require_relative "run_config"
 require_relative "run_context"
 require_relative "lifecycle"
+require_relative "run_result_streaming"
+require_relative "streaming_events_semantic"
 
 module OpenAIAgents
   class Runner
@@ -79,6 +81,32 @@ module OpenAIAgents
       Async do
         run(messages, stream: stream, config: config, **kwargs)
       end
+    end
+
+    # New streaming method matching Python's run_streamed
+    def run_streamed(messages, config: nil, **kwargs)
+      # Normalize messages and config
+      messages = normalize_messages(messages)
+      
+      if config.nil? && !kwargs.empty?
+        config = RunConfig.new(**kwargs)
+      elsif config.nil?
+        config = RunConfig.new
+      end
+
+      # Create streaming result
+      streaming_result = RunResultStreaming.new(
+        agent: @agent,
+        input: messages,
+        run_config: config,
+        tracer: @tracer,
+        provider: @provider
+      )
+
+      # Start streaming in background
+      streaming_result.start_streaming
+      
+      streaming_result
     end
 
     private

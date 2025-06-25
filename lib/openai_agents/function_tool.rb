@@ -5,12 +5,14 @@ require_relative "errors"
 module OpenAIAgents
   class FunctionTool
     attr_reader :name, :description, :parameters, :callable
+    attr_accessor :is_enabled
 
-    def initialize(callable, name: nil, description: nil, parameters: nil)
+    def initialize(callable, name: nil, description: nil, parameters: nil, is_enabled: nil)
       @callable = callable
       @name = name || extract_name(callable)
       @description = description || extract_description(callable)
       @parameters = parameters || extract_parameters(callable)
+      @is_enabled = is_enabled # Can be a Proc, boolean, or nil
     end
 
     def call(**kwargs)
@@ -32,6 +34,43 @@ module OpenAIAgents
       end
     rescue StandardError => e
       raise ToolError, "Error executing tool '#{@name}': #{e.message}"
+    end
+
+    ##
+    # Check if tool is enabled for the given context
+    #
+    # @param context [RunContextWrapper, nil] current run context
+    # @return [Boolean] true if tool is enabled
+    def enabled?(context = nil)
+      case @is_enabled
+      when true, nil
+        true
+      when false
+        false
+      when Proc
+        begin
+          if @is_enabled.arity == 0
+            @is_enabled.call
+          else
+            @is_enabled.call(context)
+          end
+        rescue => e
+          warn "Error evaluating tool enabled state: #{e.message}"
+          false
+        end
+      else
+        !!@is_enabled
+      end
+    end
+
+    ##
+    # Get enabled tools from a collection
+    #
+    # @param tools [Array<FunctionTool>] collection of tools
+    # @param context [RunContextWrapper, nil] current run context
+    # @return [Array<FunctionTool>] enabled tools only
+    def self.enabled_tools(tools, context = nil)
+      tools.select { |tool| tool.enabled?(context) }
     end
 
     def to_h

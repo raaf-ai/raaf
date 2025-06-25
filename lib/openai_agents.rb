@@ -32,6 +32,15 @@ require_relative "openai_agents/repl"
 require_relative "openai_agents/tools/file_search_tool"
 require_relative "openai_agents/tools/web_search_tool"
 require_relative "openai_agents/tools/computer_tool"
+require_relative "openai_agents/tools/local_shell_tool"
+require_relative "openai_agents/tools/mcp_tool"
+
+# New advanced features
+require_relative "openai_agents/run_result_streaming"
+require_relative "openai_agents/streaming_events_semantic"
+require_relative "openai_agents/tool_use_behavior"
+require_relative "openai_agents/model_settings"
+require_relative "openai_agents/parallel_guardrails"
 
 # Additional advanced features
 require_relative "openai_agents/voice/voice_workflow"
