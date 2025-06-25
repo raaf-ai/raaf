@@ -249,7 +249,7 @@ module OpenAIAgents
                      else
                        (should_flush_time ? "time" : "batch_size")
                      end
-            puts "[BatchTraceProcessor] Flushing batch of #{batch.size} spans (reason: #{reason}, #{@queue.size} remaining in queue)"
+            puts "[BatchTraceProcessor] Flushing batch of #{batch.size} spans (reason: #{reason}, #{@queue.size} remaining in queue)" if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
           end
 
           export_batch(batch) unless batch.empty?

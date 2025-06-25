@@ -413,7 +413,7 @@ module OpenAIAgents
       def send_spans(spans)
         debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
 
-        puts "[OpenAI Processor] Sending #{spans.size} spans to #{@traces_endpoint}"
+        puts "[OpenAI Processor] Sending #{spans.size} spans to #{@traces_endpoint}" if debug
 
         uri = URI(@traces_endpoint)
         http = Net::HTTP.new(uri.host, uri.port)
@@ -489,12 +489,12 @@ module OpenAIAgents
           puts "=== End DEBUG ==="
         end
 
-        puts "[OpenAI Processor] Sending request to OpenAI traces API..."
+        puts "[OpenAI Processor] Sending request to OpenAI traces API..." if debug
         start_time = Time.now
         response = http.request(request)
         duration = Time.now - start_time
 
-        puts "[OpenAI Processor] Response: #{response.code} - #{response.message} (#{(duration * 1000).round(2)}ms)"
+        puts "[OpenAI Processor] Response: #{response.code} - #{response.message} (#{(duration * 1000).round(2)}ms)" if debug
 
         if debug
           puts "\n[OpenAI Processor] === DEBUG: HTTP Response Details ==="
@@ -507,7 +507,7 @@ module OpenAIAgents
         end
 
         if response.code.start_with?("2")
-          puts "[OpenAI Processor] ✅ Successfully sent traces to OpenAI"
+          puts "[OpenAI Processor] ✅ Successfully sent traces to OpenAI" if debug
           if debug && response.body && !response.body.empty?
             begin
               result = JSON.parse(response.body)
@@ -517,7 +517,7 @@ module OpenAIAgents
             end
           end
         else
-          puts "[OpenAI Processor] Error body: #{response.body}"
+          puts "[OpenAI Processor] Error body: #{response.body}" if debug
           warn "OpenAI traces API returned #{response.code}: #{response.body}"
         end
       end

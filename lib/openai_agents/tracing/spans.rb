@@ -777,13 +777,16 @@ module OpenAIAgents
       #
       # @param span [Span] The started span
       def on_span_start(span)
-        puts "[SPAN START] #{span.name} (#{span.span_id})"
+        puts "[SPAN START] #{span.name} (#{span.span_id})" if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
       end
 
       # Called when a span ends
       #
       # @param span [Span] The ended span
       def on_span_end(span)
+        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+        return unless debug
+
         duration = span.duration ? "#{(span.duration * 1000).round(2)}ms" : "unknown"
         status_icon = span.status == :error ? "❌" : "✅"
         puts "[SPAN END] #{status_icon} #{span.name} (#{span.span_id}) - #{duration}"
