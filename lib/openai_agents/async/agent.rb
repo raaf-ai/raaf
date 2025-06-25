@@ -34,9 +34,9 @@ module OpenAIAgents
 
       # Execute multiple tools in parallel
       def execute_tools_async(tool_calls)
-        Async do |task|
+        Async do |_task|
           barrier = Async::Barrier.new
-          
+
           tool_calls.each do |tool_call|
             tool_name = tool_call[:name] || tool_call["name"]
             tool_args = tool_call[:arguments] || tool_call["arguments"] || {}

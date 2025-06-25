@@ -179,11 +179,11 @@ RSpec.describe "Structured Output Integration" do
         # Parse JSON and compare objects instead of string comparison for robustness
         parsed_response = JSON.parse(result.messages.last[:content])
         expect(parsed_response).to eq({
-          "name" => "Alice",
-          "age" => 25,
-          "email" => "alice@example.com",
-          "active" => true
-        })
+                                        "name" => "Alice",
+                                        "age" => 25,
+                                        "email" => "alice@example.com",
+                                        "active" => true
+                                      })
       end
 
       it "passes response_format directly to OpenAI without modification" do

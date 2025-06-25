@@ -217,7 +217,7 @@ module OpenAIAgents
 
       def process_tool_calls_async(tool_calls, agent, conversation, config)
         # Process tool calls in parallel using Async::Barrier
-        Async do |task|
+        Async do |_task|
           barrier = Async::Barrier.new
 
           # Start all tool call tasks

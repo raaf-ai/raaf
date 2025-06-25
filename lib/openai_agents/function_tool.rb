@@ -96,11 +96,13 @@ module OpenAIAgents
     def self.enabled_tools(tools, context = nil)
       tools.select do |tool|
         # Handle simple hash tools (like web_search) that don't have enabled? method
+        # rubocop:disable Style/RedundantCondition
         if tool.is_a?(Hash)
           true # Simple hash tools are always enabled
         else
           tool.enabled?(context)
         end
+        # rubocop:enable Style/RedundantCondition
       end
     end
 

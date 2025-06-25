@@ -494,7 +494,9 @@ module OpenAIAgents
         response = http.request(request)
         duration = Time.now - start_time
 
-        puts "[OpenAI Processor] Response: #{response.code} - #{response.message} (#{(duration * 1000).round(2)}ms)" if debug
+        if debug
+          puts "[OpenAI Processor] Response: #{response.code} - #{response.message} (#{(duration * 1000).round(2)}ms)"
+        end
 
         if debug
           puts "\n[OpenAI Processor] === DEBUG: HTTP Response Details ==="

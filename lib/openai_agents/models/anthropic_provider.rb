@@ -52,7 +52,9 @@ module OpenAIAgents
         # Add response_format support - Anthropic doesn't support JSON schema directly
         # but we can enhance the system message for structured output
         if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
+          # rubocop:disable Layout/LineLength
           json_instruction = "\n\nIMPORTANT: Please respond with valid JSON only. Do not include any other text or explanation."
+          # rubocop:enable Layout/LineLength
           if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
             schema = kwargs[:response_format][:json_schema][:schema]
             json_instruction += " Follow this JSON schema: #{schema.to_json}"
@@ -96,7 +98,9 @@ module OpenAIAgents
 
         # Add response_format support for streaming
         if kwargs[:response_format] && kwargs[:response_format][:type] == "json_schema"
+          # rubocop:disable Layout/LineLength
           json_instruction = "\n\nIMPORTANT: Please respond with valid JSON only. Do not include any other text or explanation."
+          # rubocop:enable Layout/LineLength
           if kwargs[:response_format][:json_schema] && kwargs[:response_format][:json_schema][:schema]
             schema = kwargs[:response_format][:json_schema][:schema]
             json_instruction += " Follow this JSON schema: #{schema.to_json}"
