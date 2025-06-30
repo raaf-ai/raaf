@@ -225,9 +225,22 @@ module OpenAIAgents
                    output_type: span.attributes["agent.output_type"] || "str"
                  }.compact
                when :llm
+                 # Get input messages as array for OpenAI API compatibility
+                 input_messages = span.attributes["llm.request.messages"] || []
+                 # If it's a string, try to parse it, otherwise use as-is
+                 parsed_input = if input_messages.is_a?(String)
+                                  begin
+                                    JSON.parse(input_messages)
+                                  rescue JSON::ParserError
+                                    []
+                                  end
+                                else
+                                  input_messages
+                                end
+                 
                  data = {
                    type: "generation",
-                   input: span.attributes["llm.request.messages"] || [],
+                   input: parsed_input,
                    output: format_llm_output(span),
                    model: span.attributes["llm.request.model"],
                    model_config: extract_model_config(span)
@@ -237,10 +250,18 @@ module OpenAIAgents
                  data[:usage] = usage if usage
                  data
                when :tool
+                 # Ensure input is a string for OpenAI API compatibility
+                 tool_input = span.attributes["function.input"]
+                 input_string = case tool_input
+                               when String then tool_input
+                               when nil then nil
+                               else JSON.generate(tool_input)
+                               end
+                 
                  {
                    type: "function",
                    name: span.attributes["function.name"] || span.name,
-                   input: span.attributes["function.input"],
+                   input: input_string,
                    output: span.attributes["function.output"],
                    mcp_data: span.attributes["function.mcp_data"]
                  }
