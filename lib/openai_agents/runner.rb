@@ -377,7 +377,10 @@ module OpenAIAgents
         break if agent_result[:done]
 
         # Check max turns for current agent
-        raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
+        if turns >= current_agent.max_turns
+          raise MaxTurnsError,
+                "Maximum turns (#{current_agent.max_turns}) on #{current_agent.name} exceeded"
+        end
       end
 
       # Get final output for agent end hook
@@ -543,6 +546,21 @@ module OpenAIAgents
       if assistant_message[:content] || assistant_message[:tool_calls]
         conversation << assistant_message
         puts "[Runner] Added assistant message with #{assistant_message[:tool_calls]&.size || 0} tool calls"
+        
+        # Debug assistant response if enabled
+        if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
+          puts "\n[DEBUG] Assistant response:"
+          content_preview = assistant_message[:content].to_s[0..500]
+          content_preview += "..." if assistant_message[:content].to_s.length > 500
+          puts "  Content: #{content_preview}"
+          if assistant_message[:tool_calls]
+            puts "  Tool calls (#{assistant_message[:tool_calls].size}):"
+            assistant_message[:tool_calls].each_with_index do |tc, i|
+              puts "    #{i}: #{tc.dig('function', 'name')} - #{tc.dig('function', 'arguments')}"
+            end
+          end
+          puts "[DEBUG] End assistant response\n"
+        end
       end
 
       result = { done: false, handoff: nil }
@@ -555,10 +573,22 @@ module OpenAIAgents
         result[:done] = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper, response)
       end
 
-      # Check for handoff
+      # Check for handoff in text format
       if message["content"]&.include?("HANDOFF:")
         handoff_match = message["content"].match(/HANDOFF:\s*(\w+)/)
         result[:handoff] = handoff_match[1] if handoff_match
+      end
+      
+      # Also check for handoff in JSON response
+      if message["content"] && !result[:handoff]
+        begin
+          parsed = JSON.parse(message["content"])
+          if parsed.is_a?(Hash) && parsed["handoff_to"]
+            result[:handoff] = parsed["handoff_to"]
+          end
+        rescue JSON::ParserError
+          # Not JSON, ignore
+        end
       end
 
       # If no tool calls and no handoff, we're done
@@ -579,6 +609,18 @@ module OpenAIAgents
       results.each { |message| conversation << message }
 
       puts "[Runner] Tool processing complete. Conversation now has #{conversation.size} messages"
+      
+      # Debug conversation if enabled
+      if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
+        puts "\n[DEBUG] Full conversation (#{conversation.size} messages):"
+        conversation.each_with_index do |msg, i|
+          content_preview = msg[:content].to_s[0..200]
+          content_preview += "..." if msg[:content].to_s.length > 200
+          puts "  #{i}: #{msg[:role]} - #{content_preview}"
+        end
+        puts "[DEBUG] End conversation\n"
+      end
+      
       false # Continue conversation after tool calls
     end
 
@@ -594,13 +636,13 @@ module OpenAIAgents
 
         # Extract the actual results from the response if available
         tool_result = extract_openai_tool_result(tool_call["id"], full_response)
-        
+
         # Create a detailed trace for the OpenAI-hosted tool
         if @tracer && !@disabled_tracing
           @tracer.tool_span(tool_name) do |tool_span|
             tool_span.set_attribute("function.name", tool_name)
             tool_span.set_attribute("function.input", arguments)
-            
+
             # Add the actual results if we found them
             if tool_result
               tool_span.set_attribute("function.output", tool_result)
@@ -609,9 +651,9 @@ module OpenAIAgents
               tool_span.set_attribute("function.output", "[Results embedded in assistant response]")
               tool_span.set_attribute("function.has_results", false)
             end
-            
+
             tool_span.add_event("openai_hosted_tool")
-            
+
             # Add detailed attributes for web_search
             if tool_name == "web_search" && arguments["query"]
               tool_span.set_attribute("web_search.query", arguments["query"])
@@ -625,7 +667,33 @@ module OpenAIAgents
                   else
                     "OpenAI-hosted tool '#{tool_name}' executed. Results in assistant response."
                   end
-                    
+
+        # Debug OpenAI-hosted tool result if enabled
+        if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
+          puts "\n[DEBUG] OpenAI-hosted tool result for #{tool_name}:"
+          puts "  Arguments: #{arguments}"
+          
+          # For web_search and other hosted tools, show the integrated results
+          if tool_result
+            result_preview = tool_result.to_s[0..2000]  # Show more content for search results
+            result_preview += "..." if tool_result.to_s.length > 2000
+            puts "  Integrated Results: #{result_preview}"
+          else
+            puts "  Result: No extractable results found"
+          end
+          
+          # Also show the raw response structure for debugging
+          if full_response && ENV["OPENAI_AGENTS_DEBUG_RAW"] == "true"
+            puts "  Raw Response Keys: #{full_response.keys}"
+            if full_response["choices"]&.first&.dig("message")
+              msg = full_response["choices"].first["message"]
+              puts "  Message Keys: #{msg.keys}"
+            end
+          end
+          
+          puts "[DEBUG] End OpenAI-hosted tool result\n"
+        end
+
         return {
           role: "tool",
           tool_call_id: tool_call["id"],
@@ -657,10 +725,21 @@ module OpenAIAgents
         # Call tool end hooks if context is available
         call_hook(:on_tool_end, context_wrapper, agent, tool, result) if context_wrapper && tool
 
+        formatted_result = format_tool_result(result)
+        
+        # Debug tool result if enabled
+        if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
+          puts "\n[DEBUG] Tool execution result for #{tool_name}:"
+          result_preview = formatted_result.to_s[0..1000]
+          result_preview += "..." if formatted_result.to_s.length > 1000
+          puts "  Result: #{result_preview}"
+          puts "[DEBUG] End tool result\n"
+        end
+
         {
           role: "tool",
           tool_call_id: tool_call["id"],
-          content: format_tool_result(result)
+          content: formatted_result
         }
       rescue StandardError => e
         puts "[Runner] Tool execution error: #{e.message}"
@@ -748,34 +827,37 @@ module OpenAIAgents
         result.to_s
       end
     end
-    
+
     # Extract results from OpenAI-hosted tools in the response
     def extract_openai_tool_result(tool_call_id, full_response)
       return nil unless full_response
-      
+
       # OpenAI sometimes includes tool results in a parallel structure
       # Check if there's a tool_outputs or similar field
       if full_response["tool_outputs"]
         output = full_response["tool_outputs"].find { |o| o["tool_call_id"] == tool_call_id }
         return output["output"] if output
       end
-      
-      # For web_search, results might be embedded in the assistant's response
-      # We'll need to parse the assistant's message for structured results
+
+      # For web_search and other hosted tools, check if there are structured results
+      # in the response that we can extract for debugging
       choice = full_response.dig("choices", 0)
       return nil unless choice
-      
+
+      # Check for tool-specific result structures in the response
+      # OpenAI may include search results in various formats
+      if full_response["search_results"] || full_response["web_search_results"]
+        search_results = full_response["search_results"] || full_response["web_search_results"]
+        return search_results if search_results.is_a?(Array) || search_results.is_a?(Hash)
+      end
+
+      # Check the message content for embedded results
       message_content = choice.dig("message", "content")
       return nil unless message_content
-      
-      # Look for structured search results in the content
-      # This is a heuristic approach - OpenAI might format results differently
-      if message_content.include?("search results") || message_content.include?("found the following")
-        # Return a summary indicating results are in the message
-        return "Search results embedded in assistant response: #{message_content[0..200]}..."
-      end
-      
-      nil
+
+      # For debugging purposes, always return the message content for hosted tools
+      # since the results are integrated into the AI's response
+      message_content
     end
   end
 end

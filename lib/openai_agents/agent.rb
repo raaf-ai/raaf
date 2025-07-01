@@ -429,7 +429,15 @@ module OpenAIAgents
     # @param tool_name [String, Symbol] name of the tool to check
     # @return [Boolean] true if tool exists, false otherwise
     def tool_exists?(tool_name)
-      @tools.any? { |t| t.name == tool_name.to_s }
+      @tools.any? do |t| 
+        if t.is_a?(Hash)
+          # Handle hosted tools (like web_search)
+          t[:type] == tool_name.to_s || t["type"] == tool_name.to_s
+        else
+          # Handle regular tool objects
+          t.respond_to?(:name) && t.name == tool_name.to_s
+        end
+      end
     end
 
     ##
