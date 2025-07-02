@@ -86,6 +86,15 @@ module OpenAIAgents
                 parameters: tool.parameters
               }
             }
+          when OpenAIAgents::Tools::WebSearchTool
+            # Convert WebSearchTool to hosted tool format for Responses API
+            {
+              type: "web_search",
+              web_search: {
+                user_location: tool.user_location,
+                search_context_size: tool.search_context_size
+              }.compact
+            }
           else
             raise ArgumentError, "Invalid tool type: #{tool.class}" unless tool.respond_to?(:to_tool_definition)
 
@@ -189,8 +198,8 @@ module OpenAIAgents
         # for compatibility with existing Ruby code
         return nil unless response && response["output"]
 
-        # Debug logging in development
-        if %w[development test].include?(ENV["RAILS_ENV"])
+        # Debug logging when OPENAI_AGENTS_DEBUG_RAW is set
+        if ENV["OPENAI_AGENTS_DEBUG_RAW"]
           puts "[ResponsesProvider] Raw API response output: #{response["output"].inspect}"
           puts "[ResponsesProvider] Raw API usage: #{response["usage"].inspect}"
         end
@@ -201,7 +210,7 @@ module OpenAIAgents
         tool_calls = extract_tool_calls_from_output(response["output"])
 
         # Debug logging for tool calls
-        if tool_calls && ENV["RAILS_ENV"] == "development"
+        if tool_calls && ENV["OPENAI_AGENTS_DEBUG_RAW"]
           puts "[ResponsesProvider] Extracted tool calls: #{tool_calls.inspect}"
         end
 
@@ -224,7 +233,7 @@ module OpenAIAgents
                     model: response["model"] || model
                   )
 
-                  if %w[development test].include?(ENV["RAILS_ENV"])
+                  if ENV["OPENAI_AGENTS_DEBUG_RAW"]
                     puts "[ResponsesProvider] Estimated token usage: #{estimated_usage.inspect}"
                   end
 

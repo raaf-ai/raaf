@@ -264,6 +264,11 @@ module OpenAIAgents
             model_params[:response_format] = current_agent.response_format
           end
 
+          # Add tool choice support if configured
+          if current_agent.respond_to?(:tool_choice) && current_agent.tool_choice
+            model_params[:tool_choice] = current_agent.tool_choice
+          end
+
           # Add prompt support for Responses API
           if current_agent.prompt && @provider.respond_to?(:supports_prompts?) && @provider.supports_prompts?
             prompt_input = PromptUtil.to_model_input(current_agent.prompt, context_wrapper, current_agent)
@@ -419,6 +424,11 @@ module OpenAIAgents
         if current_agent.response_format
           # Use the response_format directly if provided
           model_params[:response_format] = current_agent.response_format
+        end
+
+        # Add tool choice support if configured
+        if current_agent.respond_to?(:tool_choice) && current_agent.tool_choice
+          model_params[:tool_choice] = current_agent.tool_choice
         end
 
         response = if config.stream
