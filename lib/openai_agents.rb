@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "openai_agents/version"
+require_relative "openai_agents/hash_utils"
 require_relative "openai_agents/agent"
 require_relative "openai_agents/runner"
 require_relative "openai_agents/run_config"
