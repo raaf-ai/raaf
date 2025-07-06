@@ -1,0 +1,625 @@
+# frozen_string_literal: true
+
+require "json"
+require "csv"
+require "yaml"
+require "thread"
+
+module OpenAIAgents
+  # Data pipeline framework for agent-based data processing
+  module DataPipeline
+    # Main pipeline class
+    class Pipeline
+      attr_reader :name, :stages, :config, :state
+      
+      def initialize(name, config = {})
+        @name = name
+        @config = default_config.merge(config)
+        @stages = []
+        @state = :idle
+        @metrics = { processed: 0, errors: 0, skipped: 0 }
+        @mutex = Mutex.new
+      end
+      
+      # Add a stage to the pipeline
+      def add_stage(stage)
+        @mutex.synchronize do
+          @stages << stage
+          stage.pipeline = self
+        end
+        self
+      end
+      
+      # Alias for add_stage
+      def pipe(stage)
+        add_stage(stage)
+      end
+      
+      # Process data through the pipeline
+      def process(input_data)
+        @state = :running
+        
+        begin
+          # Prepare input
+          data = prepare_input(input_data)
+          
+          # Process through stages
+          @stages.each_with_index do |stage, index|
+            stage_context = {
+              stage_index: index,
+              total_stages: @stages.length,
+              pipeline: @name
+            }
+            
+            data = stage.process(data, stage_context)
+            
+            # Handle stage results
+            case data
+            when nil
+              @metrics[:skipped] += 1
+              break
+            when StageError
+              handle_stage_error(stage, data)
+              break unless @config[:continue_on_error]
+            end
+          end
+          
+          @metrics[:processed] += 1
+          data
+        rescue => e
+          @metrics[:errors] += 1
+          handle_pipeline_error(e)
+        ensure
+          @state = :idle
+        end
+      end
+      
+      # Process batch of data
+      def process_batch(data_array, options = {})
+        options = @config[:batch_options].merge(options)
+        results = []
+        
+        if options[:parallel]
+          process_parallel(data_array, options, results)
+        else
+          process_sequential(data_array, results)
+        end
+        
+        results
+      end
+      
+      # Stream processing
+      def process_stream(stream, options = {})
+        @state = :streaming
+        
+        begin
+          stream.each do |item|
+            result = process(item)
+            yield(result) if block_given?
+          end
+        ensure
+          @state = :idle
+        end
+      end
+      
+      # Get pipeline metrics
+      def metrics
+        @mutex.synchronize { @metrics.dup }
+      end
+      
+      # Reset metrics
+      def reset_metrics
+        @mutex.synchronize do
+          @metrics = { processed: 0, errors: 0, skipped: 0 }
+        end
+      end
+      
+      # Validate pipeline configuration
+      def validate
+        errors = []
+        
+        errors << "Pipeline has no stages" if @stages.empty?
+        
+        @stages.each_with_index do |stage, index|
+          stage_errors = stage.validate
+          stage_errors.each do |error|
+            errors << "Stage #{index} (#{stage.name}): #{error}"
+          end
+        end
+        
+        errors
+      end
+      
+      private
+      
+      def default_config
+        {
+          continue_on_error: false,
+          error_handler: :log,
+          batch_options: {
+            parallel: false,
+            max_threads: 4,
+            chunk_size: 100
+          },
+          monitoring: {
+            enabled: true,
+            interval: 60
+          }
+        }
+      end
+      
+      def prepare_input(data)
+        case data
+        when String
+          data
+        when Hash, Array
+          data
+        when Pathname, File
+          File.read(data)
+        else
+          data.to_s
+        end
+      end
+      
+      def process_parallel(data_array, options, results)
+        threads = []
+        chunks = data_array.each_slice(options[:chunk_size])
+        
+        chunks.each do |chunk|
+          if threads.size >= options[:max_threads]
+            threads.first.join
+            threads.shift
+          end
+          
+          thread = Thread.new do
+            chunk.map { |item| process(item) }
+          end
+          
+          threads << thread
+        end
+        
+        threads.each(&:join)
+        results.flatten!
+      end
+      
+      def process_sequential(data_array, results)
+        data_array.each do |item|
+          results << process(item)
+        end
+      end
+      
+      def handle_stage_error(stage, error)
+        case @config[:error_handler]
+        when :log
+          warn "[Pipeline Error] Stage '#{stage.name}': #{error.message}"
+        when :raise
+          raise error
+        when Proc
+          @config[:error_handler].call(stage, error)
+        end
+      end
+      
+      def handle_pipeline_error(error)
+        case @config[:error_handler]
+        when :log
+          warn "[Pipeline Error] #{@name}: #{error.message}"
+        when :raise
+          raise error
+        when Proc
+          @config[:error_handler].call(self, error)
+        end
+      end
+    end
+    
+    # Base stage class
+    class Stage
+      attr_reader :name, :options
+      attr_accessor :pipeline
+      
+      def initialize(name, options = {})
+        @name = name
+        @options = options
+      end
+      
+      def process(data, context = {})
+        raise NotImplementedError, "Subclasses must implement process"
+      end
+      
+      def validate
+        []
+      end
+    end
+    
+    # Transform stage using agent
+    class AgentStage < Stage
+      def initialize(name, agent:, prompt: nil, **options)
+        super(name, options)
+        @agent = agent
+        @prompt = prompt
+      end
+      
+      def process(data, context = {})
+        messages = build_messages(data, context)
+        
+        runner = Runner.new(agent: @agent)
+        result = runner.run(messages)
+        
+        extract_result(result)
+      end
+      
+      def validate
+        errors = []
+        errors << "Agent is required" unless @agent
+        errors << "Agent must have instructions" if @agent && @agent.instructions.nil?
+        errors
+      end
+      
+      private
+      
+      def build_messages(data, context)
+        content = @prompt ? @prompt.gsub("{{data}}", data.to_s) : data.to_s
+        
+        [
+          {
+            role: "user",
+            content: content
+          }
+        ]
+      end
+      
+      def extract_result(result)
+        result.messages.last[:content]
+      end
+    end
+    
+    # Filter stage
+    class FilterStage < Stage
+      def initialize(name, &block)
+        super(name)
+        @filter_block = block
+      end
+      
+      def process(data, context = {})
+        if @filter_block.call(data)
+          data
+        else
+          nil  # Skip this item
+        end
+      end
+    end
+    
+    # Map stage
+    class MapStage < Stage
+      def initialize(name, &block)
+        super(name)
+        @map_block = block
+      end
+      
+      def process(data, context = {})
+        @map_block.call(data)
+      end
+    end
+    
+    # Validation stage
+    class ValidationStage < Stage
+      def initialize(name, schema: nil, &block)
+        super(name)
+        @schema = schema
+        @validation_block = block
+      end
+      
+      def process(data, context = {})
+        errors = validate_data(data)
+        
+        if errors.empty?
+          data
+        else
+          StageError.new("Validation failed", errors: errors)
+        end
+      end
+      
+      private
+      
+      def validate_data(data)
+        errors = []
+        
+        if @schema
+          errors.concat(validate_schema(data))
+        end
+        
+        if @validation_block
+          custom_errors = @validation_block.call(data)
+          errors.concat(Array(custom_errors))
+        end
+        
+        errors
+      end
+      
+      def validate_schema(data)
+        # Simple schema validation
+        errors = []
+        
+        @schema.each do |key, rules|
+          value = data[key]
+          
+          if rules[:required] && value.nil?
+            errors << "#{key} is required"
+          end
+          
+          if rules[:type] && value && !value.is_a?(rules[:type])
+            errors << "#{key} must be a #{rules[:type]}"
+          end
+          
+          if rules[:pattern] && value && !value.match?(rules[:pattern])
+            errors << "#{key} format is invalid"
+          end
+        end
+        
+        errors
+      end
+    end
+    
+    # Enrichment stage
+    class EnrichmentStage < Stage
+      def initialize(name, source:, &block)
+        super(name)
+        @source = source
+        @enrichment_block = block
+      end
+      
+      def process(data, context = {})
+        enrichment_data = fetch_enrichment_data(data)
+        
+        if @enrichment_block
+          @enrichment_block.call(data, enrichment_data)
+        else
+          data.merge(enrichment_data)
+        end
+      end
+      
+      private
+      
+      def fetch_enrichment_data(data)
+        case @source
+        when Hash
+          @source
+        when Proc
+          @source.call(data)
+        when String
+          # Could be a file path or URL
+          {}
+        else
+          {}
+        end
+      end
+    end
+    
+    # Split stage - splits data into multiple items
+    class SplitStage < Stage
+      def initialize(name, &block)
+        super(name)
+        @split_block = block
+      end
+      
+      def process(data, context = {})
+        items = @split_block.call(data)
+        
+        # Process each item through remaining stages
+        items.map do |item|
+          # Clone remaining stages and process
+          remaining_stages = context[:remaining_stages] || []
+          sub_pipeline = Pipeline.new("#{@pipeline.name}_split")
+          
+          remaining_stages.each { |stage| sub_pipeline.add_stage(stage) }
+          sub_pipeline.process(item)
+        end.flatten
+      end
+    end
+    
+    # Aggregate stage - combines multiple items
+    class AggregateStage < Stage
+      def initialize(name, window_size: nil, &block)
+        super(name)
+        @window_size = window_size
+        @aggregate_block = block
+        @buffer = []
+      end
+      
+      def process(data, context = {})
+        @buffer << data
+        
+        if should_aggregate?
+          result = @aggregate_block.call(@buffer)
+          @buffer.clear
+          result
+        else
+          nil  # Skip until window is full
+        end
+      end
+      
+      private
+      
+      def should_aggregate?
+        @window_size.nil? || @buffer.size >= @window_size
+      end
+    end
+    
+    # Output stage
+    class OutputStage < Stage
+      def initialize(name, destination:, format: :json)
+        super(name)
+        @destination = destination
+        @format = format
+      end
+      
+      def process(data, context = {})
+        formatted_data = format_data(data)
+        write_output(formatted_data)
+        data  # Pass through
+      end
+      
+      private
+      
+      def format_data(data)
+        case @format
+        when :json
+          JSON.pretty_generate(data)
+        when :yaml
+          data.to_yaml
+        when :csv
+          data.values.join(",") if data.is_a?(Hash)
+        else
+          data.to_s
+        end
+      end
+      
+      def write_output(formatted_data)
+        case @destination
+        when String
+          File.write(@destination, formatted_data)
+        when :stdout
+          puts formatted_data
+        when IO
+          @destination.write(formatted_data)
+        when Proc
+          @destination.call(formatted_data)
+        end
+      end
+    end
+    
+    # Pipeline builder DSL
+    class PipelineBuilder
+      def self.build(name, &block)
+        builder = new(name)
+        builder.instance_eval(&block)
+        builder.pipeline
+      end
+      
+      attr_reader :pipeline
+      
+      def initialize(name)
+        @pipeline = Pipeline.new(name)
+      end
+      
+      def source(data)
+        @source_data = data
+        self
+      end
+      
+      def filter(&block)
+        @pipeline.add_stage(FilterStage.new("filter", &block))
+        self
+      end
+      
+      def map(&block)
+        @pipeline.add_stage(MapStage.new("map", &block))
+        self
+      end
+      
+      def transform(agent:, prompt: nil)
+        @pipeline.add_stage(AgentStage.new("transform", agent: agent, prompt: prompt))
+        self
+      end
+      
+      def validate(schema: nil, &block)
+        @pipeline.add_stage(ValidationStage.new("validate", schema: schema, &block))
+        self
+      end
+      
+      def enrich(source:, &block)
+        @pipeline.add_stage(EnrichmentStage.new("enrich", source: source, &block))
+        self
+      end
+      
+      def split(&block)
+        @pipeline.add_stage(SplitStage.new("split", &block))
+        self
+      end
+      
+      def aggregate(window_size: nil, &block)
+        @pipeline.add_stage(AggregateStage.new("aggregate", window_size: window_size, &block))
+        self
+      end
+      
+      def output(destination:, format: :json)
+        @pipeline.add_stage(OutputStage.new("output", destination: destination, format: format))
+        self
+      end
+      
+      def run(data = nil)
+        data ||= @source_data
+        @pipeline.process(data)
+      end
+    end
+    
+    # Predefined pipeline templates
+    module Templates
+      # ETL pipeline template
+      def self.etl_pipeline(name, agent)
+        PipelineBuilder.build(name) do
+          # Extract
+          map { |data| JSON.parse(data) rescue data }
+          
+          # Transform with agent
+          transform(
+            agent: agent,
+            prompt: "Clean and standardize this data: {{data}}"
+          )
+          
+          # Load
+          output(destination: "#{name}_output.json", format: :json)
+        end
+      end
+      
+      # Data validation pipeline
+      def self.validation_pipeline(name, schema)
+        PipelineBuilder.build(name) do
+          validate(schema: schema)
+          
+          filter { |data| data[:status] == "valid" }
+          
+          output(destination: :stdout, format: :yaml)
+        end
+      end
+      
+      # Log processing pipeline
+      def self.log_pipeline(name, agent)
+        PipelineBuilder.build(name) do
+          # Parse log lines
+          map do |line|
+            if match = line.match(/\[(\w+)\] (.+)/)
+              { level: match[1], message: match[2], raw: line }
+            else
+              { level: "INFO", message: line, raw: line }
+            end
+          end
+          
+          # Filter errors and warnings
+          filter { |log| %w[ERROR WARN].include?(log[:level]) }
+          
+          # Analyze with agent
+          transform(
+            agent: agent,
+            prompt: "Analyze this log entry and suggest fixes: {{data}}"
+          )
+          
+          # Output results
+          output(destination: "#{name}_analysis.json", format: :json)
+        end
+      end
+    end
+    
+    # Stage error class
+    class StageError < StandardError
+      attr_reader :errors
+      
+      def initialize(message, errors: [])
+        super(message)
+        @errors = errors
+      end
+    end
+    
+    # Pipeline error
+    class PipelineError < StandardError; end
+  end
+end

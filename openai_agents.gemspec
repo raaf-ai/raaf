@@ -47,6 +47,9 @@ Gem::Specification.new do |spec|
 
   # Token counting
   spec.add_dependency "tiktoken_ruby", "~> 0.0.5"
+  
+  # MIME type detection
+  spec.add_dependency "mimemagic", "~> 0.4"
 
   # Development and test dependencies
   # rubocop:disable Gemspec/DevelopmentDependencies

@@ -50,6 +50,21 @@ require_relative "openai_agents/extensions"
 require_relative "openai_agents/handoffs/advanced_handoff"
 require_relative "openai_agents/usage_tracking"
 
+# Memory and Vector functionality
+require_relative "openai_agents/memory"
+require_relative "openai_agents/vector_store"
+require_relative "openai_agents/semantic_search"
+
+# Document processing
+require_relative "openai_agents/multi_modal"
+require_relative "openai_agents/data_pipeline"
+require_relative "openai_agents/tools/document_tool"
+require_relative "openai_agents/tools/vector_search_tool"
+require_relative "openai_agents/tools/confluence_tool"
+
+# Compliance and Security
+require_relative "openai_agents/compliance"
+
 ##
 # OpenAI Agents Ruby - A comprehensive framework for building multi-agent AI workflows
 #
