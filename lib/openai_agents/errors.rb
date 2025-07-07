@@ -119,4 +119,14 @@ module OpenAIAgents
   # @example
   #   raise APIError, "API request failed: #{response}"
   class APIError < Error; end
+
+  ##
+  # Raised when agent execution is stopped by user request
+  #
+  # This exception is raised when a stop condition is triggered during
+  # agent execution, allowing for graceful termination.
+  #
+  # @example
+  #   raise ExecutionStoppedError, "Execution stopped by user request"
+  class ExecutionStoppedError < Error; end
 end

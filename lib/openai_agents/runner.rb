@@ -19,13 +19,14 @@ require_relative "streaming_events_semantic"
 
 module OpenAIAgents
   class Runner
-    attr_reader :agent, :tracer
+    attr_reader :agent, :tracer, :stop_checker
 
-    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false)
+    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil)
       @agent = agent
       @provider = provider || Models::ResponsesProvider.new
       @disabled_tracing = disabled_tracing || ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : OpenAIAgents.tracer)
+      @stop_checker = stop_checker
 
       # NOTE: LLM span wrapper removed - ResponsesProvider now handles usage tracking directly
     end
@@ -36,6 +37,18 @@ module OpenAIAgents
     # @return [Boolean] true if tracing is enabled, false otherwise
     def tracing_enabled?
       !@disabled_tracing && !@tracer.nil?
+    end
+
+    ##
+    # Checks if execution should be stopped
+    #
+    # @return [Boolean] true if execution should stop, false otherwise
+    def should_stop?
+      return false unless @stop_checker
+      @stop_checker.call
+    rescue StandardError => e
+      warn "Error checking stop condition: #{e.message}"
+      false
     end
 
     ##
@@ -217,6 +230,12 @@ module OpenAIAgents
       max_turns = config.max_turns || current_agent.max_turns
 
       while turns < max_turns
+        # Check if execution should stop
+        if should_stop?
+          conversation << { role: "assistant", content: "Execution stopped by user request." }
+          raise ExecutionStoppedError, "Execution stopped by user request"
+        end
+        
         # Create agent span as root span (matching Python implementation where agent span has parent_id: null)
         # Temporarily clear the span stack to make this span root
         original_span_stack = @tracer.instance_variable_get(:@context).instance_variable_get(:@span_stack).dup
@@ -345,6 +364,12 @@ module OpenAIAgents
 
           # Process response
           result = process_response(response, current_agent, conversation)
+          
+          # Check if execution should stop after processing response
+          if should_stop?
+            conversation << { role: "assistant", content: "Execution stopped by user request." }
+            raise ExecutionStoppedError, "Execution stopped by user request after processing response"
+          end
 
           result
         end
@@ -353,6 +378,12 @@ module OpenAIAgents
         @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_span_stack)
 
         turns += 1
+        
+        # Check if execution was stopped
+        if agent_result[:stopped]
+          conversation << { role: "assistant", content: "Execution stopped by user request." }
+          raise ExecutionStoppedError, "Execution stopped by user request"
+        end
 
         # Check for handoff
         if agent_result[:handoff]
@@ -413,6 +444,12 @@ module OpenAIAgents
       max_turns = config.max_turns || current_agent.max_turns
 
       while turns < max_turns
+        # Check if execution should stop
+        if should_stop?
+          conversation << { role: "assistant", content: "Execution stopped by user request." }
+          raise ExecutionStoppedError, "Execution stopped by user request"
+        end
+        
         # Prepare messages for API call
         api_messages = build_messages(conversation, current_agent)
 
@@ -450,8 +487,20 @@ module OpenAIAgents
 
         # Process response
         result = process_response(response, current_agent, conversation)
+        
+        # Check if execution should stop after processing response
+        if should_stop?
+          conversation << { role: "assistant", content: "Execution stopped by user request." }
+          raise ExecutionStoppedError, "Execution stopped by user request after processing response"
+        end
 
         turns += 1
+        
+        # Check if execution was stopped
+        if result[:stopped]
+          conversation << { role: "assistant", content: "Execution stopped by user request." }
+          raise ExecutionStoppedError, "Execution stopped by user request"
+        end
 
         # Check for handoff
         if result[:handoff]
@@ -580,7 +629,15 @@ module OpenAIAgents
         # Pass context_wrapper if we have it (only in run_with_tracing)
         context_wrapper = @current_context_wrapper if defined?(@current_context_wrapper)
         # Also pass the full response to capture OpenAI-hosted tool results
-        result[:done] = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper, response)
+        should_stop = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper, response)
+        
+        # If process_tool_calls returns true, it means we should stop
+        if should_stop == true
+          result[:done] = true
+          result[:stopped] = true
+        else
+          result[:done] = should_stop
+        end
       end
 
       # Check for handoff in text format
@@ -609,16 +666,44 @@ module OpenAIAgents
 
     def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil, full_response = nil)
       puts "[Runner] Processing #{tool_calls.size} tool calls"
+      
+      # Check if we should stop before processing ANY tools
+      if should_stop?
+        puts "[Runner] Stop requested - cancelling all #{tool_calls.size} tool calls"
+        # Add a single tool result indicating all tools were cancelled
+        conversation << {
+          role: "tool",
+          tool_call_id: tool_calls.first["id"],
+          content: "All tool executions cancelled: Execution stopped by user request"
+        }
+        return true # Indicate we should stop the conversation
+      end
 
       # Process each tool call and collect results using Ruby iterators
-      results = tool_calls.map do |tool_call|
-        process_single_tool_call(tool_call, agent, context_wrapper, full_response)
+      # But stop early if a stop is detected
+      results = []
+      tool_calls.each do |tool_call|
+        # Check stop before each tool
+        if should_stop?
+          results << {
+            role: "tool",
+            tool_call_id: tool_call["id"],
+            content: "Tool execution cancelled: Execution stopped by user request"
+          }
+        else
+          results << process_single_tool_call(tool_call, agent, context_wrapper, full_response)
+        end
       end
 
       # Add all results to conversation
       results.each { |message| conversation << message }
 
       puts "[Runner] Tool processing complete. Conversation now has #{conversation.size} messages"
+      
+      # Check if any tool result indicates a stop
+      stop_requested = results.any? do |result| 
+        result[:content]&.include?("cancelled") && result[:content]&.include?("stopped by user")
+      end
       
       # Debug conversation if enabled
       if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
@@ -631,10 +716,20 @@ module OpenAIAgents
         puts "[DEBUG] End conversation\n"
       end
       
-      false # Continue conversation after tool calls
+      # Return true if stop was requested, otherwise false to continue
+      stop_requested
     end
 
     def process_single_tool_call(tool_call, agent, context_wrapper, full_response = nil)
+      # Check if execution should stop before processing tool
+      if should_stop?
+        return {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: "Tool execution cancelled: Execution stopped by user request"
+        }
+      end
+      
       tool_name = tool_call.dig("function", "name")
       arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
 

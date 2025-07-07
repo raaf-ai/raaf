@@ -41,18 +41,40 @@ module OpenAIAgents
       def prepare_tools(tools)
         return nil if tools.nil? || tools.empty?
 
-        tools.map do |tool|
+        prepared = tools.map do |tool|
           case tool
           when Hash
             tool
           when FunctionTool
-            tool.to_h
+            tool_hash = tool.to_h
+            # DEBUG: Log the tool definition being sent to OpenAI
+            if defined?(Rails) && Rails.logger && Rails.env.development?
+              Rails.logger.debug "🔧 [OPENAI TOOLS DEBUG] Preparing tool for OpenAI API:"
+              Rails.logger.debug "   Tool name: #{tool_hash.dig(:function, :name)}"
+              Rails.logger.debug "   Tool type: #{tool_hash[:type]}"
+              Rails.logger.debug "   Parameters: #{tool_hash.dig(:function, :parameters).inspect}"
+              if tool_hash.dig(:function, :parameters, :properties)
+                Rails.logger.debug "   Properties: #{tool_hash.dig(:function, :parameters, :properties).keys.join(', ')}"
+                Rails.logger.debug "   Required: #{tool_hash.dig(:function, :parameters, :required) || 'none'}"
+              end
+            end
+            tool_hash
           when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
             tool.to_tool_definition
           else
             raise ArgumentError, "Invalid tool type: #{tool.class}"
           end
         end
+        
+        # DEBUG: Log the final prepared tools
+        if defined?(Rails) && Rails.logger && Rails.env.development?
+          Rails.logger.debug "🚀 [OPENAI TOOLS DEBUG] Final tools being sent to OpenAI API:"
+          prepared.each_with_index do |tool, index|
+            Rails.logger.debug "   Tool #{index + 1}: #{tool.inspect}"
+          end
+        end
+        
+        prepared
       end
 
       def handle_api_error(response, provider)
