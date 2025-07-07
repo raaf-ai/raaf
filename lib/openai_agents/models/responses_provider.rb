@@ -63,7 +63,15 @@ module OpenAIAgents
         return nil unless tools.respond_to?(:empty?) && tools.respond_to?(:map)
         return nil if tools.empty?
 
-        tools.map do |tool|
+        # Debug logging for tool preparation
+        if defined?(Rails) && Rails.logger && Rails.env.development?
+          Rails.logger.info "🔧 [prepare_tools_for_responses_api] Processing #{tools.length} tools"
+          tools.each_with_index do |tool, index|
+            Rails.logger.info "   Tool #{index + 1}: #{tool.class.name} - #{tool.respond_to?(:name) ? tool.name : 'no name'}"
+          end
+        end
+
+        prepared_tools = tools.map do |tool|
           case tool
           when Hash
             # Handle simple web search tool format
@@ -77,8 +85,10 @@ module OpenAIAgents
             end
           when OpenAIAgents::FunctionTool
             # Convert FunctionTool to proper Responses API format
+            # The Responses API requires a 'name' field at the top level for function tools
             {
               type: "function",
+              name: tool.name,
               function: {
                 name: tool.name,
                 description: tool.description,
@@ -101,6 +111,20 @@ module OpenAIAgents
 
           end
         end
+
+        # Debug logging for final prepared tools
+        if defined?(Rails) && Rails.logger && Rails.env.development?
+          Rails.logger.info "🔧 [prepare_tools_for_responses_api] Final prepared tools:"
+          prepared_tools.each_with_index do |tool, index|
+            Rails.logger.info "   Final Tool #{index + 1}: #{tool.inspect}"
+            if tool.is_a?(Hash) && tool[:type] == "function"
+              Rails.logger.info "     Name at top level: #{tool[:name] || 'MISSING!'}"
+              Rails.logger.info "     Function name: #{tool.dig(:function, :name) || 'MISSING!'}"
+            end
+          end
+        end
+
+        prepared_tools
       end
 
       def call_responses_api(model:, input:, instructions: nil, **kwargs)
@@ -155,9 +179,29 @@ module OpenAIAgents
 
         request.body = body.to_json
 
+        # Debug logging for Responses API request
+        if defined?(Rails) && Rails.logger && Rails.env.development?
+          Rails.logger.info "🚀 Sending request to OpenAI Responses API:"
+          Rails.logger.info "   URL: https://api.openai.com/v1/responses"
+          Rails.logger.info "   Model: #{body[:model]}"
+          Rails.logger.info "   Input length: #{body[:input]&.length || 0}"
+          Rails.logger.info "   Instructions length: #{body[:instructions]&.length || 0}"
+          Rails.logger.info "   Tools count: #{body[:tools]&.length || 0}"
+          if body[:tools]
+            body[:tools].each_with_index do |tool, index|
+              Rails.logger.info "     Tool #{index + 1}: #{tool[:type]} - #{tool.dig(:function, :name) || tool[:name] || 'unknown'}"
+            end
+          end
+          Rails.logger.info "   Full request body: #{request.body}"
+        end
+
         response = http.request(request)
 
         unless response.code.start_with?("2")
+          Rails.logger.error "🚨 OpenAI Responses API Error:" if defined?(Rails) && Rails.logger
+          Rails.logger.error "   Status Code: #{response.code}" if defined?(Rails) && Rails.logger
+          Rails.logger.error "   Response Body: #{response.body}" if defined?(Rails) && Rails.logger
+          Rails.logger.error "   Request Body: #{body.to_json}" if defined?(Rails) && Rails.logger
           raise APIError, "Responses API returned #{response.code}: #{response.body}"
         end
 
