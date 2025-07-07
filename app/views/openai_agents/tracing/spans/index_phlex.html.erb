@@ -1,0 +1,8 @@
+<%
+  layout = OpenAIAgents::Tracing::BaseLayout.new(title: "Spans")
+  spans_list = OpenAIAgents::Tracing::SpansList.new(spans: @spans)
+%>
+
+<%= render layout do %>
+  <%= render spans_list %>
+<% end %>
