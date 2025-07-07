@@ -76,10 +76,9 @@ module OpenAIAgents
               tool
             end
           when OpenAIAgents::FunctionTool
-            # Convert FunctionTool to Responses API format with top-level name
+            # Convert FunctionTool to proper Responses API format
             {
               type: "function",
-              name: tool.name,
               function: {
                 name: tool.name,
                 description: tool.description,
