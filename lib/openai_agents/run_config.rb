@@ -82,6 +82,9 @@ module OpenAIAgents
 
     # @return [Array<Guardrails::OutputGuardrail>, nil] Output guardrails for this run
     attr_accessor :output_guardrails
+    
+    # @return [String, nil] Previous response ID for Responses API continuity
+    attr_accessor :previous_response_id
 
     def initialize(
       max_turns: nil,
@@ -100,6 +103,7 @@ module OpenAIAgents
       frequency_penalty: nil,
       presence_penalty: nil,
       user: nil,
+      previous_response_id: nil,
       **model_kwargs
     )
       @max_turns = max_turns
@@ -119,6 +123,7 @@ module OpenAIAgents
       @presence_penalty = presence_penalty
       @user = user
       @model_kwargs = model_kwargs
+      @previous_response_id = previous_response_id
     end
 
     # Merge with another RunConfig, with other taking precedence

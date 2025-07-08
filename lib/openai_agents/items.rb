@@ -141,15 +141,62 @@ module OpenAIAgents
         def input_to_new_input_list(input)
           case input
           when String
+            # For Responses API, use proper input item format
             [{
-              "content" => input,
-              "role" => "user"
+              "type" => "user_text",
+              "text" => input
             }]
           when Array
-            input.dup
+            # Check if it's already in input item format or needs conversion
+            if input.first && input.first["type"]
+              # Already in input item format
+              input.dup
+            elsif input.first && input.first["role"]
+              # Convert from message format to input items
+              convert_messages_to_input_items(input)
+            else
+              input.dup
+            end
           else
             raise ArgumentError, "Input must be string or array, got #{input.class}"
           end
+        end
+        
+        # Convert chat messages to Responses API input items
+        def convert_messages_to_input_items(messages)
+          input_items = []
+          
+          messages.each do |msg|
+            role = msg["role"] || msg[:role]
+            content = msg["content"] || msg[:content]
+            
+            case role
+            when "user"
+              input_items << { "type" => "user_text", "text" => content }
+            when "assistant"
+              if msg["tool_calls"] || msg[:tool_calls]
+                # Convert tool calls
+                (msg["tool_calls"] || msg[:tool_calls]).each do |tc|
+                  input_items << {
+                    "type" => "function_call",
+                    "name" => tc.dig("function", "name") || tc.dig(:function, :name),
+                    "arguments" => tc.dig("function", "arguments") || tc.dig(:function, :arguments),
+                    "call_id" => tc["id"] || tc[:id]
+                  }
+                end
+              elsif content
+                input_items << { "type" => "text", "text" => content }
+              end
+            when "tool"
+              input_items << {
+                "type" => "function_call_output",
+                "call_id" => msg["tool_call_id"] || msg[:tool_call_id],
+                "output" => content
+              }
+            end
+          end
+          
+          input_items
         end
 
         # Concatenates all text content from a list of message output items

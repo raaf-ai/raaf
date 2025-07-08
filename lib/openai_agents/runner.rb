@@ -16,6 +16,7 @@ require_relative "run_context"
 require_relative "lifecycle"
 require_relative "run_result_streaming"
 require_relative "streaming_events_semantic"
+require_relative "items"
 
 module OpenAIAgents
   class Runner
@@ -151,6 +152,219 @@ module OpenAIAgents
 
     private
 
+    # Process output items from Responses API
+    def process_responses_api_output(response, agent, generated_items, span = nil)
+      output = response[:output] || response["output"] || []
+      
+      result = { done: false, handoff: nil }
+      
+      output.each do |item|
+        item_type = item[:type] || item["type"]
+        
+        case item_type
+        when "message", "text", "output_text"
+          # Text output from the model
+          generated_items << Items::MessageOutputItem.new(agent: agent, raw_item: item)
+          
+          # Check for handoff in text
+          text = item[:text] || item["text"] || ""
+          if text.include?("HANDOFF:")
+            handoff_match = text.match(/HANDOFF:\s*(\w+)/)
+            result[:handoff] = handoff_match[1] if handoff_match
+          end
+          
+        when "function_call"
+          # Tool call from the model
+          # Remove the ID to avoid duplicate ID errors when re-submitting
+          item_without_id = item.dup
+          item_without_id.delete(:id)
+          item_without_id.delete("id")
+          generated_items << Items::ToolCallItem.new(agent: agent, raw_item: item_without_id)
+          
+          # Execute the tool
+          tool_result = execute_tool_for_responses_api(item, agent)
+          
+          # Add tool result as an item
+          tool_output_item = {
+            type: "function_call_output",
+            call_id: item[:call_id] || item["call_id"] || item[:id] || item["id"],
+            output: tool_result
+          }
+          generated_items << Items::ToolCallOutputItem.new(
+            agent: agent,
+            raw_item: tool_output_item,
+            output: tool_result
+          )
+          
+        when "function_call_output"
+          # This is already a tool result (shouldn't happen in output, but handle it)
+          generated_items << Items::ToolCallOutputItem.new(
+            agent: agent,
+            raw_item: item,
+            output: item[:output] || item["output"]
+          )
+        end
+      end
+      
+      # Check if there are no tool calls in this output
+      has_tool_calls = output.any? { |item| (item[:type] || item["type"]) == "function_call" }
+      result[:done] = !has_tool_calls
+      
+      result
+    end
+    
+    # Execute a tool for Responses API
+    def execute_tool_for_responses_api(tool_call_item, agent)
+      tool_name = tool_call_item[:name] || tool_call_item["name"]
+      arguments_str = tool_call_item[:arguments] || tool_call_item["arguments"] || "{}"
+      
+      begin
+        arguments = JSON.parse(arguments_str)
+      rescue JSON::ParserError
+        return "Error: Invalid tool arguments"
+      end
+      
+      # Find the tool
+      tool = agent.tools.find { |t| t.respond_to?(:name) && t.name == tool_name }
+      
+      if tool.nil?
+        return "Error: Tool '#{tool_name}' not found"
+      end
+      
+      # Execute the tool
+      begin
+        if @tracer && !@disabled_tracing
+          @tracer.tool_span(tool_name) do |tool_span|
+            tool_span.set_attribute("function.name", tool_name)
+            tool_span.set_attribute("function.input", arguments)
+            
+            result = tool.call(**arguments.transform_keys(&:to_sym))
+            
+            tool_span.set_attribute("function.output", result.to_s)
+            result
+          end
+        else
+          tool.call(**arguments.transform_keys(&:to_sym))
+        end
+      rescue StandardError => e
+        "Error executing tool: #{e.message}"
+      end
+    end
+    
+    # Check if response has tool calls
+    def has_tool_calls_in_response?(response)
+      return false unless response
+      
+      output = response[:output] || response["output"] || []
+      output.any? { |item| (item[:type] || item["type"]) == "function_call" }
+    end
+    
+    # Build conversation from items (for compatibility)
+    def build_conversation_from_items(input, generated_items)
+      conversation = []
+      
+      # Add initial input as user message
+      if input.any?
+        first_input = input.first
+        if first_input[:type] == "user_text" || first_input["type"] == "user_text"
+          conversation << { role: "user", content: first_input[:text] || first_input["text"] }
+        end
+      end
+      
+      # Convert generated items to messages
+      generated_items.each do |item|
+        case item
+        when Items::MessageOutputItem
+          raw = item.raw_item
+          # Extract text from Responses API format: content[0][:text]
+          text = if raw[:content].is_a?(Array) && raw[:content].first
+                   content_item = raw[:content].first
+                   content_item[:text] || content_item["text"] || ""
+                 else
+                   raw[:text] || raw["text"] || ""
+                 end
+          conversation << { role: "assistant", content: text }
+        end
+      end
+      
+      conversation
+    end
+    
+    # Run with Responses API without tracing
+    def run_with_responses_api_no_trace(messages, config:)
+      current_agent = @agent
+      turns = 0
+      
+      # Convert initial messages to input items
+      input = Items::ItemHelpers.input_to_new_input_list(messages)
+      generated_items = []
+      model_responses = []
+      previous_response_id = config.previous_response_id
+      
+      max_turns = config.max_turns || current_agent.max_turns
+      
+      while turns < max_turns
+        # Build current input including all generated items
+        # When using previous_response_id, only include tool outputs, not tool calls
+        # The API already knows about the calls from the previous response
+        current_input = input.dup
+        generated_items.each do |item|
+          # Skip tool calls when we have a previous_response_id to avoid duplicates
+          next if previous_response_id && item.is_a?(Items::ToolCallItem)
+          current_input << item.to_input_item
+        end
+        
+        # Get system instructions
+        system_instructions = current_agent.instructions
+        
+        # Prepare model parameters
+        model = config.model || current_agent.model
+        model_params = config.to_model_params
+        
+        # Add response format if configured
+        if current_agent.response_format
+          model_params[:response_format] = current_agent.response_format
+        end
+        
+        # Make API call
+        response = @provider.chat_completion(
+          messages: [{ role: "system", content: system_instructions }],
+          model: model,
+          tools: current_agent.tools? ? current_agent.tools : nil,
+          previous_response_id: previous_response_id,
+          input: current_input, # Pass the accumulated input items
+          **model_params
+        )
+        
+        # Extract response ID for next turn
+        previous_response_id = response[:id] || response["id"]
+        model_responses << response
+        
+        # Process the output items
+        result = process_responses_api_output(response, current_agent, generated_items)
+        
+        turns += 1
+        
+        # Check if done
+        if result[:done]
+          break
+        end
+      end
+      
+      # Check if max turns exceeded
+      if turns >= max_turns
+        raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded"
+      end
+      
+      # Build final result
+      RunResult.success(
+        messages: build_conversation_from_items(input, generated_items),
+        last_agent: current_agent,
+        turns: turns,
+        last_response_id: previous_response_id
+      )
+    end
+
     # Run input guardrails for an agent
     def run_input_guardrails(context_wrapper, agent, input)
       # Collect all guardrails (run-level and agent-level)
@@ -213,6 +427,13 @@ module OpenAIAgents
 
     def run_with_tracing(messages, config:, parent_span: nil)
       @current_config = config # Store for tool calls
+      
+      # For Responses API, convert messages to items-based format
+      if @provider.is_a?(Models::ResponsesProvider)
+        return run_with_responses_api(messages, config: config)
+      end
+      
+      # Original Chat Completions flow for other providers
       conversation = messages.dup
       current_agent = @agent
       turns = 0
@@ -435,8 +656,126 @@ module OpenAIAgents
       )
     end
 
+    # New method for Responses API using items-based conversation model (matches Python)
+    def run_with_responses_api(messages, config:)
+      @current_config = config
+      current_agent = @agent
+      turns = 0
+      
+      # Convert initial messages to input items
+      input = Items::ItemHelpers.input_to_new_input_list(messages)
+      generated_items = []
+      model_responses = []
+      previous_response_id = config.previous_response_id
+      last_turn_index = 0  # Track where the last turn ended
+      
+      # Create run context for hooks
+      context = RunContext.new(
+        messages: messages,
+        metadata: config.metadata || {},
+        trace_id: config.trace_id,
+        group_id: config.group_id
+      )
+      context_wrapper = RunContextWrapper.new(context)
+      @current_context_wrapper = context_wrapper
+      
+      max_turns = config.max_turns || current_agent.max_turns
+      
+      while turns < max_turns
+        # Check if execution should stop
+        if should_stop?
+          raise ExecutionStoppedError, "Execution stopped by user request"
+        end
+        
+        # Build current input including all generated items
+        # When using previous_response_id, only include tool outputs, not tool calls
+        # The API already knows about the calls from the previous response
+        current_input = input.dup
+        generated_items.each do |item|
+          # Skip tool calls when we have a previous_response_id to avoid duplicates
+          next if previous_response_id && item.is_a?(Items::ToolCallItem)
+          current_input << item.to_input_item
+        end
+        
+        # Create agent span
+        agent_result = @tracer.start_span("agent.#{current_agent.name || "agent"}", kind: :agent) do |agent_span|
+          # Set agent span attributes
+          agent_span.set_attribute("agent.name", current_agent.name || "agent")
+          agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
+          agent_span.set_attribute("agent.tools", safe_map_names(current_agent.tools))
+          agent_span.set_attribute("agent.output_type", "str")
+          
+          # Get system instructions
+          system_instructions = current_agent.instructions
+          
+          # Prepare model parameters
+          model = config.model || current_agent.model
+          model_params = config.to_model_params
+          
+          # Add response format if configured
+          if current_agent.response_format
+            model_params[:response_format] = current_agent.response_format
+          end
+          
+          # Add tool choice if configured
+          if current_agent.respond_to?(:tool_choice) && current_agent.tool_choice
+            model_params[:tool_choice] = current_agent.tool_choice
+          end
+          
+          # Make API call - pass input items and previous_response_id for continuity
+          response = @provider.chat_completion(
+            messages: [{ role: "system", content: system_instructions }], # Only for extracting system content
+            model: model,
+            tools: current_agent.tools? ? current_agent.tools : nil,
+            previous_response_id: previous_response_id,
+            input: current_input, # Pass the accumulated input items
+            **model_params
+          )
+          
+          # The response is already in Responses API format
+          # Extract response ID for next turn
+          previous_response_id = response[:id] || response["id"]
+          
+          # Store the response
+          model_responses << response
+          
+          # Process the output items
+          result = process_responses_api_output(response, current_agent, generated_items, agent_span)
+          
+          # Return the result for the agent span
+          result
+        end
+        
+        turns += 1
+        
+        # Check if done (no tool calls in last response)
+        if agent_result[:done]
+          break
+        end
+      end
+      
+      # Check if max turns exceeded
+      if turns >= max_turns
+        raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded"
+      end
+      
+      # Build final result
+      RunResult.success(
+        messages: build_conversation_from_items(input, generated_items),
+        last_agent: current_agent,
+        turns: turns,
+        last_response_id: previous_response_id
+      )
+    end
+
     def run_without_tracing(messages, config:)
       @current_config = config # Store for tool calls
+      
+      # For Responses API, use items-based approach
+      if @provider.is_a?(Models::ResponsesProvider)
+        return run_with_responses_api_no_trace(messages, config: config)
+      end
+      
       conversation = messages.dup
       current_agent = @agent
       turns = 0

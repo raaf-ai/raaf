@@ -10,7 +10,7 @@ require_relative "../token_estimator"
 
 module OpenAIAgents
   module Models
-    # OpenAI Responses API provider - matches Python default behavior
+    # OpenAI Responses API provider - matches Python implementation exactly
     class ResponsesProvider < ModelInterface
       SUPPORTED_MODELS = %w[
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4
@@ -28,106 +28,97 @@ module OpenAIAgents
         true
       end
 
-      def chat_completion(messages:, model:, tools: nil, stream: false, **)
+      # Main entry point matching Python's get_response
+      def chat_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil, **)
         validate_model(model)
-        responses_completion(messages: messages, model: model, tools: tools, **)
+        
+        # For Responses API, we can pass input items directly
+        if input
+          # Use provided input items directly
+          list_input = input
+          system_instructions = extract_system_instructions(messages)
+        else
+          # Convert messages to Responses API format
+          system_instructions = extract_system_instructions(messages)
+          list_input = convert_messages_to_input(messages)
+        end
+        
+        # Make the API call
+        response = fetch_response(
+          system_instructions: system_instructions,
+          input: list_input,
+          model: model,
+          tools: tools,
+          stream: stream,
+          previous_response_id: previous_response_id,
+          **
+        )
+        
+        # Return the raw response in a format compatible with the runner
+        # The response already contains the output items that can be processed
+        response
       end
 
       private
 
       def validate_model(model)
         return if SUPPORTED_MODELS.include?(model)
-
         warn "Model #{model} is not in the list of supported models: #{SUPPORTED_MODELS.join(", ")}"
       end
 
-      def responses_completion(messages:, model:, **)
-        # Make the actual API call
-        response = call_responses_api(
+      # Matches Python's _fetch_response
+      def fetch_response(system_instructions:, input:, model:, tools: nil, stream: false, 
+                        previous_response_id: nil, tool_choice: nil, parallel_tool_calls: nil,
+                        temperature: nil, top_p: nil, max_tokens: nil, response_format: nil, **)
+        
+        # Convert input to list format if it's a string
+        list_input = input.is_a?(String) ? [{ type: "user_text", text: input }] : input
+        
+        # Convert tools to Responses API format
+        converted_tools = convert_tools(tools)
+        
+        # Build request body
+        body = {
           model: model,
-          input: extract_input_from_messages(messages),
-          instructions: extract_system_instructions(messages),
-          **
-        )
-
-        # Convert response to chat completion format for compatibility
-        convert_response_to_chat_format(response, messages: messages, model: model)
+          input: list_input
+        }
+        
+        # Add optional parameters
+        body[:previous_response_id] = previous_response_id if previous_response_id
+        body[:instructions] = system_instructions if system_instructions
+        body[:tools] = converted_tools[:tools] if converted_tools[:tools]&.any?
+        body[:include] = converted_tools[:includes] if converted_tools[:includes]&.any?
+        body[:tool_choice] = convert_tool_choice(tool_choice) if tool_choice
+        body[:parallel_tool_calls] = parallel_tool_calls unless parallel_tool_calls.nil?
+        body[:temperature] = temperature if temperature
+        body[:top_p] = top_p if top_p
+        body[:max_output_tokens] = max_tokens if max_tokens
+        body[:stream] = stream if stream
+        
+        # Handle response format
+        if response_format
+          body[:text] = convert_response_format(response_format)
+        end
+        
+        # Debug logging
+        if defined?(Rails) && Rails.logger && Rails.env.development?
+          Rails.logger.info "🚀 Calling OpenAI Responses API:"
+          Rails.logger.info "   Model: #{model}"
+          Rails.logger.info "   Input: #{list_input.inspect}"
+          Rails.logger.info "   Tools: #{converted_tools[:tools]&.length || 0}"
+          Rails.logger.info "   Previous Response ID: #{previous_response_id}" if previous_response_id
+          Rails.logger.info "   Stream: #{stream}"
+        end
+        
+        # Make the API call
+        if stream
+          raise NotImplementedError, "Streaming not yet implemented for Responses API"
+        else
+          call_responses_api(body)
+        end
       end
 
-      # Prepares tools for the Responses API format
-      #
-      # @param tools [Array] array of tools to prepare
-      # @return [Array, nil] prepared tools or nil if no tools
-      # @api private
-      def prepare_tools_for_responses_api(tools)
-        return nil unless tools.respond_to?(:empty?) && tools.respond_to?(:map)
-        return nil if tools.empty?
-
-        # Debug logging for tool preparation
-        if defined?(Rails) && Rails.logger && Rails.env.development?
-          Rails.logger.info "🔧 [prepare_tools_for_responses_api] Processing #{tools.length} tools"
-          tools.each_with_index do |tool, index|
-            Rails.logger.info "   Tool #{index + 1}: #{tool.class.name} - #{tool.respond_to?(:name) ? tool.name : 'no name'}"
-          end
-        end
-
-        prepared_tools = tools.map do |tool|
-          case tool
-          when Hash
-            # Handle simple web search tool format
-            if tool[:type] == "web_search" || tool["type"] == "web_search"
-              { type: "web_search" }
-            # Handle function tools
-            elsif tool[:function] && tool[:function][:name] && !tool[:name]
-              tool.merge(name: tool[:function][:name])
-            else
-              tool
-            end
-          when OpenAIAgents::FunctionTool
-            # Convert FunctionTool to proper Responses API format
-            # The Responses API requires a 'name' field at the top level for function tools
-            {
-              type: "function",
-              name: tool.name,
-              function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters
-              }
-            }
-          when OpenAIAgents::Tools::WebSearchTool
-            # Convert WebSearchTool to hosted tool format for Responses API
-            {
-              type: "web_search",
-              web_search: {
-                user_location: tool.user_location,
-                search_context_size: tool.search_context_size
-              }.compact
-            }
-          else
-            raise ArgumentError, "Invalid tool type: #{tool.class}" unless tool.respond_to?(:to_tool_definition)
-
-            tool.to_tool_definition
-
-          end
-        end
-
-        # Debug logging for final prepared tools
-        if defined?(Rails) && Rails.logger && Rails.env.development?
-          Rails.logger.info "🔧 [prepare_tools_for_responses_api] Final prepared tools:"
-          prepared_tools.each_with_index do |tool, index|
-            Rails.logger.info "   Final Tool #{index + 1}: #{tool.inspect}"
-            if tool.is_a?(Hash) && tool[:type] == "function"
-              Rails.logger.info "     Name at top level: #{tool[:name] || 'MISSING!'}"
-              Rails.logger.info "     Function name: #{tool.dig(:function, :name) || 'MISSING!'}"
-            end
-          end
-        end
-
-        prepared_tools
-      end
-
-      def call_responses_api(model:, input:, instructions: nil, **kwargs)
+      def call_responses_api(body)
         uri = URI("#{@api_base}/responses")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
@@ -137,63 +128,7 @@ module OpenAIAgents
         request["Content-Type"] = "application/json"
         request["User-Agent"] = "Agents/Ruby #{OpenAIAgents::VERSION}"
 
-        body = {
-          model: model,
-          input: input
-        }
-        body[:instructions] = instructions if instructions
-
-        # Add prompt support if provided
-        if kwargs[:prompt]
-          body[:prompt] = kwargs[:prompt]
-          kwargs = kwargs.dup
-          kwargs.delete(:prompt)
-        end
-
-        # Process tools before merging kwargs
-        if kwargs[:tools]
-          kwargs = kwargs.dup
-          kwargs[:tools] = prepare_tools_for_responses_api(kwargs[:tools])
-        end
-
-        # Convert response_format to text.format for Responses API (matching Python implementation)
-        if kwargs[:response_format]
-          response_format = kwargs[:response_format]
-          if response_format[:type] == "json_schema" && response_format[:json_schema]
-            body[:text] = {
-              format: {
-                type: "json_schema",
-                name: response_format[:json_schema][:name],
-                schema: response_format[:json_schema][:schema],
-                strict: response_format[:json_schema][:strict]
-              }
-            }
-          end
-          # Remove response_format from kwargs since we converted it to text
-          kwargs_without_response_format = kwargs.dup
-          kwargs_without_response_format.delete(:response_format)
-          body.merge!(kwargs_without_response_format)
-        else
-          body.merge!(kwargs)
-        end
-
         request.body = body.to_json
-
-        # Debug logging for Responses API request
-        if defined?(Rails) && Rails.logger && Rails.env.development?
-          Rails.logger.info "🚀 Sending request to OpenAI Responses API:"
-          Rails.logger.info "   URL: https://api.openai.com/v1/responses"
-          Rails.logger.info "   Model: #{body[:model]}"
-          Rails.logger.info "   Input length: #{body[:input]&.length || 0}"
-          Rails.logger.info "   Instructions length: #{body[:instructions]&.length || 0}"
-          Rails.logger.info "   Tools count: #{body[:tools]&.length || 0}"
-          if body[:tools]
-            body[:tools].each_with_index do |tool, index|
-              Rails.logger.info "     Tool #{index + 1}: #{tool[:type]} - #{tool.dig(:function, :name) || tool[:name] || 'unknown'}"
-            end
-          end
-          Rails.logger.info "   Full request body: #{request.body}"
-        end
 
         response = http.request(request)
 
@@ -205,222 +140,172 @@ module OpenAIAgents
           raise APIError, "Responses API returned #{response.code}: #{response.body}"
         end
 
-        JSON.parse(response.body)
+        parsed_response = JSON.parse(response.body, symbolize_names: true)
+        
+        # Debug logging for successful responses
+        if defined?(Rails) && Rails.logger && Rails.env.development?
+          Rails.logger.info "✅ OpenAI Responses API Success:"
+          Rails.logger.info "   Response ID: #{parsed_response[:id]}"
+          Rails.logger.info "   Output items: #{parsed_response[:output]&.length || 0}"
+          Rails.logger.info "   Usage: #{parsed_response[:usage]}"
+        end
+        
+        # Return the raw Responses API response
+        # The runner will need to handle the items-based format
+        parsed_response
       end
 
-      # Extracts input from messages for Responses API
-      #
-      # @param messages [Array] array of conversation messages
-      # @return [String] the last user message content
-      # @api private
-      def extract_input_from_messages(messages)
-        # Extract the last user message as input (matching Python behavior)
-        user_msg = messages.reverse.find { |m| m[:role] == "user" }
-        user_msg&.dig(:content) || ""
+      # Convert messages to Responses API input format
+      def convert_messages_to_input(messages)
+        input_items = []
+        
+        messages.each do |msg|
+          role = msg[:role] || msg["role"]
+          content = msg[:content] || msg["content"]
+          
+          case role
+          when "user"
+            input_items << { type: "user_text", text: content }
+          when "assistant"
+            # Assistant messages become output items in the input
+            if msg[:tool_calls]
+              # Handle tool calls
+              msg[:tool_calls].each do |tool_call|
+                input_items << convert_tool_call_to_input(tool_call)
+              end
+            else
+              # Regular text message
+              input_items << { type: "text", text: content }
+            end
+          when "tool"
+            # Tool results become function call outputs
+            input_items << {
+              type: "function_call_output",
+              call_id: msg[:tool_call_id] || msg["tool_call_id"],
+              output: msg[:content] || msg["content"]
+            }
+          when "system"
+            # System messages are handled separately as instructions
+            next
+          end
+        end
+        
+        input_items
       end
 
-      # Extracts system instructions from messages
-      #
-      # @param messages [Array] array of conversation messages
-      # @return [String, nil] system message content if found
-      # @api private
+      def convert_tool_call_to_input(tool_call)
+        {
+          type: "function_call",
+          name: tool_call.dig("function", "name") || tool_call.dig(:function, :name),
+          arguments: tool_call.dig("function", "arguments") || tool_call.dig(:function, :arguments),
+          call_id: tool_call["id"] || tool_call[:id]
+        }
+      end
+
+      # Extract system instructions from messages
       def extract_system_instructions(messages)
         system_msg = messages.find { |m| m[:role] == "system" }
         system_msg&.dig(:content)
       end
 
-      # Converts Responses API format to chat completion format
-      #
-      # @param response [Hash] the response from Responses API
-      # @param messages [Array] the input messages for token estimation
-      # @param model [String] the model name for token estimation
-      # @return [Hash, nil] converted response in chat format
-      # @api private
-      def convert_response_to_chat_format(response, messages: [], model: "gpt-4o")
-        # Convert OpenAI Responses API format to chat completion format
-        # for compatibility with existing Ruby code
-        return nil unless response && response["output"]
-
-        # Debug logging when OPENAI_AGENTS_DEBUG_RAW is set
-        if ENV["OPENAI_AGENTS_DEBUG_RAW"]
-          puts "[ResponsesProvider] Raw API response output: #{response["output"].inspect}"
-          puts "[ResponsesProvider] Raw API usage: #{response["usage"].inspect}"
-        end
-
-        # Extract the text content from response output
-        # Handle both tool calls and structured output properly
-        content = extract_content_from_output(response["output"])
-        tool_calls = extract_tool_calls_from_output(response["output"])
-
-        # Debug logging for tool calls
-        if tool_calls && ENV["OPENAI_AGENTS_DEBUG_RAW"]
-          puts "[ResponsesProvider] Extracted tool calls: #{tool_calls.inspect}"
-        end
-
-        message = {
-          "role" => "assistant",
-          "content" => content
-        }
-
-        # Add tool calls if present
-        message["tool_calls"] = tool_calls if tool_calls && !tool_calls.empty?
-
-        # Use actual usage if provided, otherwise estimate
-        usage = if response["usage"] && response["usage"]["input_tokens"] && response["usage"]["input_tokens"] > 0
-                  response["usage"]
-                else
-                  # Estimate token usage when not provided by the API
-                  estimated_usage = TokenEstimator.estimate_usage(
-                    messages: messages,
-                    response_content: content,
-                    model: response["model"] || model
-                  )
-
-                  if ENV["OPENAI_AGENTS_DEBUG_RAW"]
-                    puts "[ResponsesProvider] Estimated token usage: #{estimated_usage.inspect}"
-                  end
-
-                  estimated_usage
-                end
-
-        {
-          "id" => response["id"],
-          "object" => "chat.completion",
-          "created" => Time.now.to_i,
-          "model" => response["model"] || model,
-          "choices" => [
-            {
-              "index" => 0,
-              "message" => message,
-              "finish_reason" => tool_calls && !tool_calls.empty? ? "tool_calls" : "stop"
-            }
-          ],
-          "usage" => usage
-        }
-      end
-
-      def extract_content_from_output(output)
-        return "" unless output
-
-        if output.is_a?(Array) && !output.empty?
-          # Handle array format - look for text content
-          output.map do |item|
-            if item.is_a?(Hash)
-              # Check for structured text content
-              if item["content"].is_a?(Array)
-                item["content"].map do |content_item|
-                  if content_item.is_a?(Hash) && content_item["type"] == "output_text"
-                    content_item["text"] || ""
-                  else
-                    # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
-                    content_item.is_a?(Hash) ? content_item.to_json : content_item.to_s
-                  end
-                end.join
-              elsif item["type"] == "output_text"
-                item["text"] || ""
-              elsif item["text"]
-                item["text"]
-              elsif item["content"]
-                item["content"]
-              else
-                # Skip tool call items and web search metadata, only extract text content
-                next if item["type"] == "function_call" || item["function"]
-                next if item["type"] == "web_search_call" || item["id"]&.start_with?("ws_")
-
-                # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
-                item.is_a?(Hash) ? item.to_json : item.to_s
-              end
+      # Convert tools to Responses API format (matches Python's Converter.convert_tools)
+      def convert_tools(tools)
+        return { tools: [], includes: [] } unless tools && !tools.empty?
+        
+        converted_tools = []
+        includes = []
+        
+        tools.each do |tool|
+          case tool
+          when Hash
+            # Handle hash-based tools
+            if tool[:type] == "web_search" || tool["type"] == "web_search"
+              converted_tools << { type: "web_search" }
+              includes << "web_search_call.results"
             else
-              # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
-              item.is_a?(Hash) ? item.to_json : item.to_s
+              converted_tools << tool
             end
-          end.compact.join
-        elsif output.is_a?(Hash)
-          # Handle single hash format
-          if output["text"]
-            output["text"]
-          elsif output["content"]
-            output["content"]
+          when OpenAIAgents::FunctionTool
+            # Convert FunctionTool to Responses API format
+            converted_tools << {
+              type: "function",
+              name: tool.name,
+              description: tool.description,
+              parameters: prepare_function_parameters(tool.parameters),
+              strict: determine_strict_mode(tool.parameters)
+            }
+          when OpenAIAgents::Tools::WebSearchTool
+            # Convert to hosted web search tool
+            converted_tools << { type: "web_search" }
+            includes << "web_search_call.results"
           else
-            # Don't include tool call results or web search metadata as content
-            return "" if output["type"] == "function_call" || output["function"]
-            return "" if output["type"] == "web_search_call" || output["id"]&.start_with?("ws_")
-
-            # For hash objects, convert to JSON to avoid Ruby hash syntax (=>)
-            output.is_a?(Hash) ? output.to_json : output.to_s
+            # Let other tools convert themselves if they implement the method
+            if tool.respond_to?(:to_tool_definition)
+              converted_tools << tool.to_tool_definition
+            else
+              raise ArgumentError, "Unknown tool type: #{tool.class}"
+            end
           end
+        end
+        
+        { tools: converted_tools, includes: includes.uniq }
+      end
+
+      def prepare_function_parameters(parameters)
+        return {} unless parameters.is_a?(Hash)
+        
+        params = parameters.dup
+        
+        # Ensure required fields for Responses API
+        if params[:properties].is_a?(Hash)
+          params[:additionalProperties] = false unless params.key?(:additionalProperties)
+          
+          # For strict mode, all properties must be in required array
+          if params[:additionalProperties] == false
+            all_properties = params[:properties].keys.map(&:to_s)
+            params[:required] = all_properties unless params[:required] == all_properties
+          end
+        end
+        
+        params
+      end
+
+      def determine_strict_mode(parameters)
+        return false unless parameters.is_a?(Hash)
+        
+        # Use strict mode if we have a well-defined schema
+        parameters[:properties].is_a?(Hash) && 
+          parameters[:additionalProperties] == false &&
+          parameters[:required].is_a?(Array)
+      end
+
+      def convert_tool_choice(tool_choice)
+        case tool_choice
+        when "auto", "required", "none"
+          tool_choice
+        when String
+          # Assume it's a specific tool name
+          { type: "function", name: tool_choice }
+        when Hash
+          tool_choice
         else
-          # Fallback for other formats - convert hashes to JSON to avoid Ruby hash syntax
-          output.is_a?(Hash) ? output.to_json : output.to_s
+          nil
         end
       end
 
-      def extract_tool_calls_from_output(output)
-        return nil unless output
-
-        tool_calls = []
-
-        if output.is_a?(Array)
-          output.each do |item|
-            next unless item.is_a?(Hash)
-
-            # Check for function call format
-            next unless item["type"] == "function_call" || item["function"]
-
-            # Extract arguments properly - they might be in different formats
-            arguments = extract_function_arguments(item)
-
-            tool_call = {
-              "id" => item["id"] || item["call_id"] || "call_#{SecureRandom.hex(8)}",
-              "type" => "function",
-              "function" => {
-                "name" => item["name"] || item.dig("function", "name"),
-                "arguments" => arguments
-              }
-            }
-            tool_calls << tool_call
-          end
-        elsif output.is_a?(Hash) && (output["type"] == "function_call" || output["function"])
-          # Extract arguments properly - they might be in different formats
-          arguments = extract_function_arguments(output)
-
-          tool_call = {
-            "id" => output["id"] || output["call_id"] || "call_#{SecureRandom.hex(8)}",
-            "type" => "function",
-            "function" => {
-              "name" => output["name"] || output.dig("function", "name"),
-              "arguments" => arguments
+      def convert_response_format(response_format)
+        if response_format.is_a?(Hash) && response_format[:type] == "json_schema"
+          {
+            format: {
+              type: "json_schema",
+              name: response_format.dig(:json_schema, :name),
+              schema: response_format.dig(:json_schema, :schema),
+              strict: response_format.dig(:json_schema, :strict)
             }
           }
-          tool_calls << tool_call
+        else
+          nil
         end
-
-        tool_calls.empty? ? nil : tool_calls
-      end
-
-      def extract_function_arguments(item)
-        # Try different sources for arguments
-        args = item["arguments"] || item.dig("function", "arguments")
-
-        # If arguments is already a string, return it
-        return args if args.is_a?(String) && args != "{}"
-
-        # If arguments is a hash, convert to JSON
-        return args.to_json if args.is_a?(Hash) && !args.empty?
-
-        # If no arguments found, check for direct parameters
-        if item["parameters"] || item.dig("function", "parameters")
-          params = item["parameters"] || item.dig("function", "parameters")
-          return params.to_json if params.is_a?(Hash) && !params.empty?
-          return params if params.is_a?(String) && params != "{}"
-        end
-
-        # For web search tools, provide a default query if none specified
-        tool_name = item["name"] || item.dig("function", "name")
-        return '{"query": "company information research"}' if tool_name&.include?("web_search")
-
-        # Default to empty object
-        "{}"
       end
     end
   end

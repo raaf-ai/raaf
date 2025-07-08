@@ -326,18 +326,20 @@ module OpenAIAgents
 
   # Run result class that matches Python implementation
   class RunResult < Result
-    attr_reader :messages, :last_agent, :turns, :final_output
+    attr_reader :messages, :last_agent, :turns, :final_output, :last_response_id
 
-    def initialize(success: true, messages: [], last_agent: nil, turns: 0, **)
+    def initialize(success: true, messages: [], last_agent: nil, turns: 0, last_response_id: nil, **)
       @messages = messages.dup
       @last_agent = last_agent
       @turns = turns
+      @last_response_id = last_response_id
       @final_output = extract_final_output(messages)
 
       super(success: success, data: {
         messages: @messages,
         last_agent: agent_name,
-        turns: @turns
+        turns: @turns,
+        last_response_id: @last_response_id
       }, **)
     end
 
@@ -369,7 +371,8 @@ module OpenAIAgents
         messages: @messages,
         last_agent: @last_agent,
         turns: @turns,
-        final_output: @final_output
+        final_output: @final_output,
+        last_response_id: @last_response_id
       }
     end
 
