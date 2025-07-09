@@ -29,7 +29,8 @@ module OpenAIAgents
       end
 
       # Main entry point matching Python's get_response
-      def chat_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil, **)
+      # Calls the Responses API (/v1/responses), not Chat Completions API
+      def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil, **)
         validate_model(model)
         
         # For Responses API, we can pass input items directly

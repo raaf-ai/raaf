@@ -17,17 +17,30 @@ require_relative "lifecycle"
 require_relative "run_result_streaming"
 require_relative "streaming_events_semantic"
 require_relative "items"
+require_relative "context_manager"
+require_relative "context_config"
 
 module OpenAIAgents
   class Runner
     attr_reader :agent, :tracer, :stop_checker
 
-    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil)
+    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil, context_manager: nil, context_config: nil)
       @agent = agent
       @provider = provider || Models::ResponsesProvider.new
       @disabled_tracing = disabled_tracing || ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : OpenAIAgents.tracer)
       @stop_checker = stop_checker
+      
+      # Context management setup
+      if context_manager
+        @context_manager = context_manager
+      elsif context_config
+        @context_manager = context_config.build_context_manager(model: @agent.model)
+      elsif ENV["OPENAI_AGENTS_CONTEXT_MANAGEMENT"] == "true"
+        # Auto-enable with balanced settings if env var is set
+        config = ContextConfig.balanced(model: @agent.model)
+        @context_manager = config.build_context_manager(model: @agent.model)
+      end
 
       # NOTE: LLM span wrapper removed - ResponsesProvider now handles usage tracking directly
     end
@@ -327,14 +340,25 @@ module OpenAIAgents
         end
         
         # Make API call
-        response = @provider.chat_completion(
-          messages: [{ role: "system", content: system_instructions }],
-          model: model,
-          tools: current_agent.tools? ? current_agent.tools : nil,
-          previous_response_id: previous_response_id,
-          input: current_input, # Pass the accumulated input items
-          **model_params
-        )
+        response = if @provider.is_a?(Models::ResponsesProvider)
+          @provider.responses_completion(
+            messages: [{ role: "system", content: system_instructions }],
+            model: model,
+            tools: current_agent.tools? ? current_agent.tools : nil,
+            previous_response_id: previous_response_id,
+            input: current_input, # Pass the accumulated input items
+            **model_params
+          )
+        else
+          @provider.chat_completion(
+            messages: [{ role: "system", content: system_instructions }],
+            model: model,
+            tools: current_agent.tools? ? current_agent.tools : nil,
+            previous_response_id: previous_response_id,
+            input: current_input,
+            **model_params
+          )
+        end
         
         # Extract response ID for next turn
         previous_response_id = response[:id] || response["id"]
@@ -723,7 +747,7 @@ module OpenAIAgents
           end
           
           # Make API call - pass input items and previous_response_id for continuity
-          response = @provider.chat_completion(
+          response = @provider.responses_completion(
             messages: [{ role: "system", content: system_instructions }], # Only for extracting system content
             model: model,
             tools: current_agent.tools? ? current_agent.tools : nil,
@@ -879,7 +903,14 @@ module OpenAIAgents
         }
       end
 
-      [system_message] + formatted_conversation
+      messages = [system_message] + formatted_conversation
+      
+      # Apply context management if enabled
+      if @context_manager
+        messages = @context_manager.manage_context(messages)
+      end
+      
+      messages
     end
 
     def build_system_prompt(agent, context_wrapper = nil)
