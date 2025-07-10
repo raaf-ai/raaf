@@ -3,6 +3,7 @@
 require_relative "spans"
 require_relative "batch_processor"
 require_relative "openai_processor"
+require_relative "../logging"
 
 module OpenAIAgents
   module Tracing
@@ -46,6 +47,8 @@ module OpenAIAgents
     #     CustomBackendProcessor.new
     #   )
     class TraceProvider
+      include Logger
+      
       class << self
         include Logger
         # @api private

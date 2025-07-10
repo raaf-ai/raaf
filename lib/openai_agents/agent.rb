@@ -8,6 +8,7 @@ require_relative "guardrails"
 require_relative "handoffs"
 require_relative "agent_output"
 require_relative "tool_use_behavior"
+require_relative "logging"
 
 module OpenAIAgents
   ##
@@ -74,6 +75,8 @@ module OpenAIAgents
   # @author OpenAI Agents Ruby Team
   # @since 0.1.0
   class Agent
+    include Logger
+    
     ##
     # @!attribute [rw] name
     #   @return [String] the unique name identifier for this agent
