@@ -7,7 +7,9 @@ gemspec
 
 # Development dependencies
 gem "bundler", "~> 2.0"
+gem "matrix", "~> 0.4"  # Required for vector store functionality
 gem "phlex-preline", path: "../phlex-preline"
+gem "rails"
 gem "rake", "~> 13.0"
 gem "rspec", "~> 3.0"
 gem "rspec-collection_matchers", "~> 1.2"

@@ -166,6 +166,7 @@ GEM
       net-pop
       net-smtp
     marcel (1.0.4)
+    matrix (0.4.3)
     metrics (0.12.2)
     mimemagic (0.4.3)
       nokogiri (~> 1)
@@ -319,9 +320,10 @@ PLATFORMS
 
 DEPENDENCIES
   bundler (~> 2.0)
+  matrix (~> 0.4)
   openai_agents!
   phlex-preline!
-  rails (>= 6.0)
+  rails
   rake (~> 13.0)
   rspec (~> 3.0)
   rspec-collection_matchers (~> 1.2)

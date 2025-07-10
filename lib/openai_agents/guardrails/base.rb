@@ -4,6 +4,13 @@ require_relative "../errors"
 
 module OpenAIAgents
   module Guardrails
+    # Base class for guardrails
+    class Base
+      def initialize(**options)
+        @options = options
+      end
+    end
+
     # Base exceptions for guardrails
     class GuardrailError < Error; end
 

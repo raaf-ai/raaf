@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../security"
+require_relative "base"
 
 module OpenAIAgents
   module Guardrails

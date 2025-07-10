@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "input_guardrail"
 
 module OpenAIAgents
   module Guardrails
     # PII (Personally Identifiable Information) detection guardrail
-    class PIIDetector < Base
+    class PIIDetector < InputGuardrail
       # PII patterns with confidence scores
       PII_PATTERNS = {
         # High confidence patterns

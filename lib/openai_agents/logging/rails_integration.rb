@@ -169,7 +169,7 @@ module OpenAIAgents
 end
 
 # Auto-setup when Rails is loaded
-if defined?(Rails)
+if defined?(Rails) && Rails.application&.config
   Rails.application.config.to_prepare do
     OpenAIAgents::Logging::RailsIntegration.setup!
   end
