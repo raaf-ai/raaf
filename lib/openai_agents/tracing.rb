@@ -7,14 +7,16 @@ require_relative "tracing/trace"
 require_relative "tracing/openai_processor"
 require_relative "tracing/trace_provider"
 
-# Load Rails engine and ActiveRecord processor if Rails is available
-begin
-  require "rails"
-  require_relative "tracing/engine"
-  require_relative "tracing/active_record_processor"
-  require_relative "tracing/rails_integrations"
-rescue LoadError
-  # Rails not available, skip Rails-specific components
+# Load Rails engine and ActiveRecord processor if Rails and ActiveRecord are available
+if defined?(ActiveRecord)
+  begin
+    require "rails"
+    require_relative "tracing/engine"
+    require_relative "tracing/active_record_processor"
+    require_relative "tracing/rails_integrations"
+  rescue LoadError
+    # Rails not available, skip Rails-specific components
+  end
 end
 
 module OpenAIAgents

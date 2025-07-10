@@ -114,7 +114,7 @@ mock_audio_analysis = {
   analysis: {
     word_count: 12,
     sentiment: "positive",
-    key_topics: ["audio", "technical", "presentation", "AI", "agents"],
+    key_topics: %w[audio technical presentation AI agents],
     language_confidence: 0.95
   },
   duration: 15.3
@@ -140,7 +140,7 @@ mock_extraction = {
   text: "OpenAI Agents Ruby Documentation\n\nChapter 1: Introduction\nThe OpenAI Agents Ruby gem provides a comprehensive framework for building AI-powered applications...",
   metadata: {
     filename: "openai_agents_guide.pdf",
-    size: 156789,
+    size: 156_789,
     type: ".pdf",
     extracted_at: Time.now.iso8601
   }
@@ -158,11 +158,11 @@ mock_doc_analysis = {
   success: true,
   analysis: {
     word_count: 5432,
-    character_count: 32456,
+    character_count: 32_456,
     paragraph_count: 87,
     average_word_length: 5.8,
     readability_score: 65.3,
-    key_topics: ["agents", "ruby", "framework", "AI", "development"]
+    key_topics: %w[agents ruby framework AI development]
   }
 }
 
@@ -213,8 +213,8 @@ content_types.each do |content|
                         has_people: false,
                         has_text: false,
                         is_screenshot: false,
-                        primary_colors: ["blue", "green", "white"],
-                        detected_objects: ["mountain", "lake", "trees"]
+                        primary_colors: %w[blue green white],
+                        detected_objects: %w[mountain lake trees]
                       }
                     }
                   when :audio
@@ -236,7 +236,7 @@ content_types.each do |content|
                         document_type: "report",
                         complexity: "complex",
                         length_category: "long",
-                        main_topics: ["analysis", "data", "results"]
+                        main_topics: %w[analysis data results]
                       }
                     }
                   end
@@ -327,22 +327,22 @@ use_cases = [
   {
     name: "Educational Content Analysis",
     description: "Analyze lecture videos by extracting slides (vision), transcribing speech (audio), and referencing textbooks (documents)",
-    tools: ["analyze_image", "process_audio", "process_document"]
+    tools: %w[analyze_image process_audio process_document]
   },
   {
     name: "Customer Support Enhancement",
     description: "Process screenshot issues (vision), voice complaints (audio), and documentation (documents) for comprehensive support",
-    tools: ["analyze_image", "process_audio", "process_document"]
+    tools: %w[analyze_image process_audio process_document]
   },
   {
     name: "Content Moderation",
     description: "Review images for inappropriate content, transcribe audio for policy violations, scan documents for sensitive data",
-    tools: ["analyze_image", "process_audio", "process_document"]
+    tools: %w[analyze_image process_audio process_document]
   },
   {
     name: "Research Assistant",
     description: "Analyze research diagrams, transcribe interviews, process academic papers for literature review",
-    tools: ["analyze_image", "process_audio", "process_document"]
+    tools: %w[analyze_image process_audio process_document]
   }
 ]
 

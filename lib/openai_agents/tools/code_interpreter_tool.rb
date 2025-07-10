@@ -5,6 +5,7 @@ require "timeout"
 require "fileutils"
 require "securerandom"
 require_relative "../function_tool"
+require_relative "../logging"
 
 module OpenAIAgents
   module Tools
@@ -30,6 +31,7 @@ module OpenAIAgents
     #     max_file_size: 10 * 1024 * 1024  # 10MB
     #   )
     class CodeInterpreterTool < FunctionTool
+      include Logger
       DEFAULT_TIMEOUT = 10 # seconds
       DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024 # 5MB
       DEFAULT_MAX_OUTPUT_LENGTH = 10_000 # characters
@@ -182,7 +184,7 @@ module OpenAIAgents
           # Limit execution time
           Thread.new do
             sleep #{@timeout}
-            puts "Error: Execution timed out"
+            log_warn("Code execution timed out", timeout: @timeout, language: language)
             exit 1
           end
 

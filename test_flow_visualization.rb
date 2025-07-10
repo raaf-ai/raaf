@@ -24,18 +24,18 @@ support_agent_span = OpenAIAgents::Tracing::SpanRecord.create!(
   status: "ok",
   start_time: 5.minutes.ago,
   end_time: 4.minutes.ago,
-  duration_ms: 60000,
+  duration_ms: 60_000,
   span_attributes: {
     "agent" => {
       "name" => "CustomerSupportAgent",
-      "tools" => ["search_knowledge_base", "check_order_status", "escalate_to_human"],
-      "handoffs" => ["TechnicalSupportAgent", "BillingAgent"]
+      "tools" => %w[search_knowledge_base check_order_status escalate_to_human],
+      "handoffs" => %w[TechnicalSupportAgent BillingAgent]
     }
   }
 )
 
 # Create tool calls from the support agent
-tool_span1 = OpenAIAgents::Tracing::SpanRecord.create!(
+OpenAIAgents::Tracing::SpanRecord.create!(
   span_id: "span_#{SecureRandom.hex(12)}",
   trace_id: trace.trace_id,
   parent_id: support_agent_span.span_id,
@@ -54,7 +54,7 @@ tool_span1 = OpenAIAgents::Tracing::SpanRecord.create!(
   }
 )
 
-tool_span2 = OpenAIAgents::Tracing::SpanRecord.create!(
+OpenAIAgents::Tracing::SpanRecord.create!(
   span_id: "span_#{SecureRandom.hex(12)}",
   trace_id: trace.trace_id,
   parent_id: support_agent_span.span_id,
@@ -74,7 +74,7 @@ tool_span2 = OpenAIAgents::Tracing::SpanRecord.create!(
 )
 
 # Create a handoff span
-handoff_span = OpenAIAgents::Tracing::SpanRecord.create!(
+OpenAIAgents::Tracing::SpanRecord.create!(
   span_id: "span_#{SecureRandom.hex(12)}",
   trace_id: trace.trace_id,
   parent_id: support_agent_span.span_id,
@@ -103,18 +103,18 @@ tech_agent_span = OpenAIAgents::Tracing::SpanRecord.create!(
   status: "ok",
   start_time: 3.minutes.ago,
   end_time: 1.minute.ago,
-  duration_ms: 120000,
+  duration_ms: 120_000,
   span_attributes: {
     "agent" => {
       "name" => "TechnicalSupportAgent",
-      "tools" => ["run_diagnostics", "check_system_status", "create_ticket"],
+      "tools" => %w[run_diagnostics check_system_status create_ticket],
       "handoffs" => ["CustomerSupportAgent"]
     }
   }
 )
 
 # Technical agent uses tools
-tech_tool_span = OpenAIAgents::Tracing::SpanRecord.create!(
+OpenAIAgents::Tracing::SpanRecord.create!(
   span_id: "span_#{SecureRandom.hex(12)}",
   trace_id: trace.trace_id,
   parent_id: tech_agent_span.span_id,
@@ -123,7 +123,7 @@ tech_tool_span = OpenAIAgents::Tracing::SpanRecord.create!(
   status: "ok",
   start_time: 2.minutes.ago + 10.seconds,
   end_time: 2.minutes.ago + 20.seconds,
-  duration_ms: 10000,
+  duration_ms: 10_000,
   span_attributes: {
     "function" => {
       "name" => "run_diagnostics",
@@ -134,7 +134,7 @@ tech_tool_span = OpenAIAgents::Tracing::SpanRecord.create!(
 )
 
 # Create a custom operation span
-custom_span = OpenAIAgents::Tracing::SpanRecord.create!(
+OpenAIAgents::Tracing::SpanRecord.create!(
   span_id: "span_#{SecureRandom.hex(12)}",
   trace_id: trace.trace_id,
   parent_id: tech_agent_span.span_id,
@@ -154,7 +154,7 @@ custom_span = OpenAIAgents::Tracing::SpanRecord.create!(
 )
 
 # Create some failed tool calls for variety
-failed_tool_span = OpenAIAgents::Tracing::SpanRecord.create!(
+OpenAIAgents::Tracing::SpanRecord.create!(
   span_id: "span_#{SecureRandom.hex(12)}",
   trace_id: trace.trace_id,
   parent_id: tech_agent_span.span_id,

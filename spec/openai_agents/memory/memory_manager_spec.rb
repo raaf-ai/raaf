@@ -46,7 +46,7 @@ RSpec.describe OpenAIAgents::Memory::MemoryManager do
     end
 
     it "accepts custom token counter" do
-      counter = ->(text) { text.length }
+      counter = lambda(&:length)
       custom_manager = described_class.new(token_counter: counter)
       
       expect(custom_manager.count_tokens("test")).to eq(4)
@@ -137,7 +137,7 @@ RSpec.describe OpenAIAgents::Memory::MemoryManager do
     end
 
     it "returns all memories if under limit" do
-      high_limit_manager = described_class.new(max_tokens: 10000)
+      high_limit_manager = described_class.new(max_tokens: 10_000)
       
       pruned = high_limit_manager.prune_memories(memories)
       
@@ -146,7 +146,7 @@ RSpec.describe OpenAIAgents::Memory::MemoryManager do
   end
 
   describe "#summarize_memories" do
-    let(:summarizer) { ->(text) { "Summary of: #{text.split.first(3).join(' ')}" } }
+    let(:summarizer) { ->(text) { "Summary of: #{text.split.first(3).join(" ")}" } }
 
     it "creates summaries grouped by conversation" do
       summaries = manager.summarize_memories(memories, summarizer)

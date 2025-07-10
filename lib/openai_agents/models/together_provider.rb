@@ -213,7 +213,8 @@ module OpenAIAgents
                     })
                   end
                 rescue JSON::ParserError => e
-                  puts "[TogetherProvider] Failed to parse streaming chunk: #{e.message}"
+                  log_debug("Failed to parse streaming chunk: #{e.message}", provider: "TogetherProvider",
+                                                                             error_class: e.class.name)
                 end
               end
             end

@@ -14,10 +14,10 @@ module OpenAIAgents
         @base_dir = base_dir || File.join(Dir.home, ".openai_agents", "memories")
         @index_file = File.join(@base_dir, "index.json")
         @mutex = Mutex.new
-        
+
         # Ensure directory exists
         FileUtils.mkdir_p(@base_dir)
-        
+
         # Load or create index
         load_index
       end
@@ -32,13 +32,13 @@ module OpenAIAgents
                    else
                      Memory.new(content: value.to_s, metadata: metadata)
                    end
-          
+
           memory.updated_at = Time.now
-          
+
           # Save memory to individual file
           memory_file = memory_path(key)
           File.write(memory_file, JSON.pretty_generate(memory.to_h))
-          
+
           # Update index
           @index[key] = {
             file: memory_file,
@@ -48,7 +48,7 @@ module OpenAIAgents
             conversation_id: memory.conversation_id,
             tags: memory.metadata[:tags] || []
           }
-          
+
           save_index
         end
       end
@@ -56,10 +56,10 @@ module OpenAIAgents
       def retrieve(key)
         @mutex.synchronize do
           return nil unless @index.key?(key)
-          
+
           memory_file = @index[key][:file] || memory_path(key)
           return nil unless File.exist?(memory_file)
-          
+
           JSON.parse(File.read(memory_file), symbolize_names: true)
         rescue JSON::ParserError, Errno::ENOENT
           nil
@@ -74,27 +74,27 @@ module OpenAIAgents
 
         @mutex.synchronize do
           results = []
-          
+
           @index.each do |key, index_entry|
             # Apply filters from index first (faster)
             next if agent_name && index_entry[:agent_name] != agent_name
             next if conversation_id && index_entry[:conversation_id] != conversation_id
-            
+
             if tags.any?
               entry_tags = index_entry[:tags] || []
               next unless tags.all? { |tag| entry_tags.include?(tag) }
             end
-            
+
             # Load and check memory content
             memory_data = retrieve(key)
             next unless memory_data
-            
+
             memory = Memory.from_h(memory_data)
             results << memory_data if memory.matches?(query)
-            
+
             break if results.size >= limit
           end
-          
+
           results
         end
       end
@@ -102,15 +102,15 @@ module OpenAIAgents
       def delete(key)
         @mutex.synchronize do
           return false unless @index.key?(key)
-          
+
           # Delete file
           memory_file = @index[key][:file] || memory_path(key)
-          File.delete(memory_file) if File.exist?(memory_file)
-          
+          FileUtils.rm_f(memory_file)
+
           # Remove from index
           @index.delete(key)
           save_index
-          
+
           true
         end
       end
@@ -134,11 +134,11 @@ module OpenAIAgents
       def clear
         @mutex.synchronize do
           # Delete all memory files
-          @index.each do |_key, entry|
+          @index.each_value do |entry|
             memory_file = entry[:file]
             File.delete(memory_file) if memory_file && File.exist?(memory_file)
           end
-          
+
           # Clear index
           @index.clear
           save_index
@@ -154,15 +154,15 @@ module OpenAIAgents
       def get_by_time_range(start_time, end_time)
         @mutex.synchronize do
           results = []
-          
+
           @index.each do |key, entry|
             created_at = Time.parse(entry[:created_at])
-            next unless created_at >= start_time && created_at <= end_time
-            
+            next unless created_at.between?(start_time, end_time)
+
             memory_data = retrieve(key)
             results << memory_data if memory_data
           end
-          
+
           results.sort_by { |m| m[:created_at] }
         end
       end
@@ -173,7 +173,7 @@ module OpenAIAgents
           sorted_keys = @index.sort_by { |_k, v| -Time.parse(v[:updated_at]).to_i }
                               .take(limit)
                               .map(&:first)
-          
+
           # Retrieve memories
           sorted_keys.map { |key| retrieve(key) }.compact
         end
@@ -184,14 +184,14 @@ module OpenAIAgents
         @mutex.synchronize do
           # Find all memory files
           memory_files = Dir.glob(File.join(@base_dir, "*.memory.json"))
-          
+
           # Find files not in index
           indexed_files = @index.values.map { |v| v[:file] }.compact
           orphaned_files = memory_files - indexed_files
-          
+
           # Delete orphaned files
           orphaned_files.each { |file| File.delete(file) }
-          
+
           orphaned_files.size
         end
       end

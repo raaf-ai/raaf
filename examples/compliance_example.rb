@@ -21,7 +21,7 @@ audit_logger = OpenAIAgents::Compliance::AuditLogger.new(
   log_file: "audit_example.log",
   storage_path: "./audit_logs_example",
   store_conversations: true,
-  compliance_standards: ["GDPR", "SOC2", "HIPAA"]
+  compliance_standards: %w[GDPR SOC2 HIPAA]
 )
 
 # Create test agent
@@ -121,14 +121,14 @@ puts "-" * 50
 # Log PII detection events
 audit_logger.log_pii_detection(
   "chat_message",
-  ["email", "phone_number"],
+  %w[email phone_number],
   "redacted",
   message_id: "msg123"
 )
 
 audit_logger.log_pii_detection(
   "tool_response",
-  ["ssn", "credit_card"],
+  %w[ssn credit_card],
   "blocked",
   tool: "payment_processor"
 )
@@ -172,7 +172,7 @@ puts "-" * 50
 # Generate comprehensive audit report
 puts "Generating audit report..."
 report = audit_logger.generate_audit_report(
-  start_time: Time.now - 3600,  # Last hour
+  start_time: Time.now - 3600, # Last hour
   end_time: Time.now
 )
 
@@ -331,20 +331,20 @@ puts "-" * 50
 # Generate dashboard metrics
 dashboard_data = {
   compliance_score: 94.5,
-  last_audit: Time.now - 86400,
+  last_audit: Time.now - 86_400,
   active_policies: 12,
   recent_violations: 3,
   data_subjects: 1542,
   consent_records: 1234,
   security_events_24h: 7,
-  api_calls_24h: 15420,
+  api_calls_24h: 15_420,
   average_response_time: 234,
   encryption_coverage: 98.2
 }
 
 puts "Compliance Dashboard Metrics:"
 dashboard_data.each do |metric, value|
-  formatted_key = metric.to_s.split('_').map(&:capitalize).join(' ')
+  formatted_key = metric.to_s.split("_").map(&:capitalize).join(" ")
   puts "  #{formatted_key}: #{value}"
 end
 puts
@@ -352,9 +352,9 @@ puts
 # Clean up example files
 puts "Cleaning up example files..."
 ["audit_example.log", "audit_export.json", "audit_export.csv", "audit_export.cef"].each do |file|
-  File.delete(file) if File.exist?(file)
+  FileUtils.rm_f(file)
 end
-FileUtils.rm_rf("./audit_logs_example") if Dir.exist?("./audit_logs_example")
+FileUtils.rm_rf("./audit_logs_example")
 
 # Best practices
 puts "\n=== Compliance and Audit Best Practices ==="

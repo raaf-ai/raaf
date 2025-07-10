@@ -161,15 +161,15 @@ module OpenAIAgents
             raise ArgumentError, "Input must be string or array, got #{input.class}"
           end
         end
-        
+
         # Convert chat messages to Responses API input items
         def convert_messages_to_input_items(messages)
           input_items = []
-          
+
           messages.each do |msg|
             role = msg["role"] || msg[:role]
             content = msg["content"] || msg[:content]
-            
+
             case role
             when "user"
               input_items << { "type" => "user_text", "text" => content }
@@ -195,7 +195,7 @@ module OpenAIAgents
               }
             end
           end
-          
+
           input_items
         end
 

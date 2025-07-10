@@ -13,7 +13,7 @@ module OpenAIAgents
         @embedding_model = embedding_model
         @embedding_provider = embedding_provider || default_embedding_provider
         @options = options
-        
+
         # Subclasses should initialize their vector database connection here
         super()
       end
@@ -21,10 +21,10 @@ module OpenAIAgents
       # Store with embedding generation
       def store(key, value, metadata = {})
         memory = ensure_memory(value, metadata)
-        
+
         # Generate embedding for the content
         embedding = generate_embedding(memory.content)
-        
+
         # Store in vector database with embedding
         store_with_embedding(key, memory, embedding)
       end
@@ -33,10 +33,10 @@ module OpenAIAgents
       def search(query, options = {})
         limit = options[:limit] || 10
         threshold = options[:threshold] || 0.7
-        
+
         # Generate embedding for query
         query_embedding = generate_embedding(query)
-        
+
         # Search vector database
         search_by_embedding(query_embedding, limit: limit, threshold: threshold)
       end
@@ -66,13 +66,13 @@ module OpenAIAgents
       def find_similar(key, limit = 5)
         memory_data = retrieve(key)
         return [] unless memory_data
-        
+
         # Get embedding for this memory
         embedding = get_embedding(key) || generate_embedding(memory_data[:content])
-        
+
         # Find similar memories
         results = search_by_embedding(embedding, limit: limit + 1)
-        
+
         # Remove the original memory from results
         results.reject { |r| r[:id] == key }.take(limit)
       end
@@ -81,15 +81,15 @@ module OpenAIAgents
       # @param batch_size [Integer] Number of memories to process at once
       def reindex_embeddings(batch_size = 100)
         keys = list_keys
-        
+
         keys.each_slice(batch_size) do |batch_keys|
           batch_keys.each do |key|
             memory_data = retrieve(key)
             next unless memory_data
-            
+
             memory = Memory.from_h(memory_data)
             embedding = generate_embedding(memory.content)
-            
+
             update_embedding(key, embedding)
           end
         end
@@ -134,7 +134,7 @@ module OpenAIAgents
       def default_embedding_provider
         # Default provider that would use OpenAI embeddings
         # In real implementation, this would call OpenAI API
-        lambda do |text, model:|
+        lambda do |_text, model:|
           # Placeholder: return random embedding for demonstration
           # Real implementation would call OpenAI embeddings API
           Array.new(1536) { rand(-1.0..1.0) }
@@ -143,14 +143,14 @@ module OpenAIAgents
     end
 
     # Example implementation hints for specific vector databases
-    
+
     # class PineconeStore < VectorStore
     #   def initialize(**options)
     #     super
     #     @client = Pinecone::Client.new(api_key: options[:api_key])
     #     @index = @client.index(options[:index_name])
     #   end
-    #   
+    #
     #   def store_with_embedding(key, memory, embedding)
     #     @index.upsert(
     #       vectors: [{
@@ -161,11 +161,11 @@ module OpenAIAgents
     #     )
     #   end
     # end
-    
+
     # class WeaviateStore < VectorStore
     #   # Weaviate implementation
     # end
-    
+
     # class ChromaStore < VectorStore
     #   # Chroma implementation
     # end

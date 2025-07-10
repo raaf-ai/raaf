@@ -54,8 +54,9 @@ module OpenAIAgents
               Rails.logger.debug "   Tool type: #{tool_hash[:type]}"
               Rails.logger.debug "   Parameters: #{tool_hash.dig(:function, :parameters).inspect}"
               if tool_hash.dig(:function, :parameters, :properties)
-                Rails.logger.debug "   Properties: #{tool_hash.dig(:function, :parameters, :properties).keys.join(', ')}"
-                Rails.logger.debug "   Required: #{tool_hash.dig(:function, :parameters, :required) || 'none'}"
+                Rails.logger.debug "   Properties: #{tool_hash.dig(:function, :parameters,
+                                                                   :properties).keys.join(", ")}"
+                Rails.logger.debug "   Required: #{tool_hash.dig(:function, :parameters, :required) || "none"}"
               end
             end
             tool_hash
@@ -65,7 +66,7 @@ module OpenAIAgents
             raise ArgumentError, "Invalid tool type: #{tool.class}"
           end
         end
-        
+
         # DEBUG: Log the final prepared tools
         if defined?(Rails) && Rails.logger && Rails.env.development?
           Rails.logger.debug "🚀 [OPENAI TOOLS DEBUG] Final tools being sent to OpenAI API:"
@@ -73,7 +74,7 @@ module OpenAIAgents
             Rails.logger.debug "   Tool #{index + 1}: #{tool.inspect}"
           end
         end
-        
+
         prepared
       end
 

@@ -12,18 +12,18 @@ module OpenAIAgents
     # Audit logger for compliance tracking
     class AuditLogger
       attr_reader :config, :logger
-      
+
       def initialize(config = {})
         @config = default_config.merge(config)
         @logger = setup_logger
         @mutex = Mutex.new
         @session_id = generate_session_id
         @event_counter = 0
-        
+
         setup_storage
         log_system_event("audit_logger_initialized", { config: sanitized_config })
       end
-      
+
       # Log agent execution
       def log_agent_execution(agent, messages, result, metadata = {})
         event = {
@@ -37,15 +37,15 @@ module OpenAIAgents
           success: true,
           metadata: metadata
         }
-        
+
         log_compliance_event(event)
-        
+
         # Store detailed records if required
-        if @config[:store_conversations]
-          store_conversation_record(agent, messages, result, event[:event_id])
-        end
+        return unless @config[:store_conversations]
+
+        store_conversation_record(agent, messages, result, event[:event_id])
       end
-      
+
       # Log tool usage
       def log_tool_usage(tool_name, args, result, metadata = {})
         event = {
@@ -56,10 +56,10 @@ module OpenAIAgents
           error: result.is_a?(Exception) ? result.message : nil,
           metadata: metadata
         }
-        
+
         log_compliance_event(event)
       end
-      
+
       # Log data access
       def log_data_access(resource_type, resource_id, action, metadata = {})
         event = {
@@ -69,10 +69,10 @@ module OpenAIAgents
           action: action,
           metadata: metadata
         }
-        
+
         log_compliance_event(event)
       end
-      
+
       # Log security events
       def log_security_event(event_type, details, severity = :medium)
         event = {
@@ -83,15 +83,15 @@ module OpenAIAgents
             security_event: true
           }
         }
-        
+
         log_compliance_event(event)
-        
+
         # Alert on high severity
-        if severity == :high || severity == :critical
-          trigger_security_alert(event)
-        end
+        return unless %i[high critical].include?(severity)
+
+        trigger_security_alert(event)
       end
-      
+
       # Log PII detection
       def log_pii_detection(content_type, pii_types, action_taken, metadata = {})
         event = {
@@ -101,10 +101,10 @@ module OpenAIAgents
           action_taken: action_taken,
           metadata: metadata
         }
-        
+
         log_compliance_event(event)
       end
-      
+
       # Log consent events
       def log_consent_event(user_id, consent_type, action, metadata = {})
         event = {
@@ -114,14 +114,14 @@ module OpenAIAgents
           action: action,
           metadata: metadata
         }
-        
+
         log_compliance_event(event)
       end
-      
+
       # Generate audit report
       def generate_audit_report(start_time: nil, end_time: nil, filters: {})
         events = query_events(start_time: start_time, end_time: end_time, filters: filters)
-        
+
         report = {
           report_id: SecureRandom.uuid,
           generated_at: Time.now.iso8601,
@@ -135,17 +135,17 @@ module OpenAIAgents
           security_summary: generate_security_summary(events),
           recommendations: generate_recommendations(events)
         }
-        
+
         # Store report
         store_audit_report(report)
-        
+
         report
       end
-      
+
       # Export audit logs
       def export_logs(format: :json, start_time: nil, end_time: nil, output_file: nil)
         events = query_events(start_time: start_time, end_time: end_time)
-        
+
         formatted_data = case format
                          when :json
                            export_as_json(events)
@@ -156,19 +156,19 @@ module OpenAIAgents
                          else
                            raise "Unknown export format: #{format}"
                          end
-        
+
         if output_file
           File.write(output_file, formatted_data)
           log_system_event("audit_log_exported", { format: format, file: output_file })
         end
-        
+
         formatted_data
       end
-      
+
       # Verify log integrity
       def verify_integrity(start_time: nil, end_time: nil)
         events = query_events(start_time: start_time, end_time: end_time)
-        
+
         verification_results = {
           total_events: events.size,
           valid_events: 0,
@@ -176,7 +176,7 @@ module OpenAIAgents
           missing_events: 0,
           integrity_violations: []
         }
-        
+
         previous_event = nil
         events.each do |event|
           if verify_event_integrity(event, previous_event)
@@ -190,12 +190,12 @@ module OpenAIAgents
           end
           previous_event = event
         end
-        
+
         verification_results
       end
-      
+
       private
-      
+
       def default_config
         {
           log_file: "audit.log",
@@ -204,22 +204,22 @@ module OpenAIAgents
           storage_backend: :file,
           storage_path: "./audit_logs",
           encryption_enabled: true,
-          encryption_key: ENV["AUDIT_ENCRYPTION_KEY"],
+          encryption_key: ENV.fetch("AUDIT_ENCRYPTION_KEY", nil),
           hash_algorithm: "SHA256",
           store_conversations: true,
           store_pii: false,
-          alert_webhook: ENV["SECURITY_ALERT_WEBHOOK"],
-          compliance_standards: ["GDPR", "SOC2", "HIPAA"]
+          alert_webhook: ENV.fetch("SECURITY_ALERT_WEBHOOK", nil),
+          compliance_standards: %w[GDPR SOC2 HIPAA]
         }
       end
-      
+
       def setup_logger
         logger = Logger.new(
           @config[:log_file],
           @config[:log_rotation],
           progname: "AuditLogger"
         )
-        
+
         logger.formatter = proc do |severity, datetime, progname, msg|
           {
             timestamp: datetime.iso8601(6),
@@ -228,10 +228,10 @@ module OpenAIAgents
             message: msg
           }.to_json + "\n"
         end
-        
+
         logger
       end
-      
+
       def setup_storage
         case @config[:storage_backend]
         when :file
@@ -245,7 +245,7 @@ module OpenAIAgents
           # Initialize S3 client
         end
       end
-      
+
       def log_compliance_event(event)
         @mutex.synchronize do
           # Add metadata
@@ -254,51 +254,52 @@ module OpenAIAgents
           event[:timestamp] = Time.now.iso8601(6)
           event[:sequence_number] = next_sequence_number
           event[:user_id] = hash_user_id(event[:user_id]) if event[:user_id]
-          
+
           # Add integrity hash
           event[:integrity_hash] = calculate_integrity_hash(event)
-          
+
           # Log to file
           @logger.info(event.to_json)
-          
+
           # Store in backend
           store_event(event)
-          
+
           # Update metrics
           update_metrics(event)
         end
       end
-      
+
       def log_system_event(event_type, details)
         event = {
           event_type: "system_#{event_type}",
           details: details,
           system_event: true
         }
-        
+
         log_compliance_event(event)
       end
-      
+
       def generate_session_id
         "#{Socket.gethostname}-#{Process.pid}-#{Time.now.to_i}"
       end
-      
+
       def generate_event_id
-        "evt_#{Time.now.to_f.to_s.gsub('.', '')}_#{SecureRandom.hex(4)}"
+        "evt_#{Time.now.to_f.to_s.gsub(".", "")}_#{SecureRandom.hex(4)}"
       end
-      
+
       def next_sequence_number
         @event_counter += 1
       end
-      
+
       def hash_user_id(user_id)
         return nil unless user_id
+
         Digest::SHA256.hexdigest("#{user_id}:#{@config[:hash_salt]}")
       end
-      
+
       def sanitize_arguments(args)
         return {} unless args.is_a?(Hash)
-        
+
         args.transform_values do |value|
           if sensitive_field?(value)
             "[REDACTED]"
@@ -309,16 +310,16 @@ module OpenAIAgents
           end
         end
       end
-      
+
       def sensitive_field?(value)
         return false unless value.is_a?(String)
-        
+
         # Check for common sensitive patterns
         value =~ /\b(password|secret|token|key|ssn|credit_card)\b/i ||
-        value =~ /\b\d{3}-\d{2}-\d{4}\b/ || # SSN
-        value =~ /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/ # Credit card
+          value =~ /\b\d{3}-\d{2}-\d{4}\b/ || # SSN
+          value =~ /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/ # Credit card
       end
-      
+
       def calculate_integrity_hash(event)
         # Create deterministic string representation
         data = [
@@ -328,23 +329,21 @@ module OpenAIAgents
           event[:sequence_number],
           event[:event_type]
         ].join(":")
-        
+
         Digest::SHA256.hexdigest(data)
       end
-      
+
       def verify_event_integrity(event, previous_event)
         # Verify hash
         expected_hash = calculate_integrity_hash(event)
         return false unless event[:integrity_hash] == expected_hash
-        
+
         # Verify sequence
-        if previous_event
-          return false unless event[:sequence_number] == previous_event[:sequence_number] + 1
-        end
-        
+        return false if previous_event && event[:sequence_number] != previous_event[:sequence_number] + 1
+
         true
       end
-      
+
       def store_event(event)
         case @config[:storage_backend]
         when :file
@@ -355,17 +354,17 @@ module OpenAIAgents
           store_event_to_s3(event)
         end
       end
-      
+
       def store_event_to_file(event)
         date = Date.parse(event[:timestamp])
-        filename = "events_#{date.strftime('%Y%m%d')}.jsonl"
+        filename = "events_#{date.strftime("%Y%m%d")}.jsonl"
         filepath = File.join(@config[:storage_path], "events", filename)
-        
+
         File.open(filepath, "a") do |f|
           f.puts(event.to_json)
         end
       end
-      
+
       def store_conversation_record(agent, messages, result, event_id)
         record = {
           event_id: event_id,
@@ -380,14 +379,14 @@ module OpenAIAgents
             usage: result.usage
           }
         }
-        
+
         filename = "conversation_#{event_id}.json"
         filepath = File.join(@config[:storage_path], "conversations", filename)
-        
+
         content = @config[:encryption_enabled] ? encrypt_data(record.to_json) : record.to_json
         File.write(filepath, content)
       end
-      
+
       def redact_pii_from_messages(messages)
         messages.map do |msg|
           msg.merge(
@@ -395,73 +394,71 @@ module OpenAIAgents
           )
         end
       end
-      
+
       def redact_pii(text)
         return text unless text.is_a?(String)
-        
+
         # Redact common PII patterns
         text = text.gsub(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, "[EMAIL]")
         text = text.gsub(/\b\d{3}-\d{2}-\d{4}\b/, "[SSN]")
         text = text.gsub(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/, "[CREDIT_CARD]")
-        text = text.gsub(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/, "[PHONE]")
-        
-        text
+        text.gsub(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/, "[PHONE]")
       end
-      
+
       def encrypt_data(data)
         # Simple encryption - in production use proper encryption
         Base64.encode64(data)
       end
-      
+
       def decrypt_data(encrypted_data)
         Base64.decode64(encrypted_data)
       end
-      
+
       def query_events(start_time: nil, end_time: nil, filters: {})
         events = []
-        
+
         case @config[:storage_backend]
         when :file
           events = query_events_from_files(start_time, end_time, filters)
         when :database
           events = query_events_from_database(start_time, end_time, filters)
         end
-        
+
         events
       end
-      
+
       def query_events_from_files(start_time, end_time, filters)
         events = []
-        
+
         Dir.glob(File.join(@config[:storage_path], "events", "*.jsonl")).each do |file|
           File.foreach(file) do |line|
             event = JSON.parse(line, symbolize_names: true)
-            
+
             # Apply time filters
             event_time = Time.parse(event[:timestamp])
             next if start_time && event_time < start_time
             next if end_time && event_time > end_time
-            
+
             # Apply other filters
             next unless filters.all? { |k, v| event[k] == v }
-            
+
             events << event
           end
         end
-        
+
         events.sort_by { |e| e[:timestamp] }
       end
-      
+
       def update_metrics(event)
         # Update internal metrics for monitoring
         @metrics ||= {}
         @metrics[event[:event_type]] ||= 0
         @metrics[event[:event_type]] += 1
       end
-      
+
       def trigger_security_alert(event)
         return unless @config[:alert_webhook]
-        
+
         alert = {
           alert_type: "security_event",
           severity: event[:severity],
@@ -469,20 +466,20 @@ module OpenAIAgents
           timestamp: Time.now.iso8601,
           environment: ENV["RAILS_ENV"] || "production"
         }
-        
+
         # Send webhook
         begin
           uri = URI(@config[:alert_webhook])
           Net::HTTP.post_form(uri, alert)
-        rescue => e
+        rescue StandardError => e
           @logger.error("Failed to send security alert: #{e.message}")
         end
       end
-      
+
       def sanitized_config
-        @config.reject { |k, _| [:encryption_key, :alert_webhook].include?(k) }
+        @config.except(:encryption_key, :alert_webhook)
       end
-      
+
       def generate_summary(events)
         {
           total_events: events.size,
@@ -495,32 +492,26 @@ module OpenAIAgents
           }
         }
       end
-      
+
       def calculate_compliance_metrics(events)
         metrics = {}
-        
+
         # GDPR compliance
-        if @config[:compliance_standards].include?("GDPR")
-          metrics[:gdpr] = calculate_gdpr_metrics(events)
-        end
-        
+        metrics[:gdpr] = calculate_gdpr_metrics(events) if @config[:compliance_standards].include?("GDPR")
+
         # SOC2 compliance
-        if @config[:compliance_standards].include?("SOC2")
-          metrics[:soc2] = calculate_soc2_metrics(events)
-        end
-        
+        metrics[:soc2] = calculate_soc2_metrics(events) if @config[:compliance_standards].include?("SOC2")
+
         # HIPAA compliance
-        if @config[:compliance_standards].include?("HIPAA")
-          metrics[:hipaa] = calculate_hipaa_metrics(events)
-        end
-        
+        metrics[:hipaa] = calculate_hipaa_metrics(events) if @config[:compliance_standards].include?("HIPAA")
+
         metrics
       end
-      
+
       def calculate_gdpr_metrics(events)
         consent_events = events.select { |e| e[:event_type] == "consent_management" }
         pii_events = events.select { |e| e[:event_type] == "pii_detection" }
-        
+
         {
           consent_events: consent_events.count,
           consent_granted: consent_events.count { |e| e[:action] == "granted" },
@@ -529,11 +520,11 @@ module OpenAIAgents
           pii_redacted: pii_events.count { |e| e[:action_taken] == "redacted" }
         }
       end
-      
+
       def calculate_soc2_metrics(events)
         security_events = events.select { |e| e[:event_type].to_s.start_with?("security_") }
         access_events = events.select { |e| e[:event_type] == "data_access" }
-        
+
         {
           security_events: security_events.count,
           critical_security_events: security_events.count { |e| e[:severity] == :critical },
@@ -541,16 +532,16 @@ module OpenAIAgents
           unique_resources_accessed: access_events.map { |e| e[:resource_id] }.uniq.size
         }
       end
-      
+
       def calculate_hipaa_metrics(events)
         phi_events = events.select { |e| e[:metadata]&.dig(:phi_involved) }
-        
+
         {
           phi_access_events: phi_events.count,
-          phi_modifications: phi_events.count { |e| e[:action] == "update" || e[:action] == "delete" }
+          phi_modifications: phi_events.count { |e| %w[update delete].include?(e[:action]) }
         }
       end
-      
+
       def group_events_by_type(events)
         events.group_by { |e| e[:event_type] }.transform_values do |type_events|
           {
@@ -560,81 +551,81 @@ module OpenAIAgents
           }
         end
       end
-      
+
       def generate_security_summary(events)
         security_events = events.select { |e| e[:event_type].to_s.start_with?("security_") }
-        
+
         {
           total_security_events: security_events.size,
           by_severity: security_events.group_by { |e| e[:severity] }.transform_values(&:count),
           top_security_concerns: identify_top_security_concerns(security_events)
         }
       end
-      
+
       def identify_top_security_concerns(security_events)
         concerns = []
-        
+
         # High severity events
-        high_severity = security_events.count { |e| [:high, :critical].include?(e[:severity]) }
-        if high_severity > 0
-          concerns << "#{high_severity} high/critical severity events detected"
-        end
-        
+        high_severity = security_events.count { |e| %i[high critical].include?(e[:severity]) }
+        concerns << "#{high_severity} high/critical severity events detected" if high_severity > 0
+
         # Repeated security events
-        event_counts = security_events.group_by { |e| e[:details][:type] rescue nil }.transform_values(&:count)
+        event_counts = security_events.group_by do |e|
+          e[:details][:type]
+        rescue StandardError
+          nil
+        end.transform_values(&:count)
         event_counts.select { |_, count| count > 5 }.each do |type, count|
           concerns << "#{type} occurred #{count} times"
         end
-        
+
         concerns
       end
-      
+
       def generate_recommendations(events)
         recommendations = []
-        
+
         # Check for missing consent events
-        if events.select { |e| e[:event_type] == "consent_management" }.empty?
+        if events.none? { |e| e[:event_type] == "consent_management" }
           recommendations << "Implement consent tracking for GDPR compliance"
         end
-        
+
         # Check for PII handling
         pii_events = events.select { |e| e[:event_type] == "pii_detection" }
-        if pii_events.any? { |e| e[:action_taken] == "none" }
-          recommendations << "Implement automatic PII redaction"
-        end
-        
+        recommendations << "Implement automatic PII redaction" if pii_events.any? { |e| e[:action_taken] == "none" }
+
         # Check for security monitoring
-        if events.select { |e| e[:event_type].to_s.start_with?("security_") }.empty?
+        if events.none? { |e| e[:event_type].to_s.start_with?("security_") }
           recommendations << "Enable security event monitoring"
         end
-        
+
         recommendations
       end
-      
+
       def store_audit_report(report)
         filename = "audit_report_#{report[:report_id]}.json"
         filepath = File.join(@config[:storage_path], "reports", filename)
-        
+
         File.write(filepath, JSON.pretty_generate(report))
-        
+
         log_system_event("audit_report_generated", { report_id: report[:report_id] })
       end
-      
+
       def export_as_json(events)
         JSON.pretty_generate({
-          export_timestamp: Time.now.iso8601,
-          total_events: events.size,
-          events: events
-        })
+                               export_timestamp: Time.now.iso8601,
+                               total_events: events.size,
+                               events: events
+                             })
       end
-      
+
       def export_as_csv(events)
-        require 'csv'
-        
+        require "csv"
+
         CSV.generate do |csv|
           # Header
           csv << ["Event ID", "Timestamp", "Event Type", "Session ID", "User ID", "Details"]
-          
+
           # Data
           events.each do |event|
             csv << [
@@ -648,43 +639,43 @@ module OpenAIAgents
           end
         end
       end
-      
+
       def export_for_siem(events)
         # Common Event Format (CEF) for SIEM integration
         events.map do |event|
-          "CEF:0|OpenAIAgents|Compliance|1.0|#{event[:event_type]}|#{event[:event_type]}|3|" +
-          "eventId=#{event[:event_id]} " +
-          "rt=#{Time.parse(event[:timestamp]).to_i * 1000} " +
-          "session=#{event[:session_id]} " +
-          "suser=#{event[:user_id]}"
+          "CEF:0|OpenAIAgents|Compliance|1.0|#{event[:event_type]}|#{event[:event_type]}|3|" \
+            "eventId=#{event[:event_id]} " \
+            "rt=#{Time.parse(event[:timestamp]).to_i * 1000} " \
+            "session=#{event[:session_id]} " \
+            "suser=#{event[:user_id]}"
         end.join("\n")
       end
     end
-    
+
     # Compliance policy manager
     class PolicyManager
       def initialize
         @policies = {}
         load_default_policies
       end
-      
+
       def register_policy(name, policy)
         @policies[name] = policy
       end
-      
+
       def check_compliance(context)
         violations = []
-        
-        @policies.each do |name, policy|
+
+        @policies.each_value do |policy|
           result = policy.check(context)
           violations.concat(result.violations) unless result.compliant?
         end
-        
+
         ComplianceResult.new(violations.empty?, violations)
       end
-      
+
       private
-      
+
       def load_default_policies
         @policies[:data_retention] = DataRetentionPolicy.new
         @policies[:access_control] = AccessControlPolicy.new
@@ -692,92 +683,80 @@ module OpenAIAgents
         @policies[:audit_requirements] = AuditRequirementsPolicy.new
       end
     end
-    
+
     # Compliance policies
     class CompliancePolicy
       def check(context)
         raise NotImplementedError
       end
     end
-    
+
     class DataRetentionPolicy < CompliancePolicy
       def check(context)
         violations = []
-        
+
         # Check if data is being retained beyond policy
-        if context[:data_age_days] && context[:data_age_days] > 90
-          violations << "Data retained beyond 90-day policy"
-        end
-        
+        violations << "Data retained beyond 90-day policy" if context[:data_age_days] && context[:data_age_days] > 90
+
         ComplianceResult.new(violations.empty?, violations)
       end
     end
-    
+
     class AccessControlPolicy < CompliancePolicy
       def check(context)
         violations = []
-        
+
         # Check for proper authentication
-        unless context[:authenticated]
-          violations << "Access without proper authentication"
-        end
-        
+        violations << "Access without proper authentication" unless context[:authenticated]
+
         # Check for authorization
-        if context[:resource_accessed] && !context[:authorized]
-          violations << "Unauthorized resource access"
-        end
-        
+        violations << "Unauthorized resource access" if context[:resource_accessed] && !context[:authorized]
+
         ComplianceResult.new(violations.empty?, violations)
       end
     end
-    
+
     class PIIHandlingPolicy < CompliancePolicy
       def check(context)
         violations = []
-        
+
         # Check for unencrypted PII
-        if context[:contains_pii] && !context[:encrypted]
-          violations << "PII stored without encryption"
-        end
-        
+        violations << "PII stored without encryption" if context[:contains_pii] && !context[:encrypted]
+
         # Check for PII in logs
-        if context[:log_contains_pii]
-          violations << "PII found in logs"
-        end
-        
+        violations << "PII found in logs" if context[:log_contains_pii]
+
         ComplianceResult.new(violations.empty?, violations)
       end
     end
-    
+
     class AuditRequirementsPolicy < CompliancePolicy
       def check(context)
         violations = []
-        
+
         # Check for required audit fields
-        required_fields = [:timestamp, :user_id, :action, :resource]
+        required_fields = %i[timestamp user_id action resource]
         missing_fields = required_fields - context.keys
-        
-        unless missing_fields.empty?
-          violations << "Missing required audit fields: #{missing_fields.join(', ')}"
-        end
-        
+
+        violations << "Missing required audit fields: #{missing_fields.join(", ")}" unless missing_fields.empty?
+
         ComplianceResult.new(violations.empty?, violations)
       end
     end
-    
+
     # Compliance result
     class ComplianceResult
       attr_reader :violations
-      
+
       def initialize(compliant, violations = [])
         @compliant = compliant
         @violations = violations
       end
-      
+
       def compliant?
         @compliant
       end
-      
+
       def to_h
         {
           compliant: @compliant,
@@ -785,7 +764,7 @@ module OpenAIAgents
         }
       end
     end
-    
+
     # Real-time compliance monitor
     class ComplianceMonitor
       def initialize(audit_logger, policy_manager)
@@ -793,20 +772,20 @@ module OpenAIAgents
         @policy_manager = policy_manager
         @monitors = {}
       end
-      
+
       def start_monitoring
         @monitors[:agent_execution] = monitor_agent_executions
         @monitors[:data_access] = monitor_data_access
         @monitors[:security] = monitor_security_events
       end
-      
+
       def stop_monitoring
         @monitors.each_value(&:kill)
         @monitors.clear
       end
-      
+
       private
-      
+
       def monitor_agent_executions
         Thread.new do
           loop do
@@ -815,7 +794,7 @@ module OpenAIAgents
           end
         end
       end
-      
+
       def monitor_data_access
         Thread.new do
           loop do
@@ -824,7 +803,7 @@ module OpenAIAgents
           end
         end
       end
-      
+
       def monitor_security_events
         Thread.new do
           loop do

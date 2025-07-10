@@ -2,6 +2,7 @@
 
 require_relative "openai_agents/version"
 require_relative "openai_agents/hash_utils"
+require_relative "openai_agents/logging"
 require_relative "openai_agents/agent"
 require_relative "openai_agents/runner"
 require_relative "openai_agents/run_config"
@@ -50,10 +51,27 @@ require_relative "openai_agents/extensions"
 require_relative "openai_agents/handoffs/advanced_handoff"
 require_relative "openai_agents/usage_tracking"
 
+# Load ActiveRecord-dependent features only if ActiveRecord is available
+if defined?(ActiveRecord)
+  # Load Rails engine and ActiveRecord processor if Rails is available
+  begin
+    require "rails"
+    require_relative "openai_agents/logging/rails_integration"
+    require_relative "openai_agents/tracing/engine"
+    require_relative "openai_agents/tracing/rails_integrations"
+  rescue LoadError
+    # Rails not available, skip Rails-specific components
+  end
+end
+
 # Memory and Vector functionality
 require_relative "openai_agents/memory"
-require_relative "openai_agents/vector_store"
-require_relative "openai_agents/semantic_search"
+begin
+  require_relative "openai_agents/vector_store"
+  require_relative "openai_agents/semantic_search"
+rescue LoadError
+  # Matrix gem not available, skip vector functionality
+end
 
 # Document processing
 require_relative "openai_agents/multi_modal"
@@ -175,5 +193,17 @@ module OpenAIAgents
   # @yield [OpenAIAgents::Tracing::TraceProvider] The trace provider for configuration
   def self.configure_tracing(&)
     Tracing::TraceProvider.configure(&)
+  end
+
+  ##
+  # Global logger access
+  #
+  # @return [OpenAIAgents::Logging] The unified logging system
+  # @example
+  #   OpenAIAgents.logger.info("Agent started", agent: "GPT-4")
+  #   OpenAIAgents.logger.debug("Tool called", tool: "search")
+  #   OpenAIAgents.logger.error("API failed", error: e.message)
+  def self.logger
+    @logger ||= Logging
   end
 end

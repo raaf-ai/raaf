@@ -2,6 +2,7 @@
 
 require "yaml"
 require "json"
+require_relative "logging"
 
 module OpenAIAgents
   ##
@@ -55,6 +56,7 @@ module OpenAIAgents
   # @author OpenAI Agents Ruby Team
   # @since 0.1.0
   class Configuration
+    include Logger
     ##
     # Default configuration values
     DEFAULT_CONFIG = {
@@ -510,7 +512,8 @@ module OpenAIAgents
             file_config = load_config_file(file_path)
             @config_data = deep_merge(@config_data, file_config)
           rescue StandardError => e
-            warn "Failed to load config file #{file_path}: #{e.message}"
+            log_warn("Failed to load config file #{file_path}: #{e.message}", file_path: file_path,
+                                                                              error_class: e.class.name)
           end
         end
       end
@@ -567,7 +570,7 @@ module OpenAIAgents
 
       raise ConfigurationError, "Configuration validation failed: #{errors.join(", ")}" if production?
 
-      warn "Configuration warnings: #{errors.join(", ")}"
+      log_warn("Configuration warnings: #{errors.join(", ")}", warning_count: errors.size)
     end
 
     def notify_watchers

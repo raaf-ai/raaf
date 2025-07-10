@@ -17,7 +17,7 @@ puts "Example 1: Basic Vector Database"
 puts "-" * 50
 
 # Create vector database
-vector_db = OpenAIAgents::SemanticSearch::VectorDatabase.new(dimension: 5)  # Small dimension for demo
+vector_db = OpenAIAgents::SemanticSearch::VectorDatabase.new(dimension: 5) # Small dimension for demo
 
 # Add some vectors
 vectors = [
@@ -218,7 +218,7 @@ loaded_results = loaded_db.search(query, k: 1)
 puts "Verification search result: #{loaded_results.first[:metadata][:title]}"
 
 # Clean up
-File.delete(db_file) if File.exist?(db_file)
+FileUtils.rm_f(db_file)
 puts
 
 # Example 8: Filtering Search Results

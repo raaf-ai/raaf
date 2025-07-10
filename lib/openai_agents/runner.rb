@@ -22,15 +22,17 @@ require_relative "context_config"
 
 module OpenAIAgents
   class Runner
+    include Logger
     attr_reader :agent, :tracer, :stop_checker
 
-    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil, context_manager: nil, context_config: nil)
+    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil,
+                   context_manager: nil, context_config: nil)
       @agent = agent
       @provider = provider || Models::ResponsesProvider.new
       @disabled_tracing = disabled_tracing || ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : OpenAIAgents.tracer)
       @stop_checker = stop_checker
-      
+
       # Context management setup
       if context_manager
         @context_manager = context_manager
@@ -59,9 +61,10 @@ module OpenAIAgents
     # @return [Boolean] true if execution should stop, false otherwise
     def should_stop?
       return false unless @stop_checker
+
       @stop_checker.call
     rescue StandardError => e
-      warn "Error checking stop condition: #{e.message}"
+      log_error("Error checking stop condition", error: e.message, error_class: e.class.name)
       false
     end
 
@@ -168,24 +171,30 @@ module OpenAIAgents
     # Process output items from Responses API
     def process_responses_api_output(response, agent, generated_items, span = nil)
       output = response[:output] || response["output"] || []
-      
+
       result = { done: false, handoff: nil }
-      
+
       output.each do |item|
         item_type = item[:type] || item["type"]
-        
+
         case item_type
         when "message", "text", "output_text"
           # Text output from the model
           generated_items << Items::MessageOutputItem.new(agent: agent, raw_item: item)
-          
+
           # Check for handoff in text
           text = item[:text] || item["text"] || ""
           if text.include?("HANDOFF:")
             handoff_match = text.match(/HANDOFF:\s*(\w+)/)
-            result[:handoff] = handoff_match[1] if handoff_match
+            if handoff_match
+              result[:handoff] = handoff_match[1]
+              log_debug_handoff("Handoff detected in text output",
+                                from_agent: agent.name,
+                                to_agent: handoff_match[1],
+                                method: "text_pattern")
+            end
           end
-          
+
         when "function_call"
           # Tool call from the model
           # Remove the ID to avoid duplicate ID errors when re-submitting
@@ -193,10 +202,10 @@ module OpenAIAgents
           item_without_id.delete(:id)
           item_without_id.delete("id")
           generated_items << Items::ToolCallItem.new(agent: agent, raw_item: item_without_id)
-          
+
           # Execute the tool
           tool_result = execute_tool_for_responses_api(item, agent)
-          
+
           # Add tool result as an item
           tool_output_item = {
             type: "function_call_output",
@@ -208,7 +217,7 @@ module OpenAIAgents
             raw_item: tool_output_item,
             output: tool_result
           )
-          
+
         when "function_call_output"
           # This is already a tool result (shouldn't happen in output, but handle it)
           generated_items << Items::ToolCallOutputItem.new(
@@ -218,41 +227,39 @@ module OpenAIAgents
           )
         end
       end
-      
+
       # Check if there are no tool calls in this output
       has_tool_calls = output.any? { |item| (item[:type] || item["type"]) == "function_call" }
       result[:done] = !has_tool_calls
-      
+
       result
     end
-    
+
     # Execute a tool for Responses API
     def execute_tool_for_responses_api(tool_call_item, agent)
       tool_name = tool_call_item[:name] || tool_call_item["name"]
       arguments_str = tool_call_item[:arguments] || tool_call_item["arguments"] || "{}"
-      
+
       begin
         arguments = JSON.parse(arguments_str)
       rescue JSON::ParserError
         return "Error: Invalid tool arguments"
       end
-      
+
       # Find the tool
       tool = agent.tools.find { |t| t.respond_to?(:name) && t.name == tool_name }
-      
-      if tool.nil?
-        return "Error: Tool '#{tool_name}' not found"
-      end
-      
+
+      return "Error: Tool '#{tool_name}' not found" if tool.nil?
+
       # Execute the tool
       begin
         if @tracer && !@disabled_tracing
           @tracer.tool_span(tool_name) do |tool_span|
             tool_span.set_attribute("function.name", tool_name)
             tool_span.set_attribute("function.input", arguments)
-            
+
             result = tool.call(**arguments.transform_keys(&:to_sym))
-            
+
             tool_span.set_attribute("function.output", result.to_s)
             result
           end
@@ -263,19 +270,19 @@ module OpenAIAgents
         "Error executing tool: #{e.message}"
       end
     end
-    
+
     # Check if response has tool calls
     def has_tool_calls_in_response?(response)
       return false unless response
-      
+
       output = response[:output] || response["output"] || []
       output.any? { |item| (item[:type] || item["type"]) == "function_call" }
     end
-    
+
     # Build conversation from items (for compatibility)
     def build_conversation_from_items(input, generated_items)
       conversation = []
-      
+
       # Add initial input as user message
       if input.any?
         first_input = input.first
@@ -283,7 +290,7 @@ module OpenAIAgents
           conversation << { role: "user", content: first_input[:text] || first_input["text"] }
         end
       end
-      
+
       # Convert generated items to messages
       generated_items.each do |item|
         case item
@@ -299,23 +306,23 @@ module OpenAIAgents
           conversation << { role: "assistant", content: text }
         end
       end
-      
+
       conversation
     end
-    
+
     # Run with Responses API without tracing
     def run_with_responses_api_no_trace(messages, config:)
       current_agent = @agent
       turns = 0
-      
+
       # Convert initial messages to input items
       input = Items::ItemHelpers.input_to_new_input_list(messages)
       generated_items = []
       model_responses = []
       previous_response_id = config.previous_response_id
-      
+
       max_turns = config.max_turns || current_agent.max_turns
-      
+
       while turns < max_turns
         # Build current input including all generated items
         # When using previous_response_id, only include tool outputs, not tool calls
@@ -324,62 +331,57 @@ module OpenAIAgents
         generated_items.each do |item|
           # Skip tool calls when we have a previous_response_id to avoid duplicates
           next if previous_response_id && item.is_a?(Items::ToolCallItem)
+
           current_input << item.to_input_item
         end
-        
+
         # Get system instructions
         system_instructions = current_agent.instructions
-        
+
         # Prepare model parameters
         model = config.model || current_agent.model
         model_params = config.to_model_params
-        
+
         # Add response format if configured
-        if current_agent.response_format
-          model_params[:response_format] = current_agent.response_format
-        end
-        
+        model_params[:response_format] = current_agent.response_format if current_agent.response_format
+
         # Make API call
         response = if @provider.is_a?(Models::ResponsesProvider)
-          @provider.responses_completion(
-            messages: [{ role: "system", content: system_instructions }],
-            model: model,
-            tools: current_agent.tools? ? current_agent.tools : nil,
-            previous_response_id: previous_response_id,
-            input: current_input, # Pass the accumulated input items
-            **model_params
-          )
-        else
-          @provider.chat_completion(
-            messages: [{ role: "system", content: system_instructions }],
-            model: model,
-            tools: current_agent.tools? ? current_agent.tools : nil,
-            previous_response_id: previous_response_id,
-            input: current_input,
-            **model_params
-          )
-        end
-        
+                     @provider.responses_completion(
+                       messages: [{ role: "system", content: system_instructions }],
+                       model: model,
+                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       previous_response_id: previous_response_id,
+                       input: current_input, # Pass the accumulated input items
+                       **model_params
+                     )
+                   else
+                     @provider.chat_completion(
+                       messages: [{ role: "system", content: system_instructions }],
+                       model: model,
+                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       previous_response_id: previous_response_id,
+                       input: current_input,
+                       **model_params
+                     )
+                   end
+
         # Extract response ID for next turn
         previous_response_id = response[:id] || response["id"]
         model_responses << response
-        
+
         # Process the output items
         result = process_responses_api_output(response, current_agent, generated_items)
-        
+
         turns += 1
-        
+
         # Check if done
-        if result[:done]
-          break
-        end
+        break if result[:done]
       end
-      
+
       # Check if max turns exceeded
-      if turns >= max_turns
-        raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded"
-      end
-      
+      raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
+
       # Build final result
       RunResult.success(
         messages: build_conversation_from_items(input, generated_items),
@@ -451,12 +453,10 @@ module OpenAIAgents
 
     def run_with_tracing(messages, config:, parent_span: nil)
       @current_config = config # Store for tool calls
-      
+
       # For Responses API, convert messages to items-based format
-      if @provider.is_a?(Models::ResponsesProvider)
-        return run_with_responses_api(messages, config: config)
-      end
-      
+      return run_with_responses_api(messages, config: config) if @provider.is_a?(Models::ResponsesProvider)
+
       # Original Chat Completions flow for other providers
       conversation = messages.dup
       current_agent = @agent
@@ -480,7 +480,7 @@ module OpenAIAgents
           conversation << { role: "assistant", content: "Execution stopped by user request." }
           raise ExecutionStoppedError, "Execution stopped by user request"
         end
-        
+
         # Create agent span as root span (matching Python implementation where agent span has parent_id: null)
         # Temporarily clear the span stack to make this span root
         original_span_stack = @tracer.instance_variable_get(:@context).instance_variable_get(:@span_stack).dup
@@ -609,7 +609,7 @@ module OpenAIAgents
 
           # Process response
           result = process_response(response, current_agent, conversation)
-          
+
           # Check if execution should stop after processing response
           if should_stop?
             conversation << { role: "assistant", content: "Execution stopped by user request." }
@@ -623,7 +623,7 @@ module OpenAIAgents
         @tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, original_span_stack)
 
         turns += 1
-        
+
         # Check if execution was stopped
         if agent_result[:stopped]
           conversation << { role: "assistant", content: "Execution stopped by user request." }
@@ -632,8 +632,23 @@ module OpenAIAgents
 
         # Check for handoff
         if agent_result[:handoff]
+          log_debug_handoff("Processing handoff request",
+                            from_agent: current_agent.name,
+                            requested_agent: agent_result[:handoff])
+
           handoff_agent = current_agent.find_handoff(agent_result[:handoff])
-          raise HandoffError, "Cannot handoff to '#{agent_result[:handoff]}'" unless handoff_agent
+
+          if handoff_agent.nil?
+            log_debug_handoff("Handoff target not found",
+                              from_agent: current_agent.name,
+                              requested_agent: agent_result[:handoff],
+                              available_handoffs: current_agent.handoffs.map(&:name).join(", "))
+            raise HandoffError, "Cannot handoff to '#{agent_result[:handoff]}'"
+          end
+
+          log_debug_handoff("Handoff target found, executing handoff",
+                            from_agent: current_agent.name,
+                            to_agent: handoff_agent.name)
 
           # Call handoff hooks
           call_hook(:on_handoff, context_wrapper, current_agent, handoff_agent)
@@ -649,9 +664,17 @@ module OpenAIAgents
                                    })
           end
 
+          log_debug_handoff("Handoff completed, switching to new agent",
+                            from_agent: current_agent.name,
+                            to_agent: handoff_agent.name)
+
           current_agent = handoff_agent
           turns = 0 # Reset turn counter for new agent
-          next
+
+          # Continue execution with the new agent instead of skipping to next iteration
+          # This matches the behavior of the Python SDK's automatic handoff execution
+          # Reset agent_result to ensure the loop continues with the new agent
+          agent_result = { done: false, handoff: nil }
         end
 
         # Check if we're done
@@ -685,14 +708,13 @@ module OpenAIAgents
       @current_config = config
       current_agent = @agent
       turns = 0
-      
+
       # Convert initial messages to input items
       input = Items::ItemHelpers.input_to_new_input_list(messages)
       generated_items = []
       model_responses = []
-      previous_response_id = config.previous_response_id
-      last_turn_index = 0  # Track where the last turn ended
-      
+      previous_response_id = config.previous_response_id # Track where the last turn ended
+
       # Create run context for hooks
       context = RunContext.new(
         messages: messages,
@@ -702,15 +724,13 @@ module OpenAIAgents
       )
       context_wrapper = RunContextWrapper.new(context)
       @current_context_wrapper = context_wrapper
-      
+
       max_turns = config.max_turns || current_agent.max_turns
-      
+
       while turns < max_turns
         # Check if execution should stop
-        if should_stop?
-          raise ExecutionStoppedError, "Execution stopped by user request"
-        end
-        
+        raise ExecutionStoppedError, "Execution stopped by user request" if should_stop?
+
         # Build current input including all generated items
         # When using previous_response_id, only include tool outputs, not tool calls
         # The API already knows about the calls from the previous response
@@ -718,9 +738,10 @@ module OpenAIAgents
         generated_items.each do |item|
           # Skip tool calls when we have a previous_response_id to avoid duplicates
           next if previous_response_id && item.is_a?(Items::ToolCallItem)
+
           current_input << item.to_input_item
         end
-        
+
         # Create agent span
         agent_result = @tracer.start_span("agent.#{current_agent.name || "agent"}", kind: :agent) do |agent_span|
           # Set agent span attributes
@@ -728,24 +749,22 @@ module OpenAIAgents
           agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
           agent_span.set_attribute("agent.tools", safe_map_names(current_agent.tools))
           agent_span.set_attribute("agent.output_type", "str")
-          
+
           # Get system instructions
           system_instructions = current_agent.instructions
-          
+
           # Prepare model parameters
           model = config.model || current_agent.model
           model_params = config.to_model_params
-          
+
           # Add response format if configured
-          if current_agent.response_format
-            model_params[:response_format] = current_agent.response_format
-          end
-          
+          model_params[:response_format] = current_agent.response_format if current_agent.response_format
+
           # Add tool choice if configured
           if current_agent.respond_to?(:tool_choice) && current_agent.tool_choice
             model_params[:tool_choice] = current_agent.tool_choice
           end
-          
+
           # Make API call - pass input items and previous_response_id for continuity
           response = @provider.responses_completion(
             messages: [{ role: "system", content: system_instructions }], # Only for extracting system content
@@ -755,34 +774,30 @@ module OpenAIAgents
             input: current_input, # Pass the accumulated input items
             **model_params
           )
-          
+
           # The response is already in Responses API format
           # Extract response ID for next turn
           previous_response_id = response[:id] || response["id"]
-          
+
           # Store the response
           model_responses << response
-          
+
           # Process the output items
           result = process_responses_api_output(response, current_agent, generated_items, agent_span)
-          
+
           # Return the result for the agent span
           result
         end
-        
+
         turns += 1
-        
+
         # Check if done (no tool calls in last response)
-        if agent_result[:done]
-          break
-        end
+        break if agent_result[:done]
       end
-      
+
       # Check if max turns exceeded
-      if turns >= max_turns
-        raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded"
-      end
-      
+      raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
+
       # Build final result
       RunResult.success(
         messages: build_conversation_from_items(input, generated_items),
@@ -794,12 +809,10 @@ module OpenAIAgents
 
     def run_without_tracing(messages, config:)
       @current_config = config # Store for tool calls
-      
+
       # For Responses API, use items-based approach
-      if @provider.is_a?(Models::ResponsesProvider)
-        return run_with_responses_api_no_trace(messages, config: config)
-      end
-      
+      return run_with_responses_api_no_trace(messages, config: config) if @provider.is_a?(Models::ResponsesProvider)
+
       conversation = messages.dup
       current_agent = @agent
       turns = 0
@@ -812,7 +825,7 @@ module OpenAIAgents
           conversation << { role: "assistant", content: "Execution stopped by user request." }
           raise ExecutionStoppedError, "Execution stopped by user request"
         end
-        
+
         # Prepare messages for API call
         api_messages = build_messages(conversation, current_agent)
 
@@ -850,7 +863,7 @@ module OpenAIAgents
 
         # Process response
         result = process_response(response, current_agent, conversation)
-        
+
         # Check if execution should stop after processing response
         if should_stop?
           conversation << { role: "assistant", content: "Execution stopped by user request." }
@@ -858,7 +871,7 @@ module OpenAIAgents
         end
 
         turns += 1
-        
+
         # Check if execution was stopped
         if result[:stopped]
           conversation << { role: "assistant", content: "Execution stopped by user request." }
@@ -867,8 +880,23 @@ module OpenAIAgents
 
         # Check for handoff
         if result[:handoff]
+          log_debug_handoff("Processing handoff request (legacy mode)",
+                            from_agent: current_agent.name,
+                            requested_agent: result[:handoff])
+
           handoff_agent = current_agent.find_handoff(result[:handoff])
-          raise HandoffError, "Cannot handoff to '#{result[:handoff]}'" unless handoff_agent
+
+          if handoff_agent.nil?
+            log_debug_handoff("Handoff target not found (legacy mode)",
+                              from_agent: current_agent.name,
+                              requested_agent: result[:handoff],
+                              available_handoffs: current_agent.handoffs.map(&:name).join(", "))
+            raise HandoffError, "Cannot handoff to '#{result[:handoff]}'"
+          end
+
+          log_debug_handoff("Handoff completed (legacy mode)",
+                            from_agent: current_agent.name,
+                            to_agent: handoff_agent.name)
 
           current_agent = handoff_agent
           turns = 0 # Reset turn counter for new agent
@@ -904,12 +932,10 @@ module OpenAIAgents
       end
 
       messages = [system_message] + formatted_conversation
-      
+
       # Apply context management if enabled
-      if @context_manager
-        messages = @context_manager.manage_context(messages)
-      end
-      
+      messages = @context_manager.manage_context(messages) if @context_manager
+
       messages
     end
 
@@ -939,7 +965,15 @@ module OpenAIAgents
       end
 
       unless agent.handoffs.empty?
-        handoff_descriptions = agent.handoffs.map { |handoff_agent| "- #{handoff_agent.name}" }
+        handoff_names = agent.handoffs.map do |handoff|
+          handoff.is_a?(Agent) ? handoff.name : handoff.agent_name
+        end
+
+        log_debug_handoff("Adding handoff instructions to prompt",
+                          agent: agent.name,
+                          available_handoffs: handoff_names.join(", "))
+
+        handoff_descriptions = handoff_names.map { |name| "- #{name}" }
         prompt_parts << "\nAvailable handoffs:\n#{handoff_descriptions.join("\n")}"
         prompt_parts << "\nTo handoff to another agent, include 'HANDOFF: <agent_name>' in your response."
       end
@@ -950,7 +984,7 @@ module OpenAIAgents
     def process_response(response, agent, conversation)
       # Handle error responses
       if response["error"]
-        puts "[Runner] API Error: #{response["error"]}"
+        log_error("API Error", error: response["error"], agent: agent.name)
         return { done: true, handoff: nil, error: response["error"] }
       end
 
@@ -974,21 +1008,28 @@ module OpenAIAgents
       # Only add message to conversation if it has content or tool calls
       if assistant_message[:content] || assistant_message[:tool_calls]
         conversation << assistant_message
-        puts "[Runner] Added assistant message with #{assistant_message[:tool_calls]&.size || 0} tool calls"
-        
+        log_debug("Added assistant message",
+                  agent: agent.name,
+                  tool_calls: assistant_message[:tool_calls]&.size || 0,
+                  content_length: assistant_message[:content]&.length || 0)
+
         # Debug assistant response if enabled
-        if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
-          puts "\n[DEBUG] Assistant response:"
+        if OpenAIAgents::Logging.configuration.debug_enabled?(:context)
           content_preview = assistant_message[:content].to_s[0..500]
           content_preview += "..." if assistant_message[:content].to_s.length > 500
-          puts "  Content: #{content_preview}"
-          if assistant_message[:tool_calls]
-            puts "  Tool calls (#{assistant_message[:tool_calls].size}):"
-            assistant_message[:tool_calls].each_with_index do |tc, i|
-              puts "    #{i}: #{tc.dig('function', 'name')} - #{tc.dig('function', 'arguments')}"
-            end
+
+          log_debug("Assistant response details",
+                    agent: agent.name,
+                    content_preview: content_preview,
+                    tool_calls_count: assistant_message[:tool_calls]&.size || 0)
+
+          assistant_message[:tool_calls]&.each_with_index do |tc, i|
+            log_debug("Tool call detail",
+                      agent: agent.name,
+                      tool_index: i,
+                      tool_name: tc.dig("function", "name"),
+                      arguments: tc.dig("function", "arguments"))
           end
-          puts "[DEBUG] End assistant response\n"
         end
       end
 
@@ -1000,7 +1041,7 @@ module OpenAIAgents
         context_wrapper = @current_context_wrapper if defined?(@current_context_wrapper)
         # Also pass the full response to capture OpenAI-hosted tool results
         should_stop = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper, response)
-        
+
         # If process_tool_calls returns true, it means we should stop
         if should_stop == true
           result[:done] = true
@@ -1013,15 +1054,25 @@ module OpenAIAgents
       # Check for handoff in text format
       if message["content"]&.include?("HANDOFF:")
         handoff_match = message["content"].match(/HANDOFF:\s*(\w+)/)
-        result[:handoff] = handoff_match[1] if handoff_match
+        if handoff_match
+          result[:handoff] = handoff_match[1]
+          log_debug_handoff("Handoff detected in message content",
+                            from_agent: agent.name,
+                            to_agent: handoff_match[1],
+                            method: "text_pattern")
+        end
       end
-      
+
       # Also check for handoff in JSON response
       if message["content"] && !result[:handoff]
         begin
           parsed = JSON.parse(message["content"])
           if parsed.is_a?(Hash) && parsed["handoff_to"]
             result[:handoff] = parsed["handoff_to"]
+            log_debug_handoff("Handoff detected in JSON response",
+                              from_agent: agent.name,
+                              to_agent: parsed["handoff_to"],
+                              method: "json_response")
           end
         rescue JSON::ParserError
           # Not JSON, ignore
@@ -1035,11 +1086,15 @@ module OpenAIAgents
     end
 
     def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil, full_response = nil)
-      puts "[Runner] Processing #{tool_calls.size} tool calls"
-      
+      log_debug_tools("Processing tool calls",
+                      agent: agent.name,
+                      tool_count: tool_calls.size)
+
       # Check if we should stop before processing ANY tools
       if should_stop?
-        puts "[Runner] Stop requested - cancelling all #{tool_calls.size} tool calls"
+        log_warn("Stop requested - cancelling tool calls",
+                 agent: agent.name,
+                 cancelled_tools: tool_calls.size)
         # Add a single tool result indicating all tools were cancelled
         conversation << {
           role: "tool",
@@ -1051,41 +1106,48 @@ module OpenAIAgents
 
       # Process each tool call and collect results using Ruby iterators
       # But stop early if a stop is detected
-      results = []
-      tool_calls.each do |tool_call|
+      results = tool_calls.map do |tool_call|
         # Check stop before each tool
         if should_stop?
-          results << {
+          {
             role: "tool",
             tool_call_id: tool_call["id"],
             content: "Tool execution cancelled: Execution stopped by user request"
           }
         else
-          results << process_single_tool_call(tool_call, agent, context_wrapper, full_response)
+          process_single_tool_call(tool_call, agent, context_wrapper, full_response)
         end
       end
 
       # Add all results to conversation
       results.each { |message| conversation << message }
 
-      puts "[Runner] Tool processing complete. Conversation now has #{conversation.size} messages"
-      
+      log_debug_tools("Tool processing complete",
+                      agent: agent.name,
+                      total_messages: conversation.size,
+                      tool_results: results.size)
+
       # Check if any tool result indicates a stop
-      stop_requested = results.any? do |result| 
-        result[:content]&.include?("cancelled") && result[:content]&.include?("stopped by user")
+      stop_requested = results.any? do |result|
+        result[:content]&.include?("cancelled") && result[:content].include?("stopped by user")
       end
-      
+
       # Debug conversation if enabled
-      if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
-        puts "\n[DEBUG] Full conversation (#{conversation.size} messages):"
+      if OpenAIAgents::Logging.configuration.debug_enabled?(:context)
+        log_debug("Full conversation dump",
+                  agent: agent.name,
+                  message_count: conversation.size)
         conversation.each_with_index do |msg, i|
           content_preview = msg[:content].to_s[0..200]
           content_preview += "..." if msg[:content].to_s.length > 200
-          puts "  #{i}: #{msg[:role]} - #{content_preview}"
+          log_debug("Conversation message",
+                    agent: agent.name,
+                    message_index: i,
+                    role: msg[:role],
+                    content_preview: content_preview)
         end
-        puts "[DEBUG] End conversation\n"
       end
-      
+
       # Return true if stop was requested, otherwise false to continue
       stop_requested
     end
@@ -1099,7 +1161,7 @@ module OpenAIAgents
           content: "Tool execution cancelled: Execution stopped by user request"
         }
       end
-      
+
       tool_name = tool_call.dig("function", "name")
       arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
 
@@ -1107,7 +1169,7 @@ module OpenAIAgents
       # These tools are executed by OpenAI, not locally
       openai_hosted_tools = %w[web_search code_interpreter file_search]
       if openai_hosted_tools.include?(tool_name)
-        puts "[Runner] Processing OpenAI-hosted tool: #{tool_name}"
+        log_debug("Processing OpenAI-hosted tool", tool_name: tool_name)
 
         # Extract the actual results from the response if available
         tool_result = extract_openai_tool_result(tool_call["id"], full_response)
@@ -1144,29 +1206,29 @@ module OpenAIAgents
                   end
 
         # Debug OpenAI-hosted tool result if enabled
-        if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
-          puts "\n[DEBUG] OpenAI-hosted tool result for #{tool_name}:"
-          puts "  Arguments: #{arguments}"
-          
+        if OpenAIAgents::Logging.configuration.debug_enabled?(:context)
+          log_debug("OpenAI-hosted tool result", tool_name: tool_name)
+          log_debug("Tool arguments", arguments: arguments)
+
           # For web_search and other hosted tools, show the integrated results
           if tool_result
-            result_preview = tool_result.to_s[0..2000]  # Show more content for search results
+            result_preview = tool_result.to_s[0..2000] # Show more content for search results
             result_preview += "..." if tool_result.to_s.length > 2000
-            puts "  Integrated Results: #{result_preview}"
+            log_debug("Tool integrated results", result_preview: result_preview)
           else
-            puts "  Result: No extractable results found"
+            log_debug("Tool result", status: "no extractable results")
           end
-          
+
           # Also show the raw response structure for debugging
-          if full_response && ENV["OPENAI_AGENTS_DEBUG_RAW"] == "true"
-            puts "  Raw Response Keys: #{full_response.keys}"
+          if full_response && OpenAIAgents::Logging.configuration.debug_enabled?(:api)
+            log_debug("Raw response keys", keys: full_response.keys)
             if full_response["choices"]&.first&.dig("message")
               msg = full_response["choices"].first["message"]
-              puts "  Message Keys: #{msg.keys}"
+              log_debug("Message keys", keys: msg.keys)
             end
           end
-          
-          puts "[DEBUG] End OpenAI-hosted tool result\n"
+
+          log_debug("Completed OpenAI-hosted tool result processing")
         end
 
         return {
@@ -1182,10 +1244,10 @@ module OpenAIAgents
       # Call tool start hooks if context is available
       call_hook(:on_tool_start, context_wrapper, agent, tool, arguments) if context_wrapper && tool
 
-      puts "[Runner] Executing tool: #{tool_name} with call_id: #{tool_call["id"]}"
+      log_debug("Executing tool", tool_name: tool_name, call_id: tool_call["id"])
 
       begin
-        puts "[Runner] About to execute agent.execute_tool(#{tool_name}, #{arguments})"
+        log_debug("About to execute agent tool", tool_name: tool_name, arguments: arguments)
 
         # function_span in Python implementation
         result = if @tracer && !@disabled_tracing
@@ -1194,21 +1256,21 @@ module OpenAIAgents
                    agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
                  end
 
-        puts "[Runner] Tool execution returned: #{result.class.name}"
-        puts "[Runner] Tool result: #{result.to_s[0..200]}..."
+        log_debug("Tool execution completed", result_class: result.class.name)
+        log_debug("Tool result", result: result.to_s[0..200])
 
         # Call tool end hooks if context is available
         call_hook(:on_tool_end, context_wrapper, agent, tool, result) if context_wrapper && tool
 
         formatted_result = format_tool_result(result)
-        
+
         # Debug tool result if enabled
-        if ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] == "true"
-          puts "\n[DEBUG] Tool execution result for #{tool_name}:"
+        if OpenAIAgents::Logging.configuration.debug_enabled?(:context)
+          log_debug("Tool execution result", tool_name: tool_name)
           result_preview = formatted_result.to_s[0..1000]
           result_preview += "..." if formatted_result.to_s.length > 1000
-          puts "  Result: #{result_preview}"
-          puts "[DEBUG] End tool result\n"
+          log_debug("Tool result preview", result: result_preview)
+          log_debug("Completed tool result processing")
         end
 
         {
@@ -1217,8 +1279,8 @@ module OpenAIAgents
           content: formatted_result
         }
       rescue StandardError => e
-        puts "[Runner] Tool execution error: #{e.message}"
-        puts "[Runner] Error backtrace: #{e.backtrace[0..2].join('\n')}"
+        log_error("Tool execution error", error: e.message)
+        log_error("Tool execution backtrace", backtrace: e.backtrace[0..2].join('\n'))
 
         @tracer.record_exception(e) if @tracer && !@disabled_tracing
 

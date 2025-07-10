@@ -170,7 +170,8 @@ module OpenAIAgents
                   yield convert_stream_chunk(parsed) if block_given?
                 rescue JSON::ParserError => e
                   # Log parse error but continue
-                  puts "[CohereProvider] Failed to parse stream chunk: #{e.message}"
+                  log_debug("Failed to parse stream chunk: #{e.message}", provider: "CohereProvider",
+                                                                          error_class: e.class.name)
                 end
               end
             end

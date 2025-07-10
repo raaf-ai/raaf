@@ -82,7 +82,7 @@ module OpenAIAgents
 
     # @return [Array<Guardrails::OutputGuardrail>, nil] Output guardrails for this run
     attr_accessor :output_guardrails
-    
+
     # @return [String, nil] Previous response ID for Responses API continuity
     attr_accessor :previous_response_id
 

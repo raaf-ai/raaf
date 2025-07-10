@@ -5,9 +5,11 @@ require "io/console"
 require_relative "agent"
 require_relative "runner"
 require_relative "tracing/spans"
+require_relative "logging"
 
 module OpenAIAgents
   class REPL
+    include Logger
     COMMANDS = {
       "/help" => "Show this help message",
       "/agents" => "List all available agents",
@@ -62,6 +64,7 @@ module OpenAIAgents
         rescue Interrupt
           puts "\nUse /quit to exit"
         rescue StandardError => e
+          log_error("REPL error: #{e.message}", error_class: e.class.name)
           puts "Error: #{e.message}"
           puts e.backtrace.first(5).join("\n") if @debug
         end
@@ -211,6 +214,9 @@ module OpenAIAgents
           span.set_attribute("total_messages", @conversation.length)
         end
       rescue StandardError => e
+        log_error("Agent interaction error: #{e.message}",
+                  agent: @current_agent_name,
+                  error_class: e.class.name)
         puts "Error: #{e.message}"
         puts e.backtrace.first(3).join("\n") if @debug
       end
@@ -367,6 +373,7 @@ module OpenAIAgents
         puts "Messages: #{@conversation.length}"
         puts "Original agent: #{data["agent"]}" if data["agent"]
       rescue JSON::ParserError => e
+        log_error("JSON parsing error: #{e.message}", filename: filename)
         puts "Error parsing file: #{e.message}"
       end
     end

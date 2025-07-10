@@ -1,5 +1,6 @@
 require_relative "../function_tool"
 require_relative "../mcp/client"
+require_relative "../logging"
 
 module OpenAIAgents
   module Tools
@@ -10,6 +11,7 @@ module OpenAIAgents
     # tools provided by external MCP-compatible services. This matches the
     # Python implementation's HostedMCPTool functionality.
     class MCPTool < FunctionTool
+      include Logger
       attr_reader :server_name, :server_config, :client
 
       def initialize(server_name:, server_config: {}, auto_connect: true)
@@ -56,7 +58,7 @@ module OpenAIAgents
         begin
           @available_tools.keys
         rescue StandardError => e
-          warn "Error getting MCP tool names: #{e.message}"
+          log_warn("Error getting MCP tool names: #{e.message}", server: @server_name, error_class: e.class.name)
           []
         end
       end
@@ -92,7 +94,7 @@ module OpenAIAgents
           update_parameters_enum
           true
         rescue StandardError => e
-          warn "Error refreshing MCP tools: #{e.message}"
+          log_warn("Error refreshing MCP tools: #{e.message}", server: @server_name, error_class: e.class.name)
           false
         end
       end
@@ -117,7 +119,8 @@ module OpenAIAgents
           @client.connect
           refresh_tools!
         rescue StandardError => e
-          warn "Failed to connect to MCP server #{@server_name}: #{e.message}"
+          log_error("Failed to connect to MCP server #{@server_name}: #{e.message}", server: @server_name,
+                                                                                     error_class: e.class.name)
           false
         end
       end
@@ -184,7 +187,8 @@ module OpenAIAgents
         @client.connect
         refresh_tools!
       rescue StandardError => e
-        warn "Failed to initialize MCP client for #{@server_name}: #{e.message}"
+        log_error("Failed to initialize MCP client for #{@server_name}: #{e.message}", server: @server_name,
+                                                                                       error_class: e.class.name)
       end
 
       def update_parameters_enum

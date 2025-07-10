@@ -36,11 +36,9 @@ module OpenAIAgents
           memory_tokens = count_tokens(memory_text)
 
           # Check if adding this memory would exceed limit
-          if total_tokens + memory_tokens > @max_tokens
-            # If we're over threshold, try to summarize
-            if total_tokens.to_f / @max_tokens > @summary_threshold
-              break # Stop adding memories
-            end
+          # If we're over threshold, try to summarize
+          if (total_tokens + memory_tokens > @max_tokens) && (total_tokens.to_f / @max_tokens > @summary_threshold)
+            break # Stop adding memories
           end
 
           context_parts << memory_text
@@ -59,15 +57,13 @@ module OpenAIAgents
       # @return [String] Formatted memory text
       def format_memory(memory, include_metadata = false)
         parts = []
-        
+
         # Add timestamp
         timestamp = memory[:created_at]
         parts << "[#{timestamp}]"
 
         # Add conversation ID if present
-        if memory[:conversation_id]
-          parts << "(Conv: #{memory[:conversation_id].slice(0, 8)})"
-        end
+        parts << "(Conv: #{memory[:conversation_id].slice(0, 8)})" if memory[:conversation_id]
 
         # Add content
         parts << memory[:content]
@@ -117,24 +113,22 @@ module OpenAIAgents
 
         # Group memories by conversation or time period
         grouped = group_memories(memories)
-        
-        summaries = grouped.map do |group_key, group_memories|
+
+        grouped.map do |group_key, group_memories|
           content = group_memories.map { |m| m[:content] }.join("\n")
           summary = summarizer.call(content)
-          
+
           Memory::Memory.new(
             content: "Summary: #{summary}",
             agent_name: group_memories.first[:agent_name],
             conversation_id: group_key,
-            metadata: { 
+            metadata: {
               type: "summary",
               original_count: group_memories.size,
               summarized_at: Time.now.iso8601
             }
           ).to_h
         end
-
-        summaries
       end
 
       private
@@ -169,11 +163,7 @@ module OpenAIAgents
       def group_memories(memories)
         # Group by conversation ID if available, otherwise by day
         memories.group_by do |memory|
-          if memory[:conversation_id]
-            memory[:conversation_id]
-          else
-            Time.parse(memory[:created_at]).strftime("%Y-%m-%d")
-          end
+          memory[:conversation_id] || Time.parse(memory[:created_at]).strftime("%Y-%m-%d")
         end
       end
     end

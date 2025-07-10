@@ -16,9 +16,9 @@ agent = OpenAIAgents::Agent.new(
 
 # Option 1: Use default context management settings
 context_manager = OpenAIAgents::ContextManager.new(
-  model: "gpt-4o",  # Automatically sets appropriate token limits
-  preserve_system: true,  # Always keep system messages
-  preserve_recent: 5  # Always keep last 5 messages
+  model: "gpt-4o", # Automatically sets appropriate token limits
+  preserve_system: true, # Always keep system messages
+  preserve_recent: 5 # Always keep last 5 messages
 )
 
 # Option 2: Custom token limits
@@ -32,7 +32,7 @@ custom_context_manager = OpenAIAgents::ContextManager.new(
 # Create runner with context management enabled
 runner = OpenAIAgents::Runner.new(
   agent: agent,
-  context_manager: context_manager  # Enable automatic context management
+  context_manager: context_manager # Enable automatic context management
 )
 
 # Simulate a long conversation
@@ -54,19 +54,17 @@ puts "Simulating a long conversation..."
   puts "\nConversation now has #{total_messages} messages"
   
   # Check if context manager kicked in
-  truncation_messages = conversation.select { |msg| 
+  truncation_messages = conversation.select do |msg| 
     msg[:role] == "system" && msg[:content]&.include?("[Note:")
-  }
-  
-  if truncation_messages.any?
-    puts "Context manager activated: #{truncation_messages.last[:content]}"
   end
+  
+  puts "Context manager activated: #{truncation_messages.last[:content]}" if truncation_messages.any?
 end
 
 # Demonstrate token counting
-puts "\n" + "="*60
+puts "\n" + ("=" * 60)
 puts "Token Usage Analysis"
-puts "="*60
+puts "=" * 60
 
 # Count tokens in the final conversation
 total_tokens = context_manager.count_total_tokens(conversation)
@@ -76,20 +74,20 @@ puts "Usage: #{(total_tokens.to_f / context_manager.max_tokens * 100).round(2)}%
 
 # Show message breakdown
 puts "\nMessage token breakdown:"
-conversation.last(5).each_with_index do |msg, i|
+conversation.last(5).each_with_index do |msg, _i|
   tokens = context_manager.count_message_tokens(msg)
   role = msg[:role]
-  content_preview = msg[:content].to_s[0..50].gsub(/\n/, " ")
+  content_preview = msg[:content].to_s[0..50].gsub("\n", " ")
   puts "  #{role.ljust(10)} (#{tokens} tokens): #{content_preview}..."
 end
 
 # Example: Manual context management
-puts "\n" + "="*60
+puts "\n" + ("=" * 60)
 puts "Manual Context Management"
-puts "="*60
+puts "=" * 60
 
 # You can also manually manage context before sending
-long_conversation = conversation * 3  # Triple the conversation to exceed limits
+long_conversation = conversation * 3 # Triple the conversation to exceed limits
 
 puts "Original conversation: #{long_conversation.length} messages"
 
@@ -101,7 +99,8 @@ puts "After management: #{managed_conversation.length} messages"
 puts "\nKept messages:"
 managed_conversation.each_with_index do |msg, i|
   next if msg[:role] == "system" && !msg[:content].include?("[Note:")
-  content_preview = msg[:content].to_s[0..60].gsub(/\n/, " ")
+
+  content_preview = msg[:content].to_s[0..60].gsub("\n", " ")
   puts "  #{i}: [#{msg[:role]}] #{content_preview}..."
 end
 

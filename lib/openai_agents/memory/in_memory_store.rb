@@ -23,7 +23,7 @@ module OpenAIAgents
                    else
                      Memory.new(content: value.to_s, metadata: metadata)
                    end
-          
+
           memory.updated_at = Time.now
           @memories[key] = memory
         end
@@ -46,25 +46,23 @@ module OpenAIAgents
           results = @memories.values.select do |memory|
             # Filter by agent name if provided
             next false if agent_name && memory.agent_name != agent_name
-            
+
             # Filter by conversation ID if provided
             next false if conversation_id && memory.conversation_id != conversation_id
-            
+
             # Filter by tags if provided
-            if tags.any?
-              next false unless tags.all? { |tag| memory.has_tag?(tag) }
-            end
-            
+            next false if tags.any? && !tags.all? { |tag| memory.has_tag?(tag) }
+
             # Match query
             memory.matches?(query)
           end
 
           # Sort by relevance (most recent first for now)
           results.sort_by! { |m| -m.updated_at.to_i }
-          
+
           # Apply limit
           results = results.take(limit)
-          
+
           # Convert to hashes
           results.map(&:to_h)
         end
@@ -107,10 +105,10 @@ module OpenAIAgents
       def get_by_time_range(start_time, end_time)
         @mutex.synchronize do
           results = @memories.values.select do |memory|
-            memory.created_at >= start_time && memory.created_at <= end_time
+            memory.created_at.between?(start_time, end_time)
           end
-          
-          results.sort_by! { |m| m.created_at }
+
+          results.sort_by!(&:created_at)
           results.map(&:to_h)
         end
       end
@@ -140,7 +138,7 @@ module OpenAIAgents
       def get_by_conversation(conversation_id, limit = nil)
         @mutex.synchronize do
           results = @memories.values.select { |m| m.conversation_id == conversation_id }
-          results = results.sort_by { |m| m.created_at }
+          results = results.sort_by(&:created_at)
           results = results.take(limit) if limit
           results.map(&:to_h)
         end

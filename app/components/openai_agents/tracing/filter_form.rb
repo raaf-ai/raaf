@@ -44,7 +44,7 @@ module OpenAIAgents
               GridItem do
                 Select(
                   name: "status",
-                  label: "Status", 
+                  label: "Status",
                   value: @status,
                   options: status_select_options
                 )
@@ -108,7 +108,7 @@ module OpenAIAgents
       def workflow_options
         # This would typically come from the controller
         OpenAIAgents::Tracing::TraceRecord.distinct.pluck(:workflow_name).compact
-      rescue
+      rescue StandardError
         []
       end
     end

@@ -27,7 +27,7 @@ module OpenAIAgents
             Typography("Spans", variant: :heading, level: 1)
             Typography("Detailed view of all execution spans", variant: :muted)
           end
-          
+
           preline_flex(align: :center, gap: 3) do
             preline_button(
               type: "button",
@@ -77,24 +77,24 @@ module OpenAIAgents
           preline_table_cell do
             preline_container do
               preline_text(span.name, variant: :heading, size: :sm)
-              if span.attributes.present? && span.attributes['description']
-                preline_text(truncate(span.attributes['description'], length: 60), variant: :muted, size: :sm)
+              if span.attributes.present? && span.attributes["description"]
+                preline_text(truncate(span.attributes["description"], length: 60), variant: :muted, size: :sm)
               end
             end
           end
-          
+
           preline_table_cell do
             render_kind_badge(span.kind)
           end
-          
+
           preline_table_cell do
             render_status_badge(span.status)
           end
-          
+
           preline_table_cell do
             format_duration(span.duration_ms)
           end
-          
+
           preline_table_cell do
             if span.trace
               preline_link(trace_path(span.trace_id)) { span.trace.workflow_name }
@@ -102,11 +102,11 @@ module OpenAIAgents
               preline_text(span.trace_id, variant: :muted, size: :sm)
             end
           end
-          
+
           preline_table_cell do
             "#{time_ago_in_words(span.start_time)} ago"
           end
-          
+
           preline_table_cell(align: :end) do
             preline_link(span_path(span.span_id)) { "View" }
           end
@@ -115,44 +115,44 @@ module OpenAIAgents
 
       def render_status_badge(status)
         variant = case status
-                 when 'ok', 'completed' then :success
-                 when 'error', 'failed' then :danger
-                 when 'running' then :warning
-                 else :secondary
-                 end
-        
+                  when "ok", "completed" then :success
+                  when "error", "failed" then :danger
+                  when "running" then :warning
+                  else :secondary
+                  end
+
         icon = case status
-               when 'ok', 'completed' then "check-circle"
-               when 'error', 'failed' then "x-circle"
-               when 'running' then "arrow-path"
+               when "ok", "completed" then "check-circle"
+               when "error", "failed" then "x-circle"
+               when "running" then "arrow-path"
                else "clock"
                end
-        
+
         preline_badge(status.capitalize, variant: variant, icon: icon)
       end
 
       def render_kind_badge(kind)
         variant = case kind
-                 when 'agent' then :primary
-                 when 'llm' then :info
-                 when 'tool' then :success
-                 when 'handoff' then :warning
-                 else :secondary
-                 end
-        
+                  when "agent" then :primary
+                  when "llm" then :info
+                  when "tool" then :success
+                  when "handoff" then :warning
+                  else :secondary
+                  end
+
         preline_badge(kind.capitalize, variant: variant, size: :sm)
       end
 
       def format_duration(ms)
         return "N/A" unless ms
-        
+
         if ms < 1000
           "#{ms.round}ms"
-        elsif ms < 60000
+        elsif ms < 60_000
           "#{(ms / 1000.0).round(1)}s"
         else
-          minutes = (ms / 60000).floor
-          seconds = ((ms % 60000) / 1000.0).round(1)
+          minutes = (ms / 60_000).floor
+          seconds = ((ms % 60_000) / 1000.0).round(1)
           "#{minutes}m #{seconds}s"
         end
       end

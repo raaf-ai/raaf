@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "base_guardrail"
+require_relative "../logging"
 
 module OpenAIAgents
   module Guardrails
@@ -23,6 +24,7 @@ module OpenAIAgents
     #     content.include?("URGENT") && content.include?("wire transfer")
     #   end
     class TripwireGuardrail < BaseGuardrail
+      include Logger
       class TripwireException < StandardError
         attr_reader :triggered_by, :content, :metadata
 
@@ -139,7 +141,7 @@ module OpenAIAgents
           end
         rescue StandardError => e
           # Don't let custom detector errors break the flow
-          puts "[TripwireGuardrail] Custom detector error: #{e.message}"
+          log_error("Custom detector error: #{e.message}", guardrail: "TripwireGuardrail", error_class: e.class.name)
         end
       end
 

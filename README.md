@@ -280,6 +280,43 @@ result = runner.run("Debug this workflow")
 debugger.export_session("debug_session.json")
 ```
 
+### Logging Configuration
+
+```ruby
+# Configure unified logging system
+OpenAIAgents::Logging.configure do |config|
+  config.log_level = :debug
+  config.log_format = :json
+  config.log_output = :rails  # or :console, :file, :auto
+  config.debug_categories = [:api, :tracing, :http]
+end
+
+# Use in your classes
+class MyAgent
+  include OpenAIAgents::Logger
+  
+  def process
+    log_info("Processing started", agent: "MyAgent", task_id: 123)
+    log_debug_api("API call", url: "https://api.openai.com")
+    log_debug_tracing("Span created", span_id: "abc123")
+  end
+end
+
+# Environment configuration
+ENV['OPENAI_AGENTS_LOG_LEVEL'] = 'debug'
+ENV['OPENAI_AGENTS_LOG_FORMAT'] = 'json'
+ENV['OPENAI_AGENTS_DEBUG_CATEGORIES'] = 'api,tracing,http'
+```
+
+**Debug Categories:**
+- `tracing` - Span lifecycle, trace processing
+- `api` - API calls, responses, HTTP details  
+- `tools` - Tool execution, function calls
+- `handoff` - Agent handoffs, delegation
+- `context` - Context management, memory
+- `http` - HTTP debug output
+- `general` - General debug messages
+
 ### Rails Integration Example
 
 ```bash

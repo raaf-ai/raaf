@@ -1,19 +1,23 @@
 # frozen_string_literal: true
 
-require_relative "../vector_store"
+begin
+  require_relative "../vector_store"
+rescue LoadError
+  # Vector store not available, tool will be disabled
+end
 
 module OpenAIAgents
   module Tools
     # Tool for searching in vector stores
     class VectorSearchTool
       attr_reader :name, :description, :vector_store
-      
+
       def initialize(vector_store:, name: "vector_search", description: nil)
         @vector_store = vector_store
         @name = name
         @description = description || "Search for similar documents in #{vector_store.name}"
       end
-      
+
       def to_tool_definition
         {
           type: "function",
@@ -47,13 +51,13 @@ module OpenAIAgents
           }
         }
       end
-      
+
       def call(arguments)
         query = arguments[:query] || arguments["query"]
         k = arguments[:k] || arguments["k"] || 5
         namespace = arguments[:namespace] || arguments["namespace"]
         filter = arguments[:filter] || arguments["filter"]
-        
+
         results = @vector_store.search(
           query,
           k: k,
@@ -61,14 +65,14 @@ module OpenAIAgents
           filter: filter,
           include_scores: true
         )
-        
+
         format_results(results)
       rescue StandardError => e
         { error: "Vector search failed: #{e.message}" }
       end
-      
+
       private
-      
+
       def format_results(results)
         if results.empty?
           "No relevant documents found."
@@ -76,29 +80,29 @@ module OpenAIAgents
           formatted = results.map.with_index do |result, idx|
             score = result[:score] ? " (score: #{result[:score].round(3)})" : ""
             metadata = result[:metadata].empty? ? "" : " [#{format_metadata(result[:metadata])}]"
-            
+
             "#{idx + 1}. #{result[:content].strip}#{score}#{metadata}"
           end.join("\n\n")
-          
+
           "Found #{results.size} relevant documents:\n\n#{formatted}"
         end
       end
-      
+
       def format_metadata(metadata)
         metadata.map { |k, v| "#{k}: #{v}" }.join(", ")
       end
     end
-    
+
     # Tool for adding documents to vector store
     class VectorIndexTool
       attr_reader :name, :description, :vector_store
-      
+
       def initialize(vector_store:, name: "vector_index", description: nil)
         @vector_store = vector_store
         @name = name
         @description = description || "Add documents to #{vector_store.name} for later retrieval"
       end
-      
+
       def to_tool_definition
         {
           type: "function",
@@ -118,7 +122,7 @@ module OpenAIAgents
                         type: "object",
                         properties: {
                           content: { type: "string" },
-                          metadata: { 
+                          metadata: {
                             type: "object",
                             additionalProperties: true
                           }
@@ -138,11 +142,11 @@ module OpenAIAgents
           }
         }
       end
-      
+
       def call(arguments)
         documents = arguments[:documents] || arguments["documents"]
         namespace = arguments[:namespace] || arguments["namespace"]
-        
+
         # Normalize documents
         normalized_docs = documents.map do |doc|
           if doc.is_a?(String)
@@ -151,26 +155,26 @@ module OpenAIAgents
             doc
           end
         end
-        
+
         # Add to vector store
         ids = @vector_store.add_documents(normalized_docs, namespace: namespace)
-        
-        "Successfully indexed #{ids.length} documents. Document IDs: #{ids.join(', ')}"
+
+        "Successfully indexed #{ids.length} documents. Document IDs: #{ids.join(", ")}"
       rescue StandardError => e
         { error: "Vector indexing failed: #{e.message}" }
       end
     end
-    
+
     # Tool for managing vector store
     class VectorManagementTool
       attr_reader :name, :description, :vector_store
-      
+
       def initialize(vector_store:, name: "vector_manage", description: nil)
         @vector_store = vector_store
         @name = name
         @description = description || "Manage documents in #{vector_store.name}"
       end
-      
+
       def to_tool_definition
         {
           type: "function",
@@ -183,7 +187,7 @@ module OpenAIAgents
                 action: {
                   type: "string",
                   description: "Action to perform",
-                  enum: ["get", "update", "delete", "stats", "namespaces", "clear"]
+                  enum: %w[get update delete stats namespaces clear]
                 },
                 id: {
                   type: "string",
@@ -218,10 +222,10 @@ module OpenAIAgents
           }
         }
       end
-      
+
       def call(arguments)
         action = arguments[:action] || arguments["action"]
-        
+
         case action
         when "get"
           get_document(arguments)
@@ -241,93 +245,91 @@ module OpenAIAgents
       rescue StandardError => e
         { error: "Vector management failed: #{e.message}" }
       end
-      
+
       private
-      
+
       def get_document(args)
         id = args[:id] || args["id"]
         namespace = args[:namespace] || args["namespace"]
-        
+
         return { error: "Document ID required" } unless id
-        
+
         doc = @vector_store.get_document(id, namespace: namespace)
-        
+
         if doc
           "Document #{id}:\nContent: #{doc[:content]}\nMetadata: #{doc[:metadata]}"
         else
           "Document #{id} not found"
         end
       end
-      
+
       def update_document(args)
         id = args[:id] || args["id"]
         namespace = args[:namespace] || args["namespace"]
         content = args[:content] || args["content"]
         metadata = args[:metadata] || args["metadata"]
-        
+
         return { error: "Document ID required" } unless id
         return { error: "Content or metadata required" } unless content || metadata
-        
+
         success = @vector_store.update_document(
           id,
           content: content,
           metadata: metadata,
           namespace: namespace
         )
-        
+
         if success
           "Document #{id} updated successfully"
         else
           "Failed to update document #{id}"
         end
       end
-      
+
       def delete_documents(args)
         id = args[:id] || args["id"]
         ids = args[:ids] || args["ids"]
         filter = args[:filter] || args["filter"]
         namespace = args[:namespace] || args["namespace"]
-        
-        if id
-          ids = [id]
-        end
-        
+
+        ids = [id] if id
+
         count = @vector_store.delete_documents(
           ids: ids,
           filter: filter,
           namespace: namespace
         )
-        
+
         "Deleted #{count} documents"
       end
-      
+
       def get_stats(args)
         namespace = args[:namespace] || args["namespace"]
         stats = @vector_store.stats(namespace: namespace)
-        
+
         lines = ["Vector store statistics:"]
         stats.each do |ns, count|
           lines << "  #{ns}: #{count} documents"
         end
-        
+
         lines.join("\n")
       end
-      
+
       def list_namespaces
         namespaces = @vector_store.namespaces
-        
+
         if namespaces.empty?
           "No namespaces found"
         else
-          "Namespaces: #{namespaces.join(', ')}"
+          "Namespaces: #{namespaces.join(", ")}"
         end
       end
-      
+
       def clear_namespace(args)
         namespace = args[:namespace] || args["namespace"]
-        
+
         @vector_store.clear(namespace: namespace)
-        
+
         if namespace
           "Cleared namespace: #{namespace}"
         else
@@ -335,22 +337,22 @@ module OpenAIAgents
         end
       end
     end
-    
+
     # Combined vector RAG tool
     class VectorRAGTool
       attr_reader :name, :description, :vector_store
-      
+
       def initialize(vector_store:, name: "vector_rag", description: nil)
         @vector_store = vector_store
         @name = name
         @description = description || "Retrieval-augmented generation using #{vector_store.name}"
-        
+
         # Create sub-tools
         @search_tool = VectorSearchTool.new(vector_store: vector_store)
         @index_tool = VectorIndexTool.new(vector_store: vector_store)
         @manage_tool = VectorManagementTool.new(vector_store: vector_store)
       end
-      
+
       def to_tool_definition
         {
           type: "function",
@@ -363,7 +365,7 @@ module OpenAIAgents
                 operation: {
                   type: "string",
                   description: "Operation to perform",
-                  enum: ["search", "index", "manage"]
+                  enum: %w[search index manage]
                 },
                 arguments: {
                   type: "object",
@@ -371,16 +373,16 @@ module OpenAIAgents
                   additionalProperties: true
                 }
               },
-              required: ["operation", "arguments"]
+              required: %w[operation arguments]
             }
           }
         }
       end
-      
+
       def call(arguments)
         operation = arguments[:operation] || arguments["operation"]
         op_args = arguments[:arguments] || arguments["arguments"] || {}
-        
+
         case operation
         when "search"
           @search_tool.call(op_args)

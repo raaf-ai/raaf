@@ -12,7 +12,7 @@ module OpenAIAgents
         @name = name
         @description = description || "Generate documents in various formats (PDF, Word, Excel)"
         @output_dir = output_dir || "./documents"
-        
+
         ensure_output_dir
       end
 
@@ -29,7 +29,7 @@ module OpenAIAgents
                 format: {
                   type: "string",
                   description: "Document format",
-                  enum: ["pdf", "word", "excel", "csv"]
+                  enum: %w[pdf word excel csv]
                 },
                 filename: {
                   type: "string",
@@ -48,7 +48,7 @@ module OpenAIAgents
                   description: "Template name to use (optional)"
                 }
               },
-              required: ["format", "filename", "content"]
+              required: %w[format filename content]
             }
           }
         }
@@ -61,7 +61,7 @@ module OpenAIAgents
         title = arguments[:title] || arguments["title"]
         content = arguments[:content] || arguments["content"]
         template = arguments[:template] || arguments["template"]
-        
+
         begin
           filepath = case format.downcase
                      when "pdf"
@@ -75,7 +75,7 @@ module OpenAIAgents
                      else
                        return { error: "Unsupported format: #{format}" }
                      end
-          
+
           {
             success: true,
             format: format,
@@ -97,17 +97,17 @@ module OpenAIAgents
       def generate_pdf(filename, title, content, template)
         require "prawn" unless defined?(Prawn)
         filepath = File.join(@output_dir, "#{filename}.pdf")
-        
+
         Prawn::Document.generate(filepath) do |pdf|
           # Apply template if provided
           apply_pdf_template(pdf, template) if template
-          
+
           # Add title
           if title
             pdf.text title, size: 24, style: :bold
             pdf.move_down 20
           end
-          
+
           # Add content based on structure
           case content
           when String
@@ -120,7 +120,7 @@ module OpenAIAgents
             add_pdf_content(pdf, content)
           end
         end
-        
+
         filepath
       end
 
@@ -134,29 +134,27 @@ module OpenAIAgents
             pdf.text section[:heading], size: 18, style: :bold
             pdf.move_down 10
           end
-          
+
           if section[:text]
             pdf.text section[:text]
             pdf.move_down 10
           end
-          
+
           if section[:list]
             section[:list].each do |item|
               pdf.text "• #{item}", indent_paragraphs: 20
             end
             pdf.move_down 10
           end
-          
+
           if section[:table]
             pdf.table section[:table][:data], header: section[:table][:headers]
             pdf.move_down 10
           end
-          
-          if section[:image]
-            if File.exist?(section[:image])
-              pdf.image section[:image], fit: [500, 300]
-              pdf.move_down 10
-            end
+
+          if section[:image] && File.exist?(section[:image])
+            pdf.image section[:image], fit: [500, 300]
+            pdf.move_down 10
           end
         end
       end
@@ -181,21 +179,21 @@ module OpenAIAgents
       def apply_pdf_template(pdf, template_name)
         # Load and apply template settings
         template_file = File.join(@output_dir, "templates", "#{template_name}.yml")
-        
-        if File.exist?(template_file)
-          template = YAML.load_file(template_file)
-          
-          # Apply template settings
-          pdf.font template["font"] if template["font"]
-          pdf.default_leading template["line_spacing"] if template["line_spacing"]
-          
-          # Add header/footer if defined
-          if template["header"]
-            pdf.repeat(:all) do
-              pdf.bounding_box([0, pdf.bounds.height], width: pdf.bounds.width, height: 50) do
-                pdf.text template["header"], align: :center
-              end
-            end
+
+        return unless File.exist?(template_file)
+
+        template = YAML.load_file(template_file)
+
+        # Apply template settings
+        pdf.font template["font"] if template["font"]
+        pdf.default_leading template["line_spacing"] if template["line_spacing"]
+
+        # Add header/footer if defined
+        return unless template["header"]
+
+        pdf.repeat(:all) do
+          pdf.bounding_box([0, pdf.bounds.height], width: pdf.bounds.width, height: 50) do
+            pdf.text template["header"], align: :center
           end
         end
       end
@@ -203,7 +201,7 @@ module OpenAIAgents
       def generate_word(filename, title, content, template)
         require "docx" unless defined?(Docx)
         filepath = File.join(@output_dir, "#{filename}.docx")
-        
+
         # Create or load document
         doc = if template
                 template_path = File.join(@output_dir, "templates", "#{template}.docx")
@@ -211,13 +209,13 @@ module OpenAIAgents
               else
                 Docx::Document.new
               end
-        
+
         # Add title
         if title
           doc.p title, style: "Heading1"
           doc.p "" # Empty paragraph
         end
-        
+
         # Add content
         case content
         when String
@@ -229,7 +227,7 @@ module OpenAIAgents
         when Hash
           add_word_content(doc, content)
         end
-        
+
         doc.save(filepath)
         filepath
       end
@@ -239,27 +237,21 @@ module OpenAIAgents
         when String
           doc.p section
         when Hash
-          if section[:heading]
-            doc.p section[:heading], style: "Heading2"
+          doc.p section[:heading], style: "Heading2" if section[:heading]
+
+          doc.p section[:text] if section[:text]
+
+          section[:list]&.each do |item|
+            doc.p "• #{item}"
           end
-          
-          if section[:text]
-            doc.p section[:text]
-          end
-          
-          if section[:list]
-            section[:list].each do |item|
-              doc.p "• #{item}"
-            end
-          end
-          
-          if section[:table]
+
+          if section[:table] && section[:table][:title]
             # Simple table support
-            doc.p "Table: #{section[:table][:title]}" if section[:table][:title]
-            # Note: Complex table support would require additional implementation
+            doc.p "Table: #{section[:table][:title]}"
+            # NOTE: Complex table support would require additional implementation
           end
         end
-        
+
         doc.p "" # Empty paragraph for spacing
       end
 
@@ -279,12 +271,12 @@ module OpenAIAgents
       def generate_excel(filename, title, content, template)
         require "rubyXL" unless defined?(RubyXL)
         filepath = File.join(@output_dir, "#{filename}.xlsx")
-        
+
         workbook = RubyXL::Workbook.new
-        
+
         # Apply template if provided
         apply_excel_template(workbook, template) if template
-        
+
         # Process content
         case content
         when Hash
@@ -305,19 +297,19 @@ module OpenAIAgents
           # Single sheet with array data
           sheet = workbook[0]
           sheet.sheet_name = title || "Sheet1"
-          add_excel_sheet_content(sheet, { 
-            name: title || "Sheet1", 
-            data: { rows: content }
-          })
+          add_excel_sheet_content(sheet, {
+                                    name: title || "Sheet1",
+                                    data: { rows: content }
+                                  })
         end
-        
+
         workbook.write(filepath)
         filepath
       end
 
       def add_excel_sheet_content(sheet, sheet_data)
         row_index = 0
-        
+
         # Add title if provided
         if sheet_data[:title]
           sheet.add_cell(row_index, 0, sheet_data[:title])
@@ -325,9 +317,9 @@ module OpenAIAgents
           sheet.sheet_data[row_index][0].change_font_size(16)
           row_index += 2 # Skip a row
         end
-        
+
         data = sheet_data[:data]
-        
+
         # Add headers if provided
         if data[:headers]
           data[:headers].each_with_index do |header, col|
@@ -337,49 +329,47 @@ module OpenAIAgents
           end
           row_index += 1
         end
-        
+
         # Add data rows
-        if data[:rows]
-          data[:rows].each do |row|
-            row.each_with_index do |value, col|
+        data[:rows]&.each do |row|
+          row.each_with_index do |value, col|
+            sheet.add_cell(row_index, col, value)
+          end
+          row_index += 1
+        end
+
+        # Add formulas if provided
+        return unless data[:formulas]
+
+        data[:formulas].each do |formula_row|
+          formula_row.each_with_index do |value, col|
+            if value.is_a?(String) && value.start_with?("=")
+              sheet.add_cell(row_index, col, "", value)
+            else
               sheet.add_cell(row_index, col, value)
             end
-            row_index += 1
           end
-        end
-        
-        # Add formulas if provided
-        if data[:formulas]
-          data[:formulas].each do |formula_row|
-            formula_row.each_with_index do |value, col|
-              if value.is_a?(String) && value.start_with?("=")
-                sheet.add_cell(row_index, col, "", value)
-              else
-                sheet.add_cell(row_index, col, value)
-              end
-            end
-            row_index += 1
-          end
+          row_index += 1
         end
       end
 
       def apply_excel_template(workbook, template_name)
         # Load template settings
         template_file = File.join(@output_dir, "templates", "#{template_name}.yml")
-        
-        if File.exist?(template_file)
-          template = YAML.load_file(template_file)
-          
-          # RubyXL doesn't have direct properties support like Axlsx
-          # Template settings would be applied differently
-        end
+
+        return unless File.exist?(template_file)
+
+        YAML.load_file(template_file)
+
+        # RubyXL doesn't have direct properties support like Axlsx
+        # Template settings would be applied differently
       end
 
       def generate_csv(filename, content)
         filepath = File.join(@output_dir, "#{filename}.csv")
-        
+
         require "csv"
-        
+
         CSV.open(filepath, "wb") do |csv|
           case content
           when Array
@@ -387,20 +377,20 @@ module OpenAIAgents
           when Hash
             # Add headers if provided
             csv << content[:headers] if content[:headers]
-            
+
             # Add data rows
             content[:rows]&.each { |row| csv << row }
           end
         end
-        
+
         filepath
       end
     end
 
     # Report generation tool with predefined templates
     class ReportTool < DocumentTool
-      def initialize(name: "generate_report", **options)
-        super(name: name, **options)
+      def initialize(name: "generate_report", **)
+        super
         @description = "Generate formatted reports with charts and analytics"
       end
 
@@ -409,22 +399,22 @@ module OpenAIAgents
         definition[:function][:parameters][:properties][:report_type] = {
           type: "string",
           description: "Type of report",
-          enum: ["summary", "detailed", "analytics", "financial"]
+          enum: %w[summary detailed analytics financial]
         }
         definition
       end
 
       def call(arguments)
         report_type = arguments[:report_type] || arguments["report_type"] || "summary"
-        
+
         # Enhance content based on report type
         arguments = arguments.dup
         arguments[:content] = enhance_report_content(
           arguments[:content],
           report_type
         )
-        
-        super(arguments)
+
+        super
       end
 
       private

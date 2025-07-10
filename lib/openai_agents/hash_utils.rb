@@ -16,7 +16,7 @@ module OpenAIAgents
   #   # => {:key => "value"}
   #
   module HashUtils
-    extend self
+    module_function
 
     # Convert hash keys to symbols recursively
     #

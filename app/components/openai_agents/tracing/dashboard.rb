@@ -34,7 +34,7 @@ module OpenAIAgents
             Typography("Dashboard", variant: :heading, level: 1, class: "text-3xl font-bold text-gray-900")
             Typography("Monitor your OpenAI Agents performance and activity", variant: :muted)
           end
-          
+
           Flex(align: :center, gap: 3) do
             Button(
               type: "button",
@@ -62,19 +62,19 @@ module OpenAIAgents
             label: "Total Traces",
             color: :blue
           )
-          
+
           render MetricCard.new(
             value: @overview_stats[:completed_traces],
             label: "Completed",
             color: :green
           )
-          
+
           render MetricCard.new(
             value: @overview_stats[:failed_traces],
             label: "Failed",
             color: :red
           )
-          
+
           render MetricCard.new(
             value: @overview_stats[:running_traces],
             label: "Running",
@@ -88,23 +88,27 @@ module OpenAIAgents
             label: "Total Spans",
             color: :blue
           )
-          
+
           render MetricCard.new(
             value: @overview_stats[:error_spans],
             label: "Error Spans",
             color: :gray
           )
-          
+
           render MetricCard.new(
-            value: format_duration(@overview_stats[:avg_trace_duration] && @overview_stats[:avg_trace_duration] * 1000),
+            value: format_duration(@overview_stats[:avg_trace_duration] && (@overview_stats[:avg_trace_duration] * 1000)),
             label: "Avg Duration",
             color: :blue
           )
-          
+
           render MetricCard.new(
             value: "#{@overview_stats[:success_rate]}%",
             label: "Success Rate",
-            color: @overview_stats[:success_rate] > 95 ? :green : (@overview_stats[:success_rate] > 80 ? :yellow : :red)
+            color: if @overview_stats[:success_rate] > 95
+                     :green
+                   else
+                     (@overview_stats[:success_rate] > 80 ? :yellow : :red)
+                   end
           )
         end
       end
@@ -124,7 +128,7 @@ module OpenAIAgents
               preline_link(traces_path) { "View All" }
             end
           end
-          
+
           preline_card_body do
             if @top_workflows.any?
               preline_table do
@@ -145,10 +149,14 @@ module OpenAIAgents
                         end
                       end
                       preline_table_cell(workflow[:trace_count])
-                      preline_table_cell(format_duration(workflow[:avg_duration] && workflow[:avg_duration] * 1000))
+                      preline_table_cell(format_duration(workflow[:avg_duration] && (workflow[:avg_duration] * 1000)))
                       preline_table_cell do
                         success_rate = workflow[:success_rate]
-                        badge_variant = success_rate > 95 ? :success : (success_rate > 80 ? :warning : :danger)
+                        badge_variant = if success_rate > 95
+                                          :success
+                                        else
+                                          (success_rate > 80 ? :warning : :danger)
+                                        end
                         preline_badge("#{success_rate}%", variant: badge_variant)
                       end
                     end
@@ -170,7 +178,7 @@ module OpenAIAgents
               preline_link(traces_path) { "View All" }
             end
           end
-          
+
           preline_card_body do
             if @recent_traces.any?
               preline_stack(gap: 3) do
@@ -181,14 +189,12 @@ module OpenAIAgents
                         preline_link(trace_path(trace.trace_id)) do
                           trace.workflow_name
                         end
-                        Divider
-                        preline_text("#{trace.started_at.strftime('%H:%M:%S')} • #{pluralize(trace.spans.count, 'span')}", 
-                                   variant: :muted, size: :sm)
+                        preline_text("#{trace.started_at.strftime("%H:%M:%S")} • #{pluralize(trace.spans.count, "span")}",
+                                     variant: :muted, size: :sm)
                       end
-                      
+
                       preline_container(class: "text-right") do
                         render_status_badge(trace.status)
-                        Divider
                         preline_text(format_duration(trace.duration_ms), variant: :muted, size: :sm)
                       end
                     end
@@ -213,7 +219,7 @@ module OpenAIAgents
               preline_link(dashboard_errors_path, class: "text-sm text-red-600 hover:text-red-800") { "View All" }
             end
           end
-          
+
           preline_card_body do
             preline_stack(gap: 3) do
               @recent_errors.each do |span|
@@ -229,12 +235,13 @@ module OpenAIAgents
                           span.trace&.workflow_name || span.trace_id
                         end
                       end
-                      if span.error_details&.dig('exception_message')
-                        preline_text(truncate(span.error_details['exception_message'], length: 100), 
-                                   variant: :muted, size: :sm, class: "text-red-600 mt-2")
+                      if span.error_details&.dig("exception_message")
+                        preline_text(truncate(span.error_details["exception_message"], length: 100),
+                                     variant: :muted, size: :sm, class: "text-red-600 mt-2")
                       end
                     end
-                    preline_text("#{time_ago_in_words(span.start_time)} ago", variant: :muted, size: :sm, class: "text-red-500")
+                    preline_text("#{time_ago_in_words(span.start_time)} ago", variant: :muted, size: :sm,
+                                                                              class: "text-red-500")
                   end
                 end
               end
@@ -245,37 +252,37 @@ module OpenAIAgents
 
       def render_status_badge(status)
         variant = case status
-                 when 'completed' then :success
-                 when 'failed' then :danger
-                 when 'running' then :warning
-                 else :secondary
-                 end
-        
+                  when "completed" then :success
+                  when "failed" then :danger
+                  when "running" then :warning
+                  else :secondary
+                  end
+
         preline_badge(status.capitalize, variant: variant)
       end
 
       def render_kind_badge(kind)
         variant = case kind
-                 when 'agent' then :primary
-                 when 'llm' then :info
-                 when 'tool' then :success
-                 when 'handoff' then :warning
-                 else :secondary
-                 end
-        
+                  when "agent" then :primary
+                  when "llm" then :info
+                  when "tool" then :success
+                  when "handoff" then :warning
+                  else :secondary
+                  end
+
         preline_badge(kind.capitalize, variant: variant, size: :sm)
       end
 
       def format_duration(ms)
         return "N/A" unless ms
-        
+
         if ms < 1000
           "#{ms.round}ms"
-        elsif ms < 60000
+        elsif ms < 60_000
           "#{(ms / 1000.0).round(1)}s"
         else
-          minutes = (ms / 60000).floor
-          seconds = ((ms % 60000) / 1000.0).round(1)
+          minutes = (ms / 60_000).floor
+          seconds = ((ms % 60_000) / 1000.0).round(1)
           "#{minutes}m #{seconds}s"
         end
       end

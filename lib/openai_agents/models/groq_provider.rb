@@ -73,7 +73,8 @@ module OpenAIAgents
             body[:tools] = prepare_tools(tools)
             body[:tool_choice] = kwargs[:tool_choice] if kwargs[:tool_choice]
           else
-            puts "[GroqProvider] Warning: Model #{model} may not support tools. Consider using a tool-use model."
+            log_warn("Model #{model} may not support tools. Consider using a tool-use model.",
+                     provider: "GroqProvider", model: model)
           end
         end
 
@@ -192,7 +193,8 @@ module OpenAIAgents
                   end
                 rescue JSON::ParserError => e
                   # Log but continue - some chunks might be partial
-                  puts "[GroqProvider] Failed to parse streaming chunk: #{e.message}"
+                  log_debug("Failed to parse streaming chunk: #{e.message}", provider: "GroqProvider",
+                                                                             error_class: e.class.name)
                 end
               end
             end

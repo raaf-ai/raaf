@@ -319,7 +319,7 @@ module OpenAIAgents
             handle_message(message)
           rescue JSON::ParserError => e
             # Log parse error but continue
-            puts "[MCPClient] Failed to parse message: #{e.message}"
+            log_warn("Failed to parse message: #{e.message}", client: "MCPClient", error_class: e.class.name)
           end
         end
       rescue IOError
@@ -347,7 +347,8 @@ module OpenAIAgents
           # Handle prompt list change notification
         else
           # Unknown notification, log it
-          puts "[MCPClient] Received unknown notification: #{message["method"]}"
+          log_debug("Received unknown notification: #{message["method"]}", client: "MCPClient",
+                                                                           method: message["method"])
         end
       end
     end

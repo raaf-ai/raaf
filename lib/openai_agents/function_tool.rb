@@ -11,22 +11,26 @@ module OpenAIAgents
       @callable = callable
       @name = name || extract_name(callable)
       @description = description || extract_description(callable)
-      
+
       # Debug logging for parameter handling
       if defined?(Rails) && Rails.logger && Rails.env.development?
         Rails.logger.debug "🔧 FunctionTool.new called for #{@name}:"
-        Rails.logger.debug "   Parameters provided: #{parameters.nil? ? 'nil' : 'yes'}"
+        Rails.logger.debug "   Parameters provided: #{parameters.nil? ? "nil" : "yes"}"
         Rails.logger.debug "   Parameters value: #{parameters.inspect}" unless parameters.nil?
       end
-      
+
       # IMPORTANT: Only extract parameters if not explicitly provided
       # This ensures we use the DSL-defined parameters when available
       @parameters = if parameters.nil?
                       extracted = extract_parameters(callable)
-                      Rails.logger.debug "   Extracted parameters: #{extracted.inspect}" if defined?(Rails) && Rails.logger && Rails.env.development?
+                      if defined?(Rails) && Rails.logger && Rails.env.development?
+                        Rails.logger.debug "   Extracted parameters: #{extracted.inspect}"
+                      end
                       extracted
                     else
-                      Rails.logger.debug "   Using provided parameters: #{parameters.inspect}" if defined?(Rails) && Rails.logger && Rails.env.development?
+                      if defined?(Rails) && Rails.logger && Rails.env.development?
+                        Rails.logger.debug "   Using provided parameters: #{parameters.inspect}"
+                      end
                       parameters
                     end
       @is_enabled = is_enabled # Can be a Proc, boolean, or nil
@@ -132,18 +136,18 @@ module OpenAIAgents
           parameters: @parameters
         }
       }
-      
+
       # Debug logging for to_h output
       if defined?(Rails) && Rails.logger && Rails.env.development?
         Rails.logger.info "🔧 [FunctionTool.to_h] Tool: #{@name}"
         Rails.logger.info "   Result: #{result.inspect}"
         Rails.logger.info "   Parameters in result: #{result.dig(:function, :parameters).inspect}"
         if result.dig(:function, :parameters, :properties)
-          Rails.logger.info "   Properties: #{result.dig(:function, :parameters, :properties).keys.join(', ')}"
-          Rails.logger.info "   Required: #{result.dig(:function, :parameters, :required) || 'none'}"
+          Rails.logger.info "   Properties: #{result.dig(:function, :parameters, :properties).keys.join(", ")}"
+          Rails.logger.info "   Required: #{result.dig(:function, :parameters, :required) || "none"}"
         end
       end
-      
+
       result
     end
 

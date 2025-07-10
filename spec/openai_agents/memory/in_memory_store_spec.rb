@@ -57,22 +57,22 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
   describe "#search" do
     before do
       store.store("mem1", OpenAIAgents::Memory::Memory.new(
-        content: "Ruby programming guide",
-        agent_name: "Agent1",
-        metadata: { tags: ["ruby", "programming"] }
-      ))
+                            content: "Ruby programming guide",
+                            agent_name: "Agent1",
+                            metadata: { tags: %w[ruby programming] }
+                          ))
       
       store.store("mem2", OpenAIAgents::Memory::Memory.new(
-        content: "Python tutorial",
-        agent_name: "Agent2",
-        metadata: { tags: ["python", "programming"] }
-      ))
+                            content: "Python tutorial",
+                            agent_name: "Agent2",
+                            metadata: { tags: %w[python programming] }
+                          ))
       
       store.store("mem3", OpenAIAgents::Memory::Memory.new(
-        content: "Ruby on Rails framework",
-        agent_name: "Agent1",
-        conversation_id: "conv-123"
-      ))
+                            content: "Ruby on Rails framework",
+                            agent_name: "Agent1",
+                            conversation_id: "conv-123"
+                          ))
     end
 
     it "searches by content" do
@@ -172,7 +172,7 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
 
   describe "#get_by_time_range" do
     it "returns memories within time range" do
-      now = Time.now
+      Time.now
       
       store.store("old", OpenAIAgents::Memory::Memory.new(content: "Old memory"))
       

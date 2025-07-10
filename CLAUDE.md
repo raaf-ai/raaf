@@ -27,6 +27,7 @@ This is a Ruby gem that provides 100% feature parity with the Python OpenAI Agen
 - **OpenAIProvider (`lib/openai_agents/models/openai_provider.rb`)** - Legacy Chat Completions API provider
 - **FunctionTool (`lib/openai_agents/function_tool.rb`)** - Wraps Ruby methods/procs as agent tools
 - **Tracing (`lib/openai_agents/tracing/`)** - Comprehensive span-based monitoring **exactly matching Python**
+- **Logging (`lib/openai_agents/logging.rb`)** - Unified logging system with Rails integration and debug categories
 
 ### Key Development Patterns
 
@@ -93,12 +94,31 @@ runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
 # - Uses POST /v1/responses endpoint
 ```
 
+### 5. Logging Pattern (New)
+```ruby
+# Include in your classes for short logging methods
+class MyAgent
+  include OpenAIAgents::Logger
+  
+  def process
+    log_info("Processing started", agent: "MyAgent", task_id: 123)
+    log_debug_api("API call details", url: "https://api.openai.com")
+    log_debug_tracing("Span created", span_id: "abc123")
+  end
+end
+
+# Direct logging
+OpenAIAgents::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
+OpenAIAgents::Logging.debug("Tool called", tool: "search", category: :tools)
+```
+
 ## File Structure
 
 ```
 lib/openai_agents/
 ├── agent.rb                    # Core agent implementation
 ├── runner.rb                   # Agent execution engine (uses ResponsesProvider)
+├── logging.rb                  # Unified logging system with Rails integration
 ├── models/                     # Multi-provider support
 │   ├── responses_provider.rb   # NEW DEFAULT - OpenAI Responses API
 │   ├── openai_provider.rb      # Legacy Chat Completions API
@@ -122,8 +142,9 @@ result = runner.run('Hello')
 puts result.messages.last[:content]
 "
 
-# With tracing (Python-compatible format)
-export OPENAI_AGENTS_TRACE_DEBUG=true
+# With debug logging
+export OPENAI_AGENTS_LOG_LEVEL=debug
+export OPENAI_AGENTS_DEBUG_CATEGORIES=api,tracing
 ruby your_script.rb
 ```
 
@@ -132,8 +153,14 @@ ruby your_script.rb
 # Required API key
 export OPENAI_API_KEY="your-openai-key"
 
-# Optional tracing debug
-export OPENAI_AGENTS_TRACE_DEBUG="true"
+# Unified logging configuration
+export OPENAI_AGENTS_LOG_LEVEL="info"        # debug, info, warn, error, fatal
+export OPENAI_AGENTS_LOG_FORMAT="text"       # text, json
+export OPENAI_AGENTS_LOG_OUTPUT="auto"       # auto, console, file, rails
+export OPENAI_AGENTS_DEBUG_CATEGORIES="all"  # all, none, or comma-separated categories
+
+# Debug categories available: tracing, api, tools, handoff, context, http, general
+export OPENAI_AGENTS_DEBUG_CATEGORIES="tracing,api,http"  # Enable specific categories
 ```
 
 ## Key Differences from Legacy Implementation
@@ -169,7 +196,57 @@ runner = OpenAIAgents::Runner.new(agent: agent)
 # - Same API endpoints
 
 # Enable debug output to verify
-ENV["OPENAI_AGENTS_TRACE_DEBUG"] = "true"
+ENV["OPENAI_AGENTS_DEBUG_CATEGORIES"] = "tracing,http"
+```
+
+### Logging System
+
+The unified logging system automatically integrates with Rails when available and provides category-based debug filtering:
+
+```ruby
+# Configure logging
+OpenAIAgents::Logging.configure do |config|
+  config.log_level = :debug
+  config.log_format = :json
+  config.debug_categories = [:api, :tracing]
+end
+
+# Use in your classes
+class MyProcessor
+  include OpenAIAgents::Logger
+  
+  def process
+    log_info("Processing started", processor: "MyProcessor")
+    log_debug_api("API request", url: "https://api.openai.com")
+    log_debug_tracing("Span created", span_id: "abc123")
+  end
+end
+```
+
+### Debug Categories
+
+- **tracing**: Span lifecycle, trace processing
+- **api**: API calls, responses, HTTP details
+- **tools**: Tool execution, function calls
+- **handoff**: Agent handoffs, delegation
+- **context**: Context management, memory
+- **http**: HTTP debug output (replaces OPENAI_AGENTS_TRACE_DEBUG)
+- **general**: General debug messages
+
+### Debug Tasks
+
+```bash
+# Show current debug configuration
+rake debug:config
+
+# Test all logging levels
+rake debug:test_logging
+
+# Test specific categories
+rake debug:test_tracing
+
+# Benchmark logging performance
+rake debug:benchmark
 ```
 
 ### Trace Verification

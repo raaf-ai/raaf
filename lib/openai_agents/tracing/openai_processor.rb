@@ -23,7 +23,7 @@ module OpenAIAgents
     # - `OPENAI_API_KEY` - Required for authentication
     # - `OPENAI_ORG_ID` - Optional organization ID
     # - `OPENAI_PROJECT_ID` - Optional project ID
-    # - `OPENAI_AGENTS_TRACE_DEBUG` - Enable debug output
+    # - `OPENAI_AGENTS_DEBUG_CATEGORIES=http` - Enable detailed HTTP debug output
     #
     # ## Span Format
     #
@@ -46,6 +46,7 @@ module OpenAIAgents
     #   runner = OpenAIAgents::Runner.new(agent: agent)
     #   runner.run(messages)  # Traces sent automatically
     class OpenAIProcessor
+      include Logger
       # Creates a new OpenAI processor
       #
       # @param api_key [String, nil] OpenAI API key. Defaults to OPENAI_API_KEY env var
@@ -116,7 +117,7 @@ module OpenAIAgents
         return if spans.empty?
 
         unless @api_key
-          warn "OPENAI_API_KEY is not set, skipping trace export"
+          log_warn("OPENAI_API_KEY is not set, skipping trace export", processor: "OpenAI")
           return
         end
 
@@ -137,8 +138,9 @@ module OpenAIAgents
           send_spans(transformed_spans) unless transformed_spans.empty?
         end
       rescue StandardError => e
-        warn "Failed to export spans to OpenAI: #{e.message}"
-        warn e.backtrace.first(5).join("\n") if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+        log_error("Failed to export spans to OpenAI: #{e.message}", processor: "OpenAI", error_class: e.class.name)
+        log_debug_tracing("Export error backtrace: #{e.backtrace.first(5).join("\n")}",
+                          processor: "OpenAI")
       end
 
       # Forces immediate export of any buffered spans
@@ -237,7 +239,7 @@ module OpenAIAgents
                                 else
                                   input_messages
                                 end
-                 
+
                  data = {
                    type: "generation",
                    input: parsed_input,
@@ -253,11 +255,11 @@ module OpenAIAgents
                  # Ensure input is a string for OpenAI API compatibility
                  tool_input = span.attributes["function.input"]
                  input_string = case tool_input
-                               when String then tool_input
-                               when nil then nil
-                               else JSON.generate(tool_input)
-                               end
-                 
+                                when String then tool_input
+                                when nil then nil
+                                else JSON.generate(tool_input)
+                                end
+
                  {
                    type: "function",
                    name: span.attributes["function.name"] || span.name,
@@ -426,7 +428,7 @@ module OpenAIAgents
         return if @span_buffer.empty?
 
         unless @api_key
-          warn "OPENAI_API_KEY is not set, skipping trace export"
+          log_warn("OPENAI_API_KEY is not set, skipping trace export", processor: "OpenAI")
           return
         end
 
@@ -435,28 +437,30 @@ module OpenAIAgents
 
         send_spans(spans_to_send)
       rescue StandardError => e
-        warn "Failed to send spans to OpenAI: #{e.message}" if $DEBUG
+        if $DEBUG
+          log_debug("Failed to send spans to OpenAI: #{e.message}", processor: "OpenAI",
+                                                                    error_class: e.class.name)
+        end
       end
 
       # Sends spans to the OpenAI traces API
       #
       # Constructs the HTTP request with proper authentication and formatting,
       # sends the trace data, and handles the response. Debug output can be
-      # enabled via OPENAI_AGENTS_TRACE_DEBUG environment variable.
+      # enabled via OPENAI_AGENTS_DEBUG_CATEGORIES=http environment variable.
       #
       # @param spans [Array<Hash>] Transformed span data to send
       # @return [void]
       #
       # @api private
       def send_spans(spans)
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-
-        puts "[OpenAI Processor] Sending #{spans.size} spans to #{@traces_endpoint}" if debug
+        log_debug_api("[OpenAI Processor] Sending #{spans.size} spans to #{@traces_endpoint}", processor: "OpenAI",
+                                                                                               span_count: spans.size)
 
         uri = URI(@traces_endpoint)
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
-        http.set_debug_output($stdout) if debug
+        http.set_debug_output($stdout) if http_debug_enabled?
 
         request = Net::HTTP::Post.new(uri)
         # Important: Clear any default User-Agent that Net::HTTP might set
@@ -495,70 +499,65 @@ module OpenAIAgents
 
         request.body = JSON.generate(payload)
 
-        if debug
-          puts "\n[OpenAI Processor] === DEBUG: HTTP Request Details ==="
-          puts "URL: #{uri}"
-          puts "Headers:"
-          request.each_header do |key, value|
-            if key.downcase == "authorization" && value.start_with?("Bearer ")
-              puts "  #{key}: Bearer #{value[7..17]}..."
-            else
-              puts "  #{key}: #{value}"
-            end
+        log_debug_http("HTTP request details", processor: "OpenAI", url: uri.to_s)
+        log_debug_http("HTTP request headers", processor: "OpenAI")
+        request.each_header do |key, value|
+          if key.downcase == "authorization" && value.start_with?("Bearer ")
+            log_debug_http("Request header", key: key, value: "Bearer #{value[7..17]}...")
+          else
+            log_debug_http("Request header", key: key, value: value)
           end
-          puts "\nPayload Structure:"
-          puts "  - Data array contains #{payload_items.size} items:"
-          puts "    [0] Trace object - ID: #{trace_data[:id]}, Workflow: #{trace_data[:workflow_name]}"
-          spans.each_with_index do |span, i|
-            span_type = begin
-              span[:span_data][:type]
-            rescue StandardError
-              "unknown"
-            end
-            span_name = begin
-              span[:span_data][:name]
-            rescue StandardError
-              span[:id]
-            end
-            puts "    [#{i + 1}] Span - #{span_type} - #{span_name}"
-          end
-          puts "\nFull Payload (first 1000 chars):"
-          puts JSON.pretty_generate(payload)[0..1000]
-          puts "=== End DEBUG ==="
         end
+        log_debug_http("Payload structure", processor: "OpenAI")
+        log_debug_http("Payload items", processor: "OpenAI", item_count: payload_items.size)
+        log_debug_http("Trace object", trace_id: trace_data[:id], workflow: trace_data[:workflow_name])
+        spans.each_with_index do |span, i|
+          span_type = begin
+            span[:span_data][:type]
+          rescue StandardError
+            "unknown"
+          end
+          span_name = begin
+            span[:span_data][:name]
+          rescue StandardError
+            span[:id]
+          end
+          log_debug_http("Span info", processor: "OpenAI", index: i + 1, type: span_type, name: span_name)
+        end
+        log_debug_http("Full payload preview", payload: JSON.pretty_generate(payload)[0..1000])
+        log_debug_http("End HTTP request debug", processor: "OpenAI")
 
-        puts "[OpenAI Processor] Sending request to OpenAI traces API..." if debug
+        log_debug("Sending request to OpenAI traces API", processor: "OpenAI")
         start_time = Time.now
         response = http.request(request)
         duration = Time.now - start_time
 
-        if debug
-          puts "[OpenAI Processor] Response: #{response.code} - #{response.message} (#{(duration * 1000).round(2)}ms)"
-        end
+        log_debug_http("HTTP response summary",
+                       processor: "OpenAI",
+                       code: response.code,
+                       message: response.message,
+                       duration_ms: (duration * 1000).round(2))
 
-        if debug
-          puts "\n[OpenAI Processor] === DEBUG: HTTP Response Details ==="
-          puts "Status: #{response.code} #{response.message}"
-          puts "Headers:"
-          response.each_header { |key, value| puts "  #{key}: #{value}" }
-          puts "\nBody (first 500 chars):"
-          puts response.body ? response.body[0..500] : "(empty)"
-          puts "=== End DEBUG ==="
-        end
+        log_debug_http("HTTP response details", processor: "OpenAI")
+        log_debug_http("Response status", code: response.code, message: response.message)
+        log_debug_http("HTTP response headers", processor: "OpenAI")
+        response.each_header { |key, value| log_debug_http("Response header", key: key, value: value) }
+        log_debug_http("Response body preview", body: response.body ? response.body[0..500] : "(empty)")
+        log_debug_http("End HTTP response debug", processor: "OpenAI")
 
         if response.code.start_with?("2")
-          puts "[OpenAI Processor] ✅ Successfully sent traces to OpenAI" if debug
-          if debug && response.body && !response.body.empty?
+          log_debug("Successfully sent traces to OpenAI", processor: "OpenAI")
+          if response.body && !response.body.empty?
             begin
               result = JSON.parse(response.body)
-              puts "[OpenAI Processor] Response data: #{result.inspect}"
+              log_debug_http("OpenAI response data", processor: "OpenAI", data: result.inspect)
             rescue JSON::ParserError
               # Response might be empty for 204 No Content
             end
           end
         else
-          puts "[OpenAI Processor] Error body: #{response.body}" if debug
-          warn "OpenAI traces API returned #{response.code}: #{response.body}"
+          log_debug_http("OpenAI error response body", processor: "OpenAI", body: response.body)
+          log_warn("OpenAI traces API error", processor: "OpenAI", code: response.code, body: response.body)
         end
       end
     end

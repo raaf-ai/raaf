@@ -243,6 +243,12 @@ module OpenAIAgents
         raise HandoffError, "Handoff must be an Agent or Handoff object"
       end
 
+      target_name = handoff.is_a?(Agent) ? handoff.name : handoff.agent_name
+      log_debug_handoff("Adding handoff capability",
+                        from_agent: @name,
+                        to_agent: target_name,
+                        handoff_type: handoff.class.name)
+
       @handoffs << handoff
     end
 
@@ -309,7 +315,12 @@ module OpenAIAgents
     #     puts "Found handoff target: #{target.name}"
     #   end
     def find_handoff(agent_name)
-      @handoffs.find do |handoff|
+      log_debug_handoff("Looking for handoff target",
+                        from_agent: @name,
+                        requested_agent: agent_name,
+                        available_handoffs: @handoffs.map { |h| h.is_a?(Agent) ? h.name : h.agent_name }.join(", "))
+
+      result = @handoffs.find do |handoff|
         case handoff
         when Agent
           handoff.name == agent_name
@@ -317,6 +328,19 @@ module OpenAIAgents
           handoff.agent_name == agent_name
         end
       end
+
+      if result
+        target_name = result.is_a?(Agent) ? result.name : result.agent_name
+        log_debug_handoff("Handoff target found",
+                          from_agent: @name,
+                          to_agent: target_name)
+      else
+        log_debug_handoff("Handoff target not found",
+                          from_agent: @name,
+                          requested_agent: agent_name)
+      end
+
+      result
     end
 
     ##
@@ -432,7 +456,7 @@ module OpenAIAgents
     # @param tool_name [String, Symbol] name of the tool to check
     # @return [Boolean] true if tool exists, false otherwise
     def tool_exists?(tool_name)
-      @tools.any? do |t| 
+      @tools.any? do |t|
         if t.is_a?(Hash)
           # Handle hosted tools (like web_search)
           t[:type] == tool_name.to_s || t["type"] == tool_name.to_s
@@ -729,7 +753,7 @@ module OpenAIAgents
                               AgentOutputSchema.new(@output_type, strict_json_schema: true)
                             end
     rescue StandardError => e
-      puts "[Agent] Warning: Could not configure output type: #{e.message}"
+      log_warn("Could not configure output type: #{e.message}", agent: @name, error_class: e.class.name)
       @output_type_schema = nil
     end
 

@@ -31,7 +31,7 @@ module OpenAIAgents
             Typography("Traces", variant: :heading, level: 1)
             Typography("Monitor and analyze your agent execution traces", variant: :muted)
           end
-          
+
           preline_flex(align: :center, gap: 3) do
             preline_button(
               id: "refresh-dashboard",
@@ -39,7 +39,7 @@ module OpenAIAgents
               icon: "arrow-path",
               title: "Refresh"
             )
-            
+
             preline_button(
               href: traces_path(format: :json),
               variant: :secondary,
@@ -47,7 +47,7 @@ module OpenAIAgents
             ) do
               "Export JSON"
             end
-            
+
             preline_flex(align: :center) do
               preline_checkbox(
                 id: "auto-refresh-toggle",
@@ -77,19 +77,19 @@ module OpenAIAgents
             label: "Total",
             color: :blue
           )
-          
+
           render MetricCard.new(
             value: @stats[:completed],
             label: "Completed",
             color: :green
           )
-          
+
           render MetricCard.new(
             value: @stats[:failed],
             label: "Failed",
             color: :red
           )
-          
+
           render MetricCard.new(
             value: @stats[:running],
             label: "Running",
@@ -153,15 +153,15 @@ module OpenAIAgents
               preline_text(trace.trace_id, variant: :muted, size: :sm)
             end
           end
-          
+
           preline_table_cell do
             render_status_badge(trace.status)
           end
-          
+
           preline_table_cell do
             format_duration(trace.duration_ms)
           end
-          
+
           preline_table_cell do
             preline_flex(align: :center) do
               preline_button(
@@ -170,24 +170,24 @@ module OpenAIAgents
                 size: :sm,
                 icon: "chevron-right",
                 class: "toggle-spans mr-2",
-                data: { 
+                data: {
                   "hs-collapse": "#collapse-#{trace.trace_id}",
                   "hs-collapse-toggle": "#collapse-#{trace.trace_id}"
                 }
               )
-              preline_text(pluralize(trace.spans.count, 'span'), size: :sm)
+              preline_text(pluralize(trace.spans.count, "span"), size: :sm)
             end
           end
-          
+
           preline_table_cell do
             time_ago_in_words(trace.started_at)
           end
-          
+
           preline_table_cell(align: :end) do
             preline_link(trace_path(trace.trace_id)) { "View" }
           end
         end
-        
+
         # Collapsible spans row
         preline_table_row(id: "collapse-#{trace.trace_id}", class: "hs-collapse hidden") do
           preline_table_cell(colspan: 6) do
@@ -202,7 +202,7 @@ module OpenAIAgents
                     preline_text(format_duration(span.duration_ms), variant: :muted, size: :sm)
                   end
                 end
-                
+
                 if trace.spans.count > 5
                   preline_container(class: "text-center") do
                     preline_link(trace_path(trace.trace_id)) do
@@ -218,51 +218,50 @@ module OpenAIAgents
 
       def render_last_updated
         preline_text(class: "text-end mt-4", variant: :muted, size: :sm) do
-          "Last updated: "
           preline_text(Time.current.strftime("%Y-%m-%d %H:%M:%S"), id: "last-updated")
         end
       end
 
       def render_status_badge(status)
         variant = case status
-                 when 'completed' then :success
-                 when 'failed' then :danger
-                 when 'running' then :warning
-                 else :secondary
-                 end
-        
+                  when "completed" then :success
+                  when "failed" then :danger
+                  when "running" then :warning
+                  else :secondary
+                  end
+
         icon = case status
-               when 'completed' then "check-circle"
-               when 'failed' then "x-circle"
-               when 'running' then "arrow-path"
+               when "completed" then "check-circle"
+               when "failed" then "x-circle"
+               when "running" then "arrow-path"
                else "clock"
                end
-        
+
         preline_badge(status.capitalize, variant: variant, icon: icon)
       end
 
       def render_kind_badge(kind)
         variant = case kind
-                 when 'agent' then :primary
-                 when 'llm' then :info
-                 when 'tool' then :success
-                 when 'handoff' then :warning
-                 else :secondary
-                 end
-        
+                  when "agent" then :primary
+                  when "llm" then :info
+                  when "tool" then :success
+                  when "handoff" then :warning
+                  else :secondary
+                  end
+
         preline_badge(kind.capitalize, variant: variant, size: :sm)
       end
 
       def format_duration(ms)
         return "N/A" unless ms
-        
+
         if ms < 1000
           "#{ms.round}ms"
-        elsif ms < 60000
+        elsif ms < 60_000
           "#{(ms / 1000.0).round(1)}s"
         else
-          minutes = (ms / 60000).floor
-          seconds = ((ms % 60000) / 1000.0).round(1)
+          minutes = (ms / 60_000).floor
+          seconds = ((ms % 60_000) / 1000.0).round(1)
           "#{minutes}m #{seconds}s"
         end
       end

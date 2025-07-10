@@ -12,7 +12,7 @@ end
 puts "=== Confluence Integration Tool Example ==="
 puts
 
-# Note: You'll need Confluence credentials
+# NOTE: You'll need Confluence credentials
 CONFLUENCE_URL = ENV["CONFLUENCE_URL"] || "https://demo.atlassian.net"
 CONFLUENCE_USERNAME = ENV["CONFLUENCE_USERNAME"] || "demo"
 CONFLUENCE_API_TOKEN = ENV["CONFLUENCE_API_TOKEN"] || "demo"
@@ -121,9 +121,9 @@ puts
 # List spaces
 puts "Listing spaces:"
 spaces_result = confluence_tool.call({
-  action: "list_spaces",
-  limit: 10
-})
+                                       action: "list_spaces",
+                                       limit: 10
+                                     })
 puts "Found #{spaces_result[:count]} spaces:"
 spaces_result[:spaces]&.each do |space|
   puts "  - [#{space[:key]}] #{space[:name]}"
@@ -133,10 +133,10 @@ puts
 # Search content
 puts "\nSearching content:"
 search_result = confluence_tool.call({
-  action: "search_content",
-  query: "type=page AND text ~ \"documentation\"",
-  limit: 5
-})
+                                       action: "search_content",
+                                       query: "type=page AND text ~ \"documentation\"",
+                                       limit: 5
+                                     })
 puts "Found #{search_result[:count]} results"
 search_result[:results]&.each do |result|
   puts "  - #{result[:title]} (#{result[:space]})"
@@ -151,42 +151,42 @@ if CONFLUENCE_USERNAME == "demo"
   puts "  With formatted content"
 else
   create_result = confluence_tool.call({
-    action: "create_page",
-    space_key: "PROJ",  # Replace with your space key
-    title: "Quick Reference Guide",
-    content: <<~HTML
-      <h2>Overview</h2>
-      <p>This is a quick reference guide for common tasks.</p>
-      
-      <h2>Common Commands</h2>
-      <table>
-        <tr>
-          <th>Command</th>
-          <th>Description</th>
-        </tr>
-        <tr>
-          <td><code>agent.run()</code></td>
-          <td>Execute agent with input</td>
-        </tr>
-        <tr>
-          <td><code>agent.add_tool()</code></td>
-          <td>Add a tool to agent</td>
-        </tr>
-      </table>
-      
-      <h2>Examples</h2>
-      <ac:structured-macro ac:name="code">
-        <ac:parameter ac:name="language">ruby</ac:parameter>
-        <ac:plain-text-body><![CDATA[
-          agent = OpenAIAgents::Agent.new(
-            name: "Assistant",
-            model: "gpt-4o"
-          )
-          result = agent.run("Hello!")
-        ]]></ac:plain-text-body>
-      </ac:structured-macro>
-    HTML
-  })
+                                         action: "create_page",
+                                         space_key: "PROJ", # Replace with your space key
+                                         title: "Quick Reference Guide",
+                                         content: <<~HTML
+                                           <h2>Overview</h2>
+                                           <p>This is a quick reference guide for common tasks.</p>
+                                           
+                                           <h2>Common Commands</h2>
+                                           <table>
+                                             <tr>
+                                               <th>Command</th>
+                                               <th>Description</th>
+                                             </tr>
+                                             <tr>
+                                               <td><code>agent.run()</code></td>
+                                               <td>Execute agent with input</td>
+                                             </tr>
+                                             <tr>
+                                               <td><code>agent.add_tool()</code></td>
+                                               <td>Add a tool to agent</td>
+                                             </tr>
+                                           </table>
+                                           
+                                           <h2>Examples</h2>
+                                           <ac:structured-macro ac:name="code">
+                                             <ac:parameter ac:name="language">ruby</ac:parameter>
+                                             <ac:plain-text-body><![CDATA[
+                                               agent = OpenAIAgents::Agent.new(
+                                                 name: "Assistant",
+                                                 model: "gpt-4o"
+                                               )
+                                               result = agent.run("Hello!")
+                                             ]]></ac:plain-text-body>
+                                           </ac:structured-macro>
+                                         HTML
+                                       })
   puts "Created page: #{create_result[:url]}" if create_result[:success]
 end
 puts
@@ -293,7 +293,7 @@ storage_examples = {
     </ac:link>
   XML
   
-  "User Mention" => <<~XML,
+  "User Mention" => <<~XML
     <ac:link>
       <ri:user ri:userkey="user-key-here" />
     </ac:link>
@@ -315,9 +315,9 @@ cql_examples = {
   "Pages by label" => 'type = page AND label = "documentation"',
   "Pages in space" => 'type = page AND space = "PROJ"',
   "Recently updated" => 'type = page AND lastmodified > now("-7d")',
-  "Pages by creator" => 'type = page AND creator = currentUser()',
-  "Pages with attachments" => 'type = page AND attachment.title is not EMPTY',
-  "Unresolved comments" => 'type = comment AND resolved = false',
+  "Pages by creator" => "type = page AND creator = currentUser()",
+  "Pages with attachments" => "type = page AND attachment.title is not EMPTY",
+  "Unresolved comments" => "type = comment AND resolved = false",
   "Pages containing text" => 'type = page AND text ~ "search term"'
 }
 

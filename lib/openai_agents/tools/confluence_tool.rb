@@ -10,19 +10,19 @@ module OpenAIAgents
     # Confluence integration tool for managing pages, spaces, and content
     class ConfluenceTool
       attr_reader :name, :description
-      
+
       def initialize(url:, username:, api_token:, name: "confluence", description: nil, **config)
-        @url = url.gsub(/\/$/, "")  # Remove trailing slash
+        @url = url.gsub(%r{/$}, "") # Remove trailing slash
         @username = username
         @api_token = api_token
         @name = name
         @description = description || "Manage Confluence pages, spaces, and content"
         @config = config
         @demo_mode = username == "demo" || url.include?("demo")
-        
+
         @api_base = "#{@url}/wiki/rest/api"
       end
-      
+
       def to_tool_definition
         {
           type: "function",
@@ -35,12 +35,12 @@ module OpenAIAgents
                 action: {
                   type: "string",
                   description: "Action to perform",
-                  enum: ["get_space", "list_spaces", "create_space",
-                         "get_page", "create_page", "update_page", "delete_page",
-                         "search_content", "get_page_content", "get_page_children",
-                         "add_attachment", "get_attachments", "add_comment",
-                         "get_comments", "add_label", "get_labels",
-                         "copy_page", "move_page", "export_page"]
+                  enum: %w[get_space list_spaces create_space
+                           get_page create_page update_page delete_page
+                           search_content get_page_content get_page_children
+                           add_attachment get_attachments add_comment
+                           get_comments add_label get_labels
+                           copy_page move_page export_page]
                 },
                 space_key: {
                   type: "string",
@@ -94,7 +94,7 @@ module OpenAIAgents
                 format: {
                   type: "string",
                   description: "Export format",
-                  enum: ["pdf", "word", "html"]
+                  enum: %w[pdf word html]
                 },
                 expand: {
                   type: "array",
@@ -112,12 +112,12 @@ module OpenAIAgents
           }
         }
       end
-      
+
       def call(arguments)
         return demo_response(arguments) if @demo_mode
-        
+
         action = arguments[:action] || arguments["action"]
-        
+
         case action
         when "get_space"
           get_space(arguments)
@@ -163,37 +163,37 @@ module OpenAIAgents
       rescue StandardError => e
         { error: "Confluence API error: #{e.message}" }
       end
-      
+
       private
-      
+
       def get_space(args)
         space_key = args[:space_key] || args["space_key"]
         raise "Space key required" unless space_key
-        
+
         expand = args[:expand] || args["expand"] || []
-        
+
         result = make_request(:get, "/space/#{space_key}?expand=#{expand.join(",")}")
         format_space(result)
       end
-      
+
       def list_spaces(args)
         limit = args[:limit] || args["limit"] || 25
-        
+
         result = make_request(:get, "/space?limit=#{limit}")
-        
+
         {
           spaces: result["results"].map { |s| format_space(s) },
           count: result["size"],
           total: result["totalSize"]
         }
       end
-      
+
       def create_space(args)
         space_key = args[:space_key] || args["space_key"]
         space_name = args[:space_name] || args["space_name"]
-        
+
         raise "Space key and name required" unless space_key && space_name
-        
+
         body = {
           key: space_key,
           name: space_name,
@@ -204,9 +204,9 @@ module OpenAIAgents
             }
           }
         }
-        
+
         result = make_request(:post, "/space", body: body)
-        
+
         {
           success: true,
           space_key: result["key"],
@@ -215,25 +215,25 @@ module OpenAIAgents
           url: "#{@url}/wiki/spaces/#{result["key"]}"
         }
       end
-      
+
       def get_page(args)
         page_id = args[:page_id] || args["page_id"]
         raise "Page ID required" unless page_id
-        
+
         expand = args[:expand] || args["expand"] || ["body.storage", "version"]
-        
+
         result = make_request(:get, "/content/#{page_id}?expand=#{expand.join(",")}")
         format_page(result)
       end
-      
+
       def create_page(args)
         space_key = args[:space_key] || args["space_key"]
         title = args[:title] || args["title"]
         content = args[:content] || args["content"] || ""
         parent_id = args[:parent_id] || args["parent_id"]
-        
+
         raise "Space key and title required" unless space_key && title
-        
+
         body = {
           type: "page",
           title: title,
@@ -245,13 +245,11 @@ module OpenAIAgents
             }
           }
         }
-        
-        if parent_id
-          body[:ancestors] = [{ id: parent_id }]
-        end
-        
+
+        body[:ancestors] = [{ id: parent_id }] if parent_id
+
         result = make_request(:post, "/content", body: body)
-        
+
         {
           success: true,
           page_id: result["id"],
@@ -260,22 +258,22 @@ module OpenAIAgents
           url: "#{@url}#{result["_links"]["webui"]}"
         }
       end
-      
+
       def update_page(args)
         page_id = args[:page_id] || args["page_id"]
         title = args[:title] || args["title"]
         content = args[:content] || args["content"]
         version = args[:version] || args["version"]
         comment = args[:comment] || args["comment"] || "Updated via API"
-        
+
         raise "Page ID required" unless page_id
-        
+
         # Get current page if version not provided
         if !version && (title || content)
           current = get_page(page_id: page_id)
           version = current[:version][:number]
         end
-        
+
         body = {
           type: "page",
           version: {
@@ -283,12 +281,12 @@ module OpenAIAgents
             message: comment
           }
         }
-        
+
         body[:title] = title if title
         body[:body] = { storage: { value: content, representation: "storage" } } if content
-        
+
         result = make_request(:put, "/content/#{page_id}", body: body)
-        
+
         {
           success: true,
           page_id: result["id"],
@@ -296,30 +294,30 @@ module OpenAIAgents
           message: "Updated page: #{result["title"]}"
         }
       end
-      
+
       def delete_page(args)
         page_id = args[:page_id] || args["page_id"]
         raise "Page ID required" unless page_id
-        
+
         make_request(:delete, "/content/#{page_id}")
-        
+
         {
           success: true,
           message: "Deleted page"
         }
       end
-      
+
       def search_content(args)
         query = args[:query] || args["query"]
         limit = args[:limit] || args["limit"] || 25
-        
+
         raise "Search query required" unless query
-        
+
         # URL encode the CQL query
         encoded_query = URI.encode_www_form_component(query)
-        
+
         result = make_request(:get, "/content/search?cql=#{encoded_query}&limit=#{limit}")
-        
+
         {
           results: result["results"].map { |r| format_search_result(r) },
           count: result["size"],
@@ -327,13 +325,13 @@ module OpenAIAgents
           query: query
         }
       end
-      
+
       def get_page_content(args)
         page_id = args[:page_id] || args["page_id"]
         raise "Page ID required" unless page_id
-        
+
         result = make_request(:get, "/content/#{page_id}?expand=body.storage,body.view")
-        
+
         {
           page_id: result["id"],
           title: result["title"],
@@ -342,55 +340,55 @@ module OpenAIAgents
           version: result["version"]["number"]
         }
       end
-      
+
       def get_page_children(args)
         page_id = args[:page_id] || args["page_id"]
         raise "Page ID required" unless page_id
-        
+
         result = make_request(:get, "/content/#{page_id}/child/page")
-        
+
         {
           children: result["results"].map { |p| format_page_summary(p) },
           count: result["size"]
         }
       end
-      
+
       def add_attachment(args)
         page_id = args[:page_id] || args["page_id"]
         file_path = args[:file_path] || args["file_path"]
-        comment = args[:attachment_comment] || args["attachment_comment"] || ""
-        
+        args[:attachment_comment] || args["attachment_comment"] || ""
+
         raise "Page ID and file path required" unless page_id && file_path
         raise "File not found: #{file_path}" unless File.exist?(file_path)
-        
+
         # Confluence attachment upload requires multipart form data
         # This is a simplified version - in production, use proper multipart library
-        
+
         {
           success: true,
           message: "Attachment upload requires multipart form data implementation",
           file: File.basename(file_path)
         }
       end
-      
+
       def get_attachments(args)
         page_id = args[:page_id] || args["page_id"]
         raise "Page ID required" unless page_id
-        
+
         result = make_request(:get, "/content/#{page_id}/child/attachment")
-        
+
         {
           attachments: result["results"].map { |a| format_attachment(a) },
           count: result["size"]
         }
       end
-      
+
       def add_comment(args)
         page_id = args[:page_id] || args["page_id"]
         comment = args[:comment] || args["comment"]
-        
+
         raise "Page ID and comment required" unless page_id && comment
-        
+
         body = {
           type: "comment",
           container: { id: page_id, type: "page" },
@@ -401,68 +399,68 @@ module OpenAIAgents
             }
           }
         }
-        
+
         result = make_request(:post, "/content", body: body)
-        
+
         {
           success: true,
           comment_id: result["id"],
           message: "Added comment to page"
         }
       end
-      
+
       def get_comments(args)
         page_id = args[:page_id] || args["page_id"]
         raise "Page ID required" unless page_id
-        
+
         result = make_request(:get, "/content/#{page_id}/child/comment?expand=body.storage")
-        
+
         {
           comments: result["results"].map { |c| format_comment(c) },
           count: result["size"]
         }
       end
-      
+
       def add_label(args)
         page_id = args[:page_id] || args["page_id"]
         labels = args[:labels] || args["labels"]
-        
+
         raise "Page ID and labels required" unless page_id && labels
-        
+
         body = labels.map { |label| { name: label } }
-        
+
         result = make_request(:post, "/content/#{page_id}/label", body: body)
-        
+
         {
           success: true,
           message: "Added #{labels.size} label(s)",
           labels: result["results"].map { |l| l["name"] }
         }
       end
-      
+
       def get_labels(args)
         page_id = args[:page_id] || args["page_id"]
         raise "Page ID required" unless page_id
-        
+
         result = make_request(:get, "/content/#{page_id}/label")
-        
+
         {
           labels: result["results"].map { |l| l["name"] },
           count: result["size"]
         }
       end
-      
+
       def copy_page(args)
         page_id = args[:page_id] || args["page_id"]
         new_title = args[:title] || args["title"]
         space_key = args[:space_key] || args["space_key"]
         parent_id = args[:parent_id] || args["parent_id"]
-        
+
         raise "Page ID and new title required" unless page_id && new_title
-        
+
         # Get original page
         original = get_page(page_id: page_id)
-        
+
         # Create new page with copied content
         create_args = {
           space_key: space_key || original[:space_key],
@@ -470,19 +468,19 @@ module OpenAIAgents
           content: original[:content],
           parent_id: parent_id
         }
-        
+
         create_page(create_args)
       end
-      
+
       def move_page(args)
         page_id = args[:page_id] || args["page_id"]
         parent_id = args[:parent_id] || args["parent_id"]
-        
+
         raise "Page ID and parent ID required" unless page_id && parent_id
-        
+
         # Get current page
         current = get_page(page_id: page_id)
-        
+
         body = {
           type: "page",
           title: current[:title],
@@ -492,25 +490,25 @@ module OpenAIAgents
             message: "Moved page"
           }
         }
-        
+
         result = make_request(:put, "/content/#{page_id}", body: body)
-        
+
         {
           success: true,
           message: "Moved page to new parent",
           page_id: result["id"]
         }
       end
-      
+
       def export_page(args)
         page_id = args[:page_id] || args["page_id"]
         format = args[:format] || args["format"] || "pdf"
-        
+
         raise "Page ID required" unless page_id
-        
-        # Note: Actual export requires different API endpoint
+
+        # NOTE: Actual export requires different API endpoint
         # This is a placeholder implementation
-        
+
         {
           success: true,
           message: "Page export initiated",
@@ -518,42 +516,46 @@ module OpenAIAgents
           download_url: "#{@url}/wiki/exportpage?pageId=#{page_id}&format=#{format}"
         }
       end
-      
+
       def make_request(method, path, body: nil, params: nil)
         uri = URI.parse("#{@api_base}#{path}")
         uri.query = URI.encode_www_form(params) if params
-        
+
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = uri.scheme == "https"
         http.read_timeout = 30
-        
+
         request = case method
                   when :get then Net::HTTP::Get.new(uri)
                   when :post then Net::HTTP::Post.new(uri)
                   when :put then Net::HTTP::Put.new(uri)
                   when :delete then Net::HTTP::Delete.new(uri)
                   end
-        
+
         # Basic auth
         auth_string = Base64.strict_encode64("#{@username}:#{@api_token}")
         request["Authorization"] = "Basic #{auth_string}"
         request["Content-Type"] = "application/json"
         request["Accept"] = "application/json"
-        
-        request.body = body.to_json if body && [:post, :put].include?(method)
-        
+
+        request.body = body.to_json if body && %i[post put].include?(method)
+
         response = http.request(request)
-        
+
         unless response.code.start_with?("2")
-          error_body = JSON.parse(response.body) rescue { "message" => response.body }
+          error_body = begin
+            JSON.parse(response.body)
+          rescue StandardError
+            { "message" => response.body }
+          end
           raise "Confluence API error (#{response.code}): #{error_body["message"] || error_body}"
         end
-        
+
         return {} if response.body.nil? || response.body.empty?
-        
+
         JSON.parse(response.body)
       end
-      
+
       def format_space(space)
         {
           key: space["key"],
@@ -563,7 +565,7 @@ module OpenAIAgents
           url: "#{@url}/wiki/spaces/#{space["key"]}"
         }
       end
-      
+
       def format_page(page)
         {
           id: page["id"],
@@ -577,7 +579,7 @@ module OpenAIAgents
           url: "#{@url}#{page["_links"]["webui"]}"
         }
       end
-      
+
       def format_page_summary(page)
         {
           id: page["id"],
@@ -586,7 +588,7 @@ module OpenAIAgents
           url: "#{@url}#{page["_links"]["webui"]}"
         }
       end
-      
+
       def format_search_result(result)
         {
           id: result["content"]["id"],
@@ -598,7 +600,7 @@ module OpenAIAgents
           last_modified: result["lastModified"]
         }
       end
-      
+
       def format_attachment(attachment)
         {
           id: attachment["id"],
@@ -610,7 +612,7 @@ module OpenAIAgents
           download_url: "#{@url}#{attachment["_links"]["download"]}"
         }
       end
-      
+
       def format_comment(comment)
         {
           id: comment["id"],
@@ -619,10 +621,10 @@ module OpenAIAgents
           created_by: comment["version"]["by"]["displayName"]
         }
       end
-      
+
       def demo_response(args)
         action = args[:action] || args["action"]
-        
+
         case action
         when "list_spaces"
           {
@@ -636,9 +638,9 @@ module OpenAIAgents
         when "search_content"
           {
             results: [
-              { 
-                id: "67890", 
-                title: "Getting Started Guide", 
+              {
+                id: "67890",
+                title: "Getting Started Guide",
                 type: "page",
                 space: "DOC",
                 excerpt: "This guide will help you get started..."

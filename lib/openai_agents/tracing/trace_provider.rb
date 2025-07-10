@@ -47,6 +47,7 @@ module OpenAIAgents
     #   )
     class TraceProvider
       class << self
+        include Logger
         # @api private
         attr_writer :instance
 
@@ -377,7 +378,7 @@ module OpenAIAgents
       # - OPENAI_AGENTS_TRACE_FLUSH_INTERVAL: Flush interval in seconds (default: 5)
       # - OPENAI_AGENTS_ENVIRONMENT: Set to "development" for console output
       # - OPENAI_AGENTS_TRACE_CONSOLE: Set to "true" to force console output
-      # - OPENAI_AGENTS_TRACE_DEBUG: Set to "true" for debug logging
+      # - OPENAI_AGENTS_DEBUG_CATEGORIES: Include "tracing" or "http" for debug logging
       #
       # @return [void]
       #
@@ -385,21 +386,19 @@ module OpenAIAgents
       def setup_default_processors
         # Add OpenAI processor if API key is available
         if ENV["OPENAI_API_KEY"]
-          puts "[TraceProvider] Setting up OpenAI trace processor" if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+          log_debug("Setting up OpenAI trace processor", provider: "TraceProvider")
           batch_processor = BatchTraceProcessor.new(
             OpenAIProcessor.new,
             batch_size: ENV.fetch("OPENAI_AGENTS_TRACE_BATCH_SIZE", 10).to_i,
             flush_interval: ENV.fetch("OPENAI_AGENTS_TRACE_FLUSH_INTERVAL", 2.0).to_f
           )
           add_processor(batch_processor)
-          puts "[TraceProvider] OpenAI trace processor added" if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+          log_debug("OpenAI trace processor added", provider: "TraceProvider")
 
           # Register TracerProvider-level atexit handler (Python-style)
           register_global_atexit
-        elsif ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-          if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-            puts "[TraceProvider] No OPENAI_API_KEY found, skipping OpenAI processor"
-          end
+        else
+          log_warn("No OPENAI_API_KEY found - skipping OpenAI processor", provider: "TraceProvider")
         end
 
         # Add console processor in development
@@ -415,7 +414,7 @@ module OpenAIAgents
         @global_atexit_registered = true
 
         at_exit do
-          puts "[TraceProvider] Global atexit handler executing..." if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+          log_debug("Global atexit handler executing", provider: "TraceProvider")
           shutdown_all_processors
         end
       end
@@ -424,9 +423,9 @@ module OpenAIAgents
       def shutdown_all_processors
         @processors.each do |processor|
           if processor.respond_to?(:shutdown)
-            if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-              puts "[TraceProvider] Shutting down processor: #{processor.class.name}"
-            end
+            # Auto-enabled console processor now uses category-based debug logging
+            log_debug_tracing("[TraceProvider] Shutting down processor: #{processor.class.name}",
+                              processor: processor.class.name)
             processor.shutdown
           end
         rescue StandardError => e

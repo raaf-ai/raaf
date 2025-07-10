@@ -4,12 +4,12 @@
 # Comprehensive Examples for OpenAI Agents Ruby
 # This file demonstrates all major features with practical examples
 
-require_relative '../lib/openai_agents'
-require 'json'
-require 'fileutils'
+require_relative "../lib/openai_agents"
+require "json"
+require "fileutils"
 
 # Set up API key
-ENV['OPENAI_API_KEY'] ||= 'your-api-key-here'
+ENV["OPENAI_API_KEY"] ||= "your-api-key-here"
 
 class ComprehensiveExamples
   def self.run_all
@@ -42,7 +42,7 @@ class ComprehensiveExamples
       # Simple agent with tool
       def calculator(expression)
         eval(expression).to_s
-      rescue => e
+      rescue StandardError => e
         "Error: #{e.message}"
       end
 
@@ -221,16 +221,16 @@ class ComprehensiveExamples
       )
       
       tripwire = OpenAIAgents::Guardrails::Tripwire.new(
-        patterns: [/rm\s+-rf\s+\//, /drop\s+database/i],
+        patterns: [%r{rm\s+-rf\s+/}, /drop\s+database/i],
         action: :terminate
       )
       
       # Use parallel guardrails for performance
       guardrails = OpenAIAgents::ParallelGuardrails.new([
-        pii_guardrail,
-        security_guardrail,
-        tripwire
-      ])
+                                                          pii_guardrail,
+                                                          security_guardrail,
+                                                          tripwire
+                                                        ])
       
       agent = OpenAIAgents::Agent.new(
         name: "SecureAssistant",
@@ -347,7 +347,7 @@ class ComprehensiveExamples
       
       # Create compliance monitor
       compliance_monitor = OpenAIAgents::Compliance::ComplianceMonitor.new(
-        frameworks: [:gdpr, :soc2],
+        frameworks: %i[gdpr soc2],
         alert_thresholds: {
           pii_exposure_rate: 0.01,
           unauthorized_access: 0
@@ -398,13 +398,13 @@ class ComprehensiveExamples
           },
           experience_years: { type: "integer" }
         },
-        required: ["name", "role", "skills"]
+        required: %w[name role skills]
       }
       
       # Test with different providers
       providers = [
         { name: "OpenAI", model: "gpt-4o", provider: nil }, # Default
-        { name: "Anthropic", model: "claude-3-sonnet-20240229", provider: OpenAIAgents::Models::AnthropicProvider.new },
+        { name: "Anthropic", model: "claude-3-sonnet-20240229", provider: OpenAIAgents::Models::AnthropicProvider.new }
         # Add other providers as needed
       ]
       
@@ -434,7 +434,7 @@ class ComprehensiveExamples
           result = runner.run("I'm Sarah, a senior developer with 8 years of experience in Ruby, Python, and JavaScript")
           user_data = JSON.parse(result.messages.last[:content])
           puts "Extracted data: #{user_data.inspect}"
-        rescue => e
+        rescue StandardError => e
           puts "Error: #{e.message}"
         end
       end
@@ -480,19 +480,19 @@ class ComprehensiveExamples
         end
       end
       
-      puts "\n" + "-" * 50
+      puts "\n" + ("-" * 50)
     end
   end
 
   def advanced_tools_examples
     section "Advanced Tools" do
       # MCP Tool example (if MCP server is available)
-      if ENV['MCP_SERVER_COMMAND']
+      if ENV["MCP_SERVER_COMMAND"]
         mcp_tool = OpenAIAgents::Tools::MCPTool.new(
           server_name: "demo-mcp-server",
           transport: :stdio,
-          command: ENV['MCP_SERVER_COMMAND'],
-          args: ENV['MCP_SERVER_ARGS']&.split(' ') || []
+          command: ENV["MCP_SERVER_COMMAND"],
+          args: ENV["MCP_SERVER_ARGS"]&.split || []
         )
         
         agent = OpenAIAgents::Agent.new(
@@ -509,7 +509,7 @@ class ComprehensiveExamples
       
       # Local Shell Tool (safe commands only)
       shell_tool = OpenAIAgents::Tools::LocalShellTool.new(
-        allowed_commands: ["date", "echo", "pwd", "ls"],
+        allowed_commands: %w[date echo pwd ls],
         working_directory: ".",
         timeout: 5
       )
@@ -533,13 +533,11 @@ class ComprehensiveExamples
     puts "## #{title}"
     puts "#{'=' * 60}\n"
     yield
-  rescue => e
+  rescue StandardError => e
     puts "\nError in #{title}: #{e.message}"
     puts e.backtrace.first(3).join("\n")
   end
 end
 
 # Run all examples if executed directly
-if __FILE__ == $0
-  ComprehensiveExamples.run_all
-end
+ComprehensiveExamples.run_all if __FILE__ == $0

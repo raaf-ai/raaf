@@ -32,7 +32,7 @@ module OpenAIAgents
       # Calls the Responses API (/v1/responses), not Chat Completions API
       def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil, **)
         validate_model(model)
-        
+
         # For Responses API, we can pass input items directly
         if input
           # Use provided input items directly
@@ -43,9 +43,9 @@ module OpenAIAgents
           system_instructions = extract_system_instructions(messages)
           list_input = convert_messages_to_input(messages)
         end
-        
+
         # Make the API call
-        response = fetch_response(
+        fetch_response(
           system_instructions: system_instructions,
           input: list_input,
           model: model,
@@ -54,36 +54,35 @@ module OpenAIAgents
           previous_response_id: previous_response_id,
           **
         )
-        
+
         # Return the raw response in a format compatible with the runner
         # The response already contains the output items that can be processed
-        response
       end
 
       private
 
       def validate_model(model)
         return if SUPPORTED_MODELS.include?(model)
+
         warn "Model #{model} is not in the list of supported models: #{SUPPORTED_MODELS.join(", ")}"
       end
 
       # Matches Python's _fetch_response
-      def fetch_response(system_instructions:, input:, model:, tools: nil, stream: false, 
-                        previous_response_id: nil, tool_choice: nil, parallel_tool_calls: nil,
-                        temperature: nil, top_p: nil, max_tokens: nil, response_format: nil, **)
-        
+      def fetch_response(system_instructions:, input:, model:, tools: nil, stream: false,
+                         previous_response_id: nil, tool_choice: nil, parallel_tool_calls: nil,
+                         temperature: nil, top_p: nil, max_tokens: nil, response_format: nil, **)
         # Convert input to list format if it's a string
         list_input = input.is_a?(String) ? [{ type: "user_text", text: input }] : input
-        
+
         # Convert tools to Responses API format
         converted_tools = convert_tools(tools)
-        
+
         # Build request body
         body = {
           model: model,
           input: list_input
         }
-        
+
         # Add optional parameters
         body[:previous_response_id] = previous_response_id if previous_response_id
         body[:instructions] = system_instructions if system_instructions
@@ -95,12 +94,10 @@ module OpenAIAgents
         body[:top_p] = top_p if top_p
         body[:max_output_tokens] = max_tokens if max_tokens
         body[:stream] = stream if stream
-        
+
         # Handle response format
-        if response_format
-          body[:text] = convert_response_format(response_format)
-        end
-        
+        body[:text] = convert_response_format(response_format) if response_format
+
         # Debug logging
         if defined?(Rails) && Rails.logger && Rails.env.development?
           Rails.logger.info "🚀 Calling OpenAI Responses API:"
@@ -110,13 +107,11 @@ module OpenAIAgents
           Rails.logger.info "   Previous Response ID: #{previous_response_id}" if previous_response_id
           Rails.logger.info "   Stream: #{stream}"
         end
-        
+
         # Make the API call
-        if stream
-          raise NotImplementedError, "Streaming not yet implemented for Responses API"
-        else
-          call_responses_api(body)
-        end
+        raise NotImplementedError, "Streaming not yet implemented for Responses API" if stream
+
+        call_responses_api(body)
       end
 
       def call_responses_api(body)
@@ -142,7 +137,7 @@ module OpenAIAgents
         end
 
         parsed_response = JSON.parse(response.body, symbolize_names: true)
-        
+
         # Debug logging for successful responses
         if defined?(Rails) && Rails.logger && Rails.env.development?
           Rails.logger.info "✅ OpenAI Responses API Success:"
@@ -150,7 +145,7 @@ module OpenAIAgents
           Rails.logger.info "   Output items: #{parsed_response[:output]&.length || 0}"
           Rails.logger.info "   Usage: #{parsed_response[:usage]}"
         end
-        
+
         # Return the raw Responses API response
         # The runner will need to handle the items-based format
         parsed_response
@@ -159,11 +154,11 @@ module OpenAIAgents
       # Convert messages to Responses API input format
       def convert_messages_to_input(messages)
         input_items = []
-        
+
         messages.each do |msg|
           role = msg[:role] || msg["role"]
           content = msg[:content] || msg["content"]
-          
+
           case role
           when "user"
             input_items << { type: "user_text", text: content }
@@ -190,7 +185,7 @@ module OpenAIAgents
             next
           end
         end
-        
+
         input_items
       end
 
@@ -212,10 +207,10 @@ module OpenAIAgents
       # Convert tools to Responses API format (matches Python's Converter.convert_tools)
       def convert_tools(tools)
         return { tools: [], includes: [] } unless tools && !tools.empty?
-        
+
         converted_tools = []
         includes = []
-        
+
         tools.each do |tool|
           case tool
           when Hash
@@ -241,41 +236,40 @@ module OpenAIAgents
             includes << "web_search_call.results"
           else
             # Let other tools convert themselves if they implement the method
-            if tool.respond_to?(:to_tool_definition)
-              converted_tools << tool.to_tool_definition
-            else
-              raise ArgumentError, "Unknown tool type: #{tool.class}"
-            end
+            raise ArgumentError, "Unknown tool type: #{tool.class}" unless tool.respond_to?(:to_tool_definition)
+
+            converted_tools << tool.to_tool_definition
+
           end
         end
-        
+
         { tools: converted_tools, includes: includes.uniq }
       end
 
       def prepare_function_parameters(parameters)
         return {} unless parameters.is_a?(Hash)
-        
+
         params = parameters.dup
-        
+
         # Ensure required fields for Responses API
         if params[:properties].is_a?(Hash)
           params[:additionalProperties] = false unless params.key?(:additionalProperties)
-          
+
           # For strict mode, all properties must be in required array
           if params[:additionalProperties] == false
             all_properties = params[:properties].keys.map(&:to_s)
             params[:required] = all_properties unless params[:required] == all_properties
           end
         end
-        
+
         params
       end
 
       def determine_strict_mode(parameters)
         return false unless parameters.is_a?(Hash)
-        
+
         # Use strict mode if we have a well-defined schema
-        parameters[:properties].is_a?(Hash) && 
+        parameters[:properties].is_a?(Hash) &&
           parameters[:additionalProperties] == false &&
           parameters[:required].is_a?(Array)
       end
@@ -289,24 +283,20 @@ module OpenAIAgents
           { type: "function", name: tool_choice }
         when Hash
           tool_choice
-        else
-          nil
         end
       end
 
       def convert_response_format(response_format)
-        if response_format.is_a?(Hash) && response_format[:type] == "json_schema"
-          {
-            format: {
-              type: "json_schema",
-              name: response_format.dig(:json_schema, :name),
-              schema: response_format.dig(:json_schema, :schema),
-              strict: response_format.dig(:json_schema, :strict)
-            }
+        return unless response_format.is_a?(Hash) && response_format[:type] == "json_schema"
+
+        {
+          format: {
+            type: "json_schema",
+            name: response_format.dig(:json_schema, :name),
+            schema: response_format.dig(:json_schema, :schema),
+            strict: response_format.dig(:json_schema, :strict)
           }
-        else
-          nil
-        end
+        }
       end
     end
   end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "concurrent"
+require_relative "../logging"
 
 module OpenAIAgents
   module Tracing
@@ -49,6 +50,7 @@ module OpenAIAgents
     #
     #   processor = BatchTraceProcessor.new(MyExporter.new)
     class BatchTraceProcessor
+      include Logger
       # Default number of spans to accumulate before export
       DEFAULT_BATCH_SIZE = 50
 
@@ -128,13 +130,15 @@ module OpenAIAgents
 
         @queue << span
 
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        puts "[BatchTraceProcessor] Added span '#{span.name}' to queue (#{@queue.size}/#{@batch_size})" if debug
+        # Debug logging now handled by category system
+        log_debug_tracing("[BatchTraceProcessor] Added span '#{span.name}' to queue (#{@queue.size}/#{@batch_size})",
+                          span_name: span.name, queue_size: @queue.size, batch_size: @batch_size)
 
         # Trigger flush if we've reached batch size
         return unless @queue.size >= @batch_size
 
-        puts "[BatchTraceProcessor] Batch size reached, triggering flush" if debug
+        log_debug_tracing("[BatchTraceProcessor] Batch size reached, triggering flush",
+                          queue_size: @queue.size, batch_size: @batch_size)
         @force_flush.set
       end
 
@@ -177,8 +181,8 @@ module OpenAIAgents
       def shutdown
         return if @shutdown.true?
 
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        puts "[BatchTraceProcessor] Starting shutdown (queue size: #{@queue.size})" if debug
+        # Debug logging now handled by category system
+        log_info("[BatchTraceProcessor] Starting shutdown (queue size: #{@queue.size})", queue_size: @queue.size)
 
         @shutdown.make_true
         @force_flush.set # Wake up worker thread
@@ -188,23 +192,23 @@ module OpenAIAgents
 
         # Wait for worker thread to finish (with shorter timeout for responsiveness)
         if @worker_thread.alive?
-          puts "[BatchTraceProcessor] Waiting for worker thread to finish..." if debug
+          log_debug_tracing("[BatchTraceProcessor] Waiting for worker thread to finish...")
           thread_finished = !@worker_thread.join(2.0).nil? # 2 second timeout
-          puts "[BatchTraceProcessor] Worker thread #{thread_finished ? "finished" : "timed out"}" if debug
+          log_debug_tracing("[BatchTraceProcessor] Worker thread #{thread_finished ? "finished" : "timed out"}")
         else
           thread_finished = true
         end
 
         # Synchronous fallback if thread didn't finish or queue still has spans
         if !thread_finished || !@queue.empty?
-          puts "[BatchTraceProcessor] Using synchronous fallback export" if debug
+          log_debug_tracing("[BatchTraceProcessor] Using synchronous fallback export")
           synchronous_final_export
         end
 
         # Shutdown exporter
         @exporter.shutdown if @exporter.respond_to?(:shutdown)
 
-        puts "[BatchTraceProcessor] Shutdown complete" if debug
+        log_info("[BatchTraceProcessor] Shutdown complete")
       end
 
       private
@@ -220,8 +224,8 @@ module OpenAIAgents
       #
       # @api private
       def run_worker
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        puts "[BatchTraceProcessor] Worker thread started (flush interval: #{@flush_interval}s)" if debug
+        # Debug logging now handled by category system
+        log_debug_tracing("[BatchTraceProcessor] Worker thread started (flush interval: #{@flush_interval}s)", flush_interval: @flush_interval)
 
         loop do
           # Wait for flush interval or force flush signal
@@ -243,15 +247,15 @@ module OpenAIAgents
             break if batch.size >= @batch_size && !should_flush_time && !@shutdown.true?
           end
 
-          if debug && !batch.empty?
+          unless batch.empty?
             reason = if @shutdown.true?
                        "shutdown"
                      else
                        (should_flush_time ? "time" : "batch_size")
                      end
-            if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-              puts "[BatchTraceProcessor] Flushing batch of #{batch.size} spans (reason: #{reason}, #{@queue.size} remaining in queue)"
-            end
+            # Debug logging now handled by category system
+            log_debug_tracing("[BatchTraceProcessor] Flushing batch of #{batch.size} spans (reason: #{reason}, #{@queue.size} remaining in queue)",
+                              batch_size: batch.size, reason: reason, queue_remaining: @queue.size)
           end
 
           export_batch(batch) unless batch.empty?
@@ -264,7 +268,7 @@ module OpenAIAgents
         end
       rescue StandardError => e
         warn "[BatchTraceProcessor] Worker thread error: #{e.message}"
-        warn e.backtrace.first(5).join("\n") if debug
+        log_debug_tracing("Worker thread error backtrace", error: e.message, backtrace: e.backtrace.first(5).join("\n"))
       end
 
       # Exports a batch of spans to the configured exporter
@@ -279,15 +283,16 @@ module OpenAIAgents
       def export_batch(batch)
         return if batch.empty?
 
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+        # Debug logging now handled by category system
 
         begin
-          puts "[BatchTraceProcessor] Exporting #{batch.size} spans to #{@exporter.class.name}" if debug
+          log_debug_tracing("[BatchTraceProcessor] Exporting #{batch.size} spans to #{@exporter.class.name}",
+                            batch_size: batch.size, exporter: @exporter.class.name)
           @exporter.export(batch)
-          puts "[BatchTraceProcessor] Export completed successfully" if debug
+          log_debug_tracing("[BatchTraceProcessor] Export completed successfully", batch_size: batch.size)
         rescue StandardError => e
           warn "[BatchTraceProcessor] Export error: #{e.message}"
-          warn e.backtrace.first(5).join("\n") if debug
+          log_debug_tracing("Export error backtrace", error: e.message, backtrace: e.backtrace.first(5).join("\n"))
         end
 
         @last_flush_time.set(Time.now)
@@ -298,8 +303,7 @@ module OpenAIAgents
       def emergency_flush
         return if @queue.empty?
 
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        puts "[BatchTraceProcessor] Emergency flush: #{@queue.size} spans" if debug
+        log_debug_tracing("[BatchTraceProcessor] Emergency flush: #{@queue.size} spans", queue_size: @queue.size)
 
         # Take a snapshot and clear queue atomically
         emergency_spans = []
@@ -313,20 +317,20 @@ module OpenAIAgents
         # Attempt direct export with retries
         3.times do |attempt|
           @exporter.export(emergency_spans)
-          puts "[BatchTraceProcessor] Emergency flush succeeded on attempt #{attempt + 1}" if debug
+          log_debug_tracing("[BatchTraceProcessor] Emergency flush succeeded on attempt #{attempt + 1}", attempt: attempt + 1)
           return
         rescue StandardError => e
-          puts "[BatchTraceProcessor] Emergency flush attempt #{attempt + 1} failed: #{e.message}" if debug
+          log_debug_tracing("[BatchTraceProcessor] Emergency flush attempt #{attempt + 1} failed: #{e.message}", attempt: attempt + 1, error: e.message)
           sleep(0.1) if attempt < 2
         end
 
-        puts "[BatchTraceProcessor] Emergency flush failed after 3 attempts" if debug
+        log_debug_tracing("[BatchTraceProcessor] Emergency flush failed after 3 attempts")
       end
 
       # Python-style synchronous final export
       # Exports all remaining spans without relying on background thread
       def synchronous_final_export
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+        # Debug logging now handled by category system
 
         attempts = 0
         max_attempts = 3
@@ -343,14 +347,14 @@ module OpenAIAgents
 
           next if batch.empty?
 
-          puts "[BatchTraceProcessor] Synchronous export attempt #{attempts}: #{batch.size} spans" if debug
+          log_debug_tracing("[BatchTraceProcessor] Synchronous export attempt #{attempts}: #{batch.size} spans", attempt: attempts, batch_size: batch.size)
 
           begin
             @exporter.export(batch)
-            puts "[BatchTraceProcessor] Synchronous export succeeded" if debug
+            log_debug_tracing("[BatchTraceProcessor] Synchronous export succeeded", attempt: attempts)
             return # Success, we're done
           rescue StandardError => e
-            puts "[BatchTraceProcessor] Synchronous export failed (attempt #{attempts}): #{e.message}" if debug
+            log_debug_tracing("[BatchTraceProcessor] Synchronous export failed (attempt #{attempts}): #{e.message}", attempt: attempts, error: e.message)
 
             # On failure, put spans back for next attempt (if not last attempt)
             if attempts < max_attempts
@@ -358,14 +362,14 @@ module OpenAIAgents
               sleep(0.1)
             else
               # Last attempt failed, use emergency flush as final fallback
-              puts "[BatchTraceProcessor] All synchronous attempts failed, using emergency flush" if debug
+              log_debug_tracing("[BatchTraceProcessor] All synchronous attempts failed, using emergency flush", attempts: attempts)
               @queue.clear # Clear queue to avoid infinite loop
               emergency_spans = batch
 
               # Emergency direct export attempt
               begin
                 @exporter.export(emergency_spans)
-                puts "[BatchTraceProcessor] Emergency export succeeded" if debug
+                log_debug_tracing("[BatchTraceProcessor] Emergency export succeeded", emergency_spans: emergency_spans.size)
               rescue StandardError => emergency_error
                 warn "[BatchTraceProcessor] Final emergency export failed: #{emergency_error.message}"
               end
@@ -379,9 +383,7 @@ module OpenAIAgents
         # Signal handlers for immediate termination
         %w[TERM INT QUIT].each do |signal|
           trap(signal) do
-            if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-              puts "[BatchTraceProcessor] Received #{signal}, flushing traces..."
-            end
+            log_debug_tracing("[BatchTraceProcessor] Received #{signal}, flushing traces...", signal: signal)
             synchronous_final_export
             exit(0)
           end

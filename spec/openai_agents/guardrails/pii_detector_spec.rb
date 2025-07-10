@@ -61,7 +61,7 @@ RSpec.describe OpenAIAgents::Guardrails::PIIDetector do
       end
       
       it "validates using Luhn algorithm" do
-        valid_card = "4532015112830366"  # Valid Luhn
+        valid_card = "4532015112830366" # Valid Luhn
         invalid_card = "4532015112830367"  # Invalid Luhn
         
         valid_detections = detector.detect_pii("Card: #{valid_card}")
@@ -263,8 +263,8 @@ RSpec.describe OpenAIAgents::Guardrails::FinancialPIIDetector do
   end
   
   it "validates routing numbers" do
-    valid_routing = "122000247"  # Valid JPMorgan Chase routing
-    invalid_routing = "123456789"  # Invalid checksum
+    valid_routing = "122000247" # Valid JPMorgan Chase routing
+    invalid_routing = "123456789" # Invalid checksum
     
     valid_detections = detector.detect_pii("Routing: #{valid_routing}")
     invalid_detections = detector.detect_pii("Routing: #{invalid_routing}")

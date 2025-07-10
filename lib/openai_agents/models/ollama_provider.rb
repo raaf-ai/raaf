@@ -4,6 +4,7 @@ require "json"
 require_relative "interface"
 require_relative "retryable_provider"
 require_relative "../http_client"
+require_relative "../logging"
 
 module OpenAIAgents
   module Models
@@ -25,6 +26,7 @@ module OpenAIAgents
     #     model: "codellama:13b"
     #   )
     class OllamaProvider < ModelInterface
+      include Logger
       include RetryableProvider
 
       DEFAULT_API_BASE = "http://localhost:11434"
@@ -73,7 +75,8 @@ module OpenAIAgents
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         # NOTE: Ollama doesn't support tools/functions natively yet
         if tools && !tools.empty?
-          puts "[OllamaProvider] Warning: Ollama doesn't support function calling. Tools will be ignored."
+          log_warn("Ollama doesn't support function calling. Tools will be ignored.", provider: "Ollama",
+                                                                                      tool_count: tools&.size)
         end
 
         # Convert messages to Ollama format
@@ -140,7 +143,7 @@ module OpenAIAgents
           COMMON_MODELS
         end
       rescue StandardError => e
-        puts "[OllamaProvider] Failed to fetch models: #{e.message}"
+        log_error("Failed to fetch models: #{e.message}", provider: "Ollama", error_class: e.class.name)
         COMMON_MODELS
       end
 
@@ -150,16 +153,17 @@ module OpenAIAgents
 
       # Pull a model if not already available
       def pull_model(model_name)
-        puts "[OllamaProvider] Pulling model #{model_name}..."
+        log_info("Pulling model #{model_name}...", provider: "Ollama", model: model_name)
 
         body = { name: model_name, stream: false }
         response = @http_client.post("#{@api_base}/api/pull", body: body)
 
         if response.success?
-          puts "[OllamaProvider] Successfully pulled #{model_name}"
+          log_info("Successfully pulled #{model_name}", provider: "Ollama", model: model_name)
           true
         else
-          puts "[OllamaProvider] Failed to pull #{model_name}: #{response.body}"
+          log_error("Failed to pull #{model_name}: #{response.body}", provider: "Ollama", model: model_name,
+                                                                      response_code: response.code)
           false
         end
       end
@@ -252,7 +256,7 @@ module OpenAIAgents
             end
           rescue JSON::ParserError => e
             # Log parse error but continue
-            puts "[OllamaProvider] Failed to parse stream chunk: #{e.message}"
+            log_debug("Failed to parse stream chunk: #{e.message}", provider: "Ollama", error_class: e.class.name)
           end
 
           {

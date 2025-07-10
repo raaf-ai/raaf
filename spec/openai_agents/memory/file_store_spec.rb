@@ -35,7 +35,7 @@ RSpec.describe OpenAIAgents::Memory::FileStore do
 
   describe "#store" do
     it "stores memory to file" do
-      key = store.store("key1", memory)
+      store.store("key1", memory)
       
       memory_file = File.join(temp_dir, "key1.memory.json")
       expect(File.exist?(memory_file)).to be true
@@ -89,22 +89,22 @@ RSpec.describe OpenAIAgents::Memory::FileStore do
   describe "#search" do
     before do
       store.store("mem1", OpenAIAgents::Memory::Memory.new(
-        content: "Ruby programming guide",
-        agent_name: "Agent1",
-        metadata: { tags: ["ruby", "programming"] }
-      ))
+                            content: "Ruby programming guide",
+                            agent_name: "Agent1",
+                            metadata: { tags: %w[ruby programming] }
+                          ))
       
       store.store("mem2", OpenAIAgents::Memory::Memory.new(
-        content: "Python tutorial",
-        agent_name: "Agent2",
-        metadata: { tags: ["python", "programming"] }
-      ))
+                            content: "Python tutorial",
+                            agent_name: "Agent2",
+                            metadata: { tags: %w[python programming] }
+                          ))
       
       store.store("mem3", OpenAIAgents::Memory::Memory.new(
-        content: "Ruby on Rails",
-        agent_name: "Agent1",
-        conversation_id: "conv-123"
-      ))
+                            content: "Ruby on Rails",
+                            agent_name: "Agent1",
+                            conversation_id: "conv-123"
+                          ))
     end
 
     it "searches by content" do

@@ -14,21 +14,21 @@ module OpenAIAgents
         @breadcrumb = breadcrumb
       end
 
-      def template
+      def template(&block)
         html(lang: "en") do
           head do
             meta(charset: "utf-8")
             meta(name: "viewport", content: "width=device-width, initial-scale=1, shrink-to-fit=no")
             title { "OpenAI Agents Tracing - #{@title}" }
-            
+
             # Preline CSS
             link(href: "https://preline.co/assets/css/main.min.css", rel: "stylesheet")
-            
+
             # Custom CSS for tracing-specific styles
             style do
               raw(tracing_styles)
             end
-            
+
             csrf_meta_tags
             csp_meta_tag
           end
@@ -36,7 +36,7 @@ module OpenAIAgents
           body(class: "bg-gray-50") do
             render_header
             render_sidebar
-            render_main_content { yield }
+            render_main_content(&block)
             render_scripts
           end
         end
@@ -73,7 +73,8 @@ module OpenAIAgents
             end
           end
 
-          Navs(class: "hs-accordion-group p-6 w-full flex flex-col flex-wrap", data: { "hs-accordion-always-open": true }) do
+          Navs(class: "hs-accordion-group p-6 w-full flex flex-col flex-wrap",
+               data: { "hs-accordion-always-open": true }) do
             List(class: "space-y-1") do
               render_sidebar_items
             end
@@ -100,14 +101,12 @@ module OpenAIAgents
       def render_scripts
         # Preline JS
         script(src: "https://preline.co/assets/js/preline.js")
-        
+
         # Custom JS
         script do
           raw(tracing_scripts)
         end
       end
-
-      private
 
       def render_sidebar_items
         sidebar_items.each do |item|
@@ -115,7 +114,7 @@ module OpenAIAgents
             Link(
               href: item[:path],
               class: "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md #{
-                item[:active] ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'
+                item[:active] ? "bg-gray-100 text-gray-900" : "text-gray-700 hover:bg-gray-50"
               }"
             ) do
               # Icon would go here
@@ -134,7 +133,7 @@ module OpenAIAgents
             active: controller_name == "dashboard"
           },
           {
-            label: "Traces", 
+            label: "Traces",
             path: traces_path,
             icon_name: "squares-2x2",
             active: controller_name == "traces"
@@ -142,7 +141,7 @@ module OpenAIAgents
           {
             label: "Spans",
             path: spans_path,
-            icon_name: "list-bullet", 
+            icon_name: "list-bullet",
             active: controller_name == "spans" && action_name != "tools"
           },
           {
@@ -160,14 +159,13 @@ module OpenAIAgents
         ]
       end
 
-
       def tracing_styles
         <<~CSS
           .status-ok { color: #10b981; }
           .status-error { color: #ef4444; }
           .status-running { color: #f59e0b; }
           .status-pending { color: #6b7280; }
-          
+
           .kind-agent { color: #3b82f6; }
           .kind-llm { color: #06b6d4; }
           .kind-tool { color: #10b981; }
@@ -176,7 +174,7 @@ module OpenAIAgents
           .metric-card {
             transition: all 0.2s ease-in-out;
           }
-          
+
           .metric-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);

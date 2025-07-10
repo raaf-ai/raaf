@@ -3,6 +3,7 @@
 require "json"
 require_relative "strict_schema"
 require_relative "errors"
+require_relative "logging"
 
 module OpenAIAgents
   # Represents handoff input data passed between agents
@@ -23,6 +24,8 @@ module OpenAIAgents
 
   # A handoff represents delegation from one agent to another
   class Handoff
+    include Logger
+
     attr_reader :tool_name, :tool_description, :input_json_schema, :agent_name,
                 :input_filter, :strict_json_schema
 
@@ -46,7 +49,18 @@ module OpenAIAgents
 
     # Invoke the handoff
     def invoke(context_wrapper, input_json = nil)
-      @on_invoke_handoff.call(context_wrapper, input_json)
+      log_debug_handoff("Invoking handoff function",
+                        to_agent: @agent_name,
+                        tool_name: @tool_name,
+                        has_input: !input_json.nil?)
+
+      result = @on_invoke_handoff.call(context_wrapper, input_json)
+
+      log_debug_handoff("Handoff function completed",
+                        to_agent: @agent_name,
+                        result_type: result.class.name)
+
+      result
     end
 
     # Get the transfer message for this handoff
@@ -81,6 +95,8 @@ module OpenAIAgents
 
   # Module for creating handoffs
   module Handoffs
+    extend Logger
+
     class << self
       # Create a handoff from an agent
       #
@@ -99,10 +115,8 @@ module OpenAIAgents
         input_type: nil,
         input_filter: nil
       )
-        # Validate parameters
-        if (on_handoff && input_type.nil?) || (on_handoff.nil? && input_type)
-          raise ArgumentError, "You must provide either both on_handoff and input_type, or neither"
-        end
+        # Validate parameters - input_type requires on_handoff, but on_handoff can be used alone
+        raise ArgumentError, "You must provide on_handoff when using input_type" if input_type && on_handoff.nil?
 
         # Determine input schema
         input_json_schema = if input_type
@@ -129,7 +143,7 @@ module OpenAIAgents
                                 {
                                   type: "object",
                                   properties: {},
-                                  additionalProperties: true
+                                  additionalProperties: false
                                 }
                               else
                                 # For custom classes, attempt to infer schema
@@ -144,9 +158,18 @@ module OpenAIAgents
 
         # Create the invoke handler
         on_invoke_handoff = lambda do |context_wrapper, input_json|
+          log_debug_handoff("Creating handoff to agent",
+                            to_agent: agent.name,
+                            has_input_type: !input_type.nil?,
+                            has_on_handoff: !on_handoff.nil?,
+                            input_provided: !input_json.nil?)
+
           if input_type && on_handoff
             # Validate and parse input
             if input_json.nil? || input_json.empty?
+              log_debug_handoff("Handoff input validation failed",
+                                to_agent: agent.name,
+                                error: "Expected non-null input but got None")
               raise ModelBehaviorError, "Handoff function expected non-null input, but got None"
             end
 
@@ -154,19 +177,32 @@ module OpenAIAgents
               parsed_input = JSON.parse(input_json)
               validated_input = validate_input(parsed_input, input_type)
 
+              log_debug_handoff("Handoff input validated successfully",
+                                to_agent: agent.name,
+                                input_type: input_type.name)
+
               # Call the on_handoff function
               raise ArgumentError, "on_handoff must take two arguments: context and input" unless on_handoff.arity == 2
 
               on_handoff.call(context_wrapper, validated_input)
             rescue JSON::ParserError => e
+              log_debug_handoff("Handoff JSON parsing failed",
+                                to_agent: agent.name,
+                                error: e.message)
               raise ModelBehaviorError, "Invalid JSON input for handoff: #{e.message}"
             end
           elsif on_handoff
             # No input type, just call with context
+            log_debug_handoff("Executing context-only handoff",
+                              to_agent: agent.name)
+
             raise ArgumentError, "on_handoff must take one argument: context" unless on_handoff.arity == 1
 
             on_handoff.call(context_wrapper)
 
+          else
+            log_debug_handoff("Simple handoff without custom logic",
+                              to_agent: agent.name)
           end
 
           # Return the agent
@@ -239,7 +275,7 @@ module OpenAIAgents
           {
             type: "object",
             properties: {},
-            additionalProperties: true
+            additionalProperties: false
           }
         end
       end

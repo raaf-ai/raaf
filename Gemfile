@@ -7,6 +7,7 @@ gemspec
 
 # Development dependencies
 gem "bundler", "~> 2.0"
+gem "phlex-preline", path: "../phlex-preline"
 gem "rake", "~> 13.0"
 gem "rspec", "~> 3.0"
 gem "rspec-collection_matchers", "~> 1.2"

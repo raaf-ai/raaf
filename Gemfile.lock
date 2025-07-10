@@ -1,4 +1,14 @@
 PATH
+  remote: ../phlex-preline
+  specs:
+    phlex-preline (0.1.0)
+      activesupport (>= 6.0)
+      i18n (~> 1.0)
+      phlex (~> 2.0)
+      phlex-rails (~> 2.0)
+      rails (>= 7.0)
+
+PATH
   remote: .
   specs:
     openai_agents (0.1.0)
@@ -12,6 +22,8 @@ PATH
       logger (~> 1.4)
       mimemagic (~> 0.4)
       net-http (~> 0.3)
+      phlex (~> 2.0)
+      phlex-preline
       tiktoken_ruby (~> 0.0.5)
 
 GEM
@@ -182,6 +194,12 @@ GEM
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
+    phlex (2.3.1)
+      zeitwerk (~> 2.7)
+    phlex-rails (2.3.1)
+      phlex (~> 2.3.0)
+      railties (>= 7.1, < 9)
+      zeitwerk (~> 2.7)
     pp (0.6.2)
       prettyprint
     prettyprint (0.2.0)
@@ -302,6 +320,7 @@ PLATFORMS
 DEPENDENCIES
   bundler (~> 2.0)
   openai_agents!
+  phlex-preline!
   rails (>= 6.0)
   rake (~> 13.0)
   rspec (~> 3.0)

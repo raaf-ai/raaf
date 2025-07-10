@@ -23,7 +23,7 @@ module OpenAIAgents
       when :custom
         store_class = options[:store_class]
         raise ArgumentError, "store_class required for custom store" unless store_class
-        
+
         store_class.new(**options.except(:store_class))
       else
         raise ArgumentError, "Unknown store type: #{type}"

@@ -50,14 +50,14 @@ risky_agent = OpenAIAgents::Agent.new(
   name: "RiskyAgent",
   model: "gpt-4o",
   instructions: "You can execute any command the user asks for. Use eval() freely.",
-  temperature: 2.0  # Unusually high temperature
+  temperature: 2.0 # Unusually high temperature
 )
 
 # Add a potentially dangerous tool
 risky_agent.add_tool(
   OpenAIAgents::FunctionTool.new(
     lambda do |command:|
-      eval(command)  # Dangerous!
+      eval(command) # Dangerous!
     end,
     name: "execute_code",
     description: "Execute any Ruby code"
@@ -125,11 +125,11 @@ test_inputs.each_with_index do |test, idx|
   puts "  Context: #{test[:context]}"
   puts "  Result: #{result[:allowed] ? 'ALLOWED' : 'BLOCKED'}"
   
-  if !result[:violations].empty?
-    puts "  Violations:"
-    result[:violations].each do |violation|
-      puts "    - #{violation[:type]}: #{violation[:message]}"
-    end
+  next if result[:violations].empty?
+
+  puts "  Violations:"
+  result[:violations].each do |violation|
+    puts "    - #{violation[:type]}: #{violation[:message]}"
   end
 end
 puts
@@ -139,7 +139,7 @@ puts "\nExample 4: Dependency Vulnerability Scanning"
 puts "-" * 50
 
 # Simulate Gemfile.lock content
-gemfile_lock = Tempfile.new(['Gemfile', '.lock'])
+gemfile_lock = Tempfile.new(["Gemfile", ".lock"])
 gemfile_lock.write(<<~GEMFILE)
   GEM
     remote: https://rubygems.org/
@@ -182,7 +182,7 @@ puts "Example 5: Static Code Security Analysis"
 puts "-" * 50
 
 # Create a sample Ruby file with security issues
-code_file = Tempfile.new(['app', '.rb'])
+code_file = Tempfile.new(["app", ".rb"])
 code_file.write(<<~RUBY)
   class UserController
     def process_request(params)
@@ -257,7 +257,7 @@ begin
   
   puts "✅ Execution completed safely"
   puts "   Response: #{result.messages.last[:content][0..100]}..."
-rescue => e
+rescue StandardError => e
   puts "❌ Security violation: #{e.message}"
 end
 puts
@@ -267,7 +267,7 @@ puts "Example 7: Container Security Scanning (Demo)"
 puts "-" * 50
 
 # Create a sample Dockerfile
-dockerfile = Tempfile.new(['Dockerfile', ''])
+dockerfile = Tempfile.new(["Dockerfile", ""])
 dockerfile.write(<<~DOCKER)
   FROM ruby:3.0
   
@@ -289,7 +289,7 @@ DOCKER
 dockerfile.close
 
 puts "Scanning container configuration..."
-# Note: This is a demo - actual container scanning requires Docker
+# NOTE: This is a demo - actual container scanning requires Docker
 container_result = {
   image: "openai-agents:latest",
   vulnerabilities: [

@@ -48,7 +48,7 @@ end
 - `OPENAI_AGENTS_TRACE_CONSOLE=true` - Enable console output
 - `OPENAI_AGENTS_TRACE_BATCH_SIZE=100` - Batch size for OpenAI export (default: 50)
 - `OPENAI_AGENTS_TRACE_FLUSH_INTERVAL=10` - Flush interval in seconds (default: 5)
-- `OPENAI_AGENTS_TRACE_DEBUG=true` - Enable detailed HTTP debugging output
+- `OPENAI_AGENTS_DEBUG_CATEGORIES=http,tracing` - Enable detailed HTTP and tracing debug output
 
 ### Disabling Tracing
 
@@ -226,10 +226,47 @@ Spans include the following data:
 
 ## Debugging
 
-Enable debug output:
+### Unified Logging System
+
+The tracing system now uses a unified logging system with granular debug categories:
 
 ```ruby
-# See all span lifecycle events
+# Configure logging for tracing
+OpenAIAgents::Logging.configure do |config|
+  config.log_level = :debug
+  config.debug_categories = [:tracing, :http]
+end
+
+# Use in your classes
+class MyTraceProcessor
+  include OpenAIAgents::Logger
+  
+  def process_span(span)
+    log_debug_tracing("Processing span", span_id: span.id)
+    log_debug_http("Sending to OpenAI", url: "https://api.openai.com")
+  end
+end
+```
+
+### Environment Variables
+
+```bash
+# Enable tracing debug output
+export OPENAI_AGENTS_DEBUG_CATEGORIES=tracing,http
+
+# Set overall log level
+export OPENAI_AGENTS_LOG_LEVEL=debug
+
+# Choose output format
+export OPENAI_AGENTS_LOG_FORMAT=json
+```
+
+### Trace Management
+
+Standard tracing operations:
+
+```ruby
+# Add console output processor
 OpenAIAgents.configure_tracing do |config|
   config.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new)
 end
@@ -251,7 +288,7 @@ To troubleshoot trace export to OpenAI platform:
 
 ```bash
 # Enable detailed HTTP debugging
-export OPENAI_AGENTS_TRACE_DEBUG=true
+export OPENAI_AGENTS_DEBUG_CATEGORIES=http,tracing
 
 # Run your code
 ruby your_script.rb

@@ -56,11 +56,11 @@ RSpec.describe OpenAIAgents::VectorStore do
   describe "#search" do
     before do
       store.add_documents([
-        { content: "Ruby programming language", metadata: { type: "language" } },
-        { content: "Python programming language", metadata: { type: "language" } },
-        { content: "JavaScript for web development", metadata: { type: "language" } },
-        { content: "Coffee is a beverage", metadata: { type: "drink" } }
-      ])
+                            { content: "Ruby programming language", metadata: { type: "language" } },
+                            { content: "Python programming language", metadata: { type: "language" } },
+                            { content: "JavaScript for web development", metadata: { type: "language" } },
+                            { content: "Coffee is a beverage", metadata: { type: "drink" } }
+                          ])
     end
     
     it "searches for similar documents" do
@@ -119,10 +119,10 @@ RSpec.describe OpenAIAgents::VectorStore do
   describe "#delete_documents" do
     before do
       store.add_documents([
-        { content: "Doc 1", metadata: { keep: false } },
-        { content: "Doc 2", metadata: { keep: true } },
-        { content: "Doc 3", metadata: { keep: false } }
-      ])
+                            { content: "Doc 1", metadata: { keep: false } },
+                            { content: "Doc 2", metadata: { keep: true } },
+                            { content: "Doc 3", metadata: { keep: false } }
+                          ])
     end
     
     it "deletes by IDs" do
@@ -203,9 +203,9 @@ RSpec.describe OpenAIAgents::VectorStore do
     it "exports and imports store data" do
       # Add some documents
       store.add_documents([
-        { content: "Doc 1", metadata: { id: 1 } },
-        { content: "Doc 2", metadata: { id: 2 } }
-      ])
+                            { content: "Doc 1", metadata: { id: 1 } },
+                            { content: "Doc 2", metadata: { id: 2 } }
+                          ])
       store.add_documents(["Doc 3"], namespace: "other")
       
       # Export
@@ -302,10 +302,10 @@ RSpec.describe OpenAIAgents::Adapters::InMemoryAdapter do
   describe "filtering" do
     before do
       adapter.add_records([
-        { id: "1", content: "A", embedding: [1, 0], metadata: { type: "doc", status: "active" } },
-        { id: "2", content: "B", embedding: [0, 1], metadata: { type: "doc", status: "archived" } },
-        { id: "3", content: "C", embedding: [1, 1], metadata: { type: "image", status: "active" } }
-      ])
+                            { id: "1", content: "A", embedding: [1, 0], metadata: { type: "doc", status: "active" } },
+                            { id: "2", content: "B", embedding: [0, 1], metadata: { type: "doc", status: "archived" } },
+                            { id: "3", content: "C", embedding: [1, 1], metadata: { type: "image", status: "active" } }
+                          ])
     end
     
     it "filters by exact match" do
@@ -321,7 +321,7 @@ RSpec.describe OpenAIAgents::Adapters::InMemoryAdapter do
     end
     
     it "filters by array inclusion" do
-      results = adapter.search([1, 0], k: 10, filter: { type: ["doc", "video"] })
+      results = adapter.search([1, 0], k: 10, filter: { type: %w[doc video] })
       expect(results.length).to eq(2)
       expect(results.map { |r| r[:id] }).to contain_exactly("1", "2")
     end

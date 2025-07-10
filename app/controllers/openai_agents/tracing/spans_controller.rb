@@ -58,7 +58,7 @@ module OpenAIAgents
       def tools
         # Include both 'tool' and 'custom' spans
         @tool_spans_base = SpanRecord.includes(:trace)
-                                     .where(kind: ["tool", "custom"])
+                                     .where(kind: %w[tool custom])
 
         # Apply filters
         @tool_spans_base = filter_tool_spans(@tool_spans_base)
@@ -87,18 +87,16 @@ module OpenAIAgents
 
         # Get agent and tool spans within time range
         flow_spans = SpanRecord.includes(:trace)
-                               .where(kind: ["agent", "tool", "custom", "handoff"])
+                               .where(kind: %w[agent tool custom handoff])
                                .within_timeframe(@start_time, @end_time)
 
         # Apply filters if provided
         if params[:agent_name].present?
-          flow_spans = flow_spans.where("span_attributes::jsonb->>'agent.name' = ? OR span_attributes::jsonb->'agent'->>'name' = ?", 
+          flow_spans = flow_spans.where("span_attributes::jsonb->>'agent.name' = ? OR span_attributes::jsonb->'agent'->>'name' = ?",
                                         params[:agent_name], params[:agent_name])
         end
 
-        if params[:trace_id].present?
-          flow_spans = flow_spans.where(trace_id: params[:trace_id])
-        end
+        flow_spans = flow_spans.where(trace_id: params[:trace_id]) if params[:trace_id].present?
 
         # Build flow data structure
         @flow_data = build_flow_data(flow_spans)
@@ -116,13 +114,13 @@ module OpenAIAgents
       def build_flow_data(spans)
         nodes = {}
         edges = {}
-        
+
         spans.each do |span|
           # Add nodes for agents and tools
           if span.kind == "agent"
-            agent_name = span.span_attributes&.dig("agent", "name") || 
-                        span.span_attributes&.dig("agent.name") || 
-                        span.name.gsub("agent.", "")
+            agent_name = span.span_attributes&.dig("agent", "name") ||
+                         span.span_attributes&.dig("agent.name") ||
+                         span.name.gsub("agent.", "")
             node_id = "agent_#{agent_name}"
             nodes[node_id] = {
               id: node_id,
@@ -132,15 +130,15 @@ module OpenAIAgents
               total_duration: (nodes[node_id]&.dig(:total_duration) || 0) + (span.duration_ms || 0),
               error_count: (nodes[node_id]&.dig(:error_count) || 0) + (span.error? ? 1 : 0)
             }
-          elsif span.kind == "tool" || span.kind == "custom"
-            if span.kind == "tool"
-              tool_name = span.span_attributes&.dig("function", "name") || 
-                         span.span_attributes&.dig("tool", "name") || 
-                         span.name
-            else # custom
-              tool_name = span.span_attributes&.dig("custom", "name") || span.name
-            end
-            
+          elsif %w[tool custom].include?(span.kind)
+            tool_name = if span.kind == "tool"
+                          span.span_attributes&.dig("function", "name") ||
+                            span.span_attributes&.dig("tool", "name") ||
+                            span.name
+                        else # custom
+                          span.span_attributes&.dig("custom", "name") || span.name
+                        end
+
             node_id = "tool_#{tool_name}"
             nodes[node_id] = {
               id: node_id,
@@ -155,7 +153,7 @@ module OpenAIAgents
             # Handle handoff spans to create edges between agents
             from_agent = span.span_attributes&.dig("handoff", "from") || span.span_attributes&.dig("handoff.from")
             to_agent = span.span_attributes&.dig("handoff", "to") || span.span_attributes&.dig("handoff.to")
-            
+
             if from_agent && to_agent
               edge_id = "agent_#{from_agent}_to_agent_#{to_agent}"
               edges[edge_id] = {
@@ -167,56 +165,54 @@ module OpenAIAgents
               }
             end
           end
-          
+
           # Create edges from parent-child relationships
-          if span.parent_id.present?
-            parent_span = spans.find { |s| s.span_id == span.parent_id }
-            if parent_span
-              # Agent calling a tool
-              if parent_span.kind == "agent" && (span.kind == "tool" || span.kind == "custom")
-                agent_name = parent_span.span_attributes&.dig("agent", "name") || 
-                           parent_span.span_attributes&.dig("agent.name") || 
-                           parent_span.name.gsub("agent.", "")
-                           
-                if span.kind == "tool"
-                  tool_name = span.span_attributes&.dig("function", "name") || 
-                             span.span_attributes&.dig("tool", "name") || 
-                             span.name
-                else # custom
-                  tool_name = span.span_attributes&.dig("custom", "name") || span.name
-                end
-                
-                edge_id = "agent_#{agent_name}_to_tool_#{tool_name}"
-                edges[edge_id] = {
-                  source: "agent_#{agent_name}",
-                  target: "tool_#{tool_name}",
-                  type: "call",
-                  count: (edges[edge_id]&.dig(:count) || 0) + 1,
-                  total_duration: (edges[edge_id]&.dig(:total_duration) || 0) + (span.duration_ms || 0),
-                  error_count: (edges[edge_id]&.dig(:error_count) || 0) + (span.error? ? 1 : 0)
-                }
-              end
-            end
-          end
+          next unless span.parent_id.present?
+
+          parent_span = spans.find { |s| s.span_id == span.parent_id }
+          # Agent calling a tool
+          next unless parent_span && parent_span.kind == "agent" && %w[tool custom].include?(span.kind)
+
+          agent_name = parent_span.span_attributes&.dig("agent", "name") ||
+                       parent_span.span_attributes&.dig("agent.name") ||
+                       parent_span.name.gsub("agent.", "")
+
+          tool_name = if span.kind == "tool"
+                        span.span_attributes&.dig("function", "name") ||
+                          span.span_attributes&.dig("tool", "name") ||
+                          span.name
+                      else # custom
+                        span.span_attributes&.dig("custom", "name") || span.name
+                      end
+
+          edge_id = "agent_#{agent_name}_to_tool_#{tool_name}"
+          edges[edge_id] = {
+            source: "agent_#{agent_name}",
+            target: "tool_#{tool_name}",
+            type: "call",
+            count: (edges[edge_id]&.dig(:count) || 0) + 1,
+            total_duration: (edges[edge_id]&.dig(:total_duration) || 0) + (span.duration_ms || 0),
+            error_count: (edges[edge_id]&.dig(:error_count) || 0) + (span.error? ? 1 : 0)
+          }
         end
-        
+
         # Calculate averages and success rates
-        nodes.each do |_, node|
+        nodes.each_value do |node|
           if node[:count] > 0
             node[:avg_duration] = (node[:total_duration] / node[:count]).round(2)
             node[:success_rate] = ((node[:count] - node[:error_count]).to_f / node[:count] * 100).round(1)
           end
         end
-        
-        edges.each do |_, edge|
-          if edge[:count] > 0
-            edge[:avg_duration] = (edge[:total_duration] / edge[:count]).round(2)
-            if edge[:error_count]
-              edge[:success_rate] = ((edge[:count] - edge[:error_count]).to_f / edge[:count] * 100).round(1)
-            end
+
+        edges.each_value do |edge|
+          next unless edge[:count] > 0
+
+          edge[:avg_duration] = (edge[:total_duration] / edge[:count]).round(2)
+          if edge[:error_count]
+            edge[:success_rate] = ((edge[:count] - edge[:error_count]).to_f / edge[:count] * 100).round(1)
           end
         end
-        
+
         {
           nodes: nodes.values,
           edges: edges.values,
@@ -353,8 +349,8 @@ module OpenAIAgents
         if params[:search].present?
           search_term = "%#{params[:search]}%"
           spans = spans.where(
-            "span_id ILIKE ? OR name ILIKE ? OR " +
-            "(span_attributes::jsonb->'function'->>'name') ILIKE ? OR " +
+            "span_id ILIKE ? OR name ILIKE ? OR " \
+            "(span_attributes::jsonb->'function'->>'name') ILIKE ? OR " \
             "(span_attributes::jsonb->'custom'->>'name') ILIKE ?",
             search_term, search_term, search_term, search_term
           )
@@ -382,7 +378,7 @@ module OpenAIAgents
               input = span.span_attributes&.dig("custom", "data") || {}
               output = span.span_attributes&.dig("output") || span.span_attributes&.dig("result")
             end
-            
+
             {
               span_id: span.span_id,
               trace_id: span.trace_id,

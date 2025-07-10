@@ -1,25 +1,27 @@
 # frozen_string_literal: true
 
+require_relative "../openai_agents"
+
 namespace :debug do
   desc "Show current debug configuration"
   task config: :environment do
+    config = OpenAIAgents::Logging.configuration
+
     puts "🔧 Debug Configuration".colorize(:blue)
     puts "=" * 50
-    puts "DEBUG: #{OpenAIAgents::DebugUtils.enabled?}".colorize(:green)
-    puts "DEBUG_LEVEL: #{OpenAIAgents::DebugUtils.level}".colorize(:green)
-    puts "DEBUG_OUTPUT: #{OpenAIAgents::DebugUtils.output_target}".colorize(:green)
+    puts "LOG_LEVEL: #{config.log_level}".colorize(:green)
+    puts "LOG_FORMAT: #{config.log_format}".colorize(:green)
+    puts "LOG_OUTPUT: #{config.log_output}".colorize(:green)
+    puts "LOG_FILE: #{config.log_file}".colorize(:green)
     puts
-    puts "AI-specific debugging:".colorize(:yellow)
-    puts "  AI_DEBUG: #{OpenAIAgents::DebugUtils.ai_debug_enabled?}".colorize(:green)
-    puts "  TRACE_DEBUG: #{OpenAIAgents::DebugUtils.trace_debug_enabled?}".colorize(:green)
-    puts "  RAW_DEBUG: #{OpenAIAgents::DebugUtils.raw_debug_enabled?}".colorize(:green)
-    puts
-    puts "OpenAI Agents specific:".colorize(:yellow)
-    puts "  TRACING_ENABLED: #{OpenAIAgents::DebugUtils.tracing_enabled?}".colorize(:green)
-    puts "  CONVERSATION_DEBUG: #{OpenAIAgents::DebugUtils.conversation_debug_enabled?}".colorize(:green)
+    puts "Debug Categories:".colorize(:yellow)
+    puts "  Available: tracing, api, tools, handoff, context, http, general".colorize(:cyan)
+    puts "  Enabled: #{config.debug_categories.join(", ")}".colorize(:green)
     puts
     puts "Environment Variables:".colorize(:yellow)
-    debug_vars = ENV.select { |k, _| k.include?('DEBUG') || k.include?('TRACE') || k.include?('OPENAI') }
+    debug_vars = ENV.select do |k, _|
+      k.include?("LOG") || k.include?("DEBUG") || k.include?("TRACE") || k.include?("OPENAI")
+    end
     debug_vars.each { |k, v| puts "  #{k}: #{v}".colorize(:green) }
   end
 
@@ -27,32 +29,33 @@ namespace :debug do
   task test_logging: :environment do
     puts "🧪 Testing Debug Logging".colorize(:blue)
     puts "=" * 50
-    
+
     %w[debug info warn error fatal].each do |level|
-      OpenAIAgents::DebugUtils.log(level.to_sym, "Test #{level} message", context: { test: true })
+      OpenAIAgents::Logging.send(level, "Test #{level} message", test: true)
     end
-    
-    puts "\nTesting AI-specific logging:".colorize(:yellow)
-    OpenAIAgents::DebugUtils.ai_log("Test AI debug message", context: { agent: "test" })
-    OpenAIAgents::DebugUtils.trace_log("Test trace message", context: { action: "test" })
-    OpenAIAgents::DebugUtils.raw_log("Test raw debug message", context: { response: "test" })
+
+    puts "\nTesting category-specific logging:".colorize(:yellow)
+    OpenAIAgents::Logging.debug("Test API debug message", category: :api, agent: "test")
+    OpenAIAgents::Logging.debug("Test trace message", category: :tracing, action: "test")
+    OpenAIAgents::Logging.debug("Test tools message", category: :tools, tool: "test")
+    OpenAIAgents::Logging.debug("Test handoff message", category: :handoff, from: "agent1", to: "agent2")
   end
 
   desc "Test existing debugging system integration"
   task test_existing_debugging: :environment do
     puts "🔧 Testing Integration with Existing Debugging System".colorize(:blue)
     puts "=" * 50
-    
+
     # Test if existing debugging classes are available
     if defined?(OpenAIAgents::Debugging::Debugger)
       puts "✅ OpenAIAgents::Debugging::Debugger available".colorize(:green)
-      
-      debugger = OpenAIAgents::Debugging::Debugger.new
+
+      OpenAIAgents::Debugging::Debugger.new
       puts "Debugger instance created".colorize(:green)
     else
       puts "⚠️  OpenAIAgents::Debugging::Debugger not loaded".colorize(:yellow)
     end
-    
+
     # Test tracing system
     if defined?(OpenAIAgents::Tracing)
       puts "✅ OpenAIAgents::Tracing available".colorize(:green)
@@ -65,32 +68,58 @@ namespace :debug do
   task test_tracing: :environment do
     puts "📊 Testing Tracing Configuration".colorize(:blue)
     puts "=" * 50
-    
-    if OpenAIAgents::DebugUtils.tracing_enabled?
-      puts "✅ Tracing is enabled".colorize(:green)
-      
+
+    config = OpenAIAgents::Logging.configuration
+    if config.debug_enabled?(:tracing)
+      puts "✅ Tracing debug is enabled".colorize(:green)
+
       # Test trace logging
-      OpenAIAgents::DebugUtils.trace_log("Test trace entry", context: {
-        operation: "test",
-        timestamp: Time.current,
-        trace_id: SecureRandom.uuid
-      })
+      OpenAIAgents::Logging.debug("Test trace entry", category: :tracing,
+                                                      operation: "test",
+                                                      timestamp: Time.current,
+                                                      trace_id: SecureRandom.uuid)
     else
-      puts "⚠️  Tracing is disabled".colorize(:yellow)
-      puts "Enable with TRACE_DEBUG=true or OPENAI_AGENTS_TRACE_DEBUG=true"
+      puts "⚠️  Tracing debug is disabled".colorize(:yellow)
+      puts "Enable with OPENAI_AGENTS_DEBUG_CATEGORIES=tracing (or all)"
     end
   end
 
-  desc "Benchmark debug utilities performance"
-  task benchmark: :environment do
-    puts "⏱️  Benchmarking Debug Utilities".colorize(:blue)
+  desc "Test handoff debugging"
+  task test_handoff: :environment do
+    puts "🤝 Testing Handoff Debug Configuration".colorize(:blue)
     puts "=" * 50
-    
-    result = OpenAIAgents::DebugUtils.benchmark("test_operation") do
+
+    config = OpenAIAgents::Logging.configuration
+    if config.debug_enabled?(:handoff)
+      puts "✅ Handoff debug is enabled".colorize(:green)
+
+      # Test handoff logging
+      OpenAIAgents::Logging.debug("Test handoff entry", category: :handoff,
+                                                        from_agent: "AgentA",
+                                                        to_agent: "AgentB",
+                                                        method: "test")
+      puts "\nHandoff debug messages will show:".colorize(:cyan)
+      puts "  • Handoff detection (text/JSON patterns)"
+      puts "  • Agent lookup and validation"
+      puts "  • Handoff execution flow"
+      puts "  • Available handoffs in prompts"
+      puts "  • Custom handoff function calls"
+    else
+      puts "⚠️  Handoff debug is disabled".colorize(:yellow)
+      puts "Enable with OPENAI_AGENTS_DEBUG_CATEGORIES=handoff (or all)"
+    end
+  end
+
+  desc "Benchmark logging system performance"
+  task benchmark: :environment do
+    puts "⏱️  Benchmarking Logging System".colorize(:blue)
+    puts "=" * 50
+
+    result = OpenAIAgents::Logging.benchmark("test_operation") do
       sleep(0.1)
       "Operation completed"
     end
-    
+
     puts "Result: #{result}".colorize(:green)
   end
 
@@ -98,10 +127,10 @@ namespace :debug do
   task tracing_stats: :environment do
     puts "📈 Tracing Statistics".colorize(:blue)
     puts "=" * 50
-    
+
     begin
       # Check if tracing tasks exist
-      Rake::Task['openai_agents:tracing:token_stats'].invoke
+      Rake::Task["openai_agents:tracing:token_stats"].invoke
     rescue StandardError
       puts "ℹ️  Tracing stats not available or tracing not configured".colorize(:yellow)
       puts "Enable tracing to see statistics"
@@ -110,8 +139,8 @@ namespace :debug do
 
   desc "Clear debug logs"
   task clear_logs: :environment do
-    debug_log = File.join(Dir.pwd, 'log', 'debug.log')
-    
+    debug_log = File.join(Dir.pwd, "log", "debug.log")
+
     if File.exist?(debug_log)
       File.delete(debug_log)
       puts "🗑️  Debug log cleared".colorize(:green)
@@ -125,19 +154,17 @@ namespace :debug do
     puts "🔛 Enabling all debugging features".colorize(:blue)
     puts "Add these to your environment:".colorize(:yellow)
     puts
-    puts "DEBUG=true"
-    puts "DEBUG_LEVEL=debug"
-    puts "DEBUG_OUTPUT=both"
-    puts "AI_DEBUG=true"
-    puts "TRACE_DEBUG=true"
-    puts "RAW_DEBUG=true"
-    puts "OPENAI_AGENTS_TRACE_DEBUG=true"
-    puts "OPENAI_AGENTS_DEBUG_CONVERSATION=true"
-    puts "OPENAI_AGENTS_DEBUG_RAW=true"
+    puts "OPENAI_AGENTS_LOG_LEVEL=debug"
+    puts "OPENAI_AGENTS_LOG_FORMAT=text"
+    puts "OPENAI_AGENTS_LOG_OUTPUT=console"
+    puts "OPENAI_AGENTS_DEBUG_CATEGORIES=all"
+    puts
+    puts "For specific categories only:".colorize(:cyan)
+    puts "OPENAI_AGENTS_DEBUG_CATEGORIES=tracing,api,tools,http"
   end
 
   desc "Run comprehensive debug test suite"
-  task test_all: [:config, :test_logging, :test_existing_debugging, :test_tracing, :benchmark] do
+  task test_all: %i[config test_logging test_existing_debugging test_tracing test_handoff benchmark] do
     puts "\n✅ All debug tests completed!".colorize(:green)
   end
 end

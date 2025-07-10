@@ -151,7 +151,7 @@ module OpenAIAgents
         case response.code
         when "200"
           data = JSON.parse(response.body)
-          puts "DEBUG: Raw Responses API response: #{data.inspect}"
+          log_debug_api("Raw Responses API response", provider: "OpenAI", response_keys: data.keys)
           # Convert to standard chat completion format
           {
             "choices" => [

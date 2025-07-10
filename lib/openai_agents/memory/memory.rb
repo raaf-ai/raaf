@@ -41,16 +41,16 @@ module OpenAIAgents
           metadata: hash[:metadata] || hash["metadata"] || {},
           id: hash[:id] || hash["id"]
         )
-        
+
         # Parse timestamps if present
         if hash[:created_at] || hash["created_at"]
           memory.created_at = Time.parse(hash[:created_at] || hash["created_at"])
         end
-        
+
         if hash[:updated_at] || hash["updated_at"]
           memory.updated_at = Time.parse(hash[:updated_at] || hash["updated_at"])
         end
-        
+
         memory
       end
 
@@ -81,29 +81,27 @@ module OpenAIAgents
       # Get a summary of the memory (useful for display)
       def summary(max_length = 100)
         return @content if @content.length <= max_length
-        
+
         "#{@content[0...max_length]}..."
       end
 
       # Check if memory matches a query (simple text search)
       def matches?(query)
         query_lower = query.downcase
-        
+
         # Search in content
         return true if @content.downcase.include?(query_lower)
-        
+
         # Search in metadata
-        @metadata.each do |_key, value|
+        @metadata.each_value do |value|
           return true if value.to_s.downcase.include?(query_lower)
         end
-        
+
         # Search in tags
-        if @metadata[:tags]
-          @metadata[:tags].each do |tag|
-            return true if tag.downcase.include?(query_lower)
-          end
+        @metadata[:tags]&.each do |tag|
+          return true if tag.downcase.include?(query_lower)
         end
-        
+
         false
       end
     end

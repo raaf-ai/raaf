@@ -16,7 +16,7 @@ puts
 # Create a vector store for knowledge base
 knowledge_store = OpenAIAgents::VectorStore.new(
   name: "company_knowledge",
-  dimensions: 1536  # OpenAI embedding dimensions
+  dimensions: 1536 # OpenAI embedding dimensions
 )
 
 # Add company documents

@@ -107,10 +107,10 @@ RSpec.describe OpenAIAgents::Memory::Memory do
       memory = described_class.new(content: "Test")
       
       memory.add_tags("important", "urgent")
-      expect(memory.metadata[:tags]).to eq(["important", "urgent"])
+      expect(memory.metadata[:tags]).to eq(%w[important urgent])
       
       memory.add_tags("urgent", "todo")
-      expect(memory.metadata[:tags]).to eq(["important", "urgent", "todo"])
+      expect(memory.metadata[:tags]).to eq(%w[important urgent todo])
     end
   end
 
@@ -145,7 +145,7 @@ RSpec.describe OpenAIAgents::Memory::Memory do
       memory = described_class.new(content: long_content)
       
       summary = memory.summary(100)
-      expect(summary).to eq("a" * 100 + "...")
+      expect(summary).to eq(("a" * 100) + "...")
       expect(summary.length).to eq(103)
     end
   end
@@ -156,7 +156,7 @@ RSpec.describe OpenAIAgents::Memory::Memory do
         content: "Ruby programming is fun",
         metadata: { 
           category: "programming",
-          tags: ["ruby", "coding"]
+          tags: %w[ruby coding]
         }
       )
     end

@@ -369,6 +369,7 @@ module OpenAIAgents
     #     # HTTP API call
     #   end
     class SpanTracer
+      include Logger
       # @return [SpanContext] The span context manager
       attr_reader :context
 
@@ -758,7 +759,7 @@ module OpenAIAgents
         processors.each do |processor|
           processor.send(method, span) if processor.respond_to?(method)
         rescue StandardError => e
-          warn "[SpanTracer] Error in processor.#{method}: #{e.message}"
+          log_error("Error in processor.#{method}: #{e.message}", processor_method: method, error_class: e.class.name)
         end
       end
     end
@@ -773,27 +774,28 @@ module OpenAIAgents
     #   tracer = OpenAIAgents.tracer
     #   tracer.add_processor(ConsoleSpanProcessor.new)
     class ConsoleSpanProcessor
+      include Logger
       # Called when a span starts
       #
       # @param span [Span] The started span
       def on_span_start(span)
-        puts "[SPAN START] #{span.name} (#{span.span_id})" if ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
+        log_debug_tracing("[SPAN START] #{span.name} (#{span.span_id})", span_name: span.name,
+                                                                         span_id: span.span_id)
       end
 
       # Called when a span ends
       #
       # @param span [Span] The ended span
       def on_span_end(span)
-        debug = ENV["OPENAI_AGENTS_TRACE_DEBUG"] == "true"
-        return unless debug
-
         duration = span.duration ? "#{(span.duration * 1000).round(2)}ms" : "unknown"
         status_icon = span.status == :error ? "❌" : "✅"
-        puts "[SPAN END] #{status_icon} #{span.name} (#{span.span_id}) - #{duration}"
+        log_debug_tracing("[SPAN END] #{status_icon} #{span.name} (#{span.span_id}) - #{duration}",
+                          span_name: span.name, span_id: span.span_id, duration: duration, status: span.status)
 
         return unless span.status == :error && span.attributes["status.description"]
 
-        puts "  Error: #{span.attributes["status.description"]}"
+        log_error("Span error: #{span.attributes["status.description"]}",
+                  span_name: span.name, span_id: span.span_id, error_description: span.attributes["status.description"])
       end
     end
 

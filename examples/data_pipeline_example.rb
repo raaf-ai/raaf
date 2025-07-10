@@ -21,8 +21,8 @@ simple_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("simple_pipeline")
 
 # Add stages
 simple_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("uppercase") { |data| data.upcase })
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("reverse") { |data| data.reverse })
+  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("uppercase", &:upcase))
+  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("reverse", &:reverse))
   .add_stage(OpenAIAgents::DataPipeline::OutputStage.new("print", destination: :stdout))
 
 # Process data
@@ -45,7 +45,13 @@ data_agent = OpenAIAgents::Agent.new(
 # Create pipeline with agent
 agent_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("agent_pipeline") do
   # Parse JSON
-  map { |data| JSON.parse(data) rescue { raw: data } }
+  map do |data| 
+    
+    JSON.parse(data)
+  rescue StandardError
+    { raw: data }
+    
+  end
   
   # Transform with agent
   transform(
@@ -113,7 +119,7 @@ test_users.each do |user|
   puts "\nProcessing: #{user.inspect}"
   begin
     validation_pipeline.run(user)
-  rescue => e
+  rescue StandardError => e
     puts "  Error: #{e.message}"
   end
 end
@@ -179,7 +185,7 @@ stream_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("stream_processor")
 # Add stages for log processing
 stream_pipeline
   .add_stage(OpenAIAgents::DataPipeline::MapStage.new("parse_log") do |line|
-    if match = line.match(/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(\w+)\] (.+)/)
+    if (match = line.match(/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(\w+)\] (.+)/))
       { timestamp: match[1], level: match[2], message: match[3] }
     else
       { timestamp: Time.now.to_s, level: "INFO", message: line }
@@ -286,7 +292,11 @@ analysis_agent = OpenAIAgents::Agent.new(
 complex_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("analytics") do
   # Stage 1: Parse and clean
   map do |raw_data|
-    data = JSON.parse(raw_data) rescue { error: "Invalid JSON" }
+    data = begin
+      JSON.parse(raw_data)
+    rescue StandardError
+      { error: "Invalid JSON" }
+    end
     data[:processed] = true
     data
   end
@@ -301,7 +311,7 @@ complex_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("analytics"
   
   # Stage 3: Enrich with calculations
   map do |data|
-    data[:squared] = data[:value] ** 2
+    data[:squared] = data[:value]**2
     data[:category] = case data[:value]
                       when 0..100 then "low"
                       when 101..500 then "medium"
@@ -324,7 +334,7 @@ end
 test_records = [
   { id: 1, value: 50, type: "A" }.to_json,
   { id: 2, value: 500, type: "B" }.to_json,
-  { id: 3, value: 1500, type: "C" }.to_json  # Will fail validation
+  { id: 3, value: 1500, type: "C" }.to_json # Will fail validation
 ]
 
 puts "Processing records through complex pipeline:"
@@ -332,7 +342,7 @@ test_records.each_with_index do |record, i|
   puts "\nRecord #{i + 1}:"
   begin
     complex_pipeline.run(record)
-  rescue => e
+  rescue StandardError => e
     puts "  Pipeline error: #{e.message}"
   end
 end
@@ -347,7 +357,7 @@ monitored_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("monitored")
 
 # Add stages
 monitored_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::FilterStage.new("even_only") { |n| n.even? })
+  .add_stage(OpenAIAgents::DataPipeline::FilterStage.new("even_only", &:even?))
   .add_stage(OpenAIAgents::DataPipeline::MapStage.new("double") { |n| n * 2 })
   .add_stage(OpenAIAgents::DataPipeline::ValidationStage.new("range_check") do |n|
     n > 20 ? ["Value too large"] : []
@@ -356,12 +366,12 @@ monitored_pipeline
 # Process data and collect metrics
 puts "Processing numbers 1-10 through monitored pipeline:"
 (1..10).each do |num|
-  begin
-    result = monitored_pipeline.process(num)
-    puts "  #{num} -> #{result}" if result
-  rescue => e
-    puts "  #{num} -> Error: #{e.message}"
-  end
+  
+  result = monitored_pipeline.process(num)
+  puts "  #{num} -> #{result}" if result
+rescue StandardError => e
+  puts "  #{num} -> Error: #{e.message}"
+  
 end
 
 # Display metrics
@@ -395,7 +405,7 @@ error_logs = [
 ]
 
 puts "Using log pipeline template:"
-# Note: In real usage, this would process the logs and save analysis
+# NOTE: In real usage, this would process the logs and save analysis
 puts "  Created pipeline: error_analysis"
 puts "  Stages: parse -> filter -> analyze -> output"
 puts "  Would analyze #{error_logs.count { |l| l.include?("[ERROR]") || l.include?("[WARN]") }} error/warning logs"
