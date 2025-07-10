@@ -266,7 +266,7 @@ module OpenAIAgents
       def format_json(message, **context)
         {
           message: message,
-          timestamp: Time.current.iso8601,
+          timestamp: Time.now.utc.iso8601,
           source: "openai_agents",
           **context
         }.to_json
