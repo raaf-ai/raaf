@@ -130,6 +130,7 @@ module OpenAIAgents
     def to_h
       result = {
         type: "function",
+        name: @name,
         function: {
           name: @name,
           description: @description,

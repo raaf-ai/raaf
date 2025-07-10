@@ -48,7 +48,7 @@ module OpenAIAgents
     #   )
     class TraceProvider
       include Logger
-      
+
       class << self
         include Logger
         # @api private

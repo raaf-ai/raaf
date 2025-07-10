@@ -84,6 +84,7 @@ module OpenAIAgents
     def to_tool_definition
       {
         type: "function",
+        name: @tool_name,
         function: {
           name: @tool_name,
           description: @tool_description,

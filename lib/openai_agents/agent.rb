@@ -76,7 +76,7 @@ module OpenAIAgents
   # @since 0.1.0
   class Agent
     include Logger
-    
+
     ##
     # @!attribute [rw] name
     #   @return [String] the unique name identifier for this agent

@@ -129,4 +129,17 @@ module OpenAIAgents
   # @example
   #   raise ExecutionStoppedError, "Execution stopped by user request"
   class ExecutionStoppedError < Error; end
+
+  ##
+  # Raised when AI model behavior is unexpected or invalid
+  #
+  # This exception is raised when the AI model produces output that doesn't
+  # conform to expected formats, violates constraints, or exhibits unexpected behavior.
+  #
+  # @example Invalid tool input format
+  #   raise ModelBehaviorError, "Model provided invalid JSON for tool parameters"
+  #
+  # @example Constraint violation
+  #   raise ModelBehaviorError, "Model output violates content policy"
+  class ModelBehaviorError < Error; end
 end

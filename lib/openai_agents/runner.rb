@@ -45,6 +45,9 @@ module OpenAIAgents
       end
 
       # NOTE: LLM span wrapper removed - ResponsesProvider now handles usage tracking directly
+
+      # Initialize handoff tracking for circular protection
+      @handoff_chain = []
     end
 
     ##
@@ -168,11 +171,59 @@ module OpenAIAgents
 
     private
 
+    # Get all tools for an agent including handoff tools
+    def get_all_tools_for_api(agent)
+      all_tools = []
+
+      # Add regular tools
+      all_tools.concat(agent.tools) if agent.tools?
+
+      # Add handoff tools
+      agent.handoffs.each do |handoff|
+        if handoff.is_a?(Agent)
+          # Convert Agent to handoff tool
+          tool_name = Handoff.default_tool_name(handoff)
+          tool_description = Handoff.default_tool_description(handoff)
+
+          handoff_tool = {
+            type: "function",
+            name: tool_name,
+            function: {
+              name: tool_name,
+              description: tool_description,
+              parameters: {
+                type: "object",
+                properties: {},
+                required: []
+              }
+            }
+          }
+          all_tools << handoff_tool
+
+          log_debug_handoff("Added handoff tool to API tools",
+                            agent: agent.name,
+                            handoff_tool: tool_name,
+                            target_agent: handoff.name)
+        else
+          # Already a Handoff object, use its tool definition
+          all_tools << handoff.to_tool_definition
+
+          log_debug_handoff("Added handoff tool to API tools",
+                            agent: agent.name,
+                            handoff_tool: handoff.tool_name,
+                            target_agent: handoff.agent_name)
+        end
+      end
+
+      all_tools.empty? ? nil : all_tools
+    end
+
     # Process output items from Responses API
     def process_responses_api_output(response, agent, generated_items, span = nil)
       output = response[:output] || response["output"] || []
 
       result = { done: false, handoff: nil }
+      handoff_results = [] # Track all handoffs detected
 
       output.each do |item|
         item_type = item[:type] || item["type"]
@@ -182,35 +233,41 @@ module OpenAIAgents
           # Text output from the model
           generated_items << Items::MessageOutputItem.new(agent: agent, raw_item: item)
 
-          # Check for handoff in text
-          text = item[:text] || item["text"] || ""
-          if text.include?("HANDOFF:")
-            handoff_match = text.match(/HANDOFF:\s*(\w+)/)
-            if handoff_match
-              result[:handoff] = handoff_match[1]
-              log_debug_handoff("Handoff detected in text output",
-                                from_agent: agent.name,
-                                to_agent: handoff_match[1],
-                                method: "text_pattern")
-            end
-          end
+          # NOTE: Text-based handoff detection removed - handoffs now work through tool calls
 
         when "function_call"
           # Tool call from the model
-          # Remove the ID to avoid duplicate ID errors when re-submitting
-          item_without_id = item.dup
-          item_without_id.delete(:id)
-          item_without_id.delete("id")
-          generated_items << Items::ToolCallItem.new(agent: agent, raw_item: item_without_id)
+          generated_items << Items::ToolCallItem.new(agent: agent, raw_item: item)
 
           # Execute the tool
           tool_result = execute_tool_for_responses_api(item, agent)
 
+          # Check if tool_result is a handoff
+          if tool_result.is_a?(Hash) && tool_result.key?(:assistant)
+            handoff_results << {
+              tool_name: item[:name] || item["name"],
+              handoff_target: tool_result[:assistant],
+              handoff_data: tool_result
+            }
+
+            log_debug_handoff("Handoff detected from tool execution in Responses API",
+                              from_agent: agent.name,
+                              to_agent: tool_result[:assistant],
+                              tool_name: item[:name] || item["name"])
+          end
+
           # Add tool result as an item
+          # Convert handoff results to string format for API compatibility
+          tool_output_value = if tool_result.is_a?(Hash) && tool_result.key?(:assistant)
+                                JSON.generate(tool_result)
+                              else
+                                tool_result.to_s
+                              end
+
           tool_output_item = {
             type: "function_call_output",
             call_id: item[:call_id] || item["call_id"] || item[:id] || item["id"],
-            output: tool_result
+            output: tool_output_value
           }
           generated_items << Items::ToolCallOutputItem.new(
             agent: agent,
@@ -226,6 +283,39 @@ module OpenAIAgents
             output: item[:output] || item["output"]
           )
         end
+      end
+
+      # Handle multiple handoffs with same logic as Chat Completions API
+      if handoff_results.size > 1
+        # Multiple handoffs detected - this is an error condition
+        handoff_targets = handoff_results.map { |r| r[:handoff_target] }
+        log_error("Multiple handoffs detected in Responses API - this is not supported",
+                  from_agent: agent.name,
+                  handoff_targets: handoff_targets,
+                  count: handoff_results.size)
+
+        # Add error message as output item with proper format
+        error_message = {
+          type: "message",
+          role: "assistant",
+          content: [{
+            type: "text",
+            text: "Error: Multiple agent handoffs detected in single response. Only one handoff per turn is supported. Staying with current agent."
+          }]
+        }
+        generated_items << Items::MessageOutputItem.new(agent: agent, raw_item: error_message)
+
+        # Don't set handoff - stay with current agent
+        result[:handoff] = nil
+      elsif handoff_results.size == 1
+        # Single handoff - proceed normally
+        handoff_info = handoff_results.first
+        result[:handoff] = handoff_info[:handoff_data]
+
+        log_debug_handoff("Single handoff approved in Responses API",
+                          from_agent: agent.name,
+                          to_agent: handoff_info[:handoff_target],
+                          tool_name: handoff_info[:tool_name])
       end
 
       # Check if there are no tool calls in this output
@@ -245,6 +335,9 @@ module OpenAIAgents
       rescue JSON::ParserError
         return "Error: Invalid tool arguments"
       end
+
+      # Check if this is a handoff tool (starts with "transfer_to_")
+      return process_handoff_tool_call_for_responses_api(tool_call_item, agent) if tool_name.start_with?("transfer_to_")
 
       # Find the tool
       tool = agent.tools.find { |t| t.respond_to?(:name) && t.name == tool_name }
@@ -268,6 +361,79 @@ module OpenAIAgents
         end
       rescue StandardError => e
         "Error executing tool: #{e.message}"
+      end
+    end
+
+    # Process handoff tool calls for Responses API
+    def process_handoff_tool_call_for_responses_api(tool_call_item, agent)
+      tool_name = tool_call_item[:name] || tool_call_item["name"]
+      arguments_str = tool_call_item[:arguments] || tool_call_item["arguments"] || "{}"
+
+      begin
+        arguments = JSON.parse(arguments_str)
+      rescue JSON::ParserError
+        return "Error: Invalid tool arguments"
+      end
+
+      # Find the handoff target by matching the tool name to the expected tool name for each handoff
+      log_debug_handoff("Processing handoff tool call in Responses API",
+                        from_agent: agent.name,
+                        tool_name: tool_name)
+
+      # Find the handoff target by checking if the tool name matches the expected tool name for each handoff
+      handoff_target = agent.handoffs.find do |handoff|
+        if handoff.is_a?(Agent)
+          # Check if this agent would generate the same tool name
+          expected_tool_name = OpenAIAgents::Handoff.default_tool_name(handoff)
+          expected_tool_name == tool_name
+        else
+          # For handoff objects, check both agent name match and tool name match
+          handoff.tool_name == tool_name
+        end
+      end
+
+      unless handoff_target
+        log_debug_handoff("Handoff target not found for tool call in Responses API",
+                          from_agent: agent.name,
+                          tool_name: tool_name)
+
+        return "Error: Handoff target for tool '#{tool_name}' not found"
+      end
+
+      # Execute the handoff
+      if handoff_target.is_a?(Agent)
+        # Simple agent handoff
+        handoff_result = { assistant: handoff_target.name }
+
+        log_debug_handoff("Agent handoff tool executed successfully in Responses API",
+                          from_agent: agent.name,
+                          to_agent: handoff_target.name,
+                          tool_name: tool_name)
+
+        handoff_result
+      else
+        # Handoff object with custom logic
+        begin
+          # NOTE: For Responses API, we need a simpler context since RunContextWrapper may not be available
+          # Create a minimal context for compatibility
+          context_wrapper = @current_context_wrapper
+          handoff_result = handoff_target.invoke(context_wrapper, arguments)
+
+          log_debug_handoff("Handoff object tool executed successfully in Responses API",
+                            from_agent: agent.name,
+                            to_agent: handoff_target.agent_name,
+                            tool_name: tool_name)
+
+          handoff_result
+        rescue StandardError => e
+          log_debug_handoff("Handoff object tool execution failed in Responses API",
+                            from_agent: agent.name,
+                            to_agent: handoff_target.agent_name,
+                            tool_name: tool_name,
+                            error: e.message)
+
+          "Error: Handoff failed - #{e.message}"
+        end
       end
     end
 
@@ -350,7 +516,7 @@ module OpenAIAgents
                      @provider.responses_completion(
                        messages: [{ role: "system", content: system_instructions }],
                        model: model,
-                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       tools: get_all_tools_for_api(current_agent),
                        previous_response_id: previous_response_id,
                        input: current_input, # Pass the accumulated input items
                        **model_params
@@ -359,7 +525,7 @@ module OpenAIAgents
                      @provider.chat_completion(
                        messages: [{ role: "system", content: system_instructions }],
                        model: model,
-                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       tools: get_all_tools_for_api(current_agent),
                        previous_response_id: previous_response_id,
                        input: current_input,
                        **model_params
@@ -543,7 +709,7 @@ module OpenAIAgents
                        @provider.stream_completion(
                          messages: api_messages,
                          model: model,
-                         tools: current_agent.tools? ? current_agent.tools : nil,
+                         tools: get_all_tools_for_api(current_agent),
                          **model_params
                        )
                      else
@@ -552,7 +718,7 @@ module OpenAIAgents
                          llm_response = @provider.chat_completion(
                            messages: api_messages,
                            model: model,
-                           tools: current_agent.tools? ? current_agent.tools : nil,
+                           tools: get_all_tools_for_api(current_agent),
                            stream: false,
                            **model_params
                          )
@@ -765,11 +931,14 @@ module OpenAIAgents
             model_params[:tool_choice] = current_agent.tool_choice
           end
 
+          # Get tools for API
+          api_tools = get_all_tools_for_api(current_agent)
+
           # Make API call - pass input items and previous_response_id for continuity
           response = @provider.responses_completion(
             messages: [{ role: "system", content: system_instructions }], # Only for extracting system content
             model: model,
-            tools: current_agent.tools? ? current_agent.tools : nil,
+            tools: api_tools,
             previous_response_id: previous_response_id,
             input: current_input, # Pass the accumulated input items
             **model_params
@@ -790,6 +959,36 @@ module OpenAIAgents
         end
 
         turns += 1
+
+        # Handle handoff if detected
+        if agent_result[:handoff]
+          handoff_info = agent_result[:handoff]
+          next_agent_name = handoff_info[:assistant]
+
+          log_debug_handoff("Processing handoff request in Responses API",
+                            from_agent: current_agent.name,
+                            requested_agent: next_agent_name)
+
+          # Find the target agent using the existing handoff lookup mechanism
+          handoff_agent = current_agent.find_handoff(next_agent_name)
+
+          if handoff_agent
+            log_debug_handoff("Handoff completed in Responses API",
+                              from_agent: current_agent.name,
+                              to_agent: handoff_agent.name)
+
+            current_agent = handoff_agent
+            turns = 0 # Reset turn counter for new agent
+          else
+            log_debug_handoff("Handoff target not found in Responses API",
+                              from_agent: current_agent.name,
+                              requested_agent: next_agent_name,
+                              available_handoffs: current_agent.handoffs.map do |h|
+                                h.is_a?(Agent) ? h.name : h.agent_name
+                              end.join(", "))
+            raise HandoffError, "Cannot handoff to '#{next_agent_name}'"
+          end
+        end
 
         # Check if done (no tool calls in last response)
         break if agent_result[:done]
@@ -848,14 +1047,14 @@ module OpenAIAgents
                      @provider.stream_completion(
                        messages: api_messages,
                        model: model,
-                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       tools: get_all_tools_for_api(current_agent),
                        **model_params
                      )
                    else
                      @provider.chat_completion(
                        messages: api_messages,
                        model: model,
-                       tools: current_agent.tools? ? current_agent.tools : nil,
+                       tools: get_all_tools_for_api(current_agent),
                        stream: false,
                        **model_params
                      )
@@ -964,18 +1163,11 @@ module OpenAIAgents
         prompt_parts << "\nAvailable tools:\n#{tool_descriptions.join("\n")}"
       end
 
+      # Handoffs are now available as tools, no need for text instructions
       unless agent.handoffs.empty?
-        handoff_names = agent.handoffs.map do |handoff|
-          handoff.is_a?(Agent) ? handoff.name : handoff.agent_name
-        end
-
-        log_debug_handoff("Adding handoff instructions to prompt",
+        log_debug_handoff("Handoffs available as tools (no prompt instructions needed)",
                           agent: agent.name,
-                          available_handoffs: handoff_names.join(", "))
-
-        handoff_descriptions = handoff_names.map { |name| "- #{name}" }
-        prompt_parts << "\nAvailable handoffs:\n#{handoff_descriptions.join("\n")}"
-        prompt_parts << "\nTo handoff to another agent, include 'HANDOFF: <agent_name>' in your response."
+                          handoff_count: agent.handoffs.size)
       end
 
       prompt_parts.join("\n")
@@ -1040,44 +1232,27 @@ module OpenAIAgents
         # Pass context_wrapper if we have it (only in run_with_tracing)
         context_wrapper = @current_context_wrapper if defined?(@current_context_wrapper)
         # Also pass the full response to capture OpenAI-hosted tool results
-        should_stop = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper, response)
+        tool_result = process_tool_calls(message["tool_calls"], agent, conversation, context_wrapper, response)
 
-        # If process_tool_calls returns true, it means we should stop
-        if should_stop == true
+        # Handle different return types from process_tool_calls
+        if tool_result == true
+          # Stop was requested
           result[:done] = true
           result[:stopped] = true
-        else
-          result[:done] = should_stop
-        end
-      end
-
-      # Check for handoff in text format
-      if message["content"]&.include?("HANDOFF:")
-        handoff_match = message["content"].match(/HANDOFF:\s*(\w+)/)
-        if handoff_match
-          result[:handoff] = handoff_match[1]
-          log_debug_handoff("Handoff detected in message content",
+        elsif tool_result.is_a?(String)
+          # Handoff was requested - tool_result is the target agent name
+          result[:handoff] = tool_result
+          result[:done] = false
+          log_debug_handoff("Handoff set from tool execution",
                             from_agent: agent.name,
-                            to_agent: handoff_match[1],
-                            method: "text_pattern")
+                            to_agent: tool_result)
+        else
+          # Boolean false or other values
+          result[:done] = tool_result
         end
       end
 
-      # Also check for handoff in JSON response
-      if message["content"] && !result[:handoff]
-        begin
-          parsed = JSON.parse(message["content"])
-          if parsed.is_a?(Hash) && parsed["handoff_to"]
-            result[:handoff] = parsed["handoff_to"]
-            log_debug_handoff("Handoff detected in JSON response",
-                              from_agent: agent.name,
-                              to_agent: parsed["handoff_to"],
-                              method: "json_response")
-          end
-        rescue JSON::ParserError
-          # Not JSON, ignore
-        end
-      end
+      # NOTE: Text-based handoff detection removed - handoffs now work through tool calls
 
       # If no tool calls and no handoff, we're done
       result[:done] = true if !message["tool_calls"] && !result[:handoff]
@@ -1126,6 +1301,34 @@ module OpenAIAgents
                       agent: agent.name,
                       total_messages: conversation.size,
                       tool_results: results.size)
+
+      # Check for handoffs with proper multiple handoff handling
+      handoff_results = results.select { |result| result[:handoff] }
+
+      if handoff_results.size > 1
+        # Multiple handoffs detected - this is an error condition
+        handoff_targets = handoff_results.map { |r| r[:handoff] }
+        log_error("Multiple handoffs detected in single turn - this is not supported",
+                  from_agent: agent.name,
+                  handoff_targets: handoff_targets,
+                  count: handoff_results.size)
+
+        # Fail fast - add error message to conversation and continue with original agent
+        conversation << {
+          role: "assistant",
+          content: "Error: Multiple agent handoffs detected in single response. Only one handoff per turn is supported. Staying with current agent."
+        }
+
+        return false # Continue with current agent
+      elsif handoff_results.size == 1
+        handoff_result = handoff_results.first
+        log_debug_handoff("Single handoff detected from tool execution",
+                          from_agent: agent.name,
+                          to_agent: handoff_result[:handoff],
+                          tool_result: true)
+        # Return the handoff target to trigger agent switching
+        return handoff_result[:handoff]
+      end
 
       # Check if any tool result indicates a stop
       stop_requested = results.any? do |result|
@@ -1237,6 +1440,9 @@ module OpenAIAgents
           content: content
         }
       end
+
+      # Check if this is a handoff tool (starts with "transfer_to_")
+      return process_handoff_tool_call(tool_call, agent, context_wrapper) if tool_name.start_with?("transfer_to_")
 
       # Find the tool object for local tools
       tool = agent.tools.find { |t| t.respond_to?(:name) && t.name == tool_name }
@@ -1395,6 +1601,154 @@ module OpenAIAgents
       # For debugging purposes, always return the message content for hosted tools
       # since the results are integrated into the AI's response
       message_content
+    end
+
+    # Process handoff tool calls (transfer_to_* functions)
+    def process_handoff_tool_call(tool_call, agent, context_wrapper)
+      tool_name = tool_call.dig("function", "name")
+      arguments = JSON.parse(tool_call.dig("function", "arguments") || "{}")
+
+      # Extract target agent name from tool name with robust parsing
+      # Handle various naming patterns: transfer_to_agent_name, transfer_to_AgentName, etc.
+      target_agent_name = extract_agent_name_from_tool(tool_name)
+
+      log_debug_handoff("Processing handoff tool call",
+                        from_agent: agent.name,
+                        tool_name: tool_name,
+                        target_agent: target_agent_name,
+                        call_id: tool_call["id"])
+
+      # Find the handoff target with circular handoff protection
+      if @handoff_chain&.include?(target_agent_name)
+        log_error("Circular handoff detected",
+                  from_agent: agent.name,
+                  target_agent: target_agent_name,
+                  handoff_chain: @handoff_chain)
+
+        return {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: "Error: Circular handoff detected. Cannot transfer to #{target_agent_name} as it would create a loop.",
+          handoff_error: true
+        }
+      end
+
+      # Track handoff chain for circular detection
+      @handoff_chain ||= []
+      @handoff_chain << agent.name if @handoff_chain.empty? # Add starting agent
+
+      handoff_target = agent.handoffs.find do |handoff|
+        if handoff.is_a?(Agent)
+          handoff.name == target_agent_name
+        else
+          handoff.agent_name == target_agent_name || handoff.tool_name == tool_name
+        end
+      end
+
+      unless handoff_target
+        available_handoffs = agent.handoffs.map do |h|
+          h.is_a?(Agent) ? h.name : h.agent_name
+        end.join(", ")
+
+        log_error("Handoff target not found for tool call",
+                  from_agent: agent.name,
+                  tool_name: tool_name,
+                  target_agent: target_agent_name,
+                  available_handoffs: available_handoffs)
+
+        # This is a critical error that should be handled properly
+        error_message = "Error: Handoff target '#{target_agent_name}' not found. Available targets: #{available_handoffs}"
+
+        return {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: error_message,
+          handoff_error: true # Mark this as a handoff error for better handling
+        }
+      end
+
+      # Execute the handoff
+      if handoff_target.is_a?(Agent)
+        # Simple agent handoff
+        handoff_result = { assistant: handoff_target.name }
+
+        log_debug_handoff("Agent handoff tool executed successfully",
+                          from_agent: agent.name,
+                          to_agent: handoff_target.name,
+                          tool_name: tool_name)
+      else
+        # Handoff object with custom logic
+        begin
+          handoff_result = handoff_target.invoke(context_wrapper, arguments)
+
+          log_debug_handoff("Handoff object tool executed successfully",
+                            from_agent: agent.name,
+                            to_agent: handoff_target.agent_name,
+                            tool_name: tool_name)
+        rescue StandardError => e
+          log_error("Handoff object tool execution failed",
+                    from_agent: agent.name,
+                    to_agent: handoff_target.agent_name,
+                    tool_name: tool_name,
+                    error: e.message,
+                    error_class: e.class.name)
+
+          return {
+            role: "tool",
+            tool_call_id: tool_call["id"],
+            content: "Error executing handoff: #{e.message}",
+            handoff_error: true # Mark this as a handoff error
+          }
+        end
+      end
+
+      # Track this handoff in the chain
+      @handoff_chain << target_agent_name
+
+      # Limit handoff chain length
+      if @handoff_chain.length > 5
+        log_error("Maximum handoff chain length exceeded",
+                  from_agent: agent.name,
+                  target_agent: target_agent_name,
+                  handoff_chain: @handoff_chain)
+
+        return {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          content: "Error: Maximum handoff chain length (5) exceeded. Stopping handoff chain.",
+          handoff_error: true
+        }
+      end
+
+      log_debug_handoff("Handoff chain updated",
+                        from_agent: agent.name,
+                        target_agent: target_agent_name,
+                        handoff_chain: @handoff_chain)
+
+      # Return success response with handoff signal
+      {
+        role: "tool",
+        tool_call_id: tool_call["id"],
+        content: JSON.generate(handoff_result),
+        handoff: target_agent_name # Signal to runner that handoff occurred
+      }
+    end
+
+    # Extract agent name from handoff tool name with robust parsing
+    def extract_agent_name_from_tool(tool_name)
+      # Remove the transfer_to_ prefix
+      agent_part = tool_name.sub(/^transfer_to_/, "")
+
+      # Try different parsing strategies
+
+      # Strategy 1: Check if it's already in proper case (e.g., "SupportAgent")
+      return agent_part if agent_part =~ /^[A-Z][a-zA-Z]*$/
+
+      # Strategy 2: Split on underscores and capitalize each part
+      return agent_part.split("_").map(&:capitalize).join if agent_part.include?("_")
+
+      # Strategy 3: Just capitalize the first letter for simple names
+      agent_part.capitalize
     end
   end
 end
