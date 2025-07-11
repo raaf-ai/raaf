@@ -900,7 +900,14 @@ module OpenAIAgents
         # Build current input including all generated items
         # When using previous_response_id, only include tool outputs, not tool calls
         # The API already knows about the calls from the previous response
-        current_input = input.dup
+        if previous_response_id
+          # For continuing responses, start fresh - the API knows about the previous messages
+          current_input = []
+        else
+          # For initial request, include the original input
+          current_input = input.dup
+        end
+        
         generated_items.each do |item|
           # Skip tool calls when we have a previous_response_id to avoid duplicates
           next if previous_response_id && item.is_a?(Items::ToolCallItem)
@@ -979,6 +986,18 @@ module OpenAIAgents
 
             current_agent = handoff_agent
             turns = 0 # Reset turn counter for new agent
+            
+            # Clear generated_items to prevent duplicate messages across agents
+            # BUT preserve the latest tool outputs so the handoff agent can see the context
+            puts "🔄 HANDOFF: Clearing generated_items but preserving latest tool outputs"
+            
+            # Keep only the most recent tool outputs (not tool calls)
+            recent_tool_outputs = generated_items.select do |item|
+              item.is_a?(Items::ToolCallOutputItem)
+            end.last(3) # Keep last 3 tool outputs for context
+            
+            generated_items.clear
+            generated_items.concat(recent_tool_outputs)
           else
             log_debug_handoff("Handoff target not found in Responses API",
                               from_agent: current_agent.name,
