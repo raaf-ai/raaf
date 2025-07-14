@@ -7,10 +7,21 @@ require_relative "../http_client"
 
 module OpenAIAgents
   module Models
+    ##
     # Together AI provider implementation
     #
     # Together AI provides access to a wide range of open-source models with
-    # fast inference. The API is OpenAI-compatible.
+    # fast inference. The API is OpenAI-compatible, making it easy to use
+    # various open-source models like Llama, Mistral, and others with the same interface.
+    #
+    # Features:
+    # - Access to 50+ open-source models
+    # - OpenAI-compatible API
+    # - Fast inference speeds
+    # - Function calling support on select models
+    # - Streaming responses
+    # - Custom safety models
+    # - Flexible model naming (supports full model paths)
     #
     # @example Basic usage
     #   provider = TogetherProvider.new(api_key: ENV["TOGETHER_API_KEY"])
@@ -23,12 +34,24 @@ module OpenAIAgents
     #   provider.stream_completion(messages: messages, model: "mistralai/Mixtral-8x7B-Instruct-v0.1") do |chunk|
     #     print chunk[:content]
     #   end
+    #
+    # @example With custom parameters
+    #   provider.chat_completion(
+    #     messages: messages,
+    #     model: "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+    #     temperature: 0.7,
+    #     max_tokens: 2000,
+    #     repetition_penalty: 1.1
+    #   )
+    #
     class TogetherProvider < ModelInterface
       include RetryableProvider
 
+      # Together AI API base URL
       API_BASE = "https://api.together.xyz/v1"
 
       # Popular models available on Together AI
+      # This is a subset of available models - Together supports many more
       SUPPORTED_MODELS = %w[
         meta-llama/Llama-3-70b-chat-hf
         meta-llama/Llama-3-8b-chat-hf
@@ -50,6 +73,14 @@ module OpenAIAgents
         codellama/CodeLlama-13b-Instruct-hf
       ].freeze
 
+      ##
+      # Initialize a new Together provider
+      #
+      # @param api_key [String, nil] Together API key (defaults to TOGETHER_API_KEY env var)
+      # @param api_base [String, nil] API base URL (defaults to Together endpoint)
+      # @param options [Hash] Additional options for the provider
+      # @raise [AuthenticationError] if API key is not provided
+      #
       def initialize(api_key: nil, api_base: nil, **options)
         super
         @api_key ||= ENV.fetch("TOGETHER_API_KEY", nil)
@@ -63,6 +94,25 @@ module OpenAIAgents
                                       })
       end
 
+      ##
+      # Performs a chat completion using Together's API
+      #
+      # Together's API is OpenAI-compatible but adds some specific parameters
+      # like repetition_penalty and safety_model.
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Model identifier (e.g., "meta-llama/Llama-3-70b-chat-hf")
+      # @param tools [Array<Hash>, nil] Tools/functions available to the model
+      # @param stream [Boolean] Whether to stream the response
+      # @param kwargs [Hash] Additional parameters
+      # @option kwargs [Float] :temperature (0.0-2.0) Randomness in generation
+      # @option kwargs [Integer] :max_tokens Maximum tokens to generate
+      # @option kwargs [Float] :repetition_penalty Penalty for repetition
+      # @option kwargs [String] :safety_model Optional safety model to use
+      # @return [Hash] Response in OpenAI format
+      # @raise [ModelNotFoundError] if model is not supported
+      # @raise [APIError] if the API request fails
+      #
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
@@ -107,6 +157,18 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Streams a chat completion
+      #
+      # Convenience method that calls chat_completion with stream: true.
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Model to use
+      # @param tools [Array<Hash>, nil] Available tools
+      # @param kwargs [Hash] Additional parameters
+      # @yield [Hash] Yields streaming chunks
+      # @return [Hash] Final accumulated response
+      #
       def stream_completion(messages:, model:, tools: nil, **kwargs)
         chat_completion(
           messages: messages,
@@ -119,15 +181,39 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Returns list of known supported models
+      #
+      # Note: Together supports many more models than listed here.
+      # Use list_available_models() for a complete list.
+      #
+      # @return [Array<String>] Supported model names
+      #
       def supported_models
         SUPPORTED_MODELS
       end
 
+      ##
+      # Returns the provider name
+      #
+      # @return [String] "Together"
+      #
       def provider_name
         "Together"
       end
 
+      ##
       # Get available models from Together API
+      #
+      # Fetches the current list of available models from Together's API.
+      # Filters for chat/instruct models suitable for conversation.
+      #
+      # @return [Array<String>] List of available model IDs
+      #
+      # @example
+      #   models = provider.list_available_models
+      #   # => ["meta-llama/Llama-3-70b-chat-hf", "mistralai/Mixtral-8x7B-Instruct-v0.1", ...]
+      #
       def list_available_models
         with_retry("list_models") do
           response = @http_client.get("#{@api_base}/models")
@@ -150,6 +236,17 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Handles streaming responses from Together API
+      #
+      # Processes Server-Sent Events (SSE) and yields chunks to the caller.
+      # Accumulates content and tool calls for the final response.
+      #
+      # @param body [Hash] Request body
+      # @yield [Hash] Yields streaming chunks with type and content
+      # @return [Hash] Final accumulated response
+      # @private
+      #
       def stream_response(body)
         body[:stream] = true
 
@@ -227,7 +324,17 @@ module OpenAIAgents
         end
       end
 
+      ##
       # Override validation to handle Together's model naming
+      #
+      # Together uses full model paths like "meta-llama/Llama-3-70b-chat-hf".
+      # This method allows any model with a slash in the name, assuming it's
+      # a valid model path.
+      #
+      # @param model [String] Model identifier
+      # @raise [ModelNotFoundError] if model format is invalid
+      # @private
+      #
       def validate_model(model)
         # Together uses full model paths, so we check if it's a known pattern
         return if model.include?("/") # Assume it's a valid model path
@@ -236,7 +343,19 @@ module OpenAIAgents
         super
       end
 
+      ##
       # Custom error handling for Together API
+      #
+      # Provides specific error messages for Together API errors,
+      # including rate limit information and validation errors.
+      #
+      # @param response [HTTPResponse] API response
+      # @param provider [String] Provider name (unused but required by interface)
+      # @raise [AuthenticationError] for 401 errors
+      # @raise [RateLimitError] for 429 errors with retry information
+      # @raise [APIError] for validation and other errors
+      # @private
+      #
       def handle_api_error(response, provider)
         case response.code.to_i
         when 401

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "openai_provider"
 require_relative "anthropic_provider"
 require_relative "cohere_provider"
 require_relative "groq_provider"
@@ -13,7 +12,6 @@ module OpenAIAgents
     class MultiProvider
       def self.providers
         @providers ||= {
-          "openai" => OpenAIProvider,  # DEPRECATED - maintained for backwards compatibility
           "anthropic" => AnthropicProvider,
           "gemini" => GeminiProvider,
           "cohere" => CohereProvider,
@@ -38,7 +36,8 @@ module OpenAIAgents
       def self.get_provider_for_model(model)
         case model
         when /^gpt-/, /^o1-/
-          "openai"
+          # Use LiteLLM for OpenAI models to avoid deprecated OpenAIProvider
+          "litellm"
         when /^claude-/
           "anthropic"
         when /^gemini-/
@@ -52,10 +51,9 @@ module OpenAIAgents
           "together"
         when /^codellama/, /^phi/, /^orca/, /^vicuna/
           "ollama"
-        # rubocop:disable Lint/DuplicateBranch
         else
-          "openai" # Default fallback
-          # rubocop:enable Lint/DuplicateBranch
+          # Default to a modern provider instead of deprecated OpenAI
+          "groq"
         end
       end
 

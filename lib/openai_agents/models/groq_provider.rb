@@ -7,28 +7,48 @@ require_relative "../http_client"
 
 module OpenAIAgents
   module Models
+    ##
     # Groq API provider implementation
     #
     # Groq provides ultra-fast inference for open-source models like Llama, Mixtral, and Gemma.
-    # The API is OpenAI-compatible, making integration straightforward.
+    # The API is OpenAI-compatible, making integration straightforward. Groq specializes in
+    # high-performance inference with their custom LPU (Language Processing Unit) hardware.
+    #
+    # Features:
+    # - Ultra-fast inference speeds (up to 10x faster than traditional providers)
+    # - Support for popular open-source models (Llama, Mixtral, Gemma)
+    # - OpenAI-compatible API for easy integration
+    # - Function calling support on select models
+    # - Streaming responses
+    # - JSON mode and structured output
     #
     # @example Basic usage
     #   provider = GroqProvider.new(api_key: ENV["GROQ_API_KEY"])
     #   response = provider.chat_completion(
     #     messages: [{ role: "user", content: "Hello!" }],
-    #     model: "llama3-8b-8192"
+    #     model: "llama-3.1-70b-versatile"
     #   )
     #
     # @example With streaming
     #   provider.stream_completion(messages: messages, model: "mixtral-8x7b-32768") do |chunk|
     #     print chunk[:content]
     #   end
+    #
+    # @example With tools (function calling)
+    #   provider.chat_completion(
+    #     messages: messages,
+    #     model: "llama3-groq-70b-8192-tool-use-preview",
+    #     tools: [weather_tool]
+    #   )
+    #
     class GroqProvider < ModelInterface
       include RetryableProvider
 
+      # Groq API base URL
       API_BASE = "https://api.groq.com/openai/v1"
 
       # Groq's available models as of 2024
+      # Includes various Llama 3 models, Mixtral, and Gemma variants
       SUPPORTED_MODELS = %w[
         llama-3.3-70b-versatile
         llama-3.1-405b-reasoning
@@ -45,6 +65,14 @@ module OpenAIAgents
         gemma2-9b-it
       ].freeze
 
+      ##
+      # Initialize a new Groq provider
+      #
+      # @param api_key [String, nil] Groq API key (defaults to GROQ_API_KEY env var)
+      # @param api_base [String, nil] API base URL (defaults to standard Groq endpoint)
+      # @param options [Hash] Additional options for the provider
+      # @raise [AuthenticationError] if API key is not provided
+      #
       def initialize(api_key: nil, api_base: nil, **options)
         super
         @api_key ||= ENV.fetch("GROQ_API_KEY", nil)
@@ -58,6 +86,21 @@ module OpenAIAgents
                                       })
       end
 
+      ##
+      # Performs a chat completion using Groq's API
+      #
+      # Groq's API is OpenAI-compatible, supporting most standard parameters.
+      # Tool support is available on models with "tool-use" in their name.
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Groq model to use
+      # @param tools [Array<Hash>, nil] Tools/functions available to the model
+      # @param stream [Boolean] Whether to stream the response
+      # @param kwargs [Hash] Additional parameters (temperature, max_tokens, etc.)
+      # @return [Hash] Response in OpenAI format
+      # @raise [ModelNotFoundError] if model is not supported
+      # @raise [APIError] if the API request fails
+      #
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
@@ -107,6 +150,18 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Streams a chat completion
+      #
+      # Convenience method that calls chat_completion with stream: true.
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Groq model to use
+      # @param tools [Array<Hash>, nil] Available tools
+      # @param kwargs [Hash] Additional parameters
+      # @yield [Hash] Yields streaming chunks
+      # @return [Hash] Final accumulated response
+      #
       def stream_completion(messages:, model:, tools: nil, **kwargs)
         chat_completion(
           messages: messages,
@@ -119,16 +174,37 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Returns list of supported Groq models
+      #
+      # @return [Array<String>] Supported model names
+      #
       def supported_models
         SUPPORTED_MODELS
       end
 
+      ##
+      # Returns the provider name
+      #
+      # @return [String] "Groq"
+      #
       def provider_name
         "Groq"
       end
 
       private
 
+      ##
+      # Handles streaming responses from Groq API
+      #
+      # Processes Server-Sent Events (SSE) and yields chunks to the caller.
+      # Accumulates content and tool calls for the final response.
+      #
+      # @param body [Hash] Request body
+      # @yield [Hash] Yields streaming chunks with type and content
+      # @return [Hash] Final accumulated response
+      # @private
+      #
       def stream_response(body)
         body[:stream] = true
 
@@ -208,7 +284,19 @@ module OpenAIAgents
         end
       end
 
-      # Override handle_api_error to add Groq-specific error handling
+      ##
+      # Handles Groq-specific API errors
+      #
+      # Groq has aggressive rate limits due to their high-performance infrastructure.
+      # This method provides specific error messages for common Groq errors.
+      #
+      # @param response [HTTPResponse] API response
+      # @param provider [String] Provider name (unused but required by interface)
+      # @raise [AuthenticationError] for 401 errors
+      # @raise [RateLimitError] for 429 errors with reset time
+      # @raise [APIError] for other errors
+      # @private
+      #
       def handle_api_error(response, provider)
         case response.code.to_i
         when 401

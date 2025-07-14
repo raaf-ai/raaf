@@ -12,27 +12,106 @@ require_relative "../streaming_events"
 
 module OpenAIAgents
   module Models
-    # OpenAI Responses API provider - matches Python implementation exactly
+    ##
+    # Provider for OpenAI's Responses API (recommended default)
+    #
+    # This provider implements support for OpenAI's newer Responses API endpoint
+    # (/v1/responses) which offers better features than the traditional Chat
+    # Completions API:
+    # - Items-based conversation model
+    # - Built-in conversation continuity
+    # - More detailed usage statistics
+    # - Better streaming support
+    #
+    # This provider maintains exact structural alignment with the Python
+    # OpenAI Agents SDK for full compatibility.
+    #
+    # @example Basic usage
+    #   provider = ResponsesProvider.new(api_key: ENV['OPENAI_API_KEY'])
+    #   response = provider.responses_completion(
+    #     messages: [{ role: "user", content: "Hello" }],
+    #     model: "gpt-4o"
+    #   )
+    #
+    # @example With tools
+    #   response = provider.responses_completion(
+    #     messages: messages,
+    #     model: "gpt-4o",
+    #     tools: [weather_tool, calculator_tool]
+    #   )
+    #
+    # @example Continuing a conversation
+    #   response = provider.responses_completion(
+    #     messages: [],
+    #     model: "gpt-4o",
+    #     previous_response_id: "resp_123",
+    #     input: [{ type: "function_call_output", ... }]
+    #   )
+    #
     class ResponsesProvider < ModelInterface
       include Logger
+      
+      # Models supported by the Responses API
       SUPPORTED_MODELS = %w[
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4
         o1-preview o1-mini
       ].freeze
 
+      ##
+      # Initialize the Responses API provider
+      #
+      # @param api_key [String, nil] OpenAI API key (defaults to ENV['OPENAI_API_KEY'])
+      # @param api_base [String, nil] Custom API base URL
+      # @param _options [Hash] Additional options (currently unused)
+      #
+      # @raise [AuthenticationError] If no API key is provided
+      #
       def initialize(api_key: nil, api_base: nil, **_options)
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
       end
 
-      # Indicates this provider supports prompts (for Responses API)
+      ##
+      # Check if this provider supports prompt parameter
+      #
+      # @return [Boolean] Always true for Responses API
+      #
       def supports_prompts?
         true
       end
 
-      # Main entry point matching Python's get_response
-      # Calls the Responses API (/v1/responses), not Chat Completions API
+      ##
+      # Execute a completion using the Responses API
+      #
+      # This is the main entry point for the Responses API provider.
+      # It uses the /v1/responses endpoint instead of /v1/chat/completions.
+      #
+      # @param messages [Array<Hash>] Traditional message format (converted internally)
+      # @param model [String] Model to use
+      # @param tools [Array<Hash>, nil] Tool definitions
+      # @param stream [Boolean] Whether to stream the response
+      # @param previous_response_id [String, nil] ID of previous response for continuity
+      # @param input [Array<Hash>, nil] Direct input items (bypasses message conversion)
+      # @param kwargs [Hash] Additional parameters (temperature, max_tokens, etc.)
+      #
+      # @return [Hash] Response with :id, :output, :usage, etc.
+      #
+      # @example Basic call
+      #   response = provider.responses_completion(
+      #     messages: [{ role: "user", content: "Hello" }],
+      #     model: "gpt-4o"
+      #   )
+      #   response[:output] # => [{ type: "message", content: "Hi!" }]
+      #
+      # @example Continuing a conversation
+      #   response = provider.responses_completion(
+      #     messages: [],
+      #     model: "gpt-4o", 
+      #     previous_response_id: previous_response[:id],
+      #     input: [{ type: "function_call_output", output: "..." }]
+      #   )
+      #
       def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil, **)
         validate_model(model)
 
@@ -140,6 +219,15 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Make a synchronous call to the Responses API
+      #
+      # @param body [Hash] Request body with model, input, tools, etc.
+      # @return [Hash] Parsed API response
+      # @raise [APIError] If the API returns an error
+      #
+      # @api private
+      #
       def call_responses_api(body)
         uri = URI("#{@api_base}/responses")
         http = Net::HTTP.new(uri.host, uri.port)
@@ -177,7 +265,20 @@ module OpenAIAgents
         parsed_response
       end
 
-      # Stream responses from OpenAI Responses API with Server-Sent Events
+      ##
+      # Make a streaming call to the Responses API
+      #
+      # This method handles Server-Sent Events (SSE) streaming from the API,
+      # parsing events and yielding them as Ruby objects.
+      #
+      # @param body [Hash] Request body
+      # @yield [event] Yields streaming events as they arrive
+      # @yieldparam event [StreamingEvents::Base] Parsed streaming event
+      #
+      # @raise [APIError] If the API returns an error
+      #
+      # @api private
+      #
       def call_responses_api_stream(body, &block)
         uri = URI("#{@api_base}/responses")
         http = Net::HTTP.new(uri.host, uri.port)

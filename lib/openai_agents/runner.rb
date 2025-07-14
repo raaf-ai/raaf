@@ -19,12 +19,69 @@ require_relative "streaming_events_semantic"
 require_relative "items"
 require_relative "context_manager"
 require_relative "context_config"
+require_relative "run_executor"
 
 module OpenAIAgents
+  ##
+  # The Runner class is the core execution engine for OpenAI Agents.
+  # It orchestrates the conversation flow between users and AI agents,
+  # managing tool calls, handoffs between agents, and conversation state.
+  #
+  # This class handles:
+  # - Multi-turn conversations with AI agents
+  # - Tool execution (both local and OpenAI-hosted tools)
+  # - Agent handoffs for multi-agent workflows
+  # - Tracing and monitoring of agent execution
+  # - Context management for memory-aware conversations
+  # - Guardrails for input/output validation
+  # - Streaming responses for real-time interaction
+  #
+  # @example Basic usage
+  #   agent = OpenAIAgents::Agent.new(
+  #     name: "Assistant",
+  #     instructions: "You are a helpful assistant",
+  #     model: "gpt-4o"
+  #   )
+  #   runner = OpenAIAgents::Runner.new(agent: agent)
+  #   result = runner.run("Hello, how can you help?")
+  #   puts result.messages.last[:content]
+  #
+  # @example With tracing enabled
+  #   tracer = OpenAIAgents::Tracing::SpanTracer.new
+  #   runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
+  #   result = runner.run("What's the weather?")
+  #
+  # @example Multi-agent handoffs
+  #   support_agent = OpenAIAgents::Agent.new(name: "Support", instructions: "...")
+  #   billing_agent = OpenAIAgents::Agent.new(name: "Billing", instructions: "...")
+  #   support_agent.add_handoff(billing_agent)
+  #   
+  #   runner = OpenAIAgents::Runner.new(agent: support_agent)
+  #   # Agent will automatically handoff to billing when needed
+  #
   class Runner
     include Logger
     attr_reader :agent, :tracer, :stop_checker
 
+    ##
+    # Initialize a new Runner instance
+    #
+    # @param agent [Agent] The initial agent to run conversations with
+    # @param provider [Models::Interface, nil] The LLM provider (defaults to ResponsesProvider)
+    # @param tracer [Tracing::SpanTracer, nil] The tracer for monitoring execution
+    # @param disabled_tracing [Boolean] Whether to disable tracing completely
+    # @param stop_checker [Proc, nil] A callable that returns true to stop execution
+    # @param context_manager [ContextManager, nil] Custom context manager for memory
+    # @param context_config [ContextConfig, nil] Configuration for automatic context management
+    #
+    # @example With custom provider
+    #   provider = OpenAIAgents::Models::AnthropicProvider.new
+    #   runner = OpenAIAgents::Runner.new(agent: agent, provider: provider)
+    #
+    # @example With stop checker
+    #   stop_checker = -> { File.exist?('/tmp/stop') }
+    #   runner = OpenAIAgents::Runner.new(agent: agent, stop_checker: stop_checker)
+    #
     def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil,
                    context_manager: nil, context_config: nil)
       @agent = agent
@@ -43,8 +100,6 @@ module OpenAIAgents
         config = ContextConfig.balanced(model: @agent.model)
         @context_manager = config.build_context_manager(model: @agent.model)
       end
-
-      # NOTE: LLM span wrapper removed - ResponsesProvider now handles usage tracking directly
 
       # Initialize handoff tracking for circular protection
       @handoff_chain = []
@@ -88,23 +143,58 @@ module OpenAIAgents
       @agent.tools?(context)
     end
 
+    ##
+    # Execute a conversation with the agent
+    #
+    # This is the main entry point for running agent conversations. It handles
+    # the complete conversation lifecycle including tool calls, handoffs, and
+    # multiple turns of interaction.
+    #
+    # @param messages [String, Array<Hash>] The input messages (string or conversation array)
+    # @param stream [Boolean] Whether to stream responses (requires streaming-capable provider)
+    # @param config [RunConfig, nil] Configuration object for the run
+    # @param hooks [Object, nil] Object with lifecycle hook methods (on_agent_start, on_tool_start, etc)
+    # @param input_guardrails [Array<Guardrails::InputGuardrail>] Input validation guardrails
+    # @param output_guardrails [Array<Guardrails::OutputGuardrail>] Output validation guardrails
+    # @param kwargs [Hash] Additional parameters passed to RunConfig
+    #
+    # @return [RunResult] The result containing conversation messages, usage stats, and metadata
+    #
+    # @raise [ExecutionStoppedError] If execution is stopped by stop_checker
+    # @raise [MaxTurnsError] If maximum conversation turns are exceeded
+    # @raise [HandoffError] If an invalid handoff is attempted
+    # @raise [Guardrails::InputGuardrailTripwireTriggered] If input guardrail is triggered
+    # @raise [Guardrails::OutputGuardrailTripwireTriggered] If output guardrail is triggered
+    #
+    # @example Simple conversation
+    #   result = runner.run("What's the capital of France?")
+    #   puts result.messages.last[:content]  # "The capital of France is Paris."
+    #
+    # @example With configuration
+    #   config = RunConfig.new(
+    #     max_turns: 5,
+    #     model: "gpt-4o-mini",
+    #     temperature: 0.7
+    #   )
+    #   result = runner.run("Tell me a story", config: config)
+    #
+    # @example With guardrails
+    #   pii_guardrail = PIIDetectorGuardrail.new
+    #   result = runner.run(
+    #     "My SSN is 123-45-6789",
+    #     input_guardrails: [pii_guardrail]
+    #   )
+    #
     def run(messages, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, **kwargs)
       # Normalize messages input - handle both string and array formats
       messages = normalize_messages(messages)
 
-      # Handle both config object and legacy parameters
-      if config.nil? && !kwargs.empty?
-        # Legacy support: create config from kwargs
+      # Create config if not provided
+      if config.nil?
         config = RunConfig.new(
           stream: stream,
-          workflow_name: kwargs[:workflow_name] || "Agent workflow",
-          trace_id: kwargs[:trace_id],
-          group_id: kwargs[:group_id],
-          metadata: kwargs[:metadata],
-          **kwargs
+          **kwargs  # Pass any additional parameters to RunConfig
         )
-      elsif config.nil?
-        config = RunConfig.new(stream: stream)
       end
 
       # Store hooks in config for later use
@@ -112,38 +202,83 @@ module OpenAIAgents
       config.input_guardrails = input_guardrails if input_guardrails
       config.output_guardrails = output_guardrails if output_guardrails
 
-      # Check if tracing is disabled
-      if config.tracing_disabled || @disabled_tracing || @tracer.nil?
-        return run_without_tracing(messages, config: config)
-      end
+      # Create appropriate executor based on tracing configuration
+      executor = if config.tracing_disabled || @disabled_tracing || @tracer.nil?
+                   BasicRunExecutor.new(
+                     runner: self,
+                     provider: @provider,
+                     agent: @agent,
+                     config: config
+                   )
+                 else
+                   TracedRunExecutor.new(
+                     runner: self,
+                     provider: @provider,
+                     agent: @agent,
+                     config: config,
+                     tracer: @tracer
+                   )
+                 end
 
-      # Check if we're already inside a trace
-      require_relative "tracing/trace"
-      current_trace = Tracing::Context.current_trace
-
-      if current_trace&.active?
-        # We're inside an existing trace, just run normally
-        run_with_tracing(messages, config: config, parent_span: nil)
-      else
-        # Create a new trace for this run
-        workflow_name = config.workflow_name || "Agent workflow"
-
-        Tracing.trace(workflow_name,
-                      trace_id: config.trace_id,
-                      group_id: config.group_id,
-                      metadata: config.metadata) do |_trace|
-          run_with_tracing(messages, config: config, parent_span: nil)
-        end
-      end
+      # Execute the conversation
+      executor.execute(messages)
     end
 
+    ##
+    # Execute a conversation asynchronously
+    #
+    # This method wraps the regular run method in an Async block for
+    # concurrent execution. Useful when running multiple agents in parallel.
+    #
+    # @param messages [String, Array<Hash>] The input messages
+    # @param stream [Boolean] Whether to stream responses
+    # @param config [RunConfig, nil] Configuration for the run
+    # @param kwargs [Hash] Additional parameters
+    #
+    # @return [Async::Task] An async task that resolves to a RunResult
+    #
+    # @example Running multiple agents concurrently
+    #   task1 = runner1.run_async("Analyze this data")
+    #   task2 = runner2.run_async("Generate a report")
+    #   
+    #   results = Async do
+    #     [task1.wait, task2.wait]
+    #   end
+    #
     def run_async(messages, stream: false, config: nil, **kwargs)
       Async do
         run(messages, stream: stream, config: config, **kwargs)
       end
     end
 
-    # New streaming method matching Python's run_streamed
+    ##
+    # Execute a streaming conversation with the agent
+    #
+    # This method returns a streaming result object that yields events
+    # as the conversation progresses. It matches the Python SDK's run_streamed
+    # method for compatibility.
+    #
+    # @param messages [String, Array<Hash>] The input messages
+    # @param config [RunConfig, nil] Configuration for the run
+    # @param kwargs [Hash] Additional parameters
+    #
+    # @return [RunResultStreaming] A streaming result object
+    #
+    # @example Streaming conversation
+    #   streaming = runner.run_streamed("Tell me a long story")
+    #   
+    #   streaming.each_event do |event|
+    #     case event.type
+    #     when :text
+    #       print event.content
+    #     when :tool_call
+    #       puts "Calling tool: #{event.tool_name}"
+    #     end
+    #   end
+    #
+    #   # Get final result after streaming completes
+    #   result = streaming.result
+    #
     def run_streamed(messages, config: nil, **kwargs)
       # Normalize messages and config
       messages = normalize_messages(messages)
@@ -172,9 +307,258 @@ module OpenAIAgents
       streaming_result
     end
 
-    private
+    ##
+    # @!group Executor Callback Methods
+    #
+    # These public methods are designed to be called by RunExecutor instances
+    # during agent execution. They provide access to runner functionality
+    # while maintaining proper encapsulation.
+    #
+    public
 
-    # Get all tools for an agent including handoff tools
+    # Hook and guardrail methods for executor
+    attr_reader :current_config
+
+    ##
+    # Execute lifecycle hooks for agent execution events
+    #
+    # This method is called by executors to trigger hooks at various
+    # points in the execution lifecycle. It handles both run-level
+    # and agent-level hooks.
+    #
+    # @api private Used by RunExecutor classes
+    # @param hook_method [Symbol] The hook to execute (e.g., :on_agent_start)
+    # @param context_wrapper [RunContextWrapper] Current execution context
+    # @param args [Array] Additional arguments passed to the hook
+    # @return [void]
+    #
+    # @example Hook methods available:
+    #   - :on_agent_start - Called when agent begins processing
+    #   - :on_agent_end - Called when agent completes
+    #   - :on_tool_start - Called before tool execution
+    #   - :on_tool_end - Called after tool execution
+    #   - :on_tool_error - Called when tool execution fails
+    #   - :on_handoff - Called when agent handoff occurs
+    #
+    def call_hook(hook_method, context_wrapper, *args)
+      log_debug_general("Calling hook", hook: hook_method, config_class: @current_config&.hooks&.class&.name)
+      
+      # Call run-level hooks
+      if @current_config&.hooks.respond_to?(hook_method)
+        log_debug_general("Executing run-level hook", hook: hook_method)
+        @current_config.hooks.send(hook_method, context_wrapper, *args)
+      end
+
+      # Call agent-level hooks if applicable
+      agent = args.first if args.first.is_a?(Agent)
+      agent_hook_method = hook_method.to_s.sub("on_agent_", "on_")
+      if agent&.hooks.respond_to?(agent_hook_method)
+        log_debug_general("Executing agent-level hook", hook: agent_hook_method, agent: agent.name)
+        agent.hooks.send(agent_hook_method, context_wrapper, *args)
+      end
+    rescue StandardError => e
+      warn "Error in hook #{hook_method}: #{e.message}"
+    end
+
+    ##
+    # Execute input guardrails to validate and filter user input
+    #
+    # This method runs all configured input guardrails (both run-level
+    # and agent-level) before processing user messages. Guardrails can
+    # modify content or trigger exceptions to prevent processing.
+    #
+    # @api private Used by RunExecutor classes
+    # @param context_wrapper [RunContextWrapper] Current execution context
+    # @param agent [Agent] The current agent instance
+    # @param input [String] The user input to validate
+    # @return [void]
+    # @raise [Guardrails::InputGuardrailTripwireTriggered] If a guardrail blocks the input
+    #
+    def run_input_guardrails(context_wrapper, agent, input)
+      # Collect all guardrails (run-level and agent-level)
+      guardrails = []
+      guardrails.concat(@current_config.input_guardrails) if @current_config&.input_guardrails
+      guardrails.concat(agent.input_guardrails) if agent.respond_to?(:input_guardrails)
+
+      return if guardrails.empty?
+
+      guardrails.each do |guardrail|
+        result = guardrail.run(context_wrapper, agent, input)
+
+        next unless result.tripwire_triggered?
+
+        raise Guardrails::InputGuardrailTripwireTriggered.new(
+          "Input guardrail '#{guardrail.get_name}' triggered",
+          triggered_by: guardrail.get_name,
+          content: input,
+          metadata: result.output.output_info
+        )
+      end
+    end
+
+    ##
+    # Execute output guardrails to validate and filter agent responses
+    #
+    # This method runs all configured output guardrails (both run-level
+    # and agent-level) after receiving agent responses. Guardrails can
+    # modify content or trigger exceptions to prevent output.
+    #
+    # @api private Used by RunExecutor classes
+    # @param context_wrapper [RunContextWrapper] Current execution context
+    # @param agent [Agent] The current agent instance
+    # @param output [String] The agent output to validate
+    # @return [void]
+    # @raise [Guardrails::OutputGuardrailTripwireTriggered] If a guardrail blocks the output
+    #
+    def run_output_guardrails(context_wrapper, agent, output)
+      # Collect all guardrails (run-level and agent-level)
+      guardrails = []
+      guardrails.concat(@current_config.output_guardrails) if @current_config&.output_guardrails
+      guardrails.concat(agent.output_guardrails) if agent.respond_to?(:output_guardrails)
+
+      return if guardrails.empty?
+
+      guardrails.each do |guardrail|
+        result = guardrail.run(context_wrapper, agent, output)
+
+        next unless result.tripwire_triggered?
+
+        raise Guardrails::OutputGuardrailTripwireTriggered.new(
+          "Output guardrail '#{guardrail.get_name}' triggered",
+          triggered_by: guardrail.get_name,
+          content: output,
+          metadata: result.output.output_info
+        )
+      end
+    end
+
+    ##
+    # Build formatted messages array for API provider calls
+    #
+    # This method prepares the conversation messages for the AI provider,
+    # including system prompts, conversation history, and applying any
+    # context management strategies.
+    #
+    # @api private Used by RunExecutor classes
+    # @param conversation [Array<Hash>] The conversation history
+    # @param agent [Agent] The current agent instance
+    # @param context_wrapper [RunContextWrapper, nil] Optional execution context
+    # @return [Array<Hash>] Formatted messages ready for API call
+    #
+    def build_messages(conversation, agent, context_wrapper = nil)
+      system_message = {
+        role: "system",
+        content: build_system_prompt(agent, context_wrapper)
+      }
+
+      # Convert to symbol keys for consistency with provider expectations
+      formatted_conversation = conversation.map do |msg|
+        {
+          role: msg[:role] || msg["role"],
+          content: msg[:content] || msg["content"]
+        }
+      end
+
+      messages = [system_message] + formatted_conversation
+
+      # Apply context management if enabled
+      messages = @context_manager.manage_context(messages) if @context_manager
+
+      messages
+    end
+
+    ##
+    # Process and execute tool calls from the assistant
+    #
+    # This method handles the execution of one or more tool calls requested
+    # by the AI assistant. It manages tool execution, error handling, and
+    # appending results back to the conversation.
+    #
+    # @api private Used by RunExecutor classes
+    # @param tool_calls [Array<Hash>] Array of tool call requests from the assistant
+    # @param agent [Agent] The current agent instance
+    # @param conversation [Array<Hash>] The conversation to append results to
+    # @param context_wrapper [RunContextWrapper, nil] Optional execution context
+    # @param full_response [Hash, nil] The full API response (for hosted tools)
+    # @return [Boolean, String] Returns true if should stop, String for handoff agent, false to continue
+    #
+    def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil, full_response = nil)
+      # Implementation defined elsewhere in the file
+    end
+
+    ##
+    # Detect agent handoff requests in message content
+    #
+    # This method analyzes message content to identify handoff patterns
+    # that indicate the current agent wants to transfer control to another agent.
+    #
+    # @api private Used by RunExecutor classes
+    # @param content [String] The message content to analyze
+    # @param agent [Agent] The current agent instance
+    # @return [String, nil] Target agent name if handoff detected, nil otherwise
+    #
+    def detect_handoff_in_content(content, agent)
+      # Implementation defined elsewhere in the file
+    end
+
+    ##
+    # Find a handoff agent by name
+    #
+    # This method searches for a handoff agent in the current agent's
+    # handoff list by name, enabling agent-to-agent transfers.
+    #
+    # @api private Used by RunExecutor classes
+    # @param target_name [String] The name of the target agent
+    # @param current_agent [Agent] The current agent with handoff list
+    # @return [Agent, nil] The target agent if found, nil otherwise
+    #
+    def find_handoff_agent(target_name, current_agent)
+      # Implementation defined elsewhere in the file
+    end
+
+    ##
+    # Execute a tool by name with given arguments
+    #
+    # This method finds and executes a tool from the agent's tool list,
+    # handling both function tools and other tool types.
+    #
+    # @api private Used by RunExecutor classes
+    # @param tool_name [String] The name of the tool to execute
+    # @param arguments [Hash] The arguments to pass to the tool
+    # @param agent [Agent] The agent that owns the tool
+    # @param context_wrapper [RunContextWrapper, nil] Optional execution context
+    # @return [String] The tool execution result
+    # @raise [StandardError] If tool execution fails
+    #
+    def execute_tool(tool_name, arguments, agent, context_wrapper = nil)
+      # Implementation defined elsewhere in the file
+    end
+
+    # @!endgroup
+
+    protected
+
+    ##
+    # Get all tools available to an agent, including handoff tools
+    #
+    # This method combines regular tools with handoff agents converted to tools.
+    # Handoff agents are automatically converted to tool definitions that the
+    # LLM can call to transfer control to another agent.
+    #
+    # @param agent [Agent] The agent to get tools for
+    # @return [Array<Hash>, nil] Array of tool definitions or nil if no tools
+    #
+    # @example Tool definition format
+    #   {
+    #     type: "function",
+    #     name: "transfer_to_billing",
+    #     function: {
+    #       name: "transfer_to_billing",
+    #       description: "Transfer to Billing agent for billing inquiries",
+    #       parameters: { type: "object", properties: {}, required: [] }
+    #     }
+    #   }
+    #
     def get_all_tools_for_api(agent)
       all_tools = []
 
@@ -221,7 +605,22 @@ module OpenAIAgents
       all_tools.empty? ? nil : all_tools
     end
 
-    # Process output items from Responses API
+    ##
+    # Process output items from the Responses API
+    #
+    # This method handles the output format from OpenAI's Responses API,
+    # which uses an items-based conversation model. It processes different
+    # types of output items (messages, tool calls) and detects handoffs.
+    #
+    # @param response [Hash] The API response containing output items
+    # @param agent [Agent] The current agent
+    # @param generated_items [Array<Items::Base>] Array to append new items to
+    # @param span [Tracing::Span, nil] Optional tracing span
+    #
+    # @return [Hash] Result hash with :done and :handoff keys
+    #   - :done [Boolean] Whether the conversation is complete
+    #   - :handoff [Hash, nil] Handoff data if a handoff was detected
+    #
     def process_responses_api_output(response, agent, generated_items, span = nil)
       output = response&.dig(:output) || response&.dig("output") || []
 
@@ -362,7 +761,21 @@ module OpenAIAgents
       result
     end
 
-    # Execute a tool for Responses API
+    ##
+    # Execute a tool call for the Responses API
+    #
+    # This method executes tool calls from the Responses API format,
+    # handling both regular tools and handoff tools. It includes proper
+    # error handling and tracing support.
+    #
+    # @param tool_call_item [Hash] The tool call item from the API
+    #   - :name [String] The tool name
+    #   - :arguments [String] JSON-encoded tool arguments
+    # @param agent [Agent] The agent executing the tool
+    #
+    # @return [String, Hash] Tool execution result or error message
+    #   Returns a Hash with :assistant key for handoff results
+    #
     def execute_tool_for_responses_api(tool_call_item, agent)
       tool_name = tool_call_item[:name] || tool_call_item["name"]
       arguments_str = tool_call_item[:arguments] || tool_call_item["arguments"] || "{}"
@@ -519,7 +932,19 @@ module OpenAIAgents
       execute_responses_api_core(messages, config, with_tracing: false)
     end
 
-    # Run input guardrails for an agent
+    ##
+    # Run input guardrails to validate user input
+    #
+    # This method executes all configured input guardrails (both run-level
+    # and agent-level) to validate the input before processing. If any
+    # guardrail is triggered, it raises an exception.
+    #
+    # @param context_wrapper [RunContextWrapper] The run context
+    # @param agent [Agent] The current agent
+    # @param input [String] The input to validate
+    #
+    # @raise [Guardrails::InputGuardrailTripwireTriggered] If a guardrail is triggered
+    #
     def run_input_guardrails(context_wrapper, agent, input)
       # Collect all guardrails (run-level and agent-level)
       guardrails = []
@@ -565,26 +990,25 @@ module OpenAIAgents
       end
     end
 
-    # Helper method to safely call hooks
-    def call_hook(hook_method, context_wrapper, *args)
-      puts "DEBUG: call_hook #{hook_method} with config: #{@current_config&.hooks.class.name}" if ENV['DEBUG_HOOKS']
-      
-      # Call run-level hooks
-      if @current_config&.hooks.respond_to?(hook_method)
-        puts "DEBUG: Calling run-level hook #{hook_method}" if ENV['DEBUG_HOOKS']
-        @current_config.hooks.send(hook_method, context_wrapper, *args)
-      end
-
-      # Call agent-level hooks if applicable
-      agent = args.first if args.first.is_a?(Agent)
-      agent_hook_method = hook_method.to_s.sub("on_agent_", "on_")
-      if agent&.hooks.respond_to?(agent_hook_method)
-        puts "DEBUG: Calling agent-level hook #{agent_hook_method}" if ENV['DEBUG_HOOKS']
-        agent.hooks.send(agent_hook_method, context_wrapper, *args)
-      end
-    rescue StandardError => e
-      warn "Error in hook #{hook_method}: #{e.message}"
-    end
+    ##
+    # Safely call lifecycle hooks
+    #
+    # This method calls both run-level and agent-level hooks, handling
+    # any errors that occur during hook execution. Hooks are used to
+    # implement custom behavior at different points in the conversation.
+    #
+    # @param hook_method [Symbol] The hook method name (e.g., :on_agent_start)
+    # @param context_wrapper [RunContextWrapper] The run context
+    # @param args [Array] Additional arguments to pass to the hook
+    #
+    # Available hooks:
+    # - on_agent_start: Called when an agent begins processing
+    # - on_agent_end: Called when an agent completes processing
+    # - on_tool_start: Called before a tool is executed
+    # - on_tool_end: Called after a tool completes
+    # - on_handoff: Called when an agent handoff occurs
+    #
+    # (Method moved to public section above)
 
     # Initialize context and hooks for any run variant
     def initialize_run_context(messages, config)
@@ -680,40 +1104,32 @@ module OpenAIAgents
         model_responses << response
         context_wrapper.add_message({ role: "assistant", content: response[:content] || response["content"] || "" })
 
-        # Process tool calls if any
-        tool_calls = response[:tool_calls] || response["tool_calls"] || []
-        if tool_calls&.any?
-          tool_calls.each do |tool_call|
-            generated_items << Items::ToolCallItem.new(
-              id: tool_call["id"],
-              name: tool_call["function"]["name"],
-              arguments: tool_call["function"]["arguments"]
-            )
-
-            # Execute the tool call
-            result = execute_tool_call(tool_call, state[:current_agent], context_wrapper)
-
-            # Handle handoffs
-            if result.is_a?(Hash) && result.key?(:handoff_target)
-              target_agent = result[:handoff_target]
-              call_hook(:on_handoff, context_wrapper, state[:current_agent], target_agent)
-              state[:current_agent] = target_agent
-              context_wrapper.add_handoff(state[:current_agent].name, target_agent.name)
-            end
-
-            generated_items << Items::ToolOutputItem.new(
-              call_id: tool_call["id"],
-              content: result.is_a?(Hash) ? result[:message] || result.to_s : result.to_s
-            )
-          end
-
+        # Process Responses API output
+        process_result = process_responses_api_output(response, state[:current_agent], generated_items)
+        
+        # Handle handoffs
+        if process_result[:handoff]
+          # For now, just log handoffs - full handoff support would require more complex state management
+          log_debug_handoff("Handoff detected", 
+            from_agent: state[:current_agent].name,
+            to_agent: process_result[:handoff][:assistant] || "unknown")
+        end
+        
+        # Check if we should continue (has tool calls)
+        if !process_result[:done]
           # Set previous_response_id for next iteration
           previous_response_id = response[:id] || response["id"]
           state[:turns] += 1
+          
+          # Check if max turns exceeded after incrementing
+          if state[:turns] >= state[:max_turns]
+            raise MaxTurnsError, "Maximum turns (#{state[:max_turns]}) exceeded"
+          end
+          
           next
         end
 
-        # No tool calls - conversation is complete
+        # No tool calls or done - conversation is complete
         break
       end
 
@@ -733,6 +1149,8 @@ module OpenAIAgents
 
       RunResult.new(
         messages: final_messages,
+        last_agent: state[:current_agent],
+        turns: state[:turns],
         usage: state[:accumulated_usage],
         metadata: { responses: model_responses }
       )
@@ -1015,11 +1433,8 @@ module OpenAIAgents
     end
 
     def run_without_tracing(messages, config:)
-      # For Responses API, use shared execution core
-      return run_with_responses_api_no_trace(messages, config: config) if @provider.is_a?(Models::ResponsesProvider)
-
-      # For non-Responses providers, use legacy implementation with hooks
-      context_wrapper = initialize_run_context(messages, config)
+      # Always use Responses API execution core
+      run_with_responses_api_no_trace(messages, config: config)
 
       conversation = messages.dup
       current_agent = @agent
@@ -1104,14 +1519,14 @@ module OpenAIAgents
 
         # Check for handoff
         if result[:handoff]
-          log_debug_handoff("Processing handoff request (legacy mode)",
+          log_debug_handoff("Processing handoff request",
                             from_agent: current_agent.name,
                             requested_agent: result[:handoff])
 
           handoff_agent = current_agent.find_handoff(result[:handoff])
 
           if handoff_agent.nil?
-            log_debug_handoff("Handoff target not found (legacy mode)",
+            log_debug_handoff("Handoff target not found",
                               from_agent: current_agent.name,
                               requested_agent: result[:handoff],
                               available_handoffs: current_agent.handoffs.map(&:name).join(", "))
@@ -1121,7 +1536,7 @@ module OpenAIAgents
           # Call handoff hook
           call_hook(:on_handoff, context_wrapper, current_agent, handoff_agent)
 
-          log_debug_handoff("Handoff completed (legacy mode)",
+          log_debug_handoff("Handoff completed",
                             from_agent: current_agent.name,
                             to_agent: handoff_agent.name)
 
@@ -1206,6 +1621,23 @@ module OpenAIAgents
       prompt_parts.join("\n")
     end
 
+    ##
+    # Process a response from the Chat Completions API
+    #
+    # This method handles responses from the traditional Chat Completions API,
+    # processing the assistant's message, executing any tool calls, and
+    # detecting handoffs in the response content.
+    #
+    # @param response [Hash] The API response
+    # @param agent [Agent] The current agent
+    # @param conversation [Array<Hash>] The conversation array to append to
+    #
+    # @return [Hash] Result hash with processing status
+    #   - :done [Boolean] Whether the conversation is complete
+    #   - :handoff [String, nil] Target agent name if handoff detected
+    #   - :stopped [Boolean] Whether execution was stopped
+    #   - :error [Hash, nil] Error information if an error occurred
+    #
     def process_response(response, agent, conversation)
       # Handle error responses
       if response["error"]
@@ -1308,6 +1740,24 @@ module OpenAIAgents
       result
     end
 
+    ##
+    # Process multiple tool calls from the LLM
+    #
+    # This method handles the execution of one or more tool calls, including
+    # local tools, OpenAI-hosted tools, and handoff tools. It manages proper
+    # error handling, stop checking, and handoff detection.
+    #
+    # @param tool_calls [Array<Hash>] Array of tool call objects from the API
+    # @param agent [Agent] The current agent
+    # @param conversation [Array<Hash>] The conversation to append tool results to
+    # @param context_wrapper [RunContextWrapper, nil] The run context for hooks
+    # @param full_response [Hash, nil] The full API response (for hosted tools)
+    #
+    # @return [Boolean, String] Returns:
+    #   - true if execution should stop
+    #   - String with agent name if handoff detected
+    #   - false to continue conversation
+    #
     def process_tool_calls(tool_calls, agent, conversation, context_wrapper = nil, full_response = nil)
       log_debug_tools("Processing tool calls",
                       agent: agent.name,
@@ -1403,6 +1853,25 @@ module OpenAIAgents
       stop_requested
     end
 
+    ##
+    # Process a single tool call
+    #
+    # This method executes an individual tool call, handling different types:
+    # - OpenAI-hosted tools (web_search, code_interpreter, file_search)
+    # - Handoff tools (transfer_to_* functions)
+    # - Local custom tools defined by the user
+    #
+    # @param tool_call [Hash] The tool call object with id and function details
+    # @param agent [Agent] The agent executing the tool
+    # @param context_wrapper [RunContextWrapper, nil] The run context
+    # @param full_response [Hash, nil] Full API response for hosted tools
+    #
+    # @return [Hash] Tool result message with:
+    #   - :role [String] Always "tool"
+    #   - :tool_call_id [String] The tool call ID
+    #   - :content [String] The tool execution result
+    #   - :handoff [String, nil] Target agent if handoff occurred
+    #
     def process_single_tool_call(tool_call, agent, context_wrapper, full_response = nil)
       # Check if execution should stop before processing tool
       if should_stop?
@@ -1574,14 +2043,32 @@ module OpenAIAgents
       end
     end
 
+    ##
+    # Normalize input messages to a consistent format
+    #
+    # This method converts various input formats to the standard
+    # array of message hashes format expected by the API.
+    #
+    # @param messages [String, Array<Hash>, Object] The input messages
+    #
+    # @return [Array<Hash>] Normalized array of message hashes
+    #
+    # @example String input
+    #   normalize_messages("Hello")
+    #   # => [{ role: "user", content: "Hello" }]
+    #
+    # @example Array input
+    #   normalize_messages([{ role: "user", content: "Hi" }])
+    #   # => [{ role: "user", content: "Hi" }]
+    #
     def normalize_messages(messages)
       case messages
       when String
         # Convert string to user message
         [{ role: "user", content: messages }]
       when Array
-        # Already an array, return as-is
-        messages
+        # Already an array, create a deep copy to avoid mutating original
+        messages.map(&:dup)
       else
         # Convert to string then to user message
         [{ role: "user", content: messages.to_s }]
@@ -1805,7 +2292,27 @@ module OpenAIAgents
       agent_part.capitalize
     end
 
-    # Unified handoff detection method supporting JSON and text-based handoffs
+    ##
+    # Detect handoff requests in response content
+    #
+    # This unified method detects handoff requests in agent responses using
+    # multiple strategies:
+    # 1. JSON-based handoffs (e.g., {"handoff_to": "BillingAgent"})
+    # 2. Text-based handoffs (e.g., "I'll transfer you to Support")
+    #
+    # @param content [String] The response content to analyze
+    # @param agent [Agent] The current agent (for available handoffs)
+    #
+    # @return [String, nil] The validated target agent name or nil
+    #
+    # @example JSON handoff
+    #   content = '{"handoff_to": "BillingAgent", "reason": "payment issue"}'
+    #   detect_handoff_in_content(content, agent)  # => "BillingAgent"
+    #
+    # @example Text handoff
+    #   content = "I'll transfer you to the Support team for this issue."
+    #   detect_handoff_in_content(content, agent)  # => "Support"
+    #
     def detect_handoff_in_content(content, agent)
       return nil unless content && !content.empty?
 

@@ -4,12 +4,95 @@ require_relative "errors"
 require_relative "logging"
 
 module OpenAIAgents
+  ##
+  # FunctionTool wraps Ruby methods and procs to make them available as tools for AI agents
+  #
+  # This class provides a standardized interface for agent tools, handling:
+  # - Parameter extraction and validation
+  # - Tool execution with proper error handling
+  # - Dynamic enabling/disabling based on context
+  # - Conversion to OpenAI-compatible tool definitions
+  #
+  # Tools extend agent capabilities by allowing them to execute code,
+  # call APIs, or perform any custom logic defined in Ruby.
+  #
+  # @example Creating a tool from a method
+  #   def get_weather(city:, unit: "celsius")
+  #     "Weather in #{city}: 22°#{unit[0].upcase}"
+  #   end
+  #   
+  #   tool = FunctionTool.new(method(:get_weather))
+  #   result = tool.call(city: "Paris")  # => "Weather in Paris: 22°C"
+  #
+  # @example Creating a tool from a proc with custom metadata
+  #   calculator = FunctionTool.new(
+  #     proc { |expression:| eval(expression) },
+  #     name: "calculator",
+  #     description: "Evaluates mathematical expressions",
+  #     parameters: {
+  #       type: "object",
+  #       properties: {
+  #         expression: { type: "string", description: "Math expression to evaluate" }
+  #       },
+  #       required: ["expression"]
+  #     }
+  #   )
+  #
+  # @example Dynamic tool enabling based on context
+  #   admin_tool = FunctionTool.new(
+  #     proc { |action:| perform_admin_action(action) },
+  #     name: "admin_action",
+  #     is_enabled: proc { |context| context.user.admin? }
+  #   )
+  #
   class FunctionTool
     include Logger
     
+    # @!attribute [r] name
+    #   @return [String] The tool's name used for identification
+    # @!attribute [r] description
+    #   @return [String] Human-readable description of what the tool does
+    # @!attribute [r] parameters
+    #   @return [Hash] JSON Schema describing the tool's parameters
+    # @!attribute [r] callable
+    #   @return [Method, Proc] The underlying Ruby callable
+    # @!attribute [rw] is_enabled
+    #   @return [Boolean, Proc, nil] Controls whether the tool is available
     attr_reader :name, :description, :parameters, :callable
     attr_accessor :is_enabled
 
+    ##
+    # Initialize a new FunctionTool
+    #
+    # @param callable [Method, Proc] The Ruby method or proc to wrap
+    # @param name [String, nil] Optional tool name (extracted from method if nil)
+    # @param description [String, nil] Optional description
+    # @param parameters [Hash, nil] Optional parameter schema (auto-extracted if nil)
+    # @param is_enabled [Boolean, Proc, nil] Optional enablement control
+    #
+    # @example Auto-extraction from method
+    #   def search(query:)
+    #     # search implementation
+    #   end
+    #   tool = FunctionTool.new(method(:search))
+    #   # name: "search", parameters extracted automatically
+    #
+    # @example Custom parameters for complex types
+    #   tool = FunctionTool.new(
+    #     proc { |data:| process(data) },
+    #     parameters: {
+    #       type: "object",
+    #       properties: {
+    #         data: {
+    #           type: "object",
+    #           properties: {
+    #             items: { type: "array", items: { type: "string" } }
+    #           }
+    #         }
+    #       }
+    #     }
+    #   )
+    #
     def initialize(callable, name: nil, description: nil, parameters: nil, is_enabled: nil)
       @callable = callable
       @name = name || extract_name(callable)
@@ -41,6 +124,27 @@ module OpenAIAgents
       @is_enabled = is_enabled # Can be a Proc, boolean, or nil
     end
 
+    ##
+    # Execute the tool with the given arguments
+    #
+    # This method handles both keyword and positional argument styles,
+    # automatically adapting to the callable's parameter expectations.
+    #
+    # @param kwargs [Hash] Keyword arguments to pass to the tool
+    # @return [Object] The result from the tool execution
+    # @raise [ToolError] If the callable is invalid or execution fails
+    #
+    # @example Calling a tool
+    #   tool = FunctionTool.new(method(:search))
+    #   result = tool.call(query: "Ruby programming")
+    #
+    # @example Error handling
+    #   begin
+    #     result = tool.call(invalid_param: "value")
+    #   rescue OpenAIAgents::ToolError => e
+    #     puts "Tool failed: #{e.message}"
+    #   end
+    #
     def call(**kwargs)
       if @callable.is_a?(Method)
         @callable.call(**kwargs)
@@ -132,6 +236,32 @@ module OpenAIAgents
       end
     end
 
+    ##
+    # Convert the tool to an OpenAI-compatible tool definition
+    #
+    # This method generates the JSON structure expected by OpenAI's API
+    # for function calling, including the tool's metadata and parameter schema.
+    #
+    # @return [Hash] OpenAI-compatible tool definition
+    #
+    # @example Tool definition structure
+    #   tool.to_h
+    #   # => {
+    #   #   type: "function",
+    #   #   name: "search",
+    #   #   function: {
+    #   #     name: "search",
+    #   #     description: "Search for information",
+    #   #     parameters: {
+    #   #       type: "object",
+    #   #       properties: {
+    #   #         query: { type: "string", description: "Search query" }
+    #   #       },
+    #   #       required: ["query"]
+    #   #     }
+    #   #   }
+    #   # }
+    #
     def to_h
       result = {
         type: "function",
@@ -157,6 +287,12 @@ module OpenAIAgents
 
     private
 
+    ##
+    # Extract a name from the callable
+    #
+    # @param callable [Method, Proc] The callable to extract name from
+    # @return [String] The extracted or generated name
+    #
     def extract_name(callable)
       if callable.is_a?(Method)
         callable.name.to_s
@@ -167,11 +303,42 @@ module OpenAIAgents
       end
     end
 
+    ##
+    # Extract a description for the tool
+    #
+    # @param callable [Method, Proc] The callable (currently unused)
+    # @return [String] A generic description
+    # @todo Implement extraction from method documentation/comments
+    #
     def extract_description(_callable)
       # Try to extract from method comments or documentation
       "A function tool"
     end
 
+    ##
+    # Extract parameter information from the callable's signature
+    #
+    # This method analyzes the callable's parameters to generate a JSON Schema
+    # that describes the expected input format for the tool.
+    #
+    # @param callable [Method, Proc] The callable to analyze
+    # @return [Hash] JSON Schema describing the parameters
+    #
+    # @example Parameter extraction
+    #   def example(required_param:, optional_param: "default")
+    #     # ...
+    #   end
+    #   
+    #   # Extracts to:
+    #   # {
+    #   #   type: "object",
+    #   #   properties: {
+    #   #     required_param: { type: "string", description: "required_param parameter" },
+    #   #     optional_param: { type: "string", description: "optional_param parameter" }
+    #   #   },
+    #   #   required: ["required_param"]
+    #   # }
+    #
     def extract_parameters(callable)
       # Extract parameter information from the callable
       properties = {}

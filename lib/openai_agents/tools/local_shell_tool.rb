@@ -7,33 +7,50 @@ require_relative "../function_tool"
 
 module OpenAIAgents
   module Tools
+    ##
     # Local Shell Tool - Safe command execution
     #
     # This tool provides controlled access to shell commands with safety features.
     # Unlike ComputerTool which provides full desktop control, this focuses on
     # command-line operations with restrictions.
     #
-    # Features:
-    # - Whitelisted commands only
-    # - Working directory management
-    # - Environment variable control
-    # - Timeout protection
-    # - Output size limits
+    # Security features:
+    # - Command whitelisting to prevent dangerous operations
+    # - Working directory restrictions
+    # - Environment variable isolation
+    # - Execution timeout protection
+    # - Output size limits to prevent memory issues
+    # - Protection against directory traversal attacks
     #
     # @example Basic usage
     #   shell = LocalShellTool.new
     #   agent.add_tool(shell)
+    #   
+    #   # Agent can now execute: ls, cat, grep, etc.
     #
     # @example With custom whitelist
     #   shell = LocalShellTool.new(
     #     allowed_commands: ["ls", "cat", "grep", "find"],
-    #     working_dir: "/tmp/safe_dir"
+    #     working_dir: "/tmp/safe_dir",
+    #     timeout: 10,
+    #     max_output: 5000
     #   )
+    #
+    # @example With environment variables
+    #   shell = LocalShellTool.new(
+    #     env_vars: { "API_KEY" => "secret" },
+    #     allowed_commands: ["curl", "wget"]
+    #   )
+    #
     class LocalShellTool < FunctionTool
-      DEFAULT_TIMEOUT = 30 # seconds
-      DEFAULT_MAX_OUTPUT = 10_000 # characters
+      # Default timeout for command execution in seconds
+      DEFAULT_TIMEOUT = 30
+      
+      # Default maximum output size in characters
+      DEFAULT_MAX_OUTPUT = 10_000
 
-      # Default safe commands
+      # Default safe commands that can be executed
+      # These commands are considered safe for general use
       DEFAULT_ALLOWED_COMMANDS = %w[
         ls cat head tail grep find wc sort uniq cut awk sed
         echo date pwd cd mkdir rmdir touch cp mv
@@ -42,6 +59,7 @@ module OpenAIAgents
       ].freeze
 
       # Dangerous commands that are always blocked
+      # These commands can cause system damage or security issues
       BLOCKED_COMMANDS = %w[
         rm sudo su chmod chown kill pkill killall
         systemctl service shutdown reboot halt poweroff
@@ -49,8 +67,22 @@ module OpenAIAgents
         iptables firewall-cmd ufw
       ].freeze
 
+      # @!attribute [r] working_dir
+      #   @return [String] Current working directory for command execution
+      # @!attribute [r] allowed_commands
+      #   @return [Array<String>] List of allowed command names
       attr_reader :working_dir, :allowed_commands
 
+      ##
+      # Initialize a new local shell tool
+      #
+      # @param allowed_commands [Array<String>] Commands that can be executed
+      # @param working_dir [String, nil] Working directory (defaults to current dir)
+      # @param timeout [Integer] Maximum execution time in seconds
+      # @param max_output [Integer] Maximum output size in characters
+      # @param env_vars [Hash] Environment variables to set for commands
+      # @raise [ArgumentError] if working directory is invalid
+      #
       def initialize(allowed_commands: DEFAULT_ALLOWED_COMMANDS,
                      working_dir: nil,
                      timeout: DEFAULT_TIMEOUT,
@@ -73,6 +105,21 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Execute a shell command safely
+      #
+      # @param command [String] The command to execute
+      # @param args [Array<String>, nil] Command arguments (optional)
+      # @param working_dir [String, nil] Override working directory (optional)
+      # @return [Hash] Execution result with stdout, stderr, exit code, etc.
+      #
+      # @example Execute with parsed command
+      #   execute_command(command: "ls -la /tmp")
+      #   # => { stdout: "...", stderr: "", exit_code: 0, success: true }
+      #
+      # @example Execute with separate args
+      #   execute_command(command: "grep", args: ["-r", "TODO", "."])
+      #
       def execute_command(command:, args: nil, working_dir: nil)
         # Parse command and arguments
         if args.nil?
@@ -133,6 +180,13 @@ module OpenAIAgents
         }
       end
 
+      ##
+      # Validates that a command is safe to execute
+      #
+      # @param command [String] Command to validate
+      # @raise [SecurityError] if command is blocked or not allowed
+      # @private
+      #
       def validate_command!(command)
         cmd_name = File.basename(command.to_s).split.first
 
@@ -145,6 +199,12 @@ module OpenAIAgents
         raise SecurityError, "Command '#{cmd_name}' is not in the allowed list"
       end
 
+      ##
+      # Validates the working directory exists and is readable
+      #
+      # @raise [ArgumentError] if directory is invalid
+      # @private
+      #
       def validate_working_dir!
         raise ArgumentError, "Working directory does not exist: #{@working_dir}" unless Dir.exist?(@working_dir)
 
@@ -153,6 +213,17 @@ module OpenAIAgents
         raise ArgumentError, "Working directory is not readable: #{@working_dir}"
       end
 
+      ##
+      # Validates a directory path for security
+      #
+      # Ensures the directory exists and prevents directory traversal attacks
+      # by checking that the path stays within the configured working directory.
+      #
+      # @param dir [String] Directory path to validate
+      # @raise [ArgumentError] if directory doesn't exist
+      # @raise [SecurityError] if directory is outside allowed path
+      # @private
+      #
       def validate_directory!(dir)
         expanded = File.expand_path(dir)
 
@@ -164,6 +235,13 @@ module OpenAIAgents
         raise SecurityError, "Directory access outside of working directory not allowed"
       end
 
+      ##
+      # Truncates output to prevent memory issues
+      #
+      # @param text [String, nil] Text to truncate
+      # @return [String] Truncated text with indicator if truncated
+      # @private
+      #
       def truncate_output(text)
         return "" if text.nil?
 
@@ -174,7 +252,11 @@ module OpenAIAgents
         end
       end
 
-      # Schema for function parameters
+      ##
+      # Returns the JSON Schema for function parameters
+      #
+      # @return [Hash] Parameter schema for OpenAI function calling
+      #
       def self.schema
         {
           type: "object",
@@ -198,8 +280,36 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Extended version with more capabilities
+    #
+    # AdvancedShellTool extends LocalShellTool with additional commands
+    # suitable for development and DevOps tasks. It includes support for:
+    # - Container tools (docker, kubectl)
+    # - Build tools (make, cmake, gcc)
+    # - Database clients (psql, mysql, redis-cli)
+    # - Network tools (ssh, rsync, curl)
+    # - Pipeline execution
+    #
+    # @example Basic usage
+    #   tool = AdvancedShellTool.new
+    #   agent.add_tool(tool)
+    #
+    # @example Pipeline execution
+    #   tool.execute_pipeline(
+    #     commands: [
+    #       ["cat", "data.txt"],
+    #       ["grep", "ERROR"],
+    #       ["wc", "-l"]
+    #     ]
+    #   )
+    #
     class AdvancedShellTool < LocalShellTool
+      ##
+      # Initialize an advanced shell tool with extended command set
+      #
+      # @param options [Hash] Options passed to LocalShellTool
+      #
       def initialize(**options)
         # Add more commands for advanced usage
         extended_commands = DEFAULT_ALLOWED_COMMANDS + %w[
@@ -220,7 +330,24 @@ module OpenAIAgents
         super
       end
 
-      # Add pipe support
+      ##
+      # Execute a pipeline of commands
+      #
+      # Allows chaining multiple commands with pipe operators.
+      # Each command in the pipeline is validated for security.
+      #
+      # @param commands [Array<Array<String>>] Array of command arrays
+      # @return [Hash] Execution result
+      #
+      # @example Count error lines
+      #   execute_pipeline(
+      #     commands: [
+      #       ["cat", "app.log"],
+      #       ["grep", "ERROR"],
+      #       ["wc", "-l"]
+      #     ]
+      #   )
+      #
       def execute_pipeline(commands:)
         validate_pipeline!(commands)
 
@@ -233,6 +360,13 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Validates all commands in a pipeline
+      #
+      # @param commands [Array<Array<String>>] Pipeline commands
+      # @raise [SecurityError] if any command is not allowed
+      # @private
+      #
       def validate_pipeline!(commands)
         commands.each do |cmd_parts|
           validate_command!(cmd_parts.first)

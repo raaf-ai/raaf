@@ -6,66 +6,175 @@ require "json"
 require "securerandom"
 
 module OpenAIAgents
-  # Mixin module for short logging methods
+  ##
+  # Logger mixin provides convenient logging methods to any class
   #
-  # Include this module to get short logging methods like log_info, log_debug, etc.
+  # This module provides a comprehensive set of logging methods that can be
+  # included in any class to enable structured logging with support for:
+  # - Standard log levels (debug, info, warn, error, fatal)
+  # - Category-based debug filtering
+  # - Structured context data
+  # - Agent-specific logging helpers
+  # - Performance benchmarking
   #
-  # @example
+  # The Logger module works in conjunction with the Logging module to provide
+  # a unified logging system across the OpenAI Agents framework.
+  #
+  # @example Basic usage
   #   class MyClass
   #     include OpenAIAgents::Logger
   #
-  #     def some_method
+  #     def process_data
   #       log_info("Starting process", user_id: 123)
   #       log_debug("Processing data", rows: 1000)
-  #       log_error("Failed", error: e.message)
+  #       
+  #       begin
+  #         # do work
+  #       rescue => e
+  #         log_error("Process failed", error: e.message, user_id: 123)
+  #       end
   #     end
   #   end
+  #
+  # @example Category-specific debug logging
+  #   class APIClient
+  #     include OpenAIAgents::Logger
+  #
+  #     def make_request(url)
+  #       log_debug_api("Making API request", url: url, method: "GET")
+  #       # Only shown when :api debug category is enabled
+  #     end
+  #   end
+  #
+  # @example Performance benchmarking
+  #   log_benchmark("Database query", query: "SELECT * FROM users") do
+  #     # Performs operation and logs timing
+  #     database.execute(query)
+  #   end
+  #
   module Logger
+    ##
+    # Log a debug message with optional category filtering
+    #
+    # @param message [String] The message to log
+    # @param category [Symbol] Debug category for filtering (default: :general)
+    # @param context [Hash] Additional structured data to include
+    #
     def log_debug(message, category: :general, **context)
       OpenAIAgents::Logging.debug(message, category: category, **context)
     end
 
+    ##
+    # Log an informational message
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data to include
+    #
     def log_info(message, **context)
       OpenAIAgents::Logging.info(message, **context)
     end
 
+    ##
+    # Log a warning message
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data to include
+    #
     def log_warn(message, **context)
       OpenAIAgents::Logging.warn(message, **context)
     end
 
+    ##
+    # Log an error message
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data to include
+    #
     def log_error(message, **context)
       OpenAIAgents::Logging.error(message, **context)
     end
 
+    ##
+    # Log a fatal error message
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data to include
+    #
     def log_fatal(message, **context)
       OpenAIAgents::Logging.fatal(message, **context)
     end
 
-    # Category-specific debug methods
+    ##
+    # Log a debug message for tracing operations
+    # Only shown when :tracing debug category is enabled
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data
+    #
     def log_debug_tracing(message, **context)
       OpenAIAgents::Logging.debug(message, category: :tracing, **context)
     end
 
+    ##
+    # Log a debug message for API operations
+    # Only shown when :api debug category is enabled
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data
+    #
     def log_debug_api(message, **context)
       OpenAIAgents::Logging.debug(message, category: :api, **context)
     end
 
+    ##
+    # Log a debug message for tool operations
+    # Only shown when :tools debug category is enabled
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data
+    #
     def log_debug_tools(message, **context)
       OpenAIAgents::Logging.debug(message, category: :tools, **context)
     end
 
+    ##
+    # Log a debug message for agent handoffs
+    # Only shown when :handoff debug category is enabled
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data
+    #
     def log_debug_handoff(message, **context)
       OpenAIAgents::Logging.debug(message, category: :handoff, **context)
     end
 
+    ##
+    # Log a debug message for context operations
+    # Only shown when :context debug category is enabled
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data
+    #
     def log_debug_context(message, **context)
       OpenAIAgents::Logging.debug(message, category: :context, **context)
     end
 
+    ##
+    # Log a debug message for HTTP operations
+    # Only shown when :http debug category is enabled
+    #
+    # @param message [String] The message to log
+    # @param context [Hash] Additional structured data
+    #
     def log_debug_http(message, **context)
       OpenAIAgents::Logging.debug(message, category: :http, **context)
     end
 
+    ##
+    # Check if HTTP debug logging is enabled
+    #
+    # @return [Boolean] true if :http debug category is enabled
+    #
     def http_debug_enabled?
       OpenAIAgents::Logging.configuration.debug_enabled?(:http)
     end
@@ -101,62 +210,141 @@ module OpenAIAgents
     end
   end
 
-  # Unified logging system for OpenAI Agents
+  ##
+  # Unified logging system for OpenAI Agents framework
   #
-  # This module provides a centralized logging interface that automatically
-  # integrates with Rails logging when available, falls back to console
-  # logging otherwise, and provides structured logging for agent operations.
+  # The Logging module provides a centralized, structured logging interface that:
+  # - Automatically integrates with Rails when available
+  # - Supports multiple output formats (text, JSON)
+  # - Enables category-based debug filtering
+  # - Provides specialized methods for agent operations
+  # - Maintains consistent log structure across the framework
   #
-  # ## Usage
+  # @example Basic logging
+  #   OpenAIAgents::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
+  #   OpenAIAgents::Logging.debug("Tool called", tool: "search", category: :tools)
+  #   OpenAIAgents::Logging.error("API error", error: e.message, status: 500)
   #
-  # ```ruby
-  # OpenAIAgents::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
-  # OpenAIAgents::Logging.debug("Tool called", tool: "search", params: {...})
-  # OpenAIAgents::Logging.error("API error", error: e, request_id: "456")
-  # ```
+  # @example Configuration
+  #   OpenAIAgents::Logging.configure do |config|
+  #     config.log_level = :debug
+  #     config.log_format = :json
+  #     config.debug_categories = [:api, :tools]
+  #   end
   #
-  # ## Configuration
+  # @example Category-based debugging
+  #   # Enable only specific debug categories
+  #   ENV['OPENAI_AGENTS_DEBUG_CATEGORIES'] = 'api,tracing'
+  #   
+  #   # These will be shown:
+  #   OpenAIAgents::Logging.debug("API call", category: :api)
+  #   OpenAIAgents::Logging.debug("Span created", category: :tracing)
+  #   
+  #   # This will be hidden:
+  #   OpenAIAgents::Logging.debug("Tool details", category: :tools)
   #
-  # Environment variables:
-  # - OPENAI_AGENTS_LOG_LEVEL: debug, info, warn, error (default: info)
-  # - OPENAI_AGENTS_LOG_FORMAT: json, text (default: text)
-  # - OPENAI_AGENTS_LOG_OUTPUT: console, file, rails (default: auto)
-  # - OPENAI_AGENTS_DEBUG_CATEGORIES: all, none, or comma-separated categories (default: all)
-  #   Available categories: tracing, api, tools, handoff, context, http, general
+  # ## Environment Variables
+  #
+  # - `OPENAI_AGENTS_LOG_LEVEL` - Set log level (debug, info, warn, error, fatal)
+  # - `OPENAI_AGENTS_LOG_FORMAT` - Output format (text, json)
+  # - `OPENAI_AGENTS_LOG_OUTPUT` - Output destination (console, file, rails, auto)
+  # - `OPENAI_AGENTS_DEBUG_CATEGORIES` - Enabled debug categories (all, none, or comma-separated)
+  #
+  # ## Debug Categories
+  #
+  # - `:tracing` - Span lifecycle, trace processing
+  # - `:api` - API calls, responses, HTTP details
+  # - `:tools` - Tool execution, function calls
+  # - `:handoff` - Agent handoffs, delegation
+  # - `:context` - Context management, memory
+  # - `:http` - Detailed HTTP debug output
+  # - `:general` - General debug messages
   #
   module Logging
     class << self
-      # Configure logging system
+      ##
+      # Configure the logging system
+      #
+      # @yield [config] Configuration block
+      # @yieldparam config [Configuration] The configuration object
+      # @return [Configuration] The current configuration
+      #
+      # @example
+      #   OpenAIAgents::Logging.configure do |config|
+      #     config.log_level = :debug
+      #     config.log_format = :json
+      #     config.debug_categories = [:api, :tracing]
+      #   end
+      #
       def configure
         @configuration ||= Configuration.new
         yield(@configuration) if block_given?
         @configuration
       end
 
-      # Get current configuration
+      ##
+      # Get current logging configuration
+      #
+      # @return [Configuration] The current configuration object
+      #
       def configuration
         @configuration ||= Configuration.new
       end
 
-      # Main logging methods
+      ##
+      # Log a debug message with category filtering
+      #
+      # @param message [String] The message to log
+      # @param category [Symbol] Debug category for filtering
+      # @param context [Hash] Additional structured data
+      # @return [void]
+      #
       def debug(message, category: :general, **context)
         return unless configuration.debug_enabled?(category)
 
         log(:debug, message, category: category, **context)
       end
 
+      ##
+      # Log an informational message
+      #
+      # @param message [String] The message to log
+      # @param context [Hash] Additional structured data
+      # @return [void]
+      #
       def info(message, **context)
         log(:info, message, **context)
       end
 
+      ##
+      # Log a warning message
+      #
+      # @param message [String] The message to log
+      # @param context [Hash] Additional structured data
+      # @return [void]
+      #
       def warn(message, **context)
         log(:warn, message, **context)
       end
 
+      ##
+      # Log an error message
+      #
+      # @param message [String] The message to log
+      # @param context [Hash] Additional structured data
+      # @return [void]
+      #
       def error(message, **context)
         log(:error, message, **context)
       end
 
+      ##
+      # Log a fatal error message
+      #
+      # @param message [String] The message to log
+      # @param context [Hash] Additional structured data
+      # @return [void]
+      #
       def fatal(message, **context)
         log(:fatal, message, **context)
       end

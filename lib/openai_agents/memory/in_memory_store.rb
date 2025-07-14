@@ -5,9 +5,40 @@ require_relative "memory"
 
 module OpenAIAgents
   module Memory
+    ##
     # In-memory implementation of memory storage
-    # Useful for development, testing, and short-lived processes
+    #
+    # Provides a thread-safe, ephemeral memory store that keeps all data
+    # in RAM. Ideal for development, testing, and short-lived processes
+    # where persistence is not required. All data is lost when the process
+    # exits.
+    #
+    # Features:
+    # - Thread-safe operations using Mutex
+    # - Fast access and search
+    # - Support for filtering by agent, conversation, and tags
+    # - Export/import capabilities for manual persistence
+    #
+    # @example Basic usage
+    #   store = InMemoryStore.new
+    #   store.store("pref_123", { theme: "dark" })
+    #   
+    # @example With export/import for persistence
+    #   # Save before shutdown
+    #   data = store.export
+    #   File.write("memories.json", data.to_json)
+    #   
+    #   # Restore on startup
+    #   store = InMemoryStore.new
+    #   data = JSON.parse(File.read("memories.json"))
+    #   store.import(data)
+    #
     class InMemoryStore < BaseStore
+      ##
+      # Initialize a new in-memory store
+      #
+      # Creates an empty memory store with thread-safety via Mutex.
+      #
       def initialize
         @memories = {}
         @mutex = Mutex.new
@@ -124,7 +155,20 @@ module OpenAIAgents
 
       # Additional utility methods for in-memory store
 
+      ##
       # Get all memories for a specific agent
+      #
+      # Retrieves memories created by a specific agent, sorted by
+      # most recently updated first.
+      #
+      # @param agent_name [String] Name of the agent
+      # @param limit [Integer, nil] Maximum number of results
+      #
+      # @return [Array<Hash>] Array of memory hashes
+      #
+      # @example
+      #   assistant_memories = store.get_by_agent("Assistant", 10)
+      #
       def get_by_agent(agent_name, limit = nil)
         @mutex.synchronize do
           results = @memories.values.select { |m| m.agent_name == agent_name }
@@ -134,7 +178,20 @@ module OpenAIAgents
         end
       end
 
+      ##
       # Get all memories for a specific conversation
+      #
+      # Retrieves memories associated with a conversation, sorted by
+      # creation time to maintain chronological order.
+      #
+      # @param conversation_id [String] ID of the conversation
+      # @param limit [Integer, nil] Maximum number of results
+      #
+      # @return [Array<Hash>] Array of memory hashes
+      #
+      # @example
+      #   convo_memories = store.get_by_conversation("conv_123")
+      #
       def get_by_conversation(conversation_id, limit = nil)
         @mutex.synchronize do
           results = @memories.values.select { |m| m.conversation_id == conversation_id }
@@ -144,14 +201,37 @@ module OpenAIAgents
         end
       end
 
-      # Export all memories (useful for persistence)
+      ##
+      # Export all memories
+      #
+      # Exports all stored memories as a hash suitable for serialization.
+      # Useful for implementing manual persistence or backup.
+      #
+      # @return [Hash<String, Hash>] All memories keyed by their IDs
+      #
+      # @example Save to file
+      #   File.write("backup.json", store.export.to_json)
+      #
       def export
         @mutex.synchronize do
           @memories.transform_values(&:to_h)
         end
       end
 
-      # Import memories (useful for loading from persistence)
+      ##
+      # Import memories
+      #
+      # Imports memories from a hash, typically loaded from a file or
+      # database. Replaces any existing memories with the same keys.
+      #
+      # @param data [Hash<String, Hash>] Memory data to import
+      #
+      # @return [void]
+      #
+      # @example Load from file
+      #   data = JSON.parse(File.read("backup.json"))
+      #   store.import(data)
+      #
       def import(data)
         @mutex.synchronize do
           data.each do |key, value|

@@ -7,9 +7,38 @@ require "fileutils"
 
 module OpenAIAgents
   module Memory
+    ##
     # File-based implementation of memory storage
-    # Persists memories to JSON files on disk
+    #
+    # Persists memories to JSON files on disk, providing durable storage
+    # that survives process restarts. Each memory is stored in its own
+    # JSON file with an index file for efficient lookups.
+    #
+    # Features:
+    # - Persistent storage using JSON files
+    # - Thread-safe operations
+    # - Efficient indexing for fast lookups
+    # - Automatic directory creation
+    # - Orphaned file cleanup via compact!
+    #
+    # @example Basic usage
+    #   store = FileStore.new("./agent_memories")
+    #   store.store("user_123", { name: "Alice", preferences: {} })
+    #
+    # @example Using default directory
+    #   store = FileStore.new  # Uses ~/.openai_agents/memories
+    #
+    # @example Cleanup orphaned files
+    #   orphaned_count = store.compact!
+    #   puts "Removed #{orphaned_count} orphaned files"
+    #
     class FileStore < BaseStore
+      ##
+      # Initialize a file-based memory store
+      #
+      # @param base_dir [String, nil] Directory for storing memory files
+      #   (defaults to ~/.openai_agents/memories)
+      #
       def initialize(base_dir = nil)
         @base_dir = base_dir || File.join(Dir.home, ".openai_agents", "memories")
         @index_file = File.join(@base_dir, "index.json")
@@ -179,7 +208,20 @@ module OpenAIAgents
         end
       end
 
-      # Compact the storage (remove orphaned files)
+      ##
+      # Compact the storage by removing orphaned files
+      #
+      # Scans the memory directory for files that are not referenced
+      # in the index and removes them. This can happen if the index
+      # update fails after file creation.
+      #
+      # @return [Integer] Number of orphaned files removed
+      #
+      # @example Run periodic cleanup
+      #   if store.compact! > 0
+      #     puts "Storage cleaned up"
+      #   end
+      #
       def compact!
         @mutex.synchronize do
           # Find all memory files

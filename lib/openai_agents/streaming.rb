@@ -2,18 +2,72 @@
 
 require "net/http"
 require "json"
-require_relative "models/openai_provider"
+require_relative "models/responses_provider"
 
 module OpenAIAgents
+  ##
+  # StreamingClient handles real-time streaming responses from AI providers
+  #
+  # This client manages streaming connections to both the Chat Completions API
+  # and the Responses API, automatically selecting the appropriate endpoint
+  # based on the tools being used. It provides real-time token streaming
+  # for improved user experience.
+  #
+  # @example Basic streaming
+  #   client = StreamingClient.new(api_key: ENV['OPENAI_API_KEY'])
+  #   
+  #   client.stream_completion(
+  #     messages: [{ role: "user", content: "Tell me a story" }],
+  #     model: "gpt-4o"
+  #   ) do |chunk|
+  #     print chunk[:content] if chunk[:type] == "content"
+  #   end
+  #
+  # @example With tool calls
+  #   client.stream_completion(
+  #     messages: messages,
+  #     model: "gpt-4o",
+  #     tools: [weather_tool]
+  #   ) do |chunk|
+  #     case chunk[:type]
+  #     when "content"
+  #       print chunk[:content]
+  #     when "tool_call"
+  #       puts "Calling tool: #{chunk[:tool_call]["function"]["name"]}"
+  #     end
+  #   end
+  #
   class StreamingClient
+    ##
+    # Initialize a new streaming client
+    #
+    # @param api_key [String] OpenAI API key
+    # @param api_base [String] Base URL for API (default: OpenAI)
+    # @param provider [Models::Interface, nil] Optional custom provider
+    #
     def initialize(api_key:, api_base: "https://api.openai.com/v1", provider: nil)
       @api_key = api_key
       @api_base = api_base
-      # NOTE: Using OpenAIProvider as fallback for streaming compatibility
-      # This is one of the few legitimate uses of the deprecated OpenAIProvider
-      @provider = provider || Models::OpenAIProvider.new(api_key: api_key, api_base: api_base)
+      # Use ResponsesProvider as the default for modern API compatibility
+      @provider = provider || Models::ResponsesProvider.new(api_key: api_key, api_base: api_base)
     end
 
+    ##
+    # Stream a completion from the AI model
+    #
+    # Automatically selects the appropriate API endpoint based on the tools
+    # being used. Hosted tools (web_search, file_search, computer) require
+    # the Responses API.
+    #
+    # @param messages [Array<Hash>] Conversation messages
+    # @param model [String] Model to use
+    # @param tools [Array<Hash, FunctionTool>, nil] Available tools
+    #
+    # @yield [chunk] Yields streaming chunks as they arrive
+    # @yieldparam chunk [Hash] Streaming chunk with type and data
+    #
+    # @return [Hash] Final accumulated response
+    #
     def stream_completion(messages:, model:, tools: nil)
       # Check if we have hosted tools that require Responses API
       if tools && has_hosted_tools?(tools)
@@ -212,91 +266,4 @@ module OpenAIAgents
     end
   end
 
-  class StreamingRunner < Runner
-    def initialize(agent:, tracer: nil)
-      super
-      @streaming_client = StreamingClient.new(
-        api_key: @api_key,
-        api_base: @api_base
-      )
-    end
-
-    def run_streaming(messages)
-      @tracer.trace("streaming_run_start", { agent: @agent.name, messages: messages.size })
-
-      conversation = messages.dup
-      current_agent = @agent
-      turns = 0
-
-      while turns < current_agent.max_turns
-        @tracer.trace("streaming_turn_start", { turn: turns, agent: current_agent.name })
-
-        api_messages = build_messages(conversation, current_agent)
-        tools = current_agent.tools? ? current_agent.tools.map(&:to_h) : nil
-
-        # Stream the completion
-        result = @streaming_client.stream_completion(
-          messages: api_messages,
-          model: current_agent.model,
-          tools: tools
-        ) do |chunk|
-          yield(chunk) if block_given?
-        end
-
-        # Process the complete response
-        assistant_message = {
-          role: "assistant",
-          content: result[:content]
-        }
-        assistant_message[:tool_calls] = result[:tool_calls] if result[:tool_calls].any?
-
-        conversation << assistant_message
-
-        # Handle tool calls
-        if result[:tool_calls].any?
-          process_tool_calls(result[:tool_calls], current_agent, conversation)
-        else
-          # Check for handoff
-          if result[:content].include?("HANDOFF:")
-            handoff_match = result[:content].match(/HANDOFF:\s*(\w+)/)
-            if handoff_match
-              handoff_agent = current_agent.find_handoff(handoff_match[1])
-              if handoff_agent
-                @tracer.trace("handoff", { from: current_agent.name, to: handoff_agent.name })
-                current_agent = handoff_agent
-                turns = 0
-                next
-              end
-            end
-          end
-
-          break # No tool calls and no handoff, we're done
-        end
-
-        turns += 1
-      end
-
-      raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
-
-      @tracer.trace("streaming_run_complete", { final_agent: current_agent.name, total_turns: turns })
-
-      {
-        messages: conversation,
-        agent: current_agent,
-        turns: turns,
-        traces: @tracer.traces
-      }
-    end
-
-    private
-
-    def safe_extract_last_message_content(messages)
-      return "" unless messages.is_a?(Array) && !messages.empty?
-
-      last_message = messages.last
-      return "" unless last_message.is_a?(Hash)
-
-      last_message[:content] || last_message["content"] || ""
-    end
-  end
 end

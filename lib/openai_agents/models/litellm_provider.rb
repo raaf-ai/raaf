@@ -8,13 +8,52 @@ require_relative "../errors"
 
 module OpenAIAgents
   module Models
+    ##
     # LiteLLM provider enables using any model via LiteLLM proxy
-    # Supports 100+ LLM providers including OpenAI, Anthropic, Gemini, Mistral, etc.
+    #
+    # LiteLLM provides a unified interface to 100+ LLM providers including OpenAI,
+    # Anthropic, Google Gemini, AWS Bedrock, Azure, Cohere, Replicate, and many more.
+    # It standardizes the API interface across all providers to OpenAI's format.
+    #
+    # Features:
+    # - Support for 100+ LLM providers through a single interface
+    # - Automatic provider detection from model prefix
+    # - Provider-specific parameter handling
+    # - Streaming support
+    # - Function/tool calling
+    # - Local model support via Ollama
+    #
+    # @example Basic usage with OpenAI model
+    #   provider = LitellmProvider.new(model: "openai/gpt-4")
+    #   response = provider.chat_completion(
+    #     messages: [{ role: "user", content: "Hello!" }]
+    #   )
+    #
+    # @example Using Anthropic through LiteLLM
+    #   provider = LitellmProvider.new(model: "anthropic/claude-3-opus-20240229")
+    #   response = provider.chat_completion(
+    #     messages: messages,
+    #     max_tokens: 1000
+    #   )
+    #
+    # @example Using local Ollama model
+    #   provider = LitellmProvider.new(
+    #     model: "ollama/llama2",
+    #     base_url: "http://localhost:8000"
+    #   )
+    #
     # See supported models at: https://docs.litellm.ai/docs/providers
     class LitellmProvider < ModelInterface
+      # @!attribute [r] model
+      #   @return [String] The model identifier with provider prefix
+      # @!attribute [r] base_url
+      #   @return [String] LiteLLM proxy URL
+      # @!attribute [r] api_key
+      #   @return [String, nil] API key for authentication
       attr_reader :model, :base_url, :api_key
 
       # Common LiteLLM model prefixes for different providers
+      # Maps provider prefixes to human-readable provider names
       PROVIDER_PREFIXES = {
         "openai/" => "OpenAI",
         "anthropic/" => "Anthropic",
@@ -44,10 +83,20 @@ module OpenAIAgents
         "gpt-" => "OpenAI GPT"
       }.freeze
 
+      ##
       # Initialize LiteLLM provider
-      # @param model [String] Model name with optional provider prefix (e.g., "openai/gpt-4", "anthropic/claude-3-opus")
-      # @param base_url [String, nil] LiteLLM proxy URL (default: http://localhost:8000)
-      # @param api_key [String, nil] API key for the provider or LiteLLM proxy
+      #
+      # @param model [String] Model name with provider prefix (e.g., "openai/gpt-4", "anthropic/claude-3-opus")
+      # @param base_url [String, nil] LiteLLM proxy URL (defaults to LITELLM_BASE_URL env var or http://localhost:8000)
+      # @param api_key [String, nil] API key for the provider or LiteLLM proxy (defaults to LITELLM_API_KEY or OPENAI_API_KEY)
+      #
+      # @example
+      #   provider = LitellmProvider.new(
+      #     model: "gemini/gemini-pro",
+      #     base_url: "http://litellm-proxy:8000",
+      #     api_key: "your-api-key"
+      #   )
+      #
       def initialize(model:, base_url: nil, api_key: nil)
         @model = model
         @base_url = base_url || ENV["LITELLM_BASE_URL"] || "http://localhost:8000"
@@ -57,7 +106,11 @@ module OpenAIAgents
         @base_url = @base_url.chomp("/")
       end
 
+      ##
       # Get a human-readable provider name from the model string
+      #
+      # @return [String] Provider name (e.g., "OpenAI", "Anthropic", "Google Gemini")
+      #
       def provider_name
         PROVIDER_PREFIXES.each do |prefix, name|
           return name if @model.start_with?(prefix)
@@ -65,7 +118,23 @@ module OpenAIAgents
         "Unknown Provider"
       end
 
+      ##
       # Chat completion using LiteLLM
+      #
+      # Sends a chat completion request through LiteLLM proxy. LiteLLM handles
+      # the translation to the specific provider's API format.
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String, nil] Model to use (defaults to initialized model)
+      # @param tools [Array<Hash>, nil] Tools/functions available to the model
+      # @param stream [Boolean] Whether to stream the response
+      # @param kwargs [Hash] Additional parameters (provider-specific)
+      # @option kwargs [Float] :temperature Randomness in generation
+      # @option kwargs [Integer] :max_tokens Maximum tokens to generate
+      # @option kwargs [Hash] :extra_body Provider-specific parameters
+      # @return [Hash] Response in OpenAI format
+      # @raise [APIError] if the request fails
+      #
       def chat_completion(messages:, model: nil, tools: nil, stream: false, **kwargs)
         model ||= @model
 
@@ -92,7 +161,13 @@ module OpenAIAgents
         end
       end
 
+      ##
       # Check if provider supports prompts (for Responses API)
+      #
+      # LiteLLM primarily uses the chat completions format across all providers.
+      #
+      # @return [Boolean] Always false for LiteLLM
+      #
       def supports_prompts?
         # Most providers through LiteLLM use chat completions format
         false
@@ -100,6 +175,14 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Makes a non-streaming request to LiteLLM
+      #
+      # @param body [Hash] Request body
+      # @return [Hash] Parsed response
+      # @raise [APIError] on request failure
+      # @private
+      #
       def make_request(body)
         uri = URI("#{@base_url}/v1/chat/completions")
         http = Net::HTTP.new(uri.host, uri.port)
@@ -129,6 +212,13 @@ module OpenAIAgents
         raise APIError, "LiteLLM request failed: #{e.message}"
       end
 
+      ##
+      # Handles streaming completion requests
+      #
+      # @param body [Hash] Request body
+      # @yield [Hash] Yields parsed streaming chunks
+      # @private
+      #
       def stream_completion(body)
         uri = URI("#{@base_url}/v1/chat/completions")
         body[:stream] = true
@@ -165,6 +255,13 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Prepares messages for LiteLLM format
+      #
+      # @param messages [Array<Hash>] Input messages
+      # @return [Array<Hash>] Formatted messages
+      # @private
+      #
       def prepare_messages(messages)
         messages.map do |msg|
           role = msg[:role] || msg["role"]
@@ -188,6 +285,13 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Prepares tools for OpenAI format
+      #
+      # @param tools [Array] Tools to prepare
+      # @return [Array<Hash>] Formatted tools
+      # @private
+      #
       def prepare_tools(tools)
         tools.map do |tool|
           if tool.respond_to?(:to_h)
@@ -206,6 +310,16 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Adds model parameters to request body
+      #
+      # Handles both standard OpenAI parameters and provider-specific parameters
+      # passed through extra_body.
+      #
+      # @param body [Hash] Request body to modify
+      # @param kwargs [Hash] Parameters to add
+      # @private
+      #
       def add_model_parameters(body, kwargs)
         # Standard OpenAI parameters
         body[:temperature] = kwargs[:temperature] if kwargs[:temperature]
@@ -226,6 +340,16 @@ module OpenAIAgents
         handle_provider_specifics(body, kwargs)
       end
 
+      ##
+      # Handles provider-specific parameter adjustments
+      #
+      # Different providers have different parameter requirements and formats.
+      # This method adjusts the request body based on the provider.
+      #
+      # @param body [Hash] Request body to modify
+      # @param kwargs [Hash] Additional parameters
+      # @private
+      #
       def handle_provider_specifics(body, kwargs)
         case @model
         when %r{^anthropic/}
@@ -260,6 +384,14 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Handles API errors with appropriate exception types
+      #
+      # @param status_code [Integer] HTTP status code
+      # @param error_body [Hash, String] Error response body
+      # @raise [AuthenticationError, RateLimitError, ServerError, APIError]
+      # @private
+      #
       def handle_error(status_code, error_body)
         error_message = extract_error_message(error_body)
 
@@ -281,6 +413,13 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Extracts error message from various response formats
+      #
+      # @param error_body [Hash, String, Object] Error response
+      # @return [String] Extracted error message
+      # @private
+      #
       def extract_error_message(error_body)
         case error_body
         when Hash
@@ -296,9 +435,23 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Convenience class for easy setup with LiteLLM
+    #
+    # Provides predefined model configurations and helper methods for
+    # common LiteLLM use cases.
+    #
+    # @example Using predefined model
+    #   provider = LiteLLM.provider(:gpt4)
+    #   # Equivalent to: LitellmProvider.new(model: "openai/gpt-4")
+    #
+    # @example Listing available models
+    #   models = LiteLLM.available_models
+    #   # => { gpt4: "openai/gpt-4", claude3_opus: "anthropic/claude-3-opus-20240229", ... }
+    #
     class LiteLLM
       # List of popular models available through LiteLLM
+      # Maps convenient symbols to full model identifiers
       MODELS = {
         # OpenAI
         gpt4o: "openai/gpt-4o",
@@ -333,13 +486,27 @@ module OpenAIAgents
         ollama_codellama: "ollama/codellama"
       }.freeze
 
+      ##
       # Create a LiteLLM provider for a specific model
+      #
+      # @param model_key_or_name [Symbol, String] Model key from MODELS hash or full model name
+      # @param kwargs [Hash] Additional parameters for provider initialization
+      # @return [LitellmProvider] Configured provider instance
+      #
+      # @example
+      #   provider = LiteLLM.provider(:claude3_opus, api_key: "your-key")
+      #   provider = LiteLLM.provider("custom/model-name")
+      #
       def self.provider(model_key_or_name, **)
         model_name = MODELS[model_key_or_name] || model_key_or_name.to_s
         LitellmProvider.new(model: model_name, **)
       end
 
-      # Get all available models
+      ##
+      # Get all available predefined models
+      #
+      # @return [Hash] Model key to identifier mapping
+      #
       def self.available_models
         MODELS
       end

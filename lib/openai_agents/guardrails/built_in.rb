@@ -5,16 +5,65 @@ require_relative "output_guardrail"
 
 module OpenAIAgents
   module Guardrails
+    ##
     # Built-in guardrails for common use cases
+    #
+    # This module provides pre-built guardrails for common validation scenarios
+    # like profanity detection, PII checking, length limits, JSON validation,
+    # and topic relevance. These guardrails can be used directly or extended
+    # for custom validation logic.
+    #
+    # @example Using built-in guardrails
+    #   agent = OpenAIAgents::Agent.new(name: "Support")
+    #   
+    #   # Add profanity filter
+    #   agent.add_input_guardrail(
+    #     OpenAIAgents::Guardrails.profanity_guardrail
+    #   )
+    #   
+    #   # Add PII detection
+    #   agent.add_input_guardrail(
+    #     OpenAIAgents::Guardrails.pii_guardrail
+    #   )
+    #   
+    #   # Add length limit for outputs
+    #   agent.add_output_guardrail(
+    #     OpenAIAgents::Guardrails.length_guardrail(max_length: 1000)
+    #   )
+    #
     module BuiltIn
-      # Input guardrail that checks for profanity or inappropriate content
+      ##
+      # Input guardrail that detects profanity and inappropriate content
+      #
+      # Uses pattern matching to identify profanity, violent language,
+      # and hate speech in user inputs. Can be customized with additional
+      # patterns for specific use cases.
+      #
+      # @example Default usage
+      #   guardrail = BuiltIn::ProfanityGuardrail.new
+      #
+      # @example Custom patterns
+      #   guardrail = BuiltIn::ProfanityGuardrail.new(
+      #     patterns: [
+      #       /\bcustom_word\b/i,
+      #       /\banother_pattern\b/i
+      #     ]
+      #   )
+      #
       class ProfanityGuardrail < InputGuardrail
+        # Default patterns for detecting inappropriate content
         INAPPROPRIATE_PATTERNS = [
           /\b(fuck|shit|damn|hell|ass|bitch|bastard)\b/i,
           /\b(kill|murder|suicide|die|death)\b/i,
           /\b(hate|racist|racism|sexist|sexism)\b/i
         ].freeze
 
+        ##
+        # Initialize profanity guardrail
+        #
+        # @param name [String] Name for the guardrail
+        # @param patterns [Array<Regexp>] Custom patterns to check
+        #
         def initialize(name: "profanity_check", patterns: INAPPROPRIATE_PATTERNS)
           @patterns = patterns
           super(method(:check_profanity), name: name)
@@ -55,8 +104,27 @@ module OpenAIAgents
         end
       end
 
-      # Input guardrail that checks for PII (Personal Identifiable Information)
+      ##
+      # Input guardrail that detects Personally Identifiable Information (PII)
+      #
+      # Scans input for common PII patterns including Social Security Numbers,
+      # credit card numbers, email addresses, and phone numbers. Can be
+      # customized with additional patterns for specific PII types.
+      #
+      # @example Default usage
+      #   guardrail = BuiltIn::PIIGuardrail.new
+      #
+      # @example Custom PII patterns
+      #   guardrail = BuiltIn::PIIGuardrail.new(
+      #     patterns: {
+      #       ssn: /\b\d{3}-\d{2}-\d{4}\b/,
+      #       employee_id: /\bEMP\d{6}\b/,
+      #       custom_id: /\b[A-Z]{2}\d{8}\b/
+      #     }
+      #   )
+      #
       class PIIGuardrail < InputGuardrail
+        # Default patterns for common PII types
         PII_PATTERNS = {
           ssn: /\b\d{3}-\d{2}-\d{4}\b/,
           credit_card: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/,
@@ -64,6 +132,12 @@ module OpenAIAgents
           phone: /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/
         }.freeze
 
+        ##
+        # Initialize PII detection guardrail
+        #
+        # @param name [String] Name for the guardrail
+        # @param patterns [Hash<Symbol, Regexp>] Custom PII patterns
+        #
         def initialize(name: "pii_check", patterns: PII_PATTERNS)
           @patterns = patterns
           super(method(:check_pii), name: name)
@@ -107,8 +181,29 @@ module OpenAIAgents
         end
       end
 
-      # Output guardrail that checks response length
+      ##
+      # Output guardrail that enforces response length limits
+      #
+      # Ensures agent responses stay within specified character limits.
+      # Useful for maintaining concise responses or fitting within
+      # UI constraints.
+      #
+      # @example Basic usage
+      #   guardrail = BuiltIn::LengthGuardrail.new(max_length: 500)
+      #
+      # @example Custom length limit
+      #   guardrail = BuiltIn::LengthGuardrail.new(
+      #     max_length: 280,  # Twitter-style limit
+      #     name: "tweet_length"
+      #   )
+      #
       class LengthGuardrail < OutputGuardrail
+        ##
+        # Initialize length validation guardrail
+        #
+        # @param max_length [Integer] Maximum allowed character count
+        # @param name [String] Name for the guardrail
+        #
         def initialize(max_length: 2000, name: "length_check")
           @max_length = max_length
           super(method(:check_length), name: name)
@@ -141,8 +236,50 @@ module OpenAIAgents
         end
       end
 
-      # Output guardrail that validates JSON structure
+      ##
+      # Output guardrail that validates JSON structure against a schema
+      #
+      # Ensures agent outputs valid JSON that conforms to a specified
+      # JSON Schema. Useful for structured data extraction and API
+      # response validation.
+      #
+      # @example Basic schema validation
+      #   schema = {
+      #     type: "object",
+      #     properties: {
+      #       name: { type: "string" },
+      #       age: { type: "integer" }
+      #     },
+      #     required: ["name"]
+      #   }
+      #   
+      #   guardrail = BuiltIn::JSONSchemaGuardrail.new(schema: schema)
+      #
+      # @example Complex nested schema
+      #   schema = {
+      #     type: "object",
+      #     properties: {
+      #       user: {
+      #         type: "object",
+      #         properties: {
+      #           id: { type: "integer" },
+      #           email: { type: "string" }
+      #         }
+      #       },
+      #       items: {
+      #         type: "array",
+      #         items: { type: "string" }
+      #       }
+      #     }
+      #   }
+      #
       class JSONSchemaGuardrail < OutputGuardrail
+        ##
+        # Initialize JSON schema validation guardrail
+        #
+        # @param schema [Hash] JSON Schema definition
+        # @param name [String] Name for the guardrail
+        #
         def initialize(schema:, name: "json_schema_validation")
           @schema = schema
           super(method(:validate_json), name: name)
@@ -263,8 +400,36 @@ module OpenAIAgents
         end
       end
 
-      # Topic relevance guardrail - checks if input is on-topic
+      ##
+      # Input guardrail that ensures messages stay on allowed topics
+      #
+      # Validates that user input is relevant to specified allowed topics.
+      # Uses simple keyword matching by default, but can be extended
+      # with more sophisticated relevance detection.
+      #
+      # @example Basic topic filtering
+      #   guardrail = BuiltIn::TopicRelevanceGuardrail.new(
+      #     allowed_topics: ["customer support", "billing", "technical help"]
+      #   )
+      #
+      # @example Domain-specific topics
+      #   guardrail = BuiltIn::TopicRelevanceGuardrail.new(
+      #     allowed_topics: [
+      #       "product features",
+      #       "pricing plans", 
+      #       "integration support",
+      #       "API documentation"
+      #     ],
+      #     name: "product_topics"
+      #   )
+      #
       class TopicRelevanceGuardrail < InputGuardrail
+        ##
+        # Initialize topic relevance guardrail
+        #
+        # @param allowed_topics [Array<String>] List of allowed topics
+        # @param name [String] Name for the guardrail
+        #
         def initialize(allowed_topics:, name: "topic_relevance")
           @allowed_topics = allowed_topics
           super(method(:check_relevance), name: name)

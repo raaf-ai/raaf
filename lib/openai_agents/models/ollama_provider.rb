@@ -8,10 +8,23 @@ require_relative "../logging"
 
 module OpenAIAgents
   module Models
+    ##
     # Ollama API provider implementation for local models
     #
-    # Ollama allows running large language models locally. It provides a simple
-    # API for interacting with models like Llama, Mistral, and others.
+    # Ollama allows running large language models locally on your own hardware.
+    # It provides a simple API for interacting with models like Llama, Mistral,
+    # CodeLlama, and many others. This provider translates between OpenAI's API
+    # format and Ollama's local API.
+    #
+    # Features:
+    # - Run models completely locally without internet
+    # - Support for various open-source models
+    # - Automatic model pulling if not available
+    # - Streaming responses
+    # - No API keys required for local usage
+    # - Custom model parameters
+    #
+    # Note: Function calling is not yet supported by Ollama.
     #
     # @example Basic usage
     #   provider = OllamaProvider.new(api_base: "http://localhost:11434")
@@ -20,18 +33,27 @@ module OpenAIAgents
     #     model: "llama2"
     #   )
     #
-    # @example With custom model
+    # @example With custom model and parameters
     #   provider.chat_completion(
     #     messages: messages,
-    #     model: "codellama:13b"
+    #     model: "codellama:13b",
+    #     temperature: 0.7,
+    #     max_tokens: 2000
     #   )
+    #
+    # @example Pulling a new model
+    #   provider.pull_model("mixtral:8x7b")
+    #   provider.chat_completion(messages: messages, model: "mixtral:8x7b")
+    #
     class OllamaProvider < ModelInterface
       include Logger
       include RetryableProvider
 
+      # Default Ollama API endpoint
       DEFAULT_API_BASE = "http://localhost:11434"
 
       # Common Ollama models (this list is dynamic based on what's installed)
+      # These are just examples - many more models are available
       COMMON_MODELS = %w[
         llama2
         llama2:13b
@@ -55,6 +77,15 @@ module OpenAIAgents
         qwen
       ].freeze
 
+      ##
+      # Initialize a new Ollama provider
+      #
+      # @param api_key [String, nil] Not required for Ollama (kept for interface compatibility)
+      # @param api_base [String, nil] Ollama API URL (defaults to OLLAMA_API_BASE env var or http://localhost:11434)
+      # @param options [Hash] Additional options
+      # @option options [Integer] :timeout Request timeout in seconds (default: 300)
+      # @raise [ConnectionError] if cannot connect to Ollama
+      #
       def initialize(api_key: nil, api_base: nil, **options)
         super
         @api_base = api_base || ENV["OLLAMA_API_BASE"] || DEFAULT_API_BASE
@@ -71,6 +102,22 @@ module OpenAIAgents
         check_ollama_status
       end
 
+      ##
+      # Performs a chat completion using local Ollama model
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Ollama model name (e.g., "llama2", "codellama:13b")
+      # @param tools [Array<Hash>, nil] Not supported by Ollama (will log warning)
+      # @param stream [Boolean] Whether to stream the response
+      # @param kwargs [Hash] Additional parameters
+      # @option kwargs [Float] :temperature (0.0-2.0) Randomness in generation
+      # @option kwargs [Integer] :max_tokens Maximum tokens to generate
+      # @option kwargs [Float] :top_p Nucleus sampling parameter
+      # @option kwargs [Integer] :seed Random seed for reproducibility
+      # @return [Hash] Response in OpenAI format
+      # @raise [ModelNotFoundError] if model is not pulled
+      # @raise [ServerError] if Ollama server encounters an error
+      #
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         # NOTE: Ollama doesn't support tools/functions natively yet
         if tools && !tools.empty?
@@ -119,6 +166,18 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Streams a chat completion
+      #
+      # Convenience method that calls chat_completion with stream: true.
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Ollama model to use
+      # @param tools [Array<Hash>, nil] Not supported
+      # @param kwargs [Hash] Additional parameters
+      # @yield [Hash] Yields streaming chunks
+      # @return [Hash] Final accumulated response
+      #
       def stream_completion(messages:, model:, tools: nil, **kwargs)
         chat_completion(
           messages: messages,
@@ -131,6 +190,14 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Returns list of available models
+      #
+      # Dynamically fetches the list of models currently available in Ollama.
+      # Falls back to COMMON_MODELS if the API call fails.
+      #
+      # @return [Array<String>] Available model names
+      #
       def supported_models
         # Dynamically fetch available models from Ollama
 
@@ -146,11 +213,27 @@ module OpenAIAgents
         COMMON_MODELS
       end
 
+      ##
+      # Returns the provider name
+      #
+      # @return [String] "Ollama"
+      #
       def provider_name
         "Ollama"
       end
 
+      ##
       # Pull a model if not already available
+      #
+      # Downloads and installs a model from the Ollama library.
+      # This may take time depending on model size and internet speed.
+      #
+      # @param model_name [String] Name of the model to pull (e.g., "llama2:70b")
+      # @return [Boolean] True if successful, false otherwise
+      #
+      # @example
+      #   provider.pull_model("mixtral:8x7b")
+      #
       def pull_model(model_name)
         log_info("Pulling model #{model_name}...", provider: "Ollama", model: model_name)
 
@@ -167,7 +250,22 @@ module OpenAIAgents
         end
       end
 
-      # List all available models
+      ##
+      # List all available models with metadata
+      #
+      # Returns detailed information about each available model including
+      # size, modification date, and digest.
+      #
+      # @return [Array<Hash>] Model information
+      #   - :name [String] Model name
+      #   - :size [Integer] Model size in bytes
+      #   - :modified [String] Last modification time
+      #   - :digest [String] Model digest/hash
+      #
+      # @example
+      #   models = provider.list_models
+      #   # => [{ name: "llama2", size: 3826793497, modified: "2024-01-15T...", digest: "..." }]
+      #
       def list_models
         response = @http_client.get("#{@api_base}/api/tags")
 
@@ -188,6 +286,12 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Checks if Ollama server is running and accessible
+      #
+      # @raise [ConnectionError] if cannot connect to Ollama
+      # @private
+      #
       def check_ollama_status
         response = @http_client.get("#{@api_base}/")
         unless response.success?
@@ -197,6 +301,14 @@ module OpenAIAgents
         raise ConnectionError, "Cannot connect to Ollama at #{@api_base}: #{e.message}"
       end
 
+      ##
+      # Converts Ollama response to OpenAI format
+      #
+      # @param ollama_response [Hash] Response from Ollama API
+      # @param model [String] Model name used
+      # @return [Hash] Response in OpenAI format
+      # @private
+      #
       def convert_to_openai_format(ollama_response, model)
         # Convert Ollama response to OpenAI format
         message = ollama_response["message"] || {}
@@ -222,6 +334,17 @@ module OpenAIAgents
         }
       end
 
+      ##
+      # Handles streaming responses from Ollama
+      #
+      # Ollama uses direct JSON streaming instead of Server-Sent Events.
+      #
+      # @param body [Hash] Request body
+      # @param _model [String] Model name (unused)
+      # @yield [Hash] Yields streaming chunks
+      # @return [Hash] Final accumulated response
+      # @private
+      #
       def stream_response(body, _model)
         body[:stream] = true
         accumulated_content = ""
@@ -265,7 +388,15 @@ module OpenAIAgents
         end
       end
 
-      # Override error handling for Ollama-specific errors
+      ##
+      # Handles Ollama-specific API errors
+      #
+      # @param response [HTTPResponse] API response
+      # @param provider [String] Provider name (unused)
+      # @raise [ModelNotFoundError] if model needs to be pulled
+      # @raise [ServerError] for server errors
+      # @private
+      #
       def handle_api_error(response, provider)
         case response.code.to_i
         when 404
@@ -291,8 +422,12 @@ module OpenAIAgents
       end
     end
 
-    # Custom errors for Ollama
+    ##
+    # Raised when cannot connect to Ollama server
     class ConnectionError < Error; end
+    
+    ##
+    # Raised when requested model is not available locally
     class ModelNotFoundError < Error; end
   end
 end
