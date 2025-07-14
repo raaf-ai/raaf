@@ -357,7 +357,7 @@ module OpenAIAgents
         agent.hooks.send(agent_hook_method, context_wrapper, *args)
       end
     rescue StandardError => e
-      warn "Error in hook #{hook_method}: #{e.message}"
+      log_error "Error in hook #{hook_method}: #{e.message}", hook: hook_method, error_class: e.class.name
     end
 
     ##

@@ -185,7 +185,7 @@ module OpenAIAgents
             @is_enabled.call(context)
           end
         rescue StandardError => e
-          warn "Error evaluating tool enabled state: #{e.message}"
+          log_warn("Error evaluating tool enabled state", tool: @name, error: e.message, error_class: e.class.name)
           false
         end
       else

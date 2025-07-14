@@ -156,7 +156,7 @@ module OpenAIAgents
         tokens.length
       rescue StandardError => e
         # If tiktoken fails, fall back to character estimation
-        warn "Tiktoken encoding failed: #{e.message}. Falling back to estimation."
+        OpenAIAgents::Logging.warn("Tiktoken encoding failed, falling back to estimation", model: model, error: e.message, error_class: e.class.name)
         char_count = text.length
         ratio = TOKEN_RATIOS[model] || TOKEN_RATIOS["default"]
         tokens = (char_count.to_f / 1000 * ratio).ceil

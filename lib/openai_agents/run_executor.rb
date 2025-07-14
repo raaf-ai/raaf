@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 
+require_relative "execution/conversation_manager"
+require_relative "execution/tool_executor"
+require_relative "execution/handoff_detector"
+require_relative "execution/api_strategies"
+require_relative "execution/error_handler"
+
 module OpenAIAgents
   ##
   # Base executor class for running agent conversations
@@ -53,6 +59,13 @@ module OpenAIAgents
       @provider = provider
       @agent = agent
       @config = config
+      
+      # Initialize service objects
+      @conversation_manager = Execution::ConversationManager.new(config)
+      @tool_executor = Execution::ToolExecutor.new(agent, runner)
+      @handoff_detector = Execution::HandoffDetector.new(agent, runner)
+      @api_strategy = Execution::ApiStrategyFactory.create(provider, config)
+      @error_handler = Execution::ErrorHandler.new
     end
 
     ##
@@ -67,113 +80,57 @@ module OpenAIAgents
     # @raise [ExecutionStoppedError] If execution is stopped
     #
     def execute(messages)
-      # For Responses API, delegate to specialized method
-      return execute_with_responses_api(messages) if provider.is_a?(Models::ResponsesProvider)
-
-      # Standard execution flow
-      execute_standard(messages)
+      @error_handler.with_error_handling(context: { executor: self.class.name }) do
+        # Use API strategy to handle provider-specific execution
+        if provider.is_a?(Models::ResponsesProvider)
+          execute_with_responses_api(messages)
+        else
+          execute_with_conversation_manager(messages)
+        end
+      end
     end
 
     protected
 
     ##
-    # Execute conversation using standard chat completion API
+    # Execute conversation using ConversationManager
     #
-    # This method implements the core conversation loop for standard
-    # providers (OpenAI, Anthropic, etc). It manages turns, handles
-    # tool calls, and processes handoffs.
+    # Delegates conversation management to the ConversationManager service
+    # which handles turns, tool calls, and handoffs in a structured way.
     #
     # @param messages [Array<Hash>] Initial conversation messages
     # @return [RunResult] The final result
     #
-    def execute_standard(messages)
-      conversation = messages.dup
-      current_agent = agent
-      turns = 0
-      accumulated_usage = initialize_usage_tracking
-
-      max_turns = config.max_turns || current_agent.max_turns
-      context_wrapper = create_context_wrapper(conversation)
-
-      while turns < max_turns
-        check_execution_stop(conversation)
-        
-        # Execute single turn
-        result = execute_turn(
-          conversation: conversation,
-          current_agent: current_agent,
-          context_wrapper: context_wrapper,
-          turns: turns
+    def execute_with_conversation_manager(messages)
+      @conversation_manager.execute_conversation(messages, agent, self) do |turn_data|
+        execute_single_turn(turn_data)
+      end.then do |final_state|
+        create_result(
+          final_state[:conversation],
+          final_state[:usage],
+          final_state[:context_wrapper]
         )
-
-        # Handle the result
-        new_message = result[:message]
-        usage = result[:usage]
-        
-        # Accumulate usage
-        accumulate_usage(accumulated_usage, usage) if usage
-
-        # Add message to conversation
-        conversation << new_message
-
-        # Handle tool calls if present
-        if new_message["tool_calls"]
-          handle_tool_calls(
-            conversation: conversation,
-            tool_calls: new_message["tool_calls"],
-            context_wrapper: context_wrapper,
-            response: result[:response]
-          )
-        end
-
-        # Check for handoff
-        handoff_result = check_for_handoff(new_message, current_agent)
-        if handoff_result[:handoff_occurred]
-          current_agent = handoff_result[:new_agent]
-          conversation = handoff_result[:conversation]
-          turns = 0 # Reset turns for new agent
-          next
-        end
-
-        # Check if we should continue
-        break unless should_continue?(new_message)
-
-        turns += 1
       end
-
-      # Check if we exceeded max turns
-      if turns >= max_turns
-        handle_max_turns_exceeded(conversation, max_turns)
-      end
-
-      # Create final result
-      create_result(conversation, accumulated_usage, context_wrapper)
     end
 
     ##
     # Execute conversation using OpenAI Responses API
     #
-    # This method uses the newer Responses API which provides
-    # better streaming support and structured outputs.
+    # Delegates to the ResponsesApiStrategy for handling the newer API format.
     #
     # @param messages [Array<Hash>] Initial conversation messages
     # @return [RunResult] The final result
     #
     def execute_with_responses_api(messages)
-      log_debug_api("Using Responses API executor", provider: provider.class.name)
+      result = @api_strategy.execute(messages, agent, runner)
       
-      # Convert messages to items format
-      items = convert_messages_to_items(messages)
-      model = config.model || agent.model
-      
-      # Build provider parameters
-      provider_params = build_provider_params(model)
-      
-      # Make API call
-      response = make_api_call(items, provider_params)
-      
-      # Process response
-      process_responses_api_response(messages, response)
+      if result[:final_result]
+        # Responses API returns complete result
+        create_result(result[:conversation], result[:usage], nil)
+      else
+        # Should not happen with ResponsesApiStrategy, but handle gracefully
+        create_result(messages, {}, nil)
+      end
     end
 
     ##
@@ -235,66 +192,23 @@ module OpenAIAgents
       yield
     end
 
-    private
-
     ##
-    # Initialize usage tracking structure
-    # @return [Hash] Empty usage tracking hash
+    # Execute a single conversation turn using service objects
     #
-    def initialize_usage_tracking
-      {
-        input_tokens: 0,
-        output_tokens: 0,
-        total_tokens: 0
-      }
-    end
+    # This method coordinates the various services to handle a single turn:
+    # 1. Execute API call via strategy
+    # 2. Handle tool calls via ToolExecutor
+    # 3. Check for handoffs via HandoffDetector
+    #
+    # @param turn_data [Hash] Turn data from ConversationManager
+    # @return [Hash] Turn result with message, usage, and control flags
+    #
+    def execute_single_turn(turn_data)
+      conversation = turn_data[:conversation]
+      current_agent = turn_data[:current_agent]
+      context_wrapper = turn_data[:context_wrapper]
+      turns = turn_data[:turns]
 
-    ##
-    # Create execution context wrapper
-    # @param conversation [Array<Hash>] Current conversation
-    # @return [RunContextWrapper] Context wrapper for hooks
-    #
-    def create_context_wrapper(conversation)
-      context = RunContext.new(
-        messages: conversation,
-        metadata: config.metadata || {},
-        trace_id: config.trace_id,
-        group_id: config.group_id
-      )
-      RunContextWrapper.new(context)
-    end
-
-    ##
-    # Check if execution should be stopped
-    #
-    # @param conversation [Array<Hash>] Current conversation
-    # @raise [ExecutionStoppedError] If execution should stop
-    # @return [void]
-    #
-    def check_execution_stop(conversation)
-      if runner.should_stop?
-        conversation << { role: "assistant", content: "Execution stopped by user request." }
-        raise ExecutionStoppedError, "Execution stopped by user request"
-      end
-    end
-
-    ##
-    # Execute a single conversation turn
-    #
-    # This method orchestrates all the steps of a single turn:
-    # 1. Run pre-turn hooks
-    # 2. Execute guardrails
-    # 3. Make API call
-    # 4. Process response
-    # 5. Run post-turn hooks
-    #
-    # @param conversation [Array<Hash>] Current conversation state
-    # @param current_agent [Agent] The active agent
-    # @param context_wrapper [RunContextWrapper] Execution context
-    # @param turns [Integer] Current turn number
-    # @return [Hash] Result with :message, :usage, :response
-    #
-    def execute_turn(conversation:, current_agent:, context_wrapper:, turns:)
       # Pre-turn hook
       before_turn(conversation, current_agent, context_wrapper, turns)
       
@@ -309,23 +223,10 @@ module OpenAIAgents
       current_input = conversation.last[:content] if conversation.last && conversation.last[:role] == "user"
       runner.run_input_guardrails(context_wrapper, current_agent, current_input) if current_input
       
-      # Prepare messages and make API call
-      api_messages = runner.build_messages(conversation, current_agent, context_wrapper)
-      model = config.model || current_agent.model
-      model_params = build_model_params(current_agent)
-      
-      # Pre-API call hook
-      before_api_call(api_messages, model, model_params)
-      
-      # Make the API call
-      response = make_provider_call(api_messages, model, model_params)
-      
-      # Extract message and usage
-      message = extract_message(response)
-      usage = extract_usage(response)
-      
-      # Post-API call hook
-      after_api_call(response, usage)
+      # Execute API call via strategy
+      result = @api_strategy.execute(conversation, current_agent, runner)
+      message = result[:message]
+      usage = result[:usage]
       
       # Run output guardrails
       runner.run_output_guardrails(context_wrapper, current_agent, message[:content]) if message[:content]
@@ -333,206 +234,47 @@ module OpenAIAgents
       # Call agent end hook
       runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)
       
-      result = { message: message, usage: usage, response: response }
+      # Handle tool calls if present
+      if @tool_executor.has_tool_calls?(message)
+        @tool_executor.execute_tool_calls(
+          message["tool_calls"] || message[:tool_calls],
+          conversation,
+          context_wrapper,
+          result[:response]
+        ) do |tool_name, arguments, &tool_block|
+          wrap_tool_execution(tool_name, arguments, &tool_block)
+        end
+      end
+
+      # Check for handoff
+      handoff_result = @handoff_detector.check_for_handoff(message, current_agent)
+      
+      # Check tool calls for handoff patterns
+      if @tool_executor.has_tool_calls?(message)
+        tool_handoff_result = @handoff_detector.check_tool_calls_for_handoff(
+          message["tool_calls"] || message[:tool_calls],
+          current_agent
+        )
+        handoff_result = tool_handoff_result if tool_handoff_result[:handoff_occurred]
+      end
+      
+      # Determine if execution should continue
+      should_continue = @tool_executor.should_continue?(message)
+      
+      turn_result = {
+        message: message,
+        usage: usage,
+        handoff_result: handoff_result,
+        should_continue: should_continue
+      }
       
       # Post-turn hook
-      after_turn(conversation, current_agent, context_wrapper, turns, result)
+      after_turn(conversation, current_agent, context_wrapper, turns, turn_result)
       
-      result
+      turn_result
     end
 
-    ##
-    # Build model parameters for API call
-    #
-    # Constructs the parameters hash for the AI provider, including
-    # response format, tool choice, and prompt settings.
-    #
-    # @param current_agent [Agent] The agent with model settings
-    # @return [Hash] Parameters for the model API call
-    #
-    def build_model_params(current_agent)
-      model_params = config.to_model_params
-      
-      # Add structured output support
-      if current_agent.response_format
-        model_params[:response_format] = current_agent.response_format
-      end
-      
-      # Add tool choice support
-      if current_agent.respond_to?(:tool_choice) && current_agent.tool_choice
-        model_params[:tool_choice] = current_agent.tool_choice
-      end
-      
-      # Add prompt support for Responses API
-      if current_agent.prompt && provider.respond_to?(:supports_prompts?) && provider.supports_prompts?
-        prompt_input = PromptUtil.to_model_input(current_agent.prompt, nil, current_agent)
-        model_params[:prompt] = prompt_input if prompt_input
-      end
-      
-      model_params
-    end
-
-    ##
-    # Make API call to the AI provider
-    #
-    # @param api_messages [Array<Hash>] Formatted messages
-    # @param model [String] Model identifier
-    # @param model_params [Hash] Additional model parameters
-    # @return [Hash] Provider response
-    #
-    def make_provider_call(api_messages, model, model_params)
-      if config.stream
-        provider.stream_completion(
-          messages: api_messages,
-          model: model,
-          **model_params
-        )
-      else
-        provider.complete(
-          messages: api_messages,
-          model: model,
-          **model_params
-        )
-      end
-    end
-
-    ##
-    # Extract assistant message from provider response
-    #
-    # Handles different response formats from various providers.
-    #
-    # @param response [Hash] Provider API response
-    # @return [Hash] Message with role and content
-    #
-    def extract_message(response)
-      # Extract the assistant message from the API response
-      if response.is_a?(Hash)
-        if response[:choices] && response[:choices].first
-          # Standard OpenAI format
-          response[:choices].first[:message]
-        elsif response[:message]
-          # Direct message format
-          response[:message]
-        else
-          # Fallback to response itself
-          response
-        end
-      else
-        # Non-hash response
-        { role: "assistant", content: response.to_s }
-      end
-    end
-
-    ##
-    # Extract token usage data from provider response
-    #
-    # @param response [Hash] Provider API response
-    # @return [Hash, nil] Usage data or nil if not available
-    #
-    def extract_usage(response)
-      # Extract usage data from the API response
-      return nil unless response.is_a?(Hash)
-      response[:usage]
-    end
-
-    ##
-    # Accumulate token usage statistics
-    #
-    # Updates running totals for input, output, and total tokens.
-    #
-    # @param accumulated [Hash] Running usage totals to update
-    # @param usage [Hash, nil] New usage data to add
-    # @return [void]
-    #
-    def accumulate_usage(accumulated, usage)
-      return unless usage
-      
-      accumulated[:input_tokens] += usage[:input_tokens] || usage[:prompt_tokens] || 0
-      accumulated[:output_tokens] += usage[:output_tokens] || usage[:completion_tokens] || 0
-      accumulated[:total_tokens] += usage[:total_tokens] || 0
-    end
-
-    ##
-    # Process and execute tool calls
-    #
-    # @param conversation [Array<Hash>] Conversation to append results to
-    # @param tool_calls [Array<Hash>] Tool calls from assistant
-    # @param context_wrapper [RunContextWrapper] Execution context
-    # @param response [Hash] Full API response
-    #
-    def handle_tool_calls(conversation:, tool_calls:, context_wrapper:, response:)
-      # Process tool calls through runner
-      runner.process_tool_calls(
-        tool_calls, 
-        agent,
-        conversation, 
-        context_wrapper,
-        response
-      )
-    end
-
-    ##
-    # Check if a handoff to another agent is needed
-    #
-    # @param message [Hash] Assistant message to check
-    # @param current_agent [Agent] Current active agent
-    # @return [Hash] Result with :handoff_occurred and optionally :new_agent
-    #
-    def check_for_handoff(message, current_agent)
-      # Check if the message indicates a handoff is needed
-      return { handoff_occurred: false } unless message[:content]
-
-      # Delegate to runner's handoff detection
-      handoff_target = runner.detect_handoff_in_content(message[:content], current_agent)
-      
-      if handoff_target
-        # Find the target agent
-        target_agent = runner.find_handoff_agent(handoff_target, current_agent)
-        
-        if target_agent
-          log_info("Handoff detected", from: current_agent.name, to: target_agent.name)
-          {
-            handoff_occurred: true,
-            new_agent: target_agent
-          }
-        else
-          log_warn("Handoff target not found", target: handoff_target)
-          { handoff_occurred: false }
-        end
-      else
-        { handoff_occurred: false }
-      end
-    end
-
-    ##
-    # Determine if conversation should continue
-    #
-    # Checks message content for termination signals and tool calls.
-    #
-    # @param message [Hash] The last assistant message
-    # @return [Boolean] true to continue, false to stop
-    #
-    def should_continue?(message)
-      # Determine if we should continue the conversation
-      return true if message["tool_calls"] || message[:tool_calls] # Continue if there are tool calls
-      return false unless message[:content] # Stop if no content
-      
-      # Stop if content indicates termination
-      !message[:content].match?(/\b(STOP|TERMINATE|DONE|FINISHED)\b/i)
-    end
-
-    ##
-    # Handle maximum turns exceeded error
-    #
-    # @param conversation [Array<Hash>] Current conversation
-    # @param max_turns [Integer] The maximum turns limit
-    # @raise [MaxTurnsError] Always raises with error message
-    #
-    def handle_max_turns_exceeded(conversation, max_turns)
-      error_msg = "Maximum turns (#{max_turns}) exceeded"
-      conversation << { role: "assistant", content: error_msg }
-      raise MaxTurnsError, error_msg
-    end
+    private
 
     ##
     # Create final execution result
@@ -550,174 +292,6 @@ module OpenAIAgents
       )
     end
 
-    ##
-    # Convert messages to Responses API items format
-    #
-    # The Responses API uses a different format where tool calls
-    # and results are separate items rather than embedded in messages.
-    #
-    # @param messages [Array<Hash>] Standard message format
-    # @return [Array<Hash>] Items in Responses API format
-    #
-    def convert_messages_to_items(messages)
-      messages.map do |msg|
-        case msg[:role]
-        when "system"
-          { type: "message", role: "system", content: msg[:content] }
-        when "user"
-          { type: "message", role: "user", content: msg[:content] }
-        when "assistant"
-          if msg[:tool_calls]
-            [
-              { type: "message", role: "assistant", content: msg[:content] || "" },
-              msg[:tool_calls].map do |tc|
-                {
-                  type: "function",
-                  name: tc.dig("function", "name") || tc[:function][:name],
-                  arguments: tc.dig("function", "arguments") || tc[:function][:arguments],
-                  id: tc["id"] || tc[:id]
-                }
-              end
-            ].flatten
-          else
-            { type: "message", role: "assistant", content: msg[:content] }
-          end
-        when "tool"
-          {
-            type: "function_result",
-            function_call_id: msg[:tool_call_id],
-            content: msg[:content]
-          }
-        else
-          msg
-        end
-      end.flatten
-    end
-
-    ##
-    # Build parameters for Responses API call
-    #
-    # Constructs the specific parameters required by the Responses API,
-    # including modalities, tools, and response format.
-    #
-    # @param model [String] Model identifier (unused but kept for consistency)
-    # @return [Hash] Parameters for Responses API
-    #
-    def build_provider_params(model)
-      params = {
-        modalities: ["text"],
-        prompt: agent.prompt&.to_api_format,
-        tools: format_tools(agent.tools),
-        temperature: config.temperature,
-        max_tokens: config.max_tokens || config.max_completion_tokens,
-        metadata: config.metadata
-      }.compact
-      
-      # Add response format if specified
-      if agent.response_format
-        params[:response_format] = agent.response_format
-      end
-      
-      # Add tool choice if specified
-      if agent.respond_to?(:tool_choice) && agent.tool_choice
-        params[:tool_choice] = agent.tool_choice
-      end
-      
-      params
-    end
-
-    ##
-    # Make API call using Responses API
-    #
-    # @param items [Array<Hash>] Conversation items in Responses format
-    # @param provider_params [Hash] Provider-specific parameters
-    # @return [Hash] API response
-    #
-    def make_api_call(items, provider_params)
-      if config.stream
-        provider.stream_responses(
-          items: items,
-          model: config.model || agent.model,
-          **provider_params
-        )
-      else
-        provider.create_response(
-          items: items,
-          model: config.model || agent.model,
-          **provider_params
-        )
-      end
-    end
-
-    ##
-    # Process Responses API response into final result
-    #
-    # @param original_messages [Array<Hash>] Original input messages
-    # @param response [Hash] API response to process
-    # @return [RunResult] Final execution result
-    #
-    def process_responses_api_response(original_messages, response)
-      conversation = original_messages.dup
-      usage = response[:usage] || {}
-      
-      # Convert response back to messages format
-      new_messages = convert_response_to_messages(response)
-      conversation.concat(new_messages)
-      
-      # Create result
-      create_result(conversation, usage, nil)
-    end
-
-    ##
-    # Format tools for API call
-    #
-    # Converts tool objects to their API definition format.
-    #
-    # @param tools [Array<Tool>] Agent tools
-    # @return [Array<Hash>, nil] Formatted tool definitions or nil
-    #
-    def format_tools(tools)
-      return nil unless tools && !tools.empty?
-
-      tools.map do |tool|
-        if tool.respond_to?(:to_tool_definition)
-          tool.to_tool_definition
-        else
-          tool
-        end
-      end
-    end
-
-    ##
-    # Convert Responses API response to message format
-    #
-    # Extracts messages from the Responses API format and converts
-    # them back to the standard message format.
-    #
-    # @param response [Hash] Responses API response
-    # @return [Array<Hash>] Messages in standard format
-    #
-    def convert_response_to_messages(response)
-      # Convert Responses API response back to messages format
-      return [] unless response[:choices]
-
-      messages = []
-      choice = response[:choices].first
-      return messages unless choice[:message]
-
-      message = choice[:message]
-      messages << {
-        role: "assistant",
-        content: message[:content]
-      }
-
-      # Handle tool calls if present
-      if message[:tool_calls]
-        messages.last[:tool_calls] = message[:tool_calls]
-      end
-
-      messages
-    end
   end
 
   ##
