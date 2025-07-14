@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "securerandom"
 require_relative "function_tool"
 require_relative "errors"
 require_relative "lifecycle"
@@ -9,6 +10,7 @@ require_relative "handoffs"
 require_relative "agent_output"
 require_relative "tool_use_behavior"
 require_relative "logging"
+require_relative "memory"
 
 module OpenAIAgents
   ##
@@ -110,7 +112,7 @@ module OpenAIAgents
     #   @return [Hash, nil] OpenAI response format for structured output (e.g., JSON schema)
     # @!attribute [rw] tool_choice
     #   @return [String, Hash, nil] tool choice strategy - "auto", "none", "required", or specific tool
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store
 
     ##
     # Creates a new Agent instance
@@ -162,6 +164,9 @@ module OpenAIAgents
       @handoff_description = options[:handoff_description]
       @response_format = options[:response_format]
       @tool_choice = options[:tool_choice]
+
+      # Memory system integration
+      @memory_store = options[:memory_store] || Memory.default_store || Memory::InMemoryStore.new
 
       # Tool use behavior configuration
       @tool_use_behavior = ToolUseBehavior.from_config(options[:tool_use_behavior] || :run_llm_again)
@@ -658,7 +663,8 @@ module OpenAIAgents
         handoff_description: @handoff_description,
         tool_use_behavior: @tool_use_behavior,
         reset_tool_choice: @reset_tool_choice,
-        response_format: @response_format
+        response_format: @response_format,
+        memory_store: @memory_store # Share memory store reference (not deep copied)
       }
 
       # Merge with overrides
@@ -724,9 +730,9 @@ module OpenAIAgents
 
       # Create FunctionTool from the proc
       FunctionTool.new(
+        agent_proc,
         name: tool_name,
         description: tool_description,
-        function: agent_proc,
         # Add parameters for input and optional kwargs
         parameters: {
           type: "object",
@@ -739,6 +745,199 @@ module OpenAIAgents
           required: ["input_text"]
         }
       )
+    end
+
+    ##
+    # Memory Management Methods
+    # 
+    # These methods provide memory capabilities for the agent, enabling it to store
+    # and retrieve information across conversations. The memory system uses the
+    # configured memory store (defaults to InMemoryStore).
+
+    ##
+    # Store information in the agent's memory
+    #
+    # @param content [String] the information to remember
+    # @param metadata [Hash] optional metadata for categorization and filtering
+    # @param conversation_id [String, nil] optional conversation identifier
+    # @return [String] unique memory key for later retrieval
+    #
+    # @example Store user preferences
+    #   agent.remember("User prefers Python programming", metadata: { type: "preference" })
+    #
+    # @example Store context for current conversation
+    #   agent.remember("User is working on web scraping", 
+    #                  conversation_id: "conv-123",
+    #                  metadata: { type: "context" })
+    def remember(content, metadata: {}, conversation_id: nil)
+      raise AgentError, "Memory store not configured" unless @memory_store
+
+      # Create a unique key for this memory
+      memory_key = "#{@name}_#{SecureRandom.uuid}"
+      
+      # Enhance metadata with agent context
+      enhanced_metadata = metadata.merge(
+        agent_name: @name,
+        created_by: "#{self.class.name}#remember"
+      )
+
+      # Create memory object
+      memory = Memory::Memory.new(
+        content: content,
+        agent_name: @name,
+        conversation_id: conversation_id,
+        metadata: enhanced_metadata
+      )
+
+      # Store in memory store
+      @memory_store.store(memory_key, memory)
+      
+      memory_key
+    end
+
+    ##
+    # Search and retrieve memories based on a query
+    #
+    # @param query [String] search query to match against memory content
+    # @param limit [Integer] maximum number of memories to return (default: 10)
+    # @param conversation_id [String, nil] filter by conversation (optional)
+    # @param tags [Array<String>] filter by metadata tags (optional)
+    # @return [Array<Hash>] array of matching memories
+    #
+    # @example Find programming-related memories
+    #   memories = agent.recall("programming", limit: 5)
+    #
+    # @example Find memories from specific conversation
+    #   memories = agent.recall("error", conversation_id: "conv-123")
+    #
+    # @example Find memories with specific tags
+    #   memories = agent.recall("user", tags: ["preference", "setting"])
+    def recall(query, limit: 10, conversation_id: nil, tags: [])
+      return [] unless @memory_store
+
+      @memory_store.search(query, {
+        limit: limit,
+        agent_name: @name,
+        conversation_id: conversation_id,
+        tags: tags
+      })
+    end
+
+    ##
+    # Get the total number of memories stored for this agent
+    #
+    # @return [Integer] count of memories
+    #
+    # @example Check if agent has memories
+    #   puts "Agent has #{agent.memory_count} memories"
+    def memory_count
+      return 0 unless @memory_store
+
+      keys = @memory_store.list_keys(agent_name: @name)
+      keys.length
+    end
+
+    ##
+    # Check if the agent has any memories stored
+    #
+    # @return [Boolean] true if agent has memories, false otherwise
+    #
+    # @example Conditional logic based on memory
+    #   if agent.has_memories?
+    #     puts "Loading previous context..."
+    #   end
+    def has_memories?
+      memory_count > 0
+    end
+
+    ##
+    # Remove a specific memory from storage
+    #
+    # @param memory_key [String] unique identifier of the memory to forget
+    # @return [Boolean] true if memory was deleted, false if not found
+    #
+    # @example Remove outdated information
+    #   key = agent.remember("Temporary info")
+    #   # Later...
+    #   agent.forget(key)
+    def forget(memory_key)
+      return false unless @memory_store
+
+      @memory_store.delete(memory_key)
+    end
+
+    ##
+    # Clear all memories for this agent
+    #
+    # @return [void]
+    #
+    # @example Reset agent memory
+    #   agent.clear_memories
+    #   puts "Agent memory cleared"
+    def clear_memories
+      return unless @memory_store
+
+      # Get all keys for this agent and delete them
+      keys = @memory_store.list_keys(agent_name: @name)
+      keys.each { |key| @memory_store.delete(key) }
+    end
+
+    ##
+    # Get recent memories for the agent
+    #
+    # @param limit [Integer] maximum number of recent memories to return (default: 10)
+    # @param conversation_id [String, nil] filter by conversation (optional)
+    # @return [Array<Hash>] array of recent memories, most recent first
+    #
+    # @example Get last 5 memories
+    #   recent = agent.recent_memories(5)
+    #
+    # @example Get recent memories from current conversation
+    #   recent = agent.recent_memories(10, conversation_id: "conv-123")
+    def recent_memories(limit: 10, conversation_id: nil)
+      return [] unless @memory_store
+
+      # Search with empty query to get all memories, then sort by recency
+      all_memories = @memory_store.search("", {
+        limit: limit * 2, # Get more than needed to filter properly
+        agent_name: @name,
+        conversation_id: conversation_id
+      })
+
+      # Sort by updated_at (most recent first) and limit
+      all_memories
+        .sort_by { |memory| Time.parse(memory[:updated_at] || memory["updated_at"]) }
+        .reverse
+        .take(limit)
+    end
+
+    ##
+    # Generate a formatted context string from memories for prompt inclusion
+    #
+    # This method searches for relevant memories and formats them as a context
+    # string that can be included in prompts to provide the LLM with relevant
+    # background information.
+    #
+    # @param query [String] search query to find relevant memories
+    # @param limit [Integer] maximum number of memories to include (default: 5)
+    # @param conversation_id [String, nil] filter by conversation (optional)
+    # @return [String] formatted context string
+    #
+    # @example Generate context for a prompt
+    #   context = agent.memory_context("user preferences", limit: 3)
+    #   prompt = "Based on this context: #{context}\n\nPlease help the user..."
+    def memory_context(query, limit: 5, conversation_id: nil)
+      memories = recall(query, limit: limit, conversation_id: conversation_id)
+      return "" if memories.empty?
+
+      context_parts = ["Relevant memories:"]
+      memories.each_with_index do |memory, index|
+        content = memory[:content] || memory["content"]
+        timestamp = memory[:updated_at] || memory["updated_at"]
+        context_parts << "#{index + 1}. #{content} (#{timestamp})"
+      end
+
+      context_parts.join("\n")
     end
 
     private

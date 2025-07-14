@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rails"
+require_relative "../logging"
 
 module OpenAIAgents
   module Tracing
@@ -35,6 +36,7 @@ module OpenAIAgents
     #
     # Visit /tracing in your Rails app to view traces and spans.
     class Engine < ::Rails::Engine
+      include OpenAIAgents::Logger
       isolate_namespace OpenAIAgents::Tracing
 
       # Set the root path for the engine
@@ -77,9 +79,9 @@ module OpenAIAgents
           Rails.application.config.after_initialize do
             processor = OpenAIAgents::Tracing::ActiveRecordProcessor.new
             OpenAIAgents.tracer.add_processor(processor)
-            Rails.logger.info "[OpenAI Agents Tracing] Auto-configured ActiveRecord processor"
+            OpenAIAgents::Logging.info("Auto-configured ActiveRecord processor")
           rescue StandardError => e
-            Rails.logger.warn "[OpenAI Agents Tracing] Failed to auto-configure: #{e.message}"
+            OpenAIAgents::Logging.warn("Failed to auto-configure", error: e.message, error_class: e.class.name)
           end
         end
       end

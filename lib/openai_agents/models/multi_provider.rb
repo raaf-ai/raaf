@@ -13,7 +13,7 @@ module OpenAIAgents
     class MultiProvider
       def self.providers
         @providers ||= {
-          "openai" => OpenAIProvider,
+          "openai" => OpenAIProvider,  # DEPRECATED - maintained for backwards compatibility
           "anthropic" => AnthropicProvider,
           "gemini" => GeminiProvider,
           "cohere" => CohereProvider,

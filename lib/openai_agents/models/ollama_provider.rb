@@ -61,10 +61,9 @@ module OpenAIAgents
         # Ollama doesn't require API keys for local usage
         @api_key = api_key
 
-        @http_client = HTTPClient.new(
-          default_headers: {
-            "Content-Type" => "application/json"
-          },
+        @http_client = HTTPClient::Client.new(
+          api_key: @api_key || "not-required-for-ollama",
+          base_url: @api_base,
           timeout: options[:timeout] || 300 # Longer timeout for local models
         )
 

@@ -190,9 +190,9 @@ module OpenAIAgents
       def benchmark(label, **context)
         return yield unless should_log?(:info)
 
-        start_time = Time.current
+        start_time = Time.now
         result = yield
-        duration = Time.current - start_time
+        duration = Time.now - start_time
 
         info("BENCHMARK [#{label}]: #{duration.round(3)}s", duration_ms: (duration * 1000).round(2), **context)
         result

@@ -42,8 +42,11 @@ module OpenAIAgents
       def render_timeline
         return "No spans to visualize" if @spans.empty?
 
-        # Sort spans by start time
-        sorted_spans = @spans.sort_by { |s| s[:start_time] || s.start_time }
+        # Sort spans by start time  
+        sorted_spans = @spans.sort_by do |s|
+          start_time = s.is_a?(Hash) ? s[:start_time] : s.start_time
+          start_time.is_a?(String) ? start_time : start_time.iso8601
+        end
 
         output = []
         output << "Timeline View"
@@ -51,10 +54,17 @@ module OpenAIAgents
         output << ""
 
         # Find time range
-        start_times = sorted_spans.map { |s| Time.parse(s[:start_time] || s.start_time.iso8601) }
+        start_times = sorted_spans.map do |s|
+          start_time = s.is_a?(Hash) ? s[:start_time] : s.start_time
+          start_time.is_a?(String) ? Time.parse(start_time) : start_time
+        end
         end_times = sorted_spans.map do |s|
-          end_time = s[:end_time] || s.end_time&.iso8601
-          end_time ? Time.parse(end_time) : start_times.last
+          end_time = s.is_a?(Hash) ? s[:end_time] : s.end_time
+          if end_time
+            end_time.is_a?(String) ? Time.parse(end_time) : end_time
+          else
+            start_times.last
+          end
         end
 
         min_time = start_times.min
@@ -62,9 +72,15 @@ module OpenAIAgents
         total_duration = max_time - min_time
 
         sorted_spans.each do |span|
-          start_time = Time.parse(span[:start_time] || span.start_time.iso8601)
-          end_time_str = span[:end_time] || span.end_time&.iso8601
-          end_time = end_time_str ? Time.parse(end_time_str) : start_time
+          start_time_val = span.is_a?(Hash) ? span[:start_time] : span.start_time
+          start_time = start_time_val.is_a?(String) ? Time.parse(start_time_val) : start_time_val
+          
+          end_time_val = span.is_a?(Hash) ? span[:end_time] : span.end_time
+          end_time = if end_time_val
+                       end_time_val.is_a?(String) ? Time.parse(end_time_val) : end_time_val
+                     else
+                       start_time
+                     end
 
           # Calculate relative position and width
           rel_start = ((start_time - min_time) / total_duration * 60).to_i
@@ -77,8 +93,8 @@ module OpenAIAgents
             timeline[i] = "█"
           end
 
-          span_name = span[:name] || span.name
-          duration_ms = span[:duration_ms] || (duration * 1000).round(2)
+          span_name = span.is_a?(Hash) ? span[:name] : span.name
+          duration_ms = span.is_a?(Hash) ? span[:duration_ms] : (duration * 1000).round(2)
 
           output << "#{span_name.ljust(20)} |#{timeline}| #{duration_ms}ms"
         end
@@ -96,9 +112,9 @@ module OpenAIAgents
         node_id = 0
 
         @spans.each do |span|
-          span_name = span[:name] || span.name
-          status = span[:status] || span.status
-          duration = span[:duration_ms] || "unknown"
+          span_name = span.is_a?(Hash) ? span[:name] : span.name
+          status = span.is_a?(Hash) ? span[:status] : span.status
+          duration = span.is_a?(Hash) ? span[:duration_ms] : (span.respond_to?(:duration_ms) ? span.duration_ms : "unknown")
 
           node_label = "#{span_name}\\n#{duration}ms"
           node_style = status == :error ? "fill:#ffebee" : "fill:#e8f5e8"
@@ -107,9 +123,12 @@ module OpenAIAgents
           mermaid << "  style #{node_id} #{node_style}"
 
           # Add parent-child relationships
-          parent_id = span[:parent_id] || span.parent_id
+          parent_id = span.is_a?(Hash) ? span[:parent_id] : span.parent_id
           if parent_id
-            parent_node = @spans.find_index { |s| (s[:span_id] || s.span_id) == parent_id }
+            parent_node = @spans.find_index do |s|
+              span_id = s.is_a?(Hash) ? s[:span_id] : s.span_id
+              span_id == parent_id
+            end
             mermaid << "  #{parent_node} --> #{node_id}" if parent_node
           end
 
@@ -127,7 +146,7 @@ module OpenAIAgents
         root_spans = []
 
         @spans.each do |span|
-          parent_id = span[:parent_id] || span.parent_id
+          parent_id = span.is_a?(Hash) ? span[:parent_id] : span.parent_id
           if parent_id
             spans_by_parent[parent_id] ||= []
             spans_by_parent[parent_id] << span
@@ -139,7 +158,7 @@ module OpenAIAgents
         # Build tree structure
         # rubocop:disable Lint/NestedMethodDefinition
         def build_children(span, spans_by_parent)
-          span_id = span[:span_id] || span.span_id
+          span_id = span.is_a?(Hash) ? span[:span_id] : span.span_id
           children = spans_by_parent[span_id] || []
           {
             span: span,
@@ -161,9 +180,9 @@ module OpenAIAgents
           connector = is_last ? "└─ " : "├─ "
 
           # Span info
-          span_name = span[:name] || span.name
-          status = span[:status] || span.status
-          duration = span[:duration_ms] || "unknown"
+          span_name = span.is_a?(Hash) ? span[:name] : span.name
+          status = span.is_a?(Hash) ? span[:status] : span.status
+          duration = span.is_a?(Hash) ? span[:duration_ms] : (span.respond_to?(:duration_ms) ? span.duration_ms : "unknown")
 
           status_icon = case status
                         when :error then "❌"
@@ -174,7 +193,7 @@ module OpenAIAgents
           output << "#{prefix}#{connector}#{status_icon} #{span_name} (#{duration}ms)"
 
           # Add span details if available
-          attributes = span[:attributes] || {}
+          attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.respond_to?(:attributes) ? span.attributes : {})
           if attributes.any?
             detail_prefix = "  " * (depth + 1)
             detail_connector = is_last ? "   " : "│  "
@@ -315,15 +334,15 @@ module OpenAIAgents
 
       def self.generate(spans, trace_summary = nil)
         spans_data = prepare_spans_data(spans)
-        timeline_data = prepare_timeline_data(spans_data)
-        mermaid = TraceVisualizer.new(spans).generate_mermaid
+        timeline_spans = prepare_timeline_data(spans_data)
+        mermaid_diagram = TraceVisualizer.new(spans).generate_mermaid
 
-        summary = trace_summary || {
-          trace_id: spans_data.first&.dig(:trace_id) || "unknown",
-          total_spans: spans_data.length,
-          total_duration_ms: spans_data.sum { |s| s[:duration_ms] || 0 },
-          status: spans_data.any? { |s| s[:status] == :error } ? "error" : "success"
-        }
+        # Define variables for ERB template
+        trace_id = spans_data.first&.dig(:trace_id) || "unknown"
+        total_spans = spans_data.length
+        total_duration = spans_data.sum { |s| s[:duration] || 0 }
+        status = spans_data.any? { |s| s[:status] == :error } ? "error" : "success"
+        spans = spans_data
 
         template = ERB.new(TEMPLATE)
         template.result(binding)
@@ -332,16 +351,16 @@ module OpenAIAgents
       def self.prepare_spans_data(spans)
         spans.map do |span|
           {
-            span_id: span[:span_id] || span.span_id,
-            trace_id: span[:trace_id] || span.trace_id,
-            parent_id: span[:parent_id] || span.parent_id,
-            name: span[:name] || span.name,
-            start_time: span[:start_time] || span.start_time&.iso8601,
-            end_time: span[:end_time] || span.end_time&.iso8601,
-            duration: span[:duration_ms] || (span.duration ? (span.duration * 1000).round(2) : 0),
-            status: span[:status] || span.status,
-            attributes: span[:attributes] || span.attributes || {},
-            events: span[:events] || span.events || []
+            span_id: span.is_a?(Hash) ? span[:span_id] : span.span_id,
+            trace_id: span.is_a?(Hash) ? span[:trace_id] : (span.respond_to?(:trace_id) ? span.trace_id : nil),
+            parent_id: span.is_a?(Hash) ? span[:parent_id] : span.parent_id,
+            name: span.is_a?(Hash) ? span[:name] : span.name,
+            start_time: span.is_a?(Hash) ? span[:start_time] : span.start_time&.iso8601,
+            end_time: span.is_a?(Hash) ? span[:end_time] : span.end_time&.iso8601,
+            duration: span.is_a?(Hash) ? span[:duration_ms] : (span.respond_to?(:duration) && span.duration ? (span.duration * 1000).round(2) : 0),
+            status: span.is_a?(Hash) ? span[:status] : (span.respond_to?(:status) ? span.status : nil),
+            attributes: span.is_a?(Hash) ? (span[:attributes] || {}) : (span.respond_to?(:attributes) ? span.attributes : {}),
+            events: span.is_a?(Hash) ? (span[:events] || []) : (span.respond_to?(:events) ? span.events : [])
           }
         end
       end
@@ -350,9 +369,17 @@ module OpenAIAgents
         return [] if spans_data.empty?
 
         # Find time range
-        start_times = spans_data.map { |s| Time.parse(s[:start_time]) }
+        start_times = spans_data.map do |s|
+          start_time = s[:start_time]
+          start_time.is_a?(String) ? Time.parse(start_time) : start_time
+        end
         end_times = spans_data.map do |s|
-          s[:end_time] ? Time.parse(s[:end_time]) : start_times.last
+          end_time = s[:end_time]
+          if end_time
+            end_time.is_a?(String) ? Time.parse(end_time) : end_time
+          else
+            start_times.last
+          end
         end
 
         min_time = start_times.min
@@ -360,8 +387,15 @@ module OpenAIAgents
         total_duration = max_time - min_time
 
         spans_data.map do |span|
-          start_time = Time.parse(span[:start_time])
-          end_time = span[:end_time] ? Time.parse(span[:end_time]) : start_time
+          start_time_val = span[:start_time]
+          start_time = start_time_val.is_a?(String) ? Time.parse(start_time_val) : start_time_val
+          
+          end_time_val = span[:end_time]
+          end_time = if end_time_val
+                       end_time_val.is_a?(String) ? Time.parse(end_time_val) : end_time_val
+                     else
+                       start_time
+                     end
 
           offset = ((start_time - min_time) / total_duration * 100)
           width = [1, ((end_time - start_time) / total_duration * 100)].max
@@ -393,7 +427,7 @@ module OpenAIAgents
 
           # Add tool nodes
           tools = agent.is_a?(Hash) ? agent[:tools] : agent.tools
-          if tools&.any?
+          if tools.is_a?(Array) && tools.any?
             tools.each_with_index do |tool, tool_index|
               tool_name = tool.is_a?(Hash) ? tool[:name] : tool.name
               tool_id = "T#{index}_#{tool_index}"
@@ -406,7 +440,7 @@ module OpenAIAgents
 
           # Add handoff connections
           handoffs = agent.is_a?(Hash) ? agent[:handoffs] : agent.handoffs
-          if handoffs&.any?
+          if handoffs.is_a?(Array) && handoffs.any?
             handoffs.each do |handoff|
               handoff_name = handoff.is_a?(Hash) ? handoff[:name] : handoff.name
               target_index = @agents.find_index do |a|
@@ -437,7 +471,7 @@ module OpenAIAgents
 
           # Show tools
           tools = agent.is_a?(Hash) ? agent[:tools] : agent.tools
-          if tools&.any?
+          if tools.is_a?(Array) && tools.any?
             output << "  Tools:"
             tools.each do |tool|
               tool_name = tool.is_a?(Hash) ? tool[:name] : tool.name
@@ -449,7 +483,7 @@ module OpenAIAgents
 
           # Show handoffs
           handoffs = agent.is_a?(Hash) ? agent[:handoffs] : agent.handoffs
-          if handoffs&.any?
+          if handoffs.is_a?(Array) && handoffs.any?
             output << "  Can handoff to:"
             handoffs.each do |handoff|
               handoff_name = handoff.is_a?(Hash) ? handoff[:name] : handoff.name

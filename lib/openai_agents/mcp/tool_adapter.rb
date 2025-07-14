@@ -76,7 +76,7 @@ module OpenAIAgents
           tool_proc,
           name: mcp_tool.name,
           description: mcp_tool.description,
-          parameters_schema: mcp_tool.input_schema
+          parameters: mcp_tool.input_schema
         )
       end
     end

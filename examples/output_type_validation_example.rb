@@ -7,6 +7,7 @@ require "json"
 
 # Example demonstrating output type validation with TypeAdapter
 
+# Output type validation enables reliable AI integration
 puts "=== Output Type Validation Example ==="
 puts "This example shows how to use output_type for structured output validation"
 puts

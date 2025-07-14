@@ -216,18 +216,18 @@ module OpenAIAgents
       @context = context
     end
 
-    def execute(**kwargs)
+    def call(**kwargs)
       start_time = Time.now
 
       begin
         # Inject context into kwargs if the function accepts it
-        if @function.respond_to?(:parameters)
-          params = @function.parameters
+        if @callable.respond_to?(:parameters)
+          params = @callable.parameters
           kwargs[:context] = @context if params.any? { |_type, name| name == :context }
         end
 
-        # Execute the tool
-        result = super
+        # Execute the tool using parent's call method
+        result = super(**kwargs)
 
         # Track execution
         duration = Time.now - start_time
@@ -241,6 +241,9 @@ module OpenAIAgents
         raise
       end
     end
+    
+    # Alias for backwards compatibility
+    alias_method :execute, :call
   end
 
   # Context manager for agent execution

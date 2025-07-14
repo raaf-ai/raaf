@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require_relative "../logging"
+
 module OpenAIAgents
   module Tracing
     class CostManager
       include OpenAIAgents::Tracing
+      include OpenAIAgents::Logger
 
       # Advanced cost management with multi-tenant allocation, budgeting, and optimization
 
@@ -39,7 +42,7 @@ module OpenAIAgents
 
           # Reporting
           reporting_timezone: config[:reporting_timezone] || "UTC",
-          cost_aggregation_interval: config[:cost_aggregation_interval] || 1.hour
+          cost_aggregation_interval: config[:cost_aggregation_interval] || 3600
         }
 
         @budgets = {}
@@ -53,10 +56,10 @@ module OpenAIAgents
         end
 
         # Debug logging
-        if Rails.env.development?
-          Rails.logger.info "[CostManager] Calculating cost for span #{span.span_id}"
-          Rails.logger.info "[CostManager] Span attributes: #{span.span_attributes.inspect}"
-        end
+        log_debug_tracing("Calculating cost for span",
+          span_id: span.span_id,
+          has_attributes: !span.span_attributes.nil?
+        )
 
         usage = span.span_attributes.dig("llm", "usage")
         return { total_cost: 0.0, input_tokens: 0, output_tokens: 0, model: "unknown" } unless usage
@@ -79,7 +82,7 @@ module OpenAIAgents
           output_cost: output_cost,
           total_cost: total_cost,
           currency: @config[:default_currency],
-          calculated_at: Time.current
+          calculated_at: Time.now
         }
       end
 
@@ -122,8 +125,8 @@ module OpenAIAgents
         }
       end
 
-      def get_cost_breakdown(timeframe: 24.hours, tenant_id: nil, project_id: nil, user_id: nil)
-        end_time = Time.current
+      def get_cost_breakdown(timeframe: 24*3600, tenant_id: nil, project_id: nil, user_id: nil)
+        end_time = Time.now
         start_time = end_time - timeframe
 
         traces = TraceRecord.within_timeframe(start_time, end_time)
@@ -133,7 +136,7 @@ module OpenAIAgents
           period: {
             start: start_time,
             end: end_time,
-            duration_hours: (timeframe / 1.hour).round(2)
+            duration_hours: (timeframe / 3600).round(2)
           },
           totals: {
             total_cost: 0.0,
@@ -234,8 +237,8 @@ module OpenAIAgents
           amount: amount,
           period: period,
           currency: currency,
-          created_at: Time.current,
-          updated_at: Time.current
+          created_at: Time.now,
+          updated_at: Time.now
         }
 
         # Persist budget if storage is available
@@ -286,7 +289,7 @@ module OpenAIAgents
         status
       end
 
-      def get_cost_optimization_recommendations(timeframe: 7.days, tenant_id: nil, project_id: nil)
+      def get_cost_optimization_recommendations(timeframe: 7*24*3600, tenant_id: nil, project_id: nil)
         return [] unless @config[:enable_optimization]
 
         @optimization_engine.analyze_and_recommend(
@@ -296,7 +299,7 @@ module OpenAIAgents
         )
       end
 
-      def forecast_costs(timeframe: 30.days, tenant_id: nil, project_id: nil, user_id: nil)
+      def forecast_costs(timeframe: 30*24*3600, tenant_id: nil, project_id: nil, user_id: nil)
         # Historical data for forecasting
         historical_period = timeframe
         historical_costs = get_cost_breakdown(
@@ -315,7 +318,7 @@ module OpenAIAgents
 
         trend = calculate_cost_trend(daily_costs.values)
 
-        forecast_days = (timeframe / 1.day).to_i
+        forecast_days = (timeframe / (24*3600)).to_i
         forecasted_costs = []
 
         forecast_days.times do |day|
@@ -324,7 +327,7 @@ module OpenAIAgents
           forecasted_cost = [base_cost + trend_adjustment, 0].max
 
           forecasted_costs << {
-            date: Date.current + day.days,
+            date: Date.today + day,
             forecasted_cost: forecasted_cost.round(6),
             confidence: calculate_forecast_confidence(day, daily_costs.size)
           }
@@ -346,13 +349,13 @@ module OpenAIAgents
         }
       end
 
-      def generate_cost_report(format: :json, timeframe: 30.days, **filters)
+      def generate_cost_report(format: :json, timeframe: 30*24*3600, **filters)
         breakdown = get_cost_breakdown(timeframe: timeframe, **filters)
-        forecast = forecast_costs(timeframe: 30.days, **filters)
+        forecast = forecast_costs(timeframe: 30*24*3600, **filters)
         recommendations = get_cost_optimization_recommendations(timeframe: timeframe, **filters)
 
         report = {
-          generated_at: Time.current,
+          generated_at: Time.now,
           timeframe: timeframe,
           filters: filters,
           summary: breakdown[:totals],
@@ -429,7 +432,7 @@ module OpenAIAgents
       def calculate_period_dates(period)
         case period
         when :daily
-          [Time.current.beginning_of_day, Time.current.end_of_day]
+          [Time.now.to_date.to_time, Time.now.to_date.to_time + 24*3600 - 1]
         when :weekly
           [Time.current.beginning_of_week, Time.current.end_of_week]
         when :monthly
@@ -446,7 +449,7 @@ module OpenAIAgents
 
         current_hour = start_time.beginning_of_hour
         while current_hour < end_time
-          hour_end = current_hour + 1.hour
+          hour_end = current_hour + 3600
 
           hour_traces = TraceRecord.within_timeframe(current_hour, hour_end)
           hour_traces = filter_by_tenant(hour_traces, tenant_id, project_id, user_id)
@@ -460,7 +463,7 @@ module OpenAIAgents
             trace_count: hour_traces.count
           }
 
-          current_hour += 1.hour
+          current_hour += 3600
         end
 
         breakdown
@@ -485,7 +488,7 @@ module OpenAIAgents
             trace_count: day_traces.count
           }
 
-          current_day += 1.day
+          current_day += 24*3600
         end
 
         daily_costs.values

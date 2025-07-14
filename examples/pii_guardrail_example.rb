@@ -1,10 +1,18 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# This example demonstrates PII (Personally Identifiable Information) detection
+# and protection using guardrails in OpenAI Agents Ruby. PII protection is
+# critical for compliance with privacy regulations like GDPR, HIPAA, and CCPA.
+# The guardrail system can detect, redact, or block messages containing sensitive
+# information before they reach the AI model or are stored. This ensures data
+# privacy and prevents accidental exposure of sensitive information in AI systems.
+
 require_relative "../lib/openai_agents"
 require_relative "../lib/openai_agents/guardrails/pii_detector"
 
-# Set API key from environment
+# Configure API access (if implemented)
+# PII detection primarily uses pattern matching, not API calls
 OpenAI.configure do |config|
   config.access_token = ENV.fetch("OPENAI_API_KEY", nil)
 end
@@ -12,39 +20,61 @@ end
 puts "=== PII Detection Guardrail Example ==="
 puts
 
-# Create different PII detectors
+# ============================================================================
+# PII DETECTOR CONFIGURATION
+# ============================================================================
+# Different detectors for various sensitivity levels and contexts.
+# Each detector can be configured with specific patterns and behaviors.
+
+# Standard detector for general use
+# Medium sensitivity balances detection accuracy with false positives
+# Redaction replaces detected PII with type indicators like [EMAIL]
 standard_detector = OpenAIAgents::Guardrails::PIIDetector.new(
   name: "standard_pii",
-  sensitivity_level: :medium,
-  redaction_enabled: true
+  sensitivity_level: :medium,  # Detects common PII patterns
+  redaction_enabled: true      # Automatically redact detected PII
 )
 
+# High sensitivity detector for maximum protection
+# Detects potential PII even with lower confidence
+# Suitable for highly regulated environments
 high_sensitivity_detector = OpenAIAgents::Guardrails::PIIDetector.new(
   name: "high_sensitivity_pii",
-  sensitivity_level: :high,
+  sensitivity_level: :high,     # More aggressive detection
   redaction_enabled: true
 )
 
+# Specialized detector for healthcare contexts
+# Includes patterns for medical record numbers, insurance IDs, etc.
+# Essential for HIPAA compliance
 healthcare_detector = OpenAIAgents::Guardrails::HealthcarePIIDetector.new(
   name: "healthcare_pii",
-  sensitivity_level: :high,
+  sensitivity_level: :high,     # Healthcare requires high sensitivity
   redaction_enabled: true
 )
 
+# Specialized detector for financial contexts
+# Detects account numbers, routing numbers, crypto addresses
+# Critical for PCI-DSS and financial regulations
 financial_detector = OpenAIAgents::Guardrails::FinancialPIIDetector.new(
   name: "financial_pii",
-  sensitivity_level: :medium,
+  sensitivity_level: :medium,   # Balance security with usability
   redaction_enabled: true
 )
 
-# Create guardrail manager
+# Create guardrail manager to coordinate multiple detectors
+# The manager applies guardrails in sequence and handles failures
 guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
 guardrails.add_guardrail(standard_detector)
 
-# Create an agent with PII protection
+# Create an agent with security-conscious instructions
+# The agent is trained to handle PII carefully even without guardrails
+# This provides defense in depth - both technical and behavioral protection
 agent = OpenAIAgents::Agent.new(
   name: "SecureAssistant",
   model: "gpt-4o",
+  
+  # Instructions emphasize PII handling best practices
   instructions: <<~INSTRUCTIONS
     You are a helpful assistant that handles sensitive information securely.
     Always be careful with personally identifiable information (PII).
@@ -55,10 +85,17 @@ agent = OpenAIAgents::Agent.new(
 # Create runner with guardrails
 runner = OpenAIAgents::Runner.new(agent: agent, guardrails: guardrails)
 
-# Example 1: Basic PII detection
+# ============================================================================
+# EXAMPLE 1: BASIC PII DETECTION
+# ============================================================================
+# Demonstrates detection of common PII types including emails, phone numbers,
+# SSNs, and credit cards. Each pattern has specific regex and validation logic.
+
 puts "Example 1: Basic PII Detection"
 puts "-" * 50
 
+# Test various PII patterns
+# These represent common types of sensitive data in user inputs
 test_inputs = [
   "My email is john.doe@example.com and my phone is 555-123-4567",
   "My SSN is 123-45-6789 and I need help with my account",
@@ -88,7 +125,12 @@ test_inputs.each do |input|
   puts "Redacted: #{redacted}"
 end
 
-# Example 2: Different sensitivity levels
+# ============================================================================
+# EXAMPLE 2: SENSITIVITY LEVELS COMPARISON
+# ============================================================================
+# Shows how different sensitivity levels affect detection. Higher sensitivity
+# catches more potential PII but may have more false positives.
+
 puts "\n\nExample 2: Sensitivity Levels Comparison"
 puts "-" * 50
 
@@ -105,7 +147,12 @@ test_text = "Contact John Smith at 555-987-6543 or email jsmith@company.com. DOB
   puts "Redacted: #{detector.redact_text(test_text)}"
 end
 
-# Example 3: Healthcare context
+# ============================================================================
+# EXAMPLE 3: HEALTHCARE PII DETECTION
+# ============================================================================
+# Healthcare data requires special handling under HIPAA. This detector
+# recognizes medical record numbers, insurance IDs, and provider identifiers.
+
 puts "\n\nExample 3: Healthcare PII Detection"
 puts "-" * 50
 
@@ -130,7 +177,12 @@ end
 redacted = healthcare_detector.redact_text(healthcare_text)
 puts "\nRedacted text:\n#{redacted}"
 
-# Example 4: Financial context
+# ============================================================================
+# EXAMPLE 4: FINANCIAL PII DETECTION
+# ============================================================================
+# Financial data protection is crucial for PCI-DSS compliance and preventing
+# fraud. This detector identifies account numbers, routing codes, and crypto.
+
 puts "\n\nExample 4: Financial PII Detection"
 puts "-" * 50
 
@@ -155,7 +207,12 @@ end
 redacted = financial_detector.redact_text(financial_text)
 puts "\nRedacted text:\n#{redacted}"
 
-# Example 5: Real agent interaction with PII protection
+# ============================================================================
+# EXAMPLE 5: AGENT INTERACTION WITH PII PROTECTION
+# ============================================================================
+# Demonstrates how guardrails protect live agent conversations. The guardrail
+# can block, redact, or modify messages before they reach the AI model.
+
 puts "\n\nExample 5: Agent Interaction with PII Protection"
 puts "-" * 50
 
@@ -182,7 +239,12 @@ rescue OpenAIAgents::Guardrails::GuardrailError => e
   puts "Response: #{result.messages.last[:content]}"
 end
 
-# Example 6: Custom PII patterns
+# ============================================================================
+# EXAMPLE 6: CUSTOM PII PATTERNS
+# ============================================================================
+# Organizations often have unique identifiers that need protection. Custom
+# patterns allow detecting company-specific formats like employee IDs.
+
 puts "\n\nExample 6: Custom PII Patterns"
 puts "-" * 50
 
@@ -215,7 +277,12 @@ detections.each do |detection|
   puts "  - #{detection[:name]}: #{detection[:value]}"
 end
 
-# Example 7: Statistics and monitoring
+# ============================================================================
+# EXAMPLE 7: STATISTICS AND MONITORING
+# ============================================================================
+# Tracking detection statistics helps optimize sensitivity levels and identify
+# patterns in data exposure attempts. Essential for security monitoring.
+
 puts "\n\nExample 7: Detection Statistics"
 puts "-" * 50
 
@@ -242,7 +309,12 @@ stats[:by_type].each do |type, count|
   puts "    #{type}: #{count}"
 end
 
-# Example 8: Batch processing with PII protection
+# ============================================================================
+# EXAMPLE 8: BATCH PROCESSING WITH PII PROTECTION
+# ============================================================================
+# Batch processing enables efficient PII scanning of large datasets. Useful
+# for data migration, compliance audits, and periodic security reviews.
+
 puts "\n\nExample 8: Batch Processing"
 puts "-" * 50
 

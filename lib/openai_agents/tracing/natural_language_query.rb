@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require_relative "../logging"
+
 module OpenAIAgents
   module Tracing
     # rubocop:disable Metrics/ClassLength
     class NaturalLanguageQuery
+      include OpenAIAgents::Logger
       # Natural language interface for querying tracing data
       # Supports queries like "show me slow traces from yesterday" or "find errors in customer support workflow"
 
@@ -462,7 +465,7 @@ module OpenAIAgents
           ai_response = response.dig("choices", 0, "message", "content")
           parse_ai_query_response(ai_response)
         rescue StandardError => e
-          Rails.logger.error "AI query parsing failed: #{e.message}"
+          log_error("AI query parsing failed", error: e.message, error_class: e.class.name)
           {}
         end
       end

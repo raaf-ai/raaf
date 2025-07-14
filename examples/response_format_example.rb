@@ -253,10 +253,11 @@ begin
   puts "   🏗️  Type-safe JSON schema validation"
   
   puts "\n🎯 Usage Recommendations:"
-  puts "   ✅ Use response_format for all projects"
+  puts "   ✅ Use response_format for all structured output needs"
   puts "   🌍 Works with any provider configuration"
   puts "   📚 Follows OpenAI standard conventions"
   puts "   🚀 Future-proof and actively maintained"
+  puts "   🔒 Essential for production systems"
 rescue StandardError => e
   puts "❌ Example failed: #{e.message}"
   puts "   Make sure OPENAI_API_KEY is set in your environment"

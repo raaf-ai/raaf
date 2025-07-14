@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require "logger"
+require "set"
 require_relative "tracing/spans"
 
 module OpenAIAgents
@@ -11,9 +12,9 @@ module OpenAIAgents
     class Debugger
       attr_reader :breakpoints, :step_mode, :watch_variables
 
-      def initialize(output: $stdout, log_level: Logger::DEBUG)
+      def initialize(output: $stdout, log_level: ::Logger::DEBUG)
         @output = output
-        @logger = Logger.new(output)
+        @logger = ::Logger.new(output)
         @logger.level = log_level
         @breakpoints = Set.new
         @step_mode = false

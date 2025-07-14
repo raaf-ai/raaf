@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
+require_relative "../logging"
+
 module OpenAIAgents
   module Tracing
     class AlertEngine
+      include OpenAIAgents::Logger
       DEFAULT_RULES = [
         {
           name: "high_error_rate",
@@ -100,7 +103,7 @@ module OpenAIAgents
             handle_alert(result) unless suppressed?(result)
           end
         rescue StandardError => e
-          Rails.logger.error "Alert rule check failed for #{rule[:name]}: #{e.message}"
+          log_error("Alert rule check failed", rule_name: rule[:name], error: e.message, error_class: e.class.name)
         end
 
         cleanup_suppression_cache
@@ -368,7 +371,7 @@ module OpenAIAgents
         @alert_handlers.each do |handler|
           handler.handle(alert)
         rescue StandardError => e
-          Rails.logger.error "Alert handler failed: #{e.message}"
+          log_error("Alert handler failed", error: e.message, error_class: e.class.name)
         end
       end
 
@@ -413,7 +416,16 @@ module OpenAIAgents
       class RailsLoggerHandler
         def handle(alert)
           level = alert[:severity] == "critical" ? :error : :warn
-          Rails.logger.send(level, "ALERT: #{alert[:rule_name]} - #{alert[:message]} [#{alert[:runbook_url]}]")
+          case level
+          when :info
+            log_info("ALERT", rule_name: alert[:rule_name], message: alert[:message], runbook_url: alert[:runbook_url])
+          when :warn
+            log_warn("ALERT", rule_name: alert[:rule_name], message: alert[:message], runbook_url: alert[:runbook_url])
+          when :error
+            log_error("ALERT", rule_name: alert[:rule_name], message: alert[:message], runbook_url: alert[:runbook_url])
+          else
+            log_info("ALERT", rule_name: alert[:rule_name], message: alert[:message], runbook_url: alert[:runbook_url])
+          end
         end
       end
 
@@ -511,7 +523,7 @@ module OpenAIAgents
           @recipients.each do |recipient|
             AlertMailer.alert_notification(recipient, subject, body).deliver_now
           rescue StandardError => e
-            Rails.logger.error "Failed to send alert email: #{e.message}"
+            log_error("Failed to send alert email", error: e.message, error_class: e.class.name)
           end
         end
 

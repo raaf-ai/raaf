@@ -1,10 +1,18 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# This example demonstrates data pipeline capabilities for processing,
+# transforming, and enriching data using AI agents. Data pipelines are
+# essential for ETL workflows, batch processing, stream processing, and
+# data quality management. The framework provides composable stages that
+# can be combined to create sophisticated data processing workflows.
+# AI agents can be integrated at any stage for intelligent transformations.
+
 require_relative "../lib/openai_agents"
 require_relative "../lib/openai_agents/data_pipeline"
 
 # Set API key from environment
+# In production, use secure credential management
 OpenAI.configure do |config|
   config.access_token = ENV.fetch("OPENAI_API_KEY", nil)
 end
@@ -13,17 +21,23 @@ puts "=== Data Pipeline Example ==="
 puts
 
 # Example 1: Basic pipeline
+# Pipelines are composed of stages that process data sequentially.
+# Each stage transforms the data and passes it to the next stage.
+# This simple example shows the fundamental pipeline pattern with
+# map transformations and output handling.
 puts "Example 1: Basic Data Pipeline"
 puts "-" * 50
 
-# Create a simple pipeline
+# Create a simple pipeline with a meaningful name
+# Names help with debugging and monitoring in production
 simple_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("simple_pipeline")
 
-# Add stages
+# Add stages using method chaining for readability
+# Each stage has a name and transformation function
 simple_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("uppercase", &:upcase))
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("reverse", &:reverse))
-  .add_stage(OpenAIAgents::DataPipeline::OutputStage.new("print", destination: :stdout))
+  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("uppercase", &:upcase))  # Transform to uppercase
+  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("reverse", &:reverse))   # Reverse the string
+  .add_stage(OpenAIAgents::DataPipeline::OutputStage.new("print", destination: :stdout))  # Output result
 
 # Process data
 puts "Processing 'hello world' through pipeline:"
@@ -32,13 +46,18 @@ puts "Final result: #{result}"
 puts
 
 # Example 2: Agent-based transformation
+# AI agents can be integrated into pipelines for intelligent data processing.
+# This enables natural language understanding, data extraction, summarization,
+# and complex transformations that would be difficult with traditional code.
+# The agent stage handles the API interaction transparently.
 puts "Example 2: Agent-based Transformation"
 puts "-" * 50
 
-# Create data processing agent
+# Create specialized data processing agent
+# Using smaller model for cost efficiency on simple tasks
 data_agent = OpenAIAgents::Agent.new(
   name: "DataProcessor",
-  model: "gpt-4o-mini",
+  model: "gpt-4o-mini",  # Cost-effective for data processing
   instructions: "You process and clean data. Extract key information and format it nicely."
 )
 
@@ -77,13 +96,18 @@ agent_pipeline.run(test_data)
 puts
 
 # Example 3: Filter and validation pipeline
+# Data quality is crucial for reliable systems. This example shows
+# how to validate data against schemas, filter based on criteria,
+# and handle validation errors. The pipeline ensures only clean,
+# valid data proceeds to downstream systems.
 puts "Example 3: Filter and Validation Pipeline"
 puts "-" * 50
 
-# Define validation schema
+# Define validation schema with rules
+# Schemas ensure data consistency and catch errors early
 user_schema = {
   name: { required: true, type: String },
-  email: { required: true, pattern: /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i },
+  email: { required: true, pattern: /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i },  # RFC-compliant email
   age: { required: false, type: Integer }
 }
 
@@ -126,10 +150,15 @@ end
 puts
 
 # Example 4: ETL pipeline with enrichment
+# ETL (Extract, Transform, Load) is a common data integration pattern.
+# This example shows extraction from CSV, transformation with calculations,
+# enrichment from external sources, and loading as JSON. Enrichment adds
+# valuable context by joining with reference data.
 puts "Example 4: ETL Pipeline with Enrichment"
 puts "-" * 50
 
 # Create enrichment source (mock database)
+# In production, this would be a real database or API
 user_database = {
   "123" => { premium: true, credits: 1000 },
   "456" => { premium: false, credits: 100 },
@@ -176,13 +205,18 @@ end
 puts
 
 # Example 5: Stream processing
+# Stream processing handles continuous data flows like logs, events,
+# or sensor data. Unlike batch processing, it processes items as they
+# arrive, enabling real-time monitoring and alerting. This example
+# shows log stream processing with parsing and filtering.
 puts "Example 5: Stream Processing"
 puts "-" * 50
 
-# Create stream processing pipeline
+# Create stream processing pipeline for real-time processing
 stream_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("stream_processor")
 
 # Add stages for log processing
+# Parse stage extracts structured data from unstructured logs
 stream_pipeline
   .add_stage(OpenAIAgents::DataPipeline::MapStage.new("parse_log") do |line|
     if (match = line.match(/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(\w+)\] (.+)/))
@@ -211,13 +245,22 @@ end
 puts
 
 # Example 6: Batch processing with parallelization
+# Batch processing improves throughput by processing multiple items
+# together and enables parallelization for CPU-bound operations.
+# This example shows parallel processing with configurable thread pools
+# and chunk sizes for optimal performance.
 puts "Example 6: Batch Processing"
 puts "-" * 50
 
-# Create batch processing pipeline
+# Create batch processing pipeline with parallel execution
+# Parallel processing dramatically improves performance for I/O or CPU-intensive tasks
 batch_pipeline = OpenAIAgents::DataPipeline::Pipeline.new(
   "batch_processor",
-  batch_options: { parallel: true, max_threads: 2, chunk_size: 3 }
+  batch_options: { 
+    parallel: true,     # Enable parallel processing
+    max_threads: 2,     # Thread pool size (tune based on workload)
+    chunk_size: 3       # Items per chunk (affects memory usage)
+  }
 )
 
 # Add processing stages
@@ -240,15 +283,21 @@ puts "First 3 results: #{results.first(3).inspect}"
 puts
 
 # Example 7: Split and aggregate
+# Split operations break data into smaller pieces for individual processing,
+# while aggregate operations combine multiple items into summaries.
+# These patterns are essential for text processing, time-series analysis,
+# and statistical computations.
 puts "Example 7: Split and Aggregate Operations"
 puts "-" * 50
 
-# Create pipeline with split stage
+# Create pipeline with split stage using the builder DSL
+# The builder provides a more readable syntax for complex pipelines
 split_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("splitter") do
-  # Split sentence into words
+  # Split sentence into words for individual processing
   split { |sentence| sentence.split(/\s+/) }
   
-  # Process each word
+  # Process each word independently
+  # This runs for each split item
   map { |word| { word: word, length: word.length, reversed: word.reverse } }
   
   output(destination: :stdout, format: :json)
@@ -278,10 +327,15 @@ end
 puts
 
 # Example 8: Complex multi-stage pipeline
+# Real-world pipelines combine multiple stages for sophisticated workflows.
+# This example shows a complete data processing pipeline with parsing,
+# validation, enrichment, AI analysis, and output formatting. Each stage
+# builds on the previous, creating a robust data processing system.
 puts "Example 8: Complex Multi-stage Pipeline"
 puts "-" * 50
 
-# Create agent for analysis
+# Create specialized agent for data analysis
+# The agent provides intelligent insights that code alone cannot
 analysis_agent = OpenAIAgents::Agent.new(
   name: "DataAnalyst",
   model: "gpt-4o-mini",
@@ -349,10 +403,13 @@ end
 puts
 
 # Example 9: Pipeline metrics and monitoring
+# Production pipelines need monitoring for performance, errors, and throughput.
+# Metrics help identify bottlenecks, track SLAs, and optimize performance.
+# This example shows how to collect and analyze pipeline metrics.
 puts "Example 9: Pipeline Metrics"
 puts "-" * 50
 
-# Create monitored pipeline
+# Create monitored pipeline that tracks execution metrics
 monitored_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("monitored")
 
 # Add stages
@@ -383,10 +440,15 @@ puts "  Skipped: #{metrics[:skipped]}"
 puts
 
 # Example 10: Using predefined templates
+# Templates provide pre-built pipelines for common use cases like
+# log processing, data cleaning, and ETL workflows. They encapsulate
+# best practices and can be customized for specific needs. This saves
+# development time and ensures consistency.
 puts "Example 10: Pipeline Templates"
 puts "-" * 50
 
-# Create agent for log analysis
+# Create specialized agent for intelligent log analysis
+# The agent understands log patterns and can suggest fixes
 log_agent = OpenAIAgents::Agent.new(
   name: "LogAnalyzer",
   model: "gpt-4o-mini",
@@ -410,7 +472,9 @@ puts "  Created pipeline: error_analysis"
 puts "  Stages: parse -> filter -> analyze -> output"
 puts "  Would analyze #{error_logs.count { |l| l.include?("[ERROR]") || l.include?("[WARN]") }} error/warning logs"
 
-# Best practices
+# Best practices section provides production-ready guidance
+# These recommendations come from real-world data pipeline implementations
+# and help avoid common pitfalls while ensuring scalability and reliability
 puts "\n=== Data Pipeline Best Practices ==="
 puts "-" * 50
 puts <<~PRACTICES

@@ -220,7 +220,7 @@ module OpenAIAgents
 
     # Process output items from Responses API
     def process_responses_api_output(response, agent, generated_items, span = nil)
-      output = response[:output] || response["output"] || []
+      output = response&.dig(:output) || response&.dig("output") || []
 
       result = { done: false, handoff: nil }
       handoff_results = [] # Track all handoffs detected
@@ -233,7 +233,32 @@ module OpenAIAgents
           # Text output from the model
           generated_items << Items::MessageOutputItem.new(agent: agent, raw_item: item)
 
-          # NOTE: Text-based handoff detection removed - handoffs now work through tool calls
+          # Unified handoff detection system for Responses API
+          content = item[:content] || item["content"]
+          if content
+            # Handle both string and array formats
+            text_content = if content.is_a?(Array)
+              content.map { |c| c.is_a?(Hash) ? c[:text] || c["text"] : c.to_s }.join(" ")
+            else
+              content.to_s
+            end
+            
+            if text_content && !text_content.empty?
+              handoff_target = detect_handoff_in_content(text_content, agent)
+              if handoff_target
+                handoff_results << {
+                  tool_name: "json_handoff",
+                  handoff_target: handoff_target,
+                  handoff_data: { assistant: handoff_target }
+                }
+                
+                log_debug_handoff("JSON handoff detected in Responses API text output",
+                                  from_agent: agent.name,
+                                  to_agent: handoff_target,
+                                  source: "text content")
+              end
+            end
+          end
 
         when "function_call"
           # Tool call from the model
@@ -320,7 +345,16 @@ module OpenAIAgents
 
       # Check if there are no tool calls in this output
       has_tool_calls = output.any? { |item| (item[:type] || item["type"]) == "function_call" }
-      result[:done] = !has_tool_calls
+      
+      # Only set done to true if there are no tool calls AND no handoff was detected
+      if !has_tool_calls && result[:handoff].nil?
+        result[:done] = true
+      elsif result[:handoff]
+        # When handoff is detected, we should continue execution with the new agent
+        result[:done] = false
+      else
+        result[:done] = false
+      end
 
       result
     end
@@ -486,6 +520,11 @@ module OpenAIAgents
       generated_items = []
       model_responses = []
       previous_response_id = config.previous_response_id
+      accumulated_usage = {
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0
+      }
 
       max_turns = config.max_turns || current_agent.max_turns
 
@@ -536,6 +575,14 @@ module OpenAIAgents
         previous_response_id = response[:id] || response["id"]
         model_responses << response
 
+        # Accumulate usage data
+        if response.is_a?(Hash) && response[:usage] || response["usage"]
+          usage = response[:usage] || response["usage"]
+          accumulated_usage[:input_tokens] += usage[:input_tokens] || usage["input_tokens"] || 0
+          accumulated_usage[:output_tokens] += usage[:output_tokens] || usage["output_tokens"] || 0
+          accumulated_usage[:total_tokens] += usage[:total_tokens] || usage["total_tokens"] || 0
+        end
+
         # Process the output items
         result = process_responses_api_output(response, current_agent, generated_items)
 
@@ -553,7 +600,8 @@ module OpenAIAgents
         messages: build_conversation_from_items(input, generated_items),
         last_agent: current_agent,
         turns: turns,
-        last_response_id: previous_response_id
+        last_response_id: previous_response_id,
+        usage: accumulated_usage
       )
     end
 
@@ -610,12 +658,17 @@ module OpenAIAgents
 
       # Call agent-level hooks if applicable
       agent = args.first if args.first.is_a?(Agent)
-      if agent&.hooks.respond_to?(hook_method.to_s.sub("on_", "on_"))
-        agent.hooks.send(hook_method.to_s.sub("on_", "on_"), context_wrapper, *args)
+      agent_hook_method = hook_method.to_s.sub("on_agent_", "on_")
+      if agent&.hooks.respond_to?(agent_hook_method)
+        agent.hooks.send(agent_hook_method, context_wrapper, *args)
       end
     rescue StandardError => e
       warn "Error in hook #{hook_method}: #{e.message}"
     end
+
+    # REMOVED: Custom context extraction and injection
+    # The OpenAI agents framework handles context natively through structured outputs
+    # and conversation continuity. The DSL should be a pure configuration layer.
 
     def run_with_tracing(messages, config:, parent_span: nil)
       @current_config = config # Store for tool calls
@@ -627,6 +680,11 @@ module OpenAIAgents
       conversation = messages.dup
       current_agent = @agent
       turns = 0
+      accumulated_usage = {
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0
+      }
 
       # Create run context for hooks
       context = RunContext.new(
@@ -743,6 +801,14 @@ module OpenAIAgents
                                                       "usage" => usage
                                                     })
                            end
+                         end
+
+                         # Accumulate usage data for final result
+                         if llm_response.is_a?(Hash) && llm_response["usage"]
+                           usage = llm_response["usage"]
+                           accumulated_usage[:input_tokens] += usage["prompt_tokens"] || 0
+                           accumulated_usage[:output_tokens] += usage["completion_tokens"] || 0
+                           accumulated_usage[:total_tokens] += usage["total_tokens"] || 0
                          end
 
                          # Always set request attributes
@@ -865,7 +931,8 @@ module OpenAIAgents
       RunResult.success(
         messages: conversation,
         last_agent: current_agent,
-        turns: turns
+        turns: turns,
+        usage: accumulated_usage
       )
     end
 
@@ -880,6 +947,11 @@ module OpenAIAgents
       generated_items = []
       model_responses = []
       previous_response_id = config.previous_response_id # Track where the last turn ended
+      accumulated_usage = {
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0
+      }
 
       # Create run context for hooks
       context = RunContext.new(
@@ -953,10 +1025,18 @@ module OpenAIAgents
 
           # The response is already in Responses API format
           # Extract response ID for next turn
-          previous_response_id = response[:id] || response["id"]
+          previous_response_id = response&.dig(:id) || response&.dig("id")
 
           # Store the response
           model_responses << response
+
+          # Accumulate usage data
+          if response.is_a?(Hash) && response[:usage] || response["usage"]
+            usage = response[:usage] || response["usage"]
+            accumulated_usage[:input_tokens] += usage[:input_tokens] || usage["input_tokens"] || 0
+            accumulated_usage[:output_tokens] += usage[:output_tokens] || usage["output_tokens"] || 0
+            accumulated_usage[:total_tokens] += usage[:total_tokens] || usage["total_tokens"] || 0
+          end
 
           # Process the output items
           result = process_responses_api_output(response, current_agent, generated_items, agent_span)
@@ -980,11 +1060,21 @@ module OpenAIAgents
           handoff_agent = current_agent.find_handoff(next_agent_name)
 
           if handoff_agent
+            # Handle both Agent objects (.name) and Handoff objects (.agent_name)
+            if handoff_agent.is_a?(Agent)
+              target_agent_name = handoff_agent.name
+              actual_agent = handoff_agent
+            else
+              # It's a Handoff object - invoke it to get the actual agent
+              target_agent_name = handoff_agent.agent_name
+              actual_agent = handoff_agent.invoke(@current_context_wrapper, handoff_info)
+            end
+            
             log_debug_handoff("Handoff completed in Responses API",
                               from_agent: current_agent.name,
-                              to_agent: handoff_agent.name)
+                              to_agent: target_agent_name)
 
-            current_agent = handoff_agent
+            current_agent = actual_agent
             turns = 0 # Reset turn counter for new agent
             
             # Clear generated_items to prevent duplicate messages across agents
@@ -1021,7 +1111,8 @@ module OpenAIAgents
         messages: build_conversation_from_items(input, generated_items),
         last_agent: current_agent,
         turns: turns,
-        last_response_id: previous_response_id
+        last_response_id: previous_response_id,
+        usage: accumulated_usage
       )
     end
 
@@ -1034,6 +1125,11 @@ module OpenAIAgents
       conversation = messages.dup
       current_agent = @agent
       turns = 0
+      accumulated_usage = {
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0
+      }
 
       max_turns = config.max_turns || current_agent.max_turns
 
@@ -1078,6 +1174,14 @@ module OpenAIAgents
                        **model_params
                      )
                    end
+
+        # Accumulate usage data
+        if response.is_a?(Hash) && response["usage"]
+          usage = response["usage"]
+          accumulated_usage[:input_tokens] += usage["prompt_tokens"] || 0
+          accumulated_usage[:output_tokens] += usage["completion_tokens"] || 0
+          accumulated_usage[:total_tokens] += usage["total_tokens"] || 0
+        end
 
         # Process response
         result = process_response(response, current_agent, conversation)
@@ -1131,7 +1235,8 @@ module OpenAIAgents
       RunResult.success(
         messages: conversation,
         last_agent: current_agent,
-        turns: turns
+        turns: turns,
+        usage: accumulated_usage
       )
     end
 
@@ -1271,10 +1376,25 @@ module OpenAIAgents
         end
       end
 
-      # NOTE: Text-based handoff detection removed - handoffs now work through tool calls
+      # NOTE: Text-based handoff detection now implemented through unified detection system
+
+      # Unified handoff detection system
+      if !result[:handoff] && message["content"]
+        handoff_target = detect_handoff_in_content(message["content"], agent)
+        if handoff_target
+          result[:handoff] = handoff_target
+          result[:done] = false
+        end
+      end
 
       # If no tool calls and no handoff, we're done
-      result[:done] = true if !message["tool_calls"] && !result[:handoff]
+      # Only set done to true if there are no tool calls AND no handoff was detected
+      if !message["tool_calls"] && !result[:handoff]
+        result[:done] = true
+      elsif result[:handoff]
+        # When handoff is detected, we should continue execution with the new agent
+        result[:done] = false
+      end
 
       result
     end
@@ -1637,32 +1757,36 @@ module OpenAIAgents
                         target_agent: target_agent_name,
                         call_id: tool_call["id"])
 
+      # Find handoff target using the same validation logic as text handoffs
+      available_targets = get_available_handoff_targets(agent)
+      validated_target = validate_handoff_target(target_agent_name, available_targets)
+      
+      # Track handoff chain for circular detection
+      @handoff_chain ||= []
+      @handoff_chain << agent.name if @handoff_chain.empty? # Add starting agent
+
       # Find the handoff target with circular handoff protection
-      if @handoff_chain&.include?(target_agent_name)
+      if @handoff_chain&.include?(validated_target)
         log_error("Circular handoff detected",
                   from_agent: agent.name,
-                  target_agent: target_agent_name,
+                  target_agent: validated_target,
                   handoff_chain: @handoff_chain)
 
         return {
           role: "tool",
           tool_call_id: tool_call["id"],
-          content: "Error: Circular handoff detected. Cannot transfer to #{target_agent_name} as it would create a loop.",
+          content: "Error: Circular handoff detected. Cannot transfer to #{validated_target} as it would create a loop.",
           handoff_error: true
         }
       end
-
-      # Track handoff chain for circular detection
-      @handoff_chain ||= []
-      @handoff_chain << agent.name if @handoff_chain.empty? # Add starting agent
-
+      
       handoff_target = agent.handoffs.find do |handoff|
         if handoff.is_a?(Agent)
-          handoff.name == target_agent_name
+          handoff.name == validated_target
         else
-          handoff.agent_name == target_agent_name || handoff.tool_name == tool_name
+          handoff.agent_name == validated_target || handoff.tool_name == tool_name
         end
-      end
+      end if validated_target
 
       unless handoff_target
         available_handoffs = agent.handoffs.map do |h|
@@ -1672,11 +1796,11 @@ module OpenAIAgents
         log_error("Handoff target not found for tool call",
                   from_agent: agent.name,
                   tool_name: tool_name,
-                  target_agent: target_agent_name,
+                  target_agent: validated_target || target_agent_name,
                   available_handoffs: available_handoffs)
 
         # This is a critical error that should be handled properly
-        error_message = "Error: Handoff target '#{target_agent_name}' not found. Available targets: #{available_handoffs}"
+        error_message = "Error: Handoff target '#{validated_target || target_agent_name}' not found. Available targets: #{available_handoffs}"
 
         return {
           role: "tool",
@@ -1722,7 +1846,7 @@ module OpenAIAgents
       end
 
       # Track this handoff in the chain
-      @handoff_chain << target_agent_name
+      @handoff_chain << validated_target
 
       # Limit handoff chain length
       if @handoff_chain.length > 5
@@ -1749,7 +1873,7 @@ module OpenAIAgents
         role: "tool",
         tool_call_id: tool_call["id"],
         content: JSON.generate(handoff_result),
-        handoff: target_agent_name # Signal to runner that handoff occurred
+        handoff: validated_target # Signal to runner that handoff occurred
       }
     end
 
@@ -1768,6 +1892,198 @@ module OpenAIAgents
 
       # Strategy 3: Just capitalize the first letter for simple names
       agent_part.capitalize
+    end
+
+    # Unified handoff detection method supporting JSON and text-based handoffs
+    def detect_handoff_in_content(content, agent)
+      return nil unless content && !content.empty?
+
+      # Strategy 1: JSON-based handoff detection
+      handoff_target = detect_json_handoff(content, agent)
+      return handoff_target if handoff_target
+
+      # Strategy 2: Text-based handoff detection
+      handoff_target = detect_text_handoff(content, agent)
+      return handoff_target if handoff_target
+
+      # No handoff detected
+      nil
+    end
+
+    # Detect JSON-based handoffs in response content
+    def detect_json_handoff(content, agent)
+      begin
+        # Try to parse the content as JSON
+        parsed_content = JSON.parse(content)
+        
+        # Check for handoff_to field (multiple possible formats)
+        if parsed_content.is_a?(Hash)
+          # Check various field names for handoff target
+          handoff_target = parsed_content["handoff_to"] || 
+                          parsed_content[:handoff_to] || 
+                          parsed_content["transfer_to"] || 
+                          parsed_content[:transfer_to] ||
+                          parsed_content["next_agent"] ||
+                          parsed_content[:next_agent]
+          
+          if handoff_target
+            # Validate the handoff target against available targets
+            available_targets = get_available_handoff_targets(agent)
+            validated_target = validate_handoff_target(handoff_target, available_targets)
+            
+            if validated_target
+              log_debug_handoff("JSON handoff detected in agent response",
+                                from_agent: agent.name,
+                                to_agent: validated_target,
+                                source: "JSON response content",
+                                detection_method: "json_field")
+              
+              return validated_target
+            end
+          end
+
+          # Check for nested handoff structures
+          if parsed_content["handoff"] && parsed_content["handoff"]["to"]
+            handoff_target = parsed_content["handoff"]["to"]
+            
+            # Validate the handoff target against available targets
+            available_targets = get_available_handoff_targets(agent)
+            validated_target = validate_handoff_target(handoff_target, available_targets)
+            
+            if validated_target
+              log_debug_handoff("JSON handoff detected in nested structure",
+                                from_agent: agent.name,
+                                to_agent: validated_target,
+                                source: "JSON response content",
+                                detection_method: "json_nested")
+              
+              return validated_target
+            end
+          end
+        end
+      rescue JSON::ParserError
+        # Not JSON, continue to text-based detection
+      end
+
+      nil
+    end
+
+    # Detect text-based handoffs in response content
+    def detect_text_handoff(content, agent)
+      # Get available handoff targets for validation
+      available_targets = get_available_handoff_targets(agent)
+      return nil if available_targets.empty?
+
+      # Pattern 1: Direct handoff statements
+      # "I'll transfer you to the SupportAgent"
+      # "Transferring to CustomerService"
+      # "Let me hand this off to TechnicalSupport"
+      transfer_patterns = [
+        /(?:transfer|handoff|hand\s*off|delegate|switch|redirect)(?:ing|ring)?\s+(?:you\s+)?to\s+(?:the\s+)?(\w+)/i,
+        /(?:I'll|I\s+will|Let\s+me)\s+(?:transfer|handoff|hand\s*off|delegate|switch|redirect)\s+(?:you\s+)?(?:to\s+)?(?:the\s+)?(\w+)/i,
+        /(?:routing|directing|forwarding)\s+(?:you\s+)?to\s+(?:the\s+)?(\w+)/i
+      ]
+
+      transfer_patterns.each do |pattern|
+        match = content.match(pattern)
+        if match
+          potential_target = match[1]
+          # Validate against available targets
+          validated_target = validate_handoff_target(potential_target, available_targets)
+          if validated_target
+            log_debug_handoff("Text handoff detected in agent response",
+                              from_agent: agent.name,
+                              to_agent: validated_target,
+                              source: "text response content",
+                              detection_method: "text_pattern",
+                              pattern: pattern.inspect,
+                              matched_text: match[0])
+            
+            return validated_target
+          end
+        end
+      end
+
+      # Pattern 2: Specific agent mentions
+      # "Please contact CustomerService for billing issues"
+      # "You should speak with TechnicalSupport about this"
+      mention_patterns = [
+        /(?:contact|speak\s+with|talk\s+to|reach\s+out\s+to|connect\s+with)\s+(?:the\s+)?(\w+)/i,
+        /(?:please|you\s+should|you\s+need\s+to|you\s+can)\s+(?:contact|speak\s+with|talk\s+to|reach\s+out\s+to|connect\s+with)\s+(?:the\s+)?(\w+)/i
+      ]
+
+      mention_patterns.each do |pattern|
+        match = content.match(pattern)
+        if match
+          potential_target = match[1]
+          validated_target = validate_handoff_target(potential_target, available_targets)
+          if validated_target
+            log_debug_handoff("Text handoff detected via agent mention",
+                              from_agent: agent.name,
+                              to_agent: validated_target,
+                              source: "text response content",
+                              detection_method: "text_mention",
+                              pattern: pattern.inspect,
+                              matched_text: match[0])
+            
+            return validated_target
+          end
+        end
+      end
+
+      # Pattern 3: Explicit agent name references
+      # Check if any available target is explicitly mentioned as a standalone word
+      available_targets.each do |target|
+        # Case-insensitive word boundary matching
+        if content.match(/\b#{Regexp.escape(target)}\b/i)
+          log_debug_handoff("Text handoff detected via explicit agent name",
+                            from_agent: agent.name,
+                            to_agent: target,
+                            source: "text response content",
+                            detection_method: "text_explicit",
+                            matched_agent: target)
+          
+          return target
+        end
+      end
+
+      nil
+    end
+
+    # Get available handoff targets for an agent
+    def get_available_handoff_targets(agent)
+      return [] unless agent.respond_to?(:handoffs)
+
+      agent.handoffs.map do |handoff|
+        if handoff.is_a?(Agent)
+          handoff.name
+        elsif handoff.respond_to?(:agent_name)
+          handoff.agent_name
+        else
+          nil
+        end
+      end.compact
+    end
+
+    # Validate a potential handoff target against available targets
+    def validate_handoff_target(potential_target, available_targets)
+      return nil if potential_target.nil? || potential_target.empty?
+
+      # Direct match (case-insensitive)
+      direct_match = available_targets.find { |target| target.downcase == potential_target.downcase }
+      return direct_match if direct_match
+
+      # Fuzzy matching for variations
+      # Check if potential_target is a substring of any available target
+      substring_match = available_targets.find { |target| target.downcase.include?(potential_target.downcase) }
+      return substring_match if substring_match
+
+      # Check if any available target is a substring of potential_target
+      contains_match = available_targets.find { |target| potential_target.downcase.include?(target.downcase) }
+      return contains_match if contains_match
+
+      # No match found
+      nil
     end
   end
 end

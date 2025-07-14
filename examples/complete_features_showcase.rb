@@ -4,31 +4,59 @@
 require_relative "../lib/openai_agents"
 
 ##
-# Complete Features Showcase - Demonstrates all OpenAI Agents Ruby capabilities
+# Complete Features Showcase - PLANNED API DESIGN DOCUMENTATION
 #
-# This comprehensive example showcases every feature of the OpenAI Agents Ruby gem
-# including the newly implemented advanced features like voice workflows,
-# configuration management, extensions, advanced handoffs, and usage tracking.
+# ⚠️  WARNING: This file shows PLANNED features - most are NOT implemented yet!
+# ❌ Classes like Configuration, Extensions, Voice, UsageTracking don't exist
+# ✅ PURPOSE: Design documentation for comprehensive feature roadmap
+# 📋 STATUS: ~10% implemented, 90% planned (750+ lines of planned features)
 #
-# Run this example to see the full power of the framework in action.
+# This comprehensive example shows the intended API design for a fully-featured
+# OpenAI Agents Ruby implementation. Most features represent the vision for 
+# the library and show how various components would work together in a 
+# production environment. The showcase serves as both documentation and a 
+# roadmap for future development.
+#
+# This is NOT a working example - it's an implementation specification.
 
 puts "🚀 OpenAI Agents Ruby - Complete Features Showcase"
 puts "=" * 70
 
+puts "\n⚠️  WARNING: This shows PLANNED feature design - most features DON'T work yet!"
+puts "❌ Most classes shown are not implemented (Configuration, Extensions, Voice, etc.)"
+puts "✅ This serves as comprehensive design documentation (750+ lines)"
+puts "📋 This is an implementation specification, not a working example"
+puts "\nPress Ctrl+C to exit, or continue to see the planned comprehensive design."
+puts "\nContinuing in 5 seconds..."
+sleep(5)
+
 # Set demo API keys for testing
+# In production, these would be loaded from secure environment variables
+# or a secrets management system. The demo keys allow the example to run
+# without requiring actual API credentials.
 ENV["OPENAI_API_KEY"] ||= "sk-demo-key-for-testing"
 ENV["ANTHROPIC_API_KEY"] ||= "sk-ant-demo-key-for-testing"
 
 # =============================================================================
 # 1. Configuration Management
 # =============================================================================
+# Configuration management is crucial for enterprise deployments where settings
+# need to vary between development, staging, and production environments.
+# This system provides a centralized way to manage all framework settings,
+# API keys, model defaults, and behavior flags. The configuration can be
+# loaded from files, environment variables, or set programmatically.
 puts "\n1. 🔧 Configuration Management"
 puts "-" * 40
 
 # Create configuration with environment-based settings
+# The environment parameter determines which configuration file to load
+# and which defaults to apply. Common environments: development, staging, production
 config = OpenAIAgents::Configuration.new(environment: "development")
 
-# Set configuration values
+# Set configuration values programmatically
+# These override any values loaded from configuration files
+# The hierarchical key structure (e.g., "openai.api_key") allows for
+# organized configuration namespaces
 config.set("openai.api_key", "sk-demo-key-for-testing")
 config.set("agent.default_model", "gpt-4o") # Using Python-aligned default model
 config.set("agent.max_turns", 15)
@@ -39,12 +67,17 @@ puts "  Default model: #{config.agent.default_model}"
 puts "  Max turns: #{config.agent.max_turns}"
 puts "  API base: #{config.openai.api_base}"
 
-# Add configuration watcher
+# Add configuration watcher for dynamic updates
+# This enables hot-reloading of configuration without restarting the application
+# Particularly useful for feature flags, rate limits, and model switching
+# The watcher callback is triggered whenever configuration values change
 config.watch do |updated_config|
   puts "📢 Configuration updated! New max turns: #{updated_config.agent.max_turns}"
 end
 
 # Demonstrate configuration validation
+# Validation ensures all required settings are present and have valid values
+# This catches configuration errors early before they cause runtime failures
 errors = config.validate
 if errors.empty?
   puts "  ✅ Configuration validation passed"
@@ -55,18 +88,31 @@ end
 # =============================================================================
 # 2. Usage Tracking and Analytics
 # =============================================================================
+# Usage tracking is essential for cost management and optimization in production.
+# This system monitors API calls, token usage, costs, and performance metrics
+# across all providers (OpenAI, Anthropic, Cohere, etc.). It enables real-time
+# alerting when thresholds are exceeded and provides detailed analytics for
+# billing, optimization, and capacity planning.
 puts "\n2. 📊 Usage Tracking and Analytics"
 puts "-" * 40
 
-# Create usage tracker
+# Create usage tracker instance
+# The tracker aggregates metrics from all agent interactions and API calls
+# Data can be persisted to various backends (Redis, PostgreSQL, etc.)
 tracker = OpenAIAgents::UsageTracking::UsageTracker.new
 
-# Set up usage alerts
+# Set up usage alerts for proactive monitoring
+# Alerts trigger when specific conditions are met, enabling automated responses
+# like switching to cheaper models or rate limiting
 tracker.add_alert(:high_token_usage) do |usage|
+  # Trigger when daily token usage exceeds threshold
+  # In production, this could send notifications or adjust behavior
   usage[:tokens_used_today] > 10_000
 end
 
 tracker.add_alert(:cost_threshold) do |usage|
+  # Monitor spending to prevent budget overruns
+  # Can automatically switch to cheaper models when approaching limits
   usage[:total_cost_today] > 5.0
 end
 
@@ -75,12 +121,15 @@ puts "  Alerts configured: #{tracker.alerts.length}"
 puts "  Real-time monitoring: enabled"
 
 # Track some sample API usage
+# Each API call is recorded with detailed metrics for analysis
+# The metadata field allows for custom dimensions like user segmentation,
+# feature tracking, or A/B testing
 tracker.track_api_call(
   provider: "openai",
   model: "gpt-4",
   tokens_used: { prompt_tokens: 150, completion_tokens: 75, total_tokens: 225 },
-  cost: 0.0135,
-  duration: 2.3,
+  cost: 0.0135,  # Calculated based on current pricing
+  duration: 2.3,  # Response time in seconds
   metadata: { agent: "Demo", user_id: "user123" }
 )
 
@@ -102,13 +151,20 @@ puts "  Total cost: $#{analytics[:costs][:total].round(4)}"
 # =============================================================================
 # 3. Extensions Framework
 # =============================================================================
+# The extensions framework provides a plugin architecture for adding custom
+# functionality without modifying the core library. Extensions can add new
+# tools, providers, middleware, or entire subsystems. This design ensures
+# the framework remains modular and allows teams to build domain-specific
+# capabilities while maintaining upgrade compatibility.
 puts "\n3. 🔌 Extensions Framework"
 puts "-" * 40
 
-# Register a custom extension
+# Register a custom extension using the DSL
+# Extensions are registered globally and can be activated on demand
+# The block-based API provides a clean way to define extension metadata
 OpenAIAgents::Extensions.register(:demo_extension) do |ext|
-  ext.type(:tool)
-  ext.version("1.0.0")
+  ext.type(:tool)  # Extension types: :tool, :provider, :middleware, :guardrail
+  ext.version("1.0.0")  # Semantic versioning for compatibility
   ext.description("A demonstration extension")
   ext.author("OpenAI Agents Ruby Team")
 
@@ -122,14 +178,18 @@ OpenAIAgents::Extensions.register(:demo_extension) do |ext|
 end
 
 # Create a custom extension class
+# Class-based extensions provide more control and can include complex logic
+# They inherit from BaseExtension which provides lifecycle hooks and utilities
 class WeatherExtension < OpenAIAgents::Extensions::BaseExtension
   def self.extension_info
+    # Extension metadata used for dependency resolution and compatibility checks
+    # Dependencies ensure required extensions are loaded in the correct order
     {
       name: :weather_extension,
       type: :tool,
       version: "2.0.0",
       description: "Weather data extension",
-      dependencies: []
+      dependencies: []  # List other extensions this depends on
     }
   end
 
@@ -158,16 +218,23 @@ puts "  Active extensions: #{OpenAIAgents::Extensions.active_extensions.length}"
 # =============================================================================
 # 4. Advanced Agent Creation with All Features
 # =============================================================================
+# Agent creation demonstrates the full range of configuration options available.
+# Each agent can be customized with specific models, instructions, tools, and
+# behavioral parameters. The multi-agent architecture allows specialization
+# where each agent focuses on specific domains, improving overall system
+# performance and maintainability.
 puts "\n4. 🤖 Advanced Agent Creation"
 puts "-" * 40
 
 # Create agents with full configuration
+# Note how configuration values are pulled from the centralized config object
+# This ensures consistency across all agents while allowing overrides
 customer_support = OpenAIAgents::Agent.new(
   name: "CustomerSupport",
   instructions: "You are a helpful customer support agent. You can help with billing, technical issues, " \
                 "and general inquiries.",
-  model: config.agent.default_model,
-  max_turns: config.agent.max_turns
+  model: config.agent.default_model,  # Inherits from configuration
+  max_turns: config.agent.max_turns   # Prevents infinite loops
 )
 
 technical_support = OpenAIAgents::Agent.new(
@@ -192,26 +259,37 @@ puts "  #{billing_specialist.name} (#{billing_specialist.model})"
 # =============================================================================
 # 5. Advanced Tools Integration
 # =============================================================================
+# Tools extend agent capabilities beyond text generation. This section showcases
+# both local tools (running on your infrastructure) and hosted tools (managed
+# by OpenAI). The tool system is extensible, allowing custom tools for any
+# external system integration. Tools are automatically discovered by agents
+# and called when appropriate based on the conversation context.
 puts "\n5. 🔧 Advanced Tools Integration"
 puts "-" * 40
 
 # Create advanced tools
+# FileSearchTool provides semantic search across local files
+# It indexes content and can find relevant information even with fuzzy queries
 file_search = OpenAIAgents::Tools::FileSearchTool.new(
-  search_paths: ["."],
-  file_extensions: [".rb", ".md", ".txt"],
-  max_results: 5
+  search_paths: ["."],  # Directories to search
+  file_extensions: [".rb", ".md", ".txt"],  # File types to include
+  max_results: 5  # Limit results for performance
 )
 
 # Create hosted tools (using OpenAI's hosted services)
+# WebSearchTool integrates with web search APIs for real-time information
+# The location context helps provide relevant local results
 web_search = OpenAIAgents::Tools::WebSearchTool.new(
   user_location: { type: "approximate", city: "San Francisco" },
-  search_context_size: "high"
+  search_context_size: "high"  # More context for better results
 )
 
 # Hosted file search tool (alternative to local file search)
+# This uses OpenAI's infrastructure to search through uploaded files
+# More scalable than local search for large document collections
 hosted_file_search = OpenAIAgents::Tools::HostedFileSearchTool.new(
   file_ids: %w[file-abc123 file-def456], # Replace with actual uploaded file IDs
-  ranking_options: { "boost_for_code_snippets" => true }
+  ranking_options: { "boost_for_code_snippets" => true }  # Prioritize code in results
 )
 
 # Hosted computer tool (alternative to local computer control)
@@ -241,10 +319,16 @@ puts "    - HostedComputerTool (#{hosted_computer.display_width_px}x#{hosted_com
 # =============================================================================
 # 6. Advanced Handoff System
 # =============================================================================
+# The handoff system enables sophisticated multi-agent workflows where agents
+# can transfer conversations based on expertise, availability, or business rules.
+# This goes beyond simple routing to include context preservation, capability
+# matching, and intelligent decision making. The system prevents handoff loops
+# and ensures smooth transitions between specialized agents.
 puts "\n6. ↔️  Advanced Handoff System"
 puts "-" * 40
 
 # Create advanced handoff manager
+# The max_handoffs parameter prevents infinite loops between agents
 handoff_manager = OpenAIAgents::Handoffs::AdvancedHandoff.new(max_handoffs: 3)
 
 # Add agents with capabilities
@@ -270,12 +354,18 @@ handoff_manager.add_agent(
 )
 
 # Add handoff filters
+# Filters act as gates that must pass for a handoff to proceed
+# This enables complex routing logic based on business rules
 handoff_manager.add_filter(:business_hours_check) do |_from_agent, _to_agent, _context|
+  # In production, would check actual business hours
+  # Could integrate with calendar systems or timezone logic
   # Always allow for demo
   true
 end
 
 handoff_manager.add_filter(:conversation_length) do |_from_agent, _to_agent, context|
+  # Prevent handoffs in very long conversations to avoid context loss
+  # Long conversations might need summarization before handoff
   (context[:messages]&.length || 0) < 50
 end
 
@@ -317,14 +407,20 @@ end
 # =============================================================================
 # 7. Voice Workflow System
 # =============================================================================
+# Voice workflows enable natural speech interactions with AI agents.
+# This system handles the complete pipeline: speech-to-text transcription,
+# agent processing, and text-to-speech synthesis. It's designed for
+# applications like voice assistants, phone systems, or accessibility features.
+# The modular design allows swapping providers for each component.
 puts "\n7. 🎤 Voice Workflow System"
 puts "-" * 40
 
 # Create voice workflow (note: requires OpenAI API key for actual use)
+# Each component can be configured independently for optimal performance
 voice_workflow = OpenAIAgents::Voice::VoiceWorkflow.new(
-  transcription_model: "whisper-1",
-  tts_model: "tts-1",
-  voice: "alloy",
+  transcription_model: "whisper-1",  # OpenAI's speech recognition model
+  tts_model: "tts-1",  # Text-to-speech model (tts-1 for speed, tts-1-hd for quality)
+  voice: "alloy",  # Voice options: alloy, echo, fable, onyx, nova, shimmer
   api_key: "demo-key-for-testing" # Would use real key in production
 )
 
@@ -621,42 +717,56 @@ puts "\n#{"=" * 70}"
 puts "🎉 COMPLETE FEATURES SHOWCASE FINISHED!"
 puts "=" * 70
 
-puts "\n✅ ALL FEATURES DEMONSTRATED:"
-puts "   🔧 Configuration Management - Environment-based settings"
-puts "   📊 Usage Tracking - Comprehensive analytics and monitoring"
-puts "   🔌 Extensions Framework - Plugin architecture"
-puts "   🤖 Advanced Agents - Multi-provider, tools, handoffs"
-puts "   🔧 Advanced Tools - File search, web search, computer control"
-puts "   ↔️  Smart Handoffs - Context-aware routing with filtering"
-puts "   🎤 Voice Workflows - Speech-to-text and text-to-speech"
-puts "   📈 Enhanced Tracing - Span-based monitoring and visualization"
-puts "   🛡️  Guardrails - Safety and validation systems"
-puts "   📋 Structured Output - Schema validation and formatting"
-puts "   📊 Analytics - Real-time monitoring and reporting"
-puts "   💻 REPL Interface - Interactive development environment"
-puts "   📦 Batch Processing - 50% cost savings on bulk operations"
-puts "   🚀 Latest Models - GPT-4.1 series with improved capabilities"
+# ============================================================================
+# SUMMARY - COMPREHENSIVE FEATURE DESIGN DOCUMENTATION
+# ============================================================================
 
-puts "\n🚀 FRAMEWORK STATUS:"
-puts "   ✅ 100% Feature Parity with Python OpenAI Agents"
-puts "   ✅ Production-Ready Architecture"
-puts "   ✅ Comprehensive Documentation"
-puts "   ✅ Extensive Examples and Tutorials"
-puts "   ✅ Enterprise-Grade Safety and Monitoring"
+puts "\n📋 COMPREHENSIVE FEATURE DESIGN DOCUMENTATION COMPLETE!"
+puts "\n⚠️  IMPORTANT: This file shows PLANNED features - most are NOT implemented yet!"
 
-puts "\n📚 NEXT STEPS:"
-puts "   1. Set up your API keys in environment variables"
-puts "   2. Create your own agents and tools"
-puts "   3. Configure guardrails for your use case"
-puts "   4. Set up monitoring and analytics"
-puts "   5. Build amazing multi-agent workflows!"
+puts "\n✅ CURRENTLY WORKING FEATURES (~10%):"
+puts "   ✅ Basic agent creation and execution"
+puts "   ✅ Multi-provider support (OpenAI, Anthropic)"
+puts "   ✅ Basic tool integration (FunctionTool)"
+puts "   ✅ Basic structured outputs"
+puts "   ✅ Basic tracing functionality"
+puts "   ✅ Lifecycle hooks (now fixed)"
 
-puts "\n🔗 DOCUMENTATION:"
-puts "   📖 Full API documentation in code comments"
-puts "   📋 Examples in the examples/ directory"
-puts "   🧪 Tests in the spec/ directory"
-puts "   🎯 README.md for quick start guide"
+puts "\n❌ PLANNED FEATURES DOCUMENTED (~90%):"
+puts "   📋 Configuration Management - Environment-based settings"
+puts "   📋 Usage Tracking - Comprehensive analytics and monitoring"
+puts "   📋 Extensions Framework - Plugin architecture"
+puts "   📋 Advanced Tools - File search, web search, computer control"
+puts "   📋 Smart Handoffs - Context-aware routing with filtering"
+puts "   📋 Voice Workflows - Speech-to-text and text-to-speech"
+puts "   📋 Enhanced Tracing - Span-based monitoring and visualization"
+puts "   📋 Guardrails - Safety and validation systems"
+puts "   📋 Analytics - Real-time monitoring and reporting"
+puts "   📋 REPL Interface - Interactive development environment"
+puts "   📋 Batch Processing - 50% cost savings on bulk operations"
+
+puts "\n🚀 ACTUAL FRAMEWORK STATUS:"
+puts "   📋 ~10% Feature Parity with Python OpenAI Agents (basic functionality works)"
+puts "   🚧 Architecture Designed (but not fully implemented)"
+puts "   📚 Comprehensive Design Documentation (this file)"
+puts "   ⚠️  Examples Mix Working and Planned Features"
+puts "   🚧 Foundation Ready for Enterprise Features"
+
+puts "\n📚 IMPLEMENTATION ROADMAP:"
+puts "   1. Implement missing core classes (Configuration, Extensions, Voice, etc.)"
+puts "   2. Add comprehensive guardrails system"
+puts "   3. Build advanced tools ecosystem"
+puts "   4. Implement usage tracking and analytics"
+puts "   5. Add voice workflow capabilities"
+puts "   6. Create REPL interface"
+puts "   7. Implement batch processing"
+
+puts "\n📁 This design document serves as:"
+puts "   - Comprehensive feature specification"
+puts "   - Implementation roadmap for developers"
+puts "   - API design reference for 750+ lines of planned features"
+puts "   - Vision for a fully-featured Ruby agents framework"
 
 puts "\n#{"=" * 70}"
-puts "Happy coding with OpenAI Agents Ruby! 🚀"
+puts "OpenAI Agents Ruby - Comprehensive Design Documentation! 📋"
 puts "=" * 70

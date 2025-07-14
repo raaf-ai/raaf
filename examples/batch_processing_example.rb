@@ -4,13 +4,24 @@
 require_relative "../lib/openai_agents"
 
 ##
-# Batch Processing Example - Demonstrates OpenAI Batch API with 50% cost savings
+# Batch Processing Example - PLANNED API DESIGN DOCUMENTATION
+#
+# ⚠️  WARNING: This example shows PLANNED batch processing API but does NOT work yet.
+# ❌ The BatchProcessor class is not implemented.
+# ✅ This serves as design documentation for future batch processing features.
 #
 # This example shows how to process multiple requests efficiently using
 # OpenAI's Batch API, which provides significant cost savings for bulk operations.
 
 puts "🚀 OpenAI Agents Ruby - Batch Processing Example"
 puts "=" * 60
+
+puts "\n⚠️  WARNING: This example shows PLANNED API design but does NOT work!"
+puts "❌ The BatchProcessor class is not implemented yet."
+puts "✅ This file serves as design documentation for future batch features."
+puts "\nPress Ctrl+C to exit, or continue to see the planned API design."
+puts "\nContinuing in 5 seconds..."
+sleep(5)
 
 # Check for API key
 unless ENV["OPENAI_API_KEY"]
@@ -21,7 +32,15 @@ unless ENV["OPENAI_API_KEY"]
 end
 
 puts "\n📦 Creating Batch Processor..."
-OpenAIAgents::BatchProcessor.new
+# ⚠️  WARNING: This class does not exist yet - planned for future implementation
+begin
+  batch_processor = OpenAIAgents::BatchProcessor.new
+rescue NameError => e
+  puts "❌ Error: #{e.message}"
+  puts "The OpenAIAgents::BatchProcessor class is not implemented yet."
+  puts "This example shows the planned API design for batch processing."
+  batch_processor = nil
+end
 
 # =============================================================================
 # 1. Basic Batch Processing
@@ -191,9 +210,14 @@ puts "  Model: gpt-4.1 (54.6% improvement in coding tasks vs gpt-4o)"
 # =============================================================================
 # 5. Batch Monitoring and Management
 # =============================================================================
+# Batch processing is asynchronous, requiring monitoring to track progress.
+# The OpenAI API provides comprehensive status information and management
+# capabilities for submitted batches.
 puts "\n5. 📈 Batch Monitoring and Management"
 puts "-" * 40
 
+# Available batch management methods
+# Each provides different levels of control and information
 puts "✅ Batch management features:"
 puts "  📊 Status monitoring: check_status(batch_id)"
 puts "  ⏳ Wait for completion: wait_for_completion(batch_id)"
@@ -201,17 +225,27 @@ puts "  📋 List all batches: list_batches(limit: 20)"
 puts "  ❌ Cancel batch: cancel_batch(batch_id)"
 puts "  📥 Retrieve results: retrieve_results(output_file_id)"
 
-# Example monitoring workflow
+# Example monitoring workflow demonstrates typical batch lifecycle
+# Shows progression from submission through completion
 puts "\n📋 Example monitoring workflow:"
+
+# Step 1: Submit batch and get batch ID
+# The API returns immediately with batch metadata
 puts "  # Submit batch"
 puts "  batch = batch_processor.submit_batch(requests)"
 puts ""
+
+# Step 2: Monitor progress using callback pattern
+# Allows custom handling of status updates
 puts "  # Monitor progress"
 puts "  batch_processor.check_status(batch['id']) do |status|"
 puts "    progress = status['request_counts']"
-puts "    puts \"Progress: #{progress["completed"]}/#{progress["total"]}\""
+puts "    puts \"Progress: \#{progress['completed']}/\#{progress['total']}\""
 puts "  end"
 puts ""
+
+# Step 3: Wait for completion with configurable polling
+# Balances API rate limits with timely updates
 puts "  # Wait for completion with custom settings"
 puts "  results = batch_processor.wait_for_completion("
 puts "    batch['id'],"
@@ -222,24 +256,37 @@ puts "  )"
 # =============================================================================
 # 6. Cost Analysis and Benefits
 # =============================================================================
+# The primary advantage of batch processing is the 50% cost reduction.
+# This section calculates real savings based on request volume.
 puts "\n6. 💰 Cost Analysis and Benefits"
 puts "-" * 40
 
-# Calculate potential savings
-individual_cost_per_request = 0.03 # Example cost per request
-batch_discount = 0.5 # 50% discount
-total_requests = basic_requests.length + customer_batch_requests.length + analysis_batch_requests.length + code_review_requests.length
+# Calculate potential savings based on request volume
+# These calculations demonstrate real financial benefits
 
+# Pricing assumptions (adjust based on current OpenAI pricing)
+individual_cost_per_request = 0.03 # Example cost per request
+batch_discount = 0.5 # 50% discount for batch API
+
+# Count all requests from our examples
+total_requests = basic_requests.length + customer_batch_requests.length + 
+                analysis_batch_requests.length + code_review_requests.length
+
+# Calculate costs for comparison
 individual_total_cost = total_requests * individual_cost_per_request
 batch_total_cost = individual_total_cost * batch_discount
 savings = individual_total_cost - batch_total_cost
 
+# Display cost analysis with clear comparisons
+# Shows immediate financial impact of using batch API
 puts "💡 Cost Comparison Example:"
 puts "  Total requests: #{total_requests}"
 puts "  Individual API calls: $#{individual_total_cost.round(2)}"
 puts "  Batch API calls: $#{batch_total_cost.round(2)}"
 puts "  💰 Total savings: $#{savings.round(2)} (50% discount)"
 
+# Ideal use cases leverage batch processing's strengths:
+# cost savings and ability to handle large volumes
 puts "\n🎯 When to Use Batch Processing:"
 puts "  ✅ Processing large datasets (hundreds to thousands of requests)"
 puts "  ✅ Regular reporting and analytics workflows"
@@ -249,6 +296,8 @@ puts "  ✅ Customer support ticket processing"
 puts "  ✅ Code review and analysis at scale"
 puts "  ✅ Any scenario where immediate results aren't required"
 
+# Important limitations to consider when choosing batch API
+# These constraints determine if batch processing fits your use case
 puts "\n⚠️  Batch Processing Considerations:"
 puts "  📅 24-hour completion window (not real-time)"
 puts "  📦 Maximum 50,000 requests per batch"
@@ -256,13 +305,28 @@ puts "  🔄 Asynchronous processing (polling required)"
 puts "  📊 Best for bulk operations, not interactive use cases"
 
 # =============================================================================
-# Summary
+# Summary - API Design Documentation
 # =============================================================================
+# This example documented the planned API design for batch processing:
+# from request preparation through result retrieval.
 puts "\n#{"=" * 60}"
-puts "🎉 BATCH PROCESSING EXAMPLE COMPLETE!"
+puts "🎉 BATCH PROCESSING API DESIGN DOCUMENTATION COMPLETE!"
 puts "=" * 60
 
-puts "\n✅ FEATURES DEMONSTRATED:"
+puts "\n⚠️  IMPORTANT: This file shows PLANNED features that don't work yet!"
+
+# Key capabilities that would be implemented
+# Each represents a production-ready pattern to implement
+puts "\n📋 PLANNED FEATURES TO IMPLEMENT:"
+puts "   1. OpenAIAgents::BatchProcessor class"
+puts "   2. submit_batch() method for batch submission"
+puts "   3. check_status() method for monitoring"
+puts "   4. wait_for_completion() method for polling"
+puts "   5. retrieve_results() method for getting outputs"
+puts "   6. cancel_batch() method for cancellation"
+puts "   7. list_batches() method for management"
+
+puts "\n🎯 PLANNED USE CASES (from this design):"
 puts "   📦 Basic batch submission and processing"
 puts "   🎧 Customer support automation at scale"
 puts "   📊 Bulk data analysis and insights"
@@ -270,13 +334,23 @@ puts "   💻 Code review automation"
 puts "   📈 Progress monitoring and management"
 puts "   💰 Cost optimization with 50% savings"
 
-puts "\n🚀 NEXT STEPS:"
-puts "   1. Set up your OpenAI API key"
-puts "   2. Prepare your batch requests"
-puts "   3. Submit batches during off-peak hours"
-puts "   4. Monitor progress and retrieve results"
-puts "   5. Enjoy 50% cost savings on bulk operations!"
+# Implementation roadmap for developers
+# Follow these to implement batch processing
+puts "\n🚀 IMPLEMENTATION ROADMAP:"
+puts "   1. Create OpenAIAgents::BatchProcessor class"
+puts "   2. Implement OpenAI Batch API integration"
+puts "   3. Add request formatting and validation"
+puts "   4. Implement status monitoring and polling"
+puts "   5. Add result retrieval and processing"
+puts "   6. Create comprehensive error handling"
+puts "   7. Add cost calculation and reporting"
 
+puts "\n📁 This design document serves as:"
+puts "   - API specification for batch processing"
+puts "   - Feature roadmap for BatchProcessor class"
+puts "   - Reference for OpenAI Batch API integration"
+
+# Final note about the purpose
 puts "\n#{"=" * 60}"
-puts "Happy batch processing with OpenAI Agents Ruby! 📦"
+puts "Batch processing design documentation for OpenAI Agents Ruby! 📦"
 puts "=" * 60

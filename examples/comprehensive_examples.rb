@@ -3,12 +3,20 @@
 
 # Comprehensive Examples for OpenAI Agents Ruby
 # This file demonstrates all major features with practical examples
+#
+# This showcase provides real-world examples of every major feature in the
+# OpenAI Agents Ruby library. Each example is self-contained and demonstrates
+# best practices for production use. The examples cover basic usage, memory
+# management, vector search, document generation, security guardrails,
+# debugging, compliance, multi-provider support, streaming, and advanced tools.
+# Use this as a reference for implementing these features in your applications.
 
 require_relative "../lib/openai_agents"
 require "json"
 require "fileutils"
 
 # Set up API key
+# In production, load from secure environment or secrets management
 ENV["OPENAI_API_KEY"] ||= "your-api-key-here"
 
 class ComprehensiveExamples
@@ -39,8 +47,13 @@ class ComprehensiveExamples
 
   def basic_examples
     section "Basic Agent Usage" do
-      # Simple agent with tool
+      # Simple agent with tool demonstrates the fundamental pattern
+      # for extending agent capabilities with custom functions.
+      # Tools allow agents to interact with external systems and
+      # perform computations beyond language generation.
       def calculator(expression)
+        # For production, use a safe expression parser instead of eval
+        # This simplified example shows the tool pattern
         eval(expression).to_s
       rescue StandardError => e
         "Error: #{e.message}"
@@ -49,7 +62,7 @@ class ComprehensiveExamples
       agent = OpenAIAgents::Agent.new(
         name: "Calculator",
         instructions: "You are a helpful math assistant. Use the calculator tool for computations.",
-        model: "gpt-4o"
+        model: "gpt-4o"  # Latest optimized model
       )
       
       agent.add_tool(method(:calculator))
@@ -63,12 +76,15 @@ class ComprehensiveExamples
 
   def memory_examples
     section "Memory Management" do
-      # Token-aware memory
+      # Token-aware memory prevents context window overflow while
+      # maintaining conversation continuity. The memory manager
+      # automatically prunes old messages when approaching token limits,
+      # ensuring the agent always has relevant context without errors.
       memory_store = OpenAIAgents::Memory::InMemoryStore.new
       memory_manager = OpenAIAgents::Memory::MemoryManager.new(
         store: memory_store,
-        token_limit: 2000,
-        pruning_strategy: :sliding_window
+        token_limit: 2000,  # Conservative limit for safety
+        pruning_strategy: :sliding_window  # Keeps recent context
       )
       
       agent = OpenAIAgents::Agent.new(
@@ -97,10 +113,18 @@ class ComprehensiveExamples
 
   def vector_search_examples
     section "Vector Search & Semantic Search" do
-      # Create in-memory vector store
+      # Vector search enables semantic understanding beyond keyword matching.
+      # Documents are converted to embeddings (numerical representations)
+      # that capture meaning. Searches find semantically similar content
+      # even when exact words don't match. This is ideal for knowledge bases,
+      # documentation search, and context-aware responses.
+      
+      # Create in-memory vector store for demonstration
+      # Production would use Pinecone, Weaviate, or PostgreSQL with pgvector
       vector_store = OpenAIAgents::VectorStore.new(adapter: :in_memory)
       
-      # Add technical documentation
+      # Add technical documentation with rich metadata
+      # Metadata enables filtered searches for precise results
       documents = [
         {
           content: "Ruby on Rails is a web application framework written in Ruby. It follows MVC architecture.",
@@ -156,19 +180,25 @@ class ComprehensiveExamples
 
   def document_generation_examples
     section "Document Generation" do
-      # Create document generation agent
+      # Document generation showcases AI-powered report and document creation.
+      # The agent can generate various formats (PDF, Excel, Word) with proper
+      # formatting, charts, and professional layouts. This automates routine
+      # document creation tasks while maintaining quality and consistency.
+      
+      # Create document generation agent with professional instructions
       agent = OpenAIAgents::Agent.new(
         name: "DocumentCreator",
         instructions: "You are a professional document creator. Generate well-formatted documents based on user requests.",
         model: "gpt-4o"
       )
       
-      # Add document tools
+      # Add document tools for different output formats
+      # Each tool handles specific document types and formatting
       doc_tool = OpenAIAgents::Tools::DocumentTool.new(
-        output_dir: "./generated_docs"
+        output_dir: "./generated_docs"  # Output directory for documents
       )
       report_tool = OpenAIAgents::Tools::ReportTool.new(
-        output_dir: "./generated_reports"
+        output_dir: "./generated_reports"  # Separate dir for reports
       )
       
       agent.add_tool(doc_tool)
@@ -204,10 +234,17 @@ class ComprehensiveExamples
 
   def guardrails_examples
     section "Guardrails & Security" do
-      # Configure multiple guardrails
+      # Guardrails provide multiple layers of protection for AI systems.
+      # They detect and prevent sensitive data exposure, malicious commands,
+      # and policy violations. Multiple guardrails can work in parallel for
+      # comprehensive protection without impacting performance. This example
+      # shows PII detection, security patterns, and dangerous command blocking.
+      
+      # Configure PII detection to protect personal information
+      # High sensitivity catches more patterns but may have false positives
       pii_guardrail = OpenAIAgents::Guardrails::PIIDetector.new(
-        action: :redact,
-        sensitivity: :high,
+        action: :redact,  # Options: :redact, :block, :warn
+        sensitivity: :high,  # :low, :medium, :high
         redaction_placeholder: "[REDACTED]"
       )
       
@@ -262,11 +299,17 @@ class ComprehensiveExamples
 
   def debugging_examples
     section "Interactive Debugging" do
-      # Create debugger
+      # The debugging system provides deep visibility into agent execution
+      # for troubleshooting and optimization. It supports breakpoints,
+      # variable watching, performance profiling, and session recording.
+      # This is invaluable for understanding complex agent behaviors and
+      # diagnosing issues in production.
+      
+      # Create debugger with comprehensive monitoring
       debugger = OpenAIAgents::Debugging::Debugger.new(
-        log_level: :debug,
-        capture_snapshots: true,
-        enable_profiling: true
+        log_level: :debug,  # Captures detailed execution info
+        capture_snapshots: true,  # Records state at each step
+        enable_profiling: true  # Tracks performance metrics
       )
       
       # Create agent with tools for debugging demo
@@ -314,11 +357,18 @@ class ComprehensiveExamples
 
   def compliance_examples
     section "Compliance & Audit" do
-      # Set up audit logger
+      # Compliance features ensure AI systems meet regulatory requirements
+      # for industries like finance, healthcare, and government. The system
+      # provides comprehensive audit logging, policy enforcement, and
+      # compliance monitoring. This example demonstrates GDPR and SOC2
+      # compliance patterns including data retention and PII handling.
+      
+      # Set up audit logger for compliance tracking
+      # All agent interactions are logged for forensic analysis
       audit_logger = OpenAIAgents::Compliance::AuditLogger.new(
-        storage_backend: :file,
+        storage_backend: :file,  # Options: :file, :database, :cloud
         file_path: "./audit_logs.json",
-        retention_days: 90
+        retention_days: 90  # Configurable per regulation
       )
       
       # Set up policy manager
@@ -386,7 +436,14 @@ class ComprehensiveExamples
 
   def multi_provider_examples
     section "Multi-Provider Support" do
+      # Multi-provider support enables using the best AI model for each task
+      # while maintaining a consistent interface. The framework handles
+      # provider-specific differences transparently. This example shows
+      # structured output working identically across OpenAI and Anthropic,
+      # demonstrating true provider independence.
+      
       # Structured output schema that works with all providers
+      # The framework translates this to provider-specific formats
       user_schema = {
         type: "object",
         properties: {
@@ -443,6 +500,12 @@ class ComprehensiveExamples
 
   def streaming_examples
     section "Streaming & Events" do
+      # Streaming provides real-time response generation for better user
+      # experience. Instead of waiting for the complete response, users
+      # see text as it's generated. The event system enables progress
+      # tracking, error handling, and custom UI updates. This is essential
+      # for chat interfaces and long-form content generation.
+      
       agent = OpenAIAgents::Agent.new(
         name: "StreamingAgent",
         instructions: "You are a helpful assistant who provides detailed explanations.",
@@ -486,11 +549,18 @@ class ComprehensiveExamples
 
   def advanced_tools_examples
     section "Advanced Tools" do
+      # Advanced tools showcase integration with external systems and
+      # protocols. MCP (Model Context Protocol) enables standardized
+      # tool discovery and execution. Local shell tools provide system
+      # integration with security controls. These examples demonstrate
+      # how to safely extend agent capabilities for complex workflows.
+      
       # MCP Tool example (if MCP server is available)
+      # MCP allows dynamic tool discovery from external servers
       if ENV["MCP_SERVER_COMMAND"]
         mcp_tool = OpenAIAgents::Tools::MCPTool.new(
           server_name: "demo-mcp-server",
-          transport: :stdio,
+          transport: :stdio,  # Communication method
           command: ENV["MCP_SERVER_COMMAND"],
           args: ENV["MCP_SERVER_ARGS"]&.split || []
         )

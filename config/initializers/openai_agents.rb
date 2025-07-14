@@ -28,7 +28,7 @@ if (defined?(Rails) && Rails.env.development?) || Rails.env.production?
     )
   )
 
-  Rails.logger.info "[OpenAI Agents] Tracing configured with ActiveRecord processor"
+  OpenAIAgents::Logging.info("Tracing configured with ActiveRecord processor")
 end
 
 # Optional: Add OpenAI processor to send traces to OpenAI dashboard
@@ -37,7 +37,7 @@ end
 #   OpenAIAgents.tracer.add_processor(
 #     OpenAIAgents::Tracing::OpenAIProcessor.new
 #   )
-#   Rails.logger.info "[OpenAI Agents] Tracing configured with OpenAI processor"
+#   OpenAIAgents::Logging.info("Tracing configured with OpenAI processor")
 # end
 
 # Optional: Configure default model

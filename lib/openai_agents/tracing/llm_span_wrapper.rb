@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require_relative "../logging"
+
 module OpenAIAgents
   module Tracing
     # Wrapper to ensure LLM span data is properly captured
     class LLMSpanWrapper
+      include OpenAIAgents::Logger
       def self.wrap_provider(provider, tracer)
         return provider unless tracer
 
@@ -45,7 +48,7 @@ module OpenAIAgents
         span = @tracer.start_span("llm", kind: :llm)
 
         # Debug logging
-        Rails.logger.info "[LLM Wrapper] Starting LLM span with model: #{kwargs[:model]}"
+        log_debug_tracing("Starting LLM span", model: kwargs[:model])
 
         # Set request attributes
         span.set_attribute("llm.request.messages", kwargs[:messages]) if kwargs[:messages]
@@ -58,8 +61,10 @@ module OpenAIAgents
           # Call the original provider
           response = @provider.chat_completion(**kwargs)
 
-          Rails.logger.info "[LLM Wrapper] Response received: #{response.keys.inspect}"
-          Rails.logger.info "[LLM Wrapper] Usage data: #{response["usage"].inspect}" if response["usage"]
+          log_debug_tracing("LLM response received",
+            response_keys: response.keys,
+            has_usage: !response["usage"].nil?
+          )
 
           # Extract and set response attributes
           if response.is_a?(Hash)
@@ -79,9 +84,9 @@ module OpenAIAgents
                                    "usage" => response["usage"]
                                  })
 
-              Rails.logger.info "[LLM Wrapper] Set llm attribute with usage data"
+              log_debug_tracing("Set llm attribute with usage data")
             else
-              Rails.logger.warn "[LLM Wrapper] No usage data in response!"
+              log_warn("No usage data in response")
             end
 
             # Set response content

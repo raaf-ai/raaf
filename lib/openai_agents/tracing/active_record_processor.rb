@@ -8,6 +8,8 @@ rescue LoadError
   # Models will be loaded by Rails engine
 end
 
+require_relative "../logging"
+
 module OpenAIAgents
   module Tracing
     # Processor that saves spans and traces to a Rails database using ActiveRecord
@@ -55,6 +57,7 @@ module OpenAIAgents
     # - Optimized for high-throughput applications
     # - Background processing for non-blocking operation
     class ActiveRecordProcessor
+      include Logger
       # Default sampling rate (capture all traces)
       DEFAULT_SAMPLING_RATE = 1.0
 
@@ -91,8 +94,10 @@ module OpenAIAgents
         # Start background processing if batch size > 1
         start_background_processing if @batch_size > 1
 
-        Rails.logger.info "[OpenAI Agents Tracing] ActiveRecord processor initialized " \
-                          "(sampling: #{(@sampling_rate * 100).round(1)}%, batch: #{@batch_size})"
+        log_info("ActiveRecord processor initialized",
+          sampling_rate_percent: (@sampling_rate * 100).round(1),
+          batch_size: @batch_size
+        )
       end
 
       # Called when a span starts
@@ -148,7 +153,7 @@ module OpenAIAgents
       def shutdown
         flush
         @background_thread&.kill
-        Rails.logger.info "[OpenAI Agents Tracing] ActiveRecord processor shut down"
+        log_info("ActiveRecord processor shut down")
       end
 
       private
@@ -207,7 +212,7 @@ module OpenAIAgents
             )
             @trace_buffer[span.trace_id] = trace
           rescue ActiveRecord::RecordInvalid => e
-            Rails.logger.warn "[OpenAI Agents Tracing] Failed to create trace: #{e.message}"
+            log_warn("Failed to create trace", error: e.message, error_class: e.class.name)
           end
         end
       end
@@ -264,9 +269,9 @@ module OpenAIAgents
             spans.each { |span| save_span_to_database(span) }
           end
 
-          Rails.logger.debug "[OpenAI Agents Tracing] Saved batch of #{spans.size} spans"
+          log_debug_tracing("Saved batch of spans", spans_count: spans.size)
         rescue StandardError => e
-          Rails.logger.error "[OpenAI Agents Tracing] Failed to save span batch: #{e.message}"
+          log_error("Failed to save span batch", error: e.message, error_class: e.class.name)
         end
       end
 
@@ -294,9 +299,9 @@ module OpenAIAgents
 
         ::OpenAIAgents::Tracing::SpanRecord.create!(span_attributes)
       rescue ActiveRecord::RecordInvalid => e
-        Rails.logger.warn "[OpenAI Agents Tracing] Failed to save span #{span.span_id}: #{e.message}"
+        log_warn("Failed to save span", span_id: span.span_id, error: e.message, error_class: e.class.name)
       rescue StandardError => e
-        Rails.logger.error "[OpenAI Agents Tracing] Unexpected error saving span: #{e.message}"
+        log_error("Unexpected error saving span", error: e.message, error_class: e.class.name)
       end
 
       # Calculate duration in milliseconds
@@ -380,7 +385,7 @@ module OpenAIAgents
               end
             end
           rescue StandardError => e
-            Rails.logger.error "[OpenAI Agents Tracing] Background processing error: #{e.message}"
+            log_error("Background processing error", error: e.message, error_class: e.class.name)
           end
         end
         @background_thread.name = "OpenAI-Agents-Tracing"
@@ -395,9 +400,9 @@ module OpenAIAgents
 
         Thread.new do
           deleted_count = ::OpenAIAgents::Tracing::TraceRecord.cleanup_old_traces(older_than: @cleanup_older_than)
-          Rails.logger.info "[OpenAI Agents Tracing] Cleaned up #{deleted_count} old traces" if deleted_count > 0
+          log_info("Cleaned up old traces", deleted_count: deleted_count) if deleted_count > 0
         rescue StandardError => e
-          Rails.logger.error "[OpenAI Agents Tracing] Cleanup error: #{e.message}"
+          log_error("Cleanup error", error: e.message, error_class: e.class.name)
         ensure
           @last_cleanup = Time.current
         end

@@ -1,11 +1,18 @@
 # frozen_string_literal: true
 
+# NOTE FOR CLAUDE: This file is DEPRECATED and should NOT be modified except for critical bug fixes.
+# DO NOT update this file for new features or improvements. Use ResponsesProvider instead.
+# This provider is maintained only for backwards compatibility and streaming support.
+
 require_relative "interface"
 require_relative "responses_provider"
 require_relative "../http_client"
 
 module OpenAIAgents
   module Models
+    # @deprecated Use ResponsesProvider instead. This provider uses the legacy Chat Completions API
+    # and is maintained only for backwards compatibility and streaming support.
+    # ResponsesProvider is the recommended default provider with better features and usage tracking.
     class OpenAIProvider < ModelInterface
       SUPPORTED_MODELS = %w[
         gpt-4.1 gpt-4.1-mini gpt-4.1-nano
@@ -16,6 +23,12 @@ module OpenAIAgents
 
       # rubocop:disable Lint/MissingSuper
       def initialize(api_key: nil, api_base: nil, **)
+        # Issue deprecation warning
+        warn "DEPRECATION WARNING: OpenAIProvider is deprecated and will be removed in a future version. " \
+             "Use ResponsesProvider instead (it's the default). OpenAIProvider is maintained only for " \
+             "backwards compatibility and streaming support. " \
+             "Called from #{caller_locations(1, 1).first}"
+
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
         raise AuthenticationError, "OpenAI API key is required" unless @api_key

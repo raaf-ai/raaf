@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "openai_agents/logging"
+
 module OpenAIAgents
   module Tracing
     # Base controller for the OpenAI Agents tracing engine
@@ -10,6 +12,7 @@ module OpenAIAgents
     # - Shared before actions
     # - Helper methods for pagination and filtering
     class ApplicationController < ActionController::Base
+      include OpenAIAgents::Logger
       protect_from_forgery with: :exception
 
       # Include helpers for content_tag
@@ -31,8 +34,11 @@ module OpenAIAgents
 
       # Handle general errors
       def handle_error(exception)
-        Rails.logger.error "OpenAI Agents Tracing Error: #{exception.message}"
-        Rails.logger.error exception.backtrace.join("\n")
+        log_error("OpenAI Agents Tracing Error",
+          error: exception.message,
+          error_class: exception.class.name,
+          backtrace: exception.backtrace&.first(5)&.join("\n")
+        )
 
         render "openai_agents/tracing/shared/error",
                status: :internal_server_error,

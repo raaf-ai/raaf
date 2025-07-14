@@ -5,6 +5,7 @@ require_relative "../lib/openai_agents"
 
 # Example demonstrating multiple AI providers
 
+# Multi-provider architecture enables flexibility and optimization
 puts "=== Multi-Provider Example ==="
 puts
 puts "This example shows how to use different AI providers with OpenAI Agents."
@@ -234,7 +235,7 @@ if available_providers.include?(:groq)
     OpenAIAgents::Models::GroqProvider.new,
     max_attempts: 3,
     base_delay: 1.0,
-    logger: Logger.new($stdout)
+    logger: ::Logger.new($stdout)  # Log retry attempts
   )
 
   puts "Testing retry logic with rapid requests..."

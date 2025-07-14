@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 require_relative "errors"
+require_relative "logging"
 
 module OpenAIAgents
   class FunctionTool
+    include Logger
+    
     attr_reader :name, :description, :parameters, :callable
     attr_accessor :is_enabled
 
@@ -13,24 +16,26 @@ module OpenAIAgents
       @description = description || extract_description(callable)
 
       # Debug logging for parameter handling
-      if defined?(Rails) && Rails.logger && Rails.env.development?
-        Rails.logger.debug "🔧 FunctionTool.new called for #{@name}:"
-        Rails.logger.debug "   Parameters provided: #{parameters.nil? ? "nil" : "yes"}"
-        Rails.logger.debug "   Parameters value: #{parameters.inspect}" unless parameters.nil?
-      end
+      log_debug_tools("FunctionTool.new called",
+        tool_name: @name,
+        parameters_provided: !parameters.nil?,
+        parameters_value: parameters&.inspect
+      )
 
       # IMPORTANT: Only extract parameters if not explicitly provided
       # This ensures we use the DSL-defined parameters when available
       @parameters = if parameters.nil?
                       extracted = extract_parameters(callable)
-                      if defined?(Rails) && Rails.logger && Rails.env.development?
-                        Rails.logger.debug "   Extracted parameters: #{extracted.inspect}"
-                      end
+                      log_debug_tools("Extracted parameters",
+                        tool_name: @name,
+                        extracted_parameters: extracted.inspect
+                      )
                       extracted
                     else
-                      if defined?(Rails) && Rails.logger && Rails.env.development?
-                        Rails.logger.debug "   Using provided parameters: #{parameters.inspect}"
-                      end
+                      log_debug_tools("Using provided parameters",
+                        tool_name: @name,
+                        provided_parameters: parameters.inspect
+                      )
                       parameters
                     end
       @is_enabled = is_enabled # Can be a Proc, boolean, or nil
@@ -139,15 +144,13 @@ module OpenAIAgents
       }
 
       # Debug logging for to_h output
-      if defined?(Rails) && Rails.logger && Rails.env.development?
-        Rails.logger.info "🔧 [FunctionTool.to_h] Tool: #{@name}"
-        Rails.logger.info "   Result: #{result.inspect}"
-        Rails.logger.info "   Parameters in result: #{result.dig(:function, :parameters).inspect}"
-        if result.dig(:function, :parameters, :properties)
-          Rails.logger.info "   Properties: #{result.dig(:function, :parameters, :properties).keys.join(", ")}"
-          Rails.logger.info "   Required: #{result.dig(:function, :parameters, :required) || "none"}"
-        end
-      end
+      log_debug_tools("FunctionTool.to_h generated",
+        tool_name: @name,
+        result_size: result.to_s.length,
+        has_parameters: !result.dig(:function, :parameters).nil?,
+        properties_count: result.dig(:function, :parameters, :properties)&.keys&.length || 0,
+        required_count: result.dig(:function, :parameters, :required)&.length || 0
+      )
 
       result
     end
@@ -178,10 +181,10 @@ module OpenAIAgents
         callable.parameters.each do |type, name|
           case type
           when :req, :keyreq
-            properties[name] = { type: "string", description: "#{name} parameter", required: true }
+            properties[name] = { type: "string", description: "#{name} parameter" }
             required << name
           when :opt, :key
-            properties[name] = { type: "string", description: "#{name} parameter", required: false }
+            properties[name] = { type: "string", description: "#{name} parameter" }
           end
         end
       end
@@ -189,7 +192,8 @@ module OpenAIAgents
       {
         type: "object",
         properties: properties,
-        required: required
+        required: required,
+        additionalProperties: false
       }
     end
   end

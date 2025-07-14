@@ -9,6 +9,8 @@ module OpenAIAgents
     def initialize(api_key:, api_base: "https://api.openai.com/v1", provider: nil)
       @api_key = api_key
       @api_base = api_base
+      # NOTE: Using OpenAIProvider as fallback for streaming compatibility
+      # This is one of the few legitimate uses of the deprecated OpenAIProvider
       @provider = provider || Models::OpenAIProvider.new(api_key: api_key, api_base: api_base)
     end
 

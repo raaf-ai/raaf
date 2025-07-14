@@ -186,7 +186,7 @@ module OpenAIAgents
 
     # Convenience class for creating object schemas
     class ObjectSchema < BaseSchema
-      def initialize(properties: {}, required: [], additional_properties: true)
+      def initialize(properties: {}, required: [], additional_properties: false)
         schema = {
           type: "object",
           properties: properties,
@@ -214,37 +214,43 @@ module OpenAIAgents
       def initialize
         @properties = {}
         @required_fields = []
-        @additional_properties = true
+        @additional_properties = false
       end
 
       def string(name, **options)
+        required = options.delete(:required)
         @properties[name] = { type: "string", **options }
-        @required_fields << name if options[:required]
+        @required_fields << name if required
       end
 
       def integer(name, **options)
+        required = options.delete(:required)
         @properties[name] = { type: "integer", **options }
-        @required_fields << name if options[:required]
+        @required_fields << name if required
       end
 
       def number(name, **options)
+        required = options.delete(:required)
         @properties[name] = { type: "number", **options }
-        @required_fields << name if options[:required]
+        @required_fields << name if required
       end
 
       def boolean(name, **options)
+        required = options.delete(:required)
         @properties[name] = { type: "boolean", **options }
-        @required_fields << name if options[:required]
+        @required_fields << name if required
       end
 
       def array(name, items:, **options)
+        required = options.delete(:required)
         @properties[name] = { type: "array", items: items, **options }
-        @required_fields << name if options[:required]
+        @required_fields << name if required
       end
 
       def object(name, properties:, **options)
+        required = options.delete(:required)
         @properties[name] = { type: "object", properties: properties, **options }
-        @required_fields << name if options[:required]
+        @required_fields << name if required
       end
 
       def required(*fields)

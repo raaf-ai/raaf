@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
+require_relative "../logging"
+require_relative "../errors"
+
 module OpenAIAgents
   module Models
     # Abstract base class for model providers
     class ModelInterface
+      include Logger
       def initialize(api_key: nil, api_base: nil, **options)
         @api_key = api_key
         @api_base = api_base
@@ -48,17 +52,13 @@ module OpenAIAgents
           when FunctionTool
             tool_hash = tool.to_h
             # DEBUG: Log the tool definition being sent to OpenAI
-            if defined?(Rails) && Rails.logger && Rails.env.development?
-              Rails.logger.debug "🔧 [OPENAI TOOLS DEBUG] Preparing tool for OpenAI API:"
-              Rails.logger.debug "   Tool name: #{tool_hash.dig(:function, :name)}"
-              Rails.logger.debug "   Tool type: #{tool_hash[:type]}"
-              Rails.logger.debug "   Parameters: #{tool_hash.dig(:function, :parameters).inspect}"
-              if tool_hash.dig(:function, :parameters, :properties)
-                Rails.logger.debug "   Properties: #{tool_hash.dig(:function, :parameters,
-                                                                   :properties).keys.join(", ")}"
-                Rails.logger.debug "   Required: #{tool_hash.dig(:function, :parameters, :required) || "none"}"
-              end
-            end
+            log_debug_tools("Preparing tool for OpenAI API",
+              tool_name: tool_hash.dig(:function, :name),
+              tool_type: tool_hash[:type],
+              has_parameters: !tool_hash.dig(:function, :parameters).nil?,
+              properties_count: tool_hash.dig(:function, :parameters, :properties)&.keys&.length || 0,
+              required_count: tool_hash.dig(:function, :parameters, :required)&.length || 0
+            )
             tool_hash
           when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
             tool.to_tool_definition
@@ -68,12 +68,10 @@ module OpenAIAgents
         end
 
         # DEBUG: Log the final prepared tools
-        if defined?(Rails) && Rails.logger && Rails.env.development?
-          Rails.logger.debug "🚀 [OPENAI TOOLS DEBUG] Final tools being sent to OpenAI API:"
-          prepared.each_with_index do |tool, index|
-            Rails.logger.debug "   Tool #{index + 1}: #{tool.inspect}"
-          end
-        end
+        log_debug_tools("Final tools prepared for OpenAI API",
+          tools_count: prepared.length,
+          tool_names: prepared.map { |t| t.dig(:function, :name) || t[:type] }.compact
+        )
 
         prepared
       end

@@ -1,10 +1,17 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# This example demonstrates compliance and audit logging capabilities for enterprise deployments.
+# In regulated industries (finance, healthcare, government), comprehensive audit trails are
+# mandatory for compliance with standards like GDPR, HIPAA, SOC2, and PCI-DSS. This example
+# shows how to implement audit logging, PII detection, consent management, and compliance
+# monitoring to meet regulatory requirements and enable forensic analysis.
+
 require_relative "../lib/openai_agents"
 require_relative "../lib/openai_agents/compliance"
 
 # Set API key from environment
+# In production, use secure credential management systems
 OpenAI.configure do |config|
   config.access_token = ENV.fetch("OPENAI_API_KEY", nil)
 end
@@ -13,15 +20,20 @@ puts "=== Compliance and Audit Logging Example ==="
 puts
 
 # Example 1: Basic Audit Logging
+# Audit logging creates an immutable record of all system activities.
+# This is essential for security investigations, compliance audits, and
+# understanding system behavior. The logger captures who did what, when,
+# and why, providing complete traceability.
 puts "Example 1: Basic Audit Logging"
 puts "-" * 50
 
-# Create audit logger
+# Create audit logger with comprehensive configuration
+# The logger supports multiple storage backends and compliance standards
 audit_logger = OpenAIAgents::Compliance::AuditLogger.new(
-  log_file: "audit_example.log",
-  storage_path: "./audit_logs_example",
-  store_conversations: true,
-  compliance_standards: %w[GDPR SOC2 HIPAA]
+  log_file: "audit_example.log",  # Primary log file for quick access
+  storage_path: "./audit_logs_example",  # Directory for archived logs
+  store_conversations: true,  # Store full conversation history for context
+  compliance_standards: %w[GDPR SOC2 HIPAA]  # Standards to enforce
 )
 
 # Create test agent
@@ -43,27 +55,35 @@ result = OpenAIAgents::Result.new(
   usage: { total_tokens: 45, prompt_tokens: 20, completion_tokens: 25 }
 )
 
-# Log the agent execution
+# Log the agent execution with full context
+# Every agent interaction is logged with metadata for compliance
+# This creates an audit trail showing AI decision-making processes
 audit_logger.log_agent_execution(
   agent,
   messages,
   result,
-  duration_ms: 1234
+  duration_ms: 1234  # Performance metrics for SLA monitoring
 )
 
 puts "Agent execution logged to audit trail"
 puts
 
 # Example 2: Tool Usage Logging
+# Tools represent external system access points that need careful monitoring.
+# Logging tool usage helps track data access patterns, detect anomalies,
+# and provide evidence for security audits. Each tool call is logged with
+# inputs, outputs, and metadata for complete visibility.
 puts "Example 2: Tool Usage Logging"
 puts "-" * 50
 
-# Log tool usage
+# Log database access for data governance
+# SQL queries are logged with parameters for forensic analysis
+# Sensitive data in parameters should be tokenized or hashed
 audit_logger.log_tool_usage(
   "database_query",
   { query: "SELECT * FROM users WHERE id = ?", params: ["user123"] },
   "Query executed successfully",
-  rows_returned: 1
+  rows_returned: 1  # Helps detect data exfiltration attempts
 )
 
 audit_logger.log_tool_usage(
@@ -77,10 +97,15 @@ puts "Tool usage events logged"
 puts
 
 # Example 3: Data Access Logging
+# Data access logging is crucial for GDPR compliance and data governance.
+# Every access to personal or sensitive data must be logged with a valid
+# business purpose. This enables data subject access requests and helps
+# demonstrate lawful basis for data processing.
 puts "Example 3: Data Access Logging"
 puts "-" * 50
 
-# Log various data access events
+# Log various data access events with business justification
+# The purpose field is mandatory for compliance reporting
 audit_logger.log_data_access("user_profile", "user123", "read", { purpose: "customer_support" })
 audit_logger.log_data_access("order_history", "order456", "read", { purpose: "order_inquiry" })
 audit_logger.log_data_access("payment_method", "card789", "update", { purpose: "payment_update" })
@@ -89,14 +114,19 @@ puts "Data access events logged"
 puts
 
 # Example 4: Security Event Logging
+# Security events require immediate attention and detailed logging.
+# The system categorizes events by severity (high/medium/low) to enable
+# appropriate response workflows. High-severity events can trigger
+# real-time alerts to security teams.
 puts "Example 4: Security Event Logging"
 puts "-" * 50
 
-# Log security events
+# Log unauthorized access attempt - high severity
+# This would trigger immediate security team notification
 audit_logger.log_security_event(
   "unauthorized_access",
   { resource: "admin_panel", user_id: "user123", ip: "192.168.1.100" },
-  :high
+  :high  # Severity determines alerting and response procedures
 )
 
 audit_logger.log_security_event(
@@ -115,15 +145,20 @@ puts "Security events logged (high severity events trigger alerts)"
 puts
 
 # Example 5: PII Detection and Handling
+# PII (Personally Identifiable Information) must be carefully controlled.
+# The system automatically detects common PII patterns (emails, phone numbers,
+# SSNs, credit cards) and can redact, block, or tokenize them. All PII
+# handling is logged for compliance with privacy regulations.
 puts "Example 5: PII Detection and Handling"
 puts "-" * 50
 
-# Log PII detection events
+# Log PII detection events with action taken
+# Common actions: redacted (hidden), blocked (rejected), tokenized (replaced)
 audit_logger.log_pii_detection(
   "chat_message",
-  %w[email phone_number],
-  "redacted",
-  message_id: "msg123"
+  %w[email phone_number],  # Types of PII detected
+  "redacted",  # Action taken to protect the data
+  message_id: "msg123"  # Reference for investigation
 )
 
 audit_logger.log_pii_detection(
@@ -137,15 +172,20 @@ puts "PII detection events logged"
 puts
 
 # Example 6: Consent Management
+# GDPR and similar regulations require explicit consent tracking.
+# Every consent grant, revocation, or modification must be logged with
+# timestamp and source. This creates a legal record of user permissions
+# that can be audited and used to enforce data processing boundaries.
 puts "Example 6: Consent Management"
 puts "-" * 50
 
-# Log consent events
+# Log consent events for GDPR Article 7 compliance
+# The source field tracks where consent was obtained
 audit_logger.log_consent_event(
   "user123",
-  "marketing_emails",
-  "granted",
-  source: "preferences_page"
+  "marketing_emails",  # Specific purpose requiring consent
+  "granted",  # Status: granted, revoked, modified
+  source: "preferences_page"  # UI location or API endpoint
 )
 
 audit_logger.log_consent_event(
@@ -166,10 +206,15 @@ puts "Consent events logged for GDPR compliance"
 puts
 
 # Example 7: Generate Audit Report
+# Audit reports summarize system activity for compliance officers,
+# security teams, and external auditors. Reports include event counts,
+# compliance metrics, anomalies, and recommendations. They can be
+# generated on-demand or scheduled for regular compliance reviews.
 puts "Example 7: Generate Audit Report"
 puts "-" * 50
 
-# Generate comprehensive audit report
+# Generate comprehensive audit report for specified time range
+# Reports can cover any period: hourly, daily, monthly, or custom
 puts "Generating audit report..."
 report = audit_logger.generate_audit_report(
   start_time: Time.now - 3600, # Last hour
@@ -201,13 +246,18 @@ end
 puts
 
 # Example 8: Export Audit Logs
+# Audit logs must be exportable for external analysis, long-term storage,
+# and integration with SIEM (Security Information and Event Management)
+# systems. Multiple formats ensure compatibility with various tools and
+# compliance requirements.
 puts "Example 8: Export Audit Logs"
 puts "-" * 50
 
-# Export in different formats
+# Export in different formats for different use cases
 puts "Exporting audit logs..."
 
-# JSON export
+# JSON export for programmatic analysis and archival
+# JSON preserves full structure and metadata
 json_export = audit_logger.export_logs(
   format: :json,
   output_file: "audit_export.json"
@@ -230,10 +280,15 @@ puts "  ✓ SIEM/CEF export completed"
 puts
 
 # Example 9: Log Integrity Verification
+# Audit logs must be tamper-evident to be legally admissible.
+# The system uses cryptographic hashing to detect any modifications
+# to log entries. Regular integrity checks ensure the audit trail
+# remains trustworthy for compliance and forensic purposes.
 puts "Example 9: Log Integrity Verification"
 puts "-" * 50
 
-# Verify log integrity
+# Verify log integrity using cryptographic checksums
+# Each log entry includes a hash chain for tamper detection
 puts "Verifying audit log integrity..."
 verification = audit_logger.verify_integrity(
   start_time: Time.now - 3600,
@@ -256,10 +311,15 @@ end
 puts
 
 # Example 10: Policy Compliance Checking
+# Automated policy checking ensures consistent enforcement of compliance
+# rules. The policy manager evaluates contexts against configured policies
+# for data retention, access control, PII handling, and audit requirements.
+# This proactive approach prevents violations before they occur.
 puts "Example 10: Policy Compliance Checking"
 puts "-" * 50
 
-# Create policy manager
+# Create policy manager with default enterprise policies
+# Policies can be customized per organization requirements
 policy_manager = OpenAIAgents::Compliance::PolicyManager.new
 
 # Check various compliance scenarios
@@ -301,10 +361,15 @@ scenarios.each do |scenario|
 end
 
 # Example 11: Real-time Compliance Monitoring
+# Real-time monitoring detects compliance violations as they happen,
+# enabling immediate response. The monitor runs background threads that
+# continuously check for policy violations, anomalies, and security events.
+# This proactive approach minimizes risk and regulatory exposure.
 puts "Example 11: Real-time Compliance Monitoring"
 puts "-" * 50
 
-# Create compliance monitor
+# Create compliance monitor combining audit logs and policies
+# The monitor correlates events with policies for real-time enforcement
 monitor = OpenAIAgents::Compliance::ComplianceMonitor.new(audit_logger, policy_manager)
 
 puts "Starting compliance monitoring..."
@@ -325,21 +390,26 @@ puts "Compliance monitoring stopped"
 puts
 
 # Example 12: Compliance Dashboard Data
+# Executive dashboards provide at-a-glance compliance status for
+# leadership and compliance officers. Key metrics include compliance
+# scores, violation trends, and coverage percentages. This data
+# drives continuous improvement and risk management decisions.
 puts "Example 12: Compliance Dashboard Data"
 puts "-" * 50
 
-# Generate dashboard metrics
+# Generate dashboard metrics for compliance visibility
+# These metrics would typically come from aggregated audit logs
 dashboard_data = {
-  compliance_score: 94.5,
-  last_audit: Time.now - 86_400,
-  active_policies: 12,
-  recent_violations: 3,
-  data_subjects: 1542,
-  consent_records: 1234,
-  security_events_24h: 7,
-  api_calls_24h: 15_420,
-  average_response_time: 234,
-  encryption_coverage: 98.2
+  compliance_score: 94.5,  # Overall compliance percentage
+  last_audit: Time.now - 86_400,  # Time since last audit
+  active_policies: 12,  # Number of enforced policies
+  recent_violations: 3,  # Violations in last 24 hours
+  data_subjects: 1542,  # GDPR data subjects tracked
+  consent_records: 1234,  # Active consent records
+  security_events_24h: 7,  # Security events today
+  api_calls_24h: 15_420,  # System usage volume
+  average_response_time: 234,  # Performance metric (ms)
+  encryption_coverage: 98.2  # Percentage of encrypted data
 }
 
 puts "Compliance Dashboard Metrics:"
@@ -350,13 +420,18 @@ end
 puts
 
 # Clean up example files
+# In production, audit logs would be archived, not deleted
+# This cleanup is only for the example to avoid leaving test files
 puts "Cleaning up example files..."
 ["audit_example.log", "audit_export.json", "audit_export.csv", "audit_export.cef"].each do |file|
   FileUtils.rm_f(file)
 end
 FileUtils.rm_rf("./audit_logs_example")
 
-# Best practices
+# Best practices section provides actionable guidance for implementing
+# compliance systems in production. These recommendations come from
+# real-world deployments in regulated industries and align with
+# industry standards and regulatory requirements.
 puts "\n=== Compliance and Audit Best Practices ==="
 puts "-" * 50
 puts <<~PRACTICES

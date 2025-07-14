@@ -326,20 +326,22 @@ module OpenAIAgents
 
   # Run result class that matches Python implementation
   class RunResult < Result
-    attr_reader :messages, :last_agent, :turns, :final_output, :last_response_id
+    attr_reader :messages, :last_agent, :turns, :final_output, :last_response_id, :usage
 
-    def initialize(success: true, messages: [], last_agent: nil, turns: 0, last_response_id: nil, **)
+    def initialize(success: true, messages: [], last_agent: nil, turns: 0, last_response_id: nil, usage: nil, **)
       @messages = messages.dup
       @last_agent = last_agent
       @turns = turns
       @last_response_id = last_response_id
+      @usage = usage
       @final_output = extract_final_output(messages)
 
       super(success: success, data: {
         messages: @messages,
         last_agent: agent_name,
         turns: @turns,
-        last_response_id: @last_response_id
+        last_response_id: @last_response_id,
+        usage: @usage
       }, **)
     end
 
@@ -372,16 +374,17 @@ module OpenAIAgents
         last_agent: @last_agent,
         turns: @turns,
         final_output: @final_output,
-        last_response_id: @last_response_id
+        last_response_id: @last_response_id,
+        usage: @usage
       }
     end
 
-    def self.success(messages: [], last_agent: nil, turns: 0, **)
-      new(success: true, messages: messages, last_agent: last_agent, turns: turns, **)
+    def self.success(messages: [], last_agent: nil, turns: 0, usage: nil, **)
+      new(success: true, messages: messages, last_agent: last_agent, turns: turns, usage: usage, **)
     end
 
-    def self.failure(error:, messages: [], last_agent: nil, turns: 0, **)
-      new(success: false, error: error, messages: messages, last_agent: last_agent, turns: turns, **)
+    def self.failure(error:, messages: [], last_agent: nil, turns: 0, usage: nil, **)
+      new(success: false, error: error, messages: messages, last_agent: last_agent, turns: turns, usage: usage, **)
     end
 
     private

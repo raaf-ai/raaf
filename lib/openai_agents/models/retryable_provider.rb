@@ -66,7 +66,7 @@ module OpenAIAgents
             jitter: DEFAULT_JITTER,
             exceptions: RETRYABLE_EXCEPTIONS.dup,
             status_codes: RETRYABLE_STATUS_CODES.dup,
-            logger: Logger.new($stdout)
+            logger: ::Logger.new($stdout)
           }
         end
       end
@@ -77,12 +77,14 @@ module OpenAIAgents
       end
 
       def configure_retry(**options)
+        @retry_config ||= self.class.default_retry_config
         @retry_config.merge!(options)
         self
       end
 
       # Execute a block with retry logic
       def with_retry(method_name = nil)
+        @retry_config ||= self.class.default_retry_config
         attempts = 0
         last_error = nil
 

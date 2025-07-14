@@ -1,161 +1,258 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# This example demonstrates concurrent agent execution in OpenAI Agents Ruby.
+# Concurrent operations enable parallel processing, improved performance, and better
+# resource utilization when dealing with multiple agents or time-consuming tools.
+# The concurrency functionality uses Ruby's Concurrent Ruby gem and built-in
+# threading capabilities to provide efficient parallel execution.
+
 require "bundler/setup"
-require "openai_agents/async"
+require_relative "../lib/openai_agents"
 require "benchmark"
+require "concurrent-ruby"
 
-# Example demonstrating async agent execution with parallel tool calls
+# ============================================================================
+# CONCURRENT AGENT EXAMPLES
+# ============================================================================
+# NOTE: This example requires the 'concurrent-ruby' gem to be installed:
+# gem install concurrent-ruby
 
-# Create an async agent
-agent = OpenAIAgents::Async.agent(
-  name: "AsyncAssistant",
+# ============================================================================
+# AGENT SETUP
+# ============================================================================
+# Create an agent that will be used with concurrent execution patterns.
+# While the agent itself isn't inherently async, we can execute multiple
+# agents concurrently for parallel processing.
+
+agent = OpenAIAgents::Agent.new(
+  name: "ConcurrentAssistant",
+  
+  # Instructions guide the agent's behavior
   instructions: "You are a helpful assistant that can search for information and perform calculations.",
+  
+  # Using smaller model for faster responses in examples
   model: "gpt-4o-mini"
 )
 
-# Add async tools that simulate API calls
-agent.add_tool(
-  lambda { |query:|
-    puts "[Search] Starting search for: #{query}"
-    sleep(1) # Simulate API latency
-    puts "[Search] Completed search for: #{query}"
-    "Search results for '#{query}': Found 10 relevant articles about #{query}."
-  }
-)
+# ============================================================================
+# CONCURRENT TOOLS
+# ============================================================================
+# Define tools that simulate time-consuming operations like API calls.
+# While individual tool calls aren't async, we can execute multiple agents
+# concurrently to achieve parallel processing.
 
-agent.add_tool(
-  lambda { |expression:|
-    puts "[Calculate] Starting calculation: #{expression}"
-    sleep(0.5) # Simulate computation time
-    result = begin
-      eval(expression)
-    rescue StandardError
-      "Invalid expression"
-    end
-    puts "[Calculate] Completed calculation: #{expression} = #{result}"
-    "Result: #{result}"
-  }
-)
-
-agent.add_tool(
-  lambda { |location:|
-    puts "[Weather] Fetching weather for: #{location}"
-    sleep(1.5) # Simulate API call
-    puts "[Weather] Completed weather fetch for: #{location}"
-    "The weather in #{location} is sunny and 72°F."
-  }
-)
-
-# Example 1: Simple async execution
-puts "=== Example 1: Simple Async Execution ==="
-puts "Running agent asynchronously..."
-
-Async do
-  result = OpenAIAgents::Async.run(
-    agent,
-    "What's the weather in New York and search for Ruby async patterns?"
-  ).wait
-
-  puts "\nAgent response:"
-  puts result.messages.last[:content]
+# Tool 1: Search function simulating external API call
+# In production: would call search APIs, databases, or web services
+def search_tool(query:)
+  puts "[Search] Starting search for: #{query}"
+  sleep(1) # Simulate API latency (would be actual API call)
+  puts "[Search] Completed search for: #{query}"
+  "Search results for '#{query}': Found 10 relevant articles about #{query}."
 end
+
+agent.add_tool(method(:search_tool))
+
+# Tool 2: Calculator simulating complex computation
+# Shows how concurrency allows other operations while calculating
+def calculate_tool(expression:)
+  puts "[Calculate] Starting calculation: #{expression}"
+  sleep(0.5) # Simulate computation time
+  
+  # Safe evaluation with error handling
+  result = begin
+    # In production: use a proper expression parser
+    eval(expression)
+  rescue StandardError
+    "Invalid expression"
+  end
+  
+  puts "[Calculate] Completed calculation: #{expression} = #{result}"
+  "Result: #{result}"
+end
+
+agent.add_tool(method(:calculate_tool))
+
+# Tool 3: Weather service with highest latency
+# Demonstrates benefit of concurrency when dealing with slow services
+def weather_tool(location:)
+  puts "[Weather] Fetching weather for: #{location}"
+  sleep(1.5) # Simulate slow weather API
+  puts "[Weather] Completed weather fetch for: #{location}"
+  "The weather in #{location} is sunny and 72°F."
+end
+
+agent.add_tool(method(:weather_tool))
+
+# ============================================================================
+# EXAMPLE 1: SIMPLE AGENT EXECUTION
+# ============================================================================
+# Shows basic agent execution with tool calls.
+# While individual tool calls are sequential, we can run multiple agents
+# concurrently in the next examples.
+
+puts "=== Example 1: Simple Agent Execution ==="
+puts "Running agent with multiple tools..."
+
+# Create a runner for the agent
+runner = OpenAIAgents::Runner.new(agent: agent)
+
+# Run the agent with a query that triggers multiple tools
+result = runner.run(
+  "What's the weather in New York and search for Ruby async patterns?"
+)
+
+puts "\nAgent response:"
+puts result.messages.last[:content]
 
 puts "\n" + ("=" * 50) + "\n"
 
-# Example 2: Parallel agent execution
+# ============================================================================
+# EXAMPLE 2: PARALLEL MULTI-AGENT EXECUTION
+# ============================================================================
+# Demonstrates running multiple specialized agents concurrently using threads.
+# This pattern is powerful for decomposing complex tasks.
+
 puts "=== Example 2: Parallel Agent Execution ==="
 puts "Running multiple agents in parallel..."
 
-# Create multiple agents for different tasks
-weather_agent = OpenAIAgents::Async.agent(
+# Create specialized agents for different domains
+# Each agent has focused expertise and instructions
+
+# Weather specialist agent
+weather_agent = OpenAIAgents::Agent.new(
   name: "WeatherAgent",
   instructions: "You provide weather information.",
   model: "gpt-4o-mini"
 )
 
-math_agent = OpenAIAgents::Async.agent(
+# Mathematics specialist agent
+math_agent = OpenAIAgents::Agent.new(
   name: "MathAgent", 
   instructions: "You solve math problems.",
   model: "gpt-4o-mini"
 )
 
-# Run agents in parallel
-Async do |task|
-  time = Benchmark.measure do
-    # Launch multiple async tasks
-    weather_task = task.async do
-      OpenAIAgents::Async.run(
-        weather_agent,
-        "What's the weather forecast for next week?"
-      ).wait
-    end
+# Create runners for each agent
+weather_runner = OpenAIAgents::Runner.new(agent: weather_agent)
+math_runner = OpenAIAgents::Runner.new(agent: math_agent)
+search_runner = OpenAIAgents::Runner.new(agent: agent)
 
-    math_task = task.async do
-      OpenAIAgents::Async.run(
-        math_agent,
-        "Calculate the factorial of 10"
-      ).wait
-    end
-
-    search_task = task.async do
-      OpenAIAgents::Async.run(
-        agent,
-        "Search for information about async programming in Ruby"
-      ).wait
-    end
-
-    # Wait for all tasks to complete
-    results = [weather_task, math_task, search_task].map(&:wait)
-
-    puts "\nParallel execution results:"
-    results.each_with_index do |result, i|
-      puts "\nTask #{i + 1}:"
-      puts result.messages.last[:content]
-    end
+# Measure execution time to demonstrate parallelism benefits
+time = Benchmark.measure do
+  # Launch multiple threads simultaneously
+  # Each runs in its own thread, allowing concurrent execution
+  
+  # Task 1: Weather forecast
+  weather_thread = Thread.new do
+    weather_runner.run("What's the weather forecast for next week?")
   end
 
-  puts "\nTotal execution time: #{time.real.round(2)} seconds"
-  puts "(Note: Tasks ran in parallel, so total time is less than sum of individual tasks)"
+  # Task 2: Mathematical computation
+  math_thread = Thread.new do
+    math_runner.run("Calculate the factorial of 10")
+  end
+
+  # Task 3: Information search
+  search_thread = Thread.new do
+    search_runner.run("Search for information about concurrent programming in Ruby")
+  end
+
+  # Collect results from all parallel threads
+  # This waits for all threads to complete
+  results = [weather_thread, math_thread, search_thread].map(&:value)
+
+  # Display results from each agent
+  puts "\nParallel execution results:"
+  results.each_with_index do |result, i|
+    puts "\nTask #{i + 1}:"
+    puts result.messages.last[:content]
+  end
 end
+
+# Show performance benefit of parallelism
+puts "\nTotal execution time: #{time.real.round(2)} seconds"
+puts "(Note: Tasks ran in parallel, so total time is less than sum of individual tasks)"
 
 puts "\n" + ("=" * 50) + "\n"
 
-# Example 3: Async tool execution
-puts "=== Example 3: Direct Async Tool Execution ==="
-puts "Executing tools directly in parallel..."
+# ============================================================================
+# EXAMPLE 3: CONCURRENT BATCH PROCESSING
+# ============================================================================
+# Shows concurrent processing of multiple queries using thread pools.
+# Useful for processing multiple independent requests simultaneously.
 
-Async do
-  agent_instance = OpenAIAgents::Async.agent(
-    name: "ToolAgent",
-    instructions: "Execute tools as requested",
-    model: "gpt-4o-mini"
-  )
+puts "=== Example 3: Concurrent Batch Processing ==="
+puts "Processing multiple queries concurrently..."
 
-  # Add the same tools
-  agent_instance.add_tool(agent.tools[0]) # search
-  agent_instance.add_tool(agent.tools[1]) # calculate
-  agent_instance.add_tool(agent.tools[2]) # weather
+# Create multiple queries that can be processed in parallel
+queries = [
+  "What's the weather in San Francisco?",
+  "Calculate 100 * 50 + 25",
+  "Search for Ruby concurrency patterns",
+  "What's the weather in Tokyo?",
+  "Calculate the square root of 144"
+]
 
-  time = Benchmark.measure do
-    # Execute multiple tools in parallel
-    results = agent_instance.execute_tools_async([
-                                                   { name: "search", arguments: { query: "Ruby concurrency" } },
-                                                   { name: "calculate", arguments: { expression: "100 * 50 + 25" } },
-                                                   { name: "weather", arguments: { location: "San Francisco" } }
-                                                 ]).wait
+# Create a thread pool using concurrent-ruby for efficient processing
+thread_pool = Concurrent::ThreadPoolExecutor.new(
+  min_threads: 2,
+  max_threads: 5,
+  max_queue: 10,
+  fallback_policy: :caller_runs
+)
 
-    puts "\nTool execution results:"
-    results.each do |result|
-      if result[:error]
-        puts "#{result[:name]}: ERROR - #{result[:error]}"
-      else
-        puts "#{result[:name]}: #{result[:result]}"
-      end
+time = Benchmark.measure do
+  # Submit all queries to the thread pool for concurrent execution
+  futures = queries.map do |query|
+    Concurrent::Future.execute(executor: thread_pool) do
+      runner = OpenAIAgents::Runner.new(agent: agent)
+      result = runner.run(query)
+      {
+        query: query,
+        response: result.messages.last[:content],
+        thread_id: Thread.current.object_id
+      }
     end
   end
 
-  puts "\nParallel tool execution time: #{time.real.round(2)} seconds"
+  # Wait for all futures to complete and collect results
+  results = futures.map(&:value!)
+
+  # Display results with thread information
+  puts "\nConcurrent batch processing results:"
+  results.each_with_index do |result, i|
+    puts "\nQuery #{i + 1} (Thread #{result[:thread_id]}):"
+    puts "Q: #{result[:query]}"
+    puts "A: #{result[:response]}"
+  end
 end
 
-puts "\n=== Async Examples Complete ==="
+# Clean up the thread pool
+thread_pool.shutdown
+thread_pool.wait_for_termination(30)
+
+# Demonstrate time savings from parallelization
+puts "\nConcurrent processing time: #{time.real.round(2)} seconds"
+puts "Sequential processing would take much longer"
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+puts "\n=== Concurrent Examples Complete ==="
+puts "\nKey Benefits of Concurrent Agents:"
+puts "1. Parallel agent execution reduces total runtime"
+puts "2. Multiple agents can work concurrently using threads"
+puts "3. Better resource utilization for I/O-bound operations"
+puts "4. Thread pools provide controlled concurrent execution"
+puts "5. Scales better with multiple concurrent requests"
+
+puts "\nBest Practices:"
+puts "- Use concurrency for I/O-bound operations (API calls, file access)"
+puts "- Group independent operations for parallel execution"
+puts "- Monitor memory usage with many concurrent operations"
+puts "- Handle errors gracefully in concurrent contexts"
+puts "- Consider rate limits when parallelizing external API calls"
+puts "- Use thread pools to control resource usage"
+puts "- Be mindful of thread safety when sharing data"
