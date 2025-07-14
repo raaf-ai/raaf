@@ -7,12 +7,151 @@ require "fileutils"
 require "logger"
 
 module OpenAIAgents
+  ##
   # Compliance and audit logging system
+  #
+  # This module provides comprehensive compliance and audit capabilities for OpenAI Agents,
+  # including audit logging, policy management, PII detection, data retention, and
+  # regulatory compliance monitoring. It's designed to meet enterprise compliance
+  # requirements including GDPR, HIPAA, SOX, and other regulatory frameworks.
+  #
+  # == Key Components
+  #
+  # * **AuditLogger**: Comprehensive audit trail logging with multiple storage backends
+  # * **PolicyManager**: Centralized policy management and enforcement
+  # * **ComplianceMonitor**: Real-time compliance monitoring and alerting
+  # * **CompliancePolicy**: Base policy framework with specialized implementations
+  # * **DataRetentionPolicy**: Automated data lifecycle management
+  # * **AccessControlPolicy**: Access control and authorization policies
+  # * **PIIHandlingPolicy**: Personally identifiable information protection
+  #
+  # == Compliance Features
+  #
+  # * **Audit Trails**: Detailed logging of all agent activities
+  # * **Data Protection**: PII detection, redaction, and handling
+  # * **Access Control**: Role-based access and authorization
+  # * **Data Retention**: Automated retention and deletion policies
+  # * **Policy Enforcement**: Real-time policy validation and enforcement
+  # * **Regulatory Support**: GDPR, HIPAA, SOX compliance frameworks
+  # * **Security Monitoring**: Security event detection and alerting
+  #
+  # @example Basic audit logging
+  #   audit_logger = Compliance::AuditLogger.new(
+  #     storage: :file,
+  #     retention_days: 2555,  # 7 years
+  #     encryption: true
+  #   )
+  #   
+  #   audit_logger.log_agent_execution(agent, messages, result)
+  #   audit_logger.log_tool_usage("search", { query: "[REDACTED]" }, result)
+  #
+  # @example Policy management
+  #   policy_manager = Compliance::PolicyManager.new
+  #   policy_manager.add_policy(Compliance::PIIHandlingPolicy.new)
+  #   policy_manager.add_policy(Compliance::DataRetentionPolicy.new(retention_days: 90))
+  #   
+  #   result = policy_manager.enforce_policies(context, data)
+  #
+  # @example Compliance monitoring
+  #   monitor = Compliance::ComplianceMonitor.new(
+  #     policies: [data_retention_policy, pii_policy],
+  #     audit_logger: audit_logger
+  #   )
+  #   
+  #   monitor.start_monitoring
+  #   compliance_status = monitor.check_compliance
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see AuditLogger For audit trail management
+  # @see PolicyManager For policy enforcement
+  # @see ComplianceMonitor For real-time monitoring
   module Compliance
+    ##
     # Audit logger for compliance tracking
+    #
+    # The AuditLogger provides comprehensive audit trail capabilities for OpenAI Agents,
+    # tracking all agent executions, tool usage, data access, and security events.
+    # It supports multiple storage backends, encryption, and configurable retention
+    # policies to meet various compliance requirements.
+    #
+    # == Features
+    #
+    # * **Multi-Backend Storage**: File, database, and cloud storage support
+    # * **Encryption**: Configurable encryption for sensitive audit data
+    # * **Data Retention**: Automatic cleanup based on retention policies
+    # * **Event Types**: Agent execution, tool usage, data access, security events
+    # * **PII Protection**: Automatic detection and handling of sensitive data
+    # * **Session Tracking**: Session-based audit trail correlation
+    # * **Export Capabilities**: Compliance report generation and export
+    #
+    # == Event Types
+    #
+    # * **agent_execution**: Complete agent conversation logging
+    # * **tool_usage**: Individual tool invocation tracking
+    # * **data_access**: Resource access and modification events
+    # * **security_***: Security-related events and alerts
+    # * **pii_detection**: PII detection and handling events
+    # * **policy_violation**: Policy enforcement violations
+    #
+    # @example Basic configuration
+    #   audit_logger = AuditLogger.new(
+    #     storage: :file,
+    #     storage_path: "/var/log/openai_agents/audit",
+    #     retention_days: 2555,  # 7 years for regulatory compliance
+    #     encryption: true,
+    #     store_conversations: false  # Don't store full conversations
+    #   )
+    #
+    # @example Database storage
+    #   audit_logger = AuditLogger.new(
+    #     storage: :database,
+    #     database_url: "postgresql://localhost/audit_logs",
+    #     encryption: true,
+    #     pii_detection: true
+    #   )
+    #
+    # @example Cloud storage with compliance
+    #   audit_logger = AuditLogger.new(
+    #     storage: :s3,
+    #     bucket: "compliance-audit-logs",
+    #     encryption: true,
+    #     compliance_mode: :hipaa,
+    #     retention_days: 2555
+    #   )
+    #
+    # @author OpenAI Agents Ruby Team
+    # @since 0.1.0
+    # @see PolicyManager For policy-based audit configuration
     class AuditLogger
-      attr_reader :config, :logger
+      # @return [Hash] audit logger configuration
+      attr_reader :config
+      
+      # @return [Logger] underlying logger instance
+      attr_reader :logger
 
+      ##
+      # Initialize audit logger with configuration
+      #
+      # @param config [Hash] audit logger configuration
+      # @option config [Symbol] :storage storage backend (:file, :database, :s3)
+      # @option config [String] :storage_path file storage path
+      # @option config [Integer] :retention_days data retention period
+      # @option config [Boolean] :encryption enable encryption
+      # @option config [Boolean] :store_conversations store full conversation data
+      # @option config [Boolean] :pii_detection enable PII detection
+      # @option config [Symbol] :compliance_mode compliance framework (:gdpr, :hipaa, :sox)
+      #
+      # @example Basic file storage
+      #   AuditLogger.new(storage: :file, retention_days: 365)
+      #
+      # @example HIPAA compliance
+      #   AuditLogger.new(
+      #     storage: :database,
+      #     encryption: true,
+      #     compliance_mode: :hipaa,
+      #     pii_detection: true
+      #   )
       def initialize(config = {})
         @config = default_config.merge(config)
         @logger = setup_logger
@@ -24,7 +163,31 @@ module OpenAIAgents
         log_system_event("audit_logger_initialized", { config: sanitized_config })
       end
 
-      # Log agent execution
+      ##
+      # Log agent execution for audit trail
+      #
+      # Records complete agent execution including input/output message counts,
+      # token usage, execution duration, and success status. Optionally stores
+      # full conversation data based on configuration.
+      #
+      # @param agent [Agent] the agent that was executed
+      # @param messages [Array<Hash>] input messages to the agent
+      # @param result [RunResult] execution result with messages and usage
+      # @param metadata [Hash] additional metadata to log
+      # @option metadata [Float] :duration_ms execution duration in milliseconds
+      # @option metadata [String] :session_id session identifier
+      # @option metadata [String] :user_id user identifier (if available)
+      # @return [void]
+      #
+      # @example Logging agent execution
+      #   audit_logger.log_agent_execution(
+      #     agent,
+      #     messages,
+      #     result,
+      #     duration_ms: 1500.0,
+      #     session_id: "session_123",
+      #     user_id: "user_456"
+      #   )
       def log_agent_execution(agent, messages, result, metadata = {})
         event = {
           event_type: "agent_execution",
@@ -46,7 +209,32 @@ module OpenAIAgents
         store_conversation_record(agent, messages, result, event[:event_id])
       end
 
-      # Log tool usage
+      ##
+      # Log tool usage for audit trail
+      #
+      # Records individual tool invocations including arguments (sanitized),
+      # success status, and error information if applicable.
+      #
+      # @param tool_name [String] name of the tool that was executed
+      # @param args [Hash] arguments passed to the tool (will be sanitized)
+      # @param result [Object, Exception] tool execution result or error
+      # @param metadata [Hash] additional metadata to log
+      # @return [void]
+      #
+      # @example Successful tool usage
+      #   audit_logger.log_tool_usage(
+      #     "search",
+      #     { query: "weather", limit: 10 },
+      #     search_results,
+      #     execution_time: 250
+      #   )
+      #
+      # @example Failed tool usage
+      #   audit_logger.log_tool_usage(
+      #     "database_query",
+      #     { table: "users", filter: "[REDACTED]" },
+      #     StandardError.new("Connection failed")
+      #   )
       def log_tool_usage(tool_name, args, result, metadata = {})
         event = {
           event_type: "tool_usage",
@@ -60,7 +248,34 @@ module OpenAIAgents
         log_compliance_event(event)
       end
 
-      # Log data access
+      ##
+      # Log data access for audit trail
+      #
+      # Records access to sensitive resources including databases, files,
+      # APIs, and other data sources. Essential for compliance auditing.
+      #
+      # @param resource_type [String] type of resource accessed (e.g., "database", "file", "api")
+      # @param resource_id [String] identifier of the specific resource
+      # @param action [String] action performed ("read", "write", "delete", etc.)
+      # @param metadata [Hash] additional context about the access
+      # @return [void]
+      #
+      # @example Database access
+      #   audit_logger.log_data_access(
+      #     "database",
+      #     "users_table",
+      #     "read",
+      #     records_accessed: 15,
+      #     query_hash: "abc123"
+      #   )
+      #
+      # @example File access
+      #   audit_logger.log_data_access(
+      #     "file",
+      #     "/sensitive/data.csv",
+      #     "read",
+      #     file_size: 1024000
+      #   )
       def log_data_access(resource_type, resource_id, action, metadata = {})
         event = {
           event_type: "data_access",
@@ -73,7 +288,31 @@ module OpenAIAgents
         log_compliance_event(event)
       end
 
-      # Log security events
+      ##
+      # Log security events for audit trail
+      #
+      # Records security-related events including authentication failures,
+      # authorization violations, suspicious activities, and security alerts.
+      # High severity events trigger additional alerting mechanisms.
+      #
+      # @param event_type [String] type of security event
+      # @param details [Hash] detailed information about the event
+      # @param severity [Symbol] event severity (:low, :medium, :high, :critical)
+      # @return [void]
+      #
+      # @example Authentication failure
+      #   audit_logger.log_security_event(
+      #     "authentication_failure",
+      #     { user_id: "user_123", ip_address: "192.168.1.100" },
+      #     :medium
+      #   )
+      #
+      # @example Critical security alert
+      #   audit_logger.log_security_event(
+      #     "privilege_escalation_attempt",
+      #     { user_id: "user_456", attempted_action: "admin_access" },
+      #     :critical
+      #   )
       def log_security_event(event_type, details, severity = :medium)
         event = {
           event_type: "security_#{event_type}",
@@ -92,7 +331,26 @@ module OpenAIAgents
         trigger_security_alert(event)
       end
 
-      # Log PII detection
+      ##
+      # Log PII detection events for audit trail
+      #
+      # Records detection of personally identifiable information in agent
+      # inputs or outputs, along with actions taken to protect the data.
+      #
+      # @param content_type [String] type of content analyzed ("input", "output", "tool_args")
+      # @param pii_types [Array<String>] types of PII detected (e.g., ["email", "ssn"])
+      # @param action_taken [String] action taken ("redacted", "blocked", "flagged")
+      # @param metadata [Hash] additional context about the detection
+      # @return [void]
+      #
+      # @example PII redaction
+      #   audit_logger.log_pii_detection(
+      #     "user_input",
+      #     ["email", "phone_number"],
+      #     "redacted",
+      #     confidence_score: 0.95,
+      #     original_length: 150
+      #   )
       def log_pii_detection(content_type, pii_types, action_taken, metadata = {})
         event = {
           event_type: "pii_detection",

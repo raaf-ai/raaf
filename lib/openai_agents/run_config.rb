@@ -1,14 +1,26 @@
 # frozen_string_literal: true
 
+require_relative "config/model_config"
+require_relative "config/tracing_config"
+require_relative "config/execution_config"
+
 module OpenAIAgents
+  ##
   # Configuration for a single run of an agent
   #
-  # This class provides fine-grained control over agent execution,
-  # including tracing, model parameters, and execution limits.
+  # This class composes focused configuration objects to provide
+  # a clean separation of concerns while maintaining backwards compatibility.
+  # Uses composition pattern with specialized config objects for better
+  # maintainability and testing.
   #
   # @example Basic usage
   #   config = RunConfig.new(max_turns: 10, temperature: 0.7)
   #   runner.run(messages, config: config)
+  #
+  # @example Using focused configs
+  #   model_config = Config::ModelConfig.new(temperature: 0.7, max_tokens: 1000)
+  #   tracing_config = Config::TracingConfig.new(trace_id: "custom-123")
+  #   config = RunConfig.new(model: model_config, tracing: tracing_config)
   #
   # @example Disable tracing for sensitive data
   #   config = RunConfig.new(
@@ -22,220 +34,185 @@ module OpenAIAgents
   #     group_id: "conversation-456",
   #     metadata: { user_id: "user789" }
   #   )
+  #
   class RunConfig
-    # @return [Integer] Maximum number of agent turns (default: from agent)
-    attr_accessor :max_turns
+    attr_reader :model, :tracing, :execution
 
-    # @return [String, nil] Custom trace ID for this run
-    attr_accessor :trace_id
-
-    # @return [String, nil] Group ID to link related traces
-    attr_accessor :group_id
-
-    # @return [Hash, nil] Custom metadata for tracing
-    attr_accessor :metadata
-
-    # @return [Boolean] Whether to disable tracing for this run
-    attr_accessor :tracing_disabled
-
-    # @return [Boolean] Whether to include sensitive data in traces
-    attr_accessor :trace_include_sensitive_data
-
-    # @return [Float, nil] Temperature for model sampling (0.0-2.0)
-    attr_accessor :temperature
-
-    # @return [Integer, nil] Maximum tokens to generate
-    attr_accessor :max_tokens
-
-    # @return [Boolean] Whether to stream responses
-    attr_accessor :stream
-
-    # @return [String, nil] Override model for this run
-    attr_accessor :model
-
-    # @return [String] Workflow name for tracing
-    attr_accessor :workflow_name
-
-    # @return [Float, nil] Top-p sampling parameter
-    attr_accessor :top_p
-
-    # @return [Array<String>, nil] Stop sequences
-    attr_accessor :stop
-
-    # @return [Float, nil] Frequency penalty (-2.0 to 2.0)
-    attr_accessor :frequency_penalty
-
-    # @return [Float, nil] Presence penalty (-2.0 to 2.0)
-    attr_accessor :presence_penalty
-
-    # @return [String, nil] User identifier for rate limiting
-    attr_accessor :user
-
-    # @return [Hash] Additional model-specific parameters
-    attr_accessor :model_kwargs
-
-    # @return [RunHooks, nil] Lifecycle hooks for this run
-    attr_accessor :hooks
-
-    # @return [Array<Guardrails::InputGuardrail>, nil] Input guardrails for this run
-    attr_accessor :input_guardrails
-
-    # @return [Array<Guardrails::OutputGuardrail>, nil] Output guardrails for this run
-    attr_accessor :output_guardrails
-
-    # @return [String, nil] Previous response ID for Responses API continuity
-    attr_accessor :previous_response_id
-
+    ##
+    # Initialize with either individual parameters or config objects
+    #
+    # @param model [Config::ModelConfig, nil] Model configuration
+    # @param tracing [Config::TracingConfig, nil] Tracing configuration  
+    # @param execution [Config::ExecutionConfig, nil] Execution configuration
+    # @param kwargs [Hash] Individual parameters (for backwards compatibility)
+    #
     def initialize(
-      max_turns: nil,
-      trace_id: nil,
-      group_id: nil,
-      metadata: nil,
-      tracing_disabled: false,
-      trace_include_sensitive_data: true,
-      temperature: nil,
-      max_tokens: nil,
-      stream: false,
       model: nil,
-      workflow_name: "Agent workflow",
-      top_p: nil,
-      stop: nil,
-      frequency_penalty: nil,
-      presence_penalty: nil,
-      user: nil,
-      previous_response_id: nil,
-      **model_kwargs
+      tracing: nil,
+      execution: nil,
+      **kwargs
     )
-      @max_turns = max_turns
-      @trace_id = trace_id
-      @group_id = group_id
-      @metadata = metadata
-      @tracing_disabled = tracing_disabled
-      @trace_include_sensitive_data = trace_include_sensitive_data
-      @temperature = temperature
-      @max_tokens = max_tokens
-      @stream = stream
-      @model = model
-      @workflow_name = workflow_name
-      @top_p = top_p
-      @stop = stop
-      @frequency_penalty = frequency_penalty
-      @presence_penalty = presence_penalty
-      @user = user
-      @model_kwargs = model_kwargs
-      @previous_response_id = previous_response_id
+      # If config objects provided, use them
+      @model = model || Config::ModelConfig.new(**extract_model_params(kwargs))
+      @tracing = tracing || Config::TracingConfig.new(**extract_tracing_params(kwargs))
+      @execution = execution || Config::ExecutionConfig.new(**extract_execution_params(kwargs))
     end
 
-    # Merge with another RunConfig, with other taking precedence
+    ##
+    # Backwards compatibility: delegate to model config
+    def temperature
+      model.temperature
+    end
+
+    def temperature=(value)
+      model.temperature = value
+    end
+
+    def max_tokens
+      model.max_tokens
+    end
+
+    def max_tokens=(value)
+      model.max_tokens = value
+    end
+
+    def stream
+      model.stream
+    end
+
+    def stream=(value)
+      model.stream = value
+    end
+
+    ##
+    # Backwards compatibility: delegate to tracing config
+    def trace_id
+      tracing.trace_id
+    end
+
+    def trace_id=(value)
+      tracing.trace_id = value
+    end
+
+    def tracing_disabled
+      tracing.tracing_disabled
+    end
+
+    def tracing_disabled=(value)
+      tracing.tracing_disabled = value
+    end
+
+    def metadata
+      tracing.metadata
+    end
+
+    def metadata=(value)
+      tracing.metadata = value
+    end
+
+    def workflow_name
+      tracing.workflow_name
+    end
+
+    def workflow_name=(value)
+      tracing.workflow_name = value
+    end
+
+    ##
+    # Backwards compatibility: delegate to execution config
+    def max_turns
+      execution.max_turns
+    end
+
+    def max_turns=(value)
+      execution.max_turns = value
+    end
+
+    def hooks
+      execution.hooks
+    end
+
+    def hooks=(value)
+      execution.hooks = value
+    end
+
+    ##
+    # Convert to model parameters (delegates to model config)
+    #
+    # @return [Hash] Parameters for model API calls
+    #
+    def to_model_params
+      model.to_model_params
+    end
+
+    ##
+    # Merge with another RunConfig
+    #
+    # @param other [RunConfig] Config to merge
+    # @return [RunConfig] New merged config
+    #
     def merge(other)
       return self unless other
 
-      result = self.class.new
-
-      # Copy all instance variables
-      instance_variables.each do |var|
-        value = instance_variable_get(var)
-        other_value = other.instance_variable_get(var) if other.instance_variable_defined?(var)
-
-        # Use other's value if defined and not nil
-        final_value = if other.instance_variable_defined?(var) && !other_value.nil?
-                        other_value
-                      else
-                        value
-                      end
-
-        result.instance_variable_set(var, final_value)
-      end
-
-      result
+      self.class.new(
+        model: model.merge(other.model),
+        tracing: tracing.merge(other.tracing),
+        execution: execution.merge(other.execution)
+      )
     end
 
-    # Merge with another RunConfig in place (destructive operation)
+    ##
+    # Convert to hash representation
     #
-    # @param other [RunConfig] configuration to merge in
-    # @return [RunConfig] self for method chaining
+    # @return [Hash] Complete configuration as hash
     #
-    # @example Merge configurations in place
-    #   config.merge!(other_config)
-    def merge!(other)
-      return self unless other
-
-      # Update all instance variables from other
-      instance_variables.each do |var|
-        other_value = other.instance_variable_get(var) if other.instance_variable_defined?(var)
-
-        # Use other's value if defined and not nil
-        instance_variable_set(var, other_value) if other.instance_variable_defined?(var) && !other_value.nil?
-      end
-
-      self
-    end
-
-    # Reset all configuration to defaults (destructive operation)
-    #
-    # @return [RunConfig] self for method chaining
-    def reset!
-      @max_turns = nil
-      @trace_id = nil
-      @group_id = nil
-      @metadata = nil
-      @tracing_disabled = false
-      @trace_include_sensitive_data = true
-      @temperature = nil
-      @max_tokens = nil
-      @stream = false
-      @model = nil
-      @workflow_name = "Agent workflow"
-      @top_p = nil
-      @stop = nil
-      @frequency_penalty = nil
-      @presence_penalty = nil
-      @user = nil
-      @model_kwargs = {}
-      @hooks = nil
-      @input_guardrails = nil
-      @output_guardrails = nil
-      self
-    end
-
-    # Convert to hash for API calls using Ruby-idiomatic dynamic approach
-    def to_model_params
-      # Define parameters that should be included in model calls
-      model_params = %i[temperature max_tokens top_p stop frequency_penalty presence_penalty user stream]
-
-      # Use Ruby's send method for dynamic parameter mapping
-      params = model_params.each_with_object({}) do |param, hash|
-        value = send(param)
-        hash[param] = value if value
-      end
-
-      # Merge any additional model kwargs
-      params.merge!(model_kwargs) if model_kwargs
-
-      params
-    end
-
-    # Convert to hash
     def to_h
-      {
-        max_turns: max_turns,
-        trace_id: trace_id,
-        group_id: group_id,
-        metadata: metadata,
-        tracing_disabled: tracing_disabled,
-        trace_include_sensitive_data: trace_include_sensitive_data,
-        temperature: temperature,
-        max_tokens: max_tokens,
-        stream: stream,
-        model: model,
-        workflow_name: workflow_name,
-        top_p: top_p,
-        stop: stop,
-        frequency_penalty: frequency_penalty,
-        presence_penalty: presence_penalty,
-        user: user,
-        model_kwargs: model_kwargs
-      }
+      model.to_h.merge(tracing.to_h).merge(execution.to_h)
+    end
+
+    ##
+    # Create a copy with focused config replaced
+    #
+    # @param model [Config::ModelConfig, nil] New model config
+    # @param tracing [Config::TracingConfig, nil] New tracing config
+    # @param execution [Config::ExecutionConfig, nil] New execution config
+    # @return [RunConfig] New config with replaced components
+    #
+    def with_configs(model: nil, tracing: nil, execution: nil)
+      self.class.new(
+        model: model || self.model,
+        tracing: tracing || self.tracing,
+        execution: execution || self.execution
+      )
+    end
+
+    private
+
+    def extract_model_params(kwargs)
+      model_keys = %i[temperature max_tokens model top_p stop frequency_penalty 
+                      presence_penalty user stream previous_response_id]
+      
+      model_params = kwargs.select { |k, _| model_keys.include?(k) }
+      
+      # Handle model_kwargs specially
+      if kwargs[:model_kwargs]
+        model_params.merge!(kwargs[:model_kwargs])
+      end
+      
+      model_params
+    end
+
+    def extract_tracing_params(kwargs)
+      tracing_keys = %i[trace_id group_id metadata tracing_disabled 
+                        trace_include_sensitive_data workflow_name]
+      
+      kwargs.select { |k, _| tracing_keys.include?(k) }
+    end
+
+    def extract_execution_params(kwargs)
+      execution_keys = %i[max_turns hooks input_guardrails output_guardrails]
+      
+      kwargs.select { |k, _| execution_keys.include?(k) }
     end
   end
 end

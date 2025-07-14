@@ -1,12 +1,110 @@
 # frozen_string_literal: true
 
 module OpenAIAgents
+  ##
   # Utilities for ensuring strict JSON schemas compatible with OpenAI's requirements
-  # Based on the Python implementation in openai-agents
+  #
+  # This module provides utilities for transforming JSON schemas to meet OpenAI's
+  # strict schema requirements for function calling and structured outputs. It ensures
+  # schemas conform to the constraints required by the OpenAI API while maintaining
+  # compatibility with standard JSON Schema specifications.
+  #
+  # == Strict Schema Requirements
+  #
+  # OpenAI's strict mode enforces several constraints:
+  # * All object properties must be required (no optional fields)
+  # * `additionalProperties` must be false for objects
+  # * No nullable types or default values of null
+  # * Simplified union handling (anyOf, allOf)
+  #
+  # == Key Transformations
+  #
+  # * **Property Requirements**: All object properties become required
+  # * **Additional Properties**: Sets `additionalProperties: false` for objects
+  # * **Key Conversion**: Handles symbol/string key conversion for API compatibility
+  # * **Schema Flattening**: Simplifies single-item allOf constructs
+  # * **Null Handling**: Removes null default values
+  #
+  # @example Basic schema transformation
+  #   schema = {
+  #     type: "object",
+  #     properties: {
+  #       name: { type: "string" },
+  #       age: { type: "integer" }
+  #     }
+  #   }
+  #   strict_schema = StrictSchema.ensure_strict_json_schema(schema)
+  #   # Result: all properties required, additionalProperties: false
+  #
+  # @example Function tool schema
+  #   function_schema = {
+  #     name: "search",
+  #     parameters: {
+  #       type: "object",
+  #       properties: {
+  #         query: { type: "string", description: "Search query" },
+  #         limit: { type: "integer", default: 10 }
+  #       }
+  #     }
+  #   }
+  #   strict_params = StrictSchema.ensure_strict_json_schema(function_schema[:parameters])
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see https://platform.openai.com/docs/guides/structured-outputs OpenAI Structured Outputs
   module StrictSchema
     class << self
+      ##
       # Ensures the given JSON schema conforms to the strict standard that OpenAI API expects
-      # This mutates the schema to add required fields and other strict requirements
+      #
+      # Transforms a JSON schema to meet OpenAI's strict schema requirements by:
+      # - Making all object properties required
+      # - Setting additionalProperties to false for objects
+      # - Converting keys to strings for API compatibility
+      # - Handling nested schemas recursively
+      # - Flattening single allOf constructs
+      # - Removing null default values
+      #
+      # @param schema [Hash, nil] JSON schema to make strict
+      # @return [Hash] strict JSON schema compatible with OpenAI API
+      #
+      # @example Basic object schema
+      #   schema = {
+      #     type: "object",
+      #     properties: {
+      #       name: { type: "string" },
+      #       email: { type: "string", format: "email" }
+      #     }
+      #   }
+      #   strict = StrictSchema.ensure_strict_json_schema(schema)
+      #   # => {
+      #   #   "type" => "object",
+      #   #   "properties" => {
+      #   #     "name" => { "type" => "string" },
+      #   #     "email" => { "type" => "string", "format" => "email" }
+      #   #   },
+      #   #   "required" => ["name", "email"],
+      #   #   "additionalProperties" => false
+      #   # }
+      #
+      # @example Array with object items
+      #   schema = {
+      #     type: "array",
+      #     items: {
+      #       type: "object",
+      #       properties: { id: { type: "integer" } }
+      #     }
+      #   }
+      #   strict = StrictSchema.ensure_strict_json_schema(schema)
+      #
+      # @example Union types (anyOf)
+      #   schema = {
+      #     anyOf: [
+      #       { type: "string" },
+      #       { type: "integer" }
+      #     ]
+      #   }
+      #   strict = StrictSchema.ensure_strict_json_schema(schema)
       def ensure_strict_json_schema(schema)
         return empty_schema if schema.nil? || schema.empty?
 
@@ -17,13 +115,22 @@ module OpenAIAgents
 
       private
 
+      ##
       # Convert hash keys to strings recursively (for OpenAI API compatibility)
       #
       # OpenAI API expects string keys in JSON schemas, so we convert symbol keys
       # to strings at the API boundary while preserving the internal symbol usage.
+      # This transformation is applied recursively to handle nested structures.
       #
       # @param obj [Hash, Array, Object] The object to convert
       # @return [Hash, Array, Object] Object with stringified keys
+      #
+      # @example Convert symbol keys to strings
+      #   input = { type: :object, properties: { name: { type: :string } } }
+      #   result = deep_stringify_keys(input)
+      #   # => { "type" => "object", "properties" => { "name" => { "type" => "string" } } }
+      #
+      # @api private
       def deep_stringify_keys(obj)
         case obj
         when Hash
@@ -35,13 +142,22 @@ module OpenAIAgents
         end
       end
 
+      ##
       # Convert hash keys to symbols recursively (for internal processing)
       #
       # This method can be used to convert API responses back to symbol keys
       # for internal Ruby processing following the symbols-everywhere pattern.
+      # Useful for normalizing external data to Ruby conventions.
       #
       # @param obj [Hash, Array, Object] The object to convert
       # @return [Hash, Array, Object] Object with symbolized keys
+      #
+      # @example Convert string keys to symbols
+      #   input = { "type" => "object", "properties" => { "name" => { "type" => "string" } } }
+      #   result = deep_symbolize_keys(input)
+      #   # => { type: "object", properties: { name: { type: "string" } } }
+      #
+      # @api private
       def deep_symbolize_keys(obj)
         case obj
         when Hash
@@ -53,6 +169,24 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Generate an empty strict object schema
+      #
+      # Creates a minimal object schema that meets OpenAI's strict requirements.
+      # Used as a fallback when no schema is provided or when creating base schemas.
+      #
+      # @return [Hash] empty strict object schema
+      #
+      # @example Empty schema structure
+      #   empty = empty_schema
+      #   # => {
+      #   #   "additionalProperties" => false,
+      #   #   "type" => "object",
+      #   #   "properties" => {},
+      #   #   "required" => []
+      #   # }
+      #
+      # @api private
       def empty_schema
         {
           "additionalProperties" => false,
@@ -62,6 +196,22 @@ module OpenAIAgents
         }
       end
 
+      ##
+      # Recursively ensure strict schema compliance for nested structures
+      #
+      # Processes a JSON schema recursively, applying strict transformations to
+      # all nested objects, arrays, and union types. Maintains path context for
+      # error reporting and handles various JSON Schema constructs.
+      #
+      # @param json_schema [Hash] schema to process
+      # @param path [Array<String>] current path in schema (for error reporting)
+      # @param root [Hash] root schema object (for reference resolution)
+      # @return [Hash] processed schema with strict compliance
+      #
+      # @raise [TypeError] if schema is not a Hash
+      # @raise [ArgumentError] if additionalProperties is true
+      #
+      # @api private
       def ensure_strict_json_schema_recursive(json_schema, path:, root:)
         raise TypeError, "Expected #{json_schema} to be a hash; path=#{path}" unless json_schema.is_a?(Hash)
 

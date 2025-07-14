@@ -5,7 +5,69 @@ require_relative "input_guardrail"
 
 module OpenAIAgents
   module Guardrails
+    ##
     # PII (Personally Identifiable Information) detection guardrail
+    #
+    # This guardrail provides comprehensive detection and optional redaction of personally
+    # identifiable information (PII) in agent inputs and outputs. It uses pattern matching,
+    # validation algorithms, and contextual analysis to identify various types of sensitive data.
+    #
+    # == Supported PII Types
+    #
+    # * **High Confidence**: SSN, Credit Cards, Email addresses
+    # * **Medium Confidence**: Phone numbers, IP addresses, Passport numbers
+    # * **Lower Confidence**: Bank accounts, Names, Dates of birth
+    # * **Financial**: IBAN, Medicare numbers, Tax IDs
+    # * **Medical**: Available via HealthcarePIIDetector subclass
+    #
+    # == Sensitivity Levels
+    #
+    # * **High**: Detects all patterns (confidence >= 0.3)
+    # * **Medium**: Balanced detection (confidence >= 0.6) - recommended
+    # * **Low**: Only high-confidence patterns (confidence >= 0.8)
+    #
+    # @example Basic PII detection
+    #   detector = PIIDetector.new(sensitivity_level: :medium)
+    #   result = detector.check({
+    #     messages: [{role: "user", content: "My SSN is 123-45-6789"}]
+    #   })
+    #   puts result.passed  # => false
+    #   puts result.message # => "PII detected: Social Security Number"
+    #
+    # @example With automatic redaction
+    #   detector = PIIDetector.new(
+    #     sensitivity_level: :high,
+    #     redaction_enabled: true
+    #   )
+    #   
+    #   context = {
+    #     output: "Contact John Doe at john.doe@example.com or 555-1234"
+    #   }
+    #   result = detector.check(context)
+    #   # context[:output] is now redacted: "Contact John Doe at jo***@***.*** or ***-***-1234"
+    #
+    # @example Custom patterns
+    #   custom_patterns = {
+    #     employee_id: {
+    #       pattern: /\bEMP\d{6}\b/,
+    #       name: "Employee ID",
+    #       confidence: 0.9,
+    #       validator: ->(match) { match.length == 9 }
+    #     }
+    #   }
+    #   detector = PIIDetector.new(custom_patterns: custom_patterns)
+    #
+    # @example Detection statistics
+    #   detector = PIIDetector.new
+    #   # ... process multiple inputs ...
+    #   stats = detector.stats
+    #   puts "Total detections: #{stats[:total_detections]}"
+    #   puts "By type: #{stats[:by_type]}"
+    #
+    # @author OpenAI Agents Ruby Team
+    # @since 0.1.0
+    # @see OpenAIAgents::Guardrails::HealthcarePIIDetector For medical PII detection
+    # @see OpenAIAgents::Guardrails::FinancialPIIDetector For financial PII detection
     class PIIDetector < InputGuardrail
       # PII patterns with confidence scores
       PII_PATTERNS = {
@@ -117,6 +179,30 @@ module OpenAIAgents
 
       attr_reader :sensitivity_level, :custom_patterns, :redaction_enabled, :detection_stats
 
+      ##
+      # Initialize PII detector with configuration options
+      #
+      # @param name [String] guardrail name for identification
+      # @param sensitivity_level [Symbol] detection sensitivity (:low, :medium, :high)
+      # @param redaction_enabled [Boolean] whether to automatically redact detected PII
+      # @param custom_patterns [Hash] additional PII patterns to detect
+      #
+      # @example High sensitivity with redaction
+      #   detector = PIIDetector.new(
+      #     sensitivity_level: :high,
+      #     redaction_enabled: true
+      #   )
+      #
+      # @example Custom enterprise patterns
+      #   detector = PIIDetector.new(
+      #     custom_patterns: {
+      #       badge_id: {
+      #         pattern: /\bBDG\d{8}\b/,
+      #         name: "Badge ID",
+      #         confidence: 0.85
+      #       }
+      #     }
+      #   )
       def initialize(name: "pii_detector", sensitivity_level: :medium, redaction_enabled: true, custom_patterns: {})
         super(name: name)
         @sensitivity_level = sensitivity_level
@@ -126,6 +212,24 @@ module OpenAIAgents
         @confidence_threshold = confidence_threshold_for_level(sensitivity_level)
       end
 
+      ##
+      # Check for PII in agent context (input and output)
+      #
+      # Scans both input messages and output content for personally identifiable
+      # information. If redaction is enabled, automatically redacts PII from output.
+      #
+      # @param context [Hash] agent context containing :messages and/or :output
+      # @return [GuardrailResult] result indicating whether PII was detected
+      #
+      # @example Check input messages
+      #   result = detector.check({
+      #     messages: [{role: "user", content: "My email is test@example.com"}]
+      #   })
+      #
+      # @example Check with output redaction
+      #   context = { output: "User's phone: 555-1234" }
+      #   result = detector.check(context)
+      #   # context[:output] may be modified if redaction_enabled
       def check(context)
         input_text = extract_text_from_context(context)
         output_text = context[:output] || ""
@@ -145,7 +249,22 @@ module OpenAIAgents
         end
       end
 
-      # Detect PII in text
+      ##
+      # Detect PII in text using pattern matching and validation
+      #
+      # Applies all configured PII patterns to the input text, validates matches
+      # using custom validators, and performs contextual analysis for low-confidence
+      # patterns to reduce false positives.
+      #
+      # @param text [String] text to scan for PII
+      # @param source [String] source identifier ("input", "output", etc.)
+      # @return [Array<Hash>] array of detection objects with metadata
+      #
+      # @example Detect PII in text
+      #   detections = detector.detect_pii("Call me at 555-123-4567")
+      #   detections.first[:type]       # => :phone
+      #   detections.first[:confidence] # => 0.8
+      #   detections.first[:value]      # => "555-123-4567"
       def detect_pii(text, source = "unknown")
         detections = []
 
@@ -182,7 +301,21 @@ module OpenAIAgents
         deduplicate_detections(detections)
       end
 
-      # Redact PII from text
+      ##
+      # Redact PII from text using smart replacement patterns
+      #
+      # Replaces detected PII with masked versions that preserve data type
+      # while removing sensitive information. Different PII types use
+      # appropriate masking strategies.
+      #
+      # @param text [String] text containing PII to redact
+      # @param detections [Array<Hash>, nil] pre-computed detections (auto-detects if nil)
+      # @return [String] text with PII redacted
+      #
+      # @example Redact email and phone
+      #   text = "Contact: john.doe@example.com or 555-1234"
+      #   redacted = detector.redact_text(text)
+      #   # => "Contact: jo***@***.*** or ***-***-1234"
       def redact_text(text, detections = nil)
         detections ||= detect_pii(text)
         redacted = text.dup
@@ -196,7 +329,19 @@ module OpenAIAgents
         redacted
       end
 
-      # Get detection statistics
+      ##
+      # Get detection statistics and configuration summary
+      #
+      # Returns comprehensive statistics about PII detections performed
+      # by this detector instance, useful for monitoring and analysis.
+      #
+      # @return [Hash] statistics including counts by type and configuration
+      #
+      # @example View detection stats
+      #   stats = detector.stats
+      #   puts "Total: #{stats[:total_detections]}"
+      #   puts "SSNs found: #{stats[:by_type][:ssn]}"
+      #   puts "Sensitivity: #{stats[:sensitivity_level]}"
       def stats
         {
           total_detections: @detection_stats.values.sum,
@@ -206,7 +351,17 @@ module OpenAIAgents
         }
       end
 
+      ##
       # Reset detection statistics
+      #
+      # Clears all detection counters, useful for starting fresh
+      # monitoring periods or testing scenarios.
+      #
+      # @return [void]
+      #
+      # @example Reset for new monitoring period
+      #   detector.reset_stats
+      #   # All counters now at zero
       def reset_stats
         @detection_stats.clear
       end
@@ -393,7 +548,21 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Specialized PII detector for healthcare contexts
+    #
+    # Extends the base PIIDetector with healthcare-specific patterns including
+    # medical record numbers, NPI numbers, insurance IDs, and DEA numbers.
+    # Includes specialized validation algorithms for healthcare identifiers.
+    #
+    # @example Healthcare PII detection
+    #   detector = HealthcarePIIDetector.new(sensitivity_level: :high)
+    #   result = detector.check({
+    #     messages: [{role: "user", content: "Patient MRN: ABC123456"}]
+    #   })
+    #   puts result.passed  # => false (medical record number detected)
+    #
+    # @see OpenAIAgents::Guardrails::PIIDetector Base PII detector
     class HealthcarePIIDetector < PIIDetector
       HEALTHCARE_PATTERNS = {
         mrn: {
@@ -450,7 +619,21 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Specialized PII detector for financial contexts
+    #
+    # Extends the base PIIDetector with financial-specific patterns including
+    # routing numbers, SWIFT codes, tax IDs, and cryptocurrency addresses.
+    # Includes specialized validation algorithms for financial identifiers.
+    #
+    # @example Financial PII detection
+    #   detector = FinancialPIIDetector.new(sensitivity_level: :high)
+    #   result = detector.check({
+    #     messages: [{role: "user", content: "Account routing: 021000021"}]
+    #   })
+    #   puts result.passed  # => false (routing number detected)
+    #
+    # @see OpenAIAgents::Guardrails::PIIDetector Base PII detector
     class FinancialPIIDetector < PIIDetector
       FINANCIAL_PATTERNS = {
         routing_number: {

@@ -2,9 +2,134 @@ require "async"
 require "async/queue"
 
 module OpenAIAgents
+  ##
+  # Streaming execution engine for OpenAI Agents
+  #
+  # The RunResultStreaming class provides real-time streaming execution of agent
+  # conversations with granular event-based feedback. It enables applications to
+  # receive incremental updates during agent execution rather than waiting for
+  # complete responses.
+  #
+  # == Streaming Features
+  #
+  # * **Real-time Events**: Receive events as agent execution progresses
+  # * **Async Execution**: Non-blocking agent execution with background processing
+  # * **Event Types**: Multiple event types for different execution phases
+  # * **Tool Streaming**: Real-time updates during tool execution
+  # * **Guardrail Events**: Live feedback on guardrail evaluation
+  # * **Handoff Support**: Events for agent-to-agent handoffs
+  # * **Error Handling**: Streaming error events with context
+  #
+  # == Event Stream Types
+  #
+  # * **AgentStartEvent**: Agent begins execution
+  # * **MessageStartEvent**: New message generation begins
+  # * **RawContentDeltaEvent**: Incremental content updates
+  # * **ToolCallEvent**: Tool invocation detected
+  # * **ToolExecutionStartEvent**: Tool execution begins
+  # * **ToolExecutionCompleteEvent**: Tool execution finishes
+  # * **GuardrailStartEvent**: Guardrail evaluation begins
+  # * **AgentHandoffEvent**: Agent handoff occurs
+  # * **AgentFinishEvent**: Agent execution completes
+  # * **StreamErrorEvent**: Error during execution
+  #
+  # == Usage Patterns
+  #
+  # The streaming API supports both synchronous iteration with blocks and
+  # asynchronous enumeration for different application needs.
+  #
+  # @example Basic streaming with block
+  #   streaming = RunResultStreaming.new(
+  #     agent: agent,
+  #     input: "Hello, how can you help me?",
+  #     run_config: config
+  #   )
+  #   
+  #   streaming.start_streaming.stream_events do |event|
+  #     case event
+  #     when RawContentDeltaEvent
+  #       print event.delta
+  #     when ToolCallEvent
+  #       puts "\nCalling tool: #{event.tool_call['function']['name']}"
+  #     when AgentFinishEvent
+  #       puts "\nAgent finished: #{event.result.messages.last[:content]}"
+  #     end
+  #   end
+  #
+  # @example Async streaming with enumeration
+  #   streaming = RunResultStreaming.new(agent: agent, input: input)
+  #   streaming.start_streaming
+  #   
+  #   streaming.stream_events.each do |event|
+  #     handle_event(event)
+  #   end
+  #   
+  #   final_result = streaming.wait_for_completion
+  #
+  # @example Error handling in streams
+  #   streaming.stream_events do |event|
+  #     case event
+  #     when StreamErrorEvent
+  #       puts "Error: #{event.error.message}"
+  #       break
+  #     when GuardrailStartEvent
+  #       puts "Checking #{event.type} guardrail: #{event.guardrail.name}"
+  #     end
+  #   end
+  #
+  # @example Multi-agent handoff streaming
+  #   streaming.stream_events do |event|
+  #     case event
+  #     when AgentHandoffEvent
+  #       puts "Handoff: #{event.from_agent.name} -> #{event.to_agent.name}"
+  #       puts "Reason: #{event.reason}"
+  #     when AgentStartEvent
+  #       puts "Agent #{event.agent.name} started"
+  #     end
+  #   end
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see RunResult For non-streaming execution results
+  # @see Async::Queue For the underlying async queue implementation
   class RunResultStreaming
-    attr_reader :agent, :input, :run_config, :events_queue, :final_result
+    # @return [Agent] the agent being executed
+    attr_reader :agent
+    
+    # @return [String, Array, Hash] the input provided to the agent
+    attr_reader :input
+    
+    # @return [RunConfig, nil] execution configuration
+    attr_reader :run_config
+    
+    # @return [Async::Queue] queue containing streaming events
+    attr_reader :events_queue
+    
+    # @return [RunResult, nil] final execution result when complete
+    attr_reader :final_result
 
+    ##
+    # Initialize streaming execution instance
+    #
+    # @param agent [Agent] the agent to execute
+    # @param input [String, Array, Hash] input for the agent (message(s))
+    # @param run_config [RunConfig, nil] execution configuration
+    # @param tracer [Tracing::SpanTracer, nil] tracer for execution monitoring
+    # @param provider [Models::Interface, nil] AI provider for execution
+    #
+    # @example Basic initialization
+    #   streaming = RunResultStreaming.new(
+    #     agent: my_agent,
+    #     input: "What's the weather like?"
+    #   )
+    #
+    # @example With configuration and tracing
+    #   streaming = RunResultStreaming.new(
+    #     agent: agent,
+    #     input: messages,
+    #     run_config: RunConfig.new(max_turns: 5),
+    #     tracer: tracer
+    #   )
     def initialize(agent:, input:, run_config: nil, tracer: nil, provider: nil)
       @agent = agent
       @input = input
@@ -19,6 +144,24 @@ module OpenAIAgents
       @background_task = nil
     end
 
+    ##
+    # Stream execution events with optional block processing
+    #
+    # Provides access to the event stream either through block iteration
+    # (synchronous) or by returning an async enumerator. Events are yielded
+    # in real-time as agent execution progresses.
+    #
+    # @yieldparam event [Object] streaming event (various event types)
+    # @return [StreamEventEnumerator, nil] async enumerator if no block given
+    #
+    # @example Synchronous processing with block
+    #   streaming.stream_events do |event|
+    #     puts "Received: #{event.class.name}"
+    #   end
+    #
+    # @example Asynchronous enumeration
+    #   enumerator = streaming.stream_events
+    #   enumerator.each { |event| process_event(event) }
     def stream_events(&)
       if block_given?
         # Synchronous iteration with block
@@ -31,6 +174,19 @@ module OpenAIAgents
       end
     end
 
+    ##
+    # Get the next event from the stream
+    #
+    # Returns the next available event from the queue, or nil if the stream
+    # is finished and no more events are available. This method handles both
+    # blocking and non-blocking queue operations.
+    #
+    # @return [Object, nil] next event or nil if stream is finished
+    #
+    # @example Manual event processing
+    #   while (event = streaming.next_event)
+    #     handle_event(event)
+    #   end
     def next_event
       return nil if @finished && @events_queue.empty?
 
@@ -44,6 +200,20 @@ module OpenAIAgents
       end
     end
 
+    ##
+    # Start the streaming execution in the background
+    #
+    # Initiates agent execution in a background async task, allowing the
+    # main thread to continue processing events. The execution runs
+    # asynchronously while events are queued for consumption.
+    #
+    # @return [RunResultStreaming] self for method chaining
+    #
+    # @example Starting streaming execution
+    #   streaming = RunResultStreaming.new(agent: agent, input: input)
+    #   streaming.start_streaming.stream_events do |event|
+    #     # Process events as they arrive
+    #   end
     def start_streaming
       @background_task = Async do |task|
         run_agent_with_streaming(task)
@@ -58,6 +228,20 @@ module OpenAIAgents
       self
     end
 
+    ##
+    # Wait for streaming execution to complete
+    #
+    # Blocks until the background execution task finishes and returns
+    # the final result. If an error occurred during execution, it will
+    # be re-raised here.
+    #
+    # @return [RunResult] final execution result
+    # @raise [StandardError] any error that occurred during execution
+    #
+    # @example Waiting for completion
+    #   streaming.start_streaming
+    #   # ... process events ...
+    #   final_result = streaming.wait_for_completion
     def wait_for_completion
       @background_task&.wait
       raise @error if @error
@@ -65,10 +249,28 @@ module OpenAIAgents
       @final_result
     end
 
+    ##
+    # Check if streaming execution has finished
+    #
+    # @return [Boolean] true if execution is complete, false otherwise
+    #
+    # @example Checking completion status
+    #   if streaming.finished?
+    #     puts "Execution complete"
+    #   end
     def finished?
       @finished
     end
 
+    ##
+    # Check if an error occurred during execution
+    #
+    # @return [Boolean] true if an error occurred, false otherwise
+    #
+    # @example Error checking
+    #   if streaming.error?
+    #     puts "Execution failed with error"
+    #   end
     def error?
       !@error.nil?
     end
@@ -396,13 +598,36 @@ module OpenAIAgents
       }
     end
 
+    ##
+    # Async enumerator for streaming events
+    #
+    # Provides an Enumerable interface for processing streaming events
+    # asynchronously. Allows for standard Ruby enumeration methods while
+    # maintaining the streaming nature of the underlying event queue.
+    #
+    # @example Using enumerable methods
+    #   enumerator = streaming.stream_events
+    #   content_events = enumerator.select { |e| e.is_a?(RawContentDeltaEvent) }
+    #   first_tool_call = enumerator.find { |e| e.is_a?(ToolCallEvent) }
     class StreamEventEnumerator
       include Enumerable
 
+      ##
+      # Initialize enumerator with streaming result
+      #
+      # @param streaming_result [RunResultStreaming] the streaming instance
       def initialize(streaming_result)
         @streaming_result = streaming_result
       end
 
+      ##
+      # Enumerate through all streaming events
+      #
+      # Iterates through all events in the stream until completion,
+      # yielding each event to the provided block.
+      #
+      # @yieldparam event [Object] streaming event
+      # @return [Enumerator] if no block given
       def each
         while (event = @streaming_result.next_event)
           yield event
@@ -411,7 +636,37 @@ module OpenAIAgents
     end
   end
 
-  # Exception classes
+  ##
+  # Exception raised when input guardrail tripwire is triggered
+  #
+  # This exception is raised during streaming execution when an input
+  # guardrail detects a violation and triggers its tripwire mechanism.
+  #
+  # @example Handling input guardrail errors
+  #   streaming.stream_events do |event|
+  #     case event
+  #     when StreamErrorEvent
+  #       if event.error.is_a?(InputGuardrailTripwireTriggered)
+  #         puts "Input guardrail blocked execution: #{event.error.message}"
+  #       end
+  #     end
+  #   end
   class InputGuardrailTripwireTriggered < StandardError; end
+  
+  ##
+  # Exception raised when output guardrail tripwire is triggered
+  #
+  # This exception is raised during streaming execution when an output
+  # guardrail detects a violation and triggers its tripwire mechanism.
+  #
+  # @example Handling output guardrail errors
+  #   streaming.stream_events do |event|
+  #     case event
+  #     when StreamErrorEvent
+  #       if event.error.is_a?(OutputGuardrailTripwireTriggered)
+  #         puts "Output guardrail blocked response: #{event.error.message}"
+  #       end
+  #     end
+  #   end
   class OutputGuardrailTripwireTriggered < StandardError; end
 end

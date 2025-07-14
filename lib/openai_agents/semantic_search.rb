@@ -13,12 +13,131 @@ rescue LoadError
 end
 
 module OpenAIAgents
+  ##
   # Semantic search capabilities for agents
+  #
+  # This module provides advanced semantic search functionality using vector
+  # embeddings, enabling agents to find contextually relevant information
+  # rather than just keyword matches. Supports multiple indexing algorithms
+  # and hybrid search combining semantic and keyword search.
+  #
+  # @example Basic semantic search setup
+  #   # Create vector database
+  #   db = SemanticSearch::VectorDatabase.new(dimension: 1536)
+  #   
+  #   # Add documents with embeddings
+  #   documents = ["Ruby programming", "Python development", "JavaScript frameworks"]
+  #   embeddings = EmbeddingGenerator.new.generate(documents)
+  #   metadata = documents.map.with_index { |doc, i| { text: doc, id: i } }
+  #   
+  #   db.add(embeddings, metadata)
+  #   
+  #   # Search for similar content
+  #   query_embedding = EmbeddingGenerator.new.generate(["web development"])[0]
+  #   results = db.search(query_embedding, k: 2)
+  #   
+  #   results.each { |result| puts result[:metadata][:text] }
+  #
+  # @example Advanced semantic search with agent integration
+  #   # Setup semantic search tool
+  #   search_tool = SemanticSearch::SemanticSearchTool.new(
+  #     database: knowledge_db,
+  #     embedding_model: "text-embedding-3-small"
+  #   )
+  #   
+  #   # Add to agent
+  #   agent = Agent.new(
+  #     name: "KnowledgeAgent",
+  #     instructions: "Answer questions using the knowledge base"
+  #   )
+  #   agent.add_tool(search_tool)
+  #   
+  #   # Agent can now perform semantic search
+  #   result = agent.run("What programming languages are good for web development?")
+  #
+  # @example Hybrid search (semantic + keyword)
+  #   hybrid = SemanticSearch::HybridSearch.new(
+  #     vector_db: vector_database,
+  #     keyword_indexer: SemanticSearch::KeywordIndexer.new
+  #   )
+  #   
+  #   # Combines semantic similarity with keyword matching
+  #   results = hybrid.search(
+  #     query: "machine learning algorithms",
+  #     semantic_weight: 0.7,
+  #     keyword_weight: 0.3,
+  #     k: 10
+  #   )
+  #
+  # @example Document indexing pipeline
+  #   indexer = SemanticSearch::DocumentIndexer.new(
+  #     embedding_generator: EmbeddingGenerator.new,
+  #     vector_database: db
+  #   )
+  #   
+  #   # Index various document types
+  #   indexer.index_text("Long article content...")
+  #   indexer.index_file("document.pdf")
+  #   indexer.index_url("https://example.com/article")
+  #
+  # @see VectorStore For simpler vector storage needs
+  # @see Agent For integrating semantic search into agents
+  # @since 1.0.0
+  #
   module SemanticSearch
+    ##
     # Vector database for storing embeddings
+    #
+    # High-performance vector database optimized for semantic search.
+    # Supports multiple indexing algorithms (HNSW, Flat) and provides
+    # fast similarity search with optional metadata filtering.
+    #
+    # @example Creating and using a vector database
+    #   # Create database with HNSW index for fast search
+    #   db = VectorDatabase.new(dimension: 1536, index_type: :hnsw)
+    #   
+    #   # Add embeddings with metadata
+    #   embeddings = [
+    #     [0.1, 0.2, 0.3, ...],  # 1536-dimensional vectors
+    #     [0.4, 0.5, 0.6, ...],
+    #     [0.7, 0.8, 0.9, ...]
+    #   ]
+    #   
+    #   metadata = [
+    #     { title: "Document 1", category: "tech" },
+    #     { title: "Document 2", category: "science" },
+    #     { title: "Document 3", category: "tech" }
+    #   ]
+    #   
+    #   db.add(embeddings, metadata)
+    #   
+    #   # Search with filtering
+    #   results = db.search(
+    #     query_embedding,
+    #     k: 5,
+    #     filter: { category: "tech" }
+    #   )
+    #
+    # @example Performance comparison of index types
+    #   # HNSW: Fast search, slower indexing, good for large datasets
+    #   hnsw_db = VectorDatabase.new(index_type: :hnsw)
+    #   
+    #   # Flat: Exact search, fast indexing, good for small datasets
+    #   flat_db = VectorDatabase.new(index_type: :flat)
+    #
     class VectorDatabase
-      attr_reader :dimension, :index_type
+      # @return [Integer] Dimensionality of stored vectors
+      attr_reader :dimension
+      
+      # @return [Symbol] Type of search index (:hnsw, :flat)
+      attr_reader :index_type
 
+      ##
+      # Initialize vector database
+      #
+      # @param dimension [Integer] Vector dimensionality (default: 1536 for OpenAI embeddings)
+      # @param index_type [Symbol] Search index algorithm (:hnsw for speed, :flat for accuracy)
+      #
       def initialize(dimension: 1536, index_type: :hnsw)
         @dimension = dimension
         @index_type = index_type
@@ -28,7 +147,18 @@ module OpenAIAgents
         @mutex = Mutex.new
       end
 
-      # Add vectors with metadata
+      ##
+      # Add vectors with metadata to the database
+      #
+      # @param embeddings [Array<Array<Float>>] Vector embeddings to store
+      # @param metadata [Array<Hash>] Associated metadata for each vector
+      # @raise [ArgumentError] if embedding dimensions don't match database
+      #
+      # @example
+      #   embeddings = [[0.1, 0.2, ...], [0.3, 0.4, ...]]
+      #   metadata = [{title: "Doc 1"}, {title: "Doc 2"}]
+      #   db.add(embeddings, metadata)
+      #
       def add(embeddings, metadata = [])
         @mutex.synchronize do
           embeddings.each_with_index do |embedding, i|
@@ -42,7 +172,21 @@ module OpenAIAgents
         end
       end
 
-      # Search for similar vectors
+      ##
+      # Search for similar vectors using cosine similarity
+      #
+      # @param query_embedding [Array<Float>] Query vector to find similar items
+      # @param k [Integer] Number of results to return
+      # @param filter [Hash, nil] Metadata filter to apply
+      # @return [Array<Hash>] Results with :index, :score, :metadata keys
+      #
+      # @example Basic search
+      #   results = db.search(query_vector, k: 5)
+      #   results.each { |r| puts "Score: #{r[:score]}, Title: #{r[:metadata][:title]}" }
+      #
+      # @example Filtered search
+      #   tech_results = db.search(query_vector, k: 10, filter: { category: "technology" })
+      #
       def search(query_embedding, k: 10, filter: nil)
         validate_dimension(query_embedding)
 

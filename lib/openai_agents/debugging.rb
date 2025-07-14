@@ -7,11 +7,80 @@ require "set"
 require_relative "tracing/spans"
 
 module OpenAIAgents
+  ##
+  # Debugging System for OpenAI Agents
+  #
+  # This module provides comprehensive debugging capabilities for agent workflows,
+  # including breakpoints, step-by-step execution, performance monitoring, and
+  # execution history tracking. It's designed to help developers understand and
+  # optimize agent behavior during development and testing.
+  #
+  # == Features
+  #
+  # * **Breakpoint System**: Set breakpoints at specific execution points
+  # * **Step Mode**: Step through agent execution line by line
+  # * **Variable Watching**: Monitor specific variables during execution
+  # * **Performance Metrics**: Track execution times and resource usage
+  # * **Execution History**: Record and replay agent execution flows
+  # * **Interactive Debugging**: Real-time debugging with user input
+  # * **Export Capabilities**: Export debug sessions for analysis
+  #
+  # @example Basic debugging setup
+  #   debugger = OpenAIAgents::Debugging::Debugger.new
+  #   debugger.breakpoint("agent_run_start")
+  #   debugger.enable_step_mode
+  #   
+  #   debug_runner = OpenAIAgents::Debugging::DebugRunner.new(
+  #     agent: agent,
+  #     debugger: debugger
+  #   )
+  #   result = debug_runner.run(messages, debug: true)
+  #
+  # @example Advanced debugging with monitoring
+  #   debugger = OpenAIAgents::Debugging::Debugger.new
+  #   debugger.watch_variable("message_count") { @conversation.length }
+  #   debugger.breakpoint("tool_call:search")
+  #   
+  #   # Agent execution will pause at breakpoints and show watched variables
+  #   result = debug_runner.run(messages)
+  #   debugger.show_performance_metrics
+  #   debugger.export_debug_session("my_debug_session.json")
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see OpenAIAgents::Debugging::DebugRunner For debug-enabled agent execution
   module Debugging
+    ##
     # Enhanced debugger for agent workflows
+    #
+    # The Debugger class provides comprehensive debugging capabilities including
+    # breakpoints, step-by-step execution, variable watching, performance monitoring,
+    # and execution history tracking.
+    #
+    # @example Setting up debugging
+    #   debugger = Debugger.new(output: $stdout, log_level: Logger::DEBUG)
+    #   debugger.breakpoint("agent_run_start")
+    #   debugger.watch_variable("token_count") { current_token_count }
+    #
+    # @example Performance monitoring
+    #   debugger.debug_agent_run(agent, messages) do
+    #     # Agent execution code here
+    #   end
+    #   debugger.show_performance_metrics
     class Debugger
       attr_reader :breakpoints, :step_mode, :watch_variables
 
+      ##
+      # Initialize the debugger with output and logging configuration
+      #
+      # @param output [IO] output stream for debug messages (default: $stdout)
+      # @param log_level [Integer] logging level (default: Logger::DEBUG)
+      #
+      # @example Create debugger with custom output
+      #   debugger = Debugger.new(
+      #     output: File.open("debug.log", "w"),
+      #     log_level: Logger::INFO
+      #   )
       def initialize(output: $stdout, log_level: ::Logger::DEBUG)
         @output = output
         @logger = ::Logger.new(output)
@@ -24,6 +93,16 @@ module OpenAIAgents
         @performance_metrics = {}
       end
 
+      ##
+      # Set a breakpoint at a specific location
+      #
+      # @param location [String] breakpoint location identifier
+      # @return [void]
+      #
+      # @example Set breakpoints at different execution points
+      #   debugger.breakpoint("agent_run_start")
+      #   debugger.breakpoint("tool_call:search")
+      #   debugger.breakpoint("handoff:agent1:agent2")
       def breakpoint(location)
         @breakpoints.add(location)
         debug("Breakpoint set at: #{location}")
@@ -44,6 +123,18 @@ module OpenAIAgents
         debug("Step mode disabled")
       end
 
+      ##
+      # Watch a variable during execution
+      #
+      # @param name [String] variable name for identification
+      # @yield [] block that returns the current value of the variable
+      # @return [void]
+      #
+      # @example Watch conversation length
+      #   debugger.watch_variable("message_count") { @conversation.length }
+      #
+      # @example Watch agent state
+      #   debugger.watch_variable("current_agent") { @current_agent&.name }
       def watch_variable(name, &getter)
         @watch_variables[name] = getter
         debug("Watching variable: #{name}")
@@ -463,14 +554,50 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Debug-enabled runner
+    #
+    # The DebugRunner wraps the standard Runner with debugging capabilities,
+    # allowing step-by-step execution, breakpoint handling, and performance
+    # monitoring during agent execution.
+    #
+    # @example Basic debug runner usage
+    #   debugger = Debugger.new
+    #   debug_runner = DebugRunner.new(agent: agent, debugger: debugger)
+    #   result = debug_runner.run(messages, debug: true)
+    #
+    # @example With custom tracer
+    #   tracer = Tracing::SpanTracer.new
+    #   debug_runner = DebugRunner.new(
+    #     agent: agent,
+    #     debugger: debugger,
+    #     tracer: tracer
+    #   )
     class DebugRunner
+      ##
+      # Initialize debug runner with agent and debugging tools
+      #
+      # @param agent [Agent] the agent to run with debugging
+      # @param debugger [Debugger, nil] debugger instance (creates new if nil)
+      # @param tracer [Tracing::SpanTracer, nil] optional tracer for execution monitoring
       def initialize(agent:, debugger: nil, tracer: nil)
         @agent = agent
         @debugger = debugger || Debugger.new
         @tracer = tracer
       end
 
+      ##
+      # Run agent with optional debugging enabled
+      #
+      # @param messages [Array<Hash>] conversation messages
+      # @param debug [Boolean] whether to enable debugging features
+      # @return [Hash] agent execution result
+      #
+      # @example Run with debugging
+      #   result = debug_runner.run(messages, debug: true)
+      #
+      # @example Run without debugging overhead
+      #   result = debug_runner.run(messages, debug: false)
       def run(messages, debug: true)
         if debug
           @debugger.debug_agent_run(@agent, messages) do

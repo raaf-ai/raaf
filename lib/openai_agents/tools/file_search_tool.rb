@@ -4,21 +4,83 @@ require "find"
 require "digest"
 require_relative "../function_tool"
 
+##
+# File Search Tools for OpenAI Agents
+#
+# This module provides two complementary file search implementations:
+# - HostedFileSearchTool: Uses OpenAI's hosted file search API
+# - FileSearchTool: Local file system search with content matching
+#
+# @author OpenAI Agents Ruby Team
+# @since 0.1.0
 module OpenAIAgents
   module Tools
+    ##
     # Hosted file search tool for OpenAI API
+    #
+    # This tool provides access to OpenAI's hosted file search capability,
+    # allowing agents to search through files that have been uploaded to
+    # the OpenAI platform. This is the recommended approach for production
+    # applications with large document sets.
+    #
+    # @example Basic hosted file search
+    #   tool = HostedFileSearchTool.new(file_ids: ["file-123", "file-456"])
+    #   agent.add_tool(tool)
+    #
+    # @example With ranking options
+    #   tool = HostedFileSearchTool.new(
+    #     file_ids: ["file-123"],
+    #     ranking_options: {
+    #       score_threshold: 0.7,
+    #       ranker: "auto"
+    #     }
+    #   )
+    #
+    # @see https://platform.openai.com/docs/assistants/tools/file-search OpenAI File Search documentation
     class HostedFileSearchTool
       attr_reader :file_ids, :ranking_options
 
+      ##
+      # Initialize hosted file search tool
+      #
+      # @param file_ids [Array<String>] list of OpenAI file IDs to search
+      # @param ranking_options [Hash, nil] optional ranking configuration
+      #
+      # @example Basic initialization
+      #   tool = HostedFileSearchTool.new(file_ids: ["file-abc123"])
+      #
+      # @example With ranking options
+      #   tool = HostedFileSearchTool.new(
+      #     file_ids: ["file-abc123", "file-def456"],
+      #     ranking_options: { score_threshold: 0.8 }
+      #   )
       def initialize(file_ids: [], ranking_options: nil)
         @file_ids = Array(file_ids)
         @ranking_options = ranking_options
       end
 
+      ##
+      # Tool name for OpenAI API
+      #
+      # @return [String] the tool name
       def name
         "file_search"
       end
 
+      ##
+      # Convert to OpenAI tool definition format
+      #
+      # @return [Hash] tool definition for OpenAI API
+      #
+      # @example Tool definition output
+      #   {
+      #     type: "file_search",
+      #     name: "file_search",
+      #     file_search: {
+      #       file_ids: ["file-123"],
+      #       ranking_options: { score_threshold: 0.7 }
+      #     }
+      #   }
       def to_tool_definition
         {
           type: "file_search",
@@ -31,8 +93,56 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Local file search tool implementation
+    #
+    # This tool provides local file system search capabilities with content
+    # matching, filename searching, and intelligent file filtering. It's designed
+    # for development environments and scenarios where files are available locally.
+    #
+    # == Features
+    #
+    # * **Content Search**: Search within file contents using regex patterns
+    # * **Filename Search**: Find files by filename patterns
+    # * **Combined Search**: Search both content and filenames simultaneously
+    # * **File Filtering**: Skip binary files, large files, and hidden files
+    # * **Caching**: Intelligent file content caching for performance
+    # * **Context**: Provides surrounding lines for content matches
+    #
+    # == Search Types
+    #
+    # * `content`: Search within file contents (default)
+    # * `filename`: Search filenames only
+    # * `both`: Search both content and filenames
+    #
+    # @example Basic local file search
+    #   tool = FileSearchTool.new(search_paths: ["./src", "./docs"])
+    #   agent.add_tool(tool)
+    #
+    # @example With file type filtering
+    #   tool = FileSearchTool.new(
+    #     search_paths: ["./"],
+    #     file_extensions: [".rb", ".yml", ".md"],
+    #     max_results: 20
+    #   )
+    #
+    # @example Usage in agent conversation
+    #   # Agent will call: search_files(query: "def initialize", search_type: "content")
+    #   # Returns: Formatted results with file paths, line numbers, and context
     class FileSearchTool < FunctionTool
+      ##
+      # Initialize local file search tool
+      #
+      # @param search_paths [Array<String>] directories to search (default: current directory)
+      # @param file_extensions [Array<String>, nil] allowed file extensions (e.g., [".rb", ".txt"])
+      # @param max_results [Integer] maximum number of results to return
+      #
+      # @example Search specific directories with file filtering
+      #   tool = FileSearchTool.new(
+      #     search_paths: ["./app", "./lib", "./config"],
+      #     file_extensions: [".rb", ".yml", ".json"],
+      #     max_results: 25
+      #   )
       def initialize(search_paths: ["."], file_extensions: nil, max_results: 10)
         @search_paths = Array(search_paths)
         @file_extensions = file_extensions
@@ -41,10 +151,29 @@ module OpenAIAgents
 
         super(method(:search_files),
               name: "file_search",
-              description: "Search for files and content within files",
+              description: "Search for files and content within files using regex patterns",
               parameters: file_search_parameters)
       end
 
+      ##
+      # Search files based on query and search type
+      #
+      # This is the main search method called by agents. It supports multiple
+      # search strategies and returns formatted results with context.
+      #
+      # @param query [String] search query (supports regex patterns)
+      # @param search_type [String] type of search ("content", "filename", or "both")
+      # @param file_pattern [String, nil] optional file pattern filter (e.g., "*.rb")
+      # @return [String] formatted search results
+      #
+      # @example Content search
+      #   search_files(query: "def initialize", search_type: "content")
+      #
+      # @example Filename search with pattern
+      #   search_files(query: "config", search_type: "filename", file_pattern: "*.yml")
+      #
+      # @example Combined search
+      #   search_files(query: "database", search_type: "both")
       def search_files(query:, search_type: "content", file_pattern: nil)
         case search_type.downcase
         when "content"

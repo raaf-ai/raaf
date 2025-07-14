@@ -20,8 +20,62 @@ rescue LoadError
 end
 
 module OpenAIAgents
+  ##
+  # Visualization System for OpenAI Agents
+  #
+  # This module provides comprehensive visualization capabilities for agent traces,
+  # workflows, performance metrics, and execution flows. It supports multiple output
+  # formats including ASCII art, HTML reports, and Mermaid diagrams.
+  #
+  # == Visualization Types
+  #
+  # * **TraceVisualizer**: ASCII and Mermaid trace visualization
+  # * **HTMLVisualizer**: Web-based interactive trace reports
+  # * **WorkflowVisualizer**: Agent workflow and handoff diagrams
+  # * **MetricsChart**: Performance and usage charts
+  #
+  # == Output Formats
+  #
+  # * **ASCII**: Terminal-friendly text-based visualizations
+  # * **HTML**: Rich web-based reports with interactive elements
+  # * **Mermaid**: Diagram markup for integration with documentation
+  # * **Timeline**: Chronological execution flow visualization
+  #
+  # @example Basic trace visualization
+  #   visualizer = OpenAIAgents::Visualization::TraceVisualizer.new(spans)
+  #   puts visualizer.render_ascii
+  #   puts visualizer.render_timeline
+  #
+  # @example HTML report generation
+  #   html_report = OpenAIAgents::Visualization::HTMLVisualizer.generate(spans)
+  #   File.write("trace_report.html", html_report)
+  #
+  # @example Workflow visualization
+  #   workflow_viz = OpenAIAgents::Visualization::WorkflowVisualizer.new(agents)
+  #   puts workflow_viz.render_ascii
+  #   mermaid_diagram = workflow_viz.generate_mermaid
+  #
+  # @example Performance charts
+  #   performance_data = { "agent_run" => 150, "tool_call" => 75, "llm_call" => 200 }
+  #   chart = OpenAIAgents::Visualization::MetricsChart.generate_performance_chart(performance_data)
+  #   puts chart
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see OpenAIAgents::Tracing::SpanTracer For trace data collection
   module Visualization
+    ##
     # ASCII-based trace visualizer
+    #
+    # Provides text-based visualization of agent execution traces, including
+    # hierarchical span trees, timeline views, and Mermaid diagram generation.
+    # Designed for terminal output and text-based reports.
+    #
+    # @example Basic trace visualization
+    #   visualizer = TraceVisualizer.new(spans)
+    #   puts visualizer.render_ascii     # Tree view
+    #   puts visualizer.render_timeline  # Timeline view
+    #   puts visualizer.generate_mermaid # Diagram markup
     class TraceVisualizer
       def initialize(spans)
         @spans = spans.is_a?(Array) ? spans : [spans]
@@ -216,7 +270,40 @@ module OpenAIAgents
       end
     end
 
+    ##
     # HTML-based visualizer for web display
+    #
+    # The HTMLVisualizer generates rich, interactive HTML reports from trace data,
+    # providing a comprehensive web-based view of agent execution. It includes
+    # timeline visualizations, span details, and flow diagrams using Mermaid.
+    #
+    # == Generated Report Features
+    #
+    # * **Summary Section**: Trace overview with key metrics
+    # * **Interactive Timeline**: Visual timeline bars showing span execution
+    # * **Detailed Span View**: Expandable span information with attributes
+    # * **Flow Diagram**: Mermaid-based visual flow representation
+    # * **Responsive Design**: Works on desktop and mobile devices
+    #
+    # == HTML Structure
+    #
+    # The generated HTML includes:
+    # - Embedded CSS for styling
+    # - Mermaid.js for diagram rendering
+    # - ERB template processing for dynamic content
+    # - Responsive layout with proper semantic structure
+    #
+    # @example Generate HTML report
+    #   html_content = HTMLVisualizer.generate(spans)
+    #   File.write("trace_report.html", html_content)
+    #
+    # @example With trace summary
+    #   summary = { trace_id: "abc123", status: "success" }
+    #   html_content = HTMLVisualizer.generate(spans, summary)
+    #
+    # @author OpenAI Agents Ruby Team
+    # @since 0.1.0
+    # @see TraceVisualizer For ASCII-based visualization
     class HTMLVisualizer
       TEMPLATE = <<~HTML.freeze
         <!DOCTYPE html>
@@ -332,6 +419,26 @@ module OpenAIAgents
         </html>
       HTML
 
+      ##
+      # Generate complete HTML report from spans data
+      #
+      # Creates a comprehensive HTML document with embedded CSS, JavaScript,
+      # and interactive elements for visualizing trace execution. The report
+      # includes summary statistics, timeline visualization, and detailed
+      # span information.
+      #
+      # @param spans [Array<Hash, Span>] span data to visualize
+      # @param trace_summary [Hash, nil] optional trace summary information
+      # @return [String] complete HTML document
+      #
+      # @example Basic usage
+      #   spans = tracer.export_spans
+      #   html = HTMLVisualizer.generate(spans)
+      #   File.write("report.html", html)
+      #
+      # @example With custom summary
+      #   summary = { trace_id: "trace_123", status: "success", custom_field: "value" }
+      #   html = HTMLVisualizer.generate(spans, summary)
       def self.generate(spans, trace_summary = nil)
         spans_data = prepare_spans_data(spans)
         timeline_spans = prepare_timeline_data(spans_data)
@@ -348,6 +455,17 @@ module OpenAIAgents
         template.result(binding)
       end
 
+      ##
+      # Prepare span data for HTML template processing
+      #
+      # Normalizes span data from various formats (Hash or Span objects) into
+      # a consistent structure suitable for ERB template processing. Handles
+      # time conversion, attribute extraction, and event formatting.
+      #
+      # @param spans [Array<Hash, Span>] raw span data
+      # @return [Array<Hash>] normalized span data with consistent fields
+      #
+      # @api private
       def self.prepare_spans_data(spans)
         spans.map do |span|
           {
@@ -365,6 +483,17 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Prepare timeline visualization data for HTML rendering
+      #
+      # Calculates relative positioning and sizing for timeline bars based on
+      # span start times and durations. Creates percentage-based positioning
+      # data suitable for CSS styling.
+      #
+      # @param spans_data [Array<Hash>] normalized span data
+      # @return [Array<Hash>] timeline data with offset and width percentages
+      #
+      # @api private
       def self.prepare_timeline_data(spans_data)
         return [] if spans_data.empty?
 
@@ -410,12 +539,62 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Agent workflow visualizer
+    #
+    # The WorkflowVisualizer creates visual representations of agent workflows,
+    # showing agent relationships, tool usage, and handoff patterns. It supports
+    # both ASCII text output for terminal display and Mermaid diagram generation
+    # for documentation and web display.
+    #
+    # == Visualization Types
+    #
+    # * **ASCII Workflow**: Text-based agent and tool listing
+    # * **Mermaid Diagram**: Graph-based visual workflow representation
+    # * **Tool Mapping**: Shows which tools each agent can use
+    # * **Handoff Visualization**: Displays agent-to-agent delegation patterns
+    #
+    # == Diagram Elements
+    #
+    # * **Agent Nodes**: Blue boxes representing individual agents
+    # * **Tool Nodes**: Orange boxes representing available tools
+    # * **Handoff Arrows**: Dashed lines showing delegation paths
+    # * **Tool Connections**: Solid lines showing tool accessibility
+    #
+    # @example Basic workflow visualization
+    #   agents = [agent1, agent2, agent3]
+    #   visualizer = WorkflowVisualizer.new(agents)
+    #   puts visualizer.render_ascii
+    #
+    # @example Generate Mermaid diagram
+    #   visualizer = WorkflowVisualizer.new(agents)
+    #   mermaid_code = visualizer.generate_mermaid
+    #   # Use in documentation or web pages
+    #
+    # @author OpenAI Agents Ruby Team
+    # @since 0.1.0
+    # @see OpenAIAgents::Agent For agent configuration
     class WorkflowVisualizer
+      ##
+      # Initialize visualizer with agent collection
+      #
+      # @param agents [Array<Agent>, Agent] single agent or array of agents to visualize
       def initialize(agents)
         @agents = agents.is_a?(Array) ? agents : [agents]
       end
 
+      ##
+      # Generate Mermaid diagram code for agent workflow
+      #
+      # Creates a Mermaid graph definition showing agents, their tools, and
+      # handoff relationships. The diagram uses different node styles and
+      # connection types to distinguish between agents, tools, and relationships.
+      #
+      # @return [String] Mermaid diagram code
+      #
+      # @example Generate and save diagram
+      #   mermaid_code = visualizer.generate_mermaid
+      #   File.write("workflow.mmd", mermaid_code)
       def generate_mermaid
         mermaid = ["graph TD"]
 
@@ -459,6 +638,17 @@ module OpenAIAgents
         mermaid.join("\n")
       end
 
+      ##
+      # Render ASCII text representation of agent workflow
+      #
+      # Creates a terminal-friendly text visualization showing each agent's
+      # name, available tools, and possible handoff targets. Useful for
+      # debugging and console output.
+      #
+      # @return [String] formatted ASCII representation
+      #
+      # @example Display workflow in console
+      #   puts visualizer.render_ascii
       def render_ascii
         output = []
         output << "Agent Workflow"
@@ -500,8 +690,69 @@ module OpenAIAgents
       end
     end
 
-    # Chart generator for metrics
+    ##
+    # Chart generator for metrics and performance data
+    #
+    # The MetricsChart class provides ASCII-based chart generation for
+    # performance metrics, usage statistics, and other quantitative data.
+    # Designed for terminal output and text-based reporting.
+    #
+    # == Chart Types
+    #
+    # * **Performance Charts**: Execution time and duration metrics
+    # * **Usage Charts**: Agent utilization and call frequency
+    # * **Bar Charts**: Horizontal bar representations with scaling
+    # * **Percentage Charts**: Usage distribution with percentages
+    #
+    # == Features
+    #
+    # * **Auto-scaling**: Charts automatically scale to fit data ranges
+    # * **Unicode Blocks**: Uses block characters for visual appeal
+    # * **Label Alignment**: Consistent formatting with proper spacing
+    # * **Summary Statistics**: Includes totals and calculated metrics
+    #
+    # @example Performance metrics
+    #   performance_data = {
+    #     "agent_run" => 150,
+    #     "tool_call" => 75,
+    #     "llm_call" => 200
+    #   }
+    #   chart = MetricsChart.generate_performance_chart(performance_data)
+    #   puts chart
+    #
+    # @example Usage statistics
+    #   usage_data = { "Agent1" => 45, "Agent2" => 30, "Agent3" => 25 }
+    #   chart = MetricsChart.generate_usage_chart(usage_data)
+    #   puts chart
+    #
+    # @author OpenAI Agents Ruby Team
+    # @since 0.1.0
     class MetricsChart
+      ##
+      # Generate ASCII bar chart for performance metrics
+      #
+      # Creates a horizontal bar chart showing performance data with automatic
+      # scaling and consistent formatting. Each bar represents a metric value
+      # relative to the maximum value in the dataset.
+      #
+      # @param data [Hash<String, Numeric>] performance data with labels and values
+      # @return [String] formatted ASCII bar chart
+      #
+      # @example Timing metrics
+      #   timings = {
+      #     "Database Query" => 250,
+      #     "API Call" => 180,
+      #     "Processing" => 95
+      #   }
+      #   puts MetricsChart.generate_performance_chart(timings)
+      #   
+      #   # Output:
+      #   # Performance Metrics
+      #   # ========================================
+      #   # 
+      #   # Database Query  |█████████████████████████████| 250
+      #   # API Call        |█████████████████████         | 180
+      #   # Processing      |███████████                   | 95
       def self.generate_performance_chart(data)
         # Simple ASCII bar chart
         output = []
@@ -520,6 +771,33 @@ module OpenAIAgents
         output.join("\n")
       end
 
+      ##
+      # Generate ASCII bar chart for agent usage statistics
+      #
+      # Creates a horizontal bar chart showing agent usage distribution with
+      # percentages and total counts. Includes summary statistics and
+      # percentage calculations for each agent.
+      #
+      # @param agents_usage [Hash<String, Integer>] agent usage data with names and call counts
+      # @return [String] formatted ASCII chart with usage statistics
+      #
+      # @example Agent call frequency
+      #   usage_stats = {
+      #     "SearchAgent" => 45,
+      #     "AnalysisAgent" => 30,
+      #     "ReportAgent" => 25
+      #   }
+      #   puts MetricsChart.generate_usage_chart(usage_stats)
+      #   
+      #   # Output:
+      #   # Agent Usage Statistics
+      #   # ========================================
+      #   # 
+      #   # SearchAgent     |████████████████████████████████████████| 45 (45.0%)
+      #   # AnalysisAgent   |███████████████████████████             | 30 (30.0%)
+      #   # ReportAgent     |█████████████████████                   | 25 (25.0%)
+      #   # 
+      #   # Total calls: 100
       def self.generate_usage_chart(agents_usage)
         output = []
         output << "Agent Usage Statistics"

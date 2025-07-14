@@ -4,22 +4,107 @@
 
 require_relative "../function_tool"
 
+##
+# Computer Control Tools for OpenAI Agents
+#
+# This module provides computer automation capabilities through two implementations:
+# - HostedComputerTool: Uses OpenAI's hosted computer use API
+# - ComputerTool: Local computer control with cross-platform support
+#
+# == Security Warning
+#
+# **CRITICAL**: Computer control tools provide direct access to the operating system.
+# Only use these tools in secure, controlled environments. Never enable computer
+# control for untrusted agents or in production systems accessible to external users.
+#
+# == Platform Support
+#
+# * **macOS**: Full support via AppleScript and system tools
+# * **Linux**: Support via xdotool and standard utilities
+# * **Windows**: Limited support (screenshots only, expandable)
+#
+# @example Basic computer control setup
+#   # Local computer control with restricted actions
+#   tool = ComputerTool.new(allowed_actions: [:screenshot, :click])
+#   agent.add_tool(tool)
+#
+# @example Hosted computer control
+#   # Uses OpenAI's hosted environment
+#   tool = HostedComputerTool.new(display_width_px: 1920, display_height_px: 1080)
+#   agent.add_tool(tool)
+#
+# @author OpenAI Agents Ruby Team
+# @since 0.1.0
+# @see https://platform.openai.com/docs/assistants/tools/computer-use OpenAI Computer Use documentation
 module OpenAIAgents
   module Tools
+    ##
     # Hosted computer use tool for OpenAI API
+    #
+    # This tool provides access to OpenAI's hosted computer use capability,
+    # allowing agents to interact with a controlled desktop environment hosted
+    # by OpenAI. This is the recommended approach for production applications
+    # requiring computer automation without local system access.
+    #
+    # @example Basic hosted computer tool
+    #   tool = HostedComputerTool.new(
+    #     display_width_px: 1920,
+    #     display_height_px: 1080
+    #   )
+    #   agent.add_tool(tool)
+    #
+    # @example With display configuration
+    #   tool = HostedComputerTool.new(
+    #     display_width_px: 1024,
+    #     display_height_px: 768,
+    #     display_number: 1
+    #   )
+    #
+    # @see https://platform.openai.com/docs/assistants/tools/computer-use OpenAI Computer Use API
     class HostedComputerTool
       attr_reader :display_width_px, :display_height_px, :display_number
 
+      ##
+      # Initialize hosted computer tool
+      #
+      # @param display_width_px [Integer] display width in pixels (default: 1024)
+      # @param display_height_px [Integer] display height in pixels (default: 768)
+      # @param display_number [Integer, nil] specific display number (optional)
+      #
+      # @example Standard desktop resolution
+      #   tool = HostedComputerTool.new(
+      #     display_width_px: 1920,
+      #     display_height_px: 1080
+      #   )
       def initialize(display_width_px: 1024, display_height_px: 768, display_number: nil)
         @display_width_px = display_width_px
         @display_height_px = display_height_px
         @display_number = display_number
       end
 
+      ##
+      # Tool name for OpenAI API
+      #
+      # @return [String] the tool name
       def name
         "computer"
       end
 
+      ##
+      # Convert to OpenAI tool definition format
+      #
+      # @return [Hash] tool definition for OpenAI API
+      #
+      # @example Tool definition output
+      #   {
+      #     type: "computer",
+      #     name: "computer",
+      #     computer: {
+      #       display_width_px: 1920,
+      #       display_height_px: 1080,
+      #       display_number: 1
+      #     }
+      #   }
       def to_tool_definition
         {
           type: "computer",
@@ -33,36 +118,119 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Local computer control tool implementation
+    #
+    # This tool provides direct control over the local computer system, including
+    # screen capture, mouse control, keyboard input, and scrolling. It supports
+    # multiple operating systems with platform-specific implementations.
+    #
+    # == Security Considerations
+    #
+    # **WARNING**: This tool provides unrestricted access to the local system.
+    # - Only use in trusted, controlled environments
+    # - Restrict allowed_actions to minimum required functionality
+    # - Never enable for untrusted agents or external access
+    # - Consider using HostedComputerTool for safer remote execution
+    #
+    # == Supported Actions
+    #
+    # * **screenshot**: Capture screen images
+    # * **click**: Mouse clicking at coordinates
+    # * **type**: Keyboard text input
+    # * **scroll**: Scroll screen content
+    # * **move**: Move mouse cursor
+    # * **key**: Press specific keys (Return, Tab, etc.)
+    #
+    # == Platform Dependencies
+    #
+    # * **macOS**: Uses AppleScript (built-in)
+    # * **Linux**: Requires xdotool (`sudo apt-get install xdotool`)
+    # * **Windows**: Limited support (future expansion planned)
+    #
+    # @example Basic setup with safety restrictions
+    #   tool = ComputerTool.new(
+    #     allowed_actions: [:screenshot, :click],
+    #     screen_size: { width: 1920, height: 1080 }
+    #   )
+    #   agent.add_tool(tool)
+    #
+    # @example Full control (use with extreme caution)
+    #   tool = ComputerTool.new(
+    #     allowed_actions: [:screenshot, :click, :type, :scroll, :move, :key]
+    #   )
+    #
+    # @example Agent usage
+    #   # Agent will call: computer_action(action: "screenshot")
+    #   # Agent will call: computer_action(action: "click", x: 100, y: 200)
+    #   # Agent will call: computer_action(action: "type", text: "Hello World")
     class ComputerTool < FunctionTool
+      ##
+      # Initialize local computer control tool
+      #
+      # @param allowed_actions [Array<Symbol>] permitted actions (default: [:screenshot, :click, :type, :scroll])
+      # @param screen_size [Hash, nil] screen dimensions {width:, height:} (auto-detected if nil)
+      #
+      # @example Restricted tool for safer operation
+      #   tool = ComputerTool.new(
+      #     allowed_actions: [:screenshot],  # Only allow screenshots
+      #     screen_size: { width: 1920, height: 1080 }
+      #   )
+      #
+      # @example Full control tool
+      #   tool = ComputerTool.new(
+      #     allowed_actions: [:screenshot, :click, :type, :scroll, :move, :key]
+      #   )
       def initialize(allowed_actions: %i[screenshot click type scroll], screen_size: nil)
         @allowed_actions = allowed_actions
         @screen_size = screen_size || detect_screen_size
 
         super(method(:computer_action),
               name: "computer_control",
-              description: "Control computer screen, mouse, and keyboard",
+              description: "Control computer screen, mouse, and keyboard with safety restrictions",
               parameters: computer_parameters)
       end
 
-      def computer_action(action:, **)
+      ##
+      # Execute computer action with safety validation
+      #
+      # This is the main method called by agents. It validates that the requested
+      # action is allowed and then delegates to the appropriate platform-specific
+      # implementation.
+      #
+      # @param action [String] the action to perform
+      # @param kwargs [Hash] action-specific parameters
+      # @return [String] result message describing the action outcome
+      #
+      # @example Screenshot action
+      #   computer_action(action: "screenshot")
+      #   # => "Screenshot saved to /tmp/screenshot_1234567890.png"
+      #
+      # @example Click action
+      #   computer_action(action: "click", x: 100, y: 200, button: "left")
+      #   # => "Clicked left mouse button at (100, 200)"
+      #
+      # @example Type action
+      #   computer_action(action: "type", text: "Hello World")
+      #   # => "Typed text: Hello World"
+      def computer_action(action:, **kwargs)
         unless @allowed_actions.include?(action.to_sym)
           return "Action '#{action}' is not allowed. Allowed actions: #{@allowed_actions.join(", ")}"
         end
 
         case action.to_s
         when "screenshot"
-          take_screenshot(**)
+          take_screenshot(**kwargs)
         when "click"
-          click_mouse(**)
+          click_mouse(**kwargs)
         when "type"
-          type_text(**)
+          type_text(**kwargs)
         when "scroll"
-          scroll_screen(**)
+          scroll_screen(**kwargs)
         when "move"
-          move_mouse(**)
+          move_mouse(**kwargs)
         when "key"
-          press_key(**)
+          press_key(**kwargs)
         else
           "Unknown action: #{action}"
         end

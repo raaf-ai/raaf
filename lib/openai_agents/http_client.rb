@@ -8,15 +8,76 @@ module OpenAIAgents
   ##
   # HTTPClient - Local HTTP client implementation for OpenAI API calls
   #
-  # This replaces the dependency on the openai-ruby gem with a minimal,
-  # focused implementation that handles only what we need.
+  # This module provides a minimal, focused HTTP client implementation that replaces
+  # the dependency on the openai-ruby gem. It handles only the necessary functionality
+  # for OpenAI Agents while maintaining compatibility with the expected API.
   #
+  # == Features
+  #
+  # * **Minimal Dependencies**: Uses only Ruby standard library (Net::HTTP)
+  # * **Streaming Support**: Full support for Server-Sent Events streaming
+  # * **Error Handling**: Comprehensive HTTP error handling with specific exceptions
+  # * **Authentication**: Automatic Bearer token authentication
+  # * **Timeouts**: Configurable request and connection timeouts
+  # * **Resource Structure**: Familiar chat.completions.create API interface
+  #
+  # == Usage Patterns
+  #
+  # The client maintains API compatibility with the openai-ruby gem while
+  # providing only the features needed by OpenAI Agents.
+  #
+  # @example Basic client usage
+  #   client = HTTPClient::Client.new(api_key: "your-api-key")
+  #   response = client.chat.completions.create(
+  #     model: "gpt-4",
+  #     messages: [{ role: "user", content: "Hello!" }]
+  #   )
+  #
+  # @example Streaming completions
+  #   client.chat.completions.stream_raw(
+  #     model: "gpt-4",
+  #     messages: messages
+  #   ) do |chunk|
+  #     puts chunk["choices"][0]["delta"]["content"]
+  #   end
+  #
+  # @example Custom configuration
+  #   client = HTTPClient::Client.new(
+  #     api_key: "your-api-key",
+  #     base_url: "https://api.openai.com/v1",
+  #     timeout: 180,
+  #     open_timeout: 60
+  #   )
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see Client For the main API client implementation
   class HTTPClient
     ##
     # OpenAI API Client
     #
-    # Handles chat completions and streaming with full error handling
+    # The core HTTP client that handles authentication, request/response processing,
+    # and error handling for OpenAI API interactions. Provides both synchronous
+    # and streaming request capabilities.
     #
+    # == Features
+    #
+    # * **Authentication**: Automatic Bearer token header management
+    # * **Streaming**: Server-Sent Events streaming with chunk processing
+    # * **Error Handling**: HTTP status code to exception mapping
+    # * **Timeouts**: Configurable connection and read timeouts
+    # * **JSON Processing**: Automatic request/response JSON handling
+    #
+    # @example Basic initialization
+    #   client = Client.new(api_key: ENV["OPENAI_API_KEY"])
+    #
+    # @example With custom configuration
+    #   client = Client.new(
+    #     api_key: "your-key",
+    #     base_url: "https://api.openai.com/v1",
+    #     timeout: 120,
+    #     open_timeout: 30
+    #   )
     class Client
       attr_reader :api_key, :base_url
 

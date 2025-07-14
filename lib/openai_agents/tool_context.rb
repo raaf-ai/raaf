@@ -4,30 +4,119 @@ require "securerandom"
 require "json"
 
 module OpenAIAgents
-  # Tool Context Management
+  ##
+  # Tool Context Management System
   #
-  # Provides context tracking and state management for tool executions.
-  # This allows tools to maintain state between calls, share data,
-  # and access execution history.
+  # The ToolContext class provides comprehensive context tracking and state management
+  # for tool executions within OpenAI Agents. It enables tools to maintain persistent
+  # state between calls, share data across tool invocations, and access detailed
+  # execution history for debugging and optimization.
   #
-  # @example Basic usage
+  # == Key Features
+  #
+  # * **State Management**: Persistent key-value storage for tool data
+  # * **Execution Tracking**: Automatic tracking of tool calls, timing, and results
+  # * **Shared Memory**: Cross-tool data sharing within the same context
+  # * **Thread Safety**: Mutex-based locking for concurrent tool execution
+  # * **Context Hierarchies**: Parent-child context relationships
+  # * **Import/Export**: Serialization support for context persistence
+  # * **Statistics**: Comprehensive execution analytics and performance metrics
+  #
+  # == Usage Patterns
+  #
+  # * **Session Management**: Different contexts for different user sessions
+  # * **Data Persistence**: Maintaining state across multiple tool calls
+  # * **Debugging**: Tracking tool execution for troubleshooting
+  # * **Performance Monitoring**: Analyzing tool execution patterns
+  # * **Context Isolation**: Separate environments for different workflows
+  #
+  # @example Basic state management
   #   context = ToolContext.new
   #   context.set("user_id", "123")
+  #   context.set("session_data", { preferences: ["dark_mode"] })
+  #   
+  #   user_id = context.get("user_id")  # => "123"
+  #   all_data = context.to_h           # => { "user_id" => "123", "session_data" => {...} }
   #
-  #   tool = FunctionTool.new(
-  #     proc { |**args| context.get("user_id") },
-  #     name: "get_user"
-  #   )
-  #
-  # @example With execution tracking
+  # @example Context-aware tool creation
   #   context = ToolContext.new(track_executions: true)
-  #   # Tool executions are automatically tracked
+  #   
+  #   tool = FunctionTool.new(
+  #     proc { |**args| 
+  #       user_id = context.get("user_id")
+  #       "Processing for user: #{user_id}"
+  #     },
+  #     name: "process_user_data"
+  #   )
+  #   
+  #   contextual_tool = ContextualTool.new(tool.callable, context: context, name: "processor")
   #
-  #   history = context.execution_history
+  # @example Execution tracking and statistics
+  #   context = ToolContext.new(track_executions: true)
+  #   # ... tool executions occur ...
+  #   
+  #   history = context.execution_history(limit: 10)
   #   stats = context.execution_stats
+  #   puts "Success rate: #{stats[:success_rate]}%"
+  #   puts "Average duration: #{stats[:avg_duration]}ms"
+  #
+  # @example Shared memory between tools
+  #   context = ToolContext.new
+  #   
+  #   # Tool 1 stores data
+  #   context.shared_set("api_cache", { "weather_nyc" => "sunny" })
+  #   
+  #   # Tool 2 accesses shared data
+  #   cache = context.shared_get("api_cache", {})
+  #   weather = cache["weather_nyc"] || "unknown"
+  #
+  # @example Thread-safe operations
+  #   context = ToolContext.new
+  #   
+  #   context.with_lock("counter") do
+  #     current = context.get("counter", 0)
+  #     context.set("counter", current + 1)
+  #   end
+  #
+  # @example Context hierarchies
+  #   parent_context = ToolContext.new
+  #   parent_context.set("global_setting", "value")
+  #   
+  #   child_context = parent_context.create_child(
+  #     additional_data: { "local_setting" => "child_value" }
+  #   )
+  #   # Child has access to both global_setting and local_setting
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see ContextualTool For context-aware tool execution
+  # @see ContextManager For multi-session context management
   class ToolContext
-    attr_reader :id, :created_at, :metadata
+    # @return [String] unique identifier for this context instance
+    attr_reader :id
+    
+    # @return [Time] when this context was created
+    attr_reader :created_at
+    
+    # @return [Hash] metadata associated with this context
+    attr_reader :metadata
 
+    ##
+    # Initialize a new tool context
+    #
+    # @param initial_data [Hash] initial key-value data to populate the context
+    # @param metadata [Hash] metadata to associate with this context
+    # @param track_executions [Boolean] whether to track tool execution history
+    #
+    # @example Basic initialization
+    #   context = ToolContext.new
+    #
+    # @example With initial data and metadata
+    #   context = ToolContext.new(
+    #     initial_data: { "user_id" => "123", "session" => "abc" },
+    #     metadata: { "environment" => "production" },
+    #     track_executions: true
+    #   )
     def initialize(initial_data: {}, metadata: {}, track_executions: true)
       @id = SecureRandom.uuid
       @created_at = Time.now

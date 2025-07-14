@@ -8,6 +8,62 @@ require_relative "tracing/spans"
 require_relative "logging"
 
 module OpenAIAgents
+  ##
+  # Interactive Read-Eval-Print Loop for OpenAI Agents
+  #
+  # The REPL provides a command-line interface for interacting with OpenAI Agents,
+  # allowing developers to create, configure, and test agents interactively. It supports
+  # multi-agent conversations, tracing, debugging, and conversation management.
+  #
+  # == Features
+  #
+  # * **Multi-Agent Management**: Create, switch between, and manage multiple agents
+  # * **Interactive Chat**: Real-time conversation with agents using natural language
+  # * **Command System**: Rich set of commands for agent configuration and debugging
+  # * **Conversation Management**: Save, load, and export conversation histories
+  # * **Tracing Integration**: Built-in trace collection and analysis
+  # * **Tool Management**: Add and manage tools for agents interactively
+  # * **Debug Mode**: Enhanced error reporting and debugging capabilities
+  #
+  # == Available Commands
+  #
+  # * `/help` - Show command reference
+  # * `/agents` - List all available agents
+  # * `/new <name>` - Create a new agent
+  # * `/switch <agent>` - Switch to different agent
+  # * `/tools` - List agent tools
+  # * `/trace` - Show trace summary
+  # * `/export` - Export conversation to file
+  # * `/debug` - Toggle debug mode
+  #
+  # @example Basic REPL usage
+  #   # Start REPL with a pre-configured agent
+  #   agent = OpenAIAgents::Agent.new(name: "Assistant", instructions: "Be helpful")
+  #   repl = OpenAIAgents::REPL.new(agent: agent)
+  #   repl.start
+  #
+  # @example REPL with tracing
+  #   tracer = OpenAIAgents::Tracing::SpanTracer.new
+  #   repl = OpenAIAgents::REPL.new(tracer: tracer, debug: true)
+  #   repl.start
+  #
+  # @example Interactive session flow
+  #   # User starts REPL
+  #   repl = OpenAIAgents::REPL.new
+  #   repl.start
+  #   
+  #   # In REPL:
+  #   # > /new MyAgent
+  #   # > Hello, can you help me?
+  #   # MyAgent: Of course! How can I assist you today?
+  #   # > /tools
+  #   # > /export my_conversation.json
+  #   # > /quit
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see OpenAIAgents::Agent For agent creation and configuration
+  # @see OpenAIAgents::Tracing::SpanTracer For tracing capabilities
   class REPL
     include Logger
     COMMANDS = {
@@ -30,6 +86,20 @@ module OpenAIAgents
       "/reset" => "Reset current agent state"
     }.freeze
 
+    ##
+    # Initialize the REPL with optional agent and configuration
+    #
+    # @param agent [Agent, nil] initial agent to add and set as current
+    # @param tracer [Tracing::SpanTracer, nil] tracer for monitoring agent interactions
+    # @param debug [Boolean] enable debug mode for enhanced error reporting
+    #
+    # @example Start with an agent
+    #   agent = Agent.new(name: "Helper", instructions: "Be helpful")
+    #   repl = REPL.new(agent: agent, debug: true)
+    #
+    # @example Start empty REPL
+    #   repl = REPL.new
+    #   repl.start  # Create agents interactively
     def initialize(agent: nil, tracer: nil, debug: false)
       @agents = {}
       @current_agent_name = nil
@@ -47,6 +117,19 @@ module OpenAIAgents
       setup_default_tools
     end
 
+    ##
+    # Start the interactive REPL session
+    #
+    # Begins the read-eval-print loop, handling user input until the user
+    # exits with /quit. Supports both command processing and natural language
+    # conversation with agents.
+    #
+    # @return [void]
+    #
+    # @example Start interactive session
+    #   repl = REPL.new
+    #   repl.start
+    #   # User can now interact via commands or chat
     def start
       @running = true
       show_welcome

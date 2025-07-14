@@ -10,11 +10,83 @@ rescue LoadError
 end
 
 module OpenAIAgents
+  ##
   # Token estimation for OpenAI models when usage data is not provided
-  # Uses tiktoken for accurate counting when available, falls back to character-based estimation
+  #
+  # The TokenEstimator provides accurate token counting and estimation capabilities
+  # for OpenAI models. It uses the tiktoken library for precise token counting when
+  # available, falling back to character-based estimation when tiktoken is unavailable.
+  #
+  # == Token Counting Methods
+  #
+  # * **Tiktoken Integration**: Precise token counting using OpenAI's tiktoken library
+  # * **Character-based Fallback**: Conservative estimates based on character ratios
+  # * **Message Format Aware**: Accounts for OpenAI's message formatting overhead
+  # * **Tool Call Support**: Estimates tokens for function calls and arguments
+  # * **Model-specific Ratios**: Different estimation ratios for various model families
+  #
+  # == Supported Models
+  #
+  # * **GPT-4 Family**: gpt-4, gpt-4-turbo, gpt-4o, gpt-4o-mini
+  # * **GPT-3.5 Family**: gpt-3.5-turbo and variants
+  # * **O1 Models**: o1-preview, o1-mini (reasoning models)
+  # * **Generic Fallback**: Conservative estimates for unknown models
+  #
+  # == Usage Patterns
+  #
+  # The estimator is primarily used when actual usage data is not available
+  # from the API response, providing cost estimation and quota management.
+  #
+  # @example Basic usage estimation
+  #   messages = [
+  #     { role: "user", content: "What's the weather like?" },
+  #     { role: "assistant", content: "I'd be happy to help with weather information..." }
+  #   ]
+  #   
+  #   usage = TokenEstimator.estimate_usage(
+  #     messages: messages,
+  #     response_content: "The weather is sunny today.",
+  #     model: "gpt-4o"
+  #   )
+  #   # => { "input_tokens" => 15, "output_tokens" => 8, "total_tokens" => 23, "estimated" => true }
+  #
+  # @example Text token estimation
+  #   tokens = TokenEstimator.estimate_text_tokens("Hello, world!", "gpt-4")
+  #   # => 3 (with tiktoken) or conservative estimate (without)
+  #
+  # @example Message array estimation
+  #   conversation = [
+  #     { role: "system", content: "You are a helpful assistant." },
+  #     { role: "user", content: "Tell me about Ruby programming." }
+  #   ]
+  #   tokens = TokenEstimator.estimate_messages_tokens(conversation, "gpt-4o")
+  #
+  # @example Tool call estimation
+  #   message_with_tools = {
+  #     role: "assistant",
+  #     content: "I'll search for that information.",
+  #     tool_calls: [{
+  #       function: { name: "search", arguments: '{"query": "Ruby gems"}' }
+  #     }]
+  #   }
+  #   tokens = TokenEstimator.estimate_message_tokens(message_with_tools, "gpt-4")
+  #
+  # @author OpenAI Agents Ruby Team
+  # @since 0.1.0
+  # @see https://github.com/openai/tiktoken For the tiktoken tokenization library
   class TokenEstimator
+    ##
     # Token estimates per 1000 characters for different models
-    # These are conservative estimates based on typical English text
+    #
+    # These are conservative estimates based on typical English text patterns.
+    # Used as fallback when tiktoken is not available for precise counting.
+    # Values represent approximate tokens per 1000 characters.
+    #
+    # @example Using ratios for estimation
+    #   text_length = 4000  # characters
+    #   model = "gpt-4o"
+    #   ratio = TOKEN_RATIOS[model] || TOKEN_RATIOS["default"]
+    #   estimated_tokens = (text_length / 1000.0 * ratio).ceil
     TOKEN_RATIOS = {
       # GPT-4 models use cl100k_base encoding
       "gpt-4" => 250, # ~4 chars per token
@@ -33,17 +105,38 @@ module OpenAIAgents
       "default" => 280 # Conservative estimate
     }.freeze
 
+    ##
     # Additional tokens for message formatting overhead
-    MESSAGE_OVERHEAD = 4 # tokens per message
-    ROLE_TOKENS = 1 # tokens for role specification
+    #
+    # OpenAI's chat completion format adds overhead tokens for message structure,
+    # role specification, and formatting markers.
+    
+    # Base tokens added per message for formatting
+    MESSAGE_OVERHEAD = 4
+    
+    # Additional tokens for role specification (user, assistant, system)
+    ROLE_TOKENS = 1
 
     class << self
+      ##
       # Estimates token usage for a chat completion request/response
       #
-      # @param messages [Array<Hash>] Input messages
+      # Provides comprehensive token usage estimation including input messages,
+      # response content, and total token count. Returns format compatible with
+      # OpenAI API usage data.
+      #
+      # @param messages [Array<Hash>] Input messages for the completion
       # @param response_content [String, nil] Response content if available
-      # @param model [String] Model name
+      # @param model [String] Model name for accurate estimation
       # @return [Hash] Estimated usage with input_tokens, output_tokens, total_tokens
+      #
+      # @example Complete usage estimation
+      #   usage = estimate_usage(
+      #     messages: conversation_messages,
+      #     response_content: "Here's my response...",
+      #     model: "gpt-4o"
+      #   )
+      #   puts "Total cost estimate: #{usage['total_tokens']} tokens"
       def estimate_usage(messages:, response_content: nil, model: "gpt-4")
         input_tokens = estimate_messages_tokens(messages, model)
         output_tokens = response_content ? estimate_text_tokens(response_content, model) : 0
@@ -56,11 +149,23 @@ module OpenAIAgents
         }
       end
 
+      ##
       # Estimates tokens for an array of messages
       #
-      # @param messages [Array<Hash>] Messages array
-      # @param model [String] Model name
-      # @return [Integer] Estimated token count
+      # Calculates total token count for a conversation array, including
+      # all message content, roles, and formatting overhead.
+      #
+      # @param messages [Array<Hash>] Messages array with role and content
+      # @param model [String] Model name for appropriate token ratios
+      # @return [Integer] Total estimated token count for all messages
+      #
+      # @example Conversation token estimation
+      #   messages = [
+      #     { role: "system", content: "You are helpful." },
+      #     { role: "user", content: "Hello!" },
+      #     { role: "assistant", content: "Hi there!" }
+      #   ]
+      #   total_tokens = estimate_messages_tokens(messages, "gpt-4")
       def estimate_messages_tokens(messages, model)
         return 0 unless messages.is_a?(Array)
 
@@ -69,11 +174,27 @@ module OpenAIAgents
         end
       end
 
+      ##
       # Estimates tokens for a single message
       #
+      # Calculates token count for an individual message including content,
+      # role, name (if present), tool calls, and formatting overhead.
+      #
       # @param message [Hash] Message hash with role and content
-      # @param model [String] Model name
-      # @return [Integer] Estimated token count
+      # @param model [String] Model name for token calculation
+      # @return [Integer] Estimated token count for the message
+      #
+      # @example Simple message
+      #   message = { role: "user", content: "What's the capital of France?" }
+      #   tokens = estimate_message_tokens(message, "gpt-4o")
+      #
+      # @example Message with tool calls
+      #   message = {
+      #     role: "assistant",
+      #     content: "I'll search for that.",
+      #     tool_calls: [{ function: { name: "search", arguments: "{}" } }]
+      #   }
+      #   tokens = estimate_message_tokens(message, "gpt-4")
       def estimate_message_tokens(message, model)
         return 0 unless message.is_a?(Hash)
 
@@ -116,11 +237,20 @@ module OpenAIAgents
         tokens
       end
 
-      # Estimates tokens for plain text
+      ##
+      # Estimates tokens for plain text content
       #
-      # @param text [String] Text to estimate
-      # @param model [String] Model name
-      # @return [Integer] Estimated token count
+      # Provides accurate token counting for text strings using tiktoken when
+      # available, or character-based estimation as fallback.
+      #
+      # @param text [String] Text content to analyze
+      # @param model [String] Model name for appropriate tokenization
+      # @return [Integer] Estimated or exact token count
+      #
+      # @example Text analysis
+      #   text = "The quick brown fox jumps over the lazy dog."
+      #   tokens = estimate_text_tokens(text, "gpt-4o")
+      #   # Returns precise count with tiktoken or conservative estimate
       def estimate_text_tokens(text, model)
         return 0 if text.nil? || text.empty?
 
@@ -135,11 +265,22 @@ module OpenAIAgents
         end
       end
 
-      # Count tokens using tiktoken
+      ##
+      # Count tokens using tiktoken for precise tokenization
+      #
+      # Uses OpenAI's tiktoken library to provide exact token counts matching
+      # the tokenization used by OpenAI's models. Falls back to estimation
+      # if tiktoken encounters errors.
       #
       # @param text [String] Text to count tokens for
-      # @param model [String] Model name
+      # @param model [String] Model name to determine encoding
       # @return [Integer] Exact token count
+      #
+      # @example Precise token counting
+      #   tokens = count_tokens_with_tiktoken("Hello, world!", "gpt-4")
+      #   # Returns exact token count as used by OpenAI
+      #
+      # @api private
       def count_tokens_with_tiktoken(text, model)
         # Get the appropriate encoding for the model
         encoding = if model.start_with?("gpt-4")
@@ -163,11 +304,24 @@ module OpenAIAgents
         [tokens, 1].max
       end
 
-      # Estimates tokens for tool calls
+      ##
+      # Estimates tokens for tool calls in messages
       #
-      # @param tool_calls [Array] Tool calls array
-      # @param model [String] Model name
-      # @return [Integer] Estimated token count
+      # Calculates token overhead for function calls including function names,
+      # arguments, and the structured format required by OpenAI's function calling.
+      #
+      # @param tool_calls [Array<Hash>] Tool calls array from message
+      # @param model [String] Model name for token calculation
+      # @return [Integer] Estimated token count for all tool calls
+      #
+      # @example Tool call estimation
+      #   tool_calls = [{
+      #     function: {
+      #       name: "get_weather",
+      #       arguments: '{"location": "New York", "units": "celsius"}'
+      #     }
+      #   }]
+      #   tokens = estimate_tool_calls_tokens(tool_calls, "gpt-4")
       def estimate_tool_calls_tokens(tool_calls, model)
         return 0 unless tool_calls.is_a?(Array)
 
@@ -189,11 +343,25 @@ module OpenAIAgents
         end
       end
 
-      # Estimates tokens for a structured response format
+      ##
+      # Estimates tokens for structured response format specifications
+      #
+      # Calculates additional token overhead when using structured outputs
+      # like JSON schema, which add formatting constraints and schema references.
       #
       # @param response_format [Hash] Response format specification
-      # @param model [String] Model name
-      # @return [Integer] Additional tokens for structured output
+      # @param model [String] Model name for token calculation
+      # @return [Integer] Additional tokens required for structured output
+      #
+      # @example JSON schema overhead
+      #   format_spec = {
+      #     type: "json_schema",
+      #     json_schema: {
+      #       name: "user_info",
+      #       schema: { type: "object", properties: {...} }
+      #     }
+      #   }
+      #   overhead = estimate_response_format_tokens(format_spec, "gpt-4")
       def estimate_response_format_tokens(response_format, model)
         return 0 unless response_format.is_a?(Hash)
 
@@ -208,10 +376,20 @@ module OpenAIAgents
         end
       end
 
+      ##
       # Get model base for token ratio selection
       #
-      # @param model [String] Full model name
-      # @return [String] Base model name for ratio lookup
+      # Extracts the base model family from full model names to select
+      # appropriate token ratios for estimation.
+      #
+      # @param model [String] Full model name (e.g., "gpt-4o-2024-08-06")
+      # @return [String] Base model name for ratio lookup (e.g., "gpt-4o")
+      #
+      # @example Model base extraction
+      #   base = model_base("gpt-4o-2024-08-06")  # => "gpt-4o"
+      #   base = model_base("custom-model-v1")    # => "default"
+      #
+      # @api private
       def model_base(model)
         return "default" unless model
 
