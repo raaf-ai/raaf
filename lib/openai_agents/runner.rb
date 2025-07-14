@@ -1074,12 +1074,69 @@ module OpenAIAgents
                               from_agent: current_agent.name,
                               to_agent: target_agent_name)
 
+            # Extract structured context data before switching agents
+            # Note: We extract from the current agent (source) before switching to the target agent
+            source_agent = current_agent
+            if source_agent.respond_to?(:context_storage_keys) && source_agent.context_storage_keys.any?
+              log_debug_handoff("Extracting structured context data for handoff",
+                                from_agent: source_agent.name,
+                                to_agent: target_agent_name,
+                                context_keys: source_agent.context_storage_keys)
+              
+              # Find the last assistant message with JSON content
+              last_assistant_item = generated_items.reverse.find { |item| 
+                item.is_a?(Items::MessageOutputItem) && 
+                (item.raw_item[:role] == "assistant" || item.raw_item["role"] == "assistant")
+              }
+              
+              if last_assistant_item
+                content = extract_content_from_message_item(last_assistant_item)
+                if content && !content.empty?
+                  begin
+                    parsed_json = JSON.parse(content)
+                    
+                    # Extract and store configured context keys
+                    source_agent.context_storage_keys.each do |key|
+                      if parsed_json.key?(key.to_s)
+                        if @current_context_wrapper && @current_context_wrapper.respond_to?(:set)
+                          @current_context_wrapper.set(key, parsed_json[key.to_s])
+                          log_debug_handoff("Stored context data for handoff",
+                                            from_agent: source_agent.name,
+                                            to_agent: target_agent_name,
+                                            key: key,
+                                            data_type: parsed_json[key.to_s].class.name)
+                        end
+                      else
+                        log_debug_handoff("Context key not found in agent response",
+                                          from_agent: source_agent.name,
+                                          missing_key: key,
+                                          available_keys: parsed_json.keys)
+                      end
+                    end
+                  rescue JSON::ParserError => e
+                    log_debug_handoff("Agent response is not valid JSON, skipping context extraction",
+                                      from_agent: source_agent.name,
+                                      to_agent: target_agent_name,
+                                      error: e.message)
+                  end
+                end
+              else
+                log_debug_handoff("No assistant message found for context extraction",
+                                  from_agent: source_agent.name,
+                                  to_agent: target_agent_name)
+              end
+            end
+            
+            # Now switch to the target agent
             current_agent = actual_agent
             turns = 0 # Reset turn counter for new agent
             
             # Clear generated_items to prevent duplicate messages across agents
             # BUT preserve the latest tool outputs so the handoff agent can see the context
-            puts "🔄 HANDOFF: Clearing generated_items but preserving latest tool outputs"
+            log_debug_handoff("Clearing generated_items but preserving latest tool outputs",
+                              from_agent: source_agent.name,
+                              to_agent: current_agent.name,
+                              items_before: generated_items.size)
             
             # Keep only the most recent tool outputs (not tool calls)
             recent_tool_outputs = generated_items.select do |item|
@@ -1088,6 +1145,12 @@ module OpenAIAgents
             
             generated_items.clear
             generated_items.concat(recent_tool_outputs)
+            
+            log_debug_handoff("Generated items cleared and tool outputs preserved",
+                              from_agent: source_agent.name,
+                              to_agent: current_agent.name,
+                              items_after: generated_items.size,
+                              preserved_outputs: recent_tool_outputs.size)
           else
             log_debug_handoff("Handoff target not found in Responses API",
                               from_agent: current_agent.name,
@@ -2084,6 +2147,34 @@ module OpenAIAgents
 
       # No match found
       nil
+    end
+
+    # Extract content from a message item, handling different content formats
+    def extract_content_from_message_item(message_item)
+      return nil unless message_item&.raw_item
+
+      raw_item = message_item.raw_item
+      content = raw_item[:content] || raw_item["content"]
+
+      # Handle different content formats
+      case content
+      when String
+        content
+      when Array
+        # Handle array format like [{ type: "text", text: "content" }]
+        content.map do |item|
+          if item.is_a?(Hash)
+            item[:text] || item["text"] || item.to_s
+          else
+            item.to_s
+          end
+        end.join(" ")
+      when Hash
+        # Handle hash format
+        content[:text] || content["text"] || content.to_s
+      else
+        content.to_s
+      end
     end
   end
 end
