@@ -8,10 +8,132 @@ require_relative "agent"
 require_relative "function_tool"
 
 module OpenAIAgents
+  ##
   # Multi-modal support for agents (vision, audio, documents)
+  #
+  # This module extends OpenAI Agents with advanced multi-modal capabilities
+  # including computer vision, audio processing, and document analysis.
+  # Built on OpenAI's vision models and multimodal APIs.
+  #
+  # @example Basic multi-modal agent
+  #   agent = MultiModal::MultiModalAgent.new(
+  #     name: "VisionAssistant",
+  #     instructions: "Analyze images and answer questions about them",
+  #     model: "gpt-4o" # Vision-capable model
+  #   )
+  #   
+  #   # The agent automatically has vision, audio, and document tools
+  #   result = agent.run("What's in this image?", {
+  #     attachments: [{ type: "image", path: "photo.jpg" }]
+  #   })
+  #
+  # @example Vision processing
+  #   vision_tool = MultiModal::VisionTool.new
+  #   
+  #   # Analyze local image
+  #   result = vision_tool.analyze_image(
+  #     image_path: "path/to/image.jpg",
+  #     question: "What objects are in this image?"
+  #   )
+  #   
+  #   # Analyze remote image
+  #   result = vision_tool.analyze_image(
+  #     image_url: "https://example.com/image.png",
+  #     question: "Extract any text from this image"
+  #   )
+  #
+  # @example Audio processing
+  #   audio_tool = MultiModal::AudioTool.new
+  #   
+  #   # Transcribe audio file
+  #   transcript = audio_tool.transcribe_audio(
+  #     audio_path: "recording.mp3"
+  #   )
+  #   
+  #   # Generate speech from text
+  #   audio_tool.text_to_speech(
+  #     text: "Hello, world!",
+  #     output_path: "greeting.mp3",
+  #     voice: "alloy"
+  #   )
+  #
+  # @example Document analysis
+  #   doc_tool = MultiModal::DocumentTool.new
+  #   
+  #   # Extract text and structure from PDF
+  #   analysis = doc_tool.analyze_document(
+  #     document_path: "report.pdf",
+  #     extract_tables: true,
+  #     extract_images: true
+  #   )
+  #   
+  #   puts analysis[:text]
+  #   puts "Found #{analysis[:tables].size} tables"
+  #
+  # @example Multi-modal conversation
+  #   agent = MultiModal::MultiModalAgent.new(
+  #     name: "AnalysisBot",
+  #     instructions: "Analyze any type of content provided"
+  #   )
+  #   
+  #   conversation = MultiModal::MultiModalConversation.new(agent)
+  #   
+  #   # Add various content types
+  #   conversation.add_image("chart.png", "What trends do you see?")
+  #   conversation.add_audio("meeting.mp3", "Summarize this meeting")
+  #   conversation.add_document("report.pdf", "Extract key findings")
+  #   
+  #   # Process all content
+  #   results = conversation.process_all
+  #
+  # @see Agent Base agent class
+  # @see FunctionTool Base tool class
+  # @since 1.0.0
+  #
   module MultiModal
+    ##
     # Multi-modal agent with vision and audio capabilities
+    #
+    # Extends the base Agent class with automatic setup of vision, audio,
+    # and document processing tools. Provides a ready-to-use agent for
+    # analyzing images, processing audio, and extracting content from documents.
+    #
+    # @example Creating a multi-modal agent
+    #   agent = MultiModalAgent.new(
+    #     name: "ContentAnalyzer",
+    #     instructions: "Analyze any type of content: images, audio, or documents",
+    #     model: "gpt-4o" # Use vision-capable model
+    #   )
+    #   
+    #   # Agent automatically has these tools available:
+    #   # - analyze_image: Computer vision and OCR
+    #   # - transcribe_audio: Speech-to-text
+    #   # - text_to_speech: Text-to-speech generation
+    #   # - analyze_document: PDF/document processing
+    #
+    # @example Using with different content types
+    #   # Vision analysis
+    #   result = agent.run("Describe this chart", {
+    #     attachments: [{ type: "image", path: "sales_chart.png" }]
+    #   })
+    #   
+    #   # Audio transcription
+    #   result = agent.run("Transcribe this meeting", {
+    #     attachments: [{ type: "audio", path: "meeting.mp3" }]
+    #   })
+    #   
+    #   # Document analysis
+    #   result = agent.run("Summarize this report", {
+    #     attachments: [{ type: "document", path: "annual_report.pdf" }]
+    #   })
+    #
     class MultiModalAgent < ::OpenAIAgents::Agent
+      ##
+      # Initialize multi-modal agent
+      #
+      # @param args [Hash] Standard agent initialization arguments
+      # @see Agent#initialize for available options
+      #
       def initialize(**args)
         super
         @vision_enabled = true
@@ -34,8 +156,38 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Vision processing tool
+    #
+    # Provides computer vision capabilities including image analysis,
+    # object detection, OCR (text extraction), and visual question answering.
+    # Uses OpenAI's vision models for high-quality image understanding.
+    #
+    # @example Analyzing images
+    #   tool = VisionTool.new
+    #   
+    #   # General image description
+    #   result = tool.analyze_image(
+    #     image_path: "photo.jpg",
+    #     question: "Describe what you see in this image"
+    #   )
+    #   
+    #   # OCR text extraction
+    #   result = tool.analyze_image(
+    #     image_path: "document.png",
+    #     question: "Extract all text from this image"
+    #   )
+    #   
+    #   # Specific object detection
+    #   result = tool.analyze_image(
+    #     image_url: "https://example.com/street.jpg",
+    #     question: "How many cars are in this image?"
+    #   )
+    #
     class VisionTool < ::OpenAIAgents::FunctionTool
+      ##
+      # Initialize vision tool
+      #
       def initialize
         super(
           method(:analyze_image),
@@ -44,6 +196,36 @@ module OpenAIAgents
         )
       end
 
+      ##
+      # Analyze an image using computer vision
+      #
+      # Processes images to answer questions, extract text, identify objects,
+      # or provide general descriptions. Supports both local files and URLs.
+      #
+      # @param image_path [String, nil] Path to local image file
+      # @param image_url [String, nil] URL of remote image
+      # @param question [String, nil] Specific question about the image
+      # @return [Hash] Analysis results
+      #   - :description [String] Image description or answer
+      #   - :confidence [Float] Confidence score (0-1)
+      #   - :objects [Array] Detected objects (if applicable)
+      #   - :text [String] Extracted text (if OCR requested)
+      #   - :error [String] Error message if processing failed
+      #
+      # @example Basic image analysis
+      #   result = analyze_image(
+      #     image_path: "vacation_photo.jpg",
+      #     question: "Where was this photo taken?"
+      #   )
+      #   puts result[:description]
+      #
+      # @example OCR text extraction
+      #   result = analyze_image(
+      #     image_path: "receipt.jpg",
+      #     question: "Extract all text and prices from this receipt"
+      #   )
+      #   puts result[:text]
+      #
       def analyze_image(image_path: nil, image_url: nil, question: nil)
         # Validate inputs
         return { error: "Either image_path or image_url must be provided" } unless image_path || image_url

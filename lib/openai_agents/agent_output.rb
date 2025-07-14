@@ -5,40 +5,114 @@ require_relative "errors"
 require_relative "strict_schema"
 
 module OpenAIAgents
+  ##
   # Base class for agent output schemas
+  #
+  # Defines the interface that all agent output schema implementations must follow.
+  # Output schemas validate and structure agent responses according to specified formats.
+  #
+  # @abstract Subclasses must implement all abstract methods
+  #
   class AgentOutputSchemaBase
+    ##
     # Whether the output type is plain text (versus a JSON object)
+    #
+    # @return [Boolean] true if output is plain text, false for structured data
+    # @abstract Must be implemented by subclasses
+    #
     def plain_text?
       raise NotImplementedError, "Subclasses must implement #plain_text?"
     end
 
+    ##
     # The name of the output type
+    #
+    # @return [String] Human-readable name of the output type
+    # @abstract Must be implemented by subclasses
+    #
     def name
       raise NotImplementedError, "Subclasses must implement #name"
     end
 
+    ##
     # Returns the JSON schema of the output
+    #
+    # @return [Hash] JSON schema definition for validation
+    # @abstract Must be implemented by subclasses
+    # @raise [NotImplementedError] if not implemented by subclass
+    #
     def json_schema
       raise NotImplementedError, "Subclasses must implement #json_schema"
     end
 
+    ##
     # Whether the JSON schema is in strict mode
+    #
+    # @return [Boolean] true if using strict JSON schema validation
+    # @abstract Must be implemented by subclasses
+    #
     def strict_json_schema?
       raise NotImplementedError, "Subclasses must implement #strict_json_schema?"
     end
 
+    ##
     # Validate a JSON string against the output type
+    #
+    # @param json_str [String] JSON string to validate
+    # @return [Object] Parsed and validated object
+    # @abstract Must be implemented by subclasses
+    # @raise [NotImplementedError] if not implemented by subclass
+    #
     def validate_json(json_str)
       raise NotImplementedError, "Subclasses must implement #validate_json"
     end
   end
 
+  ##
   # Agent output schema implementation
+  #
+  # Concrete implementation of agent output schema validation that supports
+  # both plain text and structured JSON output validation. Automatically
+  # generates JSON schemas from Ruby types and validates agent responses.
+  #
+  # @example Plain text output
+  #   schema = AgentOutputSchema.new(String)
+  #   schema.plain_text? # => true
+  #   schema.validate_json("Hello world") # => "Hello world"
+  #
+  # @example Structured output with Hash
+  #   schema = AgentOutputSchema.new(Hash)
+  #   result = schema.validate_json('{"name": "John", "age": 30}')
+  #   # => {"name" => "John", "age" => 30}
+  #
+  # @example Custom class output
+  #   class Person
+  #     def initialize(name:, age:)
+  #       @name, @age = name, age
+  #     end
+  #   end
+  #   
+  #   schema = AgentOutputSchema.new(Person)
+  #   schema.strict_json_schema? # => true by default
+  #   schema.json_schema # => Generated JSON schema for Person
+  #
+  # @example Disabling strict mode
+  #   schema = AgentOutputSchema.new(CustomClass, strict_json_schema: false)
+  #   # More lenient validation for complex types
+  #
   class AgentOutputSchema < AgentOutputSchemaBase
+    # Key used when wrapping non-Hash types in a JSON object
     WRAPPER_DICT_KEY = "response"
 
+    # @return [Class, nil] The Ruby type that output should conform to
     attr_reader :output_type
 
+    ##
+    # Initialize agent output schema
+    #
+    # @param output_type [Class, nil] Ruby type for output validation (nil for plain text)
+    # @param strict_json_schema [Boolean] Whether to use strict JSON schema validation
+    #
     def initialize(output_type, strict_json_schema: true)
       @output_type = output_type
       @strict_json_schema = strict_json_schema
@@ -48,24 +122,55 @@ module OpenAIAgents
       configure_schema
     end
 
+    ##
+    # Check if output type is plain text
+    #
+    # @return [Boolean] true for nil or String types
+    #
     def plain_text?
       @output_type.nil? || @output_type == String
     end
 
+    ##
+    # Check if strict JSON schema validation is enabled
+    #
+    # @return [Boolean] true if using strict validation
+    #
     def strict_json_schema?
       @strict_json_schema
     end
 
+    ##
+    # Get human-readable name of the output type
+    #
+    # @return [String] Name of the output type
+    #
     def name
       type_to_string(@output_type)
     end
 
+    ##
+    # Get JSON schema for validation
+    #
+    # @return [Hash] JSON schema definition
+    # @raise [UserError] if output type is plain text
+    #
     def json_schema
       raise UserError, "Output type is plain text, so no JSON schema is available" if plain_text?
 
       @output_schema
     end
 
+    ##
+    # Validate JSON string against the output type
+    #
+    # Parses JSON and validates it against the configured output type.
+    # Handles both wrapped and unwrapped output formats.
+    #
+    # @param json_str [String] JSON string to validate
+    # @return [Object] Validated and parsed object
+    # @raise [ModelBehaviorError] if JSON is invalid or doesn't match schema
+    #
     def validate_json(json_str)
       return json_str if plain_text?
 
@@ -265,14 +370,52 @@ module OpenAIAgents
     end
   end
 
+  ##
   # Type adapter for Ruby type validation
+  #
+  # Provides runtime type validation and JSON schema generation for Ruby types.
+  # Used internally by output schemas to validate individual values against
+  # expected types.
+  #
+  # @example Basic type validation
+  #   adapter = TypeAdapter.new(String)
+  #   adapter.validate("hello")  # => "hello"
+  #   adapter.validate(123)      # => raises TypeError
+  #
+  # @example JSON schema generation
+  #   adapter = TypeAdapter.new(Integer)
+  #   adapter.json_schema # => { type: "integer" }
+  #
+  # @example Custom type with schema method
+  #   class CustomType
+  #     def self.json_schema
+  #       { type: "object", properties: { value: { type: "string" } } }
+  #     end
+  #   end
+  #   
+  #   adapter = TypeAdapter.new(CustomType)
+  #   adapter.json_schema # => Uses CustomType.json_schema
+  #
   class TypeAdapter
+    # @return [Class, Module] The type this adapter validates against
     attr_reader :type
 
+    ##
+    # Initialize type adapter
+    #
+    # @param type [Class, Module] Ruby type to validate against
+    #
     def initialize(type)
       @type = type
     end
 
+    ##
+    # Validate value against the configured type
+    #
+    # @param value [Object] Value to validate
+    # @return [Object] The validated value
+    # @raise [TypeError] if value doesn't match expected type
+    #
     def validate(value)
       case @type
       when Class
@@ -285,6 +428,11 @@ module OpenAIAgents
       value
     end
 
+    ##
+    # Generate JSON schema for the configured type
+    #
+    # @return [Hash] JSON schema definition for the type
+    #
     def json_schema
       case @type
       when String.class

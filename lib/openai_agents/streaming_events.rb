@@ -3,8 +3,44 @@
 require "json"
 
 module OpenAIAgents
+  ##
+  # StreamingEvents module for real-time response processing
+  #
+  # This module provides event classes and handlers for processing streaming
+  # responses from the OpenAI API, matching the Python implementation exactly.
+  # It supports incremental content delivery, function calls, and comprehensive
+  # event sequencing.
+  #
+  # @example Basic streaming usage
+  #   ChatCompletionStreamHandler.handle_stream(response, stream) do |event|
+  #     case event
+  #     when ResponseCreatedEvent
+  #       puts "Stream started"
+  #     when ResponseTextDeltaEvent
+  #       print event.delta
+  #     when ResponseCompletedEvent
+  #       puts "\nStream completed"
+  #     end
+  #   end
+  #
+  # @example Event sequence for text response
+  #   1. ResponseCreatedEvent - Stream initialization
+  #   2. ResponseOutputItemAddedEvent - New output item
+  #   3. ResponseContentPartAddedEvent - Content part started
+  #   4. ResponseTextDeltaEvent(s) - Incremental text chunks
+  #   5. ResponseContentPartDoneEvent - Content part completed
+  #   6. ResponseOutputItemDoneEvent - Output item completed
+  #   7. ResponseCompletedEvent - Stream finished
+  #
+  # @see https://platform.openai.com/docs/api-reference/responses OpenAI Responses API
+  #
   module StreamingEvents
-    # Streaming event types matching Python implementation
+    ##
+    # Event fired when a streaming response is created
+    #
+    # Marks the beginning of a streaming response session and provides
+    # the initial response metadata.
+    #
     class ResponseCreatedEvent
       attr_reader :response, :type, :sequence_number
 
@@ -199,7 +235,13 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Streaming state management
+    #
+    # Tracks the state of a streaming response including content parts,
+    # function calls, and refusals. Used internally by the stream handler
+    # to maintain consistency across events.
+    #
     class StreamingState
       attr_accessor :started, :text_content_index_and_output, :refusal_content_index_and_output, :function_calls
 
@@ -211,7 +253,12 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Sequence number generator
+    #
+    # Provides sequential numbering for streaming events to ensure
+    # proper ordering and allow clients to detect missing events.
+    #
     class SequenceNumber
       def initialize
         @sequence_number = 0
@@ -224,7 +271,26 @@ module OpenAIAgents
       end
     end
 
+    ##
     # Stream handler for chat completion chunks
+    #
+    # Converts OpenAI Chat Completions streaming responses into
+    # structured events that match the Responses API format.
+    # Handles text content, function calls, and refusals.
+    #
+    # @example Processing a stream
+    #   response = { id: "resp_123", model: "gpt-4o" }
+    #   ChatCompletionStreamHandler.handle_stream(response, stream) do |event|
+    #     case event.type
+    #     when "response.created"
+    #       setup_ui_for_response(event.response)
+    #     when "response.output_text.delta"
+    #       append_text_to_ui(event.delta)
+    #     when "response.completed"
+    #       finalize_response(event.response)
+    #     end
+    #   end
+    #
     class ChatCompletionStreamHandler
       FAKE_RESPONSES_ID = "fake-responses-id"
 

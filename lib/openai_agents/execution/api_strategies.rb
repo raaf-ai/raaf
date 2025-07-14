@@ -8,13 +8,36 @@ module OpenAIAgents
     # Base strategy for API provider interactions
     #
     # This class defines the interface that all API strategies must implement
-    # and provides common functionality.
+    # and provides common functionality. It uses the Strategy pattern to handle
+    # different AI provider APIs with a unified interface.
+    #
+    # @example Implementing a custom strategy
+    #   class CustomApiStrategy < BaseApiStrategy
+    #     def execute(messages, agent, runner)
+    #       # Custom implementation for specific provider
+    #       api_response = make_custom_api_call(messages)
+    #       {
+    #         message: extract_message_from_response(api_response),
+    #         usage: extract_usage_from_response(api_response),
+    #         response: api_response
+    #       }
+    #     end
+    #   end
+    #
+    # @see StandardApiStrategy For traditional chat completion APIs
+    # @see ResponsesApiStrategy For OpenAI Responses API
     #
     class BaseApiStrategy
       include Logger
 
       attr_reader :provider, :config
 
+      ##
+      # Initialize strategy with provider and configuration
+      #
+      # @param provider [Models::Interface] The AI provider instance
+      # @param config [RunConfig] Execution configuration
+      #
       def initialize(provider, config)
         @provider = provider
         @config = config
@@ -34,6 +57,15 @@ module OpenAIAgents
 
       protected
 
+      ##
+      # Build base model parameters from agent and config
+      #
+      # Constructs common model parameters that apply across different API strategies,
+      # including response format and tool choice settings.
+      #
+      # @param agent [Agent] The agent with model configuration
+      # @return [Hash] Base model parameters for API calls
+      #
       def build_base_model_params(agent)
         model_params = config.to_model_params
         
@@ -50,6 +82,15 @@ module OpenAIAgents
         model_params
       end
 
+      ##
+      # Extract assistant message from provider response
+      #
+      # Handles different response formats from various AI providers,
+      # normalizing them to a consistent message format.
+      #
+      # @param response [Hash, Object] Provider API response
+      # @return [Hash] Normalized message with :role and :content
+      #
       def extract_message_from_response(response)
         if response.is_a?(Hash)
           if response[:choices] && response[:choices].first
@@ -68,6 +109,12 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Extract token usage data from provider response
+      #
+      # @param response [Hash] Provider API response
+      # @return [Hash, nil] Usage statistics or nil if not available
+      #
       def extract_usage_from_response(response)
         return nil unless response.is_a?(Hash)
         response[:usage]
@@ -77,8 +124,23 @@ module OpenAIAgents
     ##
     # Strategy for standard chat completion APIs
     #
-    # Handles providers that use the standard chat completion format
-    # (OpenAI Chat Completions, Anthropic, etc.)
+    # Handles providers that use the standard chat completion format,
+    # including OpenAI Chat Completions API, Anthropic Claude, and other
+    # compatible providers. This strategy is suitable for most traditional
+    # conversational AI APIs.
+    #
+    # @example Usage with OpenAI Chat Completions
+    #   provider = OpenAIProvider.new
+    #   config = RunConfig.new(temperature: 0.7)
+    #   strategy = StandardApiStrategy.new(provider, config)
+    #   result = strategy.execute(messages, agent, runner)
+    #
+    # @example Expected result format
+    #   {
+    #     message: { role: "assistant", content: "Response text" },
+    #     usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    #     response: { /* full provider response */ }
+    #   }
     #
     class StandardApiStrategy < BaseApiStrategy
       ##
@@ -113,6 +175,16 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Build model parameters specific to standard APIs
+      #
+      # Extends base model parameters with provider-specific features
+      # like prompt support for compatible providers.
+      #
+      # @param agent [Agent] The agent with configuration
+      # @param runner [Runner] Runner instance (unused but kept for consistency)
+      # @return [Hash] Complete model parameters for API call
+      #
       def build_model_params(agent, runner)
         model_params = build_base_model_params(agent)
         
@@ -125,6 +197,17 @@ module OpenAIAgents
         model_params
       end
 
+      ##
+      # Make API call to provider
+      #
+      # Calls either streaming or non-streaming completion based on configuration.
+      # Uses the provider's standard completion methods.
+      #
+      # @param api_messages [Array<Hash>] Formatted conversation messages
+      # @param model [String] Model identifier
+      # @param model_params [Hash] Additional model parameters
+      # @return [Hash] Provider API response
+      #
       def make_api_call(api_messages, model, model_params)
         if config.stream
           provider.stream_completion(
@@ -145,8 +228,37 @@ module OpenAIAgents
     ##
     # Strategy for OpenAI Responses API
     #
-    # Handles the newer Responses API which uses a different message format
-    # with items and provides better streaming support.
+    # Handles OpenAI's newer Responses API (/v1/responses) which uses an
+    # items-based conversation format instead of traditional messages.
+    # This API provides enhanced features like better streaming support,
+    # more detailed usage statistics, and improved conversation continuity.
+    #
+    # The key difference is that this strategy converts traditional message
+    # arrays into the Responses API's "items" format, where tool calls and
+    # function results are separate items rather than embedded in messages.
+    #
+    # @example Usage with ResponsesProvider
+    #   provider = ResponsesProvider.new
+    #   config = RunConfig.new(temperature: 0.7, stream: true)
+    #   strategy = ResponsesApiStrategy.new(provider, config)
+    #   result = strategy.execute(messages, agent, runner)
+    #
+    # @example Message to Items transformation
+    #   # Input messages format:
+    #   [
+    #     { role: "user", content: "What's the weather?" },
+    #     { role: "assistant", tool_calls: [...] },
+    #     { role: "tool", content: "75°F", tool_call_id: "123" }
+    #   ]
+    #   
+    #   # Converted to items format:
+    #   [
+    #     { type: "message", role: "user", content: "What's the weather?" },
+    #     { type: "function", name: "get_weather", arguments: "{}", id: "123" },
+    #     { type: "function_result", function_call_id: "123", content: "75°F" }
+    #   ]
+    #
+    # @see https://platform.openai.com/docs/api-reference/responses OpenAI Responses API
     #
     class ResponsesApiStrategy < BaseApiStrategy
       ##
@@ -176,6 +288,19 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Convert traditional messages to Responses API items format
+      #
+      # Transforms the standard conversation message format into the items-based
+      # format required by the OpenAI Responses API. This includes:
+      # - Converting regular messages to message items
+      # - Extracting tool calls into separate function items
+      # - Converting tool results to function_result items
+      #
+      # @param messages [Array<Hash>] Traditional conversation messages
+      # @return [Array<Hash>] Items formatted for Responses API
+      # @private
+      #
       def convert_messages_to_items(messages)
         messages.map do |msg|
           case msg[:role]
@@ -211,13 +336,24 @@ module OpenAIAgents
         end.flatten
       end
 
+      ##
+      # Build parameters specific to the Responses API provider
+      #
+      # Constructs the parameter structure required by the Responses API,
+      # including modalities, tools, and model configuration. Handles
+      # agent-specific settings like response format and tool choice.
+      #
+      # @param agent [Agent] The agent with configuration and tools
+      # @return [Hash] Parameters formatted for Responses API calls
+      # @private
+      #
       def build_provider_params(agent)
         params = {
           modalities: ["text"],
           prompt: agent.prompt&.to_api_format,
           tools: format_agent_tools(agent),
           temperature: config.temperature,
-          max_tokens: config.max_tokens || config.max_completion_tokens,
+          max_tokens: config.max_tokens,
           metadata: config.metadata
         }.compact
         
@@ -234,6 +370,16 @@ module OpenAIAgents
         params
       end
 
+      ##
+      # Format agent tools for Responses API
+      #
+      # Converts agent tools to the format expected by the Responses API.
+      # Handles both FunctionTool objects and raw tool definitions.
+      #
+      # @param agent [Agent] Agent containing tools to format
+      # @return [Array<Hash>, nil] Formatted tools or nil if no tools
+      # @private
+      #
       def format_agent_tools(agent)
         return nil unless agent.tools && !agent.tools.empty?
 
@@ -246,22 +392,49 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Execute the Responses API call
+      #
+      # Makes either streaming or non-streaming calls to the Responses API
+      # using the provider's specialized methods. Uses the items format
+      # instead of traditional messages.
+      #
+      # @param items [Array<Hash>] Conversation items in Responses API format
+      # @param model [String] Model identifier
+      # @param provider_params [Hash] Parameters for the API call
+      # @return [Hash] Provider API response
+      # @private
+      #
       def make_api_call(items, model, provider_params)
         if config.stream
-          provider.stream_responses(
-            items: items,
+          provider.stream_completion(
+            messages: [],
             model: model,
+            input: items,
             **provider_params
           )
         else
-          provider.create_response(
-            items: items,
+          provider.responses_completion(
+            messages: [],
             model: model,
+            input: items,
             **provider_params
           )
         end
       end
 
+      ##
+      # Process Responses API response into final result
+      #
+      # Converts the Responses API response back to the standard message format
+      # and combines it with the original conversation to create a complete
+      # conversation history.
+      #
+      # @param original_messages [Array<Hash>] Original conversation messages
+      # @param response [Hash] Raw Responses API response
+      # @return [Hash] Final result with conversation, usage, and metadata
+      # @private
+      #
       def process_response(original_messages, response)
         conversation = original_messages.dup
         usage = response[:usage] || {}
@@ -277,6 +450,17 @@ module OpenAIAgents
         }
       end
 
+      ##
+      # Convert Responses API response back to standard message format
+      #
+      # Transforms the response from the Responses API back into the traditional
+      # message format used throughout the rest of the system. Handles both
+      # regular content and tool calls in the response.
+      #
+      # @param response [Hash] Raw Responses API response
+      # @return [Array<Hash>] Messages in standard format
+      # @private
+      #
       def convert_response_to_messages(response)
         # Convert Responses API response back to messages format
         return [] unless response[:choices]

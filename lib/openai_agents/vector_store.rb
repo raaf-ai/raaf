@@ -14,10 +14,98 @@ rescue LoadError
 end
 
 module OpenAIAgents
+  ##
   # Vector store for semantic search and retrieval
+  #
+  # Provides high-performance vector storage and similarity search capabilities
+  # for building RAG (Retrieval-Augmented Generation) systems and semantic
+  # search applications. Supports multiple storage adapters including in-memory
+  # and PostgreSQL with pgvector.
+  #
+  # @example Basic usage with documents
+  #   store = VectorStore.new(
+  #     name: "knowledge_base",
+  #     dimensions: 1536  # OpenAI ada-002 dimensions
+  #   )
+  #   
+  #   # Add documents
+  #   documents = [
+  #     "Ruby is a dynamic programming language",
+  #     "Python is great for data science",
+  #     "JavaScript runs in web browsers"
+  #   ]
+  #   
+  #   store.add_documents(documents)
+  #   
+  #   # Search for similar content
+  #   results = store.search("web development languages", k: 2)
+  #   results.each { |result| puts result[:content] }
+  #
+  # @example With custom embeddings and metadata
+  #   store = VectorStore.new(name: "products")
+  #   
+  #   products = [
+  #     { 
+  #       content: "MacBook Pro 16-inch laptop",
+  #       category: "electronics",
+  #       price: 2499.00
+  #     },
+  #     {
+  #       content: "Ergonomic office chair",
+  #       category: "furniture", 
+  #       price: 299.99
+  #     }
+  #   ]
+  #   
+  #   # Custom embeddings (if you have them)
+  #   embeddings = generate_custom_embeddings(products)
+  #   store.add_documents(products, embeddings: embeddings)
+  #   
+  #   # Search with filters
+  #   laptops = store.search(
+  #     "portable computer",
+  #     k: 5,
+  #     filter: { category: "electronics" }
+  #   )
+  #
+  # @example Using PostgreSQL adapter
+  #   require 'pg'
+  #   
+  #   pg_adapter = VectorStore::Adapters::PgVectorAdapter.new(
+  #     connection_string: "postgres://user:pass@localhost/db"
+  #   )
+  #   
+  #   store = VectorStore.new(
+  #     name: "enterprise_docs",
+  #     adapter: pg_adapter,
+  #     dimensions: 1536
+  #   )
+  #
+  # @see Adapters::InMemoryAdapter In-memory storage for development
+  # @see Adapters::PgVectorAdapter PostgreSQL with pgvector for production
+  # @since 1.0.0
+  #
   class VectorStore
-    attr_reader :name, :dimensions, :metadata
+    # @return [String] Name of the vector store
+    attr_reader :name
+    
+    # @return [Integer] Dimensionality of the vectors (e.g., 1536 for OpenAI ada-002)
+    attr_reader :dimensions
+    
+    # @return [Hash] Store-level metadata
+    attr_reader :metadata
 
+    ##
+    # Initialize a new vector store
+    #
+    # @param name [String] Unique identifier for the vector store
+    # @param dimensions [Integer] Vector dimensionality (default: 1536 for OpenAI embeddings)
+    # @param adapter [Adapters::Base, nil] Storage adapter (default: InMemoryAdapter)
+    # @param options [Hash] Additional options passed to the adapter
+    # @option options [String] :distance_metric ("cosine") Distance calculation method
+    # @option options [Boolean] :normalize_vectors (true) Whether to normalize vectors
+    # @option options [Integer] :index_threshold (1000) When to build search index
+    #
     def initialize(name:, dimensions: 1536, adapter: nil, **options)
       @name = name
       @dimensions = dimensions
@@ -28,7 +116,38 @@ module OpenAIAgents
       @adapter.initialize_store(name, dimensions, **options)
     end
 
+    ##
     # Add documents to the vector store
+    #
+    # Stores documents with their vector embeddings for later similarity search.
+    # If embeddings are not provided, they will be generated automatically
+    # using the configured embedding model.
+    #
+    # @param documents [Array<String, Hash>] Documents to add
+    # @param embeddings [Array<Array<Float>>, nil] Pre-computed embeddings (optional)
+    # @param namespace [String, nil] Namespace to group documents (optional)
+    # @return [Array<String>] IDs of the added documents
+    #
+    # @example With string documents
+    #   ids = store.add_documents([
+    #     "First document content",
+    #     "Second document content"
+    #   ])
+    #
+    # @example With structured documents
+    #   ids = store.add_documents([
+    #     {
+    #       content: "Document text",
+    #       title: "Document Title",
+    #       author: "Author Name",
+    #       category: "research"
+    #     }
+    #   ])
+    #
+    # @example With pre-computed embeddings
+    #   embeddings = [[0.1, 0.2, ...], [0.3, 0.4, ...]]
+    #   ids = store.add_documents(documents, embeddings: embeddings)
+    #
     def add_documents(documents, embeddings: nil, namespace: nil)
       documents = Array(documents)
 

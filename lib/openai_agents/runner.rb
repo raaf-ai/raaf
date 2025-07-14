@@ -55,7 +55,7 @@ module OpenAIAgents
   #   support_agent = OpenAIAgents::Agent.new(name: "Support", instructions: "...")
   #   billing_agent = OpenAIAgents::Agent.new(name: "Billing", instructions: "...")
   #   support_agent.add_handoff(billing_agent)
-  #   
+  #
   #   runner = OpenAIAgents::Runner.new(agent: support_agent)
   #   # Agent will automatically handoff to billing when needed
   #
@@ -185,7 +185,9 @@ module OpenAIAgents
     #     input_guardrails: [pii_guardrail]
     #   )
     #
-    def run(messages, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, **kwargs)
+    def run(messages, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, **)
+      require "byebug"
+      debugger
       # Normalize messages input - handle both string and array formats
       messages = normalize_messages(messages)
 
@@ -193,7 +195,7 @@ module OpenAIAgents
       if config.nil?
         config = RunConfig.new(
           stream: stream,
-          **kwargs  # Pass any additional parameters to RunConfig
+          ** # Pass any additional parameters to RunConfig
         )
       end
 
@@ -240,7 +242,7 @@ module OpenAIAgents
     # @example Running multiple agents concurrently
     #   task1 = runner1.run_async("Analyze this data")
     #   task2 = runner2.run_async("Generate a report")
-    #   
+    #
     #   results = Async do
     #     [task1.wait, task2.wait]
     #   end
@@ -266,7 +268,7 @@ module OpenAIAgents
     #
     # @example Streaming conversation
     #   streaming = runner.run_streamed("Tell me a long story")
-    #   
+    #
     #   streaming.each_event do |event|
     #     case event.type
     #     when :text
@@ -342,7 +344,7 @@ module OpenAIAgents
     #
     def call_hook(hook_method, context_wrapper, *args)
       log_debug_general("Calling hook", hook: hook_method, config_class: @current_config&.hooks&.class&.name)
-      
+
       # Call run-level hooks
       if @current_config&.hooks.respond_to?(hook_method)
         log_debug_general("Executing run-level hook", hook: hook_method)
@@ -937,58 +939,7 @@ module OpenAIAgents
     #
     # This method executes all configured input guardrails (both run-level
     # and agent-level) to validate the input before processing. If any
-    # guardrail is triggered, it raises an exception.
-    #
-    # @param context_wrapper [RunContextWrapper] The run context
-    # @param agent [Agent] The current agent
-    # @param input [String] The input to validate
-    #
-    # @raise [Guardrails::InputGuardrailTripwireTriggered] If a guardrail is triggered
-    #
-    def run_input_guardrails(context_wrapper, agent, input)
-      # Collect all guardrails (run-level and agent-level)
-      guardrails = []
-      guardrails.concat(@current_config.input_guardrails) if @current_config&.input_guardrails
-      guardrails.concat(agent.input_guardrails) if agent.respond_to?(:input_guardrails)
-
-      return if guardrails.empty?
-
-      guardrails.each do |guardrail|
-        result = guardrail.run(context_wrapper, agent, input)
-
-        next unless result.tripwire_triggered?
-
-        raise Guardrails::InputGuardrailTripwireTriggered.new(
-          "Input guardrail '#{guardrail.get_name}' triggered",
-          triggered_by: guardrail.get_name,
-          content: input,
-          metadata: result.output.output_info
-        )
-      end
-    end
-
-    # Run output guardrails for an agent
-    def run_output_guardrails(context_wrapper, agent, output)
-      # Collect all guardrails (run-level and agent-level)
-      guardrails = []
-      guardrails.concat(@current_config.output_guardrails) if @current_config&.output_guardrails
-      guardrails.concat(agent.output_guardrails) if agent.respond_to?(:output_guardrails)
-
-      return if guardrails.empty?
-
-      guardrails.each do |guardrail|
-        result = guardrail.run(context_wrapper, agent, output)
-
-        next unless result.tripwire_triggered?
-
-        raise Guardrails::OutputGuardrailTripwireTriggered.new(
-          "Output guardrail '#{guardrail.get_name}' triggered",
-          triggered_by: guardrail.get_name,
-          content: output,
-          metadata: result.output.output_info
-        )
-      end
-    end
+    # (Duplicate methods removed - using definitions above)
 
     ##
     # Safely call lifecycle hooks
@@ -1106,26 +1057,24 @@ module OpenAIAgents
 
         # Process Responses API output
         process_result = process_responses_api_output(response, state[:current_agent], generated_items)
-        
+
         # Handle handoffs
         if process_result[:handoff]
           # For now, just log handoffs - full handoff support would require more complex state management
-          log_debug_handoff("Handoff detected", 
-            from_agent: state[:current_agent].name,
-            to_agent: process_result[:handoff][:assistant] || "unknown")
+          log_debug_handoff("Handoff detected",
+                            from_agent: state[:current_agent].name,
+                            to_agent: process_result[:handoff][:assistant] || "unknown")
         end
-        
+
         # Check if we should continue (has tool calls)
-        if !process_result[:done]
+        unless process_result[:done]
           # Set previous_response_id for next iteration
           previous_response_id = response[:id] || response["id"]
           state[:turns] += 1
-          
+
           # Check if max turns exceeded after incrementing
-          if state[:turns] >= state[:max_turns]
-            raise MaxTurnsError, "Maximum turns (#{state[:max_turns]}) exceeded"
-          end
-          
+          raise MaxTurnsError, "Maximum turns (#{state[:max_turns]}) exceeded" if state[:turns] >= state[:max_turns]
+
           next
         end
 

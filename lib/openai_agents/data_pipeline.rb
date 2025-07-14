@@ -5,12 +5,111 @@ require "csv"
 require "yaml"
 
 module OpenAIAgents
+  ##
   # Data pipeline framework for agent-based data processing
+  #
+  # This module provides a comprehensive pipeline framework for building
+  # data processing workflows using OpenAI agents. It supports various
+  # processing stages including filtering, mapping, validation, enrichment,
+  # aggregation, and output generation.
+  #
+  # @example Basic pipeline usage
+  #   require 'openai_agents/data_pipeline'
+  #   
+  #   # Create a pipeline
+  #   pipeline = DataPipeline::PipelineBuilder.new("data-processor")
+  #     .input(:json)
+  #     .filter { |item| item[:status] == "active" }
+  #     .map_with_agent(data_processor_agent)
+  #     .validate(required_fields: [:id, :name])
+  #     .output(:csv, file: "processed_data.csv")
+  #     .build
+  #   
+  #   # Process data
+  #   result = pipeline.process(input_data)
+  #   puts "Processed #{result[:processed]} items"
+  #
+  # @example Advanced agent-based processing
+  #   enrichment_agent = Agent.new(
+  #     name: "DataEnricher",
+  #     instructions: "Enrich customer data with additional insights"
+  #   )
+  #   
+  #   pipeline = DataPipeline::Pipeline.new("customer-enrichment")
+  #     .add_stage(DataPipeline::AgentStage.new(enrichment_agent))
+  #     .add_stage(DataPipeline::ValidationStage.new(
+  #       schema: customer_schema
+  #     ))
+  #     .add_stage(DataPipeline::OutputStage.new(
+  #       format: :jsonl,
+  #       destination: "enriched_customers.jsonl"
+  #     ))
+  #
+  # @example Error handling and metrics
+  #   result = pipeline.process(data)
+  #   puts "Success rate: #{result[:processed] / result[:total] * 100}%"
+  #   puts "Errors: #{result[:errors]}"
+  #   
+  #   # Access detailed metrics
+  #   pipeline.metrics.each do |stage, metrics|
+  #     puts "#{stage}: #{metrics[:duration]}ms"
+  #   end
+  #
+  # @see Agent Agent class for AI-powered processing
+  # @see FunctionTool Function tools for custom operations
+  # @since 1.0.0
+  #
   module DataPipeline
+    ##
     # Main pipeline class
+    #
+    # Orchestrates data flow through multiple processing stages, providing
+    # error handling, metrics collection, and state management. Supports
+    # both synchronous and asynchronous processing modes.
+    #
+    # @example Creating and configuring a pipeline
+    #   pipeline = Pipeline.new("user-data-processor", {
+    #     parallel: true,
+    #     max_workers: 4,
+    #     error_strategy: :continue
+    #   })
+    #   
+    #   pipeline
+    #     .add_stage(FilterStage.new { |item| item[:active] })
+    #     .add_stage(AgentStage.new(processing_agent))
+    #     .add_stage(OutputStage.new(format: :json))
+    #
+    # @example Processing data with error handling
+    #   begin
+    #     result = pipeline.process(raw_data)
+    #     puts "Processed: #{result[:processed]}, Errors: #{result[:errors]}"
+    #   rescue PipelineError => e
+    #     puts "Pipeline failed: #{e.message}"
+    #   end
+    #
     class Pipeline
-      attr_reader :name, :stages, :config, :state
+      # @return [String] Pipeline name for identification
+      attr_reader :name
+      
+      # @return [Array<Stage>] Ordered list of processing stages
+      attr_reader :stages
+      
+      # @return [Hash] Pipeline configuration options
+      attr_reader :config
+      
+      # @return [Symbol] Current pipeline state (:idle, :running, :completed, :error)
+      attr_reader :state
 
+      ##
+      # Initialize a new pipeline
+      #
+      # @param name [String] Pipeline identifier
+      # @param config [Hash] Configuration options
+      # @option config [Boolean] :parallel (false) Enable parallel processing
+      # @option config [Integer] :max_workers (4) Maximum worker threads
+      # @option config [Symbol] :error_strategy (:stop) How to handle errors (:stop, :continue, :skip)
+      # @option config [Boolean] :collect_metrics (true) Whether to collect performance metrics
+      #
       def initialize(name, config = {})
         @name = name
         @config = default_config.merge(config)
@@ -20,7 +119,19 @@ module OpenAIAgents
         @mutex = Mutex.new
       end
 
+      ##
       # Add a stage to the pipeline
+      #
+      # Stages are executed in the order they are added. Each stage
+      # receives the output from the previous stage as input.
+      #
+      # @param stage [Stage] Processing stage to add
+      # @return [Pipeline] Self for method chaining
+      #
+      # @example
+      #   pipeline.add_stage(FilterStage.new { |item| item[:valid] })
+      #           .add_stage(AgentStage.new(processor_agent))
+      #
       def add_stage(stage)
         @mutex.synchronize do
           @stages << stage
@@ -29,12 +140,41 @@ module OpenAIAgents
         self
       end
 
-      # Alias for add_stage
+      ##
+      # Alias for add_stage providing fluent interface
+      #
+      # @param stage [Stage] Processing stage to add
+      # @return [Pipeline] Self for method chaining
+      #
       def pipe(stage)
         add_stage(stage)
       end
 
+      ##
       # Process data through the pipeline
+      #
+      # Executes all stages in sequence, passing data from one stage to the next.
+      # Supports error handling strategies and collects performance metrics.
+      #
+      # @param input_data [Object] Data to process (Array, Hash, String, etc.)
+      # @return [Hash] Processing results with metrics
+      #   - :processed [Integer] Number of items successfully processed
+      #   - :errors [Integer] Number of errors encountered
+      #   - :skipped [Integer] Number of items skipped
+      #   - :output [Object] Final processed data
+      #   - :duration [Float] Total processing time in seconds
+      #   - :stage_metrics [Hash] Per-stage performance metrics
+      #
+      # @raise [PipelineError] If pipeline fails and error_strategy is :stop
+      #
+      # @example
+      #   result = pipeline.process([
+      #     { id: 1, name: "John", status: "active" },
+      #     { id: 2, name: "Jane", status: "inactive" }
+      #   ])
+      #   
+      #   puts "Processed #{result[:processed]} items in #{result[:duration]}s"
+      #
       def process(input_data)
         @state = :running
 

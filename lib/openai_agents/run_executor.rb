@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "execution/conversation_manager"
-require_relative "execution/tool_executor"
-require_relative "execution/handoff_detector"
-require_relative "execution/api_strategies"
-require_relative "execution/error_handler"
+require_relative "execution/executor_factory"
+require_relative "execution/executor_hooks"
 
 module OpenAIAgents
   ##
@@ -43,8 +40,9 @@ module OpenAIAgents
   #
   class RunExecutor
     include Logger
+    include Execution::ExecutorHooks
 
-    attr_reader :runner, :provider, :agent, :config
+    attr_reader :runner, :provider, :agent, :config, :services
 
     ##
     # Initialize a new executor
@@ -60,12 +58,10 @@ module OpenAIAgents
       @agent = agent
       @config = config
       
-      # Initialize service objects
-      @conversation_manager = Execution::ConversationManager.new(config)
-      @tool_executor = Execution::ToolExecutor.new(agent, runner)
-      @handoff_detector = Execution::HandoffDetector.new(agent, runner)
-      @api_strategy = Execution::ApiStrategyFactory.create(provider, config)
-      @error_handler = Execution::ErrorHandler.new
+      # Create service bundle via factory
+      @services = Execution::ExecutorFactory.create_service_bundle(
+        runner: runner, provider: provider, agent: agent, config: config
+      )
     end
 
     ##
@@ -80,7 +76,7 @@ module OpenAIAgents
     # @raise [ExecutionStoppedError] If execution is stopped
     #
     def execute(messages)
-      @error_handler.with_error_handling(context: { executor: self.class.name }) do
+      services[:error_handler].with_error_handling(context: { executor: self.class.name }) do
         # Use API strategy to handle provider-specific execution
         if provider.is_a?(Models::ResponsesProvider)
           execute_with_responses_api(messages)
@@ -102,8 +98,8 @@ module OpenAIAgents
     # @return [RunResult] The final result
     #
     def execute_with_conversation_manager(messages)
-      @conversation_manager.execute_conversation(messages, agent, self) do |turn_data|
-        execute_single_turn(turn_data)
+      services[:conversation_manager].execute_conversation(messages, agent, self) do |turn_data|
+        services[:turn_executor].execute_turn(turn_data, self, runner)
       end.then do |final_state|
         create_result(
           final_state[:conversation],
@@ -122,7 +118,7 @@ module OpenAIAgents
     # @return [RunResult] The final result
     #
     def execute_with_responses_api(messages)
-      result = @api_strategy.execute(messages, agent, runner)
+      result = services[:api_strategy].execute(messages, agent, runner)
       
       if result[:final_result]
         # Responses API returns complete result
@@ -133,146 +129,9 @@ module OpenAIAgents
       end
     end
 
-    ##
-    # Hook called before each conversation turn
-    #
-    # Subclasses can override this to add behavior before each turn,
-    # such as starting a trace span or logging.
-    #
-    # @param conversation [Array<Hash>] Current conversation state
-    # @param current_agent [Agent] The active agent
-    # @param context_wrapper [RunContextWrapper] Execution context
-    # @param turns [Integer] Current turn number
-    #
-    def before_turn(conversation, current_agent, context_wrapper, turns)
-      # Template method - subclasses should override if needed
-      # Default implementation does nothing
-    end
+    # Template method hooks are now provided by ExecutorHooks module
 
-    ##
-    # Hook called after each conversation turn
-    #
-    # Subclasses can override this to add behavior after each turn,
-    # such as ending a trace span or processing results.
-    #
-    # @param conversation [Array<Hash>] Current conversation state
-    # @param current_agent [Agent] The active agent
-    # @param context_wrapper [RunContextWrapper] Execution context
-    # @param turns [Integer] Current turn number
-    # @param result [Hash] Turn result with :message, :usage, :response
-    #
-    def after_turn(conversation, current_agent, context_wrapper, turns, result)
-      # Template method - subclasses should override if needed
-      # Default implementation does nothing
-    end
-
-    def before_api_call(messages, model, params)
-      # Template method - subclasses should override if needed
-      # Default implementation does nothing
-    end
-
-    def after_api_call(response, usage)
-      # Template method - subclasses should override if needed
-      # Default implementation does nothing
-    end
-
-    ##
-    # Wrap tool execution with custom behavior
-    #
-    # Subclasses can override this to add tracing, logging, or
-    # other behavior around tool execution.
-    #
-    # @param tool_name [String] Name of the tool being executed
-    # @param arguments [Hash] Tool arguments
-    # @yield The tool execution block
-    # @return [Object] The tool execution result
-    #
-    def wrap_tool_execution(tool_name, arguments, &block)
-      # Default implementation just yields
-      yield
-    end
-
-    ##
-    # Execute a single conversation turn using service objects
-    #
-    # This method coordinates the various services to handle a single turn:
-    # 1. Execute API call via strategy
-    # 2. Handle tool calls via ToolExecutor
-    # 3. Check for handoffs via HandoffDetector
-    #
-    # @param turn_data [Hash] Turn data from ConversationManager
-    # @return [Hash] Turn result with message, usage, and control flags
-    #
-    def execute_single_turn(turn_data)
-      conversation = turn_data[:conversation]
-      current_agent = turn_data[:current_agent]
-      context_wrapper = turn_data[:context_wrapper]
-      turns = turn_data[:turns]
-
-      # Pre-turn hook
-      before_turn(conversation, current_agent, context_wrapper, turns)
-      
-      # Update context
-      context_wrapper.context.current_agent = current_agent
-      context_wrapper.context.current_turn = turns
-      
-      # Run hooks
-      runner.call_hook(:on_agent_start, context_wrapper, current_agent)
-      
-      # Run input guardrails
-      current_input = conversation.last[:content] if conversation.last && conversation.last[:role] == "user"
-      runner.run_input_guardrails(context_wrapper, current_agent, current_input) if current_input
-      
-      # Execute API call via strategy
-      result = @api_strategy.execute(conversation, current_agent, runner)
-      message = result[:message]
-      usage = result[:usage]
-      
-      # Run output guardrails
-      runner.run_output_guardrails(context_wrapper, current_agent, message[:content]) if message[:content]
-      
-      # Call agent end hook
-      runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)
-      
-      # Handle tool calls if present
-      if @tool_executor.has_tool_calls?(message)
-        @tool_executor.execute_tool_calls(
-          message["tool_calls"] || message[:tool_calls],
-          conversation,
-          context_wrapper,
-          result[:response]
-        ) do |tool_name, arguments, &tool_block|
-          wrap_tool_execution(tool_name, arguments, &tool_block)
-        end
-      end
-
-      # Check for handoff
-      handoff_result = @handoff_detector.check_for_handoff(message, current_agent)
-      
-      # Check tool calls for handoff patterns
-      if @tool_executor.has_tool_calls?(message)
-        tool_handoff_result = @handoff_detector.check_tool_calls_for_handoff(
-          message["tool_calls"] || message[:tool_calls],
-          current_agent
-        )
-        handoff_result = tool_handoff_result if tool_handoff_result[:handoff_occurred]
-      end
-      
-      # Determine if execution should continue
-      should_continue = @tool_executor.should_continue?(message)
-      
-      turn_result = {
-        message: message,
-        usage: usage,
-        handoff_result: handoff_result,
-        should_continue: should_continue
-      }
-      
-      # Post-turn hook
-      after_turn(conversation, current_agent, context_wrapper, turns, turn_result)
-      
-      turn_result
-    end
+    # Turn execution is now handled by TurnExecutor service
 
     private
 

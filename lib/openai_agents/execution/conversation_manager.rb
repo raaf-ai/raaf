@@ -100,6 +100,15 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Initialize usage tracking hash
+      #
+      # Creates the initial structure for accumulating token usage
+      # across multiple conversation turns.
+      #
+      # @return [Hash] Initial usage tracking structure
+      # @private
+      #
       def initialize_usage_tracking
         {
           input_tokens: 0,
@@ -108,6 +117,16 @@ module OpenAIAgents
         }
       end
 
+      ##
+      # Create a context wrapper for the conversation
+      #
+      # Builds a RunContextWrapper containing the conversation state
+      # and metadata for use throughout the execution.
+      #
+      # @param conversation [Array<Hash>] Current conversation messages
+      # @return [RunContextWrapper] Wrapped execution context
+      # @private
+      #
       def create_context_wrapper(conversation)
         context = RunContext.new(
           messages: conversation,
@@ -118,6 +137,17 @@ module OpenAIAgents
         RunContextWrapper.new(context)
       end
 
+      ##
+      # Check if execution should be stopped
+      #
+      # Checks the runner's stop flag and handles graceful shutdown
+      # if execution has been requested to stop.
+      #
+      # @param conversation [Array<Hash>] Current conversation
+      # @param executor [RunExecutor] Executor instance
+      # @raise [ExecutionStoppedError] If execution should stop
+      # @private
+      #
       def check_execution_stop(conversation, executor)
         if executor.runner.should_stop?
           conversation << { role: "assistant", content: "Execution stopped by user request." }
@@ -125,6 +155,18 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Process the result of a conversation turn
+      #
+      # Extracts the message and usage data from a turn result,
+      # accumulates usage statistics, and adds the message to
+      # the conversation history.
+      #
+      # @param result [Hash] Turn execution result
+      # @param conversation [Array<Hash>] Current conversation
+      # @param current_agent [Agent] The agent that produced the result
+      # @private
+      #
       def process_turn_result(result, conversation, current_agent)
         message = result[:message]
         usage = result[:usage]
@@ -136,6 +178,17 @@ module OpenAIAgents
         conversation << message if message
       end
 
+      ##
+      # Handle exceeding maximum turn limit
+      #
+      # Adds an error message to the conversation and raises an exception
+      # when the maximum number of turns has been exceeded.
+      #
+      # @param conversation [Array<Hash>] Current conversation
+      # @param max_turns [Integer] Maximum allowed turns
+      # @raise [MaxTurnsError] Always raised to indicate limit exceeded
+      # @private
+      #
       def handle_max_turns_exceeded(conversation, max_turns)
         error_msg = "Maximum turns (#{max_turns}) exceeded"
         conversation << { role: "assistant", content: error_msg }

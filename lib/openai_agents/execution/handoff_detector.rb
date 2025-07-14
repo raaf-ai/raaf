@@ -78,6 +78,18 @@ module OpenAIAgents
 
       private
 
+      ##
+      # Process a detected handoff request
+      #
+      # Attempts to find the target agent and create a handoff result.
+      # Logs the handoff attempt and handles cases where the target
+      # agent cannot be found.
+      #
+      # @param target_agent_name [String] Name of agent to handoff to
+      # @param current_agent [Agent] Current active agent
+      # @return [Hash] Handoff result with success/failure information
+      # @private
+      #
       def process_handoff_request(target_agent_name, current_agent)
         # Find the target agent
         target_agent = @runner.find_handoff_agent(target_agent_name, current_agent)
@@ -95,6 +107,16 @@ module OpenAIAgents
         end
       end
 
+      ##
+      # Check if a tool call is a handoff request
+      #
+      # Examines the function name to determine if it matches
+      # common handoff tool patterns.
+      #
+      # @param tool_call [Hash] Tool call to examine
+      # @return [Boolean] true if this is a handoff tool call
+      # @private
+      #
       def is_handoff_tool?(tool_call)
         function_name = tool_call.dig("function", "name") || tool_call[:function][:name]
         
@@ -103,6 +125,16 @@ module OpenAIAgents
         handoff_patterns.any? { |pattern| function_name&.downcase&.include?(pattern) }
       end
 
+      ##
+      # Extract the target agent name from a handoff tool call
+      #
+      # Parses the tool call arguments to find the target agent name,
+      # checking common parameter names used for handoff targets.
+      #
+      # @param tool_call [Hash] Handoff tool call
+      # @return [String, nil] Target agent name or nil if not found
+      # @private
+      #
       def extract_handoff_target(tool_call)
         arguments_str = tool_call.dig("function", "arguments") || tool_call[:function][:arguments]
         
