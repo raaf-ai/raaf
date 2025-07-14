@@ -148,6 +148,11 @@ module OpenAIAgents
       @context.generated_messages
     end
 
+    # Delegate message methods
+    def add_message(message)
+      @context.add_message(message)
+    end
+
     # Add helper methods for hooks
     def agent_stack
       fetch(:agent_stack, [])

@@ -154,6 +154,9 @@ module OpenAIAgents
         config = RunConfig.new
       end
 
+      # Initialize hooks context for consistency
+      initialize_run_context(messages, config)
+
       # Create streaming result
       streaming_result = RunResultStreaming.new(
         agent: @agent,
@@ -238,11 +241,11 @@ module OpenAIAgents
           if content
             # Handle both string and array formats
             text_content = if content.is_a?(Array)
-              content.map { |c| c.is_a?(Hash) ? c[:text] || c["text"] : c.to_s }.join(" ")
-            else
-              content.to_s
-            end
-            
+                             content.map { |c| c.is_a?(Hash) ? c[:text] || c["text"] : c.to_s }.join(" ")
+                           else
+                             content.to_s
+                           end
+
             if text_content && !text_content.empty?
               handoff_target = detect_handoff_in_content(text_content, agent)
               if handoff_target
@@ -251,7 +254,7 @@ module OpenAIAgents
                   handoff_target: handoff_target,
                   handoff_data: { assistant: handoff_target }
                 }
-                
+
                 log_debug_handoff("JSON handoff detected in Responses API text output",
                                   from_agent: agent.name,
                                   to_agent: handoff_target,
@@ -345,16 +348,16 @@ module OpenAIAgents
 
       # Check if there are no tool calls in this output
       has_tool_calls = output.any? { |item| (item[:type] || item["type"]) == "function_call" }
-      
+
       # Only set done to true if there are no tool calls AND no handoff was detected
-      if !has_tool_calls && result[:handoff].nil?
-        result[:done] = true
-      elsif result[:handoff]
-        # When handoff is detected, we should continue execution with the new agent
-        result[:done] = false
-      else
-        result[:done] = false
-      end
+      result[:done] = if !has_tool_calls && result[:handoff].nil?
+                        true
+                      elsif result[:handoff]
+                        # When handoff is detected, we should continue execution with the new agent
+                        false
+                      else
+                        false
+                      end
 
       result
     end
@@ -512,97 +515,8 @@ module OpenAIAgents
 
     # Run with Responses API without tracing
     def run_with_responses_api_no_trace(messages, config:)
-      current_agent = @agent
-      turns = 0
-
-      # Convert initial messages to input items
-      input = Items::ItemHelpers.input_to_new_input_list(messages)
-      generated_items = []
-      model_responses = []
-      previous_response_id = config.previous_response_id
-      accumulated_usage = {
-        input_tokens: 0,
-        output_tokens: 0,
-        total_tokens: 0
-      }
-
-      max_turns = config.max_turns || current_agent.max_turns
-
-      while turns < max_turns
-        # Build current input including all generated items
-        # When using previous_response_id, only include tool outputs, not tool calls
-        # The API already knows about the calls from the previous response
-        current_input = input.dup
-        generated_items.each do |item|
-          # Skip tool calls when we have a previous_response_id to avoid duplicates
-          next if previous_response_id && item.is_a?(Items::ToolCallItem)
-
-          current_input << item.to_input_item
-        end
-
-        # Get system instructions
-        system_instructions = current_agent.instructions
-
-        # Prepare model parameters
-        model = config.model || current_agent.model
-        model_params = config.to_model_params
-
-        # Add response format if configured
-        model_params[:response_format] = current_agent.response_format if current_agent.response_format
-
-        # Make API call
-        response = if @provider.is_a?(Models::ResponsesProvider)
-                     @provider.responses_completion(
-                       messages: [{ role: "system", content: system_instructions }],
-                       model: model,
-                       tools: get_all_tools_for_api(current_agent),
-                       previous_response_id: previous_response_id,
-                       input: current_input, # Pass the accumulated input items
-                       **model_params
-                     )
-                   else
-                     @provider.chat_completion(
-                       messages: [{ role: "system", content: system_instructions }],
-                       model: model,
-                       tools: get_all_tools_for_api(current_agent),
-                       previous_response_id: previous_response_id,
-                       input: current_input,
-                       **model_params
-                     )
-                   end
-
-        # Extract response ID for next turn
-        previous_response_id = response[:id] || response["id"]
-        model_responses << response
-
-        # Accumulate usage data
-        if response.is_a?(Hash) && response[:usage] || response["usage"]
-          usage = response[:usage] || response["usage"]
-          accumulated_usage[:input_tokens] += usage[:input_tokens] || usage["input_tokens"] || 0
-          accumulated_usage[:output_tokens] += usage[:output_tokens] || usage["output_tokens"] || 0
-          accumulated_usage[:total_tokens] += usage[:total_tokens] || usage["total_tokens"] || 0
-        end
-
-        # Process the output items
-        result = process_responses_api_output(response, current_agent, generated_items)
-
-        turns += 1
-
-        # Check if done
-        break if result[:done]
-      end
-
-      # Check if max turns exceeded
-      raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
-
-      # Build final result
-      RunResult.success(
-        messages: build_conversation_from_items(input, generated_items),
-        last_agent: current_agent,
-        turns: turns,
-        last_response_id: previous_response_id,
-        usage: accumulated_usage
-      )
+      # Use shared execution core with hooks support
+      execute_responses_api_core(messages, config, with_tracing: false)
     end
 
     # Run input guardrails for an agent
@@ -653,17 +567,175 @@ module OpenAIAgents
 
     # Helper method to safely call hooks
     def call_hook(hook_method, context_wrapper, *args)
+      puts "DEBUG: call_hook #{hook_method} with config: #{@current_config&.hooks.class.name}" if ENV['DEBUG_HOOKS']
+      
       # Call run-level hooks
-      @current_config.hooks.send(hook_method, context_wrapper, *args) if @current_config&.hooks.respond_to?(hook_method)
+      if @current_config&.hooks.respond_to?(hook_method)
+        puts "DEBUG: Calling run-level hook #{hook_method}" if ENV['DEBUG_HOOKS']
+        @current_config.hooks.send(hook_method, context_wrapper, *args)
+      end
 
       # Call agent-level hooks if applicable
       agent = args.first if args.first.is_a?(Agent)
       agent_hook_method = hook_method.to_s.sub("on_agent_", "on_")
       if agent&.hooks.respond_to?(agent_hook_method)
+        puts "DEBUG: Calling agent-level hook #{agent_hook_method}" if ENV['DEBUG_HOOKS']
         agent.hooks.send(agent_hook_method, context_wrapper, *args)
       end
     rescue StandardError => e
       warn "Error in hook #{hook_method}: #{e.message}"
+    end
+
+    # Initialize context and hooks for any run variant
+    def initialize_run_context(messages, config)
+      @current_config = config
+
+      # Create run context for hooks
+      context = RunContext.new(
+        messages: messages,
+        metadata: config.metadata || {},
+        trace_id: config.trace_id,
+        group_id: config.group_id
+      )
+      context_wrapper = RunContextWrapper.new(context)
+      @current_context_wrapper = context_wrapper
+
+      context_wrapper
+    end
+
+    # Initialize common execution state
+    def initialize_execution_state(agent, config)
+      {
+        current_agent: agent,
+        turns: 0,
+        accumulated_usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0
+        },
+        max_turns: config.max_turns || agent.max_turns
+      }
+    end
+
+    # Shared execution core for Responses API with hooks
+    def execute_responses_api_core(messages, config, with_tracing: false)
+      context_wrapper = initialize_run_context(messages, config)
+      state = initialize_execution_state(@agent, config)
+
+      # Convert initial messages to input items
+      input = Items::ItemHelpers.input_to_new_input_list(messages)
+      generated_items = []
+      model_responses = []
+      previous_response_id = config.previous_response_id
+
+      while state[:turns] < state[:max_turns]
+        # Check if execution should stop
+        raise ExecutionStoppedError, "Execution stopped by user request" if should_stop?
+
+        # Call agent start hook
+        call_hook(:on_agent_start, context_wrapper, state[:current_agent])
+
+        # Build current input including all generated items
+        current_input = if previous_response_id
+                          # For continuing responses, start fresh - the API knows about the previous messages
+                          []
+                        else
+                          # For initial request, include the original input
+                          input.dup
+                        end
+
+        generated_items.each do |item|
+          # Skip tool calls when we have a previous_response_id to avoid duplicates
+          next if previous_response_id && item.is_a?(Items::ToolCallItem)
+
+          current_input << item.to_input_item
+        end
+
+        # Get system instructions
+        system_instructions = state[:current_agent].instructions
+
+        # Prepare model parameters
+        model = config.model || state[:current_agent].model
+        model_params = config.to_model_params
+        model_params[:response_format] = state[:current_agent].response_format if state[:current_agent].response_format
+
+        # Make API call
+        response = @provider.responses_completion(
+          messages: [{ role: "system", content: system_instructions }],
+          model: model,
+          tools: get_all_tools_for_api(state[:current_agent]),
+          previous_response_id: previous_response_id,
+          input: current_input,
+          **model_params
+        )
+
+        # Accumulate usage
+        if response[:usage] || response["usage"]
+          usage = response[:usage] || response["usage"]
+          state[:accumulated_usage][:input_tokens] += usage[:input_tokens] || usage["input_tokens"] || 0
+          state[:accumulated_usage][:output_tokens] += usage[:output_tokens] || usage["output_tokens"] || 0
+          state[:accumulated_usage][:total_tokens] += usage[:total_tokens] || usage["total_tokens"] || 0
+        end
+
+        model_responses << response
+        context_wrapper.add_message({ role: "assistant", content: response[:content] || response["content"] || "" })
+
+        # Process tool calls if any
+        tool_calls = response[:tool_calls] || response["tool_calls"] || []
+        if tool_calls&.any?
+          tool_calls.each do |tool_call|
+            generated_items << Items::ToolCallItem.new(
+              id: tool_call["id"],
+              name: tool_call["function"]["name"],
+              arguments: tool_call["function"]["arguments"]
+            )
+
+            # Execute the tool call
+            result = execute_tool_call(tool_call, state[:current_agent], context_wrapper)
+
+            # Handle handoffs
+            if result.is_a?(Hash) && result.key?(:handoff_target)
+              target_agent = result[:handoff_target]
+              call_hook(:on_handoff, context_wrapper, state[:current_agent], target_agent)
+              state[:current_agent] = target_agent
+              context_wrapper.add_handoff(state[:current_agent].name, target_agent.name)
+            end
+
+            generated_items << Items::ToolOutputItem.new(
+              call_id: tool_call["id"],
+              content: result.is_a?(Hash) ? result[:message] || result.to_s : result.to_s
+            )
+          end
+
+          # Set previous_response_id for next iteration
+          previous_response_id = response[:id] || response["id"]
+          state[:turns] += 1
+          next
+        end
+
+        # No tool calls - conversation is complete
+        break
+      end
+
+      # Call agent end hook
+      final_output = if model_responses.last
+                       model_responses.last[:content] || model_responses.last["content"] || ""
+                     else
+                       ""
+                     end
+      call_hook(:on_agent_end, context_wrapper, state[:current_agent], final_output)
+
+      # Build final messages
+      final_messages = messages.dup
+      model_responses.each do |response|
+        final_messages << { role: "assistant", content: response[:content] || response["content"] || "" }
+      end
+
+      RunResult.new(
+        messages: final_messages,
+        usage: state[:accumulated_usage],
+        metadata: { responses: model_responses }
+      )
     end
 
     # REMOVED: Custom context extraction and injection
@@ -938,252 +1010,16 @@ module OpenAIAgents
 
     # New method for Responses API using items-based conversation model (matches Python)
     def run_with_responses_api(messages, config:)
-      @current_config = config
-      current_agent = @agent
-      turns = 0
-
-      # Convert initial messages to input items
-      input = Items::ItemHelpers.input_to_new_input_list(messages)
-      generated_items = []
-      model_responses = []
-      previous_response_id = config.previous_response_id # Track where the last turn ended
-      accumulated_usage = {
-        input_tokens: 0,
-        output_tokens: 0,
-        total_tokens: 0
-      }
-
-      # Create run context for hooks
-      context = RunContext.new(
-        messages: messages,
-        metadata: config.metadata || {},
-        trace_id: config.trace_id,
-        group_id: config.group_id
-      )
-      context_wrapper = RunContextWrapper.new(context)
-      @current_context_wrapper = context_wrapper
-
-      max_turns = config.max_turns || current_agent.max_turns
-
-      while turns < max_turns
-        # Check if execution should stop
-        raise ExecutionStoppedError, "Execution stopped by user request" if should_stop?
-
-        # Build current input including all generated items
-        # When using previous_response_id, only include tool outputs, not tool calls
-        # The API already knows about the calls from the previous response
-        if previous_response_id
-          # For continuing responses, start fresh - the API knows about the previous messages
-          current_input = []
-        else
-          # For initial request, include the original input
-          current_input = input.dup
-        end
-        
-        generated_items.each do |item|
-          # Skip tool calls when we have a previous_response_id to avoid duplicates
-          next if previous_response_id && item.is_a?(Items::ToolCallItem)
-
-          current_input << item.to_input_item
-        end
-
-        # Create agent span
-        agent_result = @tracer.start_span("agent.#{current_agent.name || "agent"}", kind: :agent) do |agent_span|
-          # Set agent span attributes
-          agent_span.set_attribute("agent.name", current_agent.name || "agent")
-          agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
-          agent_span.set_attribute("agent.tools", safe_map_names(current_agent.tools))
-          agent_span.set_attribute("agent.output_type", "str")
-
-          # Get system instructions
-          system_instructions = current_agent.instructions
-
-          # Prepare model parameters
-          model = config.model || current_agent.model
-          model_params = config.to_model_params
-
-          # Add response format if configured
-          model_params[:response_format] = current_agent.response_format if current_agent.response_format
-
-          # Add tool choice if configured
-          if current_agent.respond_to?(:tool_choice) && current_agent.tool_choice
-            model_params[:tool_choice] = current_agent.tool_choice
-          end
-
-          # Get tools for API
-          api_tools = get_all_tools_for_api(current_agent)
-
-          # Make API call - pass input items and previous_response_id for continuity
-          response = @provider.responses_completion(
-            messages: [{ role: "system", content: system_instructions }], # Only for extracting system content
-            model: model,
-            tools: api_tools,
-            previous_response_id: previous_response_id,
-            input: current_input, # Pass the accumulated input items
-            **model_params
-          )
-
-          # The response is already in Responses API format
-          # Extract response ID for next turn
-          previous_response_id = response&.dig(:id) || response&.dig("id")
-
-          # Store the response
-          model_responses << response
-
-          # Accumulate usage data
-          if response.is_a?(Hash) && response[:usage] || response["usage"]
-            usage = response[:usage] || response["usage"]
-            accumulated_usage[:input_tokens] += usage[:input_tokens] || usage["input_tokens"] || 0
-            accumulated_usage[:output_tokens] += usage[:output_tokens] || usage["output_tokens"] || 0
-            accumulated_usage[:total_tokens] += usage[:total_tokens] || usage["total_tokens"] || 0
-          end
-
-          # Process the output items
-          result = process_responses_api_output(response, current_agent, generated_items, agent_span)
-
-          # Return the result for the agent span
-          result
-        end
-
-        turns += 1
-
-        # Handle handoff if detected
-        if agent_result[:handoff]
-          handoff_info = agent_result[:handoff]
-          next_agent_name = handoff_info[:assistant]
-
-          log_debug_handoff("Processing handoff request in Responses API",
-                            from_agent: current_agent.name,
-                            requested_agent: next_agent_name)
-
-          # Find the target agent using the existing handoff lookup mechanism
-          handoff_agent = current_agent.find_handoff(next_agent_name)
-
-          if handoff_agent
-            # Handle both Agent objects (.name) and Handoff objects (.agent_name)
-            if handoff_agent.is_a?(Agent)
-              target_agent_name = handoff_agent.name
-              actual_agent = handoff_agent
-            else
-              # It's a Handoff object - invoke it to get the actual agent
-              target_agent_name = handoff_agent.agent_name
-              actual_agent = handoff_agent.invoke(@current_context_wrapper, handoff_info)
-            end
-            
-            log_debug_handoff("Handoff completed in Responses API",
-                              from_agent: current_agent.name,
-                              to_agent: target_agent_name)
-
-            # Extract structured context data before switching agents
-            # Note: We extract from the current agent (source) before switching to the target agent
-            source_agent = current_agent
-            if source_agent.respond_to?(:context_storage_keys) && source_agent.context_storage_keys.any?
-              log_debug_handoff("Extracting structured context data for handoff",
-                                from_agent: source_agent.name,
-                                to_agent: target_agent_name,
-                                context_keys: source_agent.context_storage_keys)
-              
-              # Find the last assistant message with JSON content
-              last_assistant_item = generated_items.reverse.find { |item| 
-                item.is_a?(Items::MessageOutputItem) && 
-                (item.raw_item[:role] == "assistant" || item.raw_item["role"] == "assistant")
-              }
-              
-              if last_assistant_item
-                content = extract_content_from_message_item(last_assistant_item)
-                if content && !content.empty?
-                  begin
-                    parsed_json = JSON.parse(content)
-                    
-                    # Extract and store configured context keys
-                    source_agent.context_storage_keys.each do |key|
-                      if parsed_json.key?(key.to_s)
-                        if @current_context_wrapper && @current_context_wrapper.respond_to?(:set)
-                          @current_context_wrapper.set(key, parsed_json[key.to_s])
-                          log_debug_handoff("Stored context data for handoff",
-                                            from_agent: source_agent.name,
-                                            to_agent: target_agent_name,
-                                            key: key,
-                                            data_type: parsed_json[key.to_s].class.name)
-                        end
-                      else
-                        log_debug_handoff("Context key not found in agent response",
-                                          from_agent: source_agent.name,
-                                          missing_key: key,
-                                          available_keys: parsed_json.keys)
-                      end
-                    end
-                  rescue JSON::ParserError => e
-                    log_debug_handoff("Agent response is not valid JSON, skipping context extraction",
-                                      from_agent: source_agent.name,
-                                      to_agent: target_agent_name,
-                                      error: e.message)
-                  end
-                end
-              else
-                log_debug_handoff("No assistant message found for context extraction",
-                                  from_agent: source_agent.name,
-                                  to_agent: target_agent_name)
-              end
-            end
-            
-            # Now switch to the target agent
-            current_agent = actual_agent
-            turns = 0 # Reset turn counter for new agent
-            
-            # Clear generated_items to prevent duplicate messages across agents
-            # BUT preserve the latest tool outputs so the handoff agent can see the context
-            log_debug_handoff("Clearing generated_items but preserving latest tool outputs",
-                              from_agent: source_agent.name,
-                              to_agent: current_agent.name,
-                              items_before: generated_items.size)
-            
-            # Keep only the most recent tool outputs (not tool calls)
-            recent_tool_outputs = generated_items.select do |item|
-              item.is_a?(Items::ToolCallOutputItem)
-            end.last(3) # Keep last 3 tool outputs for context
-            
-            generated_items.clear
-            generated_items.concat(recent_tool_outputs)
-            
-            log_debug_handoff("Generated items cleared and tool outputs preserved",
-                              from_agent: source_agent.name,
-                              to_agent: current_agent.name,
-                              items_after: generated_items.size,
-                              preserved_outputs: recent_tool_outputs.size)
-          else
-            log_debug_handoff("Handoff target not found in Responses API",
-                              from_agent: current_agent.name,
-                              requested_agent: next_agent_name,
-                              available_handoffs: current_agent.handoffs.map do |h|
-                                h.is_a?(Agent) ? h.name : h.agent_name
-                              end.join(", "))
-            raise HandoffError, "Cannot handoff to '#{next_agent_name}'"
-          end
-        end
-
-        # Check if done (no tool calls in last response)
-        break if agent_result[:done]
-      end
-
-      # Check if max turns exceeded
-      raise MaxTurnsError, "Maximum turns (#{max_turns}) exceeded" if turns >= max_turns
-
-      # Build final result
-      RunResult.success(
-        messages: build_conversation_from_items(input, generated_items),
-        last_agent: current_agent,
-        turns: turns,
-        last_response_id: previous_response_id,
-        usage: accumulated_usage
-      )
+      # Use shared execution core with hooks support
+      execute_responses_api_core(messages, config, with_tracing: true)
     end
 
     def run_without_tracing(messages, config:)
-      @current_config = config # Store for tool calls
-
-      # For Responses API, use items-based approach
+      # For Responses API, use shared execution core
       return run_with_responses_api_no_trace(messages, config: config) if @provider.is_a?(Models::ResponsesProvider)
+
+      # For non-Responses providers, use legacy implementation with hooks
+      context_wrapper = initialize_run_context(messages, config)
 
       conversation = messages.dup
       current_agent = @agent
@@ -1203,8 +1039,11 @@ module OpenAIAgents
           raise ExecutionStoppedError, "Execution stopped by user request"
         end
 
+        # Call agent start hook
+        call_hook(:on_agent_start, context_wrapper, current_agent)
+
         # Prepare messages for API call
-        api_messages = build_messages(conversation, current_agent)
+        api_messages = build_messages(conversation, current_agent, context_wrapper)
 
         # Make API call using provider (supports hosted tools)
         model = config.model || current_agent.model
@@ -1279,6 +1118,9 @@ module OpenAIAgents
             raise HandoffError, "Cannot handoff to '#{result[:handoff]}'"
           end
 
+          # Call handoff hook
+          call_hook(:on_handoff, context_wrapper, current_agent, handoff_agent)
+
           log_debug_handoff("Handoff completed (legacy mode)",
                             from_agent: current_agent.name,
                             to_agent: handoff_agent.name)
@@ -1294,6 +1136,10 @@ module OpenAIAgents
         # Check max turns for current agent
         raise MaxTurnsError, "Maximum turns (#{current_agent.max_turns}) exceeded" if turns >= current_agent.max_turns
       end
+
+      # Call agent end hook
+      final_output = conversation.last[:content] if conversation.last[:role] == "assistant"
+      call_hook(:on_agent_end, context_wrapper, current_agent, final_output)
 
       RunResult.success(
         messages: conversation,
@@ -1823,7 +1669,7 @@ module OpenAIAgents
       # Find handoff target using the same validation logic as text handoffs
       available_targets = get_available_handoff_targets(agent)
       validated_target = validate_handoff_target(target_agent_name, available_targets)
-      
+
       # Track handoff chain for circular detection
       @handoff_chain ||= []
       @handoff_chain << agent.name if @handoff_chain.empty? # Add starting agent
@@ -1842,14 +1688,16 @@ module OpenAIAgents
           handoff_error: true
         }
       end
-      
-      handoff_target = agent.handoffs.find do |handoff|
-        if handoff.is_a?(Agent)
-          handoff.name == validated_target
-        else
-          handoff.agent_name == validated_target || handoff.tool_name == tool_name
+
+      if validated_target
+        handoff_target = agent.handoffs.find do |handoff|
+          if handoff.is_a?(Agent)
+            handoff.name == validated_target
+          else
+            handoff.agent_name == validated_target || handoff.tool_name == tool_name
+          end
         end
-      end if validated_target
+      end
 
       unless handoff_target
         available_handoffs = agent.handoffs.map do |h|
@@ -1978,29 +1826,29 @@ module OpenAIAgents
       begin
         # Try to parse the content as JSON
         parsed_content = JSON.parse(content)
-        
+
         # Check for handoff_to field (multiple possible formats)
         if parsed_content.is_a?(Hash)
           # Check various field names for handoff target
-          handoff_target = parsed_content["handoff_to"] || 
-                          parsed_content[:handoff_to] || 
-                          parsed_content["transfer_to"] || 
-                          parsed_content[:transfer_to] ||
-                          parsed_content["next_agent"] ||
-                          parsed_content[:next_agent]
-          
+          handoff_target = parsed_content["handoff_to"] ||
+                           parsed_content[:handoff_to] ||
+                           parsed_content["transfer_to"] ||
+                           parsed_content[:transfer_to] ||
+                           parsed_content["next_agent"] ||
+                           parsed_content[:next_agent]
+
           if handoff_target
             # Validate the handoff target against available targets
             available_targets = get_available_handoff_targets(agent)
             validated_target = validate_handoff_target(handoff_target, available_targets)
-            
+
             if validated_target
               log_debug_handoff("JSON handoff detected in agent response",
                                 from_agent: agent.name,
                                 to_agent: validated_target,
                                 source: "JSON response content",
                                 detection_method: "json_field")
-              
+
               return validated_target
             end
           end
@@ -2008,18 +1856,18 @@ module OpenAIAgents
           # Check for nested handoff structures
           if parsed_content["handoff"] && parsed_content["handoff"]["to"]
             handoff_target = parsed_content["handoff"]["to"]
-            
+
             # Validate the handoff target against available targets
             available_targets = get_available_handoff_targets(agent)
             validated_target = validate_handoff_target(handoff_target, available_targets)
-            
+
             if validated_target
               log_debug_handoff("JSON handoff detected in nested structure",
                                 from_agent: agent.name,
                                 to_agent: validated_target,
                                 source: "JSON response content",
                                 detection_method: "json_nested")
-              
+
               return validated_target
             end
           end
@@ -2049,22 +1897,22 @@ module OpenAIAgents
 
       transfer_patterns.each do |pattern|
         match = content.match(pattern)
-        if match
-          potential_target = match[1]
-          # Validate against available targets
-          validated_target = validate_handoff_target(potential_target, available_targets)
-          if validated_target
-            log_debug_handoff("Text handoff detected in agent response",
-                              from_agent: agent.name,
-                              to_agent: validated_target,
-                              source: "text response content",
-                              detection_method: "text_pattern",
-                              pattern: pattern.inspect,
-                              matched_text: match[0])
-            
-            return validated_target
-          end
-        end
+        next unless match
+
+        potential_target = match[1]
+        # Validate against available targets
+        validated_target = validate_handoff_target(potential_target, available_targets)
+        next unless validated_target
+
+        log_debug_handoff("Text handoff detected in agent response",
+                          from_agent: agent.name,
+                          to_agent: validated_target,
+                          source: "text response content",
+                          detection_method: "text_pattern",
+                          pattern: pattern.inspect,
+                          matched_text: match[0])
+
+        return validated_target
       end
 
       # Pattern 2: Specific agent mentions
@@ -2077,37 +1925,37 @@ module OpenAIAgents
 
       mention_patterns.each do |pattern|
         match = content.match(pattern)
-        if match
-          potential_target = match[1]
-          validated_target = validate_handoff_target(potential_target, available_targets)
-          if validated_target
-            log_debug_handoff("Text handoff detected via agent mention",
-                              from_agent: agent.name,
-                              to_agent: validated_target,
-                              source: "text response content",
-                              detection_method: "text_mention",
-                              pattern: pattern.inspect,
-                              matched_text: match[0])
-            
-            return validated_target
-          end
-        end
+        next unless match
+
+        potential_target = match[1]
+        validated_target = validate_handoff_target(potential_target, available_targets)
+        next unless validated_target
+
+        log_debug_handoff("Text handoff detected via agent mention",
+                          from_agent: agent.name,
+                          to_agent: validated_target,
+                          source: "text response content",
+                          detection_method: "text_mention",
+                          pattern: pattern.inspect,
+                          matched_text: match[0])
+
+        return validated_target
       end
 
       # Pattern 3: Explicit agent name references
       # Check if any available target is explicitly mentioned as a standalone word
       available_targets.each do |target|
         # Case-insensitive word boundary matching
-        if content.match(/\b#{Regexp.escape(target)}\b/i)
-          log_debug_handoff("Text handoff detected via explicit agent name",
-                            from_agent: agent.name,
-                            to_agent: target,
-                            source: "text response content",
-                            detection_method: "text_explicit",
-                            matched_agent: target)
-          
-          return target
-        end
+        next unless content.match(/\b#{Regexp.escape(target)}\b/i)
+
+        log_debug_handoff("Text handoff detected via explicit agent name",
+                          from_agent: agent.name,
+                          to_agent: target,
+                          source: "text response content",
+                          detection_method: "text_explicit",
+                          matched_agent: target)
+
+        return target
       end
 
       nil
