@@ -139,6 +139,28 @@ module OpenAIAgents
         parameters[:response_format] = kwargs[:response_format] if kwargs[:response_format]
 
         begin
+          # Debug log the final parameters being sent to OpenAI
+          if parameters[:tools]
+            log_debug_tools("📤 FINAL PARAMETERS SENT TO OPENAI API",
+              tools_count: parameters[:tools].length,
+              tools_json: parameters[:tools].to_json
+            )
+            
+            # Check each tool for array parameters
+            parameters[:tools].each do |tool|
+              if tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
+                tool[:function][:parameters][:properties].each do |prop_name, prop_def|
+                  if prop_def[:type] == "array"
+                    log_debug_tools("🔍 FINAL ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
+                      has_items: prop_def.key?(:items),
+                      items_value: prop_def[:items].inspect
+                    )
+                  end
+                end
+              end
+            end
+          end
+          
           @client.chat.completions.create(**parameters)
         rescue HTTPClient::Error => e
           handle_openai_error(e)

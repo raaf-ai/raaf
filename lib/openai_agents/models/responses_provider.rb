@@ -240,6 +240,29 @@ module OpenAIAgents
 
         request.body = body.to_json
 
+        # DEBUG: Log the actual request body being sent to OpenAI
+        if body[:tools]
+          log_debug_tools("📤 ACTUAL REQUEST BODY SENT TO OPENAI RESPONSES API",
+            tools_count: body[:tools].length,
+            request_body_json: body.to_json
+          )
+          
+          # Check each tool for array parameters in the actual request
+          body[:tools].each do |tool|
+            if tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
+              tool[:function][:parameters][:properties].each do |prop_name, prop_def|
+                if prop_def[:type] == "array"
+                  log_debug_tools("🔍 ACTUAL REQUEST ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
+                    has_items: prop_def.key?(:items),
+                    items_value: prop_def[:items].inspect,
+                    items_nil: prop_def[:items].nil?
+                  )
+                end
+              end
+            end
+          end
+        end
+
         response = http.request(request)
 
         unless response.code.start_with?("2")

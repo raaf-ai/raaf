@@ -118,6 +118,14 @@ module OpenAIAgents
       tracing.workflow_name = value
     end
 
+    def group_id
+      tracing.group_id
+    end
+
+    def group_id=(value)
+      tracing.group_id = value
+    end
+
     ##
     # Backwards compatibility: delegate to execution config
     def max_turns

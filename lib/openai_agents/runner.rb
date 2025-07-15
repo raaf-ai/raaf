@@ -186,8 +186,6 @@ module OpenAIAgents
     #   )
     #
     def run(messages, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, **)
-      require "byebug"
-      debugger
       # Normalize messages input - handle both string and array formats
       messages = normalize_messages(messages)
 
@@ -1030,7 +1028,7 @@ module OpenAIAgents
         system_instructions = state[:current_agent].instructions
 
         # Prepare model parameters
-        model = config.model || state[:current_agent].model
+        model = config.model&.model || state[:current_agent].model
         model_params = config.to_model_params
         model_params[:response_format] = state[:current_agent].response_format if state[:current_agent].response_format
 
@@ -1169,7 +1167,7 @@ module OpenAIAgents
 
           # Prepare messages for API call
           api_messages = build_messages(conversation, current_agent, context_wrapper)
-          model = config.model || current_agent.model
+          model = config.model&.model || current_agent.model
 
           # Add comprehensive agent span attributes matching Python implementation
           if config.trace_include_sensitive_data
@@ -1410,7 +1408,7 @@ module OpenAIAgents
         api_messages = build_messages(conversation, current_agent, context_wrapper)
 
         # Make API call using provider (supports hosted tools)
-        model = config.model || current_agent.model
+        model = config.model&.model || current_agent.model
         model_params = config.to_model_params
 
         # Add structured output support (matching Python implementation)

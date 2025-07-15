@@ -154,7 +154,7 @@ module OpenAIAgents
       def execute(messages, agent, runner)
         # Build messages for API call
         api_messages = runner.build_messages(messages, agent)
-        model = config.model || agent.model
+        model = config.model&.model || agent.model
         model_params = build_model_params(agent, runner)
 
         log_debug_api("Making standard API call", model: model, provider: provider.class.name)
@@ -274,7 +274,7 @@ module OpenAIAgents
         
         # Convert messages to items format
         items = convert_messages_to_items(messages)
-        model = config.model || agent.model
+        model = config.model&.model || agent.model
         
         # Build provider parameters
         provider_params = build_provider_params(agent)

@@ -179,6 +179,23 @@ module OpenAIAgents
               properties_count: tool_hash.dig(:function, :parameters, :properties)&.keys&.length || 0,
               required_count: tool_hash.dig(:function, :parameters, :required)&.length || 0
             )
+            
+            # Enhanced logging for array parameters to debug "items" property
+            if tool_hash.dig(:function, :parameters, :properties)
+              tool_hash.dig(:function, :parameters, :properties).each do |prop_name, prop_def|
+                if prop_def[:type] == "array"
+                  log_debug_tools("🔍 OPENAI API ARRAY PROPERTY DEBUG for #{prop_name}",
+                    full_property_definition: prop_def.inspect,
+                    has_items_property: prop_def.key?(:items),
+                    items_value: prop_def[:items].inspect
+                  )
+                  if prop_def[:items].nil?
+                    log_error("🚨 FOUND THE BUG! Array property '#{prop_name}' has nil items - this will cause OpenAI API error!")
+                  end
+                end
+              end
+            end
+            
             tool_hash
           when OpenAIAgents::Tools::WebSearchTool, OpenAIAgents::Tools::HostedFileSearchTool, OpenAIAgents::Tools::HostedComputerTool
             tool.to_tool_definition
