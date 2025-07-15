@@ -1,0 +1,52 @@
+# frozen_string_literal: true
+
+require "bundler/gem_tasks"
+require "rspec/core/rake_task"
+
+RSpec::Core::RakeTask.new(:spec)
+
+require "rubocop/rake_task"
+
+RuboCop::RakeTask.new
+
+task default: %i[spec rubocop]
+
+# Custom tasks
+namespace :gem do
+  desc "Build and install the gem locally"
+  task :install do
+    system "gem build *.gemspec"
+    system "gem install *.gem"
+  end
+
+  desc "Clean built gems"
+  task :clean do
+    system "rm -f *.gem"
+  end
+end
+
+namespace :docs do
+  desc "Generate YARD documentation"
+  task :generate do
+    system "yard doc"
+  end
+
+  desc "Serve documentation locally"
+  task :serve do
+    system "yard server --reload"
+  end
+end
+
+namespace :test do
+  desc "Run tests with coverage"
+  task :coverage do
+    ENV["COVERAGE"] = "true"
+    Rake::Task["spec"].execute
+  end
+
+  desc "Run tests in verbose mode"
+  task :verbose do
+    ENV["VERBOSE"] = "true"
+    Rake::Task["spec"].execute
+  end
+end

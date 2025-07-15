@@ -1,0 +1,147 @@
+<div class="timeline-container">
+  <div class="timeline-header">
+    <div class="trace-info">
+      <h2>Trace Timeline: <%= @trace.workflow_name %></h2>
+      <div class="trace-meta">
+        <span class="trace-id">ID: <%= @trace.trace_id %></span>
+        <span class="trace-status badge badge-<%= @trace.status == 'completed' ? 'success' : (@trace.status == 'failed' ? 'danger' : 'warning') %>">
+          <%= @trace.status.humanize %>
+        </span>
+        <span class="trace-duration">Duration: <%= @trace.duration_ms || 0 %>ms</span>
+        <span class="span-count">Spans: <%= @spans.count %></span>
+      </div>
+    </div>
+    
+    <div class="timeline-controls">
+      <div class="view-switcher">
+        <button id="timeline-view" class="btn btn-outline-primary active">Timeline View</button>
+        <button id="gantt-view" class="btn btn-outline-primary">Gantt Chart</button>
+        <button id="critical-path-view" class="btn btn-outline-secondary">Critical Path</button>
+      </div>
+      
+      <div class="timeline-options">
+        <label class="checkbox-label">
+          <input type="checkbox" id="show-attributes" checked> Show Attributes
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="group-by-kind" checked> Group by Kind
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="highlight-errors" checked> Highlight Errors
+        </label>
+      </div>
+      
+      <div class="zoom-controls">
+        <button id="zoom-in" class="btn btn-sm btn-outline-secondary">+</button>
+        <button id="zoom-out" class="btn btn-sm btn-outline-secondary">-</button>
+        <button id="zoom-fit" class="btn btn-sm btn-outline-secondary">Fit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance Stats Summary -->
+  <div class="performance-summary">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-value"><%= @performance_stats[:total_spans] || 0 %></div>
+        <div class="stat-label">Total Spans</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value"><%= @performance_stats[:avg_duration_ms] || 0 %>ms</div>
+        <div class="stat-label">Avg Duration</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value"><%= @performance_stats[:p95_duration_ms] || 0 %>ms</div>
+        <div class="stat-label">P95 Duration</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value"><%= @performance_stats[:error_spans] || 0 %></div>
+        <div class="stat-label">Errors</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value"><%= @performance_stats.dig(:concurrency, :max_concurrent_spans) || 0 %></div>
+        <div class="stat-label">Max Concurrency</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline Visualization Container -->
+  <div id="timeline-visualization" class="visualization-container">
+    <div id="timeline-canvas" class="timeline-canvas"></div>
+  </div>
+
+  <!-- Gantt Chart Container (Hidden by default) -->
+  <div id="gantt-visualization" class="visualization-container" style="display: none;">
+    <div id="gantt-chart" class="gantt-container"></div>
+  </div>
+
+  <!-- Critical Path Container (Hidden by default) -->
+  <div id="critical-path-visualization" class="visualization-container" style="display: none;">
+    <div id="critical-path-canvas" class="critical-path-canvas"></div>
+  </div>
+
+  <!-- Span Details Panel -->
+  <div id="span-details-panel" class="details-panel">
+    <div class="panel-header">
+      <h3>Span Details</h3>
+      <button id="close-details" class="close-btn">&times;</button>
+    </div>
+    <div class="panel-content">
+      <div id="span-details-content">
+        <p class="text-muted">Click on a span to view details</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="timeline-legend">
+    <div class="legend-title">Legend</div>
+    <div class="legend-items">
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #007bff;"></span>
+        <span class="legend-label">Agent</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #28a745;"></span>
+        <span class="legend-label">LLM</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #17a2b8;"></span>
+        <span class="legend-label">Tool</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #ffc107;"></span>
+        <span class="legend-label">Function</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #dc3545;"></span>
+        <span class="legend-label">Error</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading visualization...</div>
+</div>
+
+<script>
+  // Initialize timeline data
+  window.timelineData = <%= raw @timeline_data.to_json %>;
+  window.ganttData = <%= raw @gantt_data.to_json %>;
+  window.traceId = '<%= @trace.trace_id %>';
+  
+  // Configuration
+  window.timelineConfig = {
+    zoomLevel: 1.0,
+    showAttributes: true,
+    groupByKind: true,
+    highlightErrors: true,
+    currentView: 'timeline'
+  };
+</script>
+
+<%= javascript_include_tag 'ruby_ai_agents_factory/tracing/timeline_viewer' %>
+<%= stylesheet_link_tag 'ruby_ai_agents_factory/tracing/timeline_viewer' %>

@@ -1,0 +1,122 @@
+# frozen_string_literal: true
+
+require "bundler/gem_tasks"
+require "rspec/core/rake_task"
+require "rubocop/rake_task"
+
+RSpec::Core::RakeTask.new(:spec)
+RuboCop::RakeTask.new
+
+task default: %i[spec rubocop]
+
+# Documentation tasks
+begin
+  require "yard"
+  YARD::Rake::YardocTask.new do |t|
+    t.files = ["lib/**/*.rb"]
+    t.options = ["--markup-provider=redcarpet", "--markup=markdown"]
+  end
+rescue LoadError
+  desc "Generate YARD documentation"
+  task :yard do
+    abort "YARD is not available. Run: gem install yard"
+  end
+end
+
+# Custom tasks
+namespace :raaf do
+  desc "Show all available subgems"
+  task :subgems do
+    puts "RAAF Subgems:"
+    subgems = [
+      "raaf-core",
+      "raaf-providers", 
+      "raaf-tools-basic",
+      "raaf-tools-advanced",
+      "raaf-guardrails",
+      "raaf-tracing",
+      "raaf-streaming",
+      "raaf-memory",
+      "raaf-extensions",
+      "raaf-dsl",
+      "raaf-debug",
+      "raaf-testing",
+      "raaf-visualization",
+      "raaf-compliance",
+      "raaf-rails"
+    ]
+    
+    subgems.each { |gem| puts "  - #{gem}" }
+  end
+  
+  desc "Check if all subgems are available"
+  task :check_dependencies do
+    puts "Checking RAAF subgem dependencies..."
+    
+    subgems = [
+      "raaf-core",
+      "raaf-providers",
+      "raaf-tools-basic", 
+      "raaf-tools-advanced",
+      "raaf-guardrails",
+      "raaf-tracing",
+      "raaf-streaming",
+      "raaf-memory",
+      "raaf-extensions",
+      "raaf-dsl",
+      "raaf-debug",
+      "raaf-testing",
+      "raaf-visualization",
+      "raaf-compliance"
+    ]
+    
+    missing = []
+    available = []
+    
+    subgems.each do |gem|
+      begin
+        require gem
+        available << gem
+        puts "  ✓ #{gem}"
+      rescue LoadError
+        missing << gem
+        puts "  ✗ #{gem} (missing)"
+      end
+    end
+    
+    puts
+    puts "Summary:"
+    puts "  Available: #{available.size}/#{subgems.size}"
+    puts "  Missing: #{missing.size}/#{subgems.size}"
+    
+    unless missing.empty?
+      puts
+      puts "Missing subgems:"
+      missing.each { |gem| puts "  - #{gem}" }
+    end
+  end
+  
+  desc "Run examples"
+  task :examples do
+    examples_dir = File.join(__dir__, "examples")
+    
+    if Dir.exist?(examples_dir)
+      Dir.glob(File.join(examples_dir, "*.rb")).each do |example_file|
+        puts "Running example: #{File.basename(example_file)}"
+        puts "=" * 50
+        
+        begin
+          load example_file
+        rescue => e
+          puts "Error running example: #{e.message}"
+        end
+        
+        puts
+        puts "=" * 50
+        puts
+      end
+    else
+      puts "No examples directory found"
+    end
+  end
+end
