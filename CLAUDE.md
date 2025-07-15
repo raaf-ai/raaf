@@ -1,6 +1,6 @@
-# Claude Code Guide for OpenAI Agents Ruby
+# Claude Code Guide for Ruby AI Agents Factory
 
-This repository contains a comprehensive Ruby implementation of OpenAI Agents for building sophisticated multi-agent AI workflows. This guide will help you understand the codebase structure, common development patterns, and useful commands.
+This repository contains a comprehensive Ruby implementation of AI Agents for building sophisticated multi-agent AI workflows. This guide will help you understand the codebase structure, common development patterns, and useful commands.
 
 ## Repository Overview
 
@@ -39,7 +39,7 @@ This is a Ruby gem that provides 100% feature parity with the Python OpenAI Agen
 
 # ✅ RECOMMENDED: Default pattern uses ResponsesProvider (matching Python implementation)
 # This is the recommended approach for all new applications
-agent = OpenAIAgents::Agent.new(
+agent = RubyAIAgentsFactory::Agent.new(
   name: "Assistant",                               # Agent identifier for handoffs and tracing
   instructions: "You are a helpful assistant.",    # System prompt defining agent behavior
   model: "gpt-4o"                                 # OpenAI model (defaults to ResponsesProvider)
@@ -47,23 +47,23 @@ agent = OpenAIAgents::Agent.new(
 
 # ✅ RECOMMENDED: Explicit ResponsesProvider (same as default)
 # ResponsesProvider: Modern API, better features, Python-compatible, WITH usage data
-runner = OpenAIAgents::Runner.new(
+runner = RubyAIAgentsFactory::Runner.new(
   agent: agent,
-  provider: OpenAIAgents::Models::ResponsesProvider.new  # Explicitly set (though it's default)
+  provider: RubyAIAgentsFactory::Models::ResponsesProvider.new  # Explicitly set (though it's default)
 )
 
 # ✅ RECOMMENDED: Token usage tracking with ResponsesProvider
 # ResponsesProvider: Default provider with detailed usage data
 # Provides: {input_tokens, output_tokens, total_tokens, input_tokens_details, output_tokens_details}
-runner = OpenAIAgents::Runner.new(agent: agent)  # Default ResponsesProvider includes usage data
+runner = RubyAIAgentsFactory::Runner.new(agent: agent)  # Default ResponsesProvider includes usage data
 
 # ⚠️ DEPRECATED: OpenAIProvider - Legacy Chat Completions API 
 # DEPRECATED: Use ResponsesProvider instead (it's the default)
 # Only kept for backwards compatibility and streaming support
 # Provides: {prompt_tokens, completion_tokens, total_tokens}
-runner = OpenAIAgents::Runner.new(
+runner = RubyAIAgentsFactory::Runner.new(
   agent: agent,
-  provider: OpenAIAgents::Models::OpenAIProvider.new  # DEPRECATED - will show warning
+  provider: RubyAIAgentsFactory::Models::OpenAIProvider.new  # DEPRECATED - will show warning
 )
 ```
 
@@ -79,7 +79,7 @@ require_relative 'lib/openai_agents'
 
 # Create an agent instance with basic configuration
 # The agent encapsulates the AI's personality and capabilities
-agent = OpenAIAgents::Agent.new(
+agent = RubyAIAgentsFactory::Agent.new(
   name: "Assistant",                             # Used in multi-agent scenarios for identification
   instructions: "You are a helpful assistant.",  # Defines the agent's behavior and personality
   model: "gpt-4o"                               # Latest GPT-4 model with optimized performance
@@ -88,7 +88,7 @@ agent = OpenAIAgents::Agent.new(
 # Create a runner to execute conversations
 # Runner handles the conversation loop, tool calls, and response streaming
 # By default, uses ResponsesProvider for Python compatibility
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RubyAIAgentsFactory::Runner.new(agent: agent)
 
 # Execute a single conversation turn
 # Returns a Result object containing messages and metadata
@@ -123,7 +123,7 @@ end
 agent.add_tool(method(:get_weather))
 
 # Method 2: Define tools with more control using FunctionTool directly
-weather_tool = OpenAIAgents::FunctionTool.new(
+weather_tool = RubyAIAgentsFactory::FunctionTool.new(
   name: "get_weather",                                    # Tool name the AI will use
   description: "Get current weather for a location",      # Helps AI understand when to use it
   parameters: {                                           # JSON Schema for parameters
@@ -173,18 +173,18 @@ agent.add_tool(method(:search_web))
 
 # Create a span tracer instance
 # This collects timing and execution data for each agent interaction
-tracer = OpenAIAgents::Tracing::SpanTracer.new
+tracer = RubyAIAgentsFactory::Tracing::SpanTracer.new
 
 # Add OpenAI processor to send traces to OpenAI's monitoring dashboard
 # This enables viewing agent performance in the OpenAI platform
-tracer.add_processor(OpenAIAgents::Tracing::OpenAIProcessor.new)
+tracer.add_processor(RubyAIAgentsFactory::Tracing::OpenAIProcessor.new)
 
 # Attach tracer to runner for automatic span creation
-runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
+runner = RubyAIAgentsFactory::Runner.new(agent: agent, tracer: tracer)
 
 # Advanced: Add multiple processors for different destinations
-console_processor = OpenAIAgents::Tracing::ConsoleProcessor.new    # Logs to console
-file_processor = OpenAIAgents::Tracing::FileProcessor.new("traces.json")  # Saves to file
+console_processor = RubyAIAgentsFactory::Tracing::ConsoleProcessor.new    # Logs to console
+file_processor = RubyAIAgentsFactory::Tracing::FileProcessor.new("traces.json")  # Saves to file
 
 tracer.add_processor(console_processor)
 tracer.add_processor(file_processor)
@@ -239,7 +239,7 @@ tracer.add_processor(CustomProcessor.new)
 
 # Method 1: Include Logger mixin in your classes for convenience methods
 class MyAgent
-  include OpenAIAgents::Logger  # Provides log_* instance methods
+  include RubyAIAgentsFactory::Logger  # Provides log_* instance methods
   
   def process
     # log_info: General information messages
@@ -261,13 +261,13 @@ end
 
 # Method 2: Direct logging using the Logging module
 # Use when you don't want to include the mixin
-OpenAIAgents::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
-OpenAIAgents::Logging.debug("Tool called", tool: "search", category: :tools)
-OpenAIAgents::Logging.warn("Rate limit approaching", requests_remaining: 10)
-OpenAIAgents::Logging.error("API error", status: 429, message: "Rate limited")
+RubyAIAgentsFactory::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
+RubyAIAgentsFactory::Logging.debug("Tool called", tool: "search", category: :tools)
+RubyAIAgentsFactory::Logging.warn("Rate limit approaching", requests_remaining: 10)
+RubyAIAgentsFactory::Logging.error("API error", status: 429, message: "Rate limited")
 
 # Configure logging programmatically
-OpenAIAgents::Logging.configure do |config|
+RubyAIAgentsFactory::Logging.configure do |config|
   config.log_level = :debug                        # :debug, :info, :warn, :error, :fatal
   config.log_format = :json                        # :text or :json
   config.log_output = :rails                       # :console, :file, :rails, :auto
@@ -288,11 +288,11 @@ end
 # Rails integration example
 # When Rails is detected, logs automatically go to Rails.logger
 class AgentController < ApplicationController
-  include OpenAIAgents::Logger
+  include RubyAIAgentsFactory::Logger
   
   def create
     log_info("Creating agent", params: agent_params)
-    agent = OpenAIAgents::Agent.new(agent_params)
+    agent = RubyAIAgentsFactory::Agent.new(agent_params)
     log_debug_api("Agent created", agent_id: agent.id)
   end
 end
@@ -333,8 +333,8 @@ lib/openai_agents/
 # Basic example
 ruby -e "
 require_relative 'lib/openai_agents'
-agent = OpenAIAgents::Agent.new(name: 'Assistant', instructions: 'Be helpful', model: 'gpt-4o')
-runner = OpenAIAgents::Runner.new(agent: agent)
+agent = RubyAIAgentsFactory::Agent.new(name: 'Assistant', instructions: 'Be helpful', model: 'gpt-4o')
+runner = RubyAIAgentsFactory::Runner.new(agent: agent)
 result = runner.run('Hello')
 puts result.messages.last[:content]
 "
@@ -373,13 +373,13 @@ export OPENAI_AGENTS_DEBUG_CATEGORIES="tracing,api,http"  # Enable specific cate
 ### 🔄 Migration Guide
 ```ruby
 # OLD (Legacy - DEPRECATED)
-runner = OpenAIAgents::Runner.new(
+runner = RubyAIAgentsFactory::Runner.new(
   agent: agent,
-  provider: OpenAIAgents::Models::OpenAIProvider.new  # DEPRECATED - will show warning
+  provider: RubyAIAgentsFactory::Models::OpenAIProvider.new  # DEPRECATED - will show warning
 )
 
 # ✅ NEW (Python-aligned, recommended)
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RubyAIAgentsFactory::Runner.new(agent: agent)
 # Automatically uses ResponsesProvider with usage data
 ```
 
@@ -403,7 +403,7 @@ The unified logging system automatically integrates with Rails when available an
 
 ```ruby
 # Configure logging
-OpenAIAgents::Logging.configure do |config|
+RubyAIAgentsFactory::Logging.configure do |config|
   config.log_level = :debug
   config.log_format = :json
   config.debug_categories = [:api, :tracing]
@@ -411,7 +411,7 @@ end
 
 # Use in your classes
 class MyProcessor
-  include OpenAIAgents::Logger
+  include RubyAIAgentsFactory::Logger
   
   def process
     log_info("Processing started", processor: "MyProcessor")

@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-require_relative "lib/openai_agents/version"
+require_relative "lib/raaf/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "openai_agents"
-  spec.version = OpenAIAgents::VERSION
-  spec.summary = "A Ruby implementation of OpenAI Agents for multi-agent AI workflows"
-  spec.description = "A comprehensive Ruby framework for building multi-agent AI workflows. " \
+  spec.name = "ruby-ai-agents-factory"
+  spec.version = RubyAIAgentsFactory::VERSION
+  spec.summary = "Ruby AI Agents Factory - A comprehensive framework for building multi-agent AI workflows"
+  spec.description = "Ruby AI Agents Factory (RAAF) is a comprehensive Ruby framework for building multi-agent AI workflows. " \
                      "Features 100+ LLM support, Rails integration with web UI, async execution, " \
                      "advanced tracing, tool integration, and intelligent agent handoffs."
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
-  spec.homepage = "https://github.com/enterprisemodules/openai-agents-ruby"
+  spec.homepage = "https://github.com/raaf-ai/ruby-ai-agents-factory"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 

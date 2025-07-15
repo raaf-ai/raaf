@@ -1,10 +1,10 @@
-# OpenAI Agents Ruby
+# Ruby AI Agents Factory (RAAF)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-0.1.0-blue.svg)](https://rubygems.org/gems/openai_agents)
+[![Version](https://img.shields.io/badge/Version-0.1.0-blue.svg)](https://rubygems.org/gems/ruby-ai-agents-factory)
 [![Ruby](https://img.shields.io/badge/Ruby-3.0%2B-red.svg)](https://www.ruby-lang.org/)
 
-A comprehensive Ruby implementation of OpenAI Agents for building sophisticated multi-agent AI workflows. This gem provides 100% feature parity with the Python OpenAI Agents library, plus additional enterprise-grade capabilities.
+A comprehensive Ruby framework for building sophisticated multi-agent AI workflows. Ruby AI Agents Factory (RAAF) provides 100% feature parity with the Python OpenAI Agents library, plus additional enterprise-grade capabilities.
 
 > 🤖 **Built with AI**: This codebase was developed using AI assistance, demonstrating AI-assisted software development at scale.
 
