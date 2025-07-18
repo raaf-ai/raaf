@@ -1,11 +1,22 @@
 # frozen_string_literal: true
 
-require "bundler/gem_tasks"
-require "rspec/core/rake_task"
-require "rubocop/rake_task"
+# Load guides tasks
+Dir.chdir("guides") do
+  load "Rakefile"
+end
 
-RSpec::Core::RakeTask.new(:spec)
-RuboCop::RakeTask.new
+desc "Run guides code validation"
+task :validate_code do
+  Dir.chdir("guides") do
+    Rake::Task["guides:validate_code"].invoke
+  end
+end
 
-desc "Run tests and linting"
-task default: %i[spec rubocop]
+desc "Show available tasks"
+task :help do
+  puts "Available tasks:"
+  puts "  rake validate_code    - Validate code examples in guides"
+  puts "  rake guides:help      - Show guides-specific help"
+end
+
+task default: :help

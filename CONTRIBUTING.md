@@ -1,6 +1,6 @@
-# Contributing to OpenAI Agents Ruby
+# Contributing to RAAF (Ruby AI Agents Factory)
 
-Thank you for your interest in contributing to OpenAI Agents Ruby! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to RAAF (Ruby AI Agents Factory)! This document provides guidelines and information for contributors.
 
 ## Table of Contents
 
@@ -40,12 +40,12 @@ This project adheres to a code of conduct that we expect all contributors to fol
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/openai-agents-ruby.git
-   cd openai-agents-ruby
+   git clone https://github.com/YOUR_USERNAME/raaf.git
+   cd raaf
    ```
 3. Add the upstream repository:
    ```bash
-   git remote add upstream https://github.com/enterprisemodules/openai-agents-ruby.git
+   git remote add upstream https://github.com/enterprisemodules/raaf.git
    ```
 
 ## Development Setup
@@ -377,7 +377,7 @@ Contributors are recognized in:
 
 ## Thank You
 
-Thank you for contributing to OpenAI Agents Ruby! Your contributions help make this project better for everyone.
+Thank you for contributing to RAAF (Ruby AI Agents Factory)! Your contributions help make this project better for everyone.
 
 For questions or help with contributing, please open an issue or start a discussion on GitHub.
 

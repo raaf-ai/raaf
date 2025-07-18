@@ -4,9 +4,31 @@
 [![Version](https://img.shields.io/badge/Version-0.1.0-blue.svg)](https://rubygems.org/gems/ruby-ai-agents-factory)
 [![Ruby](https://img.shields.io/badge/Ruby-3.0%2B-red.svg)](https://www.ruby-lang.org/)
 
-A comprehensive Ruby framework for building sophisticated multi-agent AI workflows. Ruby AI Agents Factory (RAAF) provides 100% feature parity with the Python OpenAI Agents library, plus additional enterprise-grade capabilities.
+A comprehensive Ruby framework for building sophisticated multi-agent AI workflows. Ruby AI Agents Factory (RAAF) is a Ruby implementation inspired by OpenAI's Swarm framework, providing 100% feature parity with the Python OpenAI Agents library, plus additional enterprise-grade capabilities.
 
 > 🤖 **Built with AI**: This codebase was developed using AI assistance, demonstrating AI-assisted software development at scale.
+
+## 🎯 About RAAF and OpenAI Swarm
+
+RAAF is a Ruby implementation of multi-agent orchestration patterns inspired by [OpenAI's Swarm framework](https://github.com/openai/swarm). While Swarm provides an experimental, educational framework for exploring ergonomic interfaces for multi-agent systems in Python, RAAF brings these concepts to the Ruby ecosystem with production-ready features and enterprise-grade capabilities.
+
+### Key Concepts from Swarm
+
+Like Swarm, RAAF implements:
+- **Lightweight Agents**: Agents are simple, stateless entities defined by instructions and tools
+- **Handoffs**: Agents can seamlessly transfer conversations to other specialized agents
+- **Function Calling**: Natural integration of Ruby methods as agent tools
+- **Context Variables**: Thread-safe context passing between agents and tool calls
+
+### Beyond Swarm: Enterprise Features
+
+RAAF extends the Swarm concepts with:
+- **Multi-Provider Support**: Not just OpenAI, but Anthropic, Google, Cohere, and 100+ LLMs
+- **Production Safety**: Advanced guardrails, PII detection, and security filtering
+- **Memory Management**: Token-aware context management with vector search
+- **Compliance**: GDPR/SOC2/HIPAA compliance tracking and audit trails
+- **Rails Integration**: Full Rails engine with web UI and database persistence
+- **Comprehensive Tracing**: OpenTelemetry support and AI-powered analytics
 
 ## 🌟 Key Features
 
@@ -42,18 +64,18 @@ A comprehensive Ruby framework for building sophisticated multi-agent AI workflo
 ### Installation
 
 ```bash
-gem install openai_agents
+gem install raaf
 ```
 
 Or add to your Gemfile:
 ```ruby
-gem 'openai_agents'
+gem 'raaf'
 ```
 
 ### Basic Example
 
 ```ruby
-require 'openai_agents'
+require 'raaf'
 
 # Set your API key
 ENV['OPENAI_API_KEY'] = 'your-api-key'
@@ -64,7 +86,7 @@ def get_weather(city)
 end
 
 # Create an agent
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant.",
   model: "gpt-4o"
@@ -74,7 +96,7 @@ agent = OpenAIAgents::Agent.new(
 agent.add_tool(method(:get_weather))
 
 # Run conversation
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("What's the weather in Paris?")
 
 puts result.messages.last[:content]
@@ -84,7 +106,7 @@ puts result.messages.last[:content]
 
 ```ruby
 # Universal structured output across ALL providers
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "DataExtractor",
   instructions: "Extract user information as JSON.",
   model: "gpt-4o",
@@ -108,7 +130,7 @@ agent = OpenAIAgents::Agent.new(
 )
 
 # Works with ANY provider - OpenAI, Anthropic, Cohere, Groq, etc.
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("I'm Alice, 25, alice@example.com")
 
 # Guaranteed JSON output matching your schema
@@ -120,13 +142,13 @@ puts "Hello #{user_data['name']}, age #{user_data['age']}!"
 
 ```ruby
 # Create specialized agents
-support_agent = OpenAIAgents::Agent.new(
+support_agent = RAAF::Agent.new(
   name: "CustomerSupport",
   instructions: "Handle general inquiries, escalate complex issues.",
   model: "gpt-4"
 )
 
-tech_agent = OpenAIAgents::Agent.new(
+tech_agent = RAAF::Agent.new(
   name: "TechnicalSupport", 
   instructions: "Handle technical troubleshooting.",
   model: "gpt-4"
@@ -136,7 +158,7 @@ tech_agent = OpenAIAgents::Agent.new(
 support_agent.add_handoff(tech_agent)
 
 # Automatic handoff based on conversation context
-runner = OpenAIAgents::Runner.new(agent: support_agent)
+runner = RAAF::Runner.new(agent: support_agent)
 result = runner.run("My API integration is failing with 500 errors")
 ```
 
@@ -144,21 +166,21 @@ result = runner.run("My API integration is failing with 500 errors")
 
 ```ruby
 # Create agent with memory
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant with memory.",
   model: "gpt-4o"
 )
 
 # Add memory manager with token limits
-memory_manager = OpenAIAgents::Memory::MemoryManager.new(
-  store: OpenAIAgents::Memory::VectorStore.new,
+memory_manager = RAAF::Memory::MemoryManager.new(
+  store: RAAF::Memory::VectorStore.new,
   token_limit: 4000,
   pruning_strategy: :sliding_window
 )
 
 # Run with memory context
-runner = OpenAIAgents::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
   memory_manager: memory_manager
 )
@@ -174,7 +196,7 @@ result = runner.run("What's my favorite color?")
 
 ```ruby
 # Create vector store for semantic search
-vector_store = OpenAIAgents::VectorStore.new(
+vector_store = RAAF::VectorStore.new(
   adapter: :postgresql,  # or :in_memory for development
   connection_string: ENV['DATABASE_URL']
 )
@@ -186,16 +208,16 @@ vector_store.add_documents([
 ])
 
 # Create agent with vector search tool
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "ResearchAssistant",
   instructions: "Help users find relevant information.",
   model: "gpt-4o"
 )
 
 # Add vector search capability
-agent.add_tool(OpenAIAgents::Tools::VectorSearchTool.new(vector_store: vector_store))
+agent.add_tool(RAAF::Tools::VectorSearchTool.new(vector_store: vector_store))
 
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Tell me about Ruby frameworks")
 ```
 
@@ -203,17 +225,17 @@ result = runner.run("Tell me about Ruby frameworks")
 
 ```ruby
 # Create agent with document generation tools
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "ReportGenerator",
   instructions: "Generate professional reports and documents.",
   model: "gpt-4o"
 )
 
 # Add document generation capabilities
-agent.add_tool(OpenAIAgents::Tools::DocumentTool.new)
-agent.add_tool(OpenAIAgents::Tools::ReportTool.new)
+agent.add_tool(RAAF::Tools::DocumentTool.new)
+agent.add_tool(RAAF::Tools::ReportTool.new)
 
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Generate various document types
 result = runner.run("Create a PDF report summarizing Q4 sales data")
@@ -225,22 +247,22 @@ result = runner.run("Create a Word document with meeting minutes")
 
 ```ruby
 # Configure multiple guardrails with parallel execution
-guardrails = OpenAIAgents::ParallelGuardrails.new([
-  OpenAIAgents::Guardrails::PIIDetector.new(
+guardrails = RAAF::ParallelGuardrails.new([
+  RAAF::Guardrails::PIIDetector.new(
     action: :redact,
     sensitivity: :high
   ),
-  OpenAIAgents::Guardrails::SecurityGuardrail.new(
+  RAAF::Guardrails::SecurityGuardrail.new(
     block_patterns: [/password/, /api_key/],
     action: :block
   ),
-  OpenAIAgents::Guardrails::Tripwire.new(
+  RAAF::Guardrails::Tripwire.new(
     patterns: [/delete.*production/, /drop.*table/],
     action: :terminate
   )
 ])
 
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "SecureAssistant",
   instructions: "Process user requests safely.",
   model: "gpt-4o",
@@ -248,7 +270,7 @@ agent = OpenAIAgents::Agent.new(
 )
 
 # Guardrails automatically filter inputs and outputs
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("My SSN is 123-45-6789")  # PII will be redacted
 ```
 
@@ -256,15 +278,15 @@ result = runner.run("My SSN is 123-45-6789")  # PII will be redacted
 
 ```ruby
 # Enable interactive debugging
-debugger = OpenAIAgents::Debugging::Debugger.new
-agent = OpenAIAgents::Agent.new(
+debugger = RAAF::Debugging::Debugger.new
+agent = RAAF::Agent.new(
   name: "DebugAssistant",
   instructions: "Help debug issues.",
   model: "gpt-4o"
 )
 
 # Run with debugging enabled
-runner = OpenAIAgents::DebugRunner.new(
+runner = RAAF::DebugRunner.new(
   agent: agent,
   debugger: debugger
 )
@@ -284,7 +306,7 @@ debugger.export_session("debug_session.json")
 
 ```ruby
 # Configure unified logging system
-OpenAIAgents::Logging.configure do |config|
+RAAF::Logging.configure do |config|
   config.log_level = :debug
   config.log_format = :json
   config.log_output = :rails  # or :console, :file, :auto
@@ -293,7 +315,7 @@ end
 
 # Use in your classes
 class MyAgent
-  include OpenAIAgents::Logger
+  include RAAF::Logger
   
   def process
     log_info("Processing started", agent: "MyAgent", task_id: 123)
@@ -303,9 +325,9 @@ class MyAgent
 end
 
 # Environment configuration
-ENV['OPENAI_AGENTS_LOG_LEVEL'] = 'debug'
-ENV['OPENAI_AGENTS_LOG_FORMAT'] = 'json'
-ENV['OPENAI_AGENTS_DEBUG_CATEGORIES'] = 'api,tracing,http'
+ENV['RAAF_LOG_LEVEL'] = 'debug'
+ENV['RAAF_LOG_FORMAT'] = 'json'
+ENV['RAAF_DEBUG_CATEGORIES'] = 'api,tracing,http'
 ```
 
 **Debug Categories:**
@@ -317,35 +339,37 @@ ENV['OPENAI_AGENTS_DEBUG_CATEGORIES'] = 'api,tracing,http'
 - `http` - HTTP debug output
 - `general` - General debug messages
 
+> 📋 **Complete Environment Variables Guide**: For a comprehensive list of all environment variables, their functions, formats, and examples, see **[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md)**.
+
 ### Rails Integration Example
 
 ```bash
 # Add to Gemfile and install
-gem 'openai_agents'
+gem 'raaf'
 bundle install
 
 # Generate Rails integration
-rails generate openai_agents:tracing:install
+rails generate raaf:tracing:install
 rails db:migrate
 
 # Visit /tracing in your browser for web interface
 ```
 
 ```ruby
-# config/initializers/openai_agents_tracing.rb
-OpenAIAgents::Tracing.configure do |config|
+# config/initializers/raaf_tracing.rb
+RAAF::Tracing.configure do |config|
   config.auto_configure = true  # Automatically store traces in database
   config.mount_path = '/tracing'
 end
 
 # app/jobs/application_job.rb
 class ApplicationJob < ActiveJob::Base
-  include OpenAIAgents::Tracing::RailsIntegrations::JobTracing
+  include RAAF::Tracing::RailsIntegrations::JobTracing
 end
 
 # Now all agent calls are automatically traced and visible at /tracing
-agent = OpenAIAgents::Agent.new(name: "Assistant", model: "gpt-4o")
-runner = OpenAIAgents::Runner.new(agent: agent)
+agent = RAAF::Agent.new(name: "Assistant", model: "gpt-4o")
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello from Rails!")
 ```
 
@@ -369,6 +393,52 @@ result = runner.run("Hello from Rails!")
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Changelog](CHANGELOG.md)** - Version history and updates
+
+## 📦 Mono-repo Architecture
+
+RAAF is organized as a mono-repo containing multiple independent gems, allowing you to use only the features you need:
+
+### Core Gems
+- **`raaf`** - Meta-gem that includes all components
+- **`raaf-core`** - Essential agent runtime with OpenAI provider
+- **`raaf-dsl`** - Declarative configuration DSL for elegant agent definitions
+- **`raaf-providers`** - Multi-provider support (Anthropic, Cohere, Groq, Ollama, etc.)
+
+### Tool Ecosystems
+- **`raaf-tools`** - Basic tools (file search, web search)
+- **`raaf-tools-advanced`** - Enterprise tools (code interpreter, document generation, computer control)
+
+### Safety & Compliance
+- **`raaf-guardrails`** - Content filtering, PII detection, security validation
+- **`raaf-compliance`** - GDPR/SOC2/HIPAA compliance and audit trails
+
+### Advanced Features
+- **`raaf-memory`** - Memory management and vector search capabilities
+- **`raaf-streaming`** - Real-time streaming and async processing
+- **`raaf-tracing`** - Comprehensive monitoring and observability
+- **`raaf-rails`** - Rails integration with web UI
+
+### Development Tools
+- **`raaf-debug`** - Interactive debugger and REPL
+- **`raaf-testing`** - RSpec matchers and test utilities
+- **`raaf-visualization`** - Workflow visualization and analytics
+
+### Modular Installation
+
+Install only what you need:
+
+```ruby
+# Minimal setup
+gem 'raaf-core'
+
+# Standard setup with tools
+gem 'raaf-core'
+gem 'raaf-tools'
+gem 'raaf-guardrails'
+
+# Full enterprise setup
+gem 'raaf' # Includes everything
+```
 
 ## 🏗️ Core Architecture
 
@@ -455,7 +525,7 @@ Specialized agents working together with intelligent handoffs based on context a
 
 ```ruby
 # Ruby-idiomatic agent configuration
-agent = OpenAIAgents::Agent.new(name: "Assistant") do |config|
+agent = RAAF::Agent.new(name: "Assistant") do |config|
   config.instructions = "You are a helpful assistant"
   config.model = "gpt-4o"
   config.add_tool(calculator_tool)
@@ -465,24 +535,24 @@ end
 result = agent.get_weather(city: "Tokyo")  # Direct method calls
 
 # Comprehensive tracing
-tracer = OpenAIAgents.tracer
-runner = OpenAIAgents::Runner.new(agent: agent, tracer: tracer)
+tracer = RAAF.tracer
+runner = RAAF::Runner.new(agent: agent, tracer: tracer)
 
 # Interactive debugging
-debugger = OpenAIAgents::Debugging::Debugger.new
+debugger = RAAF::Debugging::Debugger.new
 debugger.set_breakpoint(:before_tool_call)
-debug_runner = OpenAIAgents::DebugRunner.new(agent: agent, debugger: debugger)
+debug_runner = RAAF::DebugRunner.new(agent: agent, debugger: debugger)
 
 # Natural language trace queries
-query = OpenAIAgents::Tracing::NaturalLanguageQuery.new(tracer)
+query = RAAF::Tracing::NaturalLanguageQuery.new(tracer)
 results = query.search("Show me slow API calls from yesterday")
 
 # Streaming with events
 runner.run_streaming("Tell me a story") do |event|
   case event
-  when OpenAIAgents::StreamingEvents::ResponseTextDeltaEvent
+  when RAAF::StreamingEvents::ResponseTextDeltaEvent
     print event.text_delta
-  when OpenAIAgents::StreamingEvents::ResponseCompletedEvent
+  when RAAF::StreamingEvents::ResponseCompletedEvent
     puts "\nCompleted: #{event.response.status}"
   end
 end
@@ -499,7 +569,7 @@ The gem includes a comprehensive RSpec test suite with 100% code coverage.
 bundle exec rspec
 
 # Run specific test file
-bundle exec rspec spec/openai_agents/agent_spec.rb
+bundle exec rspec spec/raaf/agent_spec.rb
 
 # Run with coverage report
 COVERAGE=true bundle exec rspec
@@ -516,14 +586,14 @@ require 'spec_helper'
 
 RSpec.describe "MyAgent" do
   let(:agent) do
-    OpenAIAgents::Agent.new(
+    RAAF::Agent.new(
       name: "TestAgent",
       instructions: "You are a test assistant.",
       model: "gpt-4o"
     )
   end
   
-  let(:runner) { OpenAIAgents::Runner.new(agent: agent) }
+  let(:runner) { RAAF::Runner.new(agent: agent) }
   
   it "responds to basic queries" do
     VCR.use_cassette("agent_basic_query") do
@@ -544,7 +614,7 @@ RSpec.describe "MyAgent" do
   it "handles errors gracefully" do
     expect {
       runner.run("Trigger an error")
-    }.to raise_error(OpenAIAgents::APIError)
+    }.to raise_error(RAAF::APIError)
   end
 end
 ```
@@ -555,7 +625,7 @@ end
 # spec/support/agent_helpers.rb
 module AgentHelpers
   def create_test_agent(name: "TestAgent", **options)
-    OpenAIAgents::Agent.new(
+    RAAF::Agent.new(
       name: name,
       instructions: "Test agent",
       model: "gpt-4o",
@@ -564,7 +634,7 @@ module AgentHelpers
   end
   
   def stub_openai_response(content)
-    allow_any_instance_of(OpenAIAgents::Runner)
+    allow_any_instance_of(RAAF::Runner)
       .to receive(:run)
       .and_return(double(messages: [{ role: "assistant", content: content }]))
   end
@@ -596,9 +666,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Inspired by the [OpenAI Agents Python SDK](https://github.com/openai/openai-agents-python)
+- Inspired by [OpenAI's Swarm framework](https://github.com/openai/swarm) - An experimental framework for multi-agent orchestration
+- Based on concepts from the [OpenAI Agents Python SDK](https://github.com/openai/openai-agents-python)
 - Built with ❤️ for the Ruby community
 - Thanks to all contributors and users
+
+### Relationship to Swarm
+
+RAAF began as a Ruby port of OpenAI's Swarm framework, maintaining the core philosophy of lightweight, composable agents while adding production-ready features. Where Swarm focuses on educational simplicity, RAAF provides the additional layers needed for enterprise deployment including compliance, monitoring, and multi-provider support.
 
 ---
 

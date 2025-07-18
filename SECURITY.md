@@ -14,7 +14,7 @@
 
 ## Supported Versions
 
-We provide security updates for the following versions of OpenAI Agents Ruby:
+We provide security updates for the following versions of RAAF (Ruby AI Agents Factory):
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -57,17 +57,17 @@ We follow a responsible disclosure policy:
 
 ### General Security Guidelines
 
-When using OpenAI Agents Ruby, follow these security best practices:
+When using RAAF (Ruby AI Agents Factory), follow these security best practices:
 
 #### 1. API Key Management
 ```ruby
 # ✅ Good: Use environment variables
-OpenAIAgents::Configuration.new(
+RAAF::Configuration.new(
   openai_api_key: ENV['OPENAI_API_KEY']
 )
 
 # ❌ Bad: Hard-code API keys
-OpenAIAgents::Configuration.new(
+RAAF::Configuration.new(
   openai_api_key: "sk-abc123..."  # Never do this!
 )
 ```
@@ -75,9 +75,9 @@ OpenAIAgents::Configuration.new(
 #### 2. Input Validation
 ```ruby
 # ✅ Good: Validate and sanitize inputs
-guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
+guardrails = RAAF::Guardrails::GuardrailManager.new
 guardrails.add_guardrail(
-  OpenAIAgents::Guardrails::LengthGuardrail.new(
+  RAAF::Guardrails::LengthGuardrail.new(
     max_input_length: 10000
   )
 )
@@ -91,12 +91,12 @@ agent.run(messages: [{ role: "user", content: untrusted_input }])
 ```ruby
 # ✅ Good: Enable content safety guardrails
 guardrails.add_guardrail(
-  OpenAIAgents::Guardrails::ContentSafetyGuardrail.new
+  RAAF::Guardrails::ContentSafetyGuardrail.new
 )
 
 # ✅ Good: Implement rate limiting
 guardrails.add_guardrail(
-  OpenAIAgents::Guardrails::RateLimitGuardrail.new(
+  RAAF::Guardrails::RateLimitGuardrail.new(
     max_requests_per_minute: 60
   )
 )
@@ -107,7 +107,7 @@ guardrails.add_guardrail(
 # ✅ Good: Handle errors securely
 begin
   result = runner.run(messages)
-rescue OpenAIAgents::Error => e
+rescue RAAF::Error => e
   logger.error("Agent error: #{e.class}")  # Don't log sensitive details
   # Return generic error to user
 end
@@ -147,7 +147,7 @@ export GEMINI_API_KEY="..."
 #### Secure defaults
 ```ruby
 # ✅ Good: Secure configuration
-config = OpenAIAgents::Configuration.new(environment: "production")
+config = RAAF::Configuration.new(environment: "production")
 config.set("guardrails.content_safety.enabled", true)
 config.set("guardrails.rate_limiting.enabled", true)
 config.set("logging.level", "info")  # Don't log debug info in production
@@ -235,11 +235,11 @@ logger.debug("Full request: #{request.to_json}")  # May contain secrets
 #### Multi-layered Protection
 ```ruby
 # Comprehensive safety setup
-guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
+guardrails = RAAF::Guardrails::GuardrailManager.new
 
 # Layer 1: Content safety
 guardrails.add_guardrail(
-  OpenAIAgents::Guardrails::ContentSafetyGuardrail.new(
+  RAAF::Guardrails::ContentSafetyGuardrail.new(
     strict_mode: true,
     block_categories: [:hate, :violence, :self_harm, :sexual]
   )
@@ -247,7 +247,7 @@ guardrails.add_guardrail(
 
 # Layer 2: Input validation
 guardrails.add_guardrail(
-  OpenAIAgents::Guardrails::LengthGuardrail.new(
+  RAAF::Guardrails::LengthGuardrail.new(
     max_input_length: 50000,
     max_output_length: 10000
   )
@@ -255,7 +255,7 @@ guardrails.add_guardrail(
 
 # Layer 3: Rate limiting
 guardrails.add_guardrail(
-  OpenAIAgents::Guardrails::RateLimitGuardrail.new(
+  RAAF::Guardrails::RateLimitGuardrail.new(
     max_requests_per_minute: 60,
     max_requests_per_hour: 1000
   )
@@ -273,7 +273,7 @@ user_schema = {
 }
 
 guardrails.add_guardrail(
-  OpenAIAgents::Guardrails::SchemaGuardrail.new(
+  RAAF::Guardrails::SchemaGuardrail.new(
     input_schema: user_schema
   )
 )
@@ -284,11 +284,11 @@ guardrails.add_guardrail(
 #### Business Logic Validation
 ```ruby
 # Custom guardrail for business rules
-class BusinessRuleGuardrail < OpenAIAgents::Guardrails::BaseGuardrail
+class BusinessRuleGuardrail < RAAF::Guardrails::BaseGuardrail
   def validate_input(input)
     # Implement custom business validation
     if input[:amount] && input[:amount] > 10000
-      raise OpenAIAgents::Guardrails::GuardrailError,
+      raise RAAF::Guardrails::GuardrailError,
             "Amount exceeds maximum allowed"
     end
   end
@@ -296,7 +296,7 @@ class BusinessRuleGuardrail < OpenAIAgents::Guardrails::BaseGuardrail
   def validate_output(output)
     # Validate agent responses
     if output.include?("confidential") || output.include?("internal")
-      raise OpenAIAgents::Guardrails::GuardrailError,
+      raise RAAF::Guardrails::GuardrailError,
             "Output contains restricted information"
     end
   end
@@ -314,7 +314,7 @@ guardrails.add_guardrail(BusinessRuleGuardrail.new)
 # ✅ Good: Environment-specific configuration
 class SecureConfiguration
   def self.load(environment)
-    config = OpenAIAgents::Configuration.new(environment: environment)
+    config = RAAF::Configuration.new(environment: environment)
     
     case environment
     when "production"
@@ -422,12 +422,12 @@ class ProductionApp
   private
   
   def setup_guardrails
-    guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
+    guardrails = RAAF::Guardrails::GuardrailManager.new
     guardrails.add_guardrail(
-      OpenAIAgents::Guardrails::ContentSafetyGuardrail.new
+      RAAF::Guardrails::ContentSafetyGuardrail.new
     )
     guardrails.add_guardrail(
-      OpenAIAgents::Guardrails::RateLimitGuardrail.new(
+      RAAF::Guardrails::RateLimitGuardrail.new(
         max_requests_per_minute: 300  # Production rate limit
       )
     )
@@ -435,7 +435,7 @@ class ProductionApp
   end
   
   def setup_monitoring
-    tracker = OpenAIAgents::UsageTracking::UsageTracker.new
+    tracker = RAAF::UsageTracking::UsageTracker.new
     
     # Set up security alerts
     tracker.add_alert(:suspicious_activity) do |usage|
@@ -456,7 +456,7 @@ end
 #### Security Monitoring
 ```ruby
 # Set up comprehensive security monitoring
-tracker = OpenAIAgents::UsageTracking::UsageTracker.new
+tracker = RAAF::UsageTracking::UsageTracker.new
 
 # Monitor for security events
 tracker.add_alert(:security_breach) do |usage|

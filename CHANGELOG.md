@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-06-20
 
 ### Added
-- Initial release of OpenAI Agents Ruby gem
+- Initial release of RAAF (Ruby AI Agents Factory) gem
 - Core Agent class with tool and handoff support
 - Runner class for managing agent execution
 - FunctionTool wrapper for custom functions
@@ -32,5 +32,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Error handling and validation
 - Ruby 3.0+ compatibility
 
-<!-- [Unreleased]: https://github.com/enterprisemodules/openai-agents-ruby/compare/v0.1.0...HEAD -->
-<!-- [0.1.0]: https://github.com/enterprisemodules/openai-agents-ruby/releases/tag/v0.1.0 -->
+<!-- [Unreleased]: https://github.com/enterprisemodules/raaf/compare/v0.1.0...HEAD -->
+<!-- [0.1.0]: https://github.com/enterprisemodules/raaf/releases/tag/v0.1.0 -->

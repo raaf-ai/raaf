@@ -10,8 +10,7 @@ This repository contains the Ruby AI Agents Factory (RAAF) organized as a mono-r
 - **[raaf-providers](gems/raaf-providers/)** - Additional LLM providers (Anthropic, Cohere, etc.)
 
 ### Tools & Extensions
-- **[raaf-tools](gems/raaf-tools/)** - Basic tool framework (web search, file search)
-- **[raaf-tools-advanced](gems/raaf-tools-advanced/)** - Enterprise tools (computer, document, code interpreter)
+- **[raaf-tools](gems/raaf-tools/)** - Comprehensive tool framework (basic utilities, web search, file search, advanced enterprise tools)
 - **[raaf-extensions](gems/raaf-extensions/)** - Plugin architecture and extension system
 
 ### Safety & Compliance
@@ -32,9 +31,8 @@ This repository contains the Ruby AI Agents Factory (RAAF) organized as a mono-r
 
 ### Development & Operations
 - **[raaf-streaming](gems/raaf-streaming/)** - Real-time streaming and async
-- **[raaf-tracing](gems/raaf-tracing/)** - Monitoring and observability
+- **[raaf-tracing](gems/raaf-tracing/)** - Monitoring, observability, and visualization
 - **[raaf-debug](gems/raaf-debug/)** - Development tools and REPL
-- **[raaf-visualization](gems/raaf-visualization/)** - Visual analysis and reporting
 - **[raaf-rails](gems/raaf-rails/)** - Rails integration with web UI
 
 ### Utilities
@@ -50,12 +48,12 @@ gem 'raaf-core'
 
 # Usage
 require 'raaf-core'
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are helpful",
   model: "gpt-4o"
 )
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello!")
 ```
 
