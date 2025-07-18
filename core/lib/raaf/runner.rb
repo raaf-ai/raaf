@@ -77,6 +77,7 @@ module RAAF
     # @param stop_checker [Proc, nil] A callable that returns true to stop execution
     # @param context_manager [ContextManager, nil] Custom context manager for memory
     # @param context_config [ContextConfig, nil] Configuration for automatic context management
+    # @param memory_manager [MemoryManager, nil] Memory manager for semantic memory storage
     #
     # @example With custom provider
     #   provider = RAAF::Models::AnthropicProvider.new
@@ -86,13 +87,22 @@ module RAAF
     #   stop_checker = -> { File.exist?('/tmp/stop') }
     #   runner = RAAF::Runner.new(agent: agent, stop_checker: stop_checker)
     #
+    # @example With memory manager
+    #   # Note: Requires 'raaf-memory' gem
+    #   require 'raaf/memory'
+    #   require 'raaf/memory_manager'
+    #   
+    #   memory_manager = RAAF::MemoryManager.new(store: RAAF::Memory.create(:file))
+    #   runner = RAAF::Runner.new(agent: agent, memory_manager: memory_manager)
+    #
     def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil,
-                   context_manager: nil, context_config: nil)
+                   context_manager: nil, context_config: nil, memory_manager: nil)
       @agent = agent
       @provider = provider || Models::ResponsesProvider.new
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @stop_checker = stop_checker
+      @memory_manager = memory_manager
 
       # Context management setup
       if context_manager
@@ -2759,6 +2769,35 @@ module RAAF
       # Start with existing session messages
       combined_messages = session.messages.dup
       
+      # If memory manager exists, enrich with relevant memories
+      if @memory_manager && messages.any?
+        # Get the last user message for context
+        last_user_message = messages.reverse.find { |m| m[:role] == "user" }
+        
+        if last_user_message
+          # Retrieve relevant memories based on the query
+          relevant_memories = @memory_manager.get_relevant_context(
+            last_user_message[:content],
+            token_limit: @memory_manager.token_limit / 4  # Use 1/4 of limit for memories
+          )
+          
+          # Add memories as a system message if any found
+          if relevant_memories && !relevant_memories.strip.empty?
+            memory_message = {
+              role: "system",
+              content: "Relevant context from memory:\n#{relevant_memories}"
+            }
+            # Insert after any existing system messages
+            system_index = combined_messages.rindex { |m| m[:role] == "system" } || -1
+            combined_messages.insert(system_index + 1, memory_message)
+            
+            log_debug("Added memory context",
+                      memory_size: relevant_memories.length,
+                      memory_preview: relevant_memories[0..100])
+          end
+        end
+      end
+      
       # Add new messages to session and combined list
       messages.each do |message|
         # Add to session
@@ -2776,7 +2815,8 @@ module RAAF
       log_debug("Session processed", 
                 session_id: session.id,
                 session_messages: session.messages.size,
-                combined_messages: combined_messages.size)
+                combined_messages: combined_messages.size,
+                memory_enabled: !@memory_manager.nil?)
       
       combined_messages
     end
@@ -2803,6 +2843,46 @@ module RAAF
         )
       end
       
+      # Store conversation in memory if memory manager is available
+      if @memory_manager && result.messages.any?
+        # Find the user and assistant messages from this run
+        user_message = nil
+        assistant_message = nil
+        
+        result.messages.each do |message|
+          case message[:role]
+          when "user"
+            user_message = message[:content]
+          when "assistant"
+            assistant_message = message[:content]
+            
+            # Store the Q&A pair when we have both
+            if user_message && assistant_message
+              metadata = {
+                session_id: session.id,
+                agent: result.last_agent&.name || @agent.name,
+                timestamp: Time.now.to_f,
+                model: @agent.model
+              }
+              
+              # Store as a Q&A pair
+              @memory_manager.add_memory(
+                "Q: #{user_message}\nA: #{assistant_message}",
+                metadata: metadata
+              )
+              
+              log_debug("Stored conversation in memory",
+                        user_preview: user_message[0..50],
+                        assistant_preview: assistant_message[0..50])
+              
+              # Reset for next pair
+              user_message = nil
+              assistant_message = nil
+            end
+          end
+        end
+      end
+      
       # Update session metadata with result info
       session.update_metadata(
         last_agent: result.last_agent&.name,
@@ -2813,7 +2893,8 @@ module RAAF
       log_debug("Session updated with result",
                 session_id: session.id,
                 total_messages: session.messages.size,
-                last_agent: result.last_agent&.name)
+                last_agent: result.last_agent&.name,
+                memory_stored: !@memory_manager.nil?)
     end
 
   end

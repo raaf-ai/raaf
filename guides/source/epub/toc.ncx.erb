@@ -38,14 +38,14 @@
 
     <% play_order = 4 %>
     <% documents_by_section.each_with_index do |section, section_no| %>
-      <navPoint class="section" id="chapter_<%= section_no + 1 %>" playOrder="<% play_order +=1 %>">
+      <navPoint class="section" id="chapter_<%= section_no + 1 %>" playOrder="<%= play_order +=1 %>">
         <navLabel>
           <text><%= section['name'] %></text>
         </navLabel>
         <content src="<%=section['documents'].first['url'] %>"/>
 
         <% section['documents'].each_with_index do |document, document_no| %>
-          <navPoint class="article" id="_<%=section_no+1%>.<%=document_no+1%>" playOrder="<%=play_order +=1 %>">
+          <navPoint class="article" id="_<%=section_no+1%>.<%=document_no+1%>" playOrder="<%= play_order +=1 %>">
             <navLabel>
               <text><%= document['name'] %></text>
             </navLabel>
