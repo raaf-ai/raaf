@@ -1,0 +1,53 @@
+# Jekyll configuration for RAAF Guides
+title: "Ruby AI Agents Factory (RAAF) Documentation"
+description: "Comprehensive guides for building AI agents with Ruby"
+baseurl: "/guides" # Change this to match your repository name
+url: "https://your-username.github.io" # Change this to your GitHub Pages URL
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+theme: minima
+
+# Plugin configuration
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+
+# Exclude files from processing
+exclude:
+  - raaf_guides/
+  - raaf_guides.rb
+  - Rakefile
+  - w3c_validator.rb
+  - bug_report_templates/
+  - source/
+  - README.md
+  - CHANGELOG.md
+  - Gemfile
+  - Gemfile.lock
+
+# Include the output directory
+include:
+  - output/
+
+# Set the source directory to output (since that's where your built HTML is)
+source: output
+destination: _site
+
+# Collections (optional, for better organization)
+collections:
+  guides:
+    output: true
+    permalink: /:collection/:name/
+
+# Navigation (customize as needed)
+navigation:
+  - title: "Getting Started"
+    url: "/getting_started.html"
+  - title: "Core Guide"
+    url: "/raaf_core_guide.html"
+  - title: "Tools Guide"
+    url: "/raaf_tools_guide.html"
+  - title: "API Reference"
+    url: "/api_reference.html"

@@ -2355,7 +2355,9 @@ module RAAF
         'useragent' => 'UserAgent',
         'systemagent' => 'SystemAgent',
         'customerservice' => 'CustomerService',
-        'customersupport' => 'CustomerSupport'
+        'customersupport' => 'CustomerSupport',
+        'companydiscoveryagent' => 'CompanyDiscoveryAgent',
+        'searchstrategyagent' => 'SearchStrategyAgent'
       }
       
       return compound_patterns[agent_part.downcase] if compound_patterns.key?(agent_part.downcase)

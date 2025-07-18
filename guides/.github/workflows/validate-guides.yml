@@ -1,0 +1,55 @@
+name: Validate Guide Code Examples
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'guides/**' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'guides/**' ]
+
+jobs:
+  validate-guides:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.1
+        bundler-cache: true
+        working-directory: guides
+        
+    - name: Install dependencies
+      run: |
+        cd guides
+        bundle install
+        
+    - name: Validate Markdown syntax
+      run: |
+        cd guides
+        bundle exec rake guides:lint:mdl
+        
+    - name: Validate Ruby code examples
+      run: |
+        cd guides
+        bundle exec rake guides:validate_code
+        
+    - name: Generate guides to test completeness
+      run: |
+        cd guides
+        bundle exec rake guides:generate:html
+        
+    - name: Validate HTML output
+      run: |
+        cd guides
+        bundle exec rake guides:validate
+        
+    - name: Upload validation results
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: validation-results
+        path: guides/validation-results.txt

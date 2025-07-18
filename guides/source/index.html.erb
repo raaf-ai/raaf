@@ -1,0 +1,93 @@
+<% content_for :page_title, "Ruby AI Agents Factory (RAAF) Guides" %>
+<% content_for :description, "Ruby AI Agents Factory (RAAF) Guides" %>
+
+<% content_for :header_section do %>
+<%= render 'welcome' %>
+<% end %>
+
+<% content_for :index_section do %>
+<div id="column-side" class="guide-index">
+  <dl role="presentation">
+    <dt></dt>
+    <% unless @edge -%>
+      <dd class="interstitial info kindle"><p>RAAF Guides are also available for <%= link_to 'Kindle', @epub %>.</p></dd>
+    <% end -%>
+    <dd class="interstitial work-in-progress">Guides marked with this icon are currently being worked on and will not be available in the Guides Index menu. While still useful, they may contain incomplete information and even errors. You can help by reviewing them and posting your comments and corrections.</dd>
+  </dl>
+</div>
+<% end %>
+
+<% documents_by_section.each do |section| %>
+  <h2><%= section['name'] %></h2>
+  
+  <% if section['name'] == 'Start Here' %>
+    <div class="section-intro">
+      <p><strong>New to RAAF?</strong> Start with these foundational guides to understand the core concepts and get your first AI agent running.</p>
+    </div>
+  <% elsif section['name'] == 'Core Components' %>
+    <div class="section-intro">
+      <p><strong>Build sophisticated AI systems</strong> with RAAF's core components. Learn about tools, multi-agent workflows, and provider integrations.</p>
+    </div>
+  <% elsif section['name'] == 'Enterprise Features' %>
+    <div class="section-intro">
+      <p><strong>Production-ready enterprise capabilities</strong> including security, compliance, monitoring, and memory management for scalable AI systems.</p>
+    </div>
+  <% elsif section['name'] == 'Integration & Development' %>
+    <div class="section-intro">
+      <p><strong>Integrate RAAF into your applications</strong> with Rails, streaming, testing, and development best practices.</p>
+    </div>
+  <% elsif section['name'] == 'Advanced Topics' %>
+    <div class="section-intro">
+      <p><strong>Scale and optimize your AI systems</strong> with advanced topics covering performance, deployment, cost management, and troubleshooting.</p>
+    </div>
+  <% elsif section['name'] == 'Reference' %>
+    <div class="section-intro">
+      <p><strong>Complete reference documentation</strong> for APIs, configuration options, tools, and maintenance policies.</p>
+    </div>
+  <% elsif section['name'] == 'Examples & Patterns' %>
+    <div class="section-intro">
+      <p><strong>Real-world examples and proven patterns</strong> for common use cases, architecture patterns, and best practices.</p>
+    </div>
+  <% end %>
+  
+  <dl class="guide-index-list">
+    <% section['documents'].each do |document| %>
+      <%= guide(document['name'], document['url'], work_in_progress: document['work_in_progress']) do %>
+        <div class="guide-description">
+          <p><%= document['description'] %></p>
+          <% if document['name'] == 'RAAF Overview' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> RAAF philosophy, architecture comparison, modular design, and provider-agnostic approach.</p>
+          <% elsif document['name'] == 'Getting Started with RAAF' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Environment setup, creating your first agent, adding tools, and basic troubleshooting.</p>
+          <% elsif document['name'] == 'RAAF Core Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Agent lifecycle, execution model, message handling, and core design patterns.</p>
+          <% elsif document['name'] == 'RAAF Tools Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Built-in tools, custom tool creation, security patterns, and advanced integrations.</p>
+          <% elsif document['name'] == 'Multi-Agent Workflows' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Agent orchestration, handoff patterns, state management, and scaling strategies.</p>
+          <% elsif document['name'] == 'RAAF DSL Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> DSL syntax, agent builders, tool definitions, and advanced workflow patterns.</p>
+          <% elsif document['name'] == 'RAAF Providers Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Provider configuration, model selection, cost optimization, and resilient AI systems.</p>
+          <% elsif document['name'] == 'RAAF Guardrails Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Security patterns, threat detection, data privacy, and secure AI application development.</p>
+          <% elsif document['name'] == 'RAAF Memory Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Memory optimization, context windows, storage backends, and conversational AI systems.</p>
+          <% elsif document['name'] == 'RAAF Tracing Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Span tracing, metrics collection, performance monitoring, and production observability.</p>
+          <% elsif document['name'] == 'RAAF Rails Integration' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Rails patterns, ActionCable integration, background jobs, and full-stack AI applications.</p>
+          <% elsif document['name'] == 'RAAF Testing Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Unit testing, integration testing, mocking strategies, and AI system reliability.</p>
+          <% elsif document['name'] == 'Performance Optimization' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Connection pooling, caching, resource management, and high-performance AI systems.</p>
+          <% elsif document['name'] == 'Deployment Guide' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Containerization, orchestration, CI/CD pipelines, and production deployment strategies.</p>
+          <% elsif document['name'] == 'Cost Management' %>
+            <p class="guide-goals"><strong>You'll learn:</strong> Budget controls, cost analytics, provider optimization, and cost-effective AI solutions.</p>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </dl>
+<% end %>

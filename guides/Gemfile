@@ -1,0 +1,37 @@
+# Gemfile for RAAF Documentation
+source 'https://rubygems.org'
+
+# Core Rails components needed for the guides generator
+gem 'activesupport', '~> 7.0'
+gem 'actionpack', '~> 7.0'
+gem 'actionview', '~> 7.0'
+
+# Markdown processing
+gem 'kramdown', '~> 2.4'
+gem 'redcarpet', '~> 3.5'
+gem 'rouge', '~> 4.0'
+
+# HTML/XML processing and sanitization
+gem 'nokogiri', '~> 1.13'
+gem 'rails-html-sanitizer', '~> 1.4'
+
+# Build tools
+gem 'rake', '~> 13.0'
+
+# Sass processing (if needed for styles)
+gem 'sass', '~> 3.7'
+gem 'dartsass', '~> 1.6'
+
+# Optional: Markdown linting
+gem 'mdl', '~> 0.12'
+
+# Optional: For EPUB generation
+gem 'rubyzip', '~> 2.3'
+
+# Suppress Ruby 3.5 deprecation warnings
+gem 'ostruct', '~> 0.5'
+
+# Optional: Add these if you want additional features
+# gem 'github-pages', group: :jekyll_plugins
+# gem 'jekyll-feed'
+# gem 'jekyll-sitemap'

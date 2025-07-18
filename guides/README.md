@@ -1,0 +1,117 @@
+# RAAF Documentation
+
+This directory contains the documentation for Ruby AI Agents Factory (RAAF), built using a Rails Guides-inspired system.
+
+## 🚀 Live Documentation
+
+The documentation is automatically deployed to GitHub Pages at: `https://your-username.github.io/your-repo-name/`
+
+## 📁 Structure
+
+```
+guides/
+├── source/              # Markdown source files
+├── output/              # Generated HTML files (auto-deployed)
+├── assets/              # CSS, JavaScript, images
+├── raaf_guides/         # Build system
+└── .github/workflows/   # GitHub Actions for deployment
+```
+
+## 🏗️ Local Development
+
+### Prerequisites
+- Ruby 3.1+
+- Bundler
+
+### Setup
+```bash
+bundle install
+```
+
+### Build Documentation
+```bash
+# Generate HTML guides
+bundle exec rake guides:generate:html
+
+# Generate specific guide only
+ONLY=getting_started bundle exec rake guides:generate:html
+
+# Generate all guides
+ALL=1 bundle exec rake guides:generate:html
+```
+
+### Preview Locally
+```bash
+# Serve the output directory
+cd output
+python -m http.server 8000
+# Visit http://localhost.com:8000
+```
+
+## 🔧 Adding New Guides
+
+1. Create a new `.md` file in the `source/` directory
+2. Add it to `source/documents.yaml`
+3. Run the build command
+4. Commit and push to trigger deployment
+
+## 📝 Writing Guidelines
+
+- Follow the style guide in `source/CLAUDE.md`
+- Use pragmatic, story-driven examples
+- Include real-world code samples
+- Test all code examples
+
+## 🚀 Deployment
+
+Documentation is automatically deployed via GitHub Actions when:
+- Changes are pushed to the `main` branch
+- The workflow runs `bundle exec rake guides:generate:html`
+- Generated files in `output/` are deployed to GitHub Pages
+
+## 🔍 Validation
+
+```bash
+# Lint markdown files
+bundle exec rake guides:lint:mdl
+
+# Check for broken links
+bundle exec rake guides:lint:check_links
+
+# Validate HTML output
+bundle exec rake guides:validate
+```
+
+## 📚 Available Guides
+
+- **Getting Started**: Introduction to RAAF
+- **Core Guide**: Core concepts and architecture
+- **Tools Guide**: Built-in and custom tools
+- **Memory Guide**: Memory management and strategies
+- **Providers Guide**: Multi-provider support
+- **Testing Guide**: Testing patterns and best practices
+- **Deployment Guide**: Production deployment
+- **API Reference**: Complete API documentation
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Add or update documentation
+4. Test locally with `bundle exec rake guides:generate:html`
+5. Submit a pull request
+
+## Technical Details
+
+### Styling System
+The visual styling uses SCSS in `stylesrc/` directory with:
+- `include_media` for responsive design
+- `normalize.css` for browser compatibility
+- Dark mode support in separate files
+
+### Build Process
+Run `rake guides:generate` to build static files. Remove the `output/` directory before rebuilding if you change HTML/ERB templates.
+
+## 📄 License
+
+This documentation is licensed under the same terms as the RAAF project.

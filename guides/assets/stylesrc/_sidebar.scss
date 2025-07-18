@@ -1,0 +1,17 @@
+/* ----------------------------------------------------------------------------
+// Sticky Header Only
+// ---------------------------------------------------------------------------- */
+
+// Sticky header
+header#page-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+  
+  &.scrolled {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+}

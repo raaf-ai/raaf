@@ -1,0 +1,230 @@
+-
+  name: Start Here
+  documents:
+    -
+      name: Origins
+      url: origins.html
+      description: >
+        The story behind Ruby AI Agents Factory (RAAF) and how it came to be.
+        Learn about the business challenge that sparked RAAF's creation, the AI-assisted development approach,
+        and how RAAF evolved from experiment to production platform with Python SDK compatibility.
+      work_in_progress: true
+
+    -
+      name: Overview
+      url: overview.html
+      description: >
+        Introduction to Ruby AI Agents Factory (RAAF) and its core concepts.
+        Learn about RAAF's philosophy, architecture, and how it compares to other AI frameworks.
+        Understand the modular design, provider-agnostic approach, and enterprise-ready features.
+      work_in_progress: true
+    -
+      name: Getting Started with RAAF
+      url: getting_started.html
+      description: >
+        Everything you need to know to install RAAF and create your first AI agent.
+        Learn how to set up your development environment, create basic agents, add tools,
+        and build your first multi-agent workflow. Includes practical examples and troubleshooting.
+      work_in_progress: true
+    -
+      name: Core Guide
+      url: core_guide.html
+      description: >
+        Deep dive into agents, runners, tools, and the fundamental patterns for building AI systems.
+        Understand the agent lifecycle, execution model, message handling, and core design patterns.
+        Learn about configuration, error handling, and best practices for agent development.
+      work_in_progress: true
+-
+  name: Core Components
+  documents:
+    -
+      name: Tools Guide
+      url: tools_guide.html
+      description: >
+        Tools enable agents to interact with external systems and perform computations.
+        Learn about built-in tools (web search, file operations, code execution), how to create
+        custom tools, tool security patterns, and advanced tool integration techniques.
+      work_in_progress: true
+    -
+      name: Multi-Agent Workflows
+      url: multi_agent_guide.html
+      description: >
+        Build sophisticated multi-agent systems where specialized agents work together
+        to solve complex problems through handoffs and collaboration.
+        Learn about agent orchestration, handoff patterns, state management, and scaling multi-agent systems.
+      work_in_progress: true
+    -
+      name: DSL Guide
+      url: dsl_guide.html
+      description: >
+        Use the declarative Domain Specific Language for elegant, Ruby-idiomatic
+        agent configuration and tool definition.
+        Learn DSL syntax, agent builders, tool definitions, and advanced DSL patterns for complex workflows.
+      work_in_progress: true
+    -
+      name: Providers Guide
+      url: providers_guide.html
+      description: >
+        RAAF supports 100+ AI providers. Learn how to use different providers,
+        optimize costs, and implement failover strategies.
+        Understand provider configuration, model selection, cost optimization, and building resilient AI systems.
+      work_in_progress: true
+-
+  name: Enterprise Features
+  documents:
+    -
+      name: Guardrails Guide
+      url: guardrails_guide.html
+      description: >
+        Comprehensive security and safety system for AI agents. Learn about
+        input/output filtering, PII detection, content moderation, and compliance enforcement.
+        Understand security patterns, threat detection, data privacy, and building secure AI applications.
+      work_in_progress: true
+    -
+      name: Memory Guide
+      url: memory_guide.html
+      description: >
+        Advanced memory management and context persistence for AI agents.
+        Learn about different storage backends, pruning strategies, and semantic search.
+        Understand memory optimization, context windows, and building conversational AI systems.
+      work_in_progress: true
+    -
+      name: Tracing Guide
+      url: tracing_guide.html
+      description: >
+        Comprehensive monitoring and observability for AI systems with Python SDK compatibility.
+        Learn about span tracing, metrics collection, performance monitoring, and building production-ready
+        AI systems with full observability and debugging capabilities.
+      work_in_progress: true
+    -
+      name: Compliance Guide
+      url: compliance_guide.html
+      description: >
+        Enterprise compliance frameworks including GDPR, HIPAA, and SOC2.
+        Learn about automated audit trails, policy enforcement, regulatory compliance,
+        and building enterprise-grade AI systems that meet industry standards.
+      work_in_progress: true
+-
+  name: Integration & Development
+  documents:
+    -
+      name: Rails Integration
+      url: rails_guide.html
+      description: >
+        Integrate AI agents into Rails applications with web dashboards,
+        real-time monitoring, and seamless controller integration.
+        Learn about Rails patterns, ActionCable integration, background jobs, and building full-stack AI applications.
+      work_in_progress: true
+    -
+      name: Streaming Guide
+      url: streaming_guide.html
+      description: >
+        Real-time streaming responses, async processing, WebSocket integration,
+        and event-driven agent architectures.
+        Learn about streaming patterns, async workflows, real-time UIs, and building responsive AI applications.
+      work_in_progress: true
+    -
+      name: Testing Guide
+      url: testing_guide.html
+      description: >
+        Test AI agents effectively with mock providers, RSpec integration,
+        and comprehensive testing strategies for multi-agent systems.
+        Learn about unit testing, integration testing, mocking strategies, and ensuring AI system reliability.
+      work_in_progress: true
+-
+  name: Advanced Topics
+  documents:
+    -
+      name: Performance Optimization
+      url: performance_guide.html
+      description: >
+        Optimize RAAF applications for speed, scalability, and cost efficiency.
+        Learn about connection pooling, caching, provider routing, resource management,
+        and building high-performance AI systems that scale under load.
+      work_in_progress: true
+    -
+      name: Deployment Guide
+      url: deployment_guide.html
+      description: >
+        Deploy RAAF agents to production with Docker, Kubernetes, monitoring,
+        and best practices for scalable AI systems.
+        Learn about containerization, orchestration, CI/CD pipelines, and production deployment strategies.
+      work_in_progress: true
+    -
+      name: Cost Management
+      url: cost_guide.html
+      description: >
+        Control and optimize AI costs with provider routing, token management,
+        and comprehensive cost tracking strategies.
+        Learn about budget controls, cost analytics, provider optimization, and building cost-effective AI solutions.
+      work_in_progress: true
+    -
+      name: Troubleshooting Guide
+      url: troubleshooting.html
+      description: >
+        Common issues, debugging techniques, and solutions for RAAF applications.
+        Learn about error diagnosis, performance debugging, provider issues, and resolving
+        complex problems in AI agent systems.
+      work_in_progress: true
+    -
+      name: Maintenance Policy
+      url: maintenance_policy.html
+      description: >
+        RAAF version support policy, release schedule, and upgrade guidelines.
+        Learn about version lifecycles, security updates, upgrade strategies, and planning
+        for long-term maintenance of RAAF applications.
+      work_in_progress: true
+-
+  name: Reference
+  documents:
+    -
+      name: API Reference
+      url: api_reference.html
+      description: >
+        Complete API documentation for all RAAF classes and modules.
+        Comprehensive method signatures, parameters, return values, and practical usage examples
+        for every class in the RAAF ecosystem.
+      work_in_progress: true
+    -
+      name: Configuration Reference
+      url: configuration_reference.html
+      description: >
+        Comprehensive reference for all RAAF configuration options,
+        environment variables, and settings.
+        Learn about all configuration parameters, their effects, security considerations, and production setup.
+      work_in_progress: true
+    -
+      name: Tool Reference
+      url: tool_reference.html
+      description: >
+        Reference documentation for all built-in tools and their
+        configuration options and usage patterns.
+        Complete catalog of available tools, their parameters, security considerations, and integration examples.
+      work_in_progress: true
+-
+  name: Examples & Patterns
+  documents:
+    -
+      name: Common Use Cases
+      url: use_cases.html
+      description: >
+        Real-world examples and patterns for common AI agent use cases
+        including customer service, data analysis, and content creation.
+        Learn through practical examples, implementation strategies, and proven patterns for business applications.
+      work_in_progress: true
+    -
+      name: Architecture Patterns
+      url: architecture_patterns.html
+      description: >
+        Proven architectural patterns for scaling AI agent systems
+        in production environments.
+        Learn about system design, scalability patterns, resilience strategies, and building robust AI architectures.
+      work_in_progress: true
+    -
+      name: Best Practices
+      url: best_practices.html
+      description: >
+        Comprehensive best practices for building, deploying, and maintaining
+        production AI agent systems with RAAF.
+        Learn about code organization, security patterns, performance optimization, and operational excellence.
+      work_in_progress: true
