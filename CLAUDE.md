@@ -88,6 +88,25 @@ runner = RAAF::Runner.new(
 result = runner.run("Research and write about Ruby programming")
 ```
 
+### Flexible Agent Identification
+
+RAAF automatically normalizes agent identifiers, accepting both Agent objects and string names:
+
+```ruby
+# Both approaches work seamlessly:
+agent1 = RAAF::Agent.new(name: "SupportAgent")
+agent2 = RAAF::Agent.new(name: "TechAgent")
+
+# Add handoffs using Agent objects
+agent1.add_handoff(agent2)
+
+# Or using string names - both are equivalent
+agent1.add_handoff("TechAgent")
+
+# The system automatically converts Agent objects to names internally
+# No need to worry about type mismatches
+```
+
 ### Tracing and Monitoring
 ```ruby
 # Set up comprehensive tracing

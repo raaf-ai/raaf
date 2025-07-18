@@ -48,6 +48,18 @@ writer_agent = RAAF::Agent.new(name: "Writer", instructions: "Write content")
 result = runner.run("Research and write about Ruby", agents: [research_agent, writer_agent])
 ```
 
+### Flexible Agent Identification
+
+The core runner automatically normalizes agent identifiers:
+
+```ruby
+# Both Agent objects and string names work
+research_agent.add_handoff(writer_agent)     # Agent object
+research_agent.add_handoff("Writer")         # String name
+
+# System handles conversion automatically - no type errors
+```
+
 ## Environment Variables
 
 ```bash

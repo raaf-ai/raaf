@@ -734,7 +734,8 @@ module RAAF
                              content.to_s
                            end
 
-            if text_content && !text_content.empty?
+            # Only check for text-based handoffs if provider doesn't support function calling
+            if text_content && !text_content.empty? && !@provider.supports_function_calling?
               handoff_target = detect_handoff_in_content(text_content, agent)
               if handoff_target
                 handoff_results << {
@@ -762,6 +763,11 @@ module RAAF
 
           # Execute the tool
           tool_result = execute_tool_for_responses_api(item, agent)
+          
+          log_debug("🔄 HANDOFF FLOW: Tool execution result", 
+                    agent: agent.name,
+                    tool_name: tool_name,
+                    tool_result: tool_result.inspect)
 
           # Check if tool_result is a handoff
           if tool_result.is_a?(Hash) && tool_result.key?(:assistant)
@@ -1420,7 +1426,13 @@ module RAAF
 
         # Handle handoffs
         if process_result[:handoff]
-          target_agent_name = process_result[:handoff][:assistant]
+          # Normalize agent identifier: supports both Agent objects and string names
+          # This provides flexible API where users can pass either format
+          target_agent_name = normalize_agent_name(process_result[:handoff][:assistant])
+          
+          log_debug("🔄 HANDOFF FLOW: Processing handoff",
+                    target_agent_name: target_agent_name,
+                    target_agent_name_class: target_agent_name.class)
           target_agent = find_handoff_agent(target_agent_name, state[:current_agent])
           
           if target_agent
@@ -1580,6 +1592,34 @@ module RAAF
     # REMOVED: Custom context extraction and injection
     # The OpenAI agents framework handles context natively through structured outputs
     # and conversation continuity. The DSL should be a pure configuration layer.
+
+    ##
+    # Normalize agent identifier to string name
+    # 
+    # This utility method provides flexible agent identification by accepting
+    # both Agent objects and string names, automatically converting Agent objects
+    # to their name strings. This allows for a more intuitive API where users
+    # can pass either format without worrying about type mismatches.
+    #
+    # @param agent_identifier [Agent, String, nil] The agent identifier to normalize
+    # @return [String, nil] The agent name as a string, or nil if input is nil
+    #
+    # @example With Agent object
+    #   agent = RAAF::Agent.new(name: "SupportAgent")
+    #   normalize_agent_name(agent) #=> "SupportAgent"
+    #
+    # @example With string name
+    #   normalize_agent_name("SupportAgent") #=> "SupportAgent"
+    #
+    # @example With nil input
+    #   normalize_agent_name(nil) #=> nil
+    #
+    # @api private
+    def normalize_agent_name(agent_identifier)
+      return nil if agent_identifier.nil?
+      return agent_identifier.name if agent_identifier.respond_to?(:name)
+      agent_identifier.to_s
+    end
 
     # Extract assistant content from OpenAI Responses API format
     def extract_assistant_content_from_response(response)
@@ -1766,11 +1806,12 @@ module RAAF
 
       # NOTE: Text-based handoff detection now implemented through unified detection system
 
-      # Unified handoff detection system
-      if !result[:handoff] && message["content"]
+      # Unified handoff detection system - only check text-based handoffs if provider doesn't support function calling
+      if !result[:handoff] && message["content"] && !@provider.supports_function_calling?
         handoff_target = detect_handoff_in_content(message["content"], agent)
         if handoff_target
-          result[:handoff] = handoff_target
+          # Extract agent name for compatibility with old API
+          result[:handoff] = normalize_agent_name(handoff_target)
           result[:done] = false
         end
       else
@@ -2407,9 +2448,22 @@ module RAAF
       begin
         # Try to parse the content as JSON
         parsed_content = JSON.parse(content)
+      rescue JSON::ParserError
+        # If parsing the entire content fails, try to extract JSON from the content
+        json_match = content.match(/\{[^}]*\}/)
+        if json_match
+          begin
+            parsed_content = JSON.parse(json_match[0])
+          rescue JSON::ParserError
+            return nil
+          end
+        else
+          return nil
+        end
+      end
 
-        # Check for handoff_to field (multiple possible formats)
-        if parsed_content.is_a?(Hash)
+      # Check for handoff_to field (multiple possible formats)
+      if parsed_content.is_a?(Hash)
           # Check various field names for handoff target
           handoff_target = parsed_content["handoff_to"] ||
                            parsed_content[:handoff_to] ||
@@ -2430,7 +2484,8 @@ module RAAF
                                 source: "JSON response content",
                                 detection_method: "json_field")
 
-              return validated_target
+              # Return the actual agent object, not just the name
+              return find_handoff_agent(validated_target, agent)
             end
           end
 
@@ -2449,14 +2504,11 @@ module RAAF
                                 source: "JSON response content",
                                 detection_method: "json_nested")
 
-              return validated_target
+              return find_handoff_agent(validated_target, agent)
             end
           end
         end
-      rescue JSON::ParserError
-        # Not JSON, continue to text-based detection
-      end
-
+      
       nil
     end
 
@@ -2493,7 +2545,7 @@ module RAAF
                           pattern: pattern.inspect,
                           matched_text: match[0])
 
-        return validated_target
+        return find_handoff_agent(validated_target, agent)
       end
 
       # Pattern 2: Specific agent mentions
@@ -2520,7 +2572,7 @@ module RAAF
                           pattern: pattern.inspect,
                           matched_text: match[0])
 
-        return validated_target
+        return find_handoff_agent(validated_target, agent)
       end
 
       # Pattern 3: Explicit agent name references
@@ -2536,7 +2588,7 @@ module RAAF
                           detection_method: "text_explicit",
                           matched_agent: target)
 
-        return target
+        return find_handoff_agent(target, agent)
       end
 
       nil
@@ -2580,9 +2632,30 @@ module RAAF
       nil
     end
 
+    ##
     # Find a handoff agent by name from the current agent's handoffs
+    #
+    # This method searches through the current agent's configured handoffs to find
+    # a matching target agent. It supports flexible input by accepting both Agent
+    # objects and string names, automatically normalizing them for comparison.
+    #
+    # @param target_name [Agent, String] The target agent name or Agent object to find
+    # @param current_agent [Agent] The current agent whose handoffs to search
+    # @return [Agent, nil] The matching handoff agent, or nil if not found
+    #
+    # @example Finding handoff with string name
+    #   find_handoff_agent("SupportAgent", current_agent)
+    #
+    # @example Finding handoff with Agent object
+    #   target_agent = RAAF::Agent.new(name: "SupportAgent")
+    #   find_handoff_agent(target_agent, current_agent)
+    #
+    # @api private
     def find_handoff_agent(target_name, current_agent)
       return nil unless current_agent.respond_to?(:handoffs)
+      
+      # Normalize target_name: convert Agent objects to their name strings
+      target_name = normalize_agent_name(target_name)
       
       current_agent.handoffs.find do |handoff|
         if handoff.is_a?(Agent)

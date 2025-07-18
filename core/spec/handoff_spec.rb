@@ -908,7 +908,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
   describe "Context Preservation During Handoffs" do
     let(:search_agent) { RAAF::Agent.new(name: "SearchStrategyAgent", instructions: "You find market research strategies") }
     let(:discovery_agent) { RAAF::Agent.new(name: "CompanyDiscoveryAgent", instructions: "You discover companies") }
-    let(:responses_provider) { instance_double(RAAF::Models::ResponsesProvider) }
+    let(:responses_provider) { instance_double(RAAF::Models::ResponsesProvider, :responses_completion => nil, :complete => nil) }
     let(:runner) { RAAF::Runner.new(agent: search_agent, provider: responses_provider) }
     
     before do
@@ -972,7 +972,8 @@ RSpec.describe "OpenAIAgents Handoff System" do
     end
 
     it "handles function call outputs properly" do
-      response = {
+      # First response - SearchStrategyAgent with handoff function call
+      first_response = {
         "output" => [
           {
             "type" => "function_call",
@@ -984,9 +985,26 @@ RSpec.describe "OpenAIAgents Handoff System" do
         "usage" => { "input_tokens" => 15, "output_tokens" => 10 }
       }
 
-      # Mock function call result
-      allow(responses_provider).to receive(:responses_completion).and_return(response)
-      allow(responses_provider).to receive(:complete).and_return(response)
+      # Second response - CompanyDiscoveryAgent response after handoff
+      second_response = {
+        "output" => [
+          {
+            "type" => "message",
+            "role" => "assistant",
+            "content" => [
+              {
+                "type" => "output_text",
+                "text" => "Hello! I'm CompanyDiscoveryAgent. I'll help you with market research."
+              }
+            ]
+          }
+        ],
+        "usage" => { "input_tokens" => 20, "output_tokens" => 15 }
+      }
+
+      # Mock function call result sequence
+      allow(responses_provider).to receive(:responses_completion).and_return(first_response, second_response)
+      allow(responses_provider).to receive(:complete).and_return(first_response, second_response)
 
       result = runner.run([{ role: "user", content: "Research request" }])
 
@@ -1096,10 +1114,10 @@ RSpec.describe "OpenAIAgents Handoff System" do
         content: '{"response": "Help needed", "handoff_to": "SupportAgent"} Please transfer to TargetAgent.'
       }
       
-      result = test_runner.send(:detect_handoff_in_content, message, source_agent)
+      result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
       
-      expect(result[:handoff_occurred]).to be true
-      expect(result[:target_agent].name).to eq("SupportAgent")  # JSON takes priority
+      expect(result).not_to be_nil
+      expect(result.name).to eq("SupportAgent")  # JSON takes priority
     end
 
     it "detects handoff patterns in text when no JSON present" do
@@ -1108,10 +1126,10 @@ RSpec.describe "OpenAIAgents Handoff System" do
         content: "I need to transfer you to our TargetAgent for specialized help."
       }
       
-      result = test_runner.send(:detect_handoff_in_content, message, source_agent)
+      result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
       
-      expect(result[:handoff_occurred]).to be true
-      expect(result[:target_agent].name).to eq("TargetAgent")
+      expect(result).not_to be_nil
+      expect(result.name).to eq("TargetAgent")
     end
 
     it "returns no handoff when no patterns detected" do
@@ -1120,7 +1138,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
         content: "I can help you with that request directly."
       }
       
-      result = test_runner.send(:detect_handoff_in_content, message, source_agent)
+      result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
       
       expect(result[:handoff_occurred]).to be false
       expect(result[:target_agent]).to be_nil
