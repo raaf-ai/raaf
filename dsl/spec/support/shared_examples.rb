@@ -15,8 +15,8 @@ RSpec.shared_examples "a DSL module" do |dsl_module|
       include dsl_module
     end
 
-    expect(test_class).to respond_to(:_agent_config) if dsl_module == AiAgentDsl::AgentDsl
-    expect(test_class).to respond_to(:_tool_config) if dsl_module == AiAgentDsl::ToolDsl
+    expect(test_class).to respond_to(:_agent_config) if dsl_module == RAAF::DSL::AgentDsl
+    expect(test_class).to respond_to(:_tool_config) if dsl_module == RAAF::DSL::ToolDsl
   end
 end
 
@@ -27,7 +27,7 @@ RSpec.shared_examples "a configurable class" do
   end
 
   it "allows configuration via block" do
-    expect { described_class.configure { |config| } }.not_to raise_error
+    expect { described_class.configure { |config| } }.not_to raise_error # rubocop:disable Lint/EmptyBlock
   end
 end
 
@@ -100,7 +100,7 @@ RSpec.shared_examples "a prompt class" do
     end
 
     instance = prompt_class.new(optional_param: "value")
-    expect { instance.validate! }.to raise_error(AiAgentDsl::Prompts::VariableContractError)
+    expect { instance.validate! }.to raise_error(RAAF::DSL::Prompts::VariableContractError)
   end
 end
 

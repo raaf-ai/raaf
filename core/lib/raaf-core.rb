@@ -1,15 +1,19 @@
 # frozen_string_literal: true
 
 require_relative "raaf/version"
-require_relative "raaf/hash_utils"
+require_relative "raaf/utils"
 require_relative "raaf/logging"
 require_relative "raaf/errors"
+require_relative "raaf/configuration"
 require_relative "raaf/http_client"
 require_relative "raaf/function_tool"
 require_relative "raaf/models/interface"
 require_relative "raaf/models/responses_provider"
 require_relative "raaf/models/openai_provider"
 require_relative "raaf/result"
+require_relative "raaf/prompts"
+require_relative "raaf/handoffs"
+require_relative "raaf/advanced_handoff"
 require_relative "raaf/agent"
 require_relative "raaf/runner"
 
@@ -33,14 +37,14 @@ require_relative "raaf/runner"
 #   require 'raaf-core'
 #
 #   # Create an agent with default OpenAI provider
-#   agent = RubyAIAgentsFactory::Agent.new(
+#   agent = RAAF::Agent.new(
 #     name: "Assistant",
 #     instructions: "You are a helpful assistant",
 #     model: "gpt-4o"
 #   )
 #
 #   # Run the agent
-#   runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+#   runner = RAAF::Runner.new(agent: agent)
 #   result = runner.run("Hello, how can you help me?")
 #   puts result.messages.last[:content]
 #
@@ -64,7 +68,9 @@ require_relative "raaf/runner"
 #
 # @author Ruby AI Agents Factory Team
 # @since 1.0.0
-module RubyAIAgentsFactory
+module RAAF
+
   # Core gem version
   CORE_VERSION = "0.1.0"
+
 end

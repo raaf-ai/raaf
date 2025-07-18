@@ -4,7 +4,7 @@ require "spec_helper"
 require "openai_agents/memory/memory_manager"
 require "openai_agents/memory/memory"
 
-RSpec.describe OpenAIAgents::Memory::MemoryManager do
+RSpec.describe RAAF::Memory::MemoryManager do
   let(:manager) { described_class.new(max_tokens: 100) }
   
   let(:memories) do

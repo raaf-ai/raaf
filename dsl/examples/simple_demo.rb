@@ -5,7 +5,8 @@ require_relative "../lib/ai_agent_dsl"
 require_relative "../lib/ai_agent_dsl/prompts/base"
 
 # Create a simple prompt class
-class DemoPrompt < AiAgentDsl::Prompts::Base
+class DemoPrompt < RAAF::DSL::Prompts::Base
+
   def system
     "You are a helpful assistant."
   end
@@ -13,11 +14,13 @@ class DemoPrompt < AiAgentDsl::Prompts::Base
   def user
     "Hello there!"
   end
+
 end
 
 # Create an agent that uses the prompt class
-class DemoAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class DemoAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "demo_agent"
   prompt_class DemoPrompt
@@ -28,14 +31,15 @@ class DemoAgent < AiAgentDsl::Agents::Base
 
   def build_schema
     {
-      type:                 "object",
-      properties:           {
+      type: "object",
+      properties: {
         response: { type: "string" }
       },
-      required:             ["response"],
+      required: ["response"],
       additionalProperties: false
     }
   end
+
 end
 
 # Demonstrate the implementation
@@ -60,8 +64,9 @@ puts
 # Demonstrate error when no prompt class
 puts "=== Error Demonstration ==="
 
-class BadAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class BadAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "bad_agent"
 
@@ -72,13 +77,14 @@ class BadAgent < AiAgentDsl::Agents::Base
   def build_schema
     { type: "object", properties: {}, additionalProperties: false }
   end
+
 end
 
 bad_agent = BadAgent.new(context: context, processing_params: processing_params)
 
 begin
   bad_agent.build_user_prompt
-rescue AiAgentDsl::Error => e
+rescue RAAF::DSL::Error => e
   puts "✓ Expected error when no prompt class: #{e.message}"
 end
 

@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe "OpenAIAgents::StructuredOutput" do
+RSpec.describe "RAAF::StructuredOutput" do
   describe "BaseSchema" do
     let(:schema) do
       {
@@ -16,7 +16,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       }
     end
 
-    let(:base_schema) { OpenAIAgents::StructuredOutput::BaseSchema.new(schema) }
+    let(:base_schema) { RAAF::StructuredOutput::BaseSchema.new(schema) }
 
     describe "#initialize" do
       it "creates a schema with valid JSON schema" do
@@ -25,8 +25,8 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
 
       it "raises SchemaError for invalid schema" do
         expect do
-          OpenAIAgents::StructuredOutput::BaseSchema.new(nil)
-        end.to raise_error(OpenAIAgents::StructuredOutput::SchemaError, "Schema must be a hash")
+          RAAF::StructuredOutput::BaseSchema.new(nil)
+        end.to raise_error(RAAF::StructuredOutput::SchemaError, "Schema must be a hash")
       end
     end
 
@@ -41,28 +41,29 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
         invalid_data = { "age" => 25 }
         expect do
           base_schema.validate(invalid_data)
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Missing required field 'name'/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /Missing required field 'name'/)
       end
 
       it "raises ValidationError for wrong type" do
         invalid_data = { "name" => "Alice", "age" => "twenty-five" }
         expect do
           base_schema.validate(invalid_data)
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected number.*got String/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /Expected number.*got String/)
       end
 
       it "raises ValidationError for out of range values" do
         invalid_data = { "name" => "Alice", "age" => 200 }
         expect do
           base_schema.validate(invalid_data)
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /greater than maximum 150/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /greater than maximum 150/)
       end
 
       it "raises ValidationError for additional properties when not allowed" do
         invalid_data = { "name" => "Alice", "age" => 25, "city" => "Seattle" }
         expect do
           base_schema.validate(invalid_data)
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Additional property 'city' not allowed/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError,
+                           /Additional property 'city' not allowed/)
       end
     end
 
@@ -89,39 +90,39 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
     describe "#initialize" do
       it "creates object schema with properties" do
         properties = { name: { type: "string" }, age: { type: "integer" } }
-        schema = OpenAIAgents::StructuredOutput::ObjectSchema.new(properties: properties)
-        
+        schema = RAAF::StructuredOutput::ObjectSchema.new(properties: properties)
+
         expect(schema.schema[:type]).to eq("object")
         expect(schema.schema[:properties]).to eq(properties)
       end
 
       it "sets required fields" do
-        schema = OpenAIAgents::StructuredOutput::ObjectSchema.new(
+        schema = RAAF::StructuredOutput::ObjectSchema.new(
           properties: { name: { type: "string" } },
           required: ["name"]
         )
-        
+
         expect(schema.schema[:required]).to eq(["name"])
       end
 
       it "sets additionalProperties" do
-        schema = OpenAIAgents::StructuredOutput::ObjectSchema.new(
+        schema = RAAF::StructuredOutput::ObjectSchema.new(
           properties: { name: { type: "string" } },
           additional_properties: false
         )
-        
+
         expect(schema.schema[:additionalProperties]).to be false
       end
     end
 
     describe ".build" do
       it "creates schema using builder pattern" do
-        schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+        schema = RAAF::StructuredOutput::ObjectSchema.build do
           string :name, minLength: 1
           integer :age, minimum: 0, maximum: 150
           boolean :active
           array :tags, items: { type: "string" }, minItems: 1
-          
+
           required :name, :active
           no_additional_properties
         end
@@ -138,7 +139,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       end
 
       it "supports nested objects" do
-        schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+        schema = RAAF::StructuredOutput::ObjectSchema.build do
           string :name
           object :address, properties: {
             street: { type: "string" },
@@ -156,7 +157,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       end
 
       it "supports enum constraints" do
-        schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+        schema = RAAF::StructuredOutput::ObjectSchema.build do
           string :status, enum: %w[active inactive pending]
         end
 
@@ -168,7 +169,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
   describe "ArraySchema" do
     describe "#initialize" do
       it "creates array schema with item type" do
-        schema = OpenAIAgents::StructuredOutput::ArraySchema.new(
+        schema = RAAF::StructuredOutput::ArraySchema.new(
           items: { type: "string" },
           min_items: 1,
           max_items: 10
@@ -183,7 +184,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
 
     describe "#validate" do
       let(:array_schema) do
-        OpenAIAgents::StructuredOutput::ArraySchema.new(
+        RAAF::StructuredOutput::ArraySchema.new(
           items: { type: "string" },
           min_items: 1,
           max_items: 3
@@ -199,25 +200,25 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       it "raises ValidationError for non-array" do
         expect do
           array_schema.validate("not an array")
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected array/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /Expected array/)
       end
 
       it "raises ValidationError for too few items" do
         expect do
           array_schema.validate([])
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /has fewer than 1 items/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /has fewer than 1 items/)
       end
 
       it "raises ValidationError for too many items" do
         expect do
           array_schema.validate(%w[a b c d])
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /has more than 3 items/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /has more than 3 items/)
       end
 
       it "raises ValidationError for wrong item type" do
         expect do
           array_schema.validate(["string", 123])
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected string/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /Expected string/)
       end
     end
   end
@@ -225,7 +226,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
   describe "StringSchema" do
     describe "#initialize" do
       it "creates string schema with constraints" do
-        schema = OpenAIAgents::StructuredOutput::StringSchema.new(
+        schema = RAAF::StructuredOutput::StringSchema.new(
           min_length: 1,
           max_length: 50,
           pattern: "^[A-Za-z]+$",
@@ -242,7 +243,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
 
     describe "#validate" do
       let(:string_schema) do
-        OpenAIAgents::StructuredOutput::StringSchema.new(
+        RAAF::StructuredOutput::StringSchema.new(
           min_length: 2,
           max_length: 10,
           pattern: "^[A-Za-z]+$"
@@ -258,30 +259,30 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       it "raises ValidationError for non-string" do
         expect do
           string_schema.validate(123)
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /Expected string/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /Expected string/)
       end
 
       it "raises ValidationError for too short string" do
         expect do
           string_schema.validate("A")
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is shorter than 2 characters/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /is shorter than 2 characters/)
       end
 
       it "raises ValidationError for too long string" do
         expect do
           string_schema.validate("VeryLongName")
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is longer than 10 characters/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /is longer than 10 characters/)
       end
 
       it "raises ValidationError for pattern mismatch" do
         expect do
           string_schema.validate("Alice123")
-        end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /doesn't match pattern/)
+        end.to raise_error(RAAF::StructuredOutput::ValidationError, /doesn't match pattern/)
       end
 
       context "with enum constraint" do
         let(:enum_schema) do
-          OpenAIAgents::StructuredOutput::StringSchema.new(
+          RAAF::StructuredOutput::StringSchema.new(
             enum: %w[red green blue]
           )
         end
@@ -294,7 +295,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
         it "raises ValidationError for invalid enum value" do
           expect do
             enum_schema.validate("yellow")
-          end.to raise_error(OpenAIAgents::StructuredOutput::ValidationError, /is not one of/)
+          end.to raise_error(RAAF::StructuredOutput::ValidationError, /is not one of/)
         end
       end
     end
@@ -313,7 +314,7 @@ RSpec.describe "OpenAIAgents::StructuredOutput" do
       }
     end
 
-    let(:formatter) { OpenAIAgents::StructuredOutput::ResponseFormatter.new(schema) }
+    let(:formatter) { RAAF::StructuredOutput::ResponseFormatter.new(schema) }
 
     describe "#format_response" do
       it "formats valid data" do

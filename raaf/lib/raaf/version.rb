@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Version information for the Ruby AI Agents Factory gem
   #
@@ -8,7 +8,7 @@ module RubyAIAgentsFactory
   # The version follows semantic versioning (SemVer) principles.
   #
   # @example Getting the version
-  #   puts RubyAIAgentsFactory::VERSION
+  #   puts RAAF::VERSION
   #   # => "0.1.0"
   #
   # @see https://semver.org/ Semantic Versioning

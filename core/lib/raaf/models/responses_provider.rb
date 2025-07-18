@@ -5,13 +5,20 @@ require "json"
 require "uri"
 require "securerandom"
 require_relative "interface"
-require_relative "../tracing/spans"
 require_relative "../token_estimator"
 require_relative "../logging"
-require_relative "../streaming_events"
 
-module RubyAIAgentsFactory
+# Optional streaming support - only load if available
+begin
+  require "raaf-streaming"
+rescue LoadError
+  # Streaming not available - streaming methods will raise errors
+end
+
+module RAAF
+
   module Models
+
     ##
     # Provider for OpenAI's Responses API (recommended default)
     #
@@ -24,7 +31,7 @@ module RubyAIAgentsFactory
     # - Better streaming support
     #
     # This provider maintains exact structural alignment with the Python
-    # OpenAI Agents SDK for full compatibility.
+    # RAAF SDK for full compatibility.
     #
     # @example Basic usage
     #   provider = ResponsesProvider.new(api_key: ENV['OPENAI_API_KEY'])
@@ -49,8 +56,9 @@ module RubyAIAgentsFactory
     #   )
     #
     class ResponsesProvider < ModelInterface
+
       include Logger
-      
+
       # Models supported by the Responses API
       SUPPORTED_MODELS = %w[
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4
@@ -67,6 +75,7 @@ module RubyAIAgentsFactory
       # @raise [AuthenticationError] If no API key is provided
       #
       def initialize(api_key: nil, api_base: nil, **_options)
+        super()
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
@@ -107,7 +116,7 @@ module RubyAIAgentsFactory
       # @example Continuing a conversation
       #   response = provider.responses_completion(
       #     messages: [],
-      #     model: "gpt-4o", 
+      #     model: "gpt-4o",
       #     previous_response_id: previous_response[:id],
       #     input: [{ type: "function_call_output", output: "..." }]
       #   )
@@ -142,18 +151,21 @@ module RubyAIAgentsFactory
       end
 
       # Implement streaming completion to match ModelInterface
-      def stream_completion(messages:, model:, tools: nil, &block)
+      def stream_completion(messages:, model:, tools: nil, &)
         validate_model(model)
-        
+
         # Use responses_completion with streaming enabled
         responses_completion(
           messages: messages,
           model: model,
           tools: tools,
           stream: true,
-          &block
+          &
         )
       end
+
+      # Alias for API strategy compatibility
+      alias complete responses_completion
 
       private
 
@@ -194,23 +206,38 @@ module RubyAIAgentsFactory
         # Handle response format
         body[:text] = convert_response_format(response_format) if response_format
 
-        # Debug logging
+        # Debug logging - including detailed input inspection for duplicate debugging
         log_info("Calling OpenAI Responses API",
-          model: model,
-          input_length: list_input.length,
-          tools_count: converted_tools[:tools]&.length || 0,
-          previous_response_id: previous_response_id,
-          stream: stream
-        )
+                 model: model,
+                 input_length: list_input.length,
+                 tools_count: converted_tools[:tools]&.length || 0,
+                 previous_response_id: previous_response_id,
+                 stream: stream)
+        
+        # DETAILED INPUT DEBUGGING - Check for duplicates in the actual API request
+        all_input_ids = list_input.map { |item| item[:id] || item["id"] }.compact
+        duplicate_input_ids = all_input_ids.group_by(&:itself).select { |_, v| v.size > 1 }.keys
+        
+        log_debug("📤 RESPONSES_PROVIDER: Final API request input composition", 
+                  category: "api_request",
+                  total_items: list_input.length,
+                  item_ids: all_input_ids,
+                  duplicate_ids: duplicate_input_ids,
+                  has_duplicates: duplicate_input_ids.any?)
+        
+        if duplicate_input_ids.any?
+          log_error("🚨 RESPONSES_PROVIDER: DUPLICATES DETECTED IN API REQUEST!", 
+                    category: "api_request",
+                    duplicate_ids: duplicate_input_ids,
+                    full_input_dump: list_input.map.with_index { |item, i| "#{i}: #{item.inspect}" })
+        end
 
         # Make the API call
         if stream
           final_response = nil
           call_responses_api_stream(body) do |event|
             # Capture the final response from the completed event
-            if event.is_a?(StreamingEvents::ResponseCompletedEvent)
-              final_response = event.response
-            end
+            final_response = event.response if event.is_a?(StreamingEvents::ResponseCompletedEvent)
             yield event if block_given?
           end
           final_response
@@ -236,29 +263,27 @@ module RubyAIAgentsFactory
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
-        request["User-Agent"] = "Agents/Ruby #{RubyAIAgentsFactory::VERSION}"
+        request["User-Agent"] = "Agents/Ruby #{RAAF::VERSION}"
 
         request.body = body.to_json
 
         # DEBUG: Log the actual request body being sent to OpenAI
         if body[:tools]
           log_debug_tools("📤 ACTUAL REQUEST BODY SENT TO OPENAI RESPONSES API",
-            tools_count: body[:tools].length,
-            request_body_json: body.to_json
-          )
-          
+                          tools_count: body[:tools].length,
+                          request_body_json: body.to_json)
+
           # Check each tool for array parameters in the actual request
           body[:tools].each do |tool|
-            if tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
-              tool[:function][:parameters][:properties].each do |prop_name, prop_def|
-                if prop_def[:type] == "array"
-                  log_debug_tools("🔍 ACTUAL REQUEST ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
-                    has_items: prop_def.key?(:items),
-                    items_value: prop_def[:items].inspect,
-                    items_nil: prop_def[:items].nil?
-                  )
-                end
-              end
+            next unless tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
+
+            tool[:function][:parameters][:properties].each do |prop_name, prop_def|
+              next unless prop_def[:type] == "array"
+
+              log_debug_tools("🔍 ACTUAL REQUEST ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
+                              has_items: prop_def.key?(:items),
+                              items_value: prop_def[:items].inspect,
+                              items_nil: prop_def[:items].nil?)
             end
           end
         end
@@ -267,10 +292,9 @@ module RubyAIAgentsFactory
 
         unless response.code.start_with?("2")
           log_error("OpenAI Responses API Error",
-            status_code: response.code,
-            response_body: response.body,
-            request_body: body.to_json
-          )
+                    status_code: response.code,
+                    response_body: response.body,
+                    request_body: body.to_json)
           raise APIError, "Responses API returned #{response.code}: #{response.body}"
         end
 
@@ -278,10 +302,9 @@ module RubyAIAgentsFactory
 
         # Debug logging for successful responses
         log_info("OpenAI Responses API Success",
-          response_id: parsed_response[:id],
-          output_items: parsed_response[:output]&.length || 0,
-          usage: parsed_response[:usage]
-        )
+                 response_id: parsed_response[:id],
+                 output_items: parsed_response[:output]&.length || 0,
+                 usage: parsed_response[:usage])
 
         # Return the raw Responses API response
         # The runner will need to handle the items-based format
@@ -311,7 +334,7 @@ module RubyAIAgentsFactory
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
-        request["User-Agent"] = "Agents/Ruby #{RubyAIAgentsFactory::VERSION}"
+        request["User-Agent"] = "Agents/Ruby #{RAAF::VERSION}"
         request["Accept"] = "text/event-stream"
         request["Cache-Control"] = "no-cache"
 
@@ -319,19 +342,17 @@ module RubyAIAgentsFactory
         stream_body = body.merge(stream: true)
         request.body = stream_body.to_json
 
-        log_debug_api("Starting Responses API streaming request", 
-          url: uri.to_s,
-          model: body[:model]
-        )
+        log_debug_api("Starting Responses API streaming request",
+                      url: uri.to_s,
+                      model: body[:model])
 
         http.request(request) do |response|
           unless response.code.start_with?("2")
             error_body = response.read_body
             log_error("OpenAI Responses API Streaming Error",
-              status_code: response.code,
-              response_body: error_body,
-              request_body: stream_body.to_json
-            )
+                      status_code: response.code,
+                      response_body: error_body,
+                      request_body: stream_body.to_json)
             raise APIError, "Responses API streaming returned #{response.code}: #{error_body}"
           end
 
@@ -339,7 +360,7 @@ module RubyAIAgentsFactory
           buffer = ""
           response.read_body do |chunk|
             buffer += chunk
-            
+
             # Process complete lines
             while buffer.include?("\n")
               line, buffer = buffer.split("\n", 2)
@@ -356,29 +377,27 @@ module RubyAIAgentsFactory
       def process_sse_line(line, &block)
         return if line.empty? || line.start_with?(":")
 
-        if line.start_with?("data:")
-          data = line[5..-1].strip
-          
-          # Handle end of stream
-          return if data == "[DONE]"
+        return unless line.start_with?("data:")
 
-          begin
-            event_data = JSON.parse(data, symbolize_names: true)
-            
-            # Create and yield appropriate streaming event
-            streaming_event = create_streaming_event(event_data)
-            block.call(streaming_event) if streaming_event && block
-            
-            log_debug_api("Processed streaming event", 
-              type: event_data[:type],
-              sequence: event_data[:sequence_number]
-            )
-          rescue JSON::ParserError => e
-            log_debug_api("Failed to parse streaming data", 
-              data: data,
-              error: e.message
-            )
-          end
+        data = line[5..].strip
+
+        # Handle end of stream
+        return if data == "[DONE]"
+
+        begin
+          event_data = JSON.parse(data, symbolize_names: true)
+
+          # Create and yield appropriate streaming event
+          streaming_event = create_streaming_event(event_data)
+          block.call(streaming_event) if streaming_event && block
+
+          log_debug_api("Processed streaming event",
+                        type: event_data[:type],
+                        sequence: event_data[:sequence_number])
+        rescue JSON::ParserError => e
+          log_debug_api("Failed to parse streaming data",
+                        data: data,
+                        error: e.message)
         end
       end
 
@@ -483,7 +502,7 @@ module RubyAIAgentsFactory
             else
               converted_tools << tool
             end
-          when RubyAIAgentsFactory::FunctionTool
+          when RAAF::FunctionTool
             # Convert FunctionTool to Responses API format
             converted_tools << {
               type: "function",
@@ -492,15 +511,36 @@ module RubyAIAgentsFactory
               parameters: prepare_function_parameters(tool.parameters),
               strict: determine_strict_mode(tool.parameters)
             }
-          when RubyAIAgentsFactory::Tools::WebSearchTool
+          when RAAF::Tools::WebSearchTool
             # Convert to hosted web search tool
             converted_tools << { type: "web_search" }
             includes << "web_search_call.results"
           else
-            # Let other tools convert themselves if they implement the method
-            raise ArgumentError, "Unknown tool type: #{tool.class}" unless tool.respond_to?(:to_tool_definition)
-
-            converted_tools << tool.to_tool_definition
+            # Handle DSL tools that respond to tool_definition or tool_configuration
+            if tool.respond_to?(:tool_definition)
+              tool_def = tool.tool_definition
+              if tool_def[:type] == "web_search" || tool_def[:type] == "tavily_search"
+                converted_tools << { type: "web_search" }
+                includes << "web_search_call.results"
+              else
+                # Convert DSL tool to function format
+                converted_tools << {
+                  type: "function",
+                  name: begin
+                    tool.tool_name
+                  rescue NotImplementedError
+                    tool_def[:type] || "unknown_tool"
+                  end,
+                  description: tool_def[:description] || "AI tool",
+                  parameters: prepare_function_parameters(tool_def[:parameters] || {}),
+                  strict: determine_strict_mode(tool_def[:parameters] || {})
+                }
+              end
+            elsif tool.respond_to?(:to_tool_definition)
+              converted_tools << tool.to_tool_definition
+            else
+              raise ArgumentError, "Unknown tool type: #{tool.class}. Tool must respond to :tool_definition or :to_tool_definition"
+            end
 
           end
         end
@@ -560,6 +600,9 @@ module RubyAIAgentsFactory
           }
         }
       end
+
     end
+
   end
+
 end

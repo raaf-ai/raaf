@@ -4,7 +4,7 @@ require_relative "lib/raaf/providers/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-providers"
-  spec.version = RubyAIAgentsFactory::Providers::VERSION
+  spec.version = RAAF::Providers::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -41,10 +41,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "google-cloud-ai_platform", "~> 1.0"
   spec.add_dependency "httparty", "~> 0.21"
   spec.add_dependency "json", "~> 2.0"
-  spec.add_dependency "raaf-core", "~> 1.0"
-  spec.add_dependency "raaf-logging", "~> 1.0"
-  spec.add_dependency "redis", "~> 4.0"
-  spec.add_dependency "ruby-openai", "~> 6.0"
+  spec.add_dependency "raaf-core", "0.1.0"
+  spec.add_dependency "ruby-openai", "~> 7.0"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"

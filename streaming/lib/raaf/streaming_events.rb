@@ -2,7 +2,7 @@
 
 require "json"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # StreamingEvents module for real-time response processing
   #

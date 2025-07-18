@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Rails
     ##
     # WebSocket handler for real-time agent conversations
@@ -9,7 +9,7 @@ module RubyAIAgentsFactory
     # including message streaming, typing indicators, and session management.
     #
     class WebsocketHandler
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       ##
       # WebSocket connection handler

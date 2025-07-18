@@ -1,3 +1,9 @@
+require:
+  - rubocop-rspec
+
+plugins:
+  - rubocop-rake
+
 AllCops:
   TargetRubyVersion: 3.0
   NewCops: enable
@@ -70,4 +76,7 @@ RSpec/NestedGroups:
   Max: 5
 
 RSpec/DescribeClass:
+  Enabled: false
+
+Capybara/RSpec/PredicateMatcher:
   Enabled: false

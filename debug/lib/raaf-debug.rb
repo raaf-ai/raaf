@@ -13,7 +13,7 @@ require_relative "raaf/debug/interactive_console"
 require_relative "raaf/debug/formatter"
 require_relative "raaf/debug/middleware"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Advanced debugging and development utilities for Ruby AI Agents Factory
   #
@@ -38,10 +38,10 @@ module RubyAIAgentsFactory
   #   require 'raaf-debug'
   #   
   #   # Enable debug mode
-  #   RubyAIAgentsFactory::Debug.enable!
+  #   RAAF::Debug.enable!
   #   
   #   # Create debug-enabled agent
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "DebugAgent",
   #     instructions: "You are a helpful assistant",
   #     debug: true
@@ -56,7 +56,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-debug'
   #   
   #   # Create tracer
-  #   tracer = RubyAIAgentsFactory::Debug::Tracer.new
+  #   tracer = RAAF::Debug::Tracer.new
   #   
   #   # Enable tracing
   #   tracer.start
@@ -72,7 +72,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-debug'
   #   
   #   # Create profiler
-  #   profiler = RubyAIAgentsFactory::Debug::Profiler.new
+  #   profiler = RAAF::Debug::Profiler.new
   #   
   #   # Profile agent execution
   #   profile_result = profiler.profile do
@@ -87,7 +87,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-debug'
   #   
   #   # Create debugger
-  #   debugger = RubyAIAgentsFactory::Debug::Debugger.new
+  #   debugger = RAAF::Debug::Debugger.new
   #   
   #   # Set breakpoint
   #   debugger.set_breakpoint(agent, :before_run) do |context|
@@ -103,7 +103,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-debug'
   #   
   #   # Create log analyzer
-  #   analyzer = RubyAIAgentsFactory::Debug::LogAnalyzer.new
+  #   analyzer = RAAF::Debug::LogAnalyzer.new
   #   
   #   # Analyze log files
   #   analysis = analyzer.analyze_log_file("logs/agent.log")
@@ -117,7 +117,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-debug'
   #   
   #   # Create memory tracker
-  #   tracker = RubyAIAgentsFactory::Debug::MemoryTracker.new
+  #   tracker = RAAF::Debug::MemoryTracker.new
   #   
   #   # Track memory usage
   #   tracker.start_tracking
@@ -256,7 +256,7 @@ module RubyAIAgentsFactory
       # @yield [config] Configuration block
       #
       # @example Configure debug
-      #   RubyAIAgentsFactory::Debug.configure do |config|
+      #   RAAF::Debug.configure do |config|
       #     config.enabled = true
       #     config.tracer.trace_internal_calls = true
       #     config.profiler.cpu_profiling = true
@@ -617,7 +617,7 @@ module RubyAIAgentsFactory
     # Debug session for coordinated debugging
     #
     class DebugSession
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       attr_reader :agent, :tracer, :profiler, :debugger, :session_id
 

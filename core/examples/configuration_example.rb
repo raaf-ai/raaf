@@ -8,7 +8,7 @@
 # This example shows centralized configuration, environment-specific overrides,
 # and validation patterns.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 # ============================================================================
 # CONFIGURATION SYSTEM SETUP
@@ -25,170 +25,172 @@ puts "🔧 Current environment: #{current_env}"
 # CENTRALIZED CONFIGURATION CLASS
 # ============================================================================
 
-# Comprehensive configuration management system for OpenAI Agents.
+# Comprehensive configuration management system for RAAF.
 # Handles environment-specific settings, validation, and secure credential management.
 class OpenAIAgentsConfig
+
   attr_reader :environment, :config_data
-  
+
   def initialize(environment = nil)
     @environment = environment || detect_environment
     @config_data = load_configuration
     validate_configuration!
   end
-  
+
   # Core API Configuration
   def openai_api_key
     get_secure_value("openai.api_key", "OPENAI_API_KEY")
   end
-  
+
   def openai_api_base
     get_value("openai.api_base", "OPENAI_API_BASE", default: "https://api.openai.com/v1")
   end
-  
+
   def default_model
     get_value("openai.default_model", "OPENAI_DEFAULT_MODEL", default: "gpt-4o")
   end
-  
+
   def request_timeout
     get_value("openai.timeout", "OPENAI_TIMEOUT", default: 120).to_i
   end
-  
+
   # Provider Configuration
   def anthropic_api_key
     get_secure_value("anthropic.api_key", "ANTHROPIC_API_KEY")
   end
-  
+
   def groq_api_key
     get_secure_value("groq.api_key", "GROQ_API_KEY")
   end
-  
+
   def together_api_key
     get_secure_value("together.api_key", "TOGETHER_API_KEY")
   end
-  
+
   # Agent Behavior Configuration
   def default_max_turns
     get_value("agents.max_turns", "AGENT_MAX_TURNS", default: 10).to_i
   end
-  
+
   def default_temperature
     get_value("agents.temperature", "AGENT_TEMPERATURE", default: 0.7).to_f
   end
-  
+
   def agent_timeout
     get_value("agents.timeout", "AGENT_TIMEOUT", default: 300).to_i
   end
-  
+
   # Retry Configuration
   def retry_max_attempts
     get_value("retry.max_attempts", "RETRY_MAX_ATTEMPTS", default: 3).to_i
   end
-  
+
   def retry_base_delay
     get_value("retry.base_delay", "RETRY_BASE_DELAY", default: 1.0).to_f
   end
-  
+
   def retry_max_delay
     get_value("retry.max_delay", "RETRY_MAX_DELAY", default: 60.0).to_f
   end
-  
+
   # Logging Configuration
   def log_level
     get_value("logging.level", "LOG_LEVEL", default: production? ? "info" : "debug")
   end
-  
+
   def log_format
     get_value("logging.format", "LOG_FORMAT", default: production? ? "json" : "text")
   end
-  
+
   def debug_categories
     categories = get_value("logging.debug_categories", "DEBUG_CATEGORIES", default: "")
     categories.split(",").map(&:strip).reject(&:empty?)
   end
-  
+
   # Tracing Configuration
   def tracing_enabled?
     get_boolean("tracing.enabled", "TRACING_ENABLED", default: true)
   end
-  
+
   def openai_tracing_enabled?
     get_boolean("tracing.openai.enabled", "OPENAI_TRACING_ENABLED", default: false)
   end
-  
+
   def console_tracing_enabled?
     get_boolean("tracing.console.enabled", "CONSOLE_TRACING_ENABLED", default: !production?)
   end
-  
+
   # Security Configuration
   def rate_limit_requests_per_minute
     get_value("security.rate_limit.requests_per_minute", "RATE_LIMIT_RPM", default: production? ? 60 : 1000).to_i
   end
-  
+
   def enable_code_execution?
     get_boolean("security.code_execution.enabled", "CODE_EXECUTION_ENABLED", default: !production?)
   end
-  
+
   def allowed_file_extensions
-    extensions = get_value("security.file_upload.allowed_extensions", "ALLOWED_FILE_EXTENSIONS", default: "txt,pdf,json,csv")
+    extensions = get_value("security.file_upload.allowed_extensions", "ALLOWED_FILE_EXTENSIONS",
+                           default: "txt,pdf,json,csv")
     extensions.split(",").map(&:strip)
   end
-  
+
   def max_file_size_mb
     get_value("security.file_upload.max_size_mb", "MAX_FILE_SIZE_MB", default: 10).to_i
   end
-  
+
   # Memory Store Configuration
   def memory_store_type
     get_value("memory.store_type", "MEMORY_STORE_TYPE", default: "in_memory")
   end
-  
+
   def memory_store_path
     get_value("memory.store_path", "MEMORY_STORE_PATH", default: "./memory")
   end
-  
+
   def memory_ttl_hours
     get_value("memory.ttl_hours", "MEMORY_TTL_HOURS", default: 24).to_i
   end
-  
+
   # Cost Management
   def daily_cost_limit
     get_value("costs.daily_limit", "DAILY_COST_LIMIT", default: 100.0).to_f
   end
-  
+
   def cost_alert_threshold
     get_value("costs.alert_threshold", "COST_ALERT_THRESHOLD", default: 0.8).to_f
   end
-  
+
   def token_usage_tracking?
     get_boolean("costs.token_tracking", "TOKEN_TRACKING_ENABLED", default: true)
   end
-  
+
   # Environment helpers
   def development?
     @environment == "development"
   end
-  
+
   def staging?
     @environment == "staging"
   end
-  
+
   def production?
     @environment == "production"
   end
-  
+
   def test?
     @environment == "test"
   end
-  
+
   # Configuration validation
   def valid?
     @validation_errors.empty?
   end
-  
+
   def validation_errors
     @validation_errors ||= []
   end
-  
+
   # Export configuration for debugging
   def to_h(include_secrets: false)
     config_hash = {
@@ -235,94 +237,95 @@ class OpenAIAgentsConfig
         token_tracking: token_usage_tracking?
       }
     }
-    
+
     if include_secrets
       config_hash[:api_keys] = {
-        openai: openai_api_key ? "***#{openai_api_key[-4..-1]}" : nil,
-        anthropic: anthropic_api_key ? "***#{anthropic_api_key[-4..-1]}" : nil,
-        groq: groq_api_key ? "***#{groq_api_key[-4..-1]}" : nil,
-        together: together_api_key ? "***#{together_api_key[-4..-1]}" : nil
+        openai: openai_api_key ? "***#{openai_api_key[-4..]}" : nil,
+        anthropic: anthropic_api_key ? "***#{anthropic_api_key[-4..]}" : nil,
+        groq: groq_api_key ? "***#{groq_api_key[-4..]}" : nil,
+        together: together_api_key ? "***#{together_api_key[-4..]}" : nil
       }
     end
-    
+
     config_hash
   end
-  
+
   private
-  
+
   def detect_environment
     ENV["RAILS_ENV"] || ENV["RACK_ENV"] || ENV["ENVIRONMENT"] || "development"
   end
-  
+
   def load_configuration
     config = {}
-    
+
     # Load from configuration files if they exist
     config_file = "config/openai_agents.yml"
     if File.exist?(config_file)
-      require 'yaml'
+      require "yaml"
       file_config = YAML.load_file(config_file)
       config.merge!(file_config[@environment] || {}) if file_config
     end
-    
+
     # Environment-specific overrides
-    env_config_file = "config/openai_agents_#{@environment}.yml"
+    env_config_file = "config/raaf_#{@environment}.yml"
     if File.exist?(env_config_file)
-      require 'yaml'
+      require "yaml"
       env_config = YAML.load_file(env_config_file)
       config.merge!(env_config)
     end
-    
+
     config
   end
-  
+
   def get_value(config_path, env_var, default: nil)
     # Priority: Environment variable > Configuration file > Default
     ENV[env_var] || get_nested_value(config_path) || default
   end
-  
+
   def get_secure_value(config_path, env_var)
     # For sensitive values, prefer environment variables
     ENV[env_var] || get_nested_value(config_path)
   end
-  
+
   def get_boolean(config_path, env_var, default: false)
     value = get_value(config_path, env_var, default: default.to_s)
     %w[true yes 1 on enabled].include?(value.to_s.downcase)
   end
-  
+
   def get_nested_value(path)
     keys = path.split(".")
     keys.reduce(@config_data) { |config, key| config.is_a?(Hash) ? config[key] : nil }
   end
-  
+
   def validate_configuration!
     @validation_errors = []
-    
+
     # Required API keys for production
-    if production?
-      @validation_errors << "OpenAI API key is required in production" if openai_api_key.nil? || openai_api_key.empty?
+    if production? && (openai_api_key.nil? || openai_api_key.empty?)
+      @validation_errors << "OpenAI API key is required in production"
     end
-    
+
     # Validate timeout values
     @validation_errors << "Request timeout must be positive" if request_timeout <= 0
     @validation_errors << "Agent timeout must be positive" if agent_timeout <= 0
-    
+
     # Validate retry configuration
     @validation_errors << "Retry max attempts must be between 1 and 10" unless (1..10).include?(retry_max_attempts)
     @validation_errors << "Retry base delay must be positive" if retry_base_delay <= 0
-    
+
     # Validate memory configuration
     valid_store_types = %w[in_memory file redis]
     @validation_errors << "Invalid memory store type" unless valid_store_types.include?(memory_store_type)
-    
+
     # Validate cost limits
     @validation_errors << "Daily cost limit must be positive" if daily_cost_limit <= 0
     @validation_errors << "Cost alert threshold must be between 0 and 1" unless (0..1).include?(cost_alert_threshold)
-    
+
     # Validate rate limiting
     @validation_errors << "Rate limit must be positive" if rate_limit_requests_per_minute <= 0
   end
+
 end
 
 # ============================================================================
@@ -331,20 +334,21 @@ end
 
 # Configuration factory for different deployment scenarios
 class ConfigurationFactory
+
   def self.create_for_environment(env = nil)
     config = OpenAIAgentsConfig.new(env)
-    
+
     puts "✅ Configuration loaded for environment: #{config.environment}"
     puts "   Valid: #{config.valid?}"
-    
+
     unless config.valid?
       puts "   ⚠️  Validation errors:"
       config.validation_errors.each { |error| puts "      - #{error}" }
     end
-    
+
     config
   end
-  
+
   def self.create_development_config
     # Override with development-friendly defaults
     ENV["LOG_LEVEL"] = "debug"
@@ -352,10 +356,10 @@ class ConfigurationFactory
     ENV["CONSOLE_TRACING_ENABLED"] = "true"
     ENV["CODE_EXECUTION_ENABLED"] = "true"
     ENV["RATE_LIMIT_RPM"] = "1000"
-    
+
     create_for_environment("development")
   end
-  
+
   def self.create_production_config
     # Production security defaults
     ENV["LOG_LEVEL"] = "info"
@@ -364,19 +368,20 @@ class ConfigurationFactory
     ENV["CONSOLE_TRACING_ENABLED"] = "false"
     ENV["CODE_EXECUTION_ENABLED"] = "false"
     ENV["RATE_LIMIT_RPM"] = "60"
-    
+
     create_for_environment("production")
   end
-  
+
   def self.create_test_config
     # Test environment defaults
     ENV["LOG_LEVEL"] = "warn"
     ENV["TRACING_ENABLED"] = "false"
     ENV["TOKEN_TRACKING_ENABLED"] = "false"
     ENV["DAILY_COST_LIMIT"] = "10"
-    
+
     create_for_environment("test")
   end
+
 end
 
 puts "✅ Configuration management system loaded"
@@ -389,23 +394,23 @@ puts "\n=== Configuration Examples by Environment ==="
 puts "-" * 55
 
 # Demonstrate different environment configurations
-environments = ["development", "staging", "production", "test"]
+environments = %w[development staging production test]
 
 environments.each do |env|
   puts "\n#{env.upcase} Environment Configuration:"
-  
+
   # Create environment-specific configuration
-  case env
-  when "development"
-    config = ConfigurationFactory.create_development_config
-  when "production"
-    config = ConfigurationFactory.create_production_config
-  when "test"
-    config = ConfigurationFactory.create_test_config
-  else
-    config = ConfigurationFactory.create_for_environment(env)
-  end
-  
+  config = case env
+           when "development"
+             ConfigurationFactory.create_development_config
+           when "production"
+             ConfigurationFactory.create_production_config
+           when "test"
+             ConfigurationFactory.create_test_config
+           else
+             ConfigurationFactory.create_for_environment(env)
+           end
+
   # Display key configuration values
   puts "   Model: #{config.default_model}"
   puts "   Log level: #{config.log_level}"
@@ -414,7 +419,7 @@ environments.each do |env|
   puts "   Rate limit: #{config.rate_limit_requests_per_minute} req/min"
   puts "   Max turns: #{config.default_max_turns}"
   puts "   Daily cost limit: $#{config.daily_cost_limit}"
-  
+
   # Show API key status
   api_key_status = config.openai_api_key ? "configured" : "missing"
   puts "   OpenAI API key: #{api_key_status}"
@@ -432,7 +437,7 @@ config = ConfigurationFactory.create_for_environment(current_env)
 
 def create_configured_agent(config, agent_name, custom_settings = {})
   puts "🤖 Creating configured agent: #{agent_name}"
-  
+
   # Merge configuration with custom settings
   agent_config = {
     name: agent_name,
@@ -440,19 +445,19 @@ def create_configured_agent(config, agent_name, custom_settings = {})
     max_turns: config.default_max_turns,
     **custom_settings
   }
-  
+
   # Apply environment-specific constraints
   if config.production?
-    agent_config[:max_turns] = [agent_config[:max_turns], 5].min  # Limit in production
+    agent_config[:max_turns] = [agent_config[:max_turns], 5].min # Limit in production
     agent_config[:instructions] = "#{agent_config[:instructions]} Keep responses concise for production use."
   end
-  
-  agent = OpenAIAgents::Agent.new(**agent_config)
-  
+
+  agent = RAAF::Agent.new(**agent_config)
+
   puts "   Model: #{agent.model}"
   puts "   Max turns: #{agent.max_turns}"
   puts "   Tools: #{agent.tools.length}"
-  
+
   agent
 end
 
@@ -470,10 +475,10 @@ agents[:customer_service] = create_configured_agent(
 
 agents[:technical_support] = create_configured_agent(
   config,
-  "TechnicalSupport", 
+  "TechnicalSupport",
   {
     instructions: "You provide technical support. Be precise and thorough.",
-    model: config.production? ? "gpt-4o-mini" : "gpt-4o"  # Cost optimization in production
+    model: config.production? ? "gpt-4o-mini" : "gpt-4o" # Cost optimization in production
   }
 )
 
@@ -482,7 +487,7 @@ agents[:data_analyst] = create_configured_agent(
   "DataAnalyst",
   {
     instructions: "You analyze data and provide insights. Use tools when appropriate.",
-    max_turns: 15  # Data analysis may need more turns
+    max_turns: 15 # Data analysis may need more turns
   }
 )
 
@@ -498,69 +503,75 @@ puts "-" * 55
 # Configure providers based on configuration settings
 def configure_providers(config)
   providers = {}
-  
-  # OpenAI Provider (primary)
+
+  # OpenAI Provider (primary) - DEPRECATED, use default ResponsesProvider instead
   if config.openai_api_key
-    openai_provider = OpenAIAgents::Models::OpenAIProvider.new(
+    puts "⚠️  DEPRECATED: Using OpenAIProvider for demonstration purposes"
+    openai_provider = RAAF::Models::OpenAIProvider.new(  # DEPRECATED
       api_key: config.openai_api_key,
       api_base: config.openai_api_base
     )
+
+    # ❌ PLANNED: Create retryable wrapper based on configuration  
+    # The following code shows intended API but RetryableProvider doesn't exist yet
+    puts "⚠️  WARNING: RetryableProvider is not implemented yet"
+    puts "⚠️  Using basic OpenAI provider without retry logic for now"
     
-    # Create retryable wrapper based on configuration
-    retryable_class = Class.new(OpenAIAgents::Models::OpenAIProvider) do
-      include OpenAIAgents::Models::RetryableProvider
-      
-      def initialize(base_provider, config)
-        super(api_key: base_provider.instance_variable_get(:@api_key))
-        configure_retry(
-          max_attempts: config.retry_max_attempts,
-          base_delay: config.retry_base_delay,
-          max_delay: config.retry_max_delay,
-          multiplier: 2.0,
-          jitter: 0.1
-        )
-      end
-      
-      def chat_completion(**kwargs)
-        with_retry { super(**kwargs) }
-      end
-      
-      def stream_completion(**kwargs, &block)
-        with_retry { super(**kwargs, &block) }
-      end
-    end
-    
-    providers[:openai] = retryable_class.new(openai_provider, config)
-    
-    puts "✅ OpenAI provider configured with retry logic"
+    # PLANNED API (commented out until RetryableProvider is implemented):
+    # retryable_class = Class.new(RAAF::Models::ResponsesProvider) do  # Use ResponsesProvider
+    #   include RAAF::Models::RetryableProvider  # This doesn't exist yet
+    #
+    #   def initialize(base_provider, config)
+    #     super(api_key: base_provider.instance_variable_get(:@api_key))
+    #     configure_retry(
+    #       max_attempts: config.retry_max_attempts,
+    #       base_delay: config.retry_base_delay,
+    #       max_delay: config.retry_max_delay,
+    #       multiplier: 2.0,
+    #       jitter: 0.1
+    #     )
+    #   end
+    #
+    #   def chat_completion(**kwargs)
+    #     with_retry { super(**kwargs) }
+    #   end
+    #
+    #   def stream_completion(...)
+    #     with_retry { super(...) }
+    #   end
+    # end
+
+    providers[:openai] = openai_provider  # Use basic provider for now
+
+    puts "✅ OpenAI provider configured (basic version without retry logic)"
   end
-  
+
   # Anthropic Provider (backup)
   if config.anthropic_api_key
     begin
-      anthropic_provider = OpenAIAgents::Models::AnthropicProvider.new(
+      anthropic_provider = RAAF::Models::AnthropicProvider.new(
         api_key: config.anthropic_api_key
       )
       providers[:anthropic] = anthropic_provider
       puts "✅ Anthropic provider configured"
-    rescue => e
+    rescue StandardError => e
       puts "⚠️  Anthropic provider configuration failed: #{e.message}"
     end
   end
-  
+
   # Groq Provider (fast inference)
   if config.groq_api_key
     begin
-      groq_provider = OpenAIAgents::Models::GroqProvider.new(
+      groq_provider = RAAF::Models::GroqProvider.new(
         api_key: config.groq_api_key
       )
       providers[:groq] = groq_provider
       puts "✅ Groq provider configured"
-    rescue => e
+    rescue StandardError => e
       puts "⚠️  Groq provider configuration failed: #{e.message}"
     end
   end
-  
+
   providers
 end
 
@@ -584,58 +595,55 @@ puts "-" * 55
 # Configure runners with tracing and monitoring based on settings
 def create_configured_runner(agent, config, provider_name = :openai)
   puts "🏃 Creating configured runner for: #{agent.name}"
-  
+
   # Select provider
   provider = case provider_name
-            when :openai
-              if config.openai_api_key
-                OpenAIAgents::Models::OpenAIProvider.new(
-                  api_key: config.openai_api_key,
-                  api_base: config.openai_api_base
-                )
-              else
-                puts "   ⚠️  No OpenAI API key, using demo provider"
-                DemoProvider.new
-              end
-            else
-              puts "   ⚠️  Provider #{provider_name} not configured"
-              DemoProvider.new
-            end
-  
+             when :openai
+               if config.openai_api_key
+                 RAAF::Models::OpenAIProvider.new(
+                   api_key: config.openai_api_key,
+                   api_base: config.openai_api_base
+                 )
+               else
+                 puts "   ⚠️  No OpenAI API key, using demo provider"
+                 DemoProvider.new
+               end
+             else
+               puts "   ⚠️  Provider #{provider_name} not configured"
+               DemoProvider.new
+             end
+
   # Configure tracing if enabled
   tracer = nil
   if config.tracing_enabled?
-    tracer = OpenAIAgents.tracer
-    
+    tracer = RAAF.tracer
+
     # Add console processor for development
-    if config.console_tracing_enabled?
-      tracer.add_processor(OpenAIAgents::Tracing::ConsoleProcessor.new)
-    end
-    
+    tracer.add_processor(RAAF::Tracing::ConsoleProcessor.new) if config.console_tracing_enabled?
+
     # Add OpenAI processor if configured
-    if config.openai_tracing_enabled? && config.openai_api_key
-      tracer.add_processor(OpenAIAgents::Tracing::OpenAIProcessor.new)
-    end
-    
+    tracer.add_processor(RAAF::Tracing::OpenAIProcessor.new) if config.openai_tracing_enabled? && config.openai_api_key
+
     puts "   📊 Tracing enabled with #{tracer.processors.length} processors"
   end
-  
+
   # Create runner with configuration
-  runner = OpenAIAgents::Runner.new(
+  runner = RAAF::Runner.new(
     agent: agent,
     provider: provider,
     tracer: tracer
   )
-  
+
   puts "   Provider: #{provider.class.name}"
   puts "   Tracing: #{config.tracing_enabled? ? "enabled" : "disabled"}"
-  
+
   runner
 end
 
 # Demo provider for when API keys aren't available
-class DemoProvider < OpenAIAgents::Models::ModelInterface
-  def chat_completion(messages:, model:, **kwargs)
+class DemoProvider < RAAF::Models::ModelInterface
+
+  def chat_completion(messages:, model:, **_kwargs)
     {
       choices: [{
         message: {
@@ -650,20 +658,21 @@ class DemoProvider < OpenAIAgents::Models::ModelInterface
       }
     }
   end
-  
-  def stream_completion(messages:, model:, &block)
+
+  def stream_completion(messages:, model:)
     content = "Demo streaming response"
     content.each_char { |char| yield char if block_given? }
     chat_completion(messages: messages, model: model)
   end
-  
+
   def provider_name
     "Demo"
   end
-  
+
   def supported_models
     ["demo-model"]
   end
+
 end
 
 # Create configured runners
@@ -734,7 +743,7 @@ puts "-" * 55
 # Comprehensive configuration health check
 def perform_health_check(config, providers, runners)
   puts "🏥 Performing configuration health check..."
-  
+
   health_status = {
     configuration: true,
     providers: true,
@@ -743,16 +752,16 @@ def perform_health_check(config, providers, runners)
     monitoring: true,
     warnings: []
   }
-  
+
   # Configuration validation
-  unless config.valid?
+  if config.valid?
+    puts "   ✅ Configuration is valid"
+  else
     health_status[:configuration] = false
     puts "   ❌ Configuration validation failed:"
     config.validation_errors.each { |error| puts "      - #{error}" }
-  else
-    puts "   ✅ Configuration is valid"
   end
-  
+
   # Provider health
   if providers.empty?
     health_status[:providers] = false
@@ -761,7 +770,7 @@ def perform_health_check(config, providers, runners)
   else
     puts "   ✅ Providers available: #{providers.keys.join(", ")}"
   end
-  
+
   # Agent configuration
   if runners.any?
     puts "   ✅ Agents configured: #{runners.keys.join(", ")}"
@@ -769,16 +778,16 @@ def perform_health_check(config, providers, runners)
     health_status[:agents] = false
     puts "   ❌ No agents configured"
   end
-  
+
   # Security checks
   security_issues = []
-  
+
   if config.production?
     security_issues << "Code execution enabled in production" if config.enable_code_execution?
     security_issues << "Debug logging enabled in production" if config.log_level == "debug"
     security_issues << "Console tracing enabled in production" if config.console_tracing_enabled?
   end
-  
+
   if security_issues.any?
     health_status[:security] = false
     puts "   ⚠️  Security concerns:"
@@ -786,29 +795,29 @@ def perform_health_check(config, providers, runners)
   else
     puts "   ✅ Security configuration appropriate"
   end
-  
+
   # Monitoring setup
   monitoring_features = []
   monitoring_features << "tracing" if config.tracing_enabled?
   monitoring_features << "cost tracking" if config.token_usage_tracking?
-  monitoring_features << "rate limiting" if config.rate_limit_requests_per_minute > 0
-  
+  monitoring_features << "rate limiting" if config.rate_limit_requests_per_minute.positive?
+
   if monitoring_features.any?
     puts "   ✅ Monitoring enabled: #{monitoring_features.join(", ")}"
   else
     health_status[:monitoring] = false
     puts "   ⚠️  Limited monitoring configured"
   end
-  
+
   # Overall health
   overall_health = health_status.values.all?(true)
   puts "\n📊 Overall health: #{overall_health ? "✅ HEALTHY" : "⚠️  NEEDS ATTENTION"}"
-  
+
   if health_status[:warnings].any?
     puts "   Warnings:"
     health_status[:warnings].each { |warning| puts "      - #{warning}" }
   end
-  
+
   health_status
 end
 
@@ -869,10 +878,10 @@ checklist_items = [
   { item: "Debug logging disabled", check: config.log_level != "debug" },
   { item: "Code execution disabled", check: !config.enable_code_execution? },
   { item: "Rate limiting configured", check: config.rate_limit_requests_per_minute <= 100 },
-  { item: "Cost limits set", check: config.daily_cost_limit > 0 },
+  { item: "Cost limits set", check: config.daily_cost_limit.positive? },
   { item: "Tracing enabled", check: config.tracing_enabled? },
-  { item: "Retry logic configured", check: config.retry_max_attempts > 0 },
-  { item: "Timeout values appropriate", check: config.request_timeout > 0 && config.request_timeout < 300 },
+  { item: "Retry logic configured", check: config.retry_max_attempts.positive? },
+  { item: "Timeout values appropriate", check: config.request_timeout.positive? && config.request_timeout < 300 },
   { item: "Security validation passed", check: health_result[:security] }
 ]
 

@@ -5,9 +5,9 @@ require_relative "async/agent"
 require_relative "async/runner"
 require_relative "async/providers/responses_provider"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
-  # Async module provides true async/await support for OpenAI Agents
+  # Async module provides true async/await support for RAAF
   #
   # This module implements async/await patterns that match Python's async-first
   # design, enabling non-blocking I/O operations and concurrent execution
@@ -18,7 +18,7 @@ module RubyAIAgentsFactory
   #   require 'openai_agents/async'
   #   
   #   # Create async agent
-  #   agent = RubyAIAgentsFactory::Async.agent(
+  #   agent = RAAF::Async.agent(
   #     name: "Assistant",
   #     instructions: "You are a helpful assistant.",
   #     model: "gpt-4o"
@@ -26,7 +26,7 @@ module RubyAIAgentsFactory
   #   
   #   # Run asynchronously
   #   Async do
-  #     result = RubyAIAgentsFactory::Async.run(agent, "Hello world").wait
+  #     result = RAAF::Async.run(agent, "Hello world").wait
   #     puts result.messages.last[:content]
   #   end
   #
@@ -34,9 +34,9 @@ module RubyAIAgentsFactory
   #   Async do
   #     # Run multiple agents concurrently
   #     tasks = [
-  #       Async { RubyAIAgentsFactory::Async.run(agent1, "Task 1") },
-  #       Async { RubyAIAgentsFactory::Async.run(agent2, "Task 2") },
-  #       Async { RubyAIAgentsFactory::Async.run(agent3, "Task 3") }
+  #       Async { RAAF::Async.run(agent1, "Task 1") },
+  #       Async { RAAF::Async.run(agent2, "Task 2") },
+  #       Async { RAAF::Async.run(agent3, "Task 3") }
   #     ]
   #     
   #     results = tasks.map(&:wait)
@@ -73,7 +73,7 @@ module RubyAIAgentsFactory
     # @return [Async::Agent] Configured async agent
     #
     # @example
-    #   agent = RubyAIAgentsFactory::Async.agent(
+    #   agent = RAAF::Async.agent(
     #     name: "DataProcessor",
     #     instructions: "Process data efficiently",
     #     model: "gpt-4o"
@@ -94,7 +94,7 @@ module RubyAIAgentsFactory
     # @return [Async::Runner] Configured async runner
     #
     # @example
-    #   runner = RubyAIAgentsFactory::Async.runner(
+    #   runner = RAAF::Async.runner(
     #     agent: agent,
     #     max_turns: 5,
     #     timeout: 30
@@ -116,11 +116,11 @@ module RubyAIAgentsFactory
     # @return [Async::Task] Task that resolves to conversation result
     #
     # @example Single message
-    #   task = RubyAIAgentsFactory::Async.run(agent, "Hello")
+    #   task = RAAF::Async.run(agent, "Hello")
     #   result = task.wait  # Blocks until completion
     #
     # @example With configuration
-    #   task = RubyAIAgentsFactory::Async.run(
+    #   task = RAAF::Async.run(
     #     agent, 
     #     "Complex query",
     #     max_turns: 3,
@@ -137,7 +137,7 @@ module RubyAIAgentsFactory
     # require 'openai_agents/async'
     #
     # # Create async agent
-    # agent = RubyAIAgentsFactory::Async.agent(
+    # agent = RAAF::Async.agent(
     #   name: "Assistant",
     #   instructions: "You are a helpful assistant.",
     #   model: "gpt-4o"
@@ -152,7 +152,7 @@ module RubyAIAgentsFactory
     #
     # # Run asynchronously
     # Async do
-    #   result = RubyAIAgentsFactory::Async.run(agent, "Search for Ruby async patterns").wait
+    #   result = RAAF::Async.run(agent, "Search for Ruby async patterns").wait
     #   puts result.messages.last[:content]
     # end
   end

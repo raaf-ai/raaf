@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # ActiveRecord model for storing span data
     #
@@ -18,25 +18,25 @@ module RubyAIAgentsFactory
     # They can be queried for analysis and debugging:
     #
     # @example Find slow spans
-    #   RubyAIAgentsFactory::Tracing::Span.slow(threshold: 1000) # > 1 second
+    #   RAAF::Tracing::Span.slow(threshold: 1000) # > 1 second
     #
     # @example Find error spans
-    #   RubyAIAgentsFactory::Tracing::Span.errors.recent
+    #   RAAF::Tracing::Span.errors.recent
     #
     # @example Find spans by operation type
-    #   RubyAIAgentsFactory::Tracing::Span.by_kind('llm')
+    #   RAAF::Tracing::Span.by_kind('llm')
     #
     # @example Get span performance metrics
-    #   RubyAIAgentsFactory::Tracing::Span.performance_metrics('tool')
+    #   RAAF::Tracing::Span.performance_metrics('tool')
     class SpanRecord < ActiveRecord::Base
       self.table_name = "raaf_tracing_spans"
 
       # Associations
       belongs_to :trace, primary_key: :trace_id, foreign_key: :trace_id,
-                         class_name: "RubyAIAgentsFactory::Tracing::TraceRecord", optional: true
-      belongs_to :parent_span, class_name: "RubyAIAgentsFactory::Tracing::SpanRecord",
+                         class_name: "RAAF::Tracing::TraceRecord", optional: true
+      belongs_to :parent_span, class_name: "RAAF::Tracing::SpanRecord",
                                primary_key: :span_id, foreign_key: :parent_id, optional: true
-      has_many :children, class_name: "RubyAIAgentsFactory::Tracing::SpanRecord",
+      has_many :children, class_name: "RAAF::Tracing::SpanRecord",
                           primary_key: :span_id, foreign_key: :parent_id
 
       # Validations
@@ -350,7 +350,7 @@ module RubyAIAgentsFactory
       def update_trace_status
         trace&.update_trace_status
       rescue StandardError => e
-        Rails.logger.warn "[Ruby AI Agents Factory Tracing] Failed to update trace status: #{e.message}"
+        ::Rails.logger.warn "[Ruby AI Agents Factory Tracing] Failed to update trace status: #{e.message}"
       end
     end
   end

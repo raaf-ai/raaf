@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # Controller for analytics dashboards and overview pages
     class DashboardController < ApplicationController

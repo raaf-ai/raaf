@@ -2,7 +2,7 @@
 
 require_relative "memory"
 
-module RubyAIAgentsFactory
+module RAAF
   module Memory
     ##
     # Manages memory context and token limits for agents

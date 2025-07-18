@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "config/model_config"
-require_relative "config/tracing_config"
-require_relative "config/execution_config"
+require_relative "model_config"
+require_relative "tracing_config"
+require_relative "execution_config"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Configuration for a single run of an agent
   #
@@ -36,13 +37,14 @@ module RubyAIAgentsFactory
   #   )
   #
   class RunConfig
+
     attr_reader :model, :tracing, :execution
 
     ##
     # Initialize with either individual parameters or config objects
     #
     # @param model [Config::ModelConfig, nil] Model configuration
-    # @param tracing [Config::TracingConfig, nil] Tracing configuration  
+    # @param tracing [Config::TracingConfig, nil] Tracing configuration
     # @param execution [Config::ExecutionConfig, nil] Execution configuration
     # @param kwargs [Hash] Individual parameters (for backwards compatibility)
     #
@@ -84,6 +86,14 @@ module RubyAIAgentsFactory
       model.stream = value
     end
 
+    def previous_response_id
+      model.previous_response_id
+    end
+
+    def previous_response_id=(value)
+      model.previous_response_id = value
+    end
+
     ##
     # Backwards compatibility: delegate to tracing config
     def trace_id
@@ -100,6 +110,14 @@ module RubyAIAgentsFactory
 
     def tracing_disabled=(value)
       tracing.tracing_disabled = value
+    end
+
+    def trace_include_sensitive_data
+      tracing.trace_include_sensitive_data
+    end
+
+    def trace_include_sensitive_data=(value)
+      tracing.trace_include_sensitive_data = value
     end
 
     def metadata
@@ -142,6 +160,38 @@ module RubyAIAgentsFactory
 
     def hooks=(value)
       execution.hooks = value
+    end
+
+    def input_guardrails
+      execution.input_guardrails
+    end
+
+    def input_guardrails=(value)
+      execution.input_guardrails = value
+    end
+
+    def output_guardrails
+      execution.output_guardrails
+    end
+
+    def output_guardrails=(value)
+      execution.output_guardrails = value
+    end
+
+    def context
+      execution.context
+    end
+
+    def context=(value)
+      execution.context = value
+    end
+
+    def session
+      execution.session
+    end
+
+    def session=(value)
+      execution.session = value
     end
 
     ##
@@ -197,30 +247,30 @@ module RubyAIAgentsFactory
     private
 
     def extract_model_params(kwargs)
-      model_keys = %i[temperature max_tokens model top_p stop frequency_penalty 
-                      presence_penalty user stream previous_response_id]
-      
-      model_params = kwargs.select { |k, _| model_keys.include?(k) }
-      
+      model_keys = %i[temperature max_tokens model top_p stop frequency_penalty
+                      presence_penalty user stream previous_response_id parallel_tool_calls]
+
+      model_params = kwargs.slice(*model_keys)
+
       # Handle model_kwargs specially
-      if kwargs[:model_kwargs]
-        model_params.merge!(kwargs[:model_kwargs])
-      end
-      
+      model_params.merge!(kwargs[:model_kwargs]) if kwargs[:model_kwargs]
+
       model_params
     end
 
     def extract_tracing_params(kwargs)
-      tracing_keys = %i[trace_id group_id metadata tracing_disabled 
+      tracing_keys = %i[trace_id group_id metadata tracing_disabled
                         trace_include_sensitive_data workflow_name]
-      
-      kwargs.select { |k, _| tracing_keys.include?(k) }
+
+      kwargs.slice(*tracing_keys)
     end
 
     def extract_execution_params(kwargs)
-      execution_keys = %i[max_turns hooks input_guardrails output_guardrails]
-      
-      kwargs.select { |k, _| execution_keys.include?(k) }
+      execution_keys = %i[max_turns hooks input_guardrails output_guardrails context session]
+
+      kwargs.slice(*execution_keys)
     end
+
   end
+
 end

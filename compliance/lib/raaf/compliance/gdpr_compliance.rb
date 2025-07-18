@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Compliance
     ##
     # GDPR (General Data Protection Regulation) compliance implementation
@@ -9,7 +9,7 @@ module RubyAIAgentsFactory
     # consent management, data minimization, purpose limitation, and breach notification.
     #
     class GDPRCompliance
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Boolean] Consent required
       attr_reader :consent_required

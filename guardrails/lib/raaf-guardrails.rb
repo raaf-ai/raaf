@@ -13,7 +13,7 @@ require_relative "raaf/guardrails/providers/azure_moderator"
 require_relative "raaf/guardrails/providers/aws_moderator"
 require_relative "raaf/guardrails/providers/google_moderator"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Safety validation and content filtering for Ruby AI Agents Factory
   #
@@ -36,7 +36,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-guardrails'
   #   
   #   # Configure guardrails
-  #   RubyAIAgentsFactory::Guardrails.configure do |config|
+  #   RAAF::Guardrails.configure do |config|
   #     config.toxicity_detection = true
   #     config.pii_detection = true
   #     config.prompt_injection_detection = true
@@ -44,10 +44,10 @@ module RubyAIAgentsFactory
   #   end
   #   
   #   # Create validator
-  #   validator = RubyAIAgentsFactory::Guardrails::Validator.new
+  #   validator = RAAF::Guardrails::Validator.new
   #   
   #   # Add to agent
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "SafeAgent",
   #     instructions: "You are a helpful and safe assistant",
   #     guardrails: validator
@@ -57,9 +57,9 @@ module RubyAIAgentsFactory
   #   require 'raaf-guardrails'
   #   
   #   # Setup content filter with multiple providers
-  #   content_filter = RubyAIAgentsFactory::Guardrails::ContentFilter.new
-  #   content_filter.add_provider(RubyAIAgentsFactory::Guardrails::Providers::OpenAIModerator.new)
-  #   content_filter.add_provider(RubyAIAgentsFactory::Guardrails::Providers::AzureModerator.new)
+  #   content_filter = RAAF::Guardrails::ContentFilter.new
+  #   content_filter.add_provider(RAAF::Guardrails::Providers::OpenAIModerator.new)
+  #   content_filter.add_provider(RAAF::Guardrails::Providers::AzureModerator.new)
   #   
   #   # Validate content
   #   result = content_filter.validate("This is a test message")
@@ -74,7 +74,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-guardrails'
   #   
   #   # Define custom rules
-  #   custom_rules = RubyAIAgentsFactory::Guardrails::CustomRules.new
+  #   custom_rules = RAAF::Guardrails::CustomRules.new
   #   
   #   # Add keyword blocking
   #   custom_rules.add_keyword_rule(
@@ -91,7 +91,7 @@ module RubyAIAgentsFactory
   #   )
   #   
   #   # Add to validator
-  #   validator = RubyAIAgentsFactory::Guardrails::Validator.new
+  #   validator = RAAF::Guardrails::Validator.new
   #   validator.add_custom_rules(custom_rules)
   #
   # @example Middleware integration
@@ -99,7 +99,7 @@ module RubyAIAgentsFactory
   #   
   #   # In Rails application
   #   class ApplicationController < ActionController::Base
-  #     include RubyAIAgentsFactory::Guardrails::Middleware
+  #     include RAAF::Guardrails::Middleware
   #     
   #     before_action :validate_input_content
   #     after_action :validate_output_content
@@ -169,7 +169,7 @@ module RubyAIAgentsFactory
       # @yield [config] Configuration block
       #
       # @example Configure guardrails
-      #   RubyAIAgentsFactory::Guardrails.configure do |config|
+      #   RAAF::Guardrails.configure do |config|
       #     config.toxicity_detection = true
       #     config.toxicity_threshold = 0.8
       #     config.pii_detection = true
@@ -327,7 +327,7 @@ module RubyAIAgentsFactory
         @violations_by_type[violation[:type]] = (@violations_by_type[violation[:type]] || 0) + 1
 
         # Log to configured logger
-        RubyAIAgentsFactory::Logging.warn("Guardrail violation", violation)
+        RAAF::Logging.warn("Guardrail violation", violation)
         
         # Send to monitoring system if configured
         if config[:violation_reporting]
@@ -366,7 +366,7 @@ module RubyAIAgentsFactory
       def send_violation_report(violation)
         # This would send to a monitoring system like DataDog, New Relic, etc.
         # For now, we'll just log it
-        RubyAIAgentsFactory::Logging.info("Violation reported", violation)
+        RAAF::Logging.info("Violation reported", violation)
       end
     end
   end

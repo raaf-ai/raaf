@@ -1,17 +1,18 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
-  # Base error class for all OpenAI Agents exceptions
+  # Base error class for all RAAF exceptions
   #
-  # All custom exceptions in the OpenAI Agents library inherit from this class,
+  # All custom exceptions in the RAAF library inherit from this class,
   # allowing for easy rescue of any library-specific errors.
   #
-  # @example Rescue any OpenAI Agents error
+  # @example Rescue any RAAF error
   #   begin
   #     agent.run("Hello")
-  #   rescue RubyAIAgentsFactory::Error => e
-  #     puts "OpenAI Agents error: #{e.message}"
+  #   rescue RAAF::Error => e
+  #     puts "RAAF error: #{e.message}"
   #   end
   class Error < StandardError; end
 
@@ -142,4 +143,5 @@ module RubyAIAgentsFactory
   # @example Constraint violation
   #   raise ModelBehaviorError, "Model output violates content policy"
   class ModelBehaviorError < Error; end
+
 end

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 ##
 # Batch Processing Example - PLANNED API DESIGN DOCUMENTATION
@@ -13,7 +13,7 @@ require_relative "../lib/openai_agents"
 # This example shows how to process multiple requests efficiently using
 # OpenAI's Batch API, which provides significant cost savings for bulk operations.
 
-puts "🚀 OpenAI Agents Ruby - Batch Processing Example"
+puts "🚀 RAAF (Ruby AI Agents Factory) - Batch Processing Example"
 puts "=" * 60
 
 puts "\n⚠️  WARNING: This example shows PLANNED API design but does NOT work!"
@@ -34,12 +34,12 @@ end
 puts "\n📦 Creating Batch Processor..."
 # ⚠️  WARNING: This class does not exist yet - planned for future implementation
 begin
-  batch_processor = OpenAIAgents::BatchProcessor.new
+  RAAF::BatchProcessor.new
 rescue NameError => e
   puts "❌ Error: #{e.message}"
-  puts "The OpenAIAgents::BatchProcessor class is not implemented yet."
+  puts "The RAAF::BatchProcessor class is not implemented yet."
   puts "This example shows the planned API design for batch processing."
-  batch_processor = nil
+  nil
 end
 
 # =============================================================================
@@ -269,8 +269,8 @@ individual_cost_per_request = 0.03 # Example cost per request
 batch_discount = 0.5 # 50% discount for batch API
 
 # Count all requests from our examples
-total_requests = basic_requests.length + customer_batch_requests.length + 
-                analysis_batch_requests.length + code_review_requests.length
+total_requests = basic_requests.length + customer_batch_requests.length +
+                 analysis_batch_requests.length + code_review_requests.length
 
 # Calculate costs for comparison
 individual_total_cost = total_requests * individual_cost_per_request
@@ -318,7 +318,7 @@ puts "\n⚠️  IMPORTANT: This file shows PLANNED features that don't work yet!
 # Key capabilities that would be implemented
 # Each represents a production-ready pattern to implement
 puts "\n📋 PLANNED FEATURES TO IMPLEMENT:"
-puts "   1. OpenAIAgents::BatchProcessor class"
+puts "   1. RAAF::BatchProcessor class"
 puts "   2. submit_batch() method for batch submission"
 puts "   3. check_status() method for monitoring"
 puts "   4. wait_for_completion() method for polling"
@@ -337,7 +337,7 @@ puts "   💰 Cost optimization with 50% savings"
 # Implementation roadmap for developers
 # Follow these to implement batch processing
 puts "\n🚀 IMPLEMENTATION ROADMAP:"
-puts "   1. Create OpenAIAgents::BatchProcessor class"
+puts "   1. Create RAAF::BatchProcessor class"
 puts "   2. Implement OpenAI Batch API integration"
 puts "   3. Add request formatting and validation"
 puts "   4. Implement status monitoring and polling"
@@ -352,5 +352,5 @@ puts "   - Reference for OpenAI Batch API integration"
 
 # Final note about the purpose
 puts "\n#{"=" * 60}"
-puts "Batch processing design documentation for OpenAI Agents Ruby! 📦"
+puts "Batch processing design documentation for RAAF (Ruby AI Agents Factory)! 📦"
 puts "=" * 60

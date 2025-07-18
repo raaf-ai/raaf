@@ -48,16 +48,16 @@ require 'raaf-testing'
 
 RSpec.configure do |config|
   # Include RAAF testing utilities
-  config.include RubyAIAgentsFactory::Testing::Helpers
+  config.include RAAF::Testing::Helpers
   
   # Configure testing environment
   config.before(:suite) do
-    RubyAIAgentsFactory::Testing.setup_test_environment
+    RAAF::Testing.setup_test_environment
   end
   
   # Clean up after each test
   config.after(:each) do
-    RubyAIAgentsFactory::Testing.cleanup_test_resources
+    RAAF::Testing.cleanup_test_resources
   end
 end
 ```
@@ -90,9 +90,9 @@ end
 
 ```ruby
 RSpec.describe "Weather Agent" do
-  let(:mock_provider) { RubyAIAgentsFactory::Testing::MockProvider.new }
+  let(:mock_provider) { RAAF::Testing::MockProvider.new }
   let(:agent) do
-    RubyAIAgentsFactory::Agent.new(
+    RAAF::Agent.new(
       name: "WeatherAgent",
       instructions: "You provide weather information",
       provider: mock_provider
@@ -204,7 +204,7 @@ The `MockProvider` class provides a test-friendly LLM provider that returns pred
 
 ```ruby
 # Create mock provider
-mock_provider = RubyAIAgentsFactory::Testing::MockProvider.new(
+mock_provider = RAAF::Testing::MockProvider.new(
   default_response: "I'm a test agent",
   response_delay: 0.1,
   failure_rate: 0.0
@@ -261,7 +261,7 @@ mock_provider.reset_stats
 
 ```ruby
 # Create provider with failure rate
-mock_provider = RubyAIAgentsFactory::Testing::MockProvider.new(
+mock_provider = RAAF::Testing::MockProvider.new(
   failure_rate: 0.1  # 10% failure rate
 )
 
@@ -276,7 +276,7 @@ expect {
 ### Basic Conversation Helper
 
 ```ruby
-conversation = RubyAIAgentsFactory::Testing::ConversationHelper.new(agent)
+conversation = RAAF::Testing::ConversationHelper.new(agent)
 
 # Test multi-turn conversation
 conversation.user_says("Hello")
@@ -294,7 +294,7 @@ expect(conversation).to be_successful
 ### Advanced Conversation Testing
 
 ```ruby
-conversation = RubyAIAgentsFactory::Testing::ConversationHelper.new(agent)
+conversation = RAAF::Testing::ConversationHelper.new(agent)
 
 # Test conversation flow
 conversation.start_conversation
@@ -315,7 +315,7 @@ expect(conversation.duration).to be < 10.0
 ### Basic Validation
 
 ```ruby
-validator = RubyAIAgentsFactory::Testing::ResponseValidator.new
+validator = RAAF::Testing::ResponseValidator.new
 
 # Add validation rules
 validator.must_contain_keywords(["helpful", "assistant"])
@@ -331,7 +331,7 @@ expect(result).to pass_validation(validator)
 ### Advanced Validation
 
 ```ruby
-validator = RubyAIAgentsFactory::Testing::ResponseValidator.new(
+validator = RAAF::Testing::ResponseValidator.new(
   strict_mode: true,
   content_filters: [:profanity, :pii]
 )
@@ -358,22 +358,22 @@ expect(result).to pass_validation(validator)
 
 ```ruby
 # Load test fixtures
-fixtures = RubyAIAgentsFactory::Testing::Fixtures.load(:conversation_samples)
+fixtures = RAAF::Testing::Fixtures.load(:conversation_samples)
 
 # Use fixture data
 test_messages = fixtures[:messages]
 test_responses = fixtures[:responses]
 
 # Create test agents
-agent = RubyAIAgentsFactory::Testing::Factories.create_agent(:helpful_assistant)
-tool = RubyAIAgentsFactory::Testing::Factories.create_tool(:web_search)
+agent = RAAF::Testing::Factories.create_agent(:helpful_assistant)
+tool = RAAF::Testing::Factories.create_tool(:web_search)
 ```
 
 ### Custom Fixtures
 
 ```ruby
 # Create custom fixtures
-RubyAIAgentsFactory::Testing::Fixtures.define(:my_test_data) do
+RAAF::Testing::Fixtures.define(:my_test_data) do
   {
     messages: [
       { role: "user", content: "Hello" },
@@ -384,7 +384,7 @@ RubyAIAgentsFactory::Testing::Fixtures.define(:my_test_data) do
 end
 
 # Use custom fixtures
-test_data = RubyAIAgentsFactory::Testing::Fixtures.load(:my_test_data)
+test_data = RAAF::Testing::Fixtures.load(:my_test_data)
 ```
 
 ## VCR Integration
@@ -409,7 +409,7 @@ RSpec.describe "Live Agent API", :vcr do
   it "makes real API calls" do
     # First run records the interaction
     # Subsequent runs replay the recorded response
-    agent = RubyAIAgentsFactory::Agent.new(
+    agent = RAAF::Agent.new(
       name: "LiveAgent",
       model: "gpt-4o"
     )
@@ -527,7 +527,7 @@ end
 ### Global Configuration
 
 ```ruby
-RubyAIAgentsFactory::Testing.configure do |config|
+RAAF::Testing.configure do |config|
   # Mock provider settings
   config.mock_provider.default_response = "Custom test response"
   config.mock_provider.response_delay = 0.05
@@ -577,7 +577,7 @@ export VCR_RECORD_MODE="once"
 
 ```ruby
 RSpec.describe "With Helpers" do
-  include RubyAIAgentsFactory::Testing::Helpers
+  include RAAF::Testing::Helpers
   
   it "uses test helpers" do
     # Create test agent
@@ -660,7 +660,7 @@ Provides end-to-end testing capabilities for:
 ### Testing Framework Structure
 
 ```
-RubyAIAgentsFactory::Testing::
+RAAF::Testing::
 ├── Matchers/                    # RSpec matchers
 │   ├── ResponseMatchers        # Response validation matchers
 │   ├── PerformanceMatchers     # Performance testing matchers
@@ -737,7 +737,7 @@ end
 RSpec.describe "Clean Tests" do
   after(:each) do
     # Clean up test resources
-    RubyAIAgentsFactory::Testing.cleanup_test_resources
+    RAAF::Testing.cleanup_test_resources
   end
   
   it "maintains test isolation" do

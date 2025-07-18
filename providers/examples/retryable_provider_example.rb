@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates RetryableProviderWrapper integration with OpenAI Agents Ruby.
+# This example demonstrates RetryableProviderWrapper integration with RAAF (Ruby AI Agents Factory).
 # The RetryableProviderWrapper wraps any other provider with robust retry logic,
 # implementing exponential backoff, circuit breaker patterns, and failure recovery.
 # This is essential for production systems that need resilience against transient failures,
 # network issues, rate limits, and temporary service outages.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # For this example, we'll use OpenAI by default, but you can use any provider
 unless ENV["OPENAI_API_KEY"]
@@ -28,15 +28,15 @@ puts
 base_providers = {}
 
 # OpenAI provider (primary)
-base_providers[:openai] = OpenAIAgents::Models::OpenAIProvider.new
+base_providers[:openai] = RAAF::Models::OpenAIProvider.new
 
 # Add other providers if API keys are available
 if ENV["GROQ_API_KEY"]
-  base_providers[:groq] = OpenAIAgents::Models::GroqProvider.new
+  base_providers[:groq] = RAAF::Models::GroqProvider.new
 end
 
 if ENV["ANTHROPIC_API_KEY"]
-  base_providers[:anthropic] = OpenAIAgents::Models::AnthropicProvider.new
+  base_providers[:anthropic] = RAAF::Models::AnthropicProvider.new
 end
 
 puts "Available providers for retry testing: #{base_providers.keys.join(", ")}"
@@ -49,7 +49,7 @@ puts
 puts "1. Basic retry wrapper setup:"
 
 # Create a basic retryable provider with default settings
-retryable_provider = OpenAIAgents::Models::RetryableProviderWrapper.new(
+retryable_provider = RAAF::Models::RetryableProviderWrapper.new(
   base_providers[:openai],
   max_attempts: 3,          # Retry up to 3 times
   base_delay: 1.0,          # Start with 1 second delay
@@ -84,7 +84,7 @@ retry_logger = Logger.new($stdout)
 retry_logger.level = Logger::INFO
 
 # Create retryable provider with logging
-logged_provider = OpenAIAgents::Models::RetryableProviderWrapper.new(
+logged_provider = RAAF::Models::RetryableProviderWrapper.new(
   base_providers[:openai],
   max_attempts: 5,
   base_delay: 0.5,
@@ -127,11 +127,11 @@ class FailingProvider
       # Simulate different types of failures
       case @attempt
       when 1
-        raise OpenAIAgents::Models::RateLimitError.new("Rate limit exceeded")
+        raise RAAF::Models::RateLimitError.new("Rate limit exceeded")
       when 2
-        raise OpenAIAgents::Models::NetworkError.new("Network timeout")
+        raise RAAF::Models::NetworkError.new("Network timeout")
       else
-        raise OpenAIAgents::Models::ServerError.new("Internal server error")
+        raise RAAF::Models::ServerError.new("Internal server error")
       end
     end
     
@@ -149,13 +149,13 @@ class FailingProvider
 
   def stream_completion(messages:, model:, **options)
     # Simulate streaming failure
-    raise OpenAIAgents::Models::NetworkError.new("Streaming connection failed")
+    raise RAAF::Models::NetworkError.new("Streaming connection failed")
   end
 end
 
 # Test with failing provider
 failing_provider = FailingProvider.new(2)  # Fail 2 times, then succeed
-retryable_failing = OpenAIAgents::Models::RetryableProviderWrapper.new(
+retryable_failing = RAAF::Models::RetryableProviderWrapper.new(
   failing_provider,
   max_attempts: 5,
   base_delay: 0.1,  # Fast for demo
@@ -201,7 +201,7 @@ def unreliable_stock_api(symbol:)
 end
 
 # Create agent with retry-enabled provider
-resilient_agent = OpenAIAgents::Agent.new(
+resilient_agent = RAAF::Agent.new(
   name: "ResilientAgent",
   instructions: "You are a resilient agent that handles API failures gracefully. Use the available tools and retry if they fail.",
   model: "gpt-4o"
@@ -212,7 +212,7 @@ resilient_agent.add_tool(method(:unreliable_weather_api))
 resilient_agent.add_tool(method(:unreliable_stock_api))
 
 # Create runner with retryable provider
-resilient_runner = OpenAIAgents::Runner.new(
+resilient_runner = RAAF::Runner.new(
   agent: resilient_agent,
   provider: retryable_provider
 )
@@ -252,7 +252,7 @@ class CircuitBreakerProvider
         @state = :half_open
         puts "Circuit breaker: Moving to half-open state"
       else
-        raise OpenAIAgents::Models::CircuitBreakerError.new("Circuit breaker is open")
+        raise RAAF::Models::CircuitBreakerError.new("Circuit breaker is open")
       end
     when :half_open
       # Test if service is recovered
@@ -433,9 +433,9 @@ class ProductionRetryProvider
       exponential_base: 2.0,
       jitter: true,
       retryable_errors: [
-        OpenAIAgents::Models::RateLimitError,
-        OpenAIAgents::Models::NetworkError,
-        OpenAIAgents::Models::ServerError
+        RAAF::Models::RateLimitError,
+        RAAF::Models::NetworkError,
+        RAAF::Models::ServerError
       ]
     }.merge(config)
     

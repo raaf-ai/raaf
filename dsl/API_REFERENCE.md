@@ -4,7 +4,7 @@ Complete API reference for the AI Agent DSL gem.
 
 ## Core Classes
 
-### `AiAgentDsl::Agents::Base`
+### `RAAF::DSL::Agents::Base`
 
 Base class for all AI agents. Provides the foundation for creating intelligent AI agents with OpenAI integration.
 
@@ -52,7 +52,7 @@ Gets the configured maximum conversation turns.
 
 ---
 
-### `AiAgentDsl::AgentDsl`
+### `RAAF::DSL::AgentDsl`
 
 Module providing DSL methods for declarative agent configuration. Include this module in your agent classes to access the DSL.
 
@@ -66,8 +66,8 @@ Sets the agent name for configuration lookup.
 
 **Example:**
 ```ruby
-class MyAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class MyAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
   
   agent_name "MyCustomAgent"
 end
@@ -150,7 +150,7 @@ Defines agent handoff in workflows.
 
 ---
 
-### `AiAgentDsl::Prompts::Base`
+### `RAAF::DSL::Prompts::Base`
 
 Base class for structured prompt management with variable contracts and context mapping.
 
@@ -173,7 +173,7 @@ Declares required variables for the prompt.
 
 **Example:**
 ```ruby
-class MyPrompt < AiAgentDsl::Prompts::Base
+class MyPrompt < RAAF::DSL::Prompts::Base
   requires :company_name, :analysis_type
 end
 ```
@@ -248,7 +248,7 @@ Provides access to the stored context.
 
 ---
 
-### `AiAgentDsl::Config`
+### `RAAF::DSL::Config`
 
 Configuration management class for environment-aware agent settings.
 
@@ -265,7 +265,7 @@ Gets complete configuration for an agent.
 
 **Example:**
 ```ruby
-config = AiAgentDsl::Config.for_agent("DocumentAnalyzer")
+config = RAAF::DSL::Config.for_agent("DocumentAnalyzer")
 # => { model: "gpt-4o", max_turns: 5, temperature: 0.7 }
 ```
 
@@ -301,12 +301,12 @@ Reloads configuration from the YAML file.
 **Example:**
 ```ruby
 # Useful in development when config file changes
-AiAgentDsl::Config.reload!
+RAAF::DSL::Config.reload!
 ```
 
 ---
 
-### `AiAgentDsl::Tools::Base`
+### `RAAF::DSL::Tools::Base`
 
 Base class for AI tool integration.
 
@@ -346,7 +346,7 @@ Executes the tool with given parameters.
 
 ---
 
-### `AiAgentDsl::ToolDsl`
+### `RAAF::DSL::ToolDsl`
 
 Module providing DSL methods for tool definition.
 
@@ -369,8 +369,8 @@ Defines a tool parameter with validation.
 
 **Example:**
 ```ruby
-class MyTool < AiAgentDsl::Tools::Base
-  include AiAgentDsl::ToolDsl
+class MyTool < RAAF::DSL::Tools::Base
+  include RAAF::DSL::ToolDsl
   
   parameter :query, type: :string, required: true
   parameter :limit, type: :integer, default: 10, range: 1..100
@@ -406,19 +406,19 @@ Sets execution timeout.
 
 ## Error Classes
 
-### `AiAgentDsl::Error`
+### `RAAF::DSL::Error`
 Base error class for all gem-specific errors.
 
-### `AiAgentDsl::ConfigurationError`
+### `RAAF::DSL::ConfigurationError`
 Raised when configuration is invalid or missing.
 
-### `AiAgentDsl::ValidationError`
+### `RAAF::DSL::ValidationError`
 Raised when validation fails.
 
-### `AiAgentDsl::VariableContractError`
+### `RAAF::DSL::VariableContractError`
 Raised when prompt variable contracts are violated.
 
-### `AiAgentDsl::ToolExecutionError`
+### `RAAF::DSL::ToolExecutionError`
 Raised when tool execution fails.
 
 ---
@@ -459,16 +459,16 @@ environment_name:
 ### Default Values
 
 ```ruby
-AiAgentDsl::DEFAULT_MODEL = "gpt-4o"
-AiAgentDsl::DEFAULT_MAX_TURNS = 3
-AiAgentDsl::DEFAULT_TEMPERATURE = 0.7
-AiAgentDsl::DEFAULT_TIMEOUT = 120
+RAAF::DSL::DEFAULT_MODEL = "gpt-4o"
+RAAF::DSL::DEFAULT_MAX_TURNS = 3
+RAAF::DSL::DEFAULT_TEMPERATURE = 0.7
+RAAF::DSL::DEFAULT_TIMEOUT = 120
 ```
 
 ### Supported Models
 
 ```ruby
-AiAgentDsl::SUPPORTED_MODELS = [
+RAAF::DSL::SUPPORTED_MODELS = [
   "gpt-4o",
   "gpt-4o-mini", 
   "gpt-4-turbo",

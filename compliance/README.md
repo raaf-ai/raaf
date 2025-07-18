@@ -54,7 +54,7 @@ gem install raaf-compliance
 require 'raaf-compliance'
 
 # Configure global compliance settings
-RubyAIAgentsFactory::Compliance.configure do |config|
+RAAF::Compliance.configure do |config|
   config.gdpr_enabled = true
   config.hipaa_enabled = true
   config.soc2_enabled = true
@@ -63,17 +63,17 @@ RubyAIAgentsFactory::Compliance.configure do |config|
 end
 
 # Create a compliance manager
-compliance_manager = RubyAIAgentsFactory::Compliance::Manager.new
+compliance_manager = RAAF::Compliance::Manager.new
 
 # Create agent with compliance
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "ComplianceAgent",
   instructions: "You are a compliant assistant that follows all regulatory requirements",
   compliance: compliance_manager
 )
 
 # All interactions are automatically compliance-checked
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Can you help me with patient data?")
 ```
 
@@ -83,7 +83,7 @@ result = runner.run("Can you help me with patient data?")
 require 'raaf-compliance'
 
 # Create GDPR compliance manager
-gdpr_manager = RubyAIAgentsFactory::Compliance::GDPRCompliance.new(
+gdpr_manager = RAAF::Compliance::GDPRCompliance.new(
   data_controller: "YourCompany Ltd",
   privacy_policy_url: "https://yourcompany.com/privacy",
   consent_required: true,
@@ -120,7 +120,7 @@ end
 require 'raaf-compliance'
 
 # Create HIPAA compliance manager
-hipaa_manager = RubyAIAgentsFactory::Compliance::HIPAACompliance.new(
+hipaa_manager = RAAF::Compliance::HIPAACompliance.new(
   covered_entity: "Healthcare Provider Inc",
   business_associate: false,
   minimum_necessary: true,
@@ -156,7 +156,7 @@ end
 require 'raaf-compliance'
 
 # Create SOC2 compliance manager
-soc2_manager = RubyAIAgentsFactory::Compliance::SOC2Compliance.new(
+soc2_manager = RAAF::Compliance::SOC2Compliance.new(
   trust_service_criteria: [:security, :availability, :confidentiality],
   control_environment: :enterprise,
   monitoring_enabled: true
@@ -191,7 +191,7 @@ end
 ### Global Configuration
 
 ```ruby
-RubyAIAgentsFactory::Compliance.configure do |config|
+RAAF::Compliance.configure do |config|
   # Compliance frameworks
   config.gdpr_enabled = true
   config.hipaa_enabled = true
@@ -251,7 +251,7 @@ Comprehensive GDPR compliance with automated data protection:
 
 ```ruby
 # GDPR compliance manager
-gdpr = RubyAIAgentsFactory::Compliance::GDPRCompliance.new(
+gdpr = RAAF::Compliance::GDPRCompliance.new(
   data_controller: "Your Company",
   privacy_policy_url: "https://company.com/privacy",
   consent_required: true,
@@ -296,7 +296,7 @@ Healthcare-specific compliance with PHI protection:
 
 ```ruby
 # HIPAA compliance manager
-hipaa = RubyAIAgentsFactory::Compliance::HIPAACompliance.new(
+hipaa = RAAF::Compliance::HIPAACompliance.new(
   covered_entity: "Healthcare Provider",
   business_associate: false,
   minimum_necessary: true
@@ -339,7 +339,7 @@ Security and availability controls for service organizations:
 
 ```ruby
 # SOC2 compliance manager
-soc2 = RubyAIAgentsFactory::Compliance::SOC2Compliance.new(
+soc2 = RAAF::Compliance::SOC2Compliance.new(
   trust_service_criteria: [:security, :availability, :confidentiality],
   control_environment: :enterprise
 )
@@ -383,7 +383,7 @@ Comprehensive audit trail generation for all compliance activities:
 
 ```ruby
 # Configure audit trail
-audit_trail = RubyAIAgentsFactory::Compliance::AuditTrail.new(
+audit_trail = RAAF::Compliance::AuditTrail.new(
   retention_period: 7.years,
   tamper_proof: true,
   encryption_enabled: true
@@ -412,7 +412,7 @@ Automated enforcement of compliance policies:
 
 ```ruby
 # Define compliance policies
-policy_engine = RubyAIAgentsFactory::Compliance::PolicyEngine.new
+policy_engine = RAAF::Compliance::PolicyEngine.new
 
 # GDPR consent policy
 policy_engine.define_policy(
@@ -421,7 +421,7 @@ policy_engine.define_policy(
   condition: -> (context) { context[:data_type] == "personal_data" },
   action: -> (context) { 
     unless context[:consent_status] == "granted"
-      raise RubyAIAgentsFactory::Compliance::ConsentRequiredError
+      raise RAAF::Compliance::ConsentRequiredError
     end
   }
 )
@@ -433,7 +433,7 @@ policy_engine.define_policy(
   condition: -> (context) { context[:data_type] == "phi" },
   action: -> (context) {
     unless context[:access_justification].present?
-      raise RubyAIAgentsFactory::Compliance::MinimumNecessaryError
+      raise RAAF::Compliance::MinimumNecessaryError
     end
   }
 )
@@ -448,7 +448,7 @@ Automated data lifecycle management:
 
 ```ruby
 # Configure data retention
-retention_manager = RubyAIAgentsFactory::Compliance::DataRetention.new(
+retention_manager = RAAF::Compliance::DataRetention.new(
   default_retention_period: 7.years,
   auto_deletion_enabled: true
 )
@@ -478,7 +478,7 @@ Comprehensive consent tracking and management:
 
 ```ruby
 # Configure consent management
-consent_manager = RubyAIAgentsFactory::Compliance::ConsentManager.new(
+consent_manager = RAAF::Compliance::ConsentManager.new(
   granular_consent: true,
   consent_withdrawal: true,
   consent_history: true
@@ -517,20 +517,20 @@ require 'raaf-core'
 require 'raaf-compliance'
 
 # Create compliance manager
-compliance_manager = RubyAIAgentsFactory::Compliance::Manager.new(
+compliance_manager = RAAF::Compliance::Manager.new(
   frameworks: [:gdpr, :hipaa, :soc2],
   policy_enforcement: :strict
 )
 
 # Create agent with compliance
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "ComplianceAgent",
   instructions: "You are a compliant assistant",
   compliance: compliance_manager
 )
 
 # All interactions are automatically compliance-checked
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Can you help me with personal data?")
 ```
 
@@ -538,11 +538,11 @@ result = runner.run("Can you help me with personal data?")
 
 ```ruby
 # Configure multiple compliance frameworks
-compliance_manager = RubyAIAgentsFactory::Compliance::Manager.new
+compliance_manager = RAAF::Compliance::Manager.new
 
 # Add GDPR compliance
 compliance_manager.add_framework(
-  RubyAIAgentsFactory::Compliance::GDPRCompliance.new(
+  RAAF::Compliance::GDPRCompliance.new(
     data_controller: "Your Company",
     consent_required: true
   )
@@ -550,7 +550,7 @@ compliance_manager.add_framework(
 
 # Add HIPAA compliance
 compliance_manager.add_framework(
-  RubyAIAgentsFactory::Compliance::HIPAACompliance.new(
+  RAAF::Compliance::HIPAACompliance.new(
     covered_entity: "Healthcare Provider",
     minimum_necessary: true
   )
@@ -558,13 +558,13 @@ compliance_manager.add_framework(
 
 # Add SOC2 compliance
 compliance_manager.add_framework(
-  RubyAIAgentsFactory::Compliance::SOC2Compliance.new(
+  RAAF::Compliance::SOC2Compliance.new(
     trust_service_criteria: [:security, :availability]
   )
 )
 
 # Create compliant agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "EnterpriseAgent",
   instructions: "You are an enterprise-compliant assistant",
   compliance: compliance_manager
@@ -577,7 +577,7 @@ agent = RubyAIAgentsFactory::Agent.new(
 
 ```ruby
 # Configure compliance dashboard
-dashboard = RubyAIAgentsFactory::Compliance::Dashboard.new(
+dashboard = RAAF::Compliance::Dashboard.new(
   refresh_interval: 60.seconds,
   real_time_monitoring: true
 )
@@ -597,7 +597,7 @@ puts "Remediation Rate: #{metrics[:remediation_rate]}%"
 
 ```ruby
 # Configure automated reporting
-reporter = RubyAIAgentsFactory::Compliance::Reporter.new(
+reporter = RAAF::Compliance::Reporter.new(
   schedule: :monthly,
   recipients: ["compliance@company.com", "legal@company.com"]
 )
@@ -622,7 +622,7 @@ reporter.schedule_report(
 
 ```ruby
 # Configure risk assessment
-risk_assessor = RubyAIAgentsFactory::Compliance::RiskAssessment.new(
+risk_assessor = RAAF::Compliance::RiskAssessment.new(
   assessment_frequency: :weekly,
   risk_tolerance: :low
 )
@@ -673,14 +673,14 @@ end
 
 ```ruby
 # Mock compliance responses for testing
-RubyAIAgentsFactory::Compliance::TestHelpers.mock_compliance_check(
+RAAF::Compliance::TestHelpers.mock_compliance_check(
   framework: :gdpr,
   result: :compliant,
   audit_data: { consent_status: "granted" }
 )
 
 # Test with specific compliance frameworks
-RubyAIAgentsFactory::Compliance::TestHelpers.with_compliance_frameworks(
+RAAF::Compliance::TestHelpers.with_compliance_frameworks(
   gdpr: true,
   hipaa: false,
   soc2: true
@@ -717,7 +717,7 @@ RAAF Compliance builds on and integrates with:
 ### Core Components
 
 ```
-RubyAIAgentsFactory::Compliance::
+RAAF::Compliance::
 ├── Manager                  # Main compliance orchestrator
 ├── GDPRCompliance          # GDPR-specific compliance
 ├── HIPAACompliance         # HIPAA-specific compliance
@@ -758,7 +758,7 @@ bundle exec rspec
 4. Update documentation
 
 ```ruby
-class MyCustomCompliance < RubyAIAgentsFactory::Compliance::BaseCompliance
+class MyCustomCompliance < RAAF::Compliance::BaseCompliance
   def check_compliance(context)
     # Your compliance validation logic here
     ComplianceResult.new(

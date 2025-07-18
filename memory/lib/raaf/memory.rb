@@ -6,9 +6,9 @@ require_relative "memory/in_memory_store"
 require_relative "memory/file_store"
 require_relative "memory/memory_manager"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
-  # Memory system for OpenAI Agents
+  # Memory system for RAAF
   #
   # The Memory module provides persistent and ephemeral memory storage for agents,
   # enabling them to maintain context across conversations and sessions. It supports
@@ -21,27 +21,27 @@ module RubyAIAgentsFactory
   # - Implement personalization and context awareness
   #
   # @example Using in-memory storage (ephemeral)
-  #   store = RubyAIAgentsFactory::Memory.create_store(:in_memory)
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   store = RAAF::Memory.create_store(:in_memory)
+  #   agent = RAAF::Agent.new(
   #     name: "Assistant",
   #     memory_store: store
   #   )
   #
   # @example Using file-based storage (persistent)
-  #   store = RubyAIAgentsFactory::Memory.create_store(
+  #   store = RAAF::Memory.create_store(
   #     :file,
   #     base_dir: "./agent_memory"
   #   )
   #   agent.memory_store = store
   #
   # @example Setting a default store for all agents
-  #   RubyAIAgentsFactory::Memory.default_store = RubyAIAgentsFactory::Memory.create_store(
+  #   RAAF::Memory.default_store = RAAF::Memory.create_store(
   #     :file,
   #     base_dir: "./shared_memory"
   #   )
   #
   # @example Creating a custom store
-  #   class RedisStore < RubyAIAgentsFactory::Memory::BaseStore
+  #   class RedisStore < RAAF::Memory::BaseStore
   #     def initialize(redis_client)
   #       @redis = redis_client
   #     end
@@ -55,7 +55,7 @@ module RubyAIAgentsFactory
   #     end
   #   end
   #   
-  #   store = RubyAIAgentsFactory::Memory.create_store(
+  #   store = RAAF::Memory.create_store(
   #     :custom,
   #     store_class: RedisStore,
   #     redis_client: Redis.new

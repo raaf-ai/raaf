@@ -18,12 +18,12 @@ puts
 
 # 1. Set up tracing
 puts "Setting up tracing..."
-tracer = RubyAIAgentsFactory::Tracing::SpanTracer.new
-tracer.add_processor(RubyAIAgentsFactory::Tracing::ConsoleProcessor.new)
+tracer = RAAF::Tracing::SpanTracer.new
+tracer.add_processor(RAAF::Tracing::ConsoleProcessor.new)
 
 # 2. Set up guardrails
 puts "Setting up guardrails..."
-input_guardrail = RubyAIAgentsFactory::Guardrails::InputGuardrail.new do |input|
+input_guardrail = RAAF::Guardrails::InputGuardrail.new do |input|
   # Reject inputs that are too long
   if input.length > 500
     { allowed: false, reason: "Input too long" }
@@ -32,7 +32,7 @@ input_guardrail = RubyAIAgentsFactory::Guardrails::InputGuardrail.new do |input|
   end
 end
 
-output_guardrail = RubyAIAgentsFactory::Guardrails::OutputGuardrail.new do |output|
+output_guardrail = RAAF::Guardrails::OutputGuardrail.new do |output|
   # Reject outputs containing sensitive information
   if output.downcase.include?("password") || output.downcase.include?("secret")
     { allowed: false, reason: "Contains sensitive information" }
@@ -43,10 +43,10 @@ end
 
 # 3. Set up memory
 puts "Setting up memory..."
-memory = RubyAIAgentsFactory::Memory::InMemoryStore.new
+memory = RAAF::Memory::InMemoryStore.new
 
 # 4. Create advanced agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "AdvancedAssistant",
   instructions: "You are an advanced AI assistant with comprehensive capabilities.",
   model: "gpt-4o",
@@ -59,10 +59,10 @@ puts "Features enabled: tracing, guardrails, memory"
 puts
 
 # 5. Create runner with advanced features
-runner = RubyAIAgentsFactory::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
   tracer: tracer,
-  context_config: RubyAIAgentsFactory::ContextConfig.new(
+  context_config: RAAF::ContextConfig.new(
     max_context_length: 4000,
     context_management_strategy: :sliding_window
   )
@@ -100,14 +100,14 @@ puts
 
 # Test 5: Configuration
 puts "Test 5: Global configuration"
-RubyAIAgentsFactory.configure do |config|
+RAAF.configure do |config|
   config.default_model = "gpt-4o"
   config.tracing_enabled = true
   config.log_level = :debug
 end
 
-puts "Default model: #{RubyAIAgentsFactory.configuration.default_model}"
-puts "Tracing enabled: #{RubyAIAgentsFactory.configuration.tracing_enabled}"
+puts "Default model: #{RAAF.configuration.default_model}"
+puts "Tracing enabled: #{RAAF.configuration.tracing_enabled}"
 puts
 
 puts "=== Example Complete ==="

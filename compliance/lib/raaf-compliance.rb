@@ -14,7 +14,7 @@ require_relative "raaf/compliance/consent_manager"
 require_relative "raaf/compliance/breach_detection"
 require_relative "raaf/compliance/export_control"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Regulatory compliance and audit capabilities for Ruby AI Agents Factory
   #
@@ -40,7 +40,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-compliance'
   #   
   #   # Configure compliance framework
-  #   RubyAIAgentsFactory::Compliance.configure do |config|
+  #   RAAF::Compliance.configure do |config|
   #     config.enable_audit_trail = true
   #     config.data_retention_days = 2555 # 7 years
   #     config.gdpr_enabled = true
@@ -49,7 +49,7 @@ module RubyAIAgentsFactory
   #   end
   #   
   #   # Create compliance-aware agent
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "ComplianceAgent",
   #     instructions: "You are a compliant assistant",
   #     compliance: true
@@ -59,7 +59,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-compliance'
   #   
   #   # Enable audit trail
-  #   audit_trail = RubyAIAgentsFactory::Compliance::AuditTrail.new
+  #   audit_trail = RAAF::Compliance::AuditTrail.new
   #   
   #   # Log agent activities
   #   audit_trail.log_agent_activity(
@@ -81,7 +81,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-compliance'
   #   
   #   # Configure data retention
-  #   retention = RubyAIAgentsFactory::Compliance::DataRetention.new
+  #   retention = RAAF::Compliance::DataRetention.new
   #   
   #   # Set retention policies
   #   retention.add_policy(
@@ -97,7 +97,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-compliance'
   #   
   #   # Enable GDPR compliance
-  #   gdpr = RubyAIAgentsFactory::Compliance::GDPRCompliance.new
+  #   gdpr = RAAF::Compliance::GDPRCompliance.new
   #   
   #   # Handle right to be forgotten
   #   gdpr.handle_erasure_request(user_id: "user_123")
@@ -115,7 +115,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-compliance'
   #   
   #   # Generate compliance report
-  #   reporting = RubyAIAgentsFactory::Compliance::Reporting.new
+  #   reporting = RAAF::Compliance::Reporting.new
   #   
   #   # Generate GDPR compliance report
   #   gdpr_report = reporting.generate_gdpr_report(
@@ -243,7 +243,7 @@ module RubyAIAgentsFactory
       # @yield [config] Configuration block
       #
       # @example Configure compliance
-      #   RubyAIAgentsFactory::Compliance.configure do |config|
+      #   RAAF::Compliance.configure do |config|
       #     config.gdpr.enabled = true
       #     config.hipaa.enabled = true
       #     config.audit_trail.retention_days = 3650

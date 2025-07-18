@@ -5,7 +5,7 @@ require_relative "memory"
 require "json"
 require "fileutils"
 
-module RubyAIAgentsFactory
+module RAAF
   module Memory
     ##
     # File-based implementation of memory storage

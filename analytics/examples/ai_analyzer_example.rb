@@ -6,14 +6,14 @@
 # Demonstrates intelligent trace analysis using AI to provide optimization
 # suggestions, root cause analysis, and performance insights.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 puts "=== AI Analyzer Example ==="
 puts "Demonstrates intelligent trace analysis and optimization suggestions"
 puts "-" * 60
 
 # Setup AI Analyzer
-ai_analyzer = OpenAIAgents::Tracing::AIAnalyzer.new(
+ai_analyzer = RAAF::Tracing::AIAnalyzer.new(
   model: "gpt-4o",
   analysis_depth: :comprehensive,
   cache_results: true

@@ -4,7 +4,7 @@ require_relative "lib/raaf/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf"
-  spec.version = RubyAIAgentsFactory::VERSION
+  spec.version = RAAF::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -37,25 +37,21 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Core Dependencies - All RAAF subgems
-  spec.add_dependency "raaf-core", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-logging", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-configuration", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-providers", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-dsl", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-tools-basic", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-tools-advanced", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-guardrails", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-tracing", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-memory", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-streaming", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-testing", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-misc", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-compliance", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-debug", "~> #{RubyAIAgentsFactory::VERSION}"
-  spec.add_dependency "raaf-visualization", "~> #{RubyAIAgentsFactory::VERSION}"
+  spec.add_dependency "raaf-core", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-providers", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-dsl", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-tools", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-guardrails", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-tracing", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-memory", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-streaming", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-testing", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-misc", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-compliance", "~> #{RAAF::VERSION}"
+  spec.add_dependency "raaf-debug", "~> #{RAAF::VERSION}"
 
   # Optional Dependencies - Rails integration
-  spec.add_dependency "raaf-rails", "~> #{RubyAIAgentsFactory::VERSION}"
+  spec.add_dependency "raaf-rails", "~> #{RAAF::VERSION}"
 
   # Development Dependencies
   spec.add_development_dependency "rake", "~> 13.0"

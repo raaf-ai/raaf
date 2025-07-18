@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Configuration for context management strategies
   #
@@ -42,34 +43,35 @@ module RubyAIAgentsFactory
   #   config.preserve_recent = 8
   #   config.summarization_enabled = true
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see ContextManager For the actual context management implementation
   class ContextConfig
+
     # @return [Boolean] whether context management is enabled
     attr_accessor :enabled
-    
+
     # @return [Symbol] context management strategy (:token_sliding_window, :message_count, :summarization)
     attr_accessor :strategy
-    
+
     # @return [Integer, nil] maximum tokens to maintain in context (nil for model defaults)
     attr_accessor :max_tokens
-    
+
     # @return [Integer] maximum number of messages to maintain
     attr_accessor :max_messages
-    
+
     # @return [Boolean] whether to always preserve system messages
     attr_accessor :preserve_system
-    
+
     # @return [Integer] number of recent messages to always preserve
     attr_accessor :preserve_recent
-    
+
     # @return [Boolean] whether summarization is enabled
     attr_accessor :summarization_enabled
-    
+
     # @return [Float] threshold (0.0-1.0) at which to trigger summarization
     attr_accessor :summarization_threshold
-    
+
     # @return [String] model to use for summarization (typically cheaper than main model)
     attr_accessor :summarization_model
 
@@ -97,7 +99,7 @@ module RubyAIAgentsFactory
 
     ##
     # Factory methods for common configurations
-    
+
     ##
     # Create conservative configuration with strict token limits
     #
@@ -257,15 +259,9 @@ module RubyAIAgentsFactory
       return nil unless enabled
 
       case strategy
-      when :token_sliding_window
-        ContextManager.new(
-          model: model,
-          max_tokens: max_tokens,
-          preserve_system: preserve_system,
-          preserve_recent: preserve_recent
-        )
-      when :message_count
-        # Could create a MessageCountContextManager in the future
+      when :token_sliding_window, :message_count
+        # Both use the same ContextManager for now
+        # Could create specialized managers in the future
         ContextManager.new(
           model: model,
           max_tokens: max_tokens,
@@ -285,5 +281,7 @@ module RubyAIAgentsFactory
         raise ArgumentError, "Unknown context strategy: #{strategy}"
       end
     end
+
   end
+
 end

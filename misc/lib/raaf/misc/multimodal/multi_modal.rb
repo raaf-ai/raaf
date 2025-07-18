@@ -7,11 +7,11 @@ require "mimemagic"
 require_relative "agent"
 require_relative "function_tool"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Multi-modal support for agents (vision, audio, documents)
   #
-  # This module extends OpenAI Agents with advanced multi-modal capabilities
+  # This module extends RAAF with advanced multi-modal capabilities
   # including computer vision, audio processing, and document analysis.
   # Built on OpenAI's vision models and multimodal APIs.
   #
@@ -127,7 +127,7 @@ module RubyAIAgentsFactory
     #     attachments: [{ type: "document", path: "annual_report.pdf" }]
     #   })
     #
-    class MultiModalAgent < ::RubyAIAgentsFactory::Agent
+    class MultiModalAgent < ::RAAF::Agent
       ##
       # Initialize multi-modal agent
       #
@@ -184,7 +184,7 @@ module RubyAIAgentsFactory
     #     question: "How many cars are in this image?"
     #   )
     #
-    class VisionTool < ::RubyAIAgentsFactory::FunctionTool
+    class VisionTool < ::RAAF::FunctionTool
       ##
       # Initialize vision tool
       #
@@ -337,7 +337,7 @@ module RubyAIAgentsFactory
     end
 
     # Audio processing tool
-    class AudioTool < ::RubyAIAgentsFactory::FunctionTool
+    class AudioTool < ::RAAF::FunctionTool
       def initialize
         super(
           method(:process_audio),
@@ -473,7 +473,7 @@ module RubyAIAgentsFactory
     end
 
     # Document processing tool
-    class DocumentTool < ::RubyAIAgentsFactory::FunctionTool
+    class DocumentTool < ::RAAF::FunctionTool
       def initialize
         super(
           method(:process_document),

@@ -1,10 +1,15 @@
 # frozen_string_literal: true
 
-require "redis"
+begin
+  require "redis"
+rescue LoadError
+  # Redis not available - BackgroundProcessor will be disabled
+end
+
 require "json"
 require "concurrent-ruby"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # Background processor for queued agent operations
@@ -14,7 +19,7 @@ module RubyAIAgentsFactory
     # distributed processing across multiple workers.
     #
     class BackgroundProcessor
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [String] Redis URL
       attr_reader :redis_url
@@ -41,12 +46,25 @@ module RubyAIAgentsFactory
         @workers = workers
         @retry_count = retry_count
         @retry_delay = retry_delay
-        @redis = Redis.new(url: redis_url)
         @worker_threads = []
         @running = false
         @job_handlers = {}
         @job_counter = 0
         @mutex = Mutex.new
+        
+        # Initialize Redis if available
+        if defined?(Redis)
+          begin
+            @redis = Redis.new(url: redis_url)
+            @redis_available = true
+          rescue => e
+            log_warn("Redis connection failed, BackgroundProcessor will be disabled", error: e.message)
+            @redis_available = false
+          end
+        else
+          log_warn("Redis gem not available, BackgroundProcessor will be disabled")
+          @redis_available = false
+        end
       end
 
       ##

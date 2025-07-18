@@ -2,7 +2,8 @@
 
 require "json"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Item types for agent run operations
   #
@@ -22,11 +23,12 @@ module RubyAIAgentsFactory
   #     agent: agent,
   #     raw_item: { "role" => "assistant", "content" => "Hello!" }
   #   )
-  #   
+  #
   #   # Extract content from messages
   #   content = Items::ItemHelpers.extract_message_content(message)
   #
   module Items
+
     ##
     # Base class for all run items
     #
@@ -35,6 +37,7 @@ module RubyAIAgentsFactory
     # and raw data from the API.
     #
     class RunItemBase
+
       # @!attribute [r] agent
       #   @return [Agent] The agent associated with this item
       # @!attribute [r] raw_item
@@ -63,6 +66,7 @@ module RubyAIAgentsFactory
 
         @raw_item
       end
+
     end
 
     ##
@@ -72,11 +76,13 @@ module RubyAIAgentsFactory
     # including text responses and structured content.
     #
     class MessageOutputItem < RunItemBase
+
       ##
       # @return [String] The item type identifier
       def type
         "message_output_item"
       end
+
     end
 
     ##
@@ -86,11 +92,13 @@ module RubyAIAgentsFactory
     # agent to another during a conversation.
     #
     class HandoffCallItem < RunItemBase
+
       ##
       # @return [String] The item type identifier
       def type
         "handoff_call_item"
       end
+
     end
 
     ##
@@ -100,6 +108,7 @@ module RubyAIAgentsFactory
     # including information about the source and target agents.
     #
     class HandoffOutputItem < RunItemBase
+
       # @!attribute [r] source_agent
       #   @return [Agent] The agent handing off control
       # @!attribute [r] target_agent
@@ -125,6 +134,7 @@ module RubyAIAgentsFactory
       def type
         "handoff_output_item"
       end
+
     end
 
     ##
@@ -134,11 +144,13 @@ module RubyAIAgentsFactory
     # computer action, web search, etc.) during agent execution.
     #
     class ToolCallItem < RunItemBase
+
       ##
       # @return [String] The item type identifier
       def type
         "tool_call_item"
       end
+
     end
 
     ##
@@ -148,6 +160,7 @@ module RubyAIAgentsFactory
     # including any data or error information returned.
     #
     class ToolCallOutputItem < RunItemBase
+
       # @!attribute [r] output
       #   @return [Object] The tool execution output
       attr_reader :output
@@ -169,6 +182,7 @@ module RubyAIAgentsFactory
       def type
         "tool_call_output_item"
       end
+
     end
 
     ##
@@ -178,11 +192,13 @@ module RubyAIAgentsFactory
     # typically used with models that support chain-of-thought reasoning.
     #
     class ReasoningItem < RunItemBase
+
       ##
       # @return [String] The item type identifier
       def type
         "reasoning_item"
       end
+
     end
 
     ##
@@ -193,6 +209,7 @@ module RubyAIAgentsFactory
     # This matches the Python SDK structure for cross-language compatibility.
     #
     class ModelResponse
+
       # @!attribute [r] output
       #   @return [Array<RunItemBase>] The output items from the model
       # @!attribute [r] usage
@@ -231,6 +248,7 @@ module RubyAIAgentsFactory
           end
         end
       end
+
     end
 
     ##
@@ -242,7 +260,9 @@ module RubyAIAgentsFactory
     # formats used by different OpenAI APIs.
     #
     class ItemHelpers
+
       class << self
+
         ##
         # Extracts the last text content or refusal from a message
         #
@@ -513,7 +533,11 @@ module RubyAIAgentsFactory
             "content" => content
           }
         end
+
       end
+
     end
+
   end
+
 end

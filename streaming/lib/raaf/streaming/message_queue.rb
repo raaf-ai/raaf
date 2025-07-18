@@ -1,10 +1,15 @@
 # frozen_string_literal: true
 
-require "redis"
+begin
+  require "redis"
+rescue LoadError
+  # Redis not available - MessageQueue will use in-memory fallback
+end
+
 require "json"
 require "concurrent-ruby"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # Message queue for reliable message handling
@@ -13,7 +18,7 @@ module RubyAIAgentsFactory
     # acknowledgments, dead letter queues, and message persistence.
     #
     class MessageQueue
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [String] Redis URL
       attr_reader :redis_url
@@ -40,11 +45,24 @@ module RubyAIAgentsFactory
         @max_size = max_size
         @batch_size = batch_size
         @queue_name = queue_name
-        @redis = Redis.new(url: redis_url)
         @processing_queue = "#{queue_name}:processing"
         @dead_letter_queue = "#{queue_name}:dead_letters"
         @message_counter = 0
         @mutex = Mutex.new
+        
+        # Initialize Redis if available
+        if defined?(Redis)
+          begin
+            @redis = Redis.new(url: redis_url)
+            @redis_available = true
+          rescue => e
+            log_warn("Redis connection failed, MessageQueue will not be available", error: e.message)
+            @redis_available = false
+          end
+        else
+          log_warn("Redis gem not available, MessageQueue will not be available")
+          @redis_available = false
+        end
       end
 
       ##
@@ -56,6 +74,8 @@ module RubyAIAgentsFactory
       # @return [String] Message ID
       #
       def enqueue(message, priority: :normal, ttl: nil)
+        return nil unless redis_available?
+        
         message_id = generate_message_id
         
         envelope = {
@@ -94,6 +114,8 @@ module RubyAIAgentsFactory
       # @return [Hash, nil] Message envelope or nil if timeout
       #
       def dequeue(timeout: 5)
+        return nil unless redis_available?
+        
         # Try high priority first
         result = @redis.brpop(priority_queue_key(:high), timeout: 1)
         return process_dequeued_message(result) if result
@@ -382,7 +404,22 @@ module RubyAIAgentsFactory
         count
       end
 
+      ##
+      # Check if Redis is available
+      #
+      # @return [Boolean] True if Redis is available
+      def redis_available?
+        @redis_available
+      end
+
       private
+
+      def warn_if_unavailable(method_name)
+        return true if @redis_available
+        
+        log_warn("MessageQueue.#{method_name} not available (Redis not connected)")
+        false
+      end
 
       def generate_message_id
         @mutex.synchronize do

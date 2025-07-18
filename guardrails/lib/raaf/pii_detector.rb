@@ -3,7 +3,7 @@
 require "json"
 require_relative "input_guardrail"
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     ##
     # PII (Personally Identifiable Information) detection guardrail
@@ -64,10 +64,10 @@ module RubyAIAgentsFactory
     #   puts "Total detections: #{stats[:total_detections]}"
     #   puts "By type: #{stats[:by_type]}"
     #
-    # @author OpenAI Agents Ruby Team
+    # @author RAAF (Ruby AI Agents Factory) Team
     # @since 0.1.0
-    # @see RubyAIAgentsFactory::Guardrails::HealthcarePIIDetector For medical PII detection
-    # @see RubyAIAgentsFactory::Guardrails::FinancialPIIDetector For financial PII detection
+    # @see RAAF::Guardrails::HealthcarePIIDetector For medical PII detection
+    # @see RAAF::Guardrails::FinancialPIIDetector For financial PII detection
     class PIIDetector < InputGuardrail
       # PII patterns with confidence scores
       PII_PATTERNS = {
@@ -562,7 +562,7 @@ module RubyAIAgentsFactory
     #   })
     #   puts result.passed  # => false (medical record number detected)
     #
-    # @see RubyAIAgentsFactory::Guardrails::PIIDetector Base PII detector
+    # @see RAAF::Guardrails::PIIDetector Base PII detector
     class HealthcarePIIDetector < PIIDetector
       HEALTHCARE_PATTERNS = {
         mrn: {
@@ -633,7 +633,7 @@ module RubyAIAgentsFactory
     #   })
     #   puts result.passed  # => false (routing number detected)
     #
-    # @see RubyAIAgentsFactory::Guardrails::PIIDetector Base PII detector
+    # @see RAAF::Guardrails::PIIDetector Base PII detector
     class FinancialPIIDetector < PIIDetector
       FINANCIAL_PATTERNS = {
         routing_number: {

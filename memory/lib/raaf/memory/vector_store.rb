@@ -2,7 +2,7 @@
 
 require_relative "base_store"
 
-module RubyAIAgentsFactory
+module RAAF
   module Memory
     # Base class for vector database implementations
     # Provides semantic search capabilities using embeddings

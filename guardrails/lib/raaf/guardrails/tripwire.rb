@@ -3,7 +3,7 @@
 require_relative "base_guardrail"
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     # Tripwire Guardrail - Immediately stops execution when triggered
     #

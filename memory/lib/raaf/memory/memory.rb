@@ -3,7 +3,7 @@
 require "time"
 require "securerandom"
 
-module RubyAIAgentsFactory
+module RAAF
   module Memory
     ##
     # Represents a single memory entry

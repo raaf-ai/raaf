@@ -5,18 +5,18 @@ require "async"
 require "async/http"
 require "openai_agents/async"
 
-RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
+RSpec.describe RAAF::Async::Providers::ResponsesProvider do
   let(:api_key) { "test-api-key" }
   let(:provider) { described_class.new(api_key: api_key) }
   let(:messages) { [{ role: "user", content: "Hello" }] }
 
   describe "#initialize" do
     it "inherits from base ResponsesProvider" do
-      expect(provider).to be_a(OpenAIAgents::Models::ResponsesProvider)
+      expect(provider).to be_a(RAAF::Models::ResponsesProvider)
     end
 
     it "includes Async::Base module" do
-      expect(provider.class.ancestors).to include(OpenAIAgents::Async::Base)
+      expect(provider.class.ancestors).to include(RAAF::Async::Base)
     end
 
     it "sets up HTTP endpoint" do
@@ -179,7 +179,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
       allow(provider).to receive(:in_async_context?).and_return(false)
       
       # Mock the superclass method
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion).and_return(mock_response_data)
 
       result = provider.chat_completion(messages: messages)
@@ -241,7 +241,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
       Async do
         expect do
           provider.send(:make_async_request, "/v1/responses", {}).wait
-        end.to raise_error(OpenAIAgents::AuthenticationError, /Unauthorized/)
+        end.to raise_error(RAAF::AuthenticationError, /Unauthorized/)
       end
     end
 
@@ -251,7 +251,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
       Async do
         expect do
           provider.send(:make_async_request, "/v1/responses", {}).wait
-        end.to raise_error(OpenAIAgents::APIError, /Request timeout/)
+        end.to raise_error(RAAF::APIError, /Request timeout/)
       end
     end
 
@@ -261,7 +261,7 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
       Async do
         expect do
           provider.send(:make_async_request, "/v1/responses", {}).wait
-        end.to raise_error(OpenAIAgents::APIError, /Request failed/)
+        end.to raise_error(RAAF::APIError, /Request failed/)
       end
     end
   end
@@ -337,31 +337,31 @@ RSpec.describe OpenAIAgents::Async::Providers::ResponsesProvider do
     it "raises AuthenticationError for 401 status" do
       expect do
         provider.send(:handle_error, 401, '{"error": {"message": "Invalid API key"}}')
-      end.to raise_error(OpenAIAgents::AuthenticationError, /Invalid API key/)
+      end.to raise_error(RAAF::AuthenticationError, /Invalid API key/)
     end
 
     it "raises RateLimitError for 429 status" do
       expect do
         provider.send(:handle_error, 429, '{"error": {"message": "Rate limit exceeded"}}')
-      end.to raise_error(OpenAIAgents::RateLimitError, /Rate limit exceeded/)
+      end.to raise_error(RAAF::RateLimitError, /Rate limit exceeded/)
     end
 
     it "raises ServerError for 5xx status" do
       expect do
         provider.send(:handle_error, 500, '{"error": {"message": "Internal server error"}}')
-      end.to raise_error(OpenAIAgents::ServerError, /Internal server error/)
+      end.to raise_error(RAAF::ServerError, /Internal server error/)
     end
 
     it "raises APIError for other status codes" do
       expect do
         provider.send(:handle_error, 400, '{"error": {"message": "Bad request"}}')
-      end.to raise_error(OpenAIAgents::APIError, /Bad request/)
+      end.to raise_error(RAAF::APIError, /Bad request/)
     end
 
     it "handles malformed error responses" do
       expect do
         provider.send(:handle_error, 400, "Not JSON")
-      end.to raise_error(OpenAIAgents::APIError, /Not JSON/)
+      end.to raise_error(RAAF::APIError, /Not JSON/)
     end
   end
 

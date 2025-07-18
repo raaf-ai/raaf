@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Extensions - Plugin architecture for extensibility
   #
-  # Provides a flexible plugin system for extending OpenAI Agents functionality.
+  # Provides a flexible plugin system for extending RAAF functionality.
   # Supports multiple extension types including agents, tools, processors, and
   # custom behaviors. Extensions can be loaded dynamically and configured
   # through the configuration system.
@@ -31,7 +31,7 @@ module RubyAIAgentsFactory
   # == Basic Usage
   #
   #   # Register an extension
-  #   RubyAIAgentsFactory::Extensions.register(:my_tool) do |ext|
+  #   RAAF::Extensions.register(:my_tool) do |ext|
   #     ext.name = "My Custom Tool"
   #     ext.VERSION = "0.1.0"
   #     ext.type = :tool
@@ -39,12 +39,12 @@ module RubyAIAgentsFactory
   #   end
   #
   #   # Load and activate extensions
-  #   RubyAIAgentsFactory::Extensions.load_all
-  #   RubyAIAgentsFactory::Extensions.activate(:my_tool)
+  #   RAAF::Extensions.load_all
+  #   RAAF::Extensions.activate(:my_tool)
   #
   # == Creating Extensions
   #
-  #   class MyAgentExtension < RubyAIAgentsFactory::Extensions::BaseExtension
+  #   class MyAgentExtension < RAAF::Extensions::BaseExtension
   #     def self.extension_info
   #       {
   #         name: "My Agent Extension",
@@ -63,7 +63,7 @@ module RubyAIAgentsFactory
   #     end
   #   end
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   module Extensions
     ##
@@ -144,7 +144,7 @@ module RubyAIAgentsFactory
       # @return [Array<Extension>] loaded extensions
       #
       # @example Load extensions from directories
-      #   Extensions.discover_extensions(["./extensions", "~/.openai_agents/extensions"])
+      #   Extensions.discover_extensions(["./extensions", "~/.raaf/extensions"])
       def discover_extensions(paths = extension_paths)
         loaded = []
 
@@ -155,7 +155,7 @@ module RubyAIAgentsFactory
             require file
             # Extensions should register themselves when loaded
           rescue LoadError => e
-            RubyAIAgentsFactory::Logging.warn("Failed to load extension", file: file, error: e.message,
+            RAAF::Logging.warn("Failed to load extension", file: file, error: e.message,
                                                                           error_class: e.class.name)
           end
         end
@@ -200,7 +200,7 @@ module RubyAIAgentsFactory
       #   Extensions.activate(:web_search)
       #
       # @example Activate with custom config
-      #   config = RubyAIAgentsFactory::Configuration.new
+      #   config = RAAF::Configuration.new
       #   Extensions.activate(:custom_tool, config)
       def activate(name, config = nil)
         extension = @registry[name]
@@ -561,7 +561,7 @@ module RubyAIAgentsFactory
 
     # Set up default extension paths
     add_path("./extensions")
-    add_path(File.expand_path("~/.openai_agents/extensions"))
+    add_path(File.expand_path("~/.raaf/extensions"))
     add_path("/usr/local/share/openai_agents/extensions")
 
     ##

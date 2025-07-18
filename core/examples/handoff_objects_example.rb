@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates advanced agent handoff patterns in OpenAI Agents Ruby.
+# This example demonstrates advanced agent handoff patterns in RAAF (Ruby AI Agents Factory).
 # Handoffs allow agents to delegate tasks to specialized agents, creating powerful
 # multi-agent workflows. Handoff objects provide fine-grained control over how
 # agents transfer control, validate inputs, and manage conversation context.
@@ -9,7 +9,7 @@
 # complex AI workflows.
 
 require "bundler/setup"
-require "openai_agents"
+require_relative "../lib/raaf-core"
 
 # ============================================================================
 # HANDOFF OBJECTS EXAMPLES
@@ -31,37 +31,37 @@ puts "=== Example 1: Basic Handoff ==="
 # Each agent has a focused role and instructions
 
 # Technical support specialist
-support_agent = OpenAIAgents::Agent.new(
+support_agent = RAAF::Agent.new(
   name: "SupportAgent",
-  
+
   # Clear instructions for the agent's role
   instructions: "You handle technical support questions. Be helpful and thorough.",
-  
-  model: "gpt-4o-mini",  # Using smaller model for examples
-  
+
+  model: "gpt-4o-mini", # Using smaller model for examples
+
   # handoff_description helps other agents understand when to transfer
   handoff_description: "Handles technical issues and troubleshooting"
 )
 
 # Billing specialist
-billing_agent = OpenAIAgents::Agent.new(
+billing_agent = RAAF::Agent.new(
   name: "BillingAgent",
-  
+
   instructions: "You handle billing and payment questions. Be precise with numbers.",
-  
+
   model: "gpt-4o-mini",
-  
+
   handoff_description: "Handles billing, payments, and subscription issues"
 )
 
 # Create triage agent that routes to specialists
 # This agent acts as the entry point and router
-triage_agent = OpenAIAgents::Agent.new(
+triage_agent = RAAF::Agent.new(
   name: "TriageAgent",
-  
-  # Instructions emphasize routing responsibility
-  instructions: "You are a triage agent. Determine if the user needs technical support or billing help, then handoff appropriately.",
-  
+
+  # Instructions emphasize routing responsibility with clear decision criteria
+  instructions: "You are a triage agent. For login issues, bugs, or technical problems, handoff to SupportAgent. For payment issues, refunds, or subscriptions, handoff to BillingAgent. If you're unsure or the issue doesn't clearly fit either category, provide a brief helpful response yourself.",
+
   model: "gpt-4o-mini"
 )
 
@@ -71,7 +71,7 @@ triage_agent.add_handoff(support_agent)
 triage_agent.add_handoff(billing_agent)
 
 # Create runner to execute conversations
-runner = OpenAIAgents::Runner.new(agent: triage_agent)
+runner = RAAF::Runner.new(agent: triage_agent)
 
 # Test the handoff with a technical issue
 # The triage agent should recognize this as a support issue
@@ -93,25 +93,23 @@ puts "\n=== Example 2: Custom Handoff Descriptions ==="
 # These provide more context than the agent's default description
 
 # Support handoff with specific trigger examples
-support_handoff = OpenAIAgents.handoff(
+support_handoff = RAAF.handoff(
   support_agent,
-  
   # Override the tool description for better routing
   # This helps the AI understand exactly when to use this handoff
   tool_description_override: "Transfer to technical support for login issues, bugs, or technical problems"
 )
 
 # Billing handoff with clear scope
-billing_handoff = OpenAIAgents.handoff(
+billing_handoff = RAAF.handoff(
   billing_agent,
-  
   tool_description_override: "Transfer to billing for payment issues, refunds, or subscription questions"
 )
 
 # Create an improved triage agent using handoff objects
-smart_triage = OpenAIAgents::Agent.new(
+smart_triage = RAAF::Agent.new(
   name: "SmartTriage",
-  instructions: "Route users to the appropriate department based on their needs.",
+  instructions: "Route users to the appropriate department. Use SupportAgent for technical issues like login problems or bugs. Use BillingAgent for payment or subscription issues. If the request doesn't clearly fit either category, provide a helpful response yourself.",
   model: "gpt-4o-mini"
 )
 
@@ -120,7 +118,7 @@ smart_triage = OpenAIAgents::Agent.new(
 smart_triage.add_handoff(support_handoff)
 smart_triage.add_handoff(billing_handoff)
 
-runner = OpenAIAgents::Runner.new(agent: smart_triage)
+runner = RAAF::Runner.new(agent: smart_triage)
 
 # Test with a billing issue
 # The enhanced description should help route correctly
@@ -139,36 +137,33 @@ puts "=" * 50
 puts "\n=== Example 3: Handoff with Input Schema ==="
 
 # Create an escalation specialist that needs structured input
-escalation_agent = OpenAIAgents::Agent.new(
+escalation_agent = RAAF::Agent.new(
   name: "EscalationAgent",
-  
+
   # Instructions indicate expected input format
   instructions: "You handle escalated issues. You receive a priority level and description.",
-  
+
   model: "gpt-4o-mini"
 )
 
 # Create handoff with validation logic
 # This ensures the escalation has required information
-escalation_handoff = OpenAIAgents.handoff(
+escalation_handoff = RAAF.handoff(
   escalation_agent,
-  
   # Clear description of required inputs
   tool_description_override: "Escalate to senior support with priority and description",
-  
+
   # Expect structured input (Hash) not just text
   input_type: Hash,
-  
+
   # Validation callback runs before handoff
   on_handoff: lambda { |_context, input|
     # Validate required fields are present
-    unless input["priority"] && input["description"]
-      raise "Escalation requires priority and description"
-    end
-    
+    raise "Escalation requires priority and description" unless input["priority"] && input["description"]
+
     # Log escalation for audit trail
     puts "[ESCALATION] Priority: #{input["priority"]}, Description: #{input["description"]}"
-    
+
     # Additional processing: notifications, ticket creation, etc.
     # Return true to allow handoff
     true
@@ -176,19 +171,19 @@ escalation_handoff = OpenAIAgents.handoff(
 )
 
 # Create frontline agent that can escalate issues
-frontline_agent = OpenAIAgents::Agent.new(
+frontline_agent = RAAF::Agent.new(
   name: "FrontlineAgent",
-  
-  # Instructions explain escalation protocol
-  instructions: "You are frontline support. For complex issues, escalate with priority (low/medium/high) and description.",
-  
+
+  # Instructions explain escalation protocol with clear criteria
+  instructions: "You are frontline support. For system outages, critical bugs, or issues you cannot resolve, escalate with priority (low/medium/high) and description. Otherwise, try to help the user yourself first.",
+
   model: "gpt-4o-mini"
 )
 
 # Add the validated escalation handoff
 frontline_agent.add_handoff(escalation_handoff)
 
-runner = OpenAIAgents::Runner.new(agent: frontline_agent)
+runner = RAAF::Runner.new(agent: frontline_agent)
 
 # Test with a critical issue requiring escalation
 puts "Testing escalation handoff..."
@@ -207,144 +202,62 @@ puts "=" * 50
 puts "\n=== Example 4: Conditional Handoff ==="
 
 # Create premium support agent for VIP customers
-vip_agent = OpenAIAgents::Agent.new(
+vip_agent = RAAF::Agent.new(
   name: "VIPSupport",
   instructions: "You provide premium support to VIP customers.",
   model: "gpt-4o-mini"
 )
 
 # Create handoff with access control logic
-vip_handoff = OpenAIAgents.handoff(
+vip_handoff = RAAF.handoff(
   vip_agent,
-  
   # Description hints at restriction
   tool_description_override: "Transfer to VIP support (only for premium customers)",
-  
+
   # Conditional logic in handoff callback
   on_handoff: lambda { |_context|
     # In production: check customer database, subscription status, etc.
-    # For demo: simulate VIP check with random value
-    is_vip = rand > 0.5
-    
+    # For demo: simulate VIP check - force false to demonstrate the error handling
+    is_vip = false
+
     if is_vip
       # Log successful VIP verification
       puts "[VIP CHECK] Customer is VIP - transferring to premium support"
-      true  # Allow handoff
+      true # Allow handoff
     else
-      # Block non-VIP transfers with descriptive error
+      # Block non-VIP transfers - return false instead of raising error
       puts "[VIP CHECK] Customer is not VIP - cannot transfer"
-      raise OpenAIAgents::HandoffError, "Customer is not eligible for VIP support"
+      false # Block handoff
     end
   }
 )
 
 # Create standard support agent that attempts VIP transfers
-regular_support = OpenAIAgents::Agent.new(
+regular_support = RAAF::Agent.new(
   name: "RegularSupport",
-  
-  # Instructions mention attempting VIP transfer
-  instructions: "You provide standard support. Try to transfer VIP customers to premium support.",
-  
+
+  # Instructions mention attempting VIP transfer with fallback
+  instructions: "You provide standard support. For premium account questions, you can try to transfer VIP customers to premium support, but if the transfer fails, provide helpful standard support instead. Do not repeatedly attempt failed transfers.",
+
   model: "gpt-4o-mini"
 )
 
 # Add conditional VIP handoff
 regular_support.add_handoff(vip_handoff)
 
-runner = OpenAIAgents::Runner.new(agent: regular_support)
+runner = RAAF::Runner.new(agent: regular_support)
 
-# Test conditional handoff with error handling
+# Test conditional handoff 
 puts "Testing conditional VIP handoff..."
-begin
-  result = runner.run("I need help with my premium account features")
-  puts "Response: #{result.messages.last[:content]}"
-  puts "Final agent: #{result.last_agent.name}"
-rescue OpenAIAgents::HandoffError => e
-  # Handle blocked handoff gracefully
-  puts "Handoff blocked: #{e.message}"
-end
-
-puts "\n" + ("=" * 50)
-
-# ============================================================================
-# EXAMPLE 5: COMPLEX MULTI-AGENT SYSTEM
-# ============================================================================
-# Shows advanced patterns: context filtering, bidirectional handoffs,
-# and complex routing logic for enterprise-grade systems.
-
-puts "\n=== Example 5: Complex Multi-Agent System ==="
-
-# Create department specialists
-sales_agent = OpenAIAgents::Agent.new(
-  name: "Sales",
-  instructions: "You handle sales inquiries and product information.",
-  model: "gpt-4o-mini"
-)
-
-technical_agent = OpenAIAgents::Agent.new(
-  name: "Technical",
-  instructions: "You handle technical questions and troubleshooting.",
-  model: "gpt-4o-mini"
-)
-
-# Helper function to create handoffs with context management
-# This demonstrates advanced conversation filtering
-def create_filtered_handoff(agent, filter_old_messages: false)
-  OpenAIAgents.handoff(
-    agent,
-    
-    # Input filter preprocesses conversation before handoff
-    # Critical for managing context size and relevance
-    input_filter: lambda { |handoff_data|
-      if filter_old_messages
-        # Strategy: Keep only recent context
-        # Useful for: reducing tokens, focusing on current issue
-        recent_items = handoff_data.new_items.last(3)
-        
-        # Create filtered handoff data
-        OpenAIAgents::HandoffInputData.new(
-          input_history: handoff_data.input_history,
-          pre_handoff_items: [],  # Clear old context
-          new_items: recent_items  # Only recent messages
-        )
-      else
-        # Pass full conversation history
-        handoff_data
-      end
-    }
-  )
-end
-
-# Create central router with department-specific strategies
-router_agent = OpenAIAgents::Agent.new(
-  name: "Router",
-  instructions: "Route inquiries to the appropriate department.",
-  model: "gpt-4o-mini"
-)
-
-# Add handoffs with different context strategies
-# Sales gets full history for continuity
-router_agent.add_handoff(
-  create_filtered_handoff(sales_agent, filter_old_messages: false)
-)
-
-# Technical gets filtered context to focus on current issue
-router_agent.add_handoff(
-  create_filtered_handoff(technical_agent, filter_old_messages: true)
-)
-
-# Enable bidirectional handoffs
-# Agents can transfer back to router for re-routing
-sales_agent.add_handoff(router_agent)
-technical_agent.add_handoff(router_agent)
-
-runner = OpenAIAgents::Runner.new(agent: router_agent)
-
-# Test with query requiring multiple departments
-puts "Testing complex routing..."
-result = runner.run("I want to buy your product but I'm having technical issues with the demo")
+result = runner.run("I need help with my premium account features")
 puts "Response: #{result.messages.last[:content]}"
-puts "Final agent: #{result.last_agent.name}\n\n"
+puts "Final agent: #{result.last_agent.name}"
+
+puts "\n#{"=" * 50}"
+
+puts "\nNote: Examples 1-4 demonstrate core handoff object patterns."
+puts "Complex multi-agent routing has been simplified to prevent loops."
+puts "See complete_features_showcase.rb for more advanced examples."
 
 # ============================================================================
 # SUMMARY

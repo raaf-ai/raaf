@@ -3,7 +3,7 @@
 require "async"
 require "json"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # Stream processor for handling streaming responses
@@ -12,7 +12,7 @@ module RubyAIAgentsFactory
     # buffering, and real-time delivery to clients.
     #
     class StreamProcessor
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Integer] Chunk size for streaming
       attr_reader :chunk_size

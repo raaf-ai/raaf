@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates the comprehensive tracing capabilities of OpenAI Agents.
+# This example demonstrates the comprehensive tracing capabilities of RAAF.
 # Tracing provides visibility into agent execution, tool calls, and performance metrics.
 # It's essential for debugging, monitoring, and optimizing agent behavior in production.
 # The Ruby implementation maintains exact parity with Python's trace format for
 # compatibility with OpenAI's dashboard and monitoring tools.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-tracing"
 
 # ============================================================================
 # TRACING EXAMPLE
@@ -36,7 +36,7 @@ end
 # - CustomProcessor: Send to your monitoring system
 #
 # Example configuration (if processors are implemented):
-# OpenAIAgents.configure_tracing do |config|
+# RAAF::configure_tracing do |config|
 #   config.add_processor(MyApp::ConsoleSpanProcessor.new)
 #   config.add_processor(MyApp::FileSpanProcessor.new("traces.jsonl"))
 # end
@@ -46,7 +46,7 @@ end
 
 # Create an agent that will generate traceable execution spans.
 # Every agent action, tool call, and response is automatically traced.
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "MathAssistant",
   instructions: "You are a helpful math assistant. Use the calculator tool for calculations.",
   model: "gpt-4o"
@@ -70,7 +70,7 @@ end
 # Register the tool with explicit metadata.
 # This metadata appears in traces, helping identify tool usage patterns.
 agent.add_tool(
-  OpenAIAgents::FunctionTool.new(
+  RAAF::FunctionTool.new(
     method(:calculate),
     name: "calculator",
     description: "Calculate a mathematical expression"
@@ -83,7 +83,7 @@ agent.add_tool(
 
 # Create runner - tracing is enabled by default.
 # The global tracer automatically captures all agent activities.
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 puts "=== Tracing Example ==="
 puts "\nRunning agent with tracing enabled..."
@@ -116,7 +116,7 @@ puts result.final_output
 
 # Access trace metadata for performance analysis.
 # The tracer collects metrics about execution time, span count, and more.
-tracer = OpenAIAgents.tracer
+tracer = RAAF::tracer
 if tracer.respond_to?(:trace_summary)
   summary = tracer.trace_summary
   puts "\n=== Trace Summary ==="
@@ -136,7 +136,7 @@ end
 puts "\n" + ("-" * 50)
 puts "\n=== Manual Tracing Example ==="
 
-tracer = OpenAIAgents.tracer
+tracer = RAAF::tracer
 
 # Create a custom span with attributes and events
 tracer.span("custom_operation", type: :internal) do |span|
@@ -165,7 +165,7 @@ puts "Custom span created and traced"
 # OPENTELEMETRY INTEGRATION (OPTIONAL)
 # ============================================================================
 
-# OpenAI Agents supports OpenTelemetry for integration with APM tools
+# RAAF supports OpenTelemetry for integration with APM tools
 # like Jaeger, Zipkin, DataDog, New Relic, etc.
 # This allows you to see AI agent traces alongside your other application traces.
 begin
@@ -175,7 +175,7 @@ begin
   puts "Configuring OTLP exporter for external trace collection..."
   
   # Configure OTLP exporter to send traces to your observability platform
-  OpenAIAgents::Tracing::OTelBridge.configure_otlp(
+  RAAF::Tracing::OTelBridge.configure_otlp(
     endpoint: "http://localhost:4318/v1/traces"  # Standard OTLP gRPC port
   )
   puts "✓ OTLP exporter configured"
@@ -198,7 +198,7 @@ end
 # This is important for short-lived scripts where traces might be buffered.
 puts "\n=== Finalizing Traces ==="
 puts "Flushing trace buffers..."
-OpenAIAgents::Tracing::TraceProvider.force_flush
+RAAF::Tracing::TraceProvider.force_flush
 
 # Give processors time to complete network requests
 sleep(1)

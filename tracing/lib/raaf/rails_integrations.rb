@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
-    # Rails-specific integrations for OpenAI Agents tracing
+    # Rails-specific integrations for RAAF tracing
     #
     # This module provides Rails-specific helpers and integrations including:
     # - ActiveJob automatic tracing
@@ -13,16 +13,16 @@ module RubyAIAgentsFactory
       # ActiveJob integration for automatic tracing
       #
       # Include this module in your ApplicationJob to automatically trace
-      # all background jobs with OpenAI Agents tracing.
+      # all background jobs with RAAF tracing.
       #
       # @example Enable for all jobs
       #   class ApplicationJob < ActiveJob::Base
-      #     include RubyAIAgentsFactory::Tracing::RailsIntegrations::JobTracing
+      #     include RAAF::Tracing::RailsIntegrations::JobTracing
       #   end
       #
       # @example Enable for specific jobs
       #   class ProcessDataJob < ApplicationJob
-      #     include RubyAIAgentsFactory::Tracing::RailsIntegrations::JobTracing
+      #     include RAAF::Tracing::RailsIntegrations::JobTracing
       #
       #     def perform(data_id)
       #       # Job automatically traced with job class name as workflow
@@ -41,7 +41,7 @@ module RubyAIAgentsFactory
         def trace_job_execution
           workflow_name = "#{self.class.name} Job"
 
-          OpenAIAgents.trace(workflow_name) do |trace|
+          RAAF::trace(workflow_name) do |trace|
             # Add job-specific metadata
             trace.metadata.merge!(
               job_id: job_id,
@@ -65,7 +65,7 @@ module RubyAIAgentsFactory
       #
       # @example Add to Rails application
       #   # config/application.rb
-      #   config.middleware.use RubyAIAgentsFactory::Tracing::RailsIntegrations::CorrelationMiddleware
+      #   config.middleware.use RAAF::Tracing::RailsIntegrations::CorrelationMiddleware
       class CorrelationMiddleware
         def initialize(app)
           @app = app
@@ -75,23 +75,23 @@ module RubyAIAgentsFactory
           request = ActionDispatch::Request.new(env)
 
           # Store request ID for potential trace correlation
-          Thread.current[:openai_agents_request_id] = request.request_id
-          Thread.current[:openai_agents_user_agent] = request.user_agent
-          Thread.current[:openai_agents_remote_ip] = request.remote_ip
+          Thread.current[:raaf_request_id] = request.request_id
+          Thread.current[:raaf_user_agent] = request.user_agent
+          Thread.current[:raaf_remote_ip] = request.remote_ip
 
           @app.call(env)
         ensure
           # Clean up thread locals
-          Thread.current[:openai_agents_request_id] = nil
-          Thread.current[:openai_agents_user_agent] = nil
-          Thread.current[:openai_agents_remote_ip] = nil
+          Thread.current[:raaf_request_id] = nil
+          Thread.current[:raaf_user_agent] = nil
+          Thread.current[:raaf_remote_ip] = nil
         end
       end
 
       # Console helpers for debugging traces in Rails console
       #
       # @example Load helpers in Rails console
-      #   include RubyAIAgentsFactory::Tracing::RailsIntegrations::ConsoleHelpers
+      #   include RAAF::Tracing::RailsIntegrations::ConsoleHelpers
       #
       #   # Find recent traces
       #   recent_traces
@@ -107,9 +107,9 @@ module RubyAIAgentsFactory
         # @param limit [Integer] Number of traces to return
         # @return [Array<Trace>] Recent traces
         def recent_traces(limit: 10)
-          return [] unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+          return [] unless defined?(RAAF::Tracing::Trace)
 
-          RubyAIAgentsFactory::Tracing::Trace.recent.limit(limit).includes(:spans)
+          RAAF::Tracing::Trace.recent.limit(limit).includes(:spans)
         end
 
         # Get traces for a specific workflow
@@ -118,9 +118,9 @@ module RubyAIAgentsFactory
         # @param limit [Integer] Number of traces to return
         # @return [Array<Trace>] Matching traces
         def traces_for(workflow_name, limit: 10)
-          return [] unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+          return [] unless defined?(RAAF::Tracing::Trace)
 
-          RubyAIAgentsFactory::Tracing::Trace.by_workflow(workflow_name)
+          RAAF::Tracing::Trace.by_workflow(workflow_name)
                                       .recent.limit(limit).includes(:spans)
         end
 
@@ -129,9 +129,9 @@ module RubyAIAgentsFactory
         # @param limit [Integer] Number of traces to return
         # @return [Array<Trace>] Failed traces
         def failed_traces(limit: 10)
-          return [] unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+          return [] unless defined?(RAAF::Tracing::Trace)
 
-          RubyAIAgentsFactory::Tracing::Trace.failed.recent.limit(limit).includes(:spans)
+          RAAF::Tracing::Trace.failed.recent.limit(limit).includes(:spans)
         end
 
         # Get slow spans
@@ -140,9 +140,9 @@ module RubyAIAgentsFactory
         # @param limit [Integer] Number of spans to return
         # @return [Array<Span>] Slow spans
         def slow_spans(threshold: 1000, limit: 20)
-          return [] unless defined?(RubyAIAgentsFactory::Tracing::Span)
+          return [] unless defined?(RAAF::Tracing::Span)
 
-          RubyAIAgentsFactory::Tracing::Span.slow(threshold)
+          RAAF::Tracing::Span.slow(threshold)
                                      .recent.limit(limit).includes(:trace)
         end
 
@@ -151,9 +151,9 @@ module RubyAIAgentsFactory
         # @param limit [Integer] Number of spans to return
         # @return [Array<Span>] Error spans
         def error_spans(limit: 20)
-          return [] unless defined?(RubyAIAgentsFactory::Tracing::Span)
+          return [] unless defined?(RAAF::Tracing::Span)
 
-          RubyAIAgentsFactory::Tracing::Span.errors.recent.limit(limit).includes(:trace)
+          RAAF::Tracing::Span.errors.recent.limit(limit).includes(:trace)
         end
 
         # Get trace by ID
@@ -161,9 +161,9 @@ module RubyAIAgentsFactory
         # @param trace_id [String] Trace ID to find
         # @return [Trace, nil] The trace if found
         def trace(trace_id)
-          return nil unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+          return nil unless defined?(RAAF::Tracing::Trace)
 
-          RubyAIAgentsFactory::Tracing::Trace.find_by(trace_id: trace_id)
+          RAAF::Tracing::Trace.find_by(trace_id: trace_id)
         end
 
         # Get span by ID
@@ -171,9 +171,9 @@ module RubyAIAgentsFactory
         # @param span_id [String] Span ID to find
         # @return [Span, nil] The span if found
         def span(span_id)
-          return nil unless defined?(RubyAIAgentsFactory::Tracing::Span)
+          return nil unless defined?(RAAF::Tracing::Span)
 
-          RubyAIAgentsFactory::Tracing::Span.find_by(span_id: span_id)
+          RAAF::Tracing::Span.find_by(span_id: span_id)
         end
 
         # Print trace summary
@@ -206,13 +206,13 @@ module RubyAIAgentsFactory
 
         # Show performance stats
         def performance_stats(timeframe: 24.hours)
-          return puts "Tracing models not available" unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+          return puts "Tracing models not available" unless defined?(RAAF::Tracing::Trace)
 
           start_time = timeframe.ago
           end_time = Time.current
 
-          traces = RubyAIAgentsFactory::Tracing::Trace.within_timeframe(start_time, end_time)
-          spans = RubyAIAgentsFactory::Tracing::Span.within_timeframe(start_time, end_time)
+          traces = RAAF::Tracing::Trace.within_timeframe(start_time, end_time)
+          spans = RAAF::Tracing::Span.within_timeframe(start_time, end_time)
 
           puts "\n=== Performance Stats (#{timeframe.inspect}) ==="
           puts "Traces: #{traces.count}"
@@ -237,39 +237,39 @@ module RubyAIAgentsFactory
         #
         # @param older_than [ActiveSupport::Duration] Age threshold
         def self.cleanup_old_traces(older_than: 30.days)
-          return 0 unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+          return 0 unless defined?(RAAF::Tracing::Trace)
 
-          deleted_count = RubyAIAgentsFactory::Tracing::Trace.cleanup_old_traces(older_than: older_than)
+          deleted_count = RAAF::Tracing::Trace.cleanup_old_traces(older_than: older_than)
           puts "Cleaned up #{deleted_count} traces older than #{older_than.inspect}"
           deleted_count
         end
 
         # Generate performance report
         def self.performance_report(timeframe: 24.hours)
-          return unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+          return unless defined?(RAAF::Tracing::Trace)
 
           start_time = timeframe.ago
           end_time = Time.current
 
-          puts "\n=== OpenAI Agents Performance Report ==="
+          puts "\n=== RAAF Performance Report ==="
           puts "Time Range: #{start_time.strftime("%Y-%m-%d %H:%M")} to #{end_time.strftime("%Y-%m-%d %H:%M")}"
           puts "=" * 50
 
           # Overall stats
-          stats = RubyAIAgentsFactory::Tracing::Trace.performance_stats(timeframe: start_time..end_time)
+          stats = RAAF::Tracing::Trace.performance_stats(timeframe: start_time..end_time)
           puts "Total Traces: #{stats[:total_traces]}"
           puts "Success Rate: #{stats[:success_rate]}%"
           puts "Average Duration: #{stats[:avg_duration] ? (stats[:avg_duration] * 1000).round(2) : "N/A"}ms"
 
           # Top workflows
           puts "\n--- Top Workflows ---"
-          top_workflows = RubyAIAgentsFactory::Tracing::Trace.top_workflows(limit: 10, timeframe: start_time..end_time)
+          top_workflows = RAAF::Tracing::Trace.top_workflows(limit: 10, timeframe: start_time..end_time)
           top_workflows.each do |workflow|
             puts "#{workflow[:workflow_name]}: #{workflow[:trace_count]} traces (#{workflow[:success_rate]}% success)"
           end
 
           # Error analysis
-          error_analysis = RubyAIAgentsFactory::Tracing::Span.error_analysis(timeframe: start_time..end_time)
+          error_analysis = RAAF::Tracing::Span.error_analysis(timeframe: start_time..end_time)
           if error_analysis[:total_errors] > 0
             puts "\n--- Error Analysis ---"
             puts "Total Errors: #{error_analysis[:total_errors]}"
@@ -290,7 +290,7 @@ if defined?(Rails::Console)
   Rails::Console.class_eval do
     def start_with_tracing_helpers
       # Extend the console instance with helper methods
-      IRB::ExtendCommandBundle.include(RubyAIAgentsFactory::Tracing::RailsIntegrations::ConsoleHelpers)
+      IRB::ExtendCommandBundle.include(RAAF::Tracing::RailsIntegrations::ConsoleHelpers)
       start_without_tracing_helpers
     end
 

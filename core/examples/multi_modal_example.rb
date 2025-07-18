@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates multi-modal capabilities in OpenAI Agents Ruby.
+# This example demonstrates multi-modal capabilities in RAAF (Ruby AI Agents Factory).
 # Multi-modal agents can process and understand various types of media including
 # images, audio, and documents. This enables rich interactions where users can
 # share screenshots, voice recordings, PDFs, and other media types. The agents
@@ -9,7 +9,7 @@
 # different modalities. This is essential for building comprehensive AI assistants
 # that can handle real-world communication patterns.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 require_relative "../lib/openai_agents/multi_modal"
 
 # Configure OpenAI API access
@@ -34,10 +34,10 @@ puts "-" * 50
 # Create a multi-modal agent with vision capabilities
 # The model selection is crucial - vision models can process images
 # gpt-4-vision-preview supports image understanding
-multi_modal_agent = OpenAIAgents::MultiModal::MultiModalAgent.new(
+multi_modal_agent = RAAF::MultiModal::MultiModalAgent.new(
   name: "VisionAudioExpert",
-  model: "gpt-4-vision-preview",  # Vision-capable model required for image analysis
-  
+  model: "gpt-4-vision-preview", # Vision-capable model required for image analysis
+
   # Instructions guide the agent on multi-modal capabilities
   # Clear instructions help the agent choose appropriate tools
   instructions: "You are a multi-modal AI assistant capable of analyzing images, audio, and documents. Use the appropriate tools to process different media types."
@@ -63,7 +63,7 @@ puts "-" * 50
 
 # Create a vision tool instance
 # The tool handles image encoding, API communication, and response parsing
-vision_tool = OpenAIAgents::MultiModal::VisionTool.new
+RAAF::MultiModal::VisionTool.new
 
 # Analyze a local image
 # In production, the tool would read the image file, encode it to base64,
@@ -116,13 +116,13 @@ puts "-" * 50
 
 # Create an audio processing tool
 # Supports multiple audio formats: MP3, M4A, WAV, etc.
-audio_tool = OpenAIAgents::MultiModal::AudioTool.new
+RAAF::MultiModal::AudioTool.new
 
 # Transcribe audio (mock example)
 puts "Transcribing audio file..."
 mock_transcription = {
   success: true,
-  text: "Hello, this is a test of the audio transcription system. The OpenAI Agents Ruby gem now supports multi-modal capabilities including vision, audio, and document processing.",
+  text: "Hello, this is a test of the audio transcription system. The RAAF (Ruby AI Agents Factory) gem now supports multi-modal capabilities including vision, audio, and document processing.",
   language: "en",
   duration: 8.5
 }
@@ -167,7 +167,7 @@ puts "Audio analysis:"
 puts "  Duration: #{mock_audio_analysis[:duration]}s"
 puts "  Word count: #{mock_audio_analysis[:analysis][:word_count]}"
 puts "  Sentiment: #{mock_audio_analysis[:analysis][:sentiment]}"
-puts "  Key topics: #{mock_audio_analysis[:analysis][:key_topics].join(', ')}"
+puts "  Key topics: #{mock_audio_analysis[:analysis][:key_topics].join(", ")}"
 puts
 
 # ============================================================================
@@ -182,15 +182,15 @@ puts "-" * 50
 
 # Create a document processing tool
 # Handles text extraction, formatting preservation, and metadata parsing
-document_tool = OpenAIAgents::MultiModal::DocumentTool.new
+RAAF::MultiModal::DocumentTool.new
 
 # Extract text from document (mock example)
 puts "Extracting text from PDF document..."
 mock_extraction = {
   success: true,
-  text: "OpenAI Agents Ruby Documentation\n\nChapter 1: Introduction\nThe OpenAI Agents Ruby gem provides a comprehensive framework for building AI-powered applications...",
+  text: "RAAF (Ruby AI Agents Factory) Documentation\n\nChapter 1: Introduction\nThe RAAF (Ruby AI Agents Factory) gem provides a comprehensive framework for building AI-powered applications...",
   metadata: {
-    filename: "openai_agents_guide.pdf",
+    filename: "raaf_guide.pdf",
     size: 156_789,
     type: ".pdf",
     extracted_at: Time.now.iso8601
@@ -221,17 +221,17 @@ puts "Document analysis:"
 puts "  Word count: #{mock_doc_analysis[:analysis][:word_count]}"
 puts "  Paragraphs: #{mock_doc_analysis[:analysis][:paragraph_count]}"
 puts "  Readability: #{mock_doc_analysis[:analysis][:readability_score]}/100"
-puts "  Key topics: #{mock_doc_analysis[:analysis][:key_topics].join(', ')}"
+puts "  Key topics: #{mock_doc_analysis[:analysis][:key_topics].join(", ")}"
 puts
 
 # Query document (mock example)
 puts "\nQuerying document content..."
-query = "What are the main features of the OpenAI Agents Ruby gem?"
+query = "What are the main features of the RAAF (Ruby AI Agents Factory) gem?"
 mock_query_result = {
   success: true,
   query: query,
   answer: "The main features include: 1) Multi-agent support with handoffs, 2) Built-in tools for various tasks, 3) Comprehensive tracing and monitoring, 4) Multi-modal capabilities for vision, audio, and documents, 5) Workflow orchestration engine.",
-  document: "openai_agents_guide.pdf"
+  document: "raaf_guide.pdf"
 }
 
 puts "Query: #{query}"
@@ -250,7 +250,7 @@ puts "-" * 50
 
 # Create a content analyzer that handles all media types
 # The analyzer includes intelligent routing and format detection
-analyzer = OpenAIAgents::MultiModal::ContentAnalyzer.new
+RAAF::MultiModal::ContentAnalyzer.new
 
 # Analyze different content types
 content_types = [
@@ -261,7 +261,7 @@ content_types = [
 
 content_types.each do |content|
   puts "\nAnalyzing: #{content[:path]}"
-  
+
   # Mock analysis result
   mock_analysis = case content[:expected_type]
                   when :image
@@ -299,7 +299,7 @@ content_types.each do |content|
                       }
                     }
                   end
-  
+
   puts "  Type: #{mock_analysis[:type]}"
   puts "  Insights: #{mock_analysis[:insights]}"
 end
@@ -317,7 +317,7 @@ puts "-" * 50
 
 # Create a conversation that can handle multiple media types
 # The conversation manager tracks all media attachments and maintains context
-conversation = OpenAIAgents::MultiModal::MultiModalConversation.new
+conversation = RAAF::MultiModal::MultiModalConversation.new
 
 # Add text message
 conversation.add_message(
@@ -356,7 +356,7 @@ puts "Messages: #{conversation.messages.size}"
 puts "Media attachments: #{conversation.media_attachments.size}"
 puts "\nConversation flow:"
 conversation.messages.each_with_index do |msg, i|
-  puts "  #{i + 1}. [#{msg[:role]}] #{msg[:content] || '(media attachment)'}"
+  puts "  #{i + 1}. [#{msg[:role]}] #{msg[:content] || "(media attachment)"}"
 end
 puts
 
@@ -429,7 +429,7 @@ puts "Multi-modal agent use cases:\n\n"
 use_cases.each_with_index do |use_case, i|
   puts "#{i + 1}. #{use_case[:name]}"
   puts "   #{use_case[:description]}"
-  puts "   Tools: #{use_case[:tools].join(', ')}"
+  puts "   Tools: #{use_case[:tools].join(", ")}"
   puts
 end
 
@@ -475,37 +475,37 @@ puts <<~PRACTICES
      - Store media securely with proper access controls
      - Clean up temporary files after processing
      - Implement virus scanning for uploads
-  
+
   2. Processing Strategy:
      - Choose the right model for each modality
      - Process in parallel when independent
      - Cache results for repeated queries
      - Implement fallback strategies
-  
+
   3. Error Handling:
      - Handle API rate limits gracefully
      - Provide meaningful error messages
      - Log processing failures for debugging
      - Implement retry logic with backoff
-  
+
   4. User Experience:
      - Show processing progress indicators
      - Provide preview/thumbnail generation
      - Allow cancellation of long operations
      - Optimize for common use cases
-  
+
   5. Cost Management:
      - Monitor token usage across modalities
      - Implement usage quotas if needed
      - Use smaller models when appropriate
      - Batch process when possible
-  
+
   6. Privacy & Security:
      - Don't store sensitive media unnecessarily
      - Implement data retention policies
      - Use secure transmission methods
      - Comply with privacy regulations
-  
+
   7. Integration:
      - Design clear APIs for each modality
      - Standardize response formats

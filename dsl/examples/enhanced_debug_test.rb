@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Test script to verify enhanced debugging capabilities in AiAgentDsl::Agents::Base
+# Test script to verify enhanced debugging capabilities in RAAF::DSL::Agents::Base
 
 require_relative "../lib/ai_agent_dsl"
 
@@ -10,6 +10,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 # Mock Rails logger for testing
 class MockRailsLogger
+
   def info(msg)
     puts "[INFO] #{msg}"
   end
@@ -21,10 +22,12 @@ class MockRailsLogger
   def error(msg)
     puts "[ERROR] #{msg}"
   end
+
 end
 
 # Mock Rails module for testing
 module Rails
+
   def self.logger
     @logger ||= MockRailsLogger.new
   end
@@ -34,12 +37,14 @@ module Rails
   end
 
   def self.respond_to?(method)
-    [:logger, :env].include?(method)
+    %i[logger env].include?(method)
   end
+
 end
 
 # Mock Rails env for testing
 class MockRailsEnv
+
   def development?
     true
   end
@@ -51,11 +56,13 @@ class MockRailsEnv
   def production?
     false
   end
+
 end
 
 # Test agent that includes the enhanced debugging capabilities
-class TestAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class TestAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "TestAgent"
   model "gpt-4o"
@@ -67,14 +74,15 @@ class TestAgent < AiAgentDsl::Agents::Base
 
   def build_schema
     {
-      type:                 "object",
-      properties:           {
+      type: "object",
+      properties: {
         result: { type: "string" }
       },
-      required:             ["result"],
+      required: ["result"],
       additionalProperties: false
     }
   end
+
 end
 
 # Test the enhanced debugging capabilities
@@ -86,19 +94,19 @@ puts
 # Create a test agent instance
 context = {
   document: { name: "test.pdf", description: "Test document" },
-  product:  { name: "Test Product" }
+  product: { name: "Test Product" }
 }
 
 processing_params = {
   content_type: "test_content",
-  formats:      ["PDF"],
-  max_pages:    10
+  formats: ["PDF"],
+  max_pages: 10
 }
 
 agent = TestAgent.new(
-  context:           context,
+  context: context,
   processing_params: processing_params,
-  debug:             true
+  debug: true
 )
 
 puts "📋 Agent created successfully"
@@ -111,7 +119,7 @@ puts
 puts "🔍 Testing debug_context_summary:"
 puts "-" * 40
 summary = agent.debug_context_summary
-puts "Summary keys: #{summary.keys.join(', ')}"
+puts "Summary keys: #{summary.keys.join(", ")}"
 puts "Agent info: #{summary[:agent_info]}"
 puts
 
@@ -148,11 +156,11 @@ puts
 # Test convenience methods exist
 puts "🔍 Testing convenience methods:"
 puts "-" * 40
-convenience_methods = [
-  :run_with_minimal_debug,
-  :run_with_standard_debug,
-  :run_with_verbose_debug,
-  :run_with_debug
+convenience_methods = %i[
+  run_with_minimal_debug
+  run_with_standard_debug
+  run_with_verbose_debug
+  run_with_debug
 ]
 
 convenience_methods.each do |method|

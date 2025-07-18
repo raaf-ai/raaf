@@ -7,7 +7,7 @@
 # language. Users can ask questions about agent performance, errors, and
 # patterns in plain English.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 puts "=== Natural Language Query Example ==="
 puts "Demonstrates AI-powered trace analysis with natural language"
@@ -16,7 +16,7 @@ puts "-" * 60
 # Example 1: Setup Natural Language Query Engine
 puts "\n=== Example 1: NLQ Engine Setup ==="
 
-nlq_engine = OpenAIAgents::Tracing::NaturalLanguageQuery.new(
+nlq_engine = RAAF::Tracing::NaturalLanguageQuery.new(
   model: "gpt-4o",
   trace_database: "traces.db", 
   cache_queries: true,

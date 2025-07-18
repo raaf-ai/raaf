@@ -6,7 +6,7 @@ require "spec_helper"
 begin
   require "rails"
   require "active_record"
-  require_relative "../../../../lib/openai_agents/tracing/engine"
+  require_relative "../../../../lib/raaf/tracing/engine"
   
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
@@ -15,7 +15,7 @@ rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseEr
   return
 end
 
-RSpec.describe OpenAIAgents::Tracing::Engine do
+RSpec.describe RAAF::Tracing::Engine do
   describe "engine configuration" do
     subject { described_class }
 
@@ -36,7 +36,7 @@ RSpec.describe OpenAIAgents::Tracing::Engine do
   end
 
   describe "configuration options" do
-    let(:config) { OpenAIAgents::Tracing.configuration }
+    let(:config) { RAAF::Tracing.configuration }
 
     it "has default configuration values" do
       expect(config.auto_configure).to be_falsy
@@ -46,7 +46,7 @@ RSpec.describe OpenAIAgents::Tracing::Engine do
     end
 
     it "allows configuration changes" do
-      OpenAIAgents::Tracing.configure do |c|
+      RAAF::Tracing.configure do |c|
         c.auto_configure = true
         c.mount_path = "/custom-tracing"
         c.retention_days = 7
@@ -78,7 +78,7 @@ RSpec.describe OpenAIAgents::Tracing::Engine do
         config.logger = Logger.new(File::NULL)
         
         routes.draw do
-          mount OpenAIAgents::Tracing::Engine => "/tracing"
+          mount RAAF::Tracing::Engine => "/tracing"
         end
       end.initialize!
     end
@@ -89,7 +89,7 @@ RSpec.describe OpenAIAgents::Tracing::Engine do
     end
 
     it "includes dashboard routes" do
-      routes = OpenAIAgents::Tracing::Engine.routes.routes
+      routes = RAAF::Tracing::Engine.routes.routes
       route_names = routes.map(&:name).compact
       
       expect(route_names).to include("openai_agents_tracing.dashboard")
@@ -99,7 +99,7 @@ RSpec.describe OpenAIAgents::Tracing::Engine do
     end
 
     it "includes trace and span routes" do
-      routes = OpenAIAgents::Tracing::Engine.routes.routes
+      routes = RAAF::Tracing::Engine.routes.routes
       route_names = routes.map(&:name).compact
       
       expect(route_names).to include("openai_agents_tracing.traces")
@@ -120,8 +120,8 @@ RSpec.describe OpenAIAgents::Tracing::Engine do
       end
 
       it "automatically adds ActiveRecord processor" do
-        expect(OpenAIAgents.tracer).to receive(:add_processor).with(
-          an_instance_of(OpenAIAgents::Tracing::ActiveRecordProcessor)
+        expect(RAAF::tracer).to receive(:add_processor).with(
+          an_instance_of(RAAF::Tracing::ActiveRecordProcessor)
         )
         
         # Trigger the initializer
@@ -135,7 +135,7 @@ RSpec.describe OpenAIAgents::Tracing::Engine do
       end
 
       it "does not add processor automatically" do
-        expect(OpenAIAgents.tracer).not_to receive(:add_processor)
+        expect(RAAF::tracer).not_to receive(:add_processor)
         
         # Trigger the initializer
         described_class.initializers.find { |i| i.name == "openai_agents.tracing.configure" }.run

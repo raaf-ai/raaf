@@ -31,7 +31,7 @@ def search_web(query)
 end
 
 # Create agent with tools
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "UtilityBot",
   instructions: "You are a helpful utility assistant. Use the available tools to help users.",
   model: "gpt-4o",
@@ -47,7 +47,7 @@ puts "Available tools: #{agent.tools.map(&:name).join(', ')}"
 puts
 
 # Create runner
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Test different tool usage
 test_queries = [

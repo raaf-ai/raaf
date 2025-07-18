@@ -29,23 +29,23 @@ require_relative "raaf/misc/multimodal/multi_modal"
 #   require 'raaf-misc'
 #
 #   # Voice workflow
-#   voice = RubyAIAgentsFactory::Misc::Voice::VoiceWorkflow.new
+#   voice = RAAF::Misc::Voice::VoiceWorkflow.new
 #
 #   # Prompt management
-#   prompts = RubyAIAgentsFactory::Misc::Prompts::Manager.new
+#   prompts = RAAF::Misc::Prompts::Manager.new
 #
 #   # Extensions
-#   extensions = RubyAIAgentsFactory::Misc::Extensions::Manager.new
+#   extensions = RAAF::Misc::Extensions::Manager.new
 #
 #   # Data pipeline
-#   pipeline = RubyAIAgentsFactory::Misc::DataPipeline::Processor.new
+#   pipeline = RAAF::Misc::DataPipeline::Processor.new
 #
 #   # Multimodal processing
-#   multimodal = RubyAIAgentsFactory::Misc::Multimodal::Processor.new
+#   multimodal = RAAF::Misc::Multimodal::Processor.new
 #
 # @author Ruby AI Agents Factory Team
 # @since 1.0.0
-module RubyAIAgentsFactory
+module RAAF
   module Misc
     # Misc gem version
     VERSION = "0.1.0"

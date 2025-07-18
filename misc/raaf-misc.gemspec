@@ -4,7 +4,7 @@ require_relative "lib/raaf/misc/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-misc"
-  spec.version = RubyAIAgentsFactory::Misc::VERSION
+  spec.version = RAAF::Misc::VERSION
   spec.authors = ["Ruby AI Agents Factory Team"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -31,8 +31,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Dependencies
-  spec.add_dependency "raaf-core", "~> 1.0"
-  spec.add_dependency "raaf-logging", "~> 1.0"
+  spec.add_dependency "raaf-core", "0.1.0"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"

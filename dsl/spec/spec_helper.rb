@@ -1,15 +1,14 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
-require "ai_agent_dsl"
-require "ai_agent_dsl/rspec"
+require "raaf-dsl"
+require "raaf/dsl/rspec"
 require "rspec"
-require "rspec/collection_matchers"
 require "tempfile"
 require "tmpdir"
 
 # Load support files (excluding the old prompt_matchers which are now in the gem)
-Dir[File.expand_path("support/**/*.rb", __dir__)].sort.each do |f|
+Dir[File.expand_path("support/**/*.rb", __dir__)].each do |f|
   next if f.include?("prompt_matchers")
 
   require f
@@ -30,7 +29,7 @@ RSpec.configure do |config|
   end
 
   # Include helper methods in all example groups
-  config.include Module.new {
+  config.include(Module.new do
     def silence_warnings
       original_verbosity = $VERBOSE
       $VERBOSE = nil
@@ -38,7 +37,7 @@ RSpec.configure do |config|
     ensure
       $VERBOSE = original_verbosity
     end
-  }
+  end)
 
   # Configure output formatting
   config.default_formatter = "doc" if config.files_to_run.one?
@@ -55,20 +54,20 @@ RSpec.configure do |config|
 
   # Clear configuration between tests
   config.before do
-    # Reset AiAgentDsl configuration to defaults
-    AiAgentDsl.instance_variable_set(:@configuration, nil)
+    # Reset RAAF::DSL configuration to defaults
+    RAAF::DSL.instance_variable_set(:@configuration, nil)
 
     # Clear any class attributes that might have been set
-    if defined?(AiAgentDsl::Config)
-      AiAgentDsl::Config.instance_variable_set(:@config, nil)
-      AiAgentDsl::Config.instance_variable_set(:@environment_configs, {})
-      AiAgentDsl::Config.instance_variable_set(:@raw_config, nil)
+    if defined?(RAAF::DSL::Config)
+      RAAF::DSL::Config.instance_variable_set(:@config, nil)
+      RAAF::DSL::Config.instance_variable_set(:@environment_configs, {})
+      RAAF::DSL::Config.instance_variable_set(:@raw_config, nil)
     end
   end
 
   # Set up temporary directories for file-based tests
   config.around(:each, :with_temp_files) do |example|
-    Dir.mktmpdir("ai_agent_dsl_test") do |temp_dir|
+    Dir.mktmpdir("raaf/dsl_test") do |temp_dir|
       @temp_dir = temp_dir
       example.run
     end
@@ -85,14 +84,14 @@ RSpec.configure do |config|
 
       # Define the TestApp class outside of the block if needed
       unless defined?(TestApp)
-        Object.const_set(:TestApp, Class.new(Rails::Application) do
-          config.root = Pathname.new(Dir.pwd)
-          config.eager_load = false
-          config.logger = Logger.new(IO::NULL)
+        test_app_class = Class.new(Rails::Application)
+        test_app_class.config.root = Pathname.new(Dir.pwd)
+        test_app_class.config.eager_load = false
+        test_app_class.config.logger = Logger.new(IO::NULL)
 
-          # Minimal Rails configuration for testing
-          config.load_defaults Rails::VERSION::STRING.to_f
-        end)
+        # Minimal Rails configuration for testing
+        test_app_class.config.load_defaults Rails::VERSION::STRING.to_f
+        Object.const_set(:TestApp, test_app_class)
       end
 
       # Initialize the Rails app
@@ -151,13 +150,31 @@ end
 
 # Helper method to capture output
 def capture(stream)
-  begin
-    stream = stream.to_s
-    eval "$#{stream} = StringIO.new"
-    yield
-    result = eval("$#{stream}").string
-  ensure
-    eval("$#{stream} = #{stream.upcase}")
+  original_stream = case stream.to_s
+                    when "stdout"
+                      $stdout
+                    when "stderr"
+                      $stderr
+                    else
+                      raise ArgumentError, "Unsupported stream: #{stream}"
+                    end
+
+  captured_output = StringIO.new
+
+  case stream.to_s
+  when "stdout"
+    $stdout = captured_output
+  when "stderr"
+    $stderr = captured_output
   end
-  result
+
+  yield
+  captured_output.string
+ensure
+  case stream.to_s
+  when "stdout"
+    $stdout = original_stream
+  when "stderr"
+    $stderr = original_stream
+  end
 end

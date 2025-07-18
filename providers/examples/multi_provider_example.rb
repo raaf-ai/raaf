@@ -1,14 +1,14 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Example demonstrating multiple AI providers
 
 # Multi-provider architecture enables flexibility and optimization
 puts "=== Multi-Provider Example ==="
 puts
-puts "This example shows how to use different AI providers with OpenAI Agents."
+puts "This example shows how to use different AI providers with RAAF."
 puts
 
 # Check for required API keys
@@ -41,7 +41,7 @@ puts "1. Direct provider usage:"
 
 if available_providers.include?(:openai)
   puts "\n- OpenAI GPT-4:"
-  openai = OpenAIAgents::Models::OpenAIProvider.new
+  openai = RAAF::Models::OpenAIProvider.new
   response = openai.chat_completion(
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "gpt-4o"
@@ -51,7 +51,7 @@ end
 
 if available_providers.include?(:anthropic)
   puts "\n- Anthropic Claude:"
-  anthropic = OpenAIAgents::Models::AnthropicProvider.new
+  anthropic = RAAF::Models::AnthropicProvider.new
   response = anthropic.chat_completion(
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "claude-3-opus-20240229"
@@ -61,7 +61,7 @@ end
 
 if available_providers.include?(:groq)
   puts "\n- Groq Llama 3:"
-  groq = OpenAIAgents::Models::GroqProvider.new
+  groq = RAAF::Models::GroqProvider.new
   response = groq.chat_completion(
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "llama3-8b-8192"
@@ -72,7 +72,7 @@ end
 # Example 2: Ollama for local models
 puts "\n2. Local model with Ollama:"
 begin
-  ollama = OpenAIAgents::Models::OllamaProvider.new
+  ollama = RAAF::Models::OllamaProvider.new
   puts "Available local models: #{ollama.list_models.map { |m| m[:name] }.join(", ")}"
 
   # Try to use a local model
@@ -83,7 +83,7 @@ begin
     )
     puts "Local model response: #{response.dig("choices", 0, "message", "content")}"
   end
-rescue OpenAIAgents::Models::ConnectionError => e
+rescue RAAF::Models::ConnectionError => e
   puts "Ollama not running: #{e.message}"
   puts "To use local models, install and run Ollama: https://ollama.ai"
 end
@@ -96,7 +96,7 @@ agents = []
 
 # Fast inference agent (Groq)
 if available_providers.include?(:groq)
-  fast_agent = OpenAIAgents::Agent.new(
+  fast_agent = RAAF::Agent.new(
     name: "FastResponder",
     instructions: "You provide quick, concise responses. Be brief.",
     model: "llama3-8b-8192"
@@ -106,7 +106,7 @@ end
 
 # Creative writing agent (OpenAI)
 if available_providers.include?(:openai)
-  creative_agent = OpenAIAgents::Agent.new(
+  creative_agent = RAAF::Agent.new(
     name: "CreativeWriter",
     instructions: "You are a creative writer. Write engaging, imaginative content.",
     model: "gpt-4o"
@@ -116,7 +116,7 @@ end
 
 # Code assistant (Together AI with CodeLlama)
 if available_providers.include?(:together)
-  code_agent = OpenAIAgents::Agent.new(
+  code_agent = RAAF::Agent.new(
     name: "CodeAssistant",
     instructions: "You are a coding assistant. Provide clear, well-commented code.",
     model: "codellama/CodeLlama-34b-Instruct-hf"
@@ -139,15 +139,15 @@ available_providers.each do |provider_name|
 
   provider = case provider_name
              when :openai
-               OpenAIAgents::Models::OpenAIProvider.new
+               RAAF::Models::OpenAIProvider.new
              when :anthropic
-               OpenAIAgents::Models::AnthropicProvider.new
+               RAAF::Models::AnthropicProvider.new
              when :cohere
-               OpenAIAgents::Models::CohereProvider.new
+               RAAF::Models::CohereProvider.new
              when :groq
-               OpenAIAgents::Models::GroqProvider.new
+               RAAF::Models::GroqProvider.new
              when :together
-               OpenAIAgents::Models::TogetherProvider.new
+               RAAF::Models::TogetherProvider.new
              end
 
   model = case provider_name
@@ -185,11 +185,11 @@ available_providers.each do |provider_name|
 
   provider = case provider_name
              when :openai
-               OpenAIAgents::Models::OpenAIProvider.new
+               RAAF::Models::OpenAIProvider.new
              when :groq
-               OpenAIAgents::Models::GroqProvider.new
+               RAAF::Models::GroqProvider.new
              when :together
-               OpenAIAgents::Models::TogetherProvider.new
+               RAAF::Models::TogetherProvider.new
              end
 
   model = case provider_name
@@ -222,7 +222,7 @@ models_to_test = [
 ]
 
 models_to_test.each do |model|
-  provider_name = OpenAIAgents::Models::MultiProvider.get_provider_for_model(model)
+  provider_name = RAAF::Models::MultiProvider.get_provider_for_model(model)
   puts "Model '#{model}' -> Provider: #{provider_name}"
 end
 
@@ -231,8 +231,8 @@ puts "\n7. Retry logic with providers:"
 
 if available_providers.include?(:groq)
   # Groq has strict rate limits, good for testing retry
-  retry_provider = OpenAIAgents::Models::RetryableProviderWrapper.new(
-    OpenAIAgents::Models::GroqProvider.new,
+  retry_provider = RAAF::Models::RetryableProviderWrapper.new(
+    RAAF::Models::GroqProvider.new,
     max_attempts: 3,
     base_delay: 1.0,
     logger: ::Logger.new($stdout)  # Log retry attempts

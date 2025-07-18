@@ -50,7 +50,7 @@ gem install raaf-guardrails
 require 'raaf-guardrails'
 
 # Configure global guardrails
-RubyAIAgentsFactory::Guardrails.configure do |config|
+RAAF::Guardrails.configure do |config|
   config.pii_detection = true
   config.content_filtering = true
   config.log_violations = true
@@ -58,17 +58,17 @@ RubyAIAgentsFactory::Guardrails.configure do |config|
 end
 
 # Create a validator
-validator = RubyAIAgentsFactory::Guardrails::Validator.new
+validator = RAAF::Guardrails::Validator.new
 
 # Use with an agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "SafeAgent",
   instructions: "You are a helpful and safe assistant",
   guardrails: validator
 )
 
 # Agent interactions are now protected
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello, how can you help me?")
 ```
 
@@ -78,7 +78,7 @@ result = runner.run("Hello, how can you help me?")
 require 'raaf-guardrails'
 
 # Create PII detector with high sensitivity
-pii_detector = RubyAIAgentsFactory::Guardrails::PIIDetector.new(
+pii_detector = RAAF::Guardrails::PIIDetector.new(
   sensitivity_level: :high,
   redaction_enabled: true
 )
@@ -103,7 +103,7 @@ end
 require 'raaf-guardrails'
 
 # Create security guardrail
-security_guard = RubyAIAgentsFactory::Guardrails::SecurityGuardrail.new(
+security_guard = RAAF::Guardrails::SecurityGuardrail.new(
   name: "prompt_injection_guard",
   patterns: [
     /ignore.*previous.*instructions/i,
@@ -131,7 +131,7 @@ end
 require 'raaf-guardrails'
 
 # Create tripwire with custom rules
-tripwire = RubyAIAgentsFactory::Guardrails::Tripwire.new(
+tripwire = RAAF::Guardrails::Tripwire.new(
   name: "sensitive_data_tripwire",
   rules: [
     {
@@ -165,7 +165,7 @@ end
 ### Global Configuration
 
 ```ruby
-RubyAIAgentsFactory::Guardrails.configure do |config|
+RAAF::Guardrails.configure do |config|
   # Core features
   config.pii_detection = true
   config.content_filtering = true
@@ -211,19 +211,19 @@ Comprehensive PII detection with multiple sensitivity levels and specialized det
 
 ```ruby
 # General PII detection
-pii_detector = RubyAIAgentsFactory::Guardrails::PIIDetector.new(
+pii_detector = RAAF::Guardrails::PIIDetector.new(
   sensitivity_level: :medium,  # :low, :medium, :high
   redaction_enabled: true
 )
 
 # Healthcare-specific PII
-healthcare_detector = RubyAIAgentsFactory::Guardrails::HealthcarePIIDetector.new(
+healthcare_detector = RAAF::Guardrails::HealthcarePIIDetector.new(
   sensitivity_level: :high,
   redaction_enabled: true
 )
 
 # Financial-specific PII
-financial_detector = RubyAIAgentsFactory::Guardrails::FinancialPIIDetector.new(
+financial_detector = RAAF::Guardrails::FinancialPIIDetector.new(
   sensitivity_level: :high,
   redaction_enabled: true
 )
@@ -241,7 +241,7 @@ financial_detector = RubyAIAgentsFactory::Guardrails::FinancialPIIDetector.new(
 Protection against prompt injection and malicious content:
 
 ```ruby
-security_guard = RubyAIAgentsFactory::Guardrails::SecurityGuardrail.new(
+security_guard = RAAF::Guardrails::SecurityGuardrail.new(
   name: "injection_prevention",
   patterns: [
     /ignore.*instructions/i,
@@ -258,7 +258,7 @@ security_guard = RubyAIAgentsFactory::Guardrails::SecurityGuardrail.new(
 Configurable alerting and blocking system:
 
 ```ruby
-tripwire = RubyAIAgentsFactory::Guardrails::Tripwire.new(
+tripwire = RAAF::Guardrails::Tripwire.new(
   name: "compliance_tripwire",
   rules: [
     {
@@ -282,10 +282,10 @@ tripwire = RubyAIAgentsFactory::Guardrails::Tripwire.new(
 High-performance parallel execution of multiple guardrails:
 
 ```ruby
-parallel_guards = RubyAIAgentsFactory::ParallelGuardrails.new([
-  RubyAIAgentsFactory::Guardrails::PIIDetector.new,
-  RubyAIAgentsFactory::Guardrails::SecurityGuardrail.new,
-  RubyAIAgentsFactory::Guardrails::Tripwire.new
+parallel_guards = RAAF::ParallelGuardrails.new([
+  RAAF::Guardrails::PIIDetector.new,
+  RAAF::Guardrails::SecurityGuardrail.new,
+  RAAF::Guardrails::Tripwire.new
 ])
 
 # All guardrails execute in parallel
@@ -313,7 +313,7 @@ custom_patterns = {
   }
 }
 
-detector = RubyAIAgentsFactory::Guardrails::PIIDetector.new(
+detector = RAAF::Guardrails::PIIDetector.new(
   custom_patterns: custom_patterns
 )
 ```
@@ -324,7 +324,7 @@ Enhanced detection using contextual clues:
 
 ```ruby
 # PII detector with context analysis
-detector = RubyAIAgentsFactory::Guardrails::PIIDetector.new(
+detector = RAAF::Guardrails::PIIDetector.new(
   sensitivity_level: :high,
   context_analysis: true
 )
@@ -341,14 +341,14 @@ Complete audit trail for compliance requirements:
 
 ```ruby
 # Enable comprehensive audit logging
-RubyAIAgentsFactory::Guardrails.configure do |config|
+RAAF::Guardrails.configure do |config|
   config.audit_logging = true
   config.violation_reporting = true
   config.compliance_mode = :strict
 end
 
 # Custom violation handler
-RubyAIAgentsFactory::Guardrails.configure do |config|
+RAAF::Guardrails.configure do |config|
   config.violation_handler = ->(violation) {
     # Send to compliance system
     ComplianceSystem.report_violation(violation)
@@ -368,17 +368,17 @@ require 'raaf-core'
 require 'raaf-guardrails'
 
 # Create guardrails validator
-validator = RubyAIAgentsFactory::Guardrails::Validator.new
+validator = RAAF::Guardrails::Validator.new
 
 # Create agent with guardrails
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "SecureAssistant",
   instructions: "You are a secure assistant that protects sensitive information",
   guardrails: validator
 )
 
 # All interactions are automatically protected
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Can you help me with sensitive data?")
 ```
 
@@ -389,28 +389,28 @@ require 'raaf-core'
 require 'raaf-guardrails'
 
 # Create multiple guardrails
-pii_guard = RubyAIAgentsFactory::Guardrails::PIIDetector.new(
+pii_guard = RAAF::Guardrails::PIIDetector.new(
   sensitivity_level: :high,
   redaction_enabled: true
 )
 
-security_guard = RubyAIAgentsFactory::Guardrails::SecurityGuardrail.new(
+security_guard = RAAF::Guardrails::SecurityGuardrail.new(
   name: "security_scanner"
 )
 
-tripwire = RubyAIAgentsFactory::Guardrails::Tripwire.new(
+tripwire = RAAF::Guardrails::Tripwire.new(
   name: "compliance_tripwire"
 )
 
 # Combine guardrails
-validator = RubyAIAgentsFactory::Guardrails::Validator.new([
+validator = RAAF::Guardrails::Validator.new([
   pii_guard,
   security_guard,
   tripwire
 ])
 
 # Create protected agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "EnterpriseAgent",
   instructions: "You are an enterprise assistant with comprehensive safety measures",
   guardrails: validator
@@ -423,15 +423,15 @@ agent = RubyAIAgentsFactory::Agent.new(
 
 ```ruby
 # Enable parallel execution for better performance
-RubyAIAgentsFactory::Guardrails.configure do |config|
+RAAF::Guardrails.configure do |config|
   config.parallel_execution = true
   config.max_concurrent_guards = 5
 end
 
 # Use parallel guardrails for multiple checks
-parallel_guards = RubyAIAgentsFactory::ParallelGuardrails.new([
-  RubyAIAgentsFactory::Guardrails::PIIDetector.new,
-  RubyAIAgentsFactory::Guardrails::SecurityGuardrail.new,
+parallel_guards = RAAF::ParallelGuardrails.new([
+  RAAF::Guardrails::PIIDetector.new,
+  RAAF::Guardrails::SecurityGuardrail.new,
   custom_tripwire
 ])
 ```
@@ -440,13 +440,13 @@ parallel_guards = RubyAIAgentsFactory::ParallelGuardrails.new([
 
 ```ruby
 # Enable result caching for better performance
-RubyAIAgentsFactory::Guardrails.configure do |config|
+RAAF::Guardrails.configure do |config|
   config.cache_results = true
   config.cache_ttl = 300  # 5 minutes
 end
 
 # Clear cache when needed
-RubyAIAgentsFactory::Guardrails.clear_cache!
+RAAF::Guardrails.clear_cache!
 ```
 
 ### Batch Processing
@@ -454,7 +454,7 @@ RubyAIAgentsFactory::Guardrails.clear_cache!
 ```ruby
 # Process multiple texts efficiently
 texts = ["Text 1", "Text 2", "Text 3"]
-validator = RubyAIAgentsFactory::Guardrails::Validator.new
+validator = RAAF::Guardrails::Validator.new
 
 results = validator.batch_validate(texts)
 results.each_with_index do |result, index|
@@ -468,7 +468,7 @@ end
 
 ```ruby
 # Get global statistics
-stats = RubyAIAgentsFactory::Guardrails.stats
+stats = RAAF::Guardrails.stats
 puts "Total validations: #{stats[:total_validations]}"
 puts "Violation rate: #{stats[:violation_rate]}%"
 puts "Violations by type: #{stats[:violations_by_type]}"
@@ -483,7 +483,7 @@ puts "By type: #{pii_stats[:by_type]}"
 
 ```ruby
 # Set up real-time monitoring
-RubyAIAgentsFactory::Guardrails.configure do |config|
+RAAF::Guardrails.configure do |config|
   config.monitoring_enabled = true
   config.alert_threshold = 0.1  # Alert if violation rate > 10%
   
@@ -523,14 +523,14 @@ end
 
 ```ruby
 # Mock guardrail responses for testing
-RubyAIAgentsFactory::Guardrails::TestHelpers.mock_violation(
+RAAF::Guardrails::TestHelpers.mock_violation(
   type: :pii,
   message: "PII detected in test",
   action: :block
 )
 
 # Test with specific guardrails
-RubyAIAgentsFactory::Guardrails::TestHelpers.with_guardrails(
+RAAF::Guardrails::TestHelpers.with_guardrails(
   pii_detection: true,
   security_scanning: false
 ) do
@@ -565,7 +565,7 @@ RAAF Guardrails builds on and integrates with:
 ### Core Components
 
 ```
-RubyAIAgentsFactory::Guardrails::
+RAAF::Guardrails::
 ├── PIIDetector              # PII detection and redaction
 ├── SecurityGuardrail        # Security threat detection
 ├── Tripwire                 # Custom rule engine
@@ -604,7 +604,7 @@ bundle exec rspec
 4. Update documentation
 
 ```ruby
-class MyCustomGuardrail < RubyAIAgentsFactory::Guardrails::BaseGuardrail
+class MyCustomGuardrail < RAAF::Guardrails::BaseGuardrail
   def check(context)
     # Your validation logic here
     GuardrailResult.new(

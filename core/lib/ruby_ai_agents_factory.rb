@@ -8,7 +8,11 @@ require_relative "raaf/runner"
 require_relative "raaf/run_config"
 require_relative "raaf/function_tool"
 require_relative "raaf/lifecycle"
-require_relative "raaf/tracing"
+begin
+  require "raaf-tracing"
+rescue LoadError
+  # Tracing gem not available - tracing features will be disabled
+end
 require_relative "raaf/streaming"
 require_relative "raaf/batch_processor"
 require_relative "raaf/http_client"
@@ -22,16 +26,7 @@ require_relative "raaf/models/multi_provider"
 require_relative "raaf/guardrails"
 require_relative "raaf/structured_output"
 require_relative "raaf/result"
-require_relative "raaf/tracing/spans"
-require_relative "raaf/tracing/trace_provider"
-require_relative "raaf/tracing/batch_processor"
-require_relative "raaf/tracing/openai_processor"
-require_relative "raaf/tracing/otel_adapter"
-require_relative "raaf/tracing/cost_manager"
-require_relative "raaf/tracing/alert_engine"
-require_relative "raaf/tracing/anomaly_detector"
-require_relative "raaf/tracing/ai_analyzer"
-require_relative "raaf/tracing/natural_language_query"
+# Tracing components are now loaded via raaf-tracing gem
 require_relative "raaf/visualization"
 require_relative "raaf/debugging"
 require_relative "raaf/repl"
@@ -63,9 +58,7 @@ if defined?(ActiveRecord)
   begin
     require "rails"
     require_relative "raaf/logging/rails_integration"
-    require_relative "raaf/tracing/engine"
-    require_relative "raaf/tracing/rails_integrations"
-    require_relative "raaf/tracing/distributed_tracer"
+    # Rails tracing integration is handled by raaf-tracing gem
   rescue LoadError
     # Rails not available, skip Rails-specific components
   end
@@ -116,7 +109,7 @@ require_relative "raaf/compliance"
 #   require 'ruby_ai_agents_factory'
 #
 #   # Create an agent
-#   agent = RubyAIAgentsFactory::Agent.new(
+#   agent = RAAF::Agent.new(
 #     name: "Assistant",
 #     instructions: "You are a helpful assistant",
 #     model: "gpt-4"
@@ -129,19 +122,19 @@ require_relative "raaf/compliance"
 #   agent.add_tool(method(:get_weather))
 #
 #   # Run the agent
-#   runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+#   runner = RAAF::Runner.new(agent: agent)
 #   messages = [{ role: "user", content: "What's the weather in Paris?" }]
 #   result = runner.run(messages)
 #
 # == Multi-Provider Support
 #
 #   # Use different providers
-#   openai_agent = RubyAIAgentsFactory::Agent.new(
+#   openai_agent = RAAF::Agent.new(
 #     name: "OpenAI_Assistant",
 #     model: "gpt-4"
 #   )
 #
-#   claude_agent = RubyAIAgentsFactory::Agent.new(
+#   claude_agent = RAAF::Agent.new(
 #     name: "Claude_Assistant",
 #     model: "claude-3-sonnet-20240229"
 #   )
@@ -149,15 +142,15 @@ require_relative "raaf/compliance"
 # == Advanced Features
 #
 #   # Guardrails for safety
-#   guardrails = RubyAIAgentsFactory::Guardrails::GuardrailManager.new
-#   guardrails.add_guardrail(RubyAIAgentsFactory::Guardrails::ContentSafetyGuardrail.new)
+#   guardrails = RAAF::Guardrails::GuardrailManager.new
+#   guardrails.add_guardrail(RAAF::Guardrails::ContentSafetyGuardrail.new)
 #
 #   # Enhanced tracing
-#   tracer = RubyAIAgentsFactory::Tracing::SpanTracer.new
-#   tracer.add_processor(RubyAIAgentsFactory::Tracing::ConsoleSpanProcessor.new)
+#   tracer = RAAF::Tracing::SpanTracer.new
+#   tracer.add_processor(RAAF::Tracing::ConsoleSpanProcessor.new)
 #
 #   # Interactive development
-#   repl = RubyAIAgentsFactory::REPL.new(agent: agent)
+#   repl = RAAF::REPL.new(agent: agent)
 #   repl.start
 #
 # == Configuration
@@ -171,7 +164,8 @@ require_relative "raaf/compliance"
 # @author Ruby AI Agents Factory Team
 # @version 0.1.0
 # @since 0.1.0
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Base error class for all Ruby AI Agents Factory exceptions
   #
@@ -181,7 +175,7 @@ module RubyAIAgentsFactory
   # @example Catching all RAAF errors
   #   begin
   #     agent.run(messages)
-  #   rescue RubyAIAgentsFactory::Error => e
+  #   rescue RAAF::Error => e
   #     puts "Ruby AI Agents Factory error: #{e.message}"
   #   end
   class Error < StandardError; end
@@ -189,28 +183,33 @@ module RubyAIAgentsFactory
   ##
   # Global tracer access
   #
-  # @return [RubyAIAgentsFactory::Tracing::SpanTracer] The global tracer instance
+  # @return [RAAF::Tracing::SpanTracer, nil] The global tracer instance if available
   def self.tracer(name = nil)
+    return nil unless defined?(Tracing::TraceProvider)
+
     Tracing::TraceProvider.tracer(name)
   end
 
   ##
   # Configure global tracing
   #
-  # @yield [RubyAIAgentsFactory::Tracing::TraceProvider] The trace provider for configuration
+  # @yield [RAAF::Tracing::TraceProvider] The trace provider for configuration
   def self.configure_tracing(&)
+    return unless defined?(Tracing::TraceProvider)
+
     Tracing::TraceProvider.configure(&)
   end
 
   ##
   # Global logger access
   #
-  # @return [RubyAIAgentsFactory::Logging] The unified logging system
+  # @return [RAAF::Logging] The unified logging system
   # @example
-  #   RubyAIAgentsFactory.logger.info("Agent started", agent: "GPT-4")
-  #   RubyAIAgentsFactory.logger.debug("Tool called", tool: "search")
-  #   RubyAIAgentsFactory.logger.error("API failed", error: e.message)
+  #   RAAF.logger.info("Agent started", agent: "GPT-4")
+  #   RAAF.logger.debug("Tool called", tool: "search")
+  #   RAAF.logger.error("API failed", error: e.message)
   def self.logger
     @logger ||= Logging
   end
+
 end

@@ -4,7 +4,7 @@ require "async"
 require "async/websocket"
 require "json"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # WebSocket client for connecting to WebSocket servers
@@ -13,7 +13,7 @@ module RubyAIAgentsFactory
     # and handling real-time communication with AI agents.
     #
     class WebSocketClient
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [String] Server URL
       attr_reader :url

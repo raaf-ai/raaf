@@ -5,10 +5,10 @@ require "async/barrier"
 require_relative "../agent"
 require_relative "base"
 
-module RubyAIAgentsFactory
+module RAAF
   module Async
     # Async-enhanced Agent class that supports async tool execution
-    class Agent < RubyAIAgentsFactory::Agent
+    class Agent < RAAF::Agent
       include Base
 
       # Execute a tool asynchronously
@@ -84,7 +84,7 @@ module RubyAIAgentsFactory
     end
 
     # Async-aware function tool wrapper
-    class AsyncFunctionTool < RubyAIAgentsFactory::FunctionTool
+    class AsyncFunctionTool < RAAF::FunctionTool
       include Base
 
       attr_reader :async

@@ -4,7 +4,7 @@ require "net/http"
 require "json"
 require_relative "models/responses_provider"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # StreamingClient handles real-time streaming responses from AI providers
   #
@@ -84,7 +84,7 @@ module RubyAIAgentsFactory
 
       tools.any? do |tool|
         case tool
-        when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
+        when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
           true
         when Hash
           %w[web_search file_search computer].include?(tool[:type])
@@ -245,7 +245,7 @@ module RubyAIAgentsFactory
     def prepare_tools_for_responses_api(tools)
       tools.map do |tool|
         case tool
-        when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
+        when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
           tool.to_tool_definition
         when Hash
           tool

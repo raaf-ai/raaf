@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module DSL
+
     ##
     # Tool builder for DSL-based tool construction
     #
@@ -9,7 +11,8 @@ module RubyAIAgentsFactory
     # with support for parameters, validation, and advanced tool features.
     #
     class ToolBuilder
-      include RubyAIAgentsFactory::Logging
+
+      include RAAF::Logging
 
       @@count = 0
 
@@ -60,10 +63,10 @@ module RubyAIAgentsFactory
           type: type.to_s,
           **options
         }
-        
-        if required
-          @config[:parameters][:required] << name
-        end
+
+        return unless required
+
+        @config[:parameters][:required] << name
       end
 
       ##
@@ -146,9 +149,7 @@ module RubyAIAgentsFactory
       #
       def defaults(**defaults)
         defaults.each do |name, value|
-          if @config[:parameters][:properties][name]
-            @config[:parameters][:properties][name][:default] = value
-          end
+          @config[:parameters][:properties][name][:default] = value if @config[:parameters][:properties][name]
         end
       end
 
@@ -356,8 +357,8 @@ module RubyAIAgentsFactory
       #
       def build
         validate_configuration!
-        
-        tool = RubyAIAgentsFactory::FunctionTool.new(
+
+        tool = RAAF::FunctionTool.new(
           name: @tool_name,
           description: @config[:description],
           parameters: @config[:parameters],
@@ -424,30 +425,24 @@ module RubyAIAgentsFactory
 
       def validate_configuration!
         errors = []
-        
+
         errors << "Tool name is required" unless @tool_name
         errors << "Tool description is required" unless @config[:description]
         errors << "Tool execution block is required" unless @execution_block
-        
+
         # Validate parameters
         @config[:parameters][:properties].each do |name, param|
-          unless param[:type]
-            errors << "Parameter '#{name}' must have a type"
-          end
+          errors << "Parameter '#{name}' must have a type" unless param[:type]
         end
-        
+
         # Validate required parameters exist
         @config[:parameters][:required].each do |name|
-          unless @config[:parameters][:properties].key?(name)
-            errors << "Required parameter '#{name}' not defined"
-          end
+          errors << "Required parameter '#{name}' not defined" unless @config[:parameters][:properties].key?(name)
         end
-        
+
         # Validate timeout
-        if @config[:timeout] && @config[:timeout] < 0
-          errors << "Timeout must be positive"
-        end
-        
+        errors << "Timeout must be positive" if @config[:timeout]&.negative?
+
         raise DSL::ValidationError, errors.join(", ") if errors.any?
       end
 
@@ -504,6 +499,9 @@ module RubyAIAgentsFactory
           tool.use_middleware(middleware)
         end
       end
+
     end
+
   end
+
 end

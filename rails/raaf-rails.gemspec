@@ -4,7 +4,7 @@ require_relative "lib/raaf/rails/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-rails"
-  spec.version = RubyAIAgentsFactory::Rails::VERSION
+  spec.version = RAAF::Rails::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -31,13 +31,10 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Dependencies
-  spec.add_dependency "raaf-core", "~> 1.0"
-  spec.add_dependency "raaf-memory", "~> 1.0"
-  spec.add_dependency "raaf-tracing", "~> 1.0"
+  spec.add_dependency "raaf-core", "0.1.0"
+  spec.add_dependency "raaf-memory", "0.1.0"
   spec.add_dependency "rails", ">= 7.0"
-  spec.add_dependency "redis", "~> 4.0"
   spec.add_dependency "sassc-rails", "~> 2.1"
-  spec.add_dependency "sidekiq", "~> 7.0"
   spec.add_dependency "stimulus-rails", "~> 1.0"
   spec.add_dependency "turbo-rails", "~> 1.0"
   spec.add_dependency "websocket-rails", "~> 0.7"

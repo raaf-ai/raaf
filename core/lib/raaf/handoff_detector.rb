@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Detects and processes agent handoff requests
     #
@@ -11,6 +13,7 @@ module RubyAIAgentsFactory
     # transfer control to another agent and managing that transition.
     #
     class HandoffDetector
+
       include Logger
 
       ##
@@ -32,15 +35,29 @@ module RubyAIAgentsFactory
       # @return [Hash] Result with :handoff_occurred and optionally :new_agent
       #
       def check_for_handoff(message, current_agent)
+        log_debug("🔄 HANDOFF FLOW: Checking message for handoff", 
+                  current_agent: current_agent.name,
+                  has_content: !message[:content].nil?)
+        
         # Check if the message indicates a handoff is needed
-        return { handoff_occurred: false } unless message[:content]
+        unless message[:content]
+          log_debug("🔄 HANDOFF FLOW: No content found in message", current_agent: current_agent.name)
+          return { handoff_occurred: false }
+        end
 
         # Delegate to runner's handoff detection
         handoff_target = @runner.detect_handoff_in_content(message[:content], current_agent)
-        
+        log_debug("🔄 HANDOFF FLOW: Handoff detection result", 
+                  current_agent: current_agent.name,
+                  handoff_target: handoff_target)
+
         if handoff_target
+          log_debug("🔄 HANDOFF FLOW: Processing handoff request", 
+                    current_agent: current_agent.name,
+                    target: handoff_target)
           process_handoff_request(handoff_target, current_agent)
         else
+          log_debug("🔄 HANDOFF FLOW: No handoff detected", current_agent: current_agent.name)
           { handoff_occurred: false }
         end
       end
@@ -56,12 +73,27 @@ module RubyAIAgentsFactory
       # @return [Hash] Result with :handoff_occurred and optionally :new_agent
       #
       def check_tool_calls_for_handoff(tool_calls, current_agent)
-        handoff_tool_call = tool_calls.find { |tc| is_handoff_tool?(tc) }
+        log_debug("🔄 HANDOFF FLOW: Checking tool calls for handoff", 
+                  current_agent: current_agent.name,
+                  tool_calls_count: tool_calls.count,
+                  tool_names: tool_calls.map { |tc| tc.dig("function", "name") || tc[:function][:name] }.join(", "))
         
+        handoff_tool_call = tool_calls.find { |tc| is_handoff_tool?(tc) }
+
         if handoff_tool_call
+          tool_name = handoff_tool_call.dig("function", "name") || handoff_tool_call[:function][:name]
+          log_debug("🔄 HANDOFF FLOW: Found handoff tool call", 
+                    current_agent: current_agent.name,
+                    handoff_tool: tool_name)
+          
           target_agent_name = extract_handoff_target(handoff_tool_call)
+          log_debug("🔄 HANDOFF FLOW: Extracted handoff target", 
+                    current_agent: current_agent.name,
+                    target_agent: target_agent_name)
+          
           process_handoff_request(target_agent_name, current_agent)
         else
+          log_debug("🔄 HANDOFF FLOW: No handoff tool calls found", current_agent: current_agent.name)
           { handoff_occurred: false }
         end
       end
@@ -91,18 +123,26 @@ module RubyAIAgentsFactory
       # @private
       #
       def process_handoff_request(target_agent_name, current_agent)
+        log_debug("🔄 HANDOFF FLOW: Processing handoff request", 
+                  current_agent: current_agent.name,
+                  target_agent: target_agent_name)
+        
         # Find the target agent
         target_agent = @runner.find_handoff_agent(target_agent_name, current_agent)
-        
+        log_debug("🔄 HANDOFF FLOW: Target agent lookup result", 
+                  current_agent: current_agent.name,
+                  target_agent: target_agent_name,
+                  found: !target_agent.nil?)
+
         if target_agent
-          log_info("Handoff detected", from: current_agent.name, to: target_agent.name)
+          log_info("🔄 HANDOFF FLOW: Handoff approved", from: current_agent.name, to: target_agent.name)
           {
             handoff_occurred: true,
             new_agent: target_agent,
             target_name: target_agent_name
           }
         else
-          log_warn("Handoff target not found", target: target_agent_name, current_agent: current_agent.name)
+          log_warn("🔄 HANDOFF FLOW: Handoff target not found", target: target_agent_name, current_agent: current_agent.name)
           { handoff_occurred: false, error: "Target agent '#{target_agent_name}' not found" }
         end
       end
@@ -119,7 +159,7 @@ module RubyAIAgentsFactory
       #
       def is_handoff_tool?(tool_call)
         function_name = tool_call.dig("function", "name") || tool_call[:function][:name]
-        
+
         # Check for common handoff tool patterns
         handoff_patterns = %w[handoff transfer_to delegate_to switch_to]
         handoff_patterns.any? { |pattern| function_name&.downcase&.include?(pattern) }
@@ -137,7 +177,7 @@ module RubyAIAgentsFactory
       #
       def extract_handoff_target(tool_call)
         arguments_str = tool_call.dig("function", "arguments") || tool_call[:function][:arguments]
-        
+
         begin
           arguments = JSON.parse(arguments_str, symbolize_names: true)
           # Look for common parameter names for target agent
@@ -147,6 +187,9 @@ module RubyAIAgentsFactory
           nil
         end
       end
+
     end
+
   end
+
 end

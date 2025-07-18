@@ -4,7 +4,7 @@ require "json"
 require "csv"
 require "yaml"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Data pipeline framework for agent-based data processing
   #

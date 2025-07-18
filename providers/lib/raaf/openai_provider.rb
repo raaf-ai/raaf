@@ -8,7 +8,7 @@ require_relative "interface"
 require_relative "responses_provider"
 require_relative "../http_client"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     # @deprecated Use ResponsesProvider instead. This provider uses the legacy Chat Completions API
     # and is maintained only for backwards compatibility and streaming support.
@@ -118,7 +118,7 @@ module RubyAIAgentsFactory
                 parameters: tool.parameters
               }
             }
-          when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
+          when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
             tool.to_tool_definition
           else
             raise ArgumentError, "Invalid tool type: #{tool.class}"
@@ -172,7 +172,7 @@ module RubyAIAgentsFactory
 
         tools.any? do |tool|
           case tool
-          when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
+          when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
             true
           when Hash
             %w[web_search file_search computer].include?(tool[:type])

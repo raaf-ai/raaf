@@ -1,9 +1,12 @@
-module RubyAIAgentsFactory
+# frozen_string_literal: true
+
+module RAAF
+
   ##
   # Tool Use Behavior Configuration System
   #
   # This module provides a flexible system for controlling how agents behave after
-  # tool calls are executed. It matches the Python OpenAI Agents implementation
+  # tool calls are executed. It matches the Python RAAF implementation
   # and allows fine-grained control over agent execution flow.
   #
   # == Behavior Types
@@ -48,10 +51,11 @@ module RubyAIAgentsFactory
   #     results.find { |r| r[:tool_name] == "generate_report" }[:content]
   #   end
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
-  # @see RubyAIAgentsFactory::Agent For agent configuration with behaviors
+  # @see RAAF::Agent For agent configuration with behaviors
   module ToolUseBehavior
+
     ##
     # Base class for all tool use behaviors
     #
@@ -60,6 +64,7 @@ module RubyAIAgentsFactory
     #
     # @abstract Subclass and override {#process_tool_result} to implement custom behavior
     class Base
+
       ##
       # Process tool execution results and determine continuation behavior
       #
@@ -82,9 +87,10 @@ module RubyAIAgentsFactory
       # @param results [Array<Hash>] the results from tool execution
       # @param conversation [Array<Hash>] the current conversation history
       # @return [Boolean] true if execution should continue
-      def should_continue?(agent, tool_calls, results, conversation)
+      def should_continue?(_agent, _tool_calls, _results, _conversation)
         true
       end
+
     end
 
     ##
@@ -98,6 +104,7 @@ module RubyAIAgentsFactory
     #   behavior = ToolUseBehavior::RunLLMAgain.new
     #   # Agent calls tool -> Tool executes -> Results added -> Agent continues
     class RunLLMAgain < Base
+
       ##
       # Add tool results to conversation and continue execution
       #
@@ -106,7 +113,7 @@ module RubyAIAgentsFactory
       # @param results [Array<Hash>] the results from tool execution
       # @param conversation [Array<Hash>] the current conversation history
       # @return [Hash] {continue: true, done: false}
-      def process_tool_result(agent, tool_calls, results, conversation)
+      def process_tool_result(_agent, _tool_calls, results, conversation)
         # Add tool results to conversation and continue
         results.each do |result|
           conversation << result
@@ -114,6 +121,7 @@ module RubyAIAgentsFactory
 
         { continue: true, done: false }
       end
+
     end
 
     ##
@@ -127,6 +135,7 @@ module RubyAIAgentsFactory
     #   behavior = ToolUseBehavior::StopOnFirstTool.new
     #   # Agent calls tool -> Tool executes -> Agent stops and returns
     class StopOnFirstTool < Base
+
       ##
       # Add tool results to conversation and stop execution
       #
@@ -135,7 +144,7 @@ module RubyAIAgentsFactory
       # @param results [Array<Hash>] the results from tool execution
       # @param conversation [Array<Hash>] the current conversation history
       # @return [Hash] {continue: false, done: true}
-      def process_tool_result(agent, tool_calls, results, conversation)
+      def process_tool_result(_agent, _tool_calls, results, conversation)
         # Add tool results but mark as done
         results.each do |result|
           conversation << result
@@ -143,6 +152,7 @@ module RubyAIAgentsFactory
 
         { continue: false, done: true }
       end
+
     end
 
     ##
@@ -156,6 +166,7 @@ module RubyAIAgentsFactory
     #   behavior = ToolUseBehavior::StopAtTools.new(["search", "database_query"])
     #   # Agent continues for most tools but stops after search/database
     class StopAtTools < Base
+
       attr_reader :tool_names
 
       ##
@@ -163,10 +174,11 @@ module RubyAIAgentsFactory
       #
       # @param tool_names [Array<String>, String] tool names that should cause stopping
       def initialize(tool_names)
+        super()
         @tool_names = Array(tool_names).map(&:to_s)
       end
 
-      def process_tool_result(agent, tool_calls, results, conversation)
+      def process_tool_result(_agent, tool_calls, results, conversation)
         # Check if any of the called tools are in our stop list
         should_stop = tool_calls.any? do |tool_call|
           tool_name = tool_call.dig("function", "name")
@@ -179,6 +191,7 @@ module RubyAIAgentsFactory
 
         { continue: !should_stop, done: should_stop }
       end
+
     end
 
     ##
@@ -195,6 +208,7 @@ module RubyAIAgentsFactory
     #     !has_error  # Continue only if no errors
     #   end
     class CustomFunction < Base
+
       attr_reader :function
 
       ##
@@ -204,6 +218,7 @@ module RubyAIAgentsFactory
       # @yield [agent, tool_calls, results, conversation] custom logic parameters
       # @yieldreturn [Boolean, Hash] true/false for continue or hash with :continue/:done keys
       def initialize(function)
+        super()
         @function = function
       end
 
@@ -224,6 +239,7 @@ module RubyAIAgentsFactory
           { continue: true, done: false }
         end
       end
+
     end
 
     ##
@@ -239,14 +255,16 @@ module RubyAIAgentsFactory
     #     results.find { |r| r[:tool_name] == "generate_report" }[:content]
     #   end
     class ToolsToFinalOutput < Base
+
       attr_reader :tool_names, :output_extractor
 
       def initialize(tool_names, output_extractor: nil)
+        super()
         @tool_names = Array(tool_names).map(&:to_s)
         @output_extractor = output_extractor || ->(results) { results.last[:content] }
       end
 
-      def process_tool_result(agent, tool_calls, results, conversation)
+      def process_tool_result(_agent, tool_calls, results, conversation)
         # Check if any called tools are in our final output list
         final_tools = tool_calls.select do |tool_call|
           tool_name = tool_call.dig("function", "name")
@@ -275,10 +293,12 @@ module RubyAIAgentsFactory
           { continue: true, done: false }
         end
       end
+
     end
 
     # Factory methods for creating behaviors
     class << self
+
       def run_llm_again
         RunLLMAgain.new
       end
@@ -314,6 +334,9 @@ module RubyAIAgentsFactory
           run_llm_again # Default
         end
       end
+
     end
+
   end
+
 end

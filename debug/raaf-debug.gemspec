@@ -4,7 +4,7 @@ require_relative "lib/raaf/debug/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-debug"
-  spec.version = RubyAIAgentsFactory::Debug::VERSION
+  spec.version = RAAF::Debug::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -40,8 +40,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "memory_profiler", "~> 1.0"
   spec.add_dependency "pry", "~> 0.14"
   spec.add_dependency "pry-byebug", "~> 3.10"
-  spec.add_dependency "raaf-core", "~> 1.0"
-  spec.add_dependency "raaf-logging", "~> 1.0"
+  spec.add_dependency "raaf-core", "0.1.0"
   spec.add_dependency "ruby-prof", "~> 1.4"
   spec.add_dependency "stackprof", "~> 0.2"
   spec.add_dependency "terminal-table", "~> 3.0"

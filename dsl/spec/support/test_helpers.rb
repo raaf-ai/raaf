@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module TestHelpers
+
   # Create a temporary YAML configuration file
   def create_test_config_file(config_hash, filename = "ai_agents.yml")
     config_path = File.join(temp_dir, filename)
@@ -10,8 +11,8 @@ module TestHelpers
 
   # Create a test agent class for testing
   def create_test_agent_class(name = "TestAgent", &block)
-    agent_class = Class.new(AiAgentDsl::Agents::Base) do
-      include AiAgentDsl::AgentDsl
+    agent_class = Class.new(RAAF::DSL::Agents::Base) do
+      include RAAF::DSL::AgentDsl
     end
 
     agent_class.class_eval(&block) if block_given?
@@ -23,7 +24,7 @@ module TestHelpers
 
   # Create a test prompt class for testing
   def create_test_prompt_class(name = "TestPrompt", &block)
-    prompt_class = Class.new(AiAgentDsl::Prompts::Base)
+    prompt_class = Class.new(RAAF::DSL::Prompts::Base)
 
     prompt_class.class_eval(&block) if block_given?
 
@@ -34,8 +35,8 @@ module TestHelpers
 
   # Create a test tool class for testing
   def create_test_tool_class(name = "TestTool", &block)
-    tool_class = Class.new(AiAgentDsl::Tools::Base) do
-      include AiAgentDsl::ToolDsl
+    tool_class = Class.new(RAAF::DSL::Tools::Base) do
+      include RAAF::DSL::ToolDsl
     end
 
     tool_class.class_eval(&block) if block_given?
@@ -113,8 +114,8 @@ module TestHelpers
     # Set up the method chain: client.responses.create
     allow(client).to receive(:responses).and_return(responses)
     allow(responses).to receive(:create).and_return({
-      "text" => "Mocked OpenAI Responses API response"
-    })
+                                                      "text" => "Mocked OpenAI Responses API response"
+                                                    })
 
     # Mock OpenAI::Client.new to return our mock
     allow(OpenAI::Client).to receive(:new).and_return(client)
@@ -126,29 +127,29 @@ module TestHelpers
   def with_config_file(config_hash)
     config_path = create_test_config_file(config_hash)
 
-    # Configure AiAgentDsl to use the test config file
-    AiAgentDsl.configure do |config|
+    # Configure RAAF::DSL to use the test config file
+    RAAF::DSL.configure do |config|
       config.config_file = config_path
     end
 
     # Clear any existing config cache
-    if defined?(AiAgentDsl::Config)
-      AiAgentDsl::Config.instance_variable_set(:@config, nil)
-      AiAgentDsl::Config.instance_variable_set(:@environment_configs, {})
-      AiAgentDsl::Config.instance_variable_set(:@raw_config, nil)
+    if defined?(RAAF::DSL::Config)
+      RAAF::DSL::Config.instance_variable_set(:@config, nil)
+      RAAF::DSL::Config.instance_variable_set(:@environment_configs, {})
+      RAAF::DSL::Config.instance_variable_set(:@raw_config, nil)
     end
 
     # Force reload of configuration
-    AiAgentDsl::Config.reload! if defined?(AiAgentDsl::Config)
+    RAAF::DSL::Config.reload! if defined?(RAAF::DSL::Config)
 
     yield config_path
   ensure
     # Reset configuration
-    AiAgentDsl.instance_variable_set(:@configuration, nil)
-    if defined?(AiAgentDsl::Config)
-      AiAgentDsl::Config.instance_variable_set(:@config, nil)
-      AiAgentDsl::Config.instance_variable_set(:@environment_configs, {})
-      AiAgentDsl::Config.instance_variable_set(:@raw_config, nil)
+    RAAF::DSL.instance_variable_set(:@configuration, nil)
+    if defined?(RAAF::DSL::Config)
+      RAAF::DSL::Config.instance_variable_set(:@config, nil)
+      RAAF::DSL::Config.instance_variable_set(:@environment_configs, {})
+      RAAF::DSL::Config.instance_variable_set(:@raw_config, nil)
     end
   end
 
@@ -188,6 +189,7 @@ module TestHelpers
   ensure
     allow(Rails).to receive(:logger).and_return(original_logger) if defined?(Rails) && original_logger
   end
+
 end
 
 # Include helpers in RSpec

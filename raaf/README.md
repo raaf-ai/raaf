@@ -34,14 +34,14 @@ $ gem install raaf
 require 'raaf'
 
 # Create an agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant.",
   model: "gpt-4o"
 )
 
 # Run the agent
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello, how are you?")
 puts result.messages.last[:content]
 ```
@@ -57,14 +57,14 @@ def get_weather(location)
 end
 
 # Create agent with tools
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "WeatherBot",
   instructions: "You are a weather assistant.",
   model: "gpt-4o",
   tools: [method(:get_weather)]
 )
 
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("What's the weather in Tokyo?")
 ```
 
@@ -145,7 +145,7 @@ Use the intuitive DSL for rapid agent development:
 require 'raaf'
 
 # Use the DSL
-RubyAIAgentsFactory::DSL.define_agent :weather_bot do
+RAAF::DSL.define_agent :weather_bot do
   name "WeatherBot"
   instructions "You are a helpful weather assistant"
   model "gpt-4o"
@@ -160,8 +160,8 @@ RubyAIAgentsFactory::DSL.define_agent :weather_bot do
 end
 
 # Run the agent
-agent = RubyAIAgentsFactory::DSL.agents[:weather_bot]
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+agent = RAAF::DSL.agents[:weather_bot]
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("What's the weather in Tokyo?")
 ```
 
@@ -173,13 +173,13 @@ RAAF provides seamless Rails integration:
 # In your Rails application
 class ChatController < ApplicationController
   def create
-    agent = RubyAIAgentsFactory::Agent.new(
+    agent = RAAF::Agent.new(
       name: "ChatBot",
       instructions: "You are a helpful customer service agent.",
       model: "gpt-4o"
     )
     
-    runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+    runner = RAAF::Runner.new(agent: agent)
     result = runner.run(params[:message])
     
     render json: { response: result.messages.last[:content] }
@@ -192,7 +192,7 @@ Mount the web dashboard:
 ```ruby
 # config/routes.rb
 Rails.application.routes.draw do
-  mount RubyAIAgentsFactory::Rails::Engine => "/agents"
+  mount RAAF::Rails::Engine => "/agents"
 end
 ```
 
@@ -204,17 +204,17 @@ Enable comprehensive monitoring:
 require 'raaf'
 
 # Set up tracing
-tracer = RubyAIAgentsFactory::Tracing::SpanTracer.new
-tracer.add_processor(RubyAIAgentsFactory::Tracing::OpenAIProcessor.new)
+tracer = RAAF::Tracing::SpanTracer.new
+tracer.add_processor(RAAF::Tracing::OpenAIProcessor.new)
 
 # Create agent with tracing
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "TracedAgent",
   instructions: "You are a helpful assistant.",
   model: "gpt-4o"
 )
 
-runner = RubyAIAgentsFactory::Runner.new(agent: agent, tracer: tracer)
+runner = RAAF::Runner.new(agent: agent, tracer: tracer)
 result = runner.run("Explain quantum computing")
 ```
 
@@ -227,7 +227,7 @@ require 'raaf'
 
 # Use test helpers
 RSpec.describe "My Agent" do
-  include RubyAIAgentsFactory::Testing::Helpers
+  include RAAF::Testing::Helpers
   
   let(:agent) { create_test_agent }
   

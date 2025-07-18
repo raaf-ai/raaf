@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Testing
     ##
     # RSpec matchers for testing AI agents

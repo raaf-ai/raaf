@@ -4,7 +4,8 @@ require "json"
 require_relative "errors"
 require_relative "strict_schema"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Base class for agent output schemas
   #
@@ -14,6 +15,7 @@ module RubyAIAgentsFactory
   # @abstract Subclasses must implement all abstract methods
   #
   class AgentOutputSchemaBase
+
     ##
     # Whether the output type is plain text (versus a JSON object)
     #
@@ -66,6 +68,7 @@ module RubyAIAgentsFactory
     def validate_json(json_str)
       raise NotImplementedError, "Subclasses must implement #validate_json"
     end
+
   end
 
   ##
@@ -91,7 +94,7 @@ module RubyAIAgentsFactory
   #       @name, @age = name, age
   #     end
   #   end
-  #   
+  #
   #   schema = AgentOutputSchema.new(Person)
   #   schema.strict_json_schema? # => true by default
   #   schema.json_schema # => Generated JSON schema for Person
@@ -101,6 +104,7 @@ module RubyAIAgentsFactory
   #   # More lenient validation for complex types
   #
   class AgentOutputSchema < AgentOutputSchemaBase
+
     # Key used when wrapping non-Hash types in a JSON object
     WRAPPER_DICT_KEY = "response"
 
@@ -114,6 +118,7 @@ module RubyAIAgentsFactory
     # @param strict_json_schema [Boolean] Whether to use strict JSON schema validation
     #
     def initialize(output_type, strict_json_schema: true)
+      super()
       @output_type = output_type
       @strict_json_schema = strict_json_schema
       @is_wrapped = false
@@ -312,9 +317,8 @@ module RubyAIAgentsFactory
         { type: "boolean" }
       when Array.class, "Array"
         { type: "array", items: {} }
-      when Hash.class, "Hash"
-        { type: "object", additionalProperties: true }
       else
+        # Default for Hash, unknown types, and else case
         { type: "object", additionalProperties: true }
       end
     end
@@ -368,6 +372,7 @@ module RubyAIAgentsFactory
 
       type.to_s
     end
+
   end
 
   ##
@@ -392,11 +397,12 @@ module RubyAIAgentsFactory
   #       { type: "object", properties: { value: { type: "string" } } }
   #     end
   #   end
-  #   
+  #
   #   adapter = TypeAdapter.new(CustomType)
   #   adapter.json_schema # => Uses CustomType.json_schema
   #
   class TypeAdapter
+
     # @return [Class, Module] The type this adapter validates against
     attr_reader :type
 
@@ -418,10 +424,7 @@ module RubyAIAgentsFactory
     #
     def validate(value)
       case @type
-      when Class
-        raise TypeError, "Expected #{@type}, got #{value.class}" unless value.is_a?(@type)
-
-      when Module
+      when Class, Module
         raise TypeError, "Expected #{@type}, got #{value.class}" unless value.is_a?(@type)
         # For non-class types, just return the value
       end
@@ -455,5 +458,7 @@ module RubyAIAgentsFactory
         end
       end
     end
+
   end
+
 end

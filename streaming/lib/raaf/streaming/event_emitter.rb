@@ -2,7 +2,7 @@
 
 require "concurrent-ruby"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # Event emitter for publish-subscribe patterns
@@ -11,7 +11,7 @@ module RubyAIAgentsFactory
     # wildcard listeners, event filtering, and async event handling.
     #
     class EventEmitter
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Integer] Maximum listeners per event
       attr_reader :max_listeners

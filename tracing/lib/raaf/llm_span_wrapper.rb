@@ -2,11 +2,11 @@
 
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # Wrapper to ensure LLM span data is properly captured
     class LLMSpanWrapper
-      include RubyAIAgentsFactory::Logger
+      include RAAF::Logger
       def self.wrap_provider(provider, tracer)
         return provider unless tracer
 

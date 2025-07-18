@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Usage example for enhanced debugging capabilities in AiAgentDsl::Agents::Base
+# Usage example for enhanced debugging capabilities in RAAF::DSL::Agents::Base
 #
 # This example demonstrates how to use the new debugging features in a real scenario.
 
@@ -55,21 +55,21 @@ puts <<~EXAMPLE
   class ProspectDiscoveryService < BaseService
     def call_with_debug
       agent = create_discovery_agent
-  #{'    '}
+  #{"    "}
       # Enhanced debugging for development
       if Rails.env.development?
         result = agent.run_with_debug(
           input_context_variables: @context_variables,
           debug_level: :verbose
         )
-  #{'      '}
+  #{"      "}
         # Log debug summary
         Rails.logger.info "🔍 Agent Debug Summary:"
         Rails.logger.info result[:debug_info][:context_summary]
-  #{'      '}
+  #{"      "}
         return result
       end
-  #{'    '}
+  #{"    "}
       # Standard run for production
       agent.run(input_context_variables: @context_variables)
     end

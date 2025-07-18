@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates the memory system in OpenAI Agents Ruby.
+# This example demonstrates the memory system in RAAF (Ruby AI Agents Factory).
 # Memory allows agents to store and retrieve information across conversations,
 # enabling persistent context, personalization, and knowledge accumulation.
 # The memory system supports multiple storage backends (in-memory, file-based)
 # and provides semantic search capabilities for intelligent recall.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 # require_relative "../lib/openai_agents/memory"  # Not implemented yet
 
 # Helper method to handle memory method calls gracefully
@@ -47,7 +47,7 @@ end
 # ============================================================================
 # EARLY EXIT WITH CLEAR INSTRUCTIONS
 # ============================================================================
-puts "=== OpenAI Agents Memory System Example ==="
+puts "=== RAAF Memory System Example ==="
 puts "⚠️  WARNING: This example shows PLANNED API design but does NOT work!"
 puts "❌ The agent memory methods are not implemented yet."
 puts "✅ For WORKING memory examples, run: ruby memory_agent_simple.rb"
@@ -76,10 +76,10 @@ puts "-" * 40
 # Fast access, no disk I/O, ideal for real-time applications
 # ⚠️  WARNING: This class does not exist yet - planned for future implementation
 begin
-  memory_store = OpenAIAgents::Memory::InMemoryStore.new
+  memory_store = RAAF::Memory::InMemoryStore.new
 rescue NameError => e
   puts "❌ Error: #{e.message}"
-  puts "The OpenAIAgents::Memory::InMemoryStore class is not implemented yet."
+  puts "The RAAF::Memory::InMemoryStore class is not implemented yet."
   memory_store = nil
 end
 
@@ -87,7 +87,7 @@ end
 # The memory_store parameter enables memory features
 # ⚠️  WARNING: The memory_store parameter is not implemented yet
 begin
-  assistant = OpenAIAgents::Agent.new(
+  assistant = RAAF::Agent.new(
     name: "MemoryAssistant",
     
     # Instructions guide the agent to use its memory
@@ -104,7 +104,7 @@ rescue ArgumentError => e
   puts "The Agent class does not support memory_store parameter yet."
   
   # Create agent without memory for demonstration
-  assistant = OpenAIAgents::Agent.new(
+  assistant = RAAF::Agent.new(
     name: "MemoryAssistant",
     instructions: "You are a helpful assistant (memory not yet implemented).",
     model: "gpt-4o-mini"
@@ -176,10 +176,10 @@ puts "-" * 40
 # Create a file-based store
 # Memories are saved as JSON files in the specified directory
 # Data persists between program runs, enabling long-term memory
-file_store = OpenAIAgents::Memory::FileStore.new("./agent_memories")
+file_store = RAAF::Memory::FileStore.new("./agent_memories")
 
 # Create a customer service agent that remembers past interactions
-service_agent = OpenAIAgents::Agent.new(
+service_agent = RAAF::Agent.new(
   name: "CustomerServiceBot",
   
   # Instructions emphasize using memory for better service
@@ -257,18 +257,18 @@ puts "-" * 40
 
 # Create a shared memory store
 # Multiple agents can read/write to the same memory pool
-shared_store = OpenAIAgents::Memory::InMemoryStore.new
+shared_store = RAAF::Memory::InMemoryStore.new
 
 # Create specialized agents that collaborate through shared memory
 # Research agent gathers information
-research_agent = OpenAIAgents::Agent.new(
+research_agent = RAAF::Agent.new(
   name: "ResearchAgent",
   instructions: "You research technical topics and store findings.",
   memory_store: shared_store  # Same store as writing agent
 )
 
 # Writing agent uses research to create content
-writing_agent = OpenAIAgents::Agent.new(
+writing_agent = RAAF::Agent.new(
   name: "WritingAgent",
   instructions: "You write articles based on research findings.",
   memory_store: shared_store  # Shares memory with research agent
@@ -304,7 +304,7 @@ puts "\n\nExample 4: Using Memory Context in Prompts"
 puts "-" * 40
 
 # Create an agent designed to use memory context
-contextual_agent = OpenAIAgents::Agent.new(
+contextual_agent = RAAF::Agent.new(
   name: "ContextualAssistant",
   
   # Instructions emphasize using previous context
@@ -339,13 +339,13 @@ puts "-" * 40
 
 # Create a memory manager with constraints
 # Prevents context from exceeding API token limits
-manager = OpenAIAgents::Memory::MemoryManager.new(
+manager = RAAF::Memory::MemoryManager.new(
   max_tokens: 500,         # Maximum tokens for context
   summary_threshold: 0.8   # When to summarize (80% of limit)
 )
 
 # Create agent that will accumulate many memories
-managed_agent = OpenAIAgents::Agent.new(
+managed_agent = RAAF::Agent.new(
   name: "ManagedMemoryAgent",
   instructions: "You help with coding questions.",
   memory_store: memory_store
@@ -377,7 +377,7 @@ puts limited_context[0..200] + "..."
 puts "\n\nExample 6: Memory Lifecycle"
 puts "-" * 40
 
-lifecycle_agent = OpenAIAgents::Agent.new(
+lifecycle_agent = RAAF::Agent.new(
   name: "LifecycleAgent",
   memory_store: memory_store
 )
@@ -419,7 +419,7 @@ puts "\n⚠️  IMPORTANT: This file shows PLANNED features that don't work yet!
 puts "\n✅ For WORKING memory examples, see: memory_agent_simple.rb"
 
 puts "\n📋 Implementation Roadmap - What needs to be built:"
-puts "1. OpenAIAgents::Memory module with storage backends"
+puts "1. RAAF::Memory module with storage backends"
 puts "2. Agent class memory integration (memory_store parameter)"
 puts "3. Agent memory methods: remember, recall, recent_memories"
 puts "4. Memory management: memory_count, has_memories?, clear_memories"

@@ -1,6 +1,6 @@
 require "async"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # ParallelGuardrails - Execute guardrails in parallel for better performance
   #

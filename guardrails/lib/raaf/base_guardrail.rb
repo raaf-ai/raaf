@@ -2,7 +2,7 @@
 
 require_relative "base"
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     # Base class for guardrails that provides common functionality
     class BaseGuardrail < Base

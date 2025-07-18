@@ -5,9 +5,9 @@ require "openai_agents/agent"
 require "openai_agents/memory/in_memory_store"
 
 RSpec.describe "Agent Memory Integration" do
-  let(:memory_store) { OpenAIAgents::Memory::InMemoryStore.new }
+  let(:memory_store) { RAAF::Memory::InMemoryStore.new }
   let(:agent) do
-    OpenAIAgents::Agent.new(
+    RAAF::Agent.new(
       name: "MemoryAgent",
       instructions: "You are a helpful assistant with memory",
       memory_store: memory_store
@@ -20,7 +20,7 @@ RSpec.describe "Agent Memory Integration" do
     end
 
     it "works without memory store" do
-      agent_without_memory = OpenAIAgents::Agent.new(
+      agent_without_memory = RAAF::Agent.new(
         name: "NoMemoryAgent",
         instructions: "No memory needed"
       )
@@ -65,7 +65,7 @@ RSpec.describe "Agent Memory Integration" do
       agent.remember("Ruby on Rails guide")
       
       # Add memory from another agent
-      other_memory = OpenAIAgents::Memory::Memory.new(
+      other_memory = RAAF::Memory::Memory.new(
         content: "Other agent's Ruby knowledge",
         agent_name: "OtherAgent"
       )
@@ -98,7 +98,7 @@ RSpec.describe "Agent Memory Integration" do
       agent.remember("Recent memory")
       
       # Add another agent's memory
-      other_memory = OpenAIAgents::Memory::Memory.new(
+      other_memory = RAAF::Memory::Memory.new(
         content: "Other agent memory",
         agent_name: "OtherAgent"
       )
@@ -130,7 +130,7 @@ RSpec.describe "Agent Memory Integration" do
       agent.remember("Memory 2")
       
       # Add another agent's memory
-      other_memory = OpenAIAgents::Memory::Memory.new(
+      other_memory = RAAF::Memory::Memory.new(
         content: "Other agent memory",
         agent_name: "OtherAgent"
       )

@@ -33,27 +33,27 @@ require_relative "raaf/models/litellm_provider"
 #   require 'raaf-providers'
 #
 #   # Use Anthropic's Claude
-#   agent = RubyAIAgentsFactory::Agent.new(
+#   agent = RAAF::Agent.new(
 #     name: "Claude Assistant",
 #     instructions: "You are Claude, an AI assistant",
 #     model: "claude-3-sonnet-20240229"
 #   )
 #
-#   runner = RubyAIAgentsFactory::Runner.new(
+#   runner = RAAF::Runner.new(
 #     agent: agent,
-#     provider: RubyAIAgentsFactory::Models::AnthropicProvider.new
+#     provider: RAAF::Models::AnthropicProvider.new
 #   )
 #
 # == Multi-Provider Setup
 #
 #   # Load balancing across multiple providers
-#   multi_provider = RubyAIAgentsFactory::Models::MultiProvider.new([
-#     RubyAIAgentsFactory::Models::ResponsesProvider.new,
-#     RubyAIAgentsFactory::Models::AnthropicProvider.new,
-#     RubyAIAgentsFactory::Models::CohereProvider.new
+#   multi_provider = RAAF::Models::MultiProvider.new([
+#     RAAF::Models::ResponsesProvider.new,
+#     RAAF::Models::AnthropicProvider.new,
+#     RAAF::Models::CohereProvider.new
 #   ])
 #
-#   runner = RubyAIAgentsFactory::Runner.new(
+#   runner = RAAF::Runner.new(
 #     agent: agent,
 #     provider: multi_provider
 #   )
@@ -69,7 +69,7 @@ require_relative "raaf/models/litellm_provider"
 #
 # @author Ruby AI Agents Factory Team
 # @since 1.0.0
-module RubyAIAgentsFactory
+module RAAF
   module Providers
     # Providers gem version
     VERSION = "0.1.0"

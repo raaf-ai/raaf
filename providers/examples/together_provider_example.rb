@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates Together AI integration with OpenAI Agents Ruby.
+# This example demonstrates Together AI integration with RAAF (Ruby AI Agents Factory).
 # Together AI provides access to a vast selection of open-source models
 # including Llama, Mistral, CodeLlama, and many others at competitive prices.
 # The multi-provider architecture allows seamless switching between AI providers,
 # enabling model diversity, cost optimization, and specialized capabilities.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Together AI requires an API key for authentication
 # Sign up at https://together.ai to get your key
@@ -28,7 +28,7 @@ puts
 # Create a Together AI provider instance
 # This provider translates between OpenAI's interface and Together's API
 # Enables using Together's diverse model catalog with unified interface
-provider = OpenAIAgents::Models::TogetherProvider.new
+provider = RAAF::Models::TogetherProvider.new
 
 # ============================================================================
 # EXAMPLE 1: MODEL DIVERSITY SHOWCASE
@@ -104,7 +104,7 @@ def optimize_code(code:, language:, optimization_type: "performance")
 end
 
 # Create a specialized coding agent using CodeLlama
-coding_agent = OpenAIAgents::Agent.new(
+coding_agent = RAAF::Agent.new(
   name: "CodeLlamaAgent",
   instructions: "You are a programming assistant using CodeLlama. Help with code generation, review, and optimization. Always provide clear, well-commented code.",
   model: "codellama/CodeLlama-34b-Instruct-hf"
@@ -116,7 +116,7 @@ coding_agent.add_tool(method(:review_code))
 coding_agent.add_tool(method(:optimize_code))
 
 # Create runner with Together provider
-coding_runner = OpenAIAgents::Runner.new(
+coding_runner = RAAF::Runner.new(
   agent: coding_agent,
   provider: provider
 )
@@ -280,7 +280,7 @@ puts
 puts "7. Multi-provider handoff (Together to OpenAI):"
 
 # Create Together agent for cost-effective initial processing
-together_agent = OpenAIAgents::Agent.new(
+together_agent = RAAF::Agent.new(
   name: "TogetherAgent",
   instructions: "You are a cost-effective agent using Together AI. For very complex tasks requiring advanced reasoning, handoff to OpenAIAgent.",
   model: "meta-llama/Llama-3-8b-chat-hf"
@@ -288,7 +288,7 @@ together_agent = OpenAIAgents::Agent.new(
 
 # Create OpenAI agent for complex tasks (if API key available)
 if ENV["OPENAI_API_KEY"]
-  openai_agent = OpenAIAgents::Agent.new(
+  openai_agent = RAAF::Agent.new(
     name: "OpenAIAgent",
     instructions: "You are an advanced reasoning agent using GPT-4. Handle complex analytical tasks.",
     model: "gpt-4o"
@@ -298,7 +298,7 @@ if ENV["OPENAI_API_KEY"]
   together_agent.add_handoff(openai_agent)
   
   # Create runner starting with Together
-  handoff_runner = OpenAIAgents::Runner.new(
+  handoff_runner = RAAF::Runner.new(
     agent: together_agent,
     provider: provider
   )

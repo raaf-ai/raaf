@@ -8,7 +8,7 @@
 # can be combined to create sophisticated data processing workflows.
 # AI agents can be integrated at any stage for intelligent transformations.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 require_relative "../lib/openai_agents/data_pipeline"
 
 # Set API key from environment
@@ -30,14 +30,14 @@ puts "-" * 50
 
 # Create a simple pipeline with a meaningful name
 # Names help with debugging and monitoring in production
-simple_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("simple_pipeline")
+simple_pipeline = RAAF::DataPipeline::Pipeline.new("simple_pipeline")
 
 # Add stages using method chaining for readability
 # Each stage has a name and transformation function
 simple_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("uppercase", &:upcase))  # Transform to uppercase
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("reverse", &:reverse))   # Reverse the string
-  .add_stage(OpenAIAgents::DataPipeline::OutputStage.new("print", destination: :stdout))  # Output result
+  .add_stage(RAAF::DataPipeline::MapStage.new("uppercase", &:upcase))  # Transform to uppercase
+  .add_stage(RAAF::DataPipeline::MapStage.new("reverse", &:reverse))   # Reverse the string
+  .add_stage(RAAF::DataPipeline::OutputStage.new("print", destination: :stdout)) # Output result
 
 # Process data
 puts "Processing 'hello world' through pipeline:"
@@ -55,29 +55,27 @@ puts "-" * 50
 
 # Create specialized data processing agent
 # Using smaller model for cost efficiency on simple tasks
-data_agent = OpenAIAgents::Agent.new(
+data_agent = RAAF::Agent.new(
   name: "DataProcessor",
-  model: "gpt-4o-mini",  # Cost-effective for data processing
+  model: "gpt-4o-mini", # Cost-effective for data processing
   instructions: "You process and clean data. Extract key information and format it nicely."
 )
 
 # Create pipeline with agent
-agent_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("agent_pipeline") do
+agent_pipeline = RAAF::DataPipeline::PipelineBuilder.build("agent_pipeline") do
   # Parse JSON
-  map do |data| 
-    
+  map do |data|
     JSON.parse(data)
   rescue StandardError
     { raw: data }
-    
   end
-  
+
   # Transform with agent
   transform(
     agent: data_agent,
     prompt: "Extract and summarize key information from: {{data}}"
   )
-  
+
   # Output result
   output(destination: :stdout, format: :json)
 end
@@ -107,26 +105,26 @@ puts "-" * 50
 # Schemas ensure data consistency and catch errors early
 user_schema = {
   name: { required: true, type: String },
-  email: { required: true, pattern: /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i },  # RFC-compliant email
+  email: { required: true, pattern: /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i }, # RFC-compliant email
   age: { required: false, type: Integer }
 }
 
 # Create validation pipeline
-validation_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("validation") do
+validation_pipeline = RAAF::DataPipeline::PipelineBuilder.build("validation") do
   # Validate data
   validate(schema: user_schema) do |data|
     errors = []
-    errors << "Age must be positive" if data[:age] && data[:age] < 0
+    errors << "Age must be positive" if data[:age]&.negative?
     errors << "Name too short" if data[:name] && data[:name].length < 2
     errors
   end
-  
+
   # Filter valid adults
   filter { |data| data[:age] && data[:age] >= 18 }
-  
+
   # Format output
   map { |data| "Valid adult user: #{data[:name]} (#{data[:age]})" }
-  
+
   output(destination: :stdout)
 end
 
@@ -166,25 +164,25 @@ user_database = {
 }
 
 # Create ETL pipeline
-etl_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("etl") do
+etl_pipeline = RAAF::DataPipeline::PipelineBuilder.build("etl") do
   # Extract - parse CSV-like data
   map do |line|
     parts = line.split(",")
     { id: parts[0], name: parts[1], purchases: parts[2].to_i }
   end
-  
+
   # Transform - calculate metrics
   map do |data|
-    data[:avg_purchase] = data[:purchases] > 0 ? rand(50..200) : 0
+    data[:avg_purchase] = data[:purchases].positive? ? rand(50..200) : 0
     data[:status] = data[:purchases] > 10 ? "active" : "inactive"
     data
   end
-  
+
   # Enrich with external data
   enrich(source: ->(data) { user_database[data[:id]] || {} }) do |data, enrichment|
     data.merge(enrichment)
   end
-  
+
   # Load - output as JSON
   output(destination: :stdout, format: :json)
 end
@@ -213,19 +211,19 @@ puts "Example 5: Stream Processing"
 puts "-" * 50
 
 # Create stream processing pipeline for real-time processing
-stream_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("stream_processor")
+stream_pipeline = RAAF::DataPipeline::Pipeline.new("stream_processor")
 
 # Add stages for log processing
 # Parse stage extracts structured data from unstructured logs
 stream_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("parse_log") do |line|
+  .add_stage(RAAF::DataPipeline::MapStage.new("parse_log") do |line|
     if (match = line.match(/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(\w+)\] (.+)/))
       { timestamp: match[1], level: match[2], message: match[3] }
     else
       { timestamp: Time.now.to_s, level: "INFO", message: line }
     end
   end)
-  .add_stage(OpenAIAgents::DataPipeline::FilterStage.new("errors_only") do |log|
+  .add_stage(RAAF::DataPipeline::FilterStage.new("errors_only") do |log|
     %w[ERROR CRITICAL].include?(log[:level])
   end)
 
@@ -254,9 +252,9 @@ puts "-" * 50
 
 # Create batch processing pipeline with parallel execution
 # Parallel processing dramatically improves performance for I/O or CPU-intensive tasks
-batch_pipeline = OpenAIAgents::DataPipeline::Pipeline.new(
+batch_pipeline = RAAF::DataPipeline::Pipeline.new(
   "batch_processor",
-  batch_options: { 
+  batch_options: {
     parallel: true,     # Enable parallel processing
     max_threads: 2,     # Thread pool size (tune based on workload)
     chunk_size: 3       # Items per chunk (affects memory usage)
@@ -265,7 +263,7 @@ batch_pipeline = OpenAIAgents::DataPipeline::Pipeline.new(
 
 # Add processing stages
 batch_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("simulate_work") do |item|
+  .add_stage(RAAF::DataPipeline::MapStage.new("simulate_work") do |item|
     # Simulate some work
     sleep(0.1)
     { id: item, processed_at: Time.now.to_f, result: item * 2 }
@@ -292,14 +290,14 @@ puts "-" * 50
 
 # Create pipeline with split stage using the builder DSL
 # The builder provides a more readable syntax for complex pipelines
-split_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("splitter") do
+split_pipeline = RAAF::DataPipeline::PipelineBuilder.build("splitter") do
   # Split sentence into words for individual processing
   split { |sentence| sentence.split(/\s+/) }
-  
+
   # Process each word independently
   # This runs for each split item
   map { |word| { word: word, length: word.length, reversed: word.reverse } }
-  
+
   output(destination: :stdout, format: :json)
 end
 
@@ -308,9 +306,9 @@ split_pipeline.run("The quick brown fox")
 puts
 
 # Create aggregation pipeline
-aggregate_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("aggregator")
+aggregate_pipeline = RAAF::DataPipeline::Pipeline.new("aggregator")
 aggregate_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::AggregateStage.new("batch", window_size: 3) do |items|
+  .add_stage(RAAF::DataPipeline::AggregateStage.new("batch", window_size: 3) do |items|
     {
       count: items.size,
       values: items,
@@ -336,14 +334,14 @@ puts "-" * 50
 
 # Create specialized agent for data analysis
 # The agent provides intelligent insights that code alone cannot
-analysis_agent = OpenAIAgents::Agent.new(
+analysis_agent = RAAF::Agent.new(
   name: "DataAnalyst",
   model: "gpt-4o-mini",
   instructions: "You analyze data patterns and provide insights."
 )
 
 # Build complex pipeline
-complex_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("analytics") do
+complex_pipeline = RAAF::DataPipeline::PipelineBuilder.build("analytics") do
   # Stage 1: Parse and clean
   map do |raw_data|
     data = begin
@@ -354,15 +352,15 @@ complex_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("analytics"
     data[:processed] = true
     data
   end
-  
+
   # Stage 2: Validate
   validate do |data|
     errors = []
     errors << "Missing required fields" unless data[:id] && data[:value]
-    errors << "Value out of range" if data[:value] && (data[:value] < 0 || data[:value] > 1000)
+    errors << "Value out of range" if data[:value] && (data[:value].negative? || data[:value] > 1000)
     errors
   end
-  
+
   # Stage 3: Enrich with calculations
   map do |data|
     data[:squared] = data[:value]**2
@@ -373,13 +371,13 @@ complex_pipeline = OpenAIAgents::DataPipeline::PipelineBuilder.build("analytics"
                       end
     data
   end
-  
+
   # Stage 4: Agent analysis
   transform(
     agent: analysis_agent,
     prompt: "Analyze this data point and identify any patterns or anomalies: {{data}}"
   )
-  
+
   # Stage 5: Output
   output(destination: :stdout, format: :json)
 end
@@ -410,25 +408,23 @@ puts "Example 9: Pipeline Metrics"
 puts "-" * 50
 
 # Create monitored pipeline that tracks execution metrics
-monitored_pipeline = OpenAIAgents::DataPipeline::Pipeline.new("monitored")
+monitored_pipeline = RAAF::DataPipeline::Pipeline.new("monitored")
 
 # Add stages
 monitored_pipeline
-  .add_stage(OpenAIAgents::DataPipeline::FilterStage.new("even_only", &:even?))
-  .add_stage(OpenAIAgents::DataPipeline::MapStage.new("double") { |n| n * 2 })
-  .add_stage(OpenAIAgents::DataPipeline::ValidationStage.new("range_check") do |n|
+  .add_stage(RAAF::DataPipeline::FilterStage.new("even_only", &:even?))
+  .add_stage(RAAF::DataPipeline::MapStage.new("double") { |n| n * 2 })
+  .add_stage(RAAF::DataPipeline::ValidationStage.new("range_check") do |n|
     n > 20 ? ["Value too large"] : []
   end)
 
 # Process data and collect metrics
 puts "Processing numbers 1-10 through monitored pipeline:"
 (1..10).each do |num|
-  
   result = monitored_pipeline.process(num)
   puts "  #{num} -> #{result}" if result
 rescue StandardError => e
   puts "  #{num} -> Error: #{e.message}"
-  
 end
 
 # Display metrics
@@ -449,14 +445,14 @@ puts "-" * 50
 
 # Create specialized agent for intelligent log analysis
 # The agent understands log patterns and can suggest fixes
-log_agent = OpenAIAgents::Agent.new(
+log_agent = RAAF::Agent.new(
   name: "LogAnalyzer",
   model: "gpt-4o-mini",
   instructions: "You analyze log entries and suggest solutions for errors."
 )
 
 # Use log processing template
-log_template = OpenAIAgents::DataPipeline::Templates.log_pipeline("error_analysis", log_agent)
+RAAF::DataPipeline::Templates.log_pipeline("error_analysis", log_agent)
 
 # Simulate log data
 error_logs = [
@@ -483,43 +479,43 @@ puts <<~PRACTICES
      - Use meaningful stage names
      - Validate early in the pipeline
      - Handle errors gracefully
-  
+
   2. Performance:
      - Use parallel processing for large batches
      - Implement streaming for continuous data
      - Avoid blocking operations in stages
      - Monitor pipeline metrics
-  
+
   3. Agent Integration:
      - Use agents for complex transformations
      - Provide clear prompts with context
      - Consider token usage and costs
      - Cache agent responses when possible
-  
+
   4. Error Handling:
      - Validate data at entry points
      - Use continue_on_error for resilience
      - Log errors with context
      - Implement retry logic
-  
+
   5. Data Quality:
      - Define clear schemas
      - Implement data validation
      - Track data lineage
      - Monitor data quality metrics
-  
+
   6. Scalability:
      - Design for horizontal scaling
      - Use appropriate batch sizes
      - Implement backpressure
      - Consider memory usage
-  
+
   7. Monitoring:
      - Track pipeline metrics
      - Set up alerts for failures
      - Monitor processing times
      - Analyze bottlenecks
-  
+
   8. Testing:
      - Test stages in isolation
      - Use sample data sets

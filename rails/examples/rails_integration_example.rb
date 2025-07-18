@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates comprehensive Rails integration for OpenAI Agents Ruby.
+# This example demonstrates comprehensive Rails integration for Ruby AI Agents Factory Ruby.
 # The library provides seamless Rails integration including automatic ActiveJob tracing,
 # HTTP request correlation, a mountable engine for web-based monitoring, console helpers,
 # and rake tasks for maintenance. This enables full-stack AI agent applications with
@@ -10,7 +10,7 @@
 # NOTE: This example assumes you're running this in a Rails application context.
 # Some features will only work within an actual Rails app environment.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 puts "=== Rails Integration Example ==="
 puts "Rails detected: #{defined?(Rails) ? "Yes (#{Rails.version})" : "No"}"
@@ -19,18 +19,18 @@ puts
 # ============================================================================
 # EXAMPLE 1: BASIC RAILS CONFIGURATION
 # ============================================================================
-# Configure OpenAI Agents for Rails with proper settings, middleware, and
+# Configure Ruby AI Agents Factory for Rails with proper settings, middleware, and
 # automatic tracing setup. This provides the foundation for all Rails-specific
 # features.
 
 puts "Example 1: Basic Rails Configuration"
 puts "-" * 50
 
-# This would typically go in config/initializers/openai_agents.rb
-puts "Configuration for config/initializers/openai_agents.rb:"
+# This would typically go in config/initializers/raaf.rb
+puts "Configuration for config/initializers/raaf.rb:"
 puts <<~RUBY
-  # OpenAI Agents configuration for Rails
-  OpenAIAgents.configure do |config|
+  # Ruby AI Agents Factory configuration for Rails
+  RAAF.configure do |config|
     # Basic configuration
     config.api_key = ENV['OPENAI_API_KEY']
     config.environment = Rails.env
@@ -48,7 +48,7 @@ puts <<~RUBY
   end
   
   # Configure tracing engine
-  OpenAIAgents::Tracing.configure do |config|
+  RAAF::Tracing.configure do |config|
     config.auto_configure = true
     config.mount_path = "/admin/tracing"
     config.retention_days = 30
@@ -56,14 +56,14 @@ puts <<~RUBY
   end
   
   # Add ActiveRecord processor for database storage
-  OpenAIAgents.tracer.add_processor(
-    OpenAIAgents::Tracing::ActiveRecordProcessor.new
+  RAAF.tracer.add_processor(
+    RAAF::Tracing::ActiveRecordProcessor.new
   )
   
   # Add console processor for development
   if Rails.env.development?
-    OpenAIAgents.tracer.add_processor(
-      OpenAIAgents::Tracing::ConsoleProcessor.new
+    RAAF.tracer.add_processor(
+      RAAF::Tracing::ConsoleProcessor.new
     )
   end
 RUBY
@@ -84,7 +84,7 @@ puts <<~RUBY
   Rails.application.routes.draw do
     # Mount the tracing engine at /admin/tracing
     # This provides a complete web interface for viewing traces
-    mount OpenAIAgents::Tracing::Engine => '/admin/tracing'
+    mount RAAF::Tracing::Engine => '/admin/tracing'
     
     # Optional: Add custom routes for API endpoints
     namespace :api do
@@ -119,13 +119,13 @@ puts <<~RUBY
   module YourApp
     class Application < Rails::Application
       # Add correlation middleware for request tracking
-      config.middleware.use OpenAIAgents::Tracing::RailsIntegrations::CorrelationMiddleware
+      config.middleware.use RAAF::Tracing::RailsIntegrations::CorrelationMiddleware
       
-      # Configure OpenAI Agents tracing
-      config.openai_agents_tracing.auto_configure = true
-      config.openai_agents_tracing.mount_path = "/admin/tracing"
-      config.openai_agents_tracing.retention_days = 30
-      config.openai_agents_tracing.sampling_rate = 1.0
+      # Configure Ruby AI Agents Factory tracing
+      config.raaf_tracing.auto_configure = true
+      config.raaf_tracing.mount_path = "/admin/tracing"
+      config.raaf_tracing.retention_days = 30
+      config.raaf_tracing.sampling_rate = 1.0
     end
   end
 RUBY
@@ -145,7 +145,7 @@ puts "Example ApplicationJob with automatic tracing:"
 puts <<~RUBY
   class ApplicationJob < ActiveJob::Base
     # Include automatic tracing for all jobs
-    include OpenAIAgents::Tracing::RailsIntegrations::JobTracing
+    include RAAF::Tracing::RailsIntegrations::JobTracing
     
     # Retry jobs with exponential backoff
     retry_on StandardError, wait: :exponentially_longer, attempts: 3
@@ -160,23 +160,23 @@ puts
 puts "Example specific job with AI agent integration:"
 puts <<~RUBY
   class ProcessUserQueryJob < ApplicationJob
-    include OpenAIAgents::Logger
+    include RAAF::Logger
     
     # Job is automatically traced by JobTracing module
     def perform(user_id, query, context = {})
       log_info("Processing user query", user_id: user_id, query_length: query.length)
       
       # Create agent for this specific task
-      agent = OpenAIAgents::Agent.new(
+      agent = RAAF::Agent.new(
         name: "QueryProcessor",
         instructions: "Process user queries with helpful responses",
         model: "gpt-4o-mini"
       )
       
       # Create runner with tracing
-      runner = OpenAIAgents::Runner.new(
+      runner = RAAF::Runner.new(
         agent: agent,
-        tracer: OpenAIAgents.tracer
+        tracer: RAAF.tracer
       )
       
       # Add job context to trace metadata
@@ -184,7 +184,7 @@ puts <<~RUBY
         user_id: user_id,
         job_id: job_id,
         job_class: self.class.name,
-        request_id: Thread.current[:openai_agents_request_id],
+        request_id: Thread.current[:raaf_request_id],
         context: context
       )
       
@@ -225,7 +225,7 @@ puts "-" * 50
 puts "Example API controller with AI agent integration:"
 puts <<~RUBY
   class Api::V1::ChatController < ApplicationController
-    include OpenAIAgents::Logger
+    include RAAF::Logger
     
     before_action :authenticate_user!
     before_action :rate_limit_check
@@ -236,16 +236,16 @@ puts <<~RUBY
                message_length: chat_params[:message].length)
       
       # Create agent for this user's conversation
-      agent = OpenAIAgents::Agent.new(
+      agent = RAAF::Agent.new(
         name: "ChatAssistant",
         instructions: build_instructions_for_user(current_user),
         model: determine_model_for_user(current_user)
       )
       
       # Create runner with tracing
-      runner = OpenAIAgents::Runner.new(
+      runner = RAAF::Runner.new(
         agent: agent,
-        tracer: OpenAIAgents.tracer
+        tracer: RAAF.tracer
       )
       
       # Add request context to trace
@@ -394,7 +394,7 @@ puts
 
 # Mock the console helpers for demonstration
 class MockConsoleHelpers
-  include OpenAIAgents::Tracing::RailsIntegrations::ConsoleHelpers if defined?(OpenAIAgents::Tracing::RailsIntegrations::ConsoleHelpers)
+  include RAAF::Tracing::RailsIntegrations::ConsoleHelpers if defined?(RAAF::Tracing::RailsIntegrations::ConsoleHelpers)
   
   def demonstrate_helpers
     puts "Console helper methods:"
@@ -444,44 +444,44 @@ puts
 puts "Example 7: Rake Tasks for Maintenance"
 puts "-" * 50
 
-puts "Built-in rake tasks for OpenAI Agents:"
+puts "Built-in rake tasks for Ruby AI Agents Factory:"
 puts
 
 # Demonstrate rake tasks
 class MockRakeTasks
   def self.demonstrate_tasks
     puts "Available rake tasks:"
-    puts "  openai_agents:tracing:cleanup     - Clean up old traces"
-    puts "  openai_agents:tracing:report      - Generate performance report"
-    puts "  openai_agents:tracing:stats       - Show database statistics"
-    puts "  openai_agents:tracing:migrate     - Run tracing migrations"
+    puts "  raaf:tracing:cleanup     - Clean up old traces"
+    puts "  raaf:tracing:report      - Generate performance report"
+    puts "  raaf:tracing:stats       - Show database statistics"
+    puts "  raaf:tracing:migrate     - Run tracing migrations"
     puts
     
     puts "Example task implementations:"
     puts
     
-    puts "# lib/tasks/openai_agents.rake"
+    puts "# lib/tasks/raaf.rake"
     puts <<~RAKE
-      namespace :openai_agents do
+      namespace :raaf do
         namespace :tracing do
           desc "Clean up old traces"
           task cleanup: :environment do
             older_than = ENV['OLDER_THAN']&.to_i&.days || 30.days
-            count = OpenAIAgents::Tracing::RailsIntegrations::RakeTasks.cleanup_old_traces(older_than: older_than)
+            count = RAAF::Tracing::RailsIntegrations::RakeTasks.cleanup_old_traces(older_than: older_than)
             puts "Cleaned up \#{count} traces older than \#{older_than.inspect}"
           end
           
           desc "Generate performance report"
           task report: :environment do
             timeframe = ENV['TIMEFRAME']&.to_i&.hours || 24.hours
-            OpenAIAgents::Tracing::RailsIntegrations::RakeTasks.performance_report(timeframe: timeframe)
+            RAAF::Tracing::RailsIntegrations::RakeTasks.performance_report(timeframe: timeframe)
           end
           
           desc "Show database statistics"
           task stats: :environment do
-            traces_count = OpenAIAgents::Tracing::Trace.count
-            spans_count = OpenAIAgents::Tracing::Span.count
-            avg_duration = OpenAIAgents::Tracing::Trace.average('duration_ms')
+            traces_count = RAAF::Tracing::Trace.count
+            spans_count = RAAF::Tracing::Span.count
+            avg_duration = RAAF::Tracing::Trace.average('duration_ms')
             
             puts "Database Statistics:"
             puts "  Traces: \#{traces_count}"
@@ -491,8 +491,8 @@ class MockRakeTasks
           
           desc "Run tracing migrations"
           task migrate: :environment do
-            OpenAIAgents::Tracing::Engine.load_tasks
-            Rake::Task['openai_agents_tracing:install:migrations'].invoke
+            RAAF::Tracing::Engine.load_tasks
+            Rake::Task['raaf_tracing:install:migrations'].invoke
             Rake::Task['db:migrate'].invoke
           end
         end
@@ -500,10 +500,10 @@ class MockRakeTasks
     RAKE
     
     puts "Usage examples:"
-    puts "  bundle exec rake openai_agents:tracing:cleanup"
-    puts "  bundle exec rake openai_agents:tracing:report TIMEFRAME=168  # 7 days"
-    puts "  bundle exec rake openai_agents:tracing:cleanup OLDER_THAN=7  # 7 days"
-    puts "  bundle exec rake openai_agents:tracing:stats"
+    puts "  bundle exec rake raaf:tracing:cleanup"
+    puts "  bundle exec rake raaf:tracing:report TIMEFRAME=168  # 7 days"
+    puts "  bundle exec rake raaf:tracing:cleanup OLDER_THAN=7  # 7 days"
+    puts "  bundle exec rake raaf:tracing:stats"
   end
 end
 
@@ -600,7 +600,7 @@ puts <<~RUBY
     belongs_to :user
     has_many :messages, dependent: :destroy
     
-    # Link to OpenAI Agents traces
+    # Link to Ruby AI Agents Factory traces
     has_many :ai_interactions, dependent: :destroy
     
     validates :title, presence: true
@@ -610,10 +610,10 @@ puts <<~RUBY
     
     # Get related traces
     def traces
-      return [] unless defined?(OpenAIAgents::Tracing::Trace)
+      return [] unless defined?(RAAF::Tracing::Trace)
       
       trace_ids = ai_interactions.pluck(:trace_id).compact
-      OpenAIAgents::Tracing::Trace.where(trace_id: trace_ids)
+      RAAF::Tracing::Trace.where(trace_id: trace_ids)
     end
     
     # Performance metrics
@@ -634,7 +634,7 @@ puts <<~RUBY
     private
     
     def calculate_total_cost(traces_data)
-      cost_manager = OpenAIAgents::Tracing::CostManager.new
+      cost_manager = RAAF::Tracing::CostManager.new
       
       traces_data.sum do |trace|
         cost_manager.calculate_trace_cost(trace)[:total_cost]
@@ -659,18 +659,18 @@ puts <<~RUBY
     scope :successful, -> { where(status: 'completed') }
     scope :failed, -> { where(status: 'failed') }
     
-    # Get the actual trace from OpenAI Agents
+    # Get the actual trace from Ruby AI Agents Factory
     def trace
-      return nil unless defined?(OpenAIAgents::Tracing::Trace)
+      return nil unless defined?(RAAF::Tracing::Trace)
       
-      OpenAIAgents::Tracing::Trace.find_by(trace_id: trace_id)
+      RAAF::Tracing::Trace.find_by(trace_id: trace_id)
     end
     
     # Calculate cost for this interaction
     def cost
       return 0.0 unless trace
       
-      cost_manager = OpenAIAgents::Tracing::CostManager.new
+      cost_manager = RAAF::Tracing::CostManager.new
       cost_manager.calculate_trace_cost(trace)[:total_cost]
     end
     
@@ -700,23 +700,23 @@ puts
 puts "Example 9: Rails Generators and Setup"
 puts "-" * 50
 
-puts "Rails generator for OpenAI Agents setup:"
+puts "Rails generator for Ruby AI Agents Factory setup:"
 puts
 
-puts "Run the generator to set up OpenAI Agents in Rails:"
-puts "  rails generate openai_agents:install"
+puts "Run the generator to set up Ruby AI Agents Factory in Rails:"
+puts "  rails generate raaf:install"
 puts
 
 puts "This generator creates:"
-puts "  config/initializers/openai_agents.rb     - Main configuration"
-puts "  db/migrate/xxx_create_openai_agents_tracing.rb - Database migrations"
-puts "  lib/tasks/openai_agents.rake             - Maintenance tasks"
+puts "  config/initializers/raaf.rb     - Main configuration"
+puts "  db/migrate/xxx_create_raaf_tracing.rb - Database migrations"
+puts "  lib/tasks/raaf.rake             - Maintenance tasks"
 puts "  app/models/concerns/ai_agent_integration.rb - Model concern"
 puts
 
 puts "Example generator implementation:"
 puts <<~RUBY
-  # lib/generators/openai_agents/install_generator.rb
+  # lib/generators/raaf/install_generator.rb
   module OpenaiAgents
     module Generators
       class InstallGenerator < Rails::Generators::Base
@@ -729,15 +729,15 @@ puts <<~RUBY
         end
         
         def create_initializer
-          copy_file 'initializer.rb', 'config/initializers/openai_agents.rb'
+          copy_file 'initializer.rb', 'config/initializers/raaf.rb'
         end
         
         def create_migration
-          migration_template 'migration.rb', 'db/migrate/create_openai_agents_tracing.rb'
+          migration_template 'migration.rb', 'db/migrate/create_raaf_tracing.rb'
         end
         
         def create_rake_tasks
-          copy_file 'tasks.rake', 'lib/tasks/openai_agents.rake'
+          copy_file 'tasks.rake', 'lib/tasks/raaf.rake'
         end
         
         def create_concern
@@ -745,7 +745,7 @@ puts <<~RUBY
         end
         
         def mount_engine
-          route "mount OpenAIAgents::Tracing::Engine => '/admin/tracing'"
+          route "mount RAAF::Tracing::Engine => '/admin/tracing'"
         end
         
         def show_readme
@@ -762,7 +762,7 @@ puts
 # ============================================================================
 # EXAMPLE 10: PRODUCTION DEPLOYMENT CONSIDERATIONS
 # ============================================================================
-# Best practices for deploying Rails apps with OpenAI Agents.
+# Best practices for deploying Rails apps with Ruby AI Agents Factory.
 
 puts "Example 10: Production Deployment Considerations"
 puts "-" * 50
@@ -773,13 +773,13 @@ puts
 puts "1. Environment Configuration:"
 puts <<~CONFIG
   # config/environments/production.rb
-  config.openai_agents_tracing.auto_configure = true
-  config.openai_agents_tracing.sampling_rate = 0.1  # Sample 10% of requests
-  config.openai_agents_tracing.retention_days = 30
+  config.raaf_tracing.auto_configure = true
+  config.raaf_tracing.sampling_rate = 0.1  # Sample 10% of requests
+  config.raaf_tracing.retention_days = 30
   
   # Use background jobs for trace processing
-  config.openai_agents_tracing.async_processing = true
-  config.openai_agents_tracing.queue_name = 'tracing'
+  config.raaf_tracing.async_processing = true
+  config.raaf_tracing.queue_name = 'tracing'
 CONFIG
 
 puts
@@ -807,11 +807,11 @@ puts <<~JOBS
   
   # config/schedule.rb (whenever gem)
   every 1.day, at: '2:00 am' do
-    rake 'openai_agents:tracing:cleanup'
+    rake 'raaf:tracing:cleanup'
   end
   
   every 1.week, at: '3:00 am' do
-    rake 'openai_agents:tracing:report'
+    rake 'raaf:tracing:report'
   end
 JOBS
 
@@ -819,20 +819,20 @@ puts
 
 puts "4. Monitoring and Alerting:"
 puts <<~MONITORING
-  # config/initializers/openai_agents.rb
-  OpenAIAgents.tracer.add_processor(
-    OpenAIAgents::Tracing::ActiveRecordProcessor.new
+  # config/initializers/raaf.rb
+  RAAF.tracer.add_processor(
+    RAAF::Tracing::ActiveRecordProcessor.new
   )
   
   # Add custom monitoring
-  OpenAIAgents.tracer.add_processor(
-    OpenAIAgents::Tracing::DatadogProcessor.new
+  RAAF.tracer.add_processor(
+    RAAF::Tracing::DatadogProcessor.new
   )
   
   # Configure alerting
-  alert_engine = OpenAIAgents::Tracing::AlertEngine.new
+  alert_engine = RAAF::Tracing::AlertEngine.new
   alert_engine.add_alert_handler(
-    OpenAIAgents::Tracing::AlertEngine::SlackHandler.new(
+    RAAF::Tracing::AlertEngine::SlackHandler.new(
       ENV['SLACK_WEBHOOK_URL'],
       '#engineering-alerts'
     )
@@ -846,12 +846,12 @@ puts <<~SECURITY
   # Secure the tracing interface
   # config/routes.rb
   authenticate :user, ->(user) { user.admin? } do
-    mount OpenAIAgents::Tracing::Engine => '/admin/tracing'
+    mount RAAF::Tracing::Engine => '/admin/tracing'
   end
   
   # Or use HTTP basic auth
-  # config/initializers/openai_agents.rb
-  OpenAIAgents::Tracing::Engine.middleware.use Rack::Auth::Basic do |username, password|
+  # config/initializers/raaf.rb
+  RAAF::Tracing::Engine.middleware.use Rack::Auth::Basic do |username, password|
     username == ENV['TRACING_USERNAME'] && password == ENV['TRACING_PASSWORD']
   end
 SECURITY
@@ -868,7 +868,7 @@ puts <<~PERFORMANCE
   # Configure caching
   config.cache_store = :redis_cache_store, {
     url: ENV['REDIS_URL'],
-    namespace: 'openai_agents',
+    namespace: 'raaf',
     expires_in: 1.hour
   }
   
@@ -936,4 +936,4 @@ puts <<~PRACTICES
 PRACTICES
 
 puts "\nRails integration example completed!"
-puts "This demonstrates comprehensive Rails integration for OpenAI Agents."
+puts "This demonstrates comprehensive Rails integration for Ruby AI Agents Factory."

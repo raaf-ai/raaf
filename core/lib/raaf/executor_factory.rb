@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require_relative "logging"
 require_relative "conversation_manager"
 require_relative "tool_executor"
 require_relative "handoff_detector"
@@ -8,8 +8,10 @@ require_relative "api_strategies"
 require_relative "error_handler"
 require_relative "turn_executor"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Factory for creating executor instances with proper service dependencies
     #
@@ -30,9 +32,9 @@ module RubyAIAgentsFactory
     #   basic_executor = ExecutorFactory.create_basic_executor(
     #     runner: runner, provider: provider, agent: agent, config: config
     #   )
-    #   
+    #
     #   traced_executor = ExecutorFactory.create_traced_executor(
-    #     runner: runner, provider: provider, agent: agent, 
+    #     runner: runner, provider: provider, agent: agent,
     #     config: config, tracer: tracer
     #   )
     #
@@ -46,6 +48,7 @@ module RubyAIAgentsFactory
     #   services[:turn_executor]        # Coordinates single turns
     #
     class ExecutorFactory
+
       include Logger
 
       ##
@@ -118,14 +121,15 @@ module RubyAIAgentsFactory
         )
       end
 
-      private
-
       def self.log_debug_general(message, context = {})
         # Simple logging fallback if Logger module isn't available
-        if defined?(RubyAIAgentsFactory::Logging)
-          RubyAIAgentsFactory::Logging.debug(message, category: :general, **context)
-        end
+        return unless defined?(RAAF::Logging)
+
+        RAAF::Logging.debug(message, category: :general, **context)
       end
+
     end
+
   end
+
 end

@@ -21,43 +21,53 @@ require_relative "rspec/agent_matchers"
 #   end
 #
 # @since 0.1.0
-module AiAgentDsl::RSpec
-  # Configure RSpec to include our custom matchers
-  #
-  # This method is automatically called when the module is loaded if RSpec is available.
-  # It includes all the custom matchers in the RSpec configuration.
-  #
-  # @return [void]
-  def self.configure_rspec!
-    return unless defined?(::RSpec)
+module RAAF
 
-    ::RSpec.configure do |config|
-      config.include PromptMatchers
-      config.include AgentMatchers
+  module DSL
+
+    module RSpec
+
+      # Configure RSpec to include our custom matchers
+      #
+      # This method is automatically called when the module is loaded if RSpec is available.
+      # It includes all the custom matchers in the RSpec configuration.
+      #
+      # @return [void]
+      def self.configure_rspec!
+        return unless defined?(::RSpec)
+
+        ::RSpec.configure do |config|
+          config.include PromptMatchers
+          config.include AgentMatchers
+        end
+      end
+
+      # Manually include matchers in a specific context
+      #
+      # Use this if you want to include matchers in a specific test file or context
+      # rather than globally.
+      #
+      # @example
+      #   RSpec.describe MyPrompt do
+      #     include RAAF::DSL::RSpec::PromptMatchers
+      #
+      #     it "tests prompt content" do
+      #       expect(MyPrompt).to include_prompt_content("test")
+      #     end
+      #   end
+      #
+      # @param context [Object] The context to include matchers in
+      # @return [void]
+      def self.include_matchers_in(context)
+        context.include PromptMatchers
+        context.include AgentMatchers
+      end
+
     end
+
   end
 
-  # Manually include matchers in a specific context
-  #
-  # Use this if you want to include matchers in a specific test file or context
-  # rather than globally.
-  #
-  # @example
-  #   RSpec.describe MyPrompt do
-  #     include AiAgentDsl::RSpec::PromptMatchers
-  #
-  #     it "tests prompt content" do
-  #       expect(MyPrompt).to include_prompt_content("test")
-  #     end
-  #   end
-  #
-  # @param context [Object] The context to include matchers in
-  # @return [void]
-  def self.include_matchers_in(context)
-    context.include PromptMatchers
-    context.include AgentMatchers
-  end
 end
 
 # Auto-configure RSpec if it's available
-AiAgentDsl::RSpec.configure_rspec!
+RAAF::DSL::RSpec.configure_rspec!

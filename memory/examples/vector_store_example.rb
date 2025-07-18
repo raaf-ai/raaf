@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates vector store capabilities in OpenAI Agents Ruby.
+# This example demonstrates vector store capabilities in RAAF (Ruby AI Agents Factory).
 # Vector stores enable semantic search over large document collections using
 # embeddings. Documents are converted to high-dimensional vectors that capture
 # semantic meaning, allowing similarity-based retrieval. This is the foundation
@@ -9,7 +9,7 @@
 # and reason over large knowledge bases. Essential for building AI assistants
 # with domain-specific knowledge.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Vector store modules (these will be implemented in future versions)
 begin
@@ -43,8 +43,8 @@ puts
 
 # Create a vector store for company knowledge base
 # In production, this might be backed by Pinecone, Weaviate, or Chroma
-if defined?(OpenAIAgents::VectorStore)
-  knowledge_store = OpenAIAgents::VectorStore.new(
+if defined?(RAAF::VectorStore)
+  knowledge_store = RAAF::VectorStore.new(
     name: "company_knowledge",       # Unique identifier for the store
     dimensions: 1536                # Must match embedding model dimensions
   )
@@ -158,8 +158,8 @@ puts
 
 # Search tool for semantic retrieval
 # Converts queries to embeddings and finds similar documents
-if defined?(OpenAIAgents::Tools::VectorSearchTool)
-  search_tool = OpenAIAgents::Tools::VectorSearchTool.new(
+if defined?(RAAF::Tools::VectorSearchTool)
+  search_tool = RAAF::Tools::VectorSearchTool.new(
     vector_store: knowledge_store,
     name: "search_knowledge",
     description: "Search the company knowledge base"
@@ -167,7 +167,7 @@ if defined?(OpenAIAgents::Tools::VectorSearchTool)
   
   # Indexing tool for adding new knowledge
   # Allows the agent to expand the knowledge base dynamically
-  index_tool = OpenAIAgents::Tools::VectorIndexTool.new(
+  index_tool = RAAF::Tools::VectorIndexTool.new(
     vector_store: knowledge_store,
     name: "add_knowledge",
     description: "Add new information to the knowledge base"
@@ -175,7 +175,7 @@ if defined?(OpenAIAgents::Tools::VectorSearchTool)
   
   # Management tool for document operations
   # Update, delete, or reorganize documents
-  manage_tool = OpenAIAgents::Tools::VectorManagementTool.new(
+  manage_tool = RAAF::Tools::VectorManagementTool.new(
     vector_store: knowledge_store,
     name: "manage_knowledge",
     description: "Manage documents in the knowledge base"
@@ -236,7 +236,7 @@ end
 # accurate, up-to-date answers grounded in authoritative sources.
 
 # Create an agent with vector search capabilities
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "KnowledgeAssistant",
   model: "gpt-4o",
   
@@ -257,24 +257,24 @@ agent = OpenAIAgents::Agent.new(
 
 # Add tools to agent
 # Tools must be wrapped as FunctionTools for the agent
-if defined?(OpenAIAgents::Tools::VectorSearchTool) && search_tool.respond_to?(:call)
+if defined?(RAAF::Tools::VectorSearchTool) && search_tool.respond_to?(:call)
   # Convert vector tools to FunctionTools
   agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       search_tool.method(:call),
       name: search_tool.name,
       description: search_tool.description
     )
   )
   agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       index_tool.method(:call),
       name: index_tool.name,
       description: index_tool.description
     )
   )
   agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       manage_tool.method(:call),
       name: manage_tool.name,
       description: manage_tool.description
@@ -300,7 +300,7 @@ else
   end
   
   agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       search_function,
       name: "search_knowledge",
       description: "Search the company knowledge base"
@@ -308,7 +308,7 @@ else
   )
   
   agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       add_function,
       name: "add_knowledge",
       description: "Add new information to the knowledge base"
@@ -316,7 +316,7 @@ else
   )
   
   agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       stats_function,
       name: "manage_knowledge",
       description: "Get knowledge base statistics"
@@ -325,7 +325,7 @@ else
 end
 
 # Create runner
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # ============================================================================
 # EXAMPLE 1: BASIC SEMANTIC SEARCH
@@ -472,8 +472,8 @@ puts "-" * 50
 
 # Create specialized RAG tool with enhanced capabilities
 # RAG tools typically retrieve more context and use advanced prompting
-if defined?(OpenAIAgents::Tools::VectorRAGTool)
-  rag_tool = OpenAIAgents::Tools::VectorRAGTool.new(
+if defined?(RAAF::Tools::VectorRAGTool)
+  rag_tool = RAAF::Tools::VectorRAGTool.new(
     vector_store: knowledge_store,
     name: "knowledge_rag",
     description: "Advanced retrieval-augmented generation for comprehensive answers"
@@ -497,7 +497,7 @@ else
 end
 
 # Create a new agent optimized for RAG
-rag_agent = OpenAIAgents::Agent.new(
+rag_agent = RAAF::Agent.new(
   name: "RAGExpert",
   model: "gpt-4o",
   instructions: <<~INSTRUCTIONS
@@ -512,9 +512,9 @@ rag_agent = OpenAIAgents::Agent.new(
   INSTRUCTIONS
 )
 
-if defined?(OpenAIAgents::Tools::VectorRAGTool) && rag_tool.respond_to?(:call)
+if defined?(RAAF::Tools::VectorRAGTool) && rag_tool.respond_to?(:call)
   rag_agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       rag_tool.method(:call),
       name: rag_tool.name,
       description: rag_tool.description
@@ -529,14 +529,14 @@ else
   end
   
   rag_agent.add_tool(
-    OpenAIAgents::FunctionTool.new(
+    RAAF::FunctionTool.new(
       rag_function,
       name: "knowledge_rag",
       description: "Advanced retrieval-augmented generation for comprehensive answers"
     )
   )
 end
-rag_runner = OpenAIAgents::Runner.new(agent: rag_agent)
+rag_runner = RAAF::Runner.new(agent: rag_agent)
 
 result = rag_runner.run(<<~PROMPT)
   I'm evaluating your company for a potential partnership. Can you provide a comprehensive overview including your products, pricing, support, and company background?

@@ -6,10 +6,10 @@ require_relative "../runner"
 require_relative "../result"
 require_relative "base"
 
-module RubyAIAgentsFactory
+module RAAF
   module Async
     # Async version of the Runner class that provides true async/await support
-    class Runner < RubyAIAgentsFactory::Runner
+    class Runner < RAAF::Runner
       include Base
 
       def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false)

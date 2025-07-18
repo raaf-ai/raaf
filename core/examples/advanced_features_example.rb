@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates advanced features in OpenAI Agents Ruby.
+# This example demonstrates advanced features in RAAF (Ruby AI Agents Factory).
 # These features provide enterprise-grade capabilities for production systems,
 # including multi-provider support, advanced tools, safety guardrails,
 # structured outputs, enhanced tracing, and debugging capabilities.
@@ -11,13 +11,13 @@
 # ❌ PLANNED: Guardrails, debugging tools, visualization, result builders
 # 📋 PURPOSE: API design documentation and implementation roadmap
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 # ============================================================================
 # ADVANCED FEATURES SHOWCASE
 # ============================================================================
 
-puts "🚀 OpenAI Agents Ruby - Advanced Features Demo"
+puts "🚀 RAAF (Ruby AI Agents Factory) - Advanced Features Demo"
 puts "=" * 60
 
 puts "\n⚠️  WARNING: This shows PLANNED API design - many features DON'T work yet!"
@@ -30,7 +30,7 @@ sleep(5)
 # ============================================================================
 # 1. MULTI-PROVIDER SUPPORT
 # ============================================================================
-# OpenAI Agents Ruby supports multiple AI providers through a unified interface.
+# RAAF (Ruby AI Agents Factory) supports multiple AI providers through a unified interface.
 # This allows switching between providers without changing application code,
 # enabling cost optimization, redundancy, and feature comparison.
 
@@ -41,18 +41,18 @@ puts "-" * 30
 # The API remains consistent regardless of provider
 
 # OpenAI GPT-4 agent
-openai_agent = OpenAIAgents::Agent.new(
+openai_agent = RAAF::Agent.new(
   name: "OpenAI_Assistant",
   instructions: "You are an OpenAI-powered assistant",
-  model: "gpt-4o"  # OpenAI's latest model
+  model: "gpt-4o" # OpenAI's latest model
 )
 
 # Anthropic Claude agent
 # Requires ANTHROPIC_API_KEY environment variable
-anthropic_agent = OpenAIAgents::Agent.new(
+anthropic_agent = RAAF::Agent.new(
   name: "Claude_Assistant",
   instructions: "You are a Claude-powered assistant",
-  model: "claude-3-sonnet-20240229"  # Anthropic's Claude model
+  model: "claude-3-sonnet-20240229" # Anthropic's Claude model
 )
 
 puts "✅ Created agents with different providers:"
@@ -71,29 +71,29 @@ puts "-" * 30
 
 # File search tool for codebase navigation
 # Enables agents to find and analyze files
-file_search = OpenAIAgents::Tools::FileSearchTool.new(
-  search_paths: ["."],              # Directories to search
+file_search = RAAF::Tools::FileSearchTool.new(
+  search_paths: ["."], # Directories to search
   file_extensions: [".rb", ".md"], # Limit to specific file types
-  max_results: 5                     # Prevent overwhelming results
+  max_results: 5 # Prevent overwhelming results
 )
 
 # Web search integration
 # Provides real-time information beyond training data
-web_search = OpenAIAgents::Tools::WebSearchTool.new(
+web_search = RAAF::Tools::WebSearchTool.new(
   user_location: "San Francisco, CA",  # Location context for results
   search_context_size: "medium"        # Balance between detail and tokens
 )
 
 # Computer control for automation
 # Restricted for safety - only screenshots allowed by default
-computer_tool = OpenAIAgents::Tools::ComputerTool.new(
-  allowed_actions: [:screenshot]  # Whitelist safe actions
+computer_tool = RAAF::Tools::ComputerTool.new(
+  allowed_actions: [:screenshot] # Whitelist safe actions
 )
 
 # Cloud-hosted computer for isolated execution
 # Safer alternative for full automation
-hosted_computer_tool = OpenAIAgents::Tools::HostedComputerTool.new(
-  display_width_px: 1280,   # Virtual display resolution
+hosted_computer_tool = RAAF::Tools::HostedComputerTool.new(
+  display_width_px: 1280, # Virtual display resolution
   display_height_px: 720
 )
 
@@ -120,7 +120,7 @@ puts "-" * 30
 
 # Create guardrail manager to coordinate multiple safety checks
 begin
-  guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
+  guardrails = RAAF::Guardrails::GuardrailManager.new
 rescue NameError => e
   puts "❌ Error: #{e.class.name} - #{e.message}"
   puts "The GuardrailManager class is not implemented yet."
@@ -132,13 +132,13 @@ if guardrails
   # Content safety prevents harmful or inappropriate content
   # Blocks: violence, hate speech, self-harm, illegal activities
   guardrails.add_guardrail(
-    OpenAIAgents::Guardrails::ContentSafetyGuardrail.new
+    RAAF::Guardrails::ContentSafetyGuardrail.new
   )
 
   # Length limits prevent token overflow and control costs
   # Important for: API limits, response time, user experience
   guardrails.add_guardrail(
-    OpenAIAgents::Guardrails::LengthGuardrail.new(
+    RAAF::Guardrails::LengthGuardrail.new(
       max_input_length: 1000,   # Characters for user input
       max_output_length: 2000   # Characters for AI response
     )
@@ -147,8 +147,8 @@ if guardrails
   # Rate limiting prevents abuse and ensures fair usage
   # Protects against: DoS attacks, runaway costs, API quotas
   guardrails.add_guardrail(
-    OpenAIAgents::Guardrails::RateLimitGuardrail.new(
-      max_requests_per_minute: 10  # Adjust based on use case
+    RAAF::Guardrails::RateLimitGuardrail.new(
+      max_requests_per_minute: 10 # Adjust based on use case
     )
   )
 else
@@ -167,7 +167,7 @@ if guardrails
   begin
     guardrails.validate_input("Tell me about Ruby programming")
     puts "  ✅ Input validation passed"
-  rescue OpenAIAgents::Guardrails::GuardrailError => e
+  rescue RAAF::Guardrails::GuardrailError => e
     puts "  ❌ Input validation failed: #{e.message}"
   end
 else
@@ -187,19 +187,19 @@ puts "-" * 30
 # Define schema using Ruby DSL for readability
 # Compiles to standard JSON Schema
 begin
-  user_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
-  # String field with length constraints
-  string :name, required: true, min_length: 2
-  
-  # Integer field with range validation
-  integer :age, required: true, minimum: 0, maximum: 150
-  
-  # String field with regex pattern for email
-  string :email, pattern: '^\S+@\S+\.\S+$'
-  
-  # Array of strings for flexible lists
-  array :hobbies, items: { type: "string" }
-  
+  user_schema = RAAF::StructuredOutput::ObjectSchema.build do
+    # String field with length constraints
+    string :name, required: true, min_length: 2
+
+    # Integer field with range validation
+    integer :age, required: true, minimum: 0, maximum: 150
+
+    # String field with regex pattern for email
+    string :email, pattern: '^\S+@\S+\.\S+$'
+
+    # Array of strings for flexible lists
+    array :hobbies, items: { type: "string" }
+
     # Boolean for binary states
     boolean :active, required: true
   end
@@ -228,7 +228,7 @@ if user_schema
   begin
     user_schema.validate(test_data)
     puts "  ✅ Schema validation passed"
-  rescue OpenAIAgents::StructuredOutput::ValidationError => e
+  rescue RAAF::StructuredOutput::ValidationError => e
     puts "  ❌ Schema validation failed: #{e.message}"
   end
 else
@@ -246,11 +246,11 @@ puts "\n5. Enhanced Tracing with Spans"
 puts "-" * 30
 
 # Create tracer for distributed tracing
-tracer = OpenAIAgents::Tracing::SpanTracer.new
+tracer = RAAF::Tracing::SpanTracer.new
 
 # Add console output for development
 # In production: use FileSpanProcessor or OpenTelemetry exporter
-tracer.add_processor(OpenAIAgents::Tracing::ConsoleSpanProcessor.new)
+tracer.add_processor(RAAF::Tracing::ConsoleSpanProcessor.new)
 
 puts "✅ Created enhanced tracer with span support"
 
@@ -258,7 +258,7 @@ puts "✅ Created enhanced tracer with span support"
 tracer.start_span("demo_operation") do |span|
   # Add semantic attributes for filtering/searching
   span.set_attribute("operation.type", "demo")
-  
+
   # Record important events within the span
   span.add_event("demo_start")
 
@@ -282,7 +282,7 @@ puts "\n6. Result Objects"
 puts "-" * 30
 
 # Builder pattern for constructing results
-builder = OpenAIAgents::ResultBuilder.new
+builder = RAAF::ResultBuilder.new
 
 # Add metadata for context and debugging
 builder.add_metadata("demo", true)
@@ -309,7 +309,7 @@ puts "-" * 30
 
 # Create debugger instance for runtime inspection
 begin
-  debugger = OpenAIAgents::Debugging::Debugger.new
+  debugger = RAAF::Debugging::Debugger.new
 rescue NameError => e
   puts "❌ Error: #{e.class.name} - #{e.message}"
   puts "The Debugging module is not implemented yet."
@@ -347,8 +347,8 @@ puts "-" * 30
 
 # Create visualizer for multi-agent workflow
 begin
-  workflow_viz = OpenAIAgents::Visualization::WorkflowVisualizer.new(
-    [openai_agent, anthropic_agent]  # Agents to visualize
+  workflow_viz = RAAF::Visualization::WorkflowVisualizer.new(
+    [openai_agent, anthropic_agent] # Agents to visualize
   )
 rescue NameError => e
   puts "❌ Error: #{e.class.name} - #{e.message}"
@@ -385,7 +385,7 @@ puts "✅ REPL interface available:"
 puts "  - Interactive agent development"
 puts "  - Real-time debugging"
 puts "  - Command-line agent testing"
-puts "  - Start with: OpenAIAgents::REPL.new(agent: openai_agent).start"
+puts "  - Start with: RAAF::REPL.new(agent: openai_agent).start"
 
 # ============================================================================
 # 10. COMPREHENSIVE FEATURE INTEGRATION
@@ -407,7 +407,7 @@ puts "  - Debug-enabled execution with REPL"
 puts "\nExample: Create production-ready agent setup"
 
 # Create agent with clear purpose
-production_agent = OpenAIAgents::Agent.new(
+production_agent = RAAF::Agent.new(
   name: "ProductionAgent",
   instructions: "You are a production assistant with safety guardrails",
   model: "gpt-4o"
@@ -415,22 +415,22 @@ production_agent = OpenAIAgents::Agent.new(
 
 # Layer safety guardrails for defense in depth
 begin
-  production_guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
-  production_guardrails.add_guardrail(OpenAIAgents::Guardrails::ContentSafetyGuardrail.new)
-  production_guardrails.add_guardrail(OpenAIAgents::Guardrails::LengthGuardrail.new)
-  production_guardrails.add_guardrail(OpenAIAgents::Guardrails::RateLimitGuardrail.new)
+  production_guardrails = RAAF::Guardrails::GuardrailManager.new
+  production_guardrails.add_guardrail(RAAF::Guardrails::ContentSafetyGuardrail.new)
+  production_guardrails.add_guardrail(RAAF::Guardrails::LengthGuardrail.new)
+  production_guardrails.add_guardrail(RAAF::Guardrails::RateLimitGuardrail.new)
 rescue NameError
   puts "  - Would add production guardrails (content safety, length limits, rate limits)"
-  production_guardrails = nil
+  nil
 end
 
 # Add carefully selected tools
-production_agent.add_tool(file_search)  # Safe, read-only tool
+production_agent.add_tool(file_search) # Safe, read-only tool
 
 # Configure comprehensive monitoring
-production_tracer = OpenAIAgents::Tracing::SpanTracer.new
+production_tracer = RAAF::Tracing::SpanTracer.new
 production_tracer.add_processor(
-  OpenAIAgents::Tracing::FileSpanProcessor.new("production.log")
+  RAAF::Tracing::FileSpanProcessor.new("production.log")
 )
 
 puts "  ✅ Production agent created with:"

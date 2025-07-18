@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-OpenAIAgents::Tracing::Engine.routes.draw do
+if defined?(RAAF::Tracing::Engine)
+  RAAF::Tracing::Engine.routes.draw do
   root "traces#index"
 
   # Top-level tool calls and flow visualization routes
@@ -45,4 +46,5 @@ OpenAIAgents::Tracing::Engine.routes.draw do
   get "search", to: "search#index"
   get "search/traces", to: "search#traces"
   get "search/spans", to: "search#spans"
+  end
 end

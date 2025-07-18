@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Config
+
     ##
     # Configuration for AI model parameters
     #
@@ -26,6 +28,7 @@ module RubyAIAgentsFactory
     #   # => ModelConfig with temperature: 0.9, max_tokens: 500
     #
     class ModelConfig
+
       # @return [Float, nil] Temperature for model sampling (0.0-2.0)
       attr_accessor :temperature
 
@@ -59,6 +62,9 @@ module RubyAIAgentsFactory
       # @return [String, nil] Previous response ID for Responses API continuity
       attr_accessor :previous_response_id
 
+      # @return [Boolean, nil] Whether to allow parallel tool calls
+      attr_accessor :parallel_tool_calls
+
       def initialize(
         temperature: nil,
         max_tokens: nil,
@@ -70,6 +76,7 @@ module RubyAIAgentsFactory
         user: nil,
         stream: false,
         previous_response_id: nil,
+        parallel_tool_calls: nil,
         **model_kwargs
       )
         @temperature = temperature
@@ -83,6 +90,7 @@ module RubyAIAgentsFactory
         @stream = stream
         @model_kwargs = model_kwargs
         @previous_response_id = previous_response_id
+        @parallel_tool_calls = parallel_tool_calls
       end
 
       ##
@@ -92,7 +100,7 @@ module RubyAIAgentsFactory
       #
       def to_model_params
         # Define parameters that should be included in model calls
-        model_params = %i[temperature max_tokens top_p stop frequency_penalty presence_penalty user stream]
+        model_params = %i[temperature max_tokens top_p stop frequency_penalty presence_penalty user stream parallel_tool_calls]
 
         # Use Ruby's send method for dynamic parameter mapping
         params = model_params.each_with_object({}) do |param, hash|
@@ -150,6 +158,9 @@ module RubyAIAgentsFactory
           previous_response_id: previous_response_id
         }
       end
+
     end
+
   end
+
 end

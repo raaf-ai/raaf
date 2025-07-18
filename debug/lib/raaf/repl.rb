@@ -7,11 +7,11 @@ require_relative "runner"
 require_relative "tracing/spans"
 require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
-  # Interactive Read-Eval-Print Loop for OpenAI Agents
+  # Interactive Read-Eval-Print Loop for RAAF
   #
-  # The REPL provides a command-line interface for interacting with OpenAI Agents,
+  # The REPL provides a command-line interface for interacting with RAAF,
   # allowing developers to create, configure, and test agents interactively. It supports
   # multi-agent conversations, tracing, debugging, and conversation management.
   #
@@ -38,18 +38,18 @@ module RubyAIAgentsFactory
   #
   # @example Basic REPL usage
   #   # Start REPL with a pre-configured agent
-  #   agent = RubyAIAgentsFactory::Agent.new(name: "Assistant", instructions: "Be helpful")
-  #   repl = RubyAIAgentsFactory::REPL.new(agent: agent)
+  #   agent = RAAF::Agent.new(name: "Assistant", instructions: "Be helpful")
+  #   repl = RAAF::REPL.new(agent: agent)
   #   repl.start
   #
   # @example REPL with tracing
-  #   tracer = RubyAIAgentsFactory::Tracing::SpanTracer.new
-  #   repl = RubyAIAgentsFactory::REPL.new(tracer: tracer, debug: true)
+  #   tracer = RAAF::Tracing::SpanTracer.new
+  #   repl = RAAF::REPL.new(tracer: tracer, debug: true)
   #   repl.start
   #
   # @example Interactive session flow
   #   # User starts REPL
-  #   repl = RubyAIAgentsFactory::REPL.new
+  #   repl = RAAF::REPL.new
   #   repl.start
   #   
   #   # In REPL:
@@ -60,10 +60,10 @@ module RubyAIAgentsFactory
   #   # > /export my_conversation.json
   #   # > /quit
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
-  # @see RubyAIAgentsFactory::Agent For agent creation and configuration
-  # @see RubyAIAgentsFactory::Tracing::SpanTracer For tracing capabilities
+  # @see RAAF::Agent For agent creation and configuration
+  # @see RAAF::Tracing::SpanTracer For tracing capabilities
   class REPL
     include Logger
     COMMANDS = {
@@ -196,7 +196,7 @@ module RubyAIAgentsFactory
     end
 
     def show_welcome
-      puts "🤖 OpenAI Agents Ruby REPL"
+      puts "🤖 RAAF (Ruby AI Agents Factory) REPL"
       puts "=" * 40
       puts "Type /help for available commands"
       puts "Type your message to chat with the agent"

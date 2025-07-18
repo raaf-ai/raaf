@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates structured output in OpenAI Agents Ruby.
+# This example demonstrates structured output in RAAF (Ruby AI Agents Factory).
 # Structured output ensures AI responses match specific data formats,
 # essential for building reliable applications that parse AI-generated data.
 # The Ruby implementation uses response_format for universal provider support,
 # matching OpenAI's standard while adapting to other providers automatically.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 # ============================================================================
 # STRUCTURED OUTPUT EXAMPLES
@@ -22,7 +22,7 @@ unless ENV["OPENAI_API_KEY"]
   exit 1
 end
 
-puts "=== OpenAI Agents Ruby - Structured Output Example ==="
+puts "=== RAAF (Ruby AI Agents Factory) - Structured Output Example ==="
 puts "Demonstrates modern response_format approach for universal structured output"
 puts
 
@@ -33,26 +33,26 @@ puts
 # This schema enforces data structure, types, and validation rules.
 # The DSL provides a clean, readable way to define complex schemas.
 
-product_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+product_schema = RAAF::StructuredOutput::ObjectSchema.build do
   # String field with minimum length validation
   # required: true means this field must be present in the output
   string :name, required: true, minLength: 1
-  
+
   # Basic required string field for product description
   string :description, required: true
-  
+
   # Number field with minimum value constraint
   # Ensures prices are never negative
   number :price, required: true, minimum: 0
-  
+
   # Enum field restricts values to a specific set
   # Perfect for categorization with known options
   string :category, enum: %w[electronics clothing food other], required: true
-  
+
   # Array field with typed items and minimum count
   # Ensures at least one feature is always provided
   array :features, items: { type: "string" }, minItems: 1, required: true
-  
+
   # Boolean field for binary states
   boolean :in_stock, required: true
 end
@@ -63,21 +63,21 @@ end
 # Create an agent that always returns JSON matching our schema.
 # The response_format parameter is the key to structured output.
 
-product_agent = OpenAIAgents::Agent.new(
+product_agent = RAAF::Agent.new(
   name: "ProductAnalyzer",
-  
+
   # Instructions guide the AI on how to extract and format data
   # Clear instructions improve accuracy and consistency
   instructions: <<~INSTRUCTIONS,
     You are a product information analyzer. Extract product information from user input
     and return it as a JSON object that exactly matches the provided schema.
-    
+
     Be accurate with pricing information and categorize products appropriately.
     If you don't know specific details, make reasonable estimates.
   INSTRUCTIONS
-  
+
   model: "gpt-4o",
-  
+
   # response_format ensures structured output at the model level
   # This is more reliable than asking for JSON in the prompt
   response_format: {
@@ -85,7 +85,7 @@ product_agent = OpenAIAgents::Agent.new(
     json_schema: {
       name: "product_info",  # Schema name for identification
       strict: true,          # Strict mode enforces exact compliance
-      schema: product_schema.to_h  # Convert our DSL schema to hash
+      schema: product_schema.to_h # Convert our DSL schema to hash
     }
   }
 )
@@ -98,7 +98,7 @@ puts
 
 # Create runner to execute conversations with the agent
 # The runner handles the API calls and response processing
-runner = OpenAIAgents::Runner.new(agent: product_agent)
+runner = RAAF::Runner.new(agent: product_agent)
 
 # Test basic structured output functionality
 # The AI will analyze the input and return structured JSON
@@ -122,26 +122,25 @@ begin
   # Step 1: Parse JSON string to Ruby hash
   parsed_product = JSON.parse(response_content)
   puts "✅ Successfully parsed JSON"
-  
+
   # Step 2: Validate against our schema
   # This ensures all required fields are present and valid
-  validator = OpenAIAgents::StructuredOutput::BaseSchema.new(product_schema.to_h)
+  validator = RAAF::StructuredOutput::BaseSchema.new(product_schema.to_h)
   validated_product = validator.validate(parsed_product)
   puts "✅ Schema validation passed"
-  
+
   # Step 3: Use the validated data safely
   # We know these fields exist and have the right types
   puts "📱 Product Details:"
-  puts "   Name: #{validated_product['name']}"
-  puts "   Price: $#{validated_product['price']}"
-  puts "   Category: #{validated_product['category']}"
-  puts "   In Stock: #{validated_product['in_stock'] ? 'Yes' : 'No'}"
-  puts "   Features: #{validated_product['features'].join(', ')}"
-  
+  puts "   Name: #{validated_product["name"]}"
+  puts "   Price: $#{validated_product["price"]}"
+  puts "   Category: #{validated_product["category"]}"
+  puts "   In Stock: #{validated_product["in_stock"] ? "Yes" : "No"}"
+  puts "   Features: #{validated_product["features"].join(", ")}"
 rescue JSON::ParserError => e
   # Handle malformed JSON (rare with response_format)
   puts "❌ JSON parsing failed: #{e.message}"
-rescue OpenAIAgents::StructuredOutput::ValidationError => e
+rescue RAAF::StructuredOutput::ValidationError => e
   # Handle schema validation failures
   puts "❌ Schema validation failed: #{e.message}"
 end
@@ -156,18 +155,18 @@ puts
 puts "2. Testing with RunConfig customization:"
 
 # RunConfig provides per-request customization options
-config = OpenAIAgents::RunConfig.new(
+config = RAAF::RunConfig.new(
   # Lower temperature for more deterministic, consistent output
   # Important for structured data extraction
   temperature: 0.3,
-  
+
   # Limit response length to control costs
   max_tokens: 500,
-  
+
   # Security: redact sensitive data in traces
   # Useful for production environments
   trace_include_sensitive_data: false,
-  
+
   # Metadata for tracking and debugging
   metadata: { example: "structured_output" }
 )
@@ -209,17 +208,17 @@ end
 
 # Create an agent that combines tool usage with structured output
 # This pattern is powerful for data enrichment workflows
-smart_agent = OpenAIAgents::Agent.new(
+smart_agent = RAAF::Agent.new(
   name: "SmartProductAgent",
-  
+
   # Instructions tell the agent to use tools before responding
   instructions: <<~INSTRUCTIONS,
     You are a smart product analyzer. Use the price lookup tool to get accurate prices.
     Always respond with a JSON object matching the product schema.
   INSTRUCTIONS
-  
+
   model: "gpt-4o",
-  
+
   # Same response_format ensures tool-enriched data is structured
   response_format: {
     type: "json_schema",
@@ -234,7 +233,7 @@ smart_agent = OpenAIAgents::Agent.new(
 # Add the price lookup tool to the agent
 # The agent will call this tool when it needs price information
 smart_agent.add_tool(
-  OpenAIAgents::FunctionTool.new(
+  RAAF::FunctionTool.new(
     method(:lookup_price),
     name: "lookup_price",
     description: "Look up the current price for a product"
@@ -242,7 +241,7 @@ smart_agent.add_tool(
 )
 
 # Create runner for the tool-enabled agent
-runner2 = OpenAIAgents::Runner.new(agent: smart_agent)
+runner2 = RAAF::Runner.new(agent: smart_agent)
 
 # Request that specifically asks for current pricing
 # This will trigger the tool usage
@@ -252,10 +251,10 @@ messages3 = [{
 }]
 
 # Configuration for production-like settings
-config2 = OpenAIAgents::RunConfig.new(
+config2 = RAAF::RunConfig.new(
   # Redact sensitive data in traces for security
   trace_include_sensitive_data: false,
-  
+
   # Name the workflow for better observability
   workflow_name: "Product Analysis Workflow"
 )
@@ -278,26 +277,26 @@ puts "4. Testing invalid output handling:"
 
 # Create an agent with vague instructions
 # This tests the robustness of response_format
-unreliable_agent = OpenAIAgents::Agent.new(
+unreliable_agent = RAAF::Agent.new(
   name: "UnreliableAgent",
-  
+
   # Intentionally vague instructions to test schema enforcement
   instructions: "You sometimes make mistakes with JSON formatting.",
-  
+
   model: "gpt-4o",
-  
+
   # Despite poor instructions, response_format ensures valid output
   response_format: {
     type: "json_schema",
     json_schema: {
       name: "product_info",
-      strict: true,      # Strict mode prevents schema violations
+      strict: true, # Strict mode prevents schema violations
       schema: product_schema.to_h
     }
   }
 )
 
-runner3 = OpenAIAgents::Runner.new(agent: unreliable_agent)
+runner3 = RAAF::Runner.new(agent: unreliable_agent)
 
 # Request that encourages brief, potentially incomplete responses
 messages4 = [{

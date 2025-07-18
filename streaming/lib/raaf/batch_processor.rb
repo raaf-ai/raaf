@@ -7,7 +7,7 @@ require "tempfile"
 require "securerandom"
 require_relative "errors"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # BatchProcessor - Process multiple requests efficiently using OpenAI's Batch API
   #
@@ -27,7 +27,7 @@ module RubyAIAgentsFactory
   # == Basic Usage
   #
   #   # Create batch processor
-  #   processor = RubyAIAgentsFactory::BatchProcessor.new
+  #   processor = RAAF::BatchProcessor.new
   #
   #   # Prepare batch requests
   #   requests = [

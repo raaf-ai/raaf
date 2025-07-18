@@ -3,12 +3,13 @@
 require "securerandom"
 require "json"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Tool Context Management System
   #
   # The ToolContext class provides comprehensive context tracking and state management
-  # for tool executions within OpenAI Agents. It enables tools to maintain persistent
+  # for tool executions within RAAF. It enables tools to maintain persistent
   # state between calls, share data across tool invocations, and access detailed
   # execution history for debugging and optimization.
   #
@@ -34,27 +35,27 @@ module RubyAIAgentsFactory
   #   context = ToolContext.new
   #   context.set("user_id", "123")
   #   context.set("session_data", { preferences: ["dark_mode"] })
-  #   
+  #
   #   user_id = context.get("user_id")  # => "123"
   #   all_data = context.to_h           # => { "user_id" => "123", "session_data" => {...} }
   #
   # @example Context-aware tool creation
   #   context = ToolContext.new(track_executions: true)
-  #   
+  #
   #   tool = FunctionTool.new(
-  #     proc { |**args| 
+  #     proc { |**args|
   #       user_id = context.get("user_id")
   #       "Processing for user: #{user_id}"
   #     },
   #     name: "process_user_data"
   #   )
-  #   
+  #
   #   contextual_tool = ContextualTool.new(tool.callable, context: context, name: "processor")
   #
   # @example Execution tracking and statistics
   #   context = ToolContext.new(track_executions: true)
   #   # ... tool executions occur ...
-  #   
+  #
   #   history = context.execution_history(limit: 10)
   #   stats = context.execution_stats
   #   puts "Success rate: #{stats[:success_rate]}%"
@@ -62,17 +63,17 @@ module RubyAIAgentsFactory
   #
   # @example Shared memory between tools
   #   context = ToolContext.new
-  #   
+  #
   #   # Tool 1 stores data
   #   context.shared_set("api_cache", { "weather_nyc" => "sunny" })
-  #   
+  #
   #   # Tool 2 accesses shared data
   #   cache = context.shared_get("api_cache", {})
   #   weather = cache["weather_nyc"] || "unknown"
   #
   # @example Thread-safe operations
   #   context = ToolContext.new
-  #   
+  #
   #   context.with_lock("counter") do
   #     current = context.get("counter", 0)
   #     context.set("counter", current + 1)
@@ -81,23 +82,24 @@ module RubyAIAgentsFactory
   # @example Context hierarchies
   #   parent_context = ToolContext.new
   #   parent_context.set("global_setting", "value")
-  #   
+  #
   #   child_context = parent_context.create_child(
   #     additional_data: { "local_setting" => "child_value" }
   #   )
   #   # Child has access to both global_setting and local_setting
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see ContextualTool For context-aware tool execution
   # @see ContextManager For multi-session context management
   class ToolContext
+
     # @return [String] unique identifier for this context instance
     attr_reader :id
-    
+
     # @return [Time] when this context was created
     attr_reader :created_at
-    
+
     # @return [Hash] metadata associated with this context
     attr_reader :metadata
 
@@ -294,10 +296,12 @@ module RubyAIAgentsFactory
 
       context
     end
+
   end
 
   # Context-aware tool wrapper
   class ContextualTool < FunctionTool
+
     attr_reader :context
 
     def initialize(function, context:, **)
@@ -316,7 +320,7 @@ module RubyAIAgentsFactory
         end
 
         # Execute the tool using parent's call method
-        result = super(**kwargs)
+        result = super
 
         # Track execution
         duration = Time.now - start_time
@@ -330,13 +334,15 @@ module RubyAIAgentsFactory
         raise
       end
     end
-    
+
     # Alias for backwards compatibility
-    alias_method :execute, :call
+    alias execute call
+
   end
 
   # Context manager for agent execution
   class ContextManager
+
     def initialize
       @contexts = {}
       @default_context = ToolContext.new
@@ -405,10 +411,12 @@ module RubyAIAgentsFactory
 
       @default_context = ToolContext.import(data[:default_context])
     end
+
   end
 
   # Agent extension for context support
   class Agent
+
     attr_accessor :context_manager
 
     # Add context-aware tool
@@ -450,5 +458,7 @@ module RubyAIAgentsFactory
         execute_tool_without_context(name, **kwargs)
       end
     end
+
   end
+
 end

@@ -1,6 +1,6 @@
 <%
-  layout = OpenAIAgents::Tracing::BaseLayout.new(title: "Traces")
-  traces_list = OpenAIAgents::Tracing::TracesList.new(
+  layout = RubyAIAgentsFactory::Tracing::BaseLayout.new(title: "Traces")
+  traces_list = RubyAIAgentsFactory::Tracing::TracesList.new(
     traces: @traces,
     stats: @stats
   )

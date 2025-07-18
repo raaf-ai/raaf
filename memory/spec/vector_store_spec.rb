@@ -3,7 +3,7 @@
 require "spec_helper"
 require "openai_agents/vector_store"
 
-RSpec.describe OpenAIAgents::VectorStore do
+RSpec.describe RAAF::VectorStore do
   let(:store) { described_class.new(name: "test_store", dimensions: 10) }
   
   describe "#initialize" do
@@ -230,7 +230,7 @@ RSpec.describe OpenAIAgents::VectorStore do
   end
 end
 
-RSpec.describe OpenAIAgents::Adapters::InMemoryAdapter do
+RSpec.describe RAAF::Adapters::InMemoryAdapter do
   let(:adapter) { described_class.new }
   
   before do

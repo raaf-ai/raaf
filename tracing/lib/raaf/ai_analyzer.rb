@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # rubocop:disable Metrics/ClassLength
     class AIAnalyzer
@@ -193,9 +193,9 @@ module RubyAIAgentsFactory
       end
 
       def find_trace(trace_id)
-        return unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+        return unless defined?(RAAF::Tracing::Trace)
 
-        RubyAIAgentsFactory::Tracing::Trace.find_by(trace_id: trace_id)
+        RAAF::Tracing::Trace.find_by(trace_id: trace_id)
       end
 
       def extract_trace_data(trace)

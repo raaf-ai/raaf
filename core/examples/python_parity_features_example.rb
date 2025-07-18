@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example shows PLANNED Python SDK parity features for OpenAI Agents Ruby.
-# 
+# This example shows PLANNED Python SDK parity features for RAAF (Ruby AI Agents Factory).
+#
 # ⚠️  WARNING: This file shows PLANNED parity features that are NOT implemented yet!
 # ❌ Most methods shown (agent.clone, agent.as_tool, streaming events) don't exist
 # ✅ PURPOSE: Design documentation for achieving Python parity
@@ -12,7 +12,7 @@
 # advanced streaming, agent cloning, dynamic tool management, parallel guardrails,
 # and enhanced configuration options.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 puts "🚀 Python Parity Features Example"
 puts "=" * 50
@@ -35,13 +35,13 @@ sleep(5)
 puts "\n1. 📡 Advanced Streaming with Semantic Events"
 puts "-" * 40
 
-agent = OpenAIAgents::Agent.new(
-  name: "Streaming Assistant", 
+agent = RAAF::Agent.new(
+  name: "Streaming Assistant",
   instructions: "You are a helpful assistant that provides detailed responses.",
   model: "gpt-4o"
 )
 
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Use the run_streamed method that matches Python's Runner.run_streamed
 # This returns a streaming result object that emits semantic events
@@ -64,27 +64,27 @@ event_count = 0
 begin
   if streaming_result
     streaming_result.stream_events do |event|
-    event_count += 1
-    
-    case event
-    when OpenAIAgents::StreamingEvents::AgentStartEvent
-      puts "🤖 Agent '#{event.agent.name}' started"
-    when OpenAIAgents::StreamingEvents::MessageStartEvent
-      puts "💬 Message started from #{event.agent.name}"
-    when OpenAIAgents::StreamingEvents::RawContentDeltaEvent
-      print event.delta
-    when OpenAIAgents::StreamingEvents::MessageCompleteEvent
-      puts "\n✅ Message completed (#{event.message[:content].length} chars)"
-    when OpenAIAgents::StreamingEvents::AgentFinishEvent
-      puts "🏁 Agent finished after #{event.result.turn_count} turns"
-    end
-    
-    break if event_count > 20 # Limit for demo
+      event_count += 1
+
+      case event
+      when RAAF::StreamingEvents::AgentStartEvent
+        puts "🤖 Agent '#{event.agent.name}' started"
+      when RAAF::StreamingEvents::MessageStartEvent
+        puts "💬 Message started from #{event.agent.name}"
+      when RAAF::StreamingEvents::RawContentDeltaEvent
+        print event.delta
+      when RAAF::StreamingEvents::MessageCompleteEvent
+        puts "\n✅ Message completed (#{event.message[:content].length} chars)"
+      when RAAF::StreamingEvents::AgentFinishEvent
+        puts "🏁 Agent finished after #{event.result.turn_count} turns"
+      end
+
+      break if event_count > 20 # Limit for demo
     end
   else
     puts "❌ Streaming result is nil - advanced streaming not implemented"
   end
-rescue => e
+rescue StandardError => e
   puts "❌ Streaming error: #{e.class.name} - #{e.message}"
 end
 
@@ -106,7 +106,7 @@ end
 # stop_on_first_tool: Agent stops after executing the first tool
 # continue_after_tool: Agent continues generating after tool execution
 # auto: Agent decides based on context (default)
-behavior_agent = OpenAIAgents::Agent.new(
+behavior_agent = RAAF::Agent.new(
   name: "Behavior Demo",
   instructions: "Use tools when needed",
   model: "gpt-4o",
@@ -128,7 +128,7 @@ puts "Tool use behavior: #{behavior_agent.tool_use_behavior.class}"
 puts "\n3. 🧬 Agent Cloning"
 puts "-" * 40
 
-base_agent = OpenAIAgents::Agent.new(
+base_agent = RAAF::Agent.new(
   name: "Base Agent",
   instructions: "You are a helpful assistant",
   model: "gpt-4o"
@@ -144,14 +144,14 @@ begin
   specialized_agent = base_agent.clone(
     name: "Specialized Agent",
     instructions: "You are a specialized coding assistant",
-    model: "gpt-4o-mini"  # Can use different model for variants
+    model: "gpt-4o-mini" # Can use different model for variants
   )
 rescue NoMethodError => e
   puts "❌ Error: #{e.message}"
   puts "The Agent#clone method is planned but not implemented yet."
-  
+
   # Manual cloning for demonstration
-  specialized_agent = OpenAIAgents::Agent.new(
+  specialized_agent = RAAF::Agent.new(
     name: "Specialized Agent",
     instructions: "You are a specialized coding assistant",
     model: "gpt-4o-mini"
@@ -172,7 +172,7 @@ puts "Instructions changed: #{base_agent.instructions != specialized_agent.instr
 puts "\n4. 🛠️  Agent as Tool Conversion"
 puts "-" * 40
 
-specialist = OpenAIAgents::Agent.new(
+specialist = RAAF::Agent.new(
   name: "Code Specialist",
   instructions: "You are an expert Ruby programmer",
   model: "gpt-4o"
@@ -196,15 +196,15 @@ rescue NoMethodError => e
 end
 
 if specialist_tool
-  
-  main_agent = OpenAIAgents::Agent.new(
+
+  main_agent = RAAF::Agent.new(
     name: "Main Agent",
     instructions: "You can delegate complex programming questions",
     model: "gpt-4o"
   )
-  
+
   main_agent.add_tool(specialist_tool)
-  
+
   puts "Specialist agent converted to tool: #{specialist_tool.name}"
   puts "Main agent now has access to specialist via tool"
 else
@@ -224,8 +224,8 @@ puts "-" * 40
 
 # NOTE: ModelSettings is still being implemented
 begin
-  if defined?(OpenAIAgents::ModelSettings)
-    model_settings = OpenAIAgents::ModelSettings.new(
+  if defined?(RAAF::ModelSettings)
+    model_settings = RAAF::ModelSettings.new(
       temperature: 0.7,
       max_tokens: 1000,
       top_p: 0.9,
@@ -233,13 +233,13 @@ begin
       tool_choice: "auto",
       parallel_tool_calls: true
     )
-    
+
     puts "ModelSettings created with:"
     puts "- Temperature: #{model_settings.temperature}"
     puts "- Max tokens: #{model_settings.max_tokens}"
     puts "- Tool choice: #{model_settings.tool_choice}"
     puts "- Parallel tools: #{model_settings.parallel_tool_calls}"
-    
+
     # Merge settings (matching Python's ModelSettings.merge)
     updated_settings = model_settings.merge(temperature: 0.3, max_tokens: 2000)
     puts "Merged settings - new temperature: #{updated_settings.temperature}"
@@ -251,7 +251,7 @@ begin
     puts "- Tool choice: auto"
     puts "- Parallel tools: true"
   end
-rescue => e
+rescue StandardError => e
   puts "ModelSettings error: #{e.class.name}"
 end
 
@@ -270,7 +270,7 @@ def conditional_tool(message)
 end
 
 # Tool with dynamic enabling based on context
-dynamic_agent = OpenAIAgents::Agent.new(
+dynamic_agent = RAAF::Agent.new(
   name: "Dynamic Agent",
   instructions: "Use tools based on context",
   model: "gpt-4o"
@@ -279,14 +279,14 @@ dynamic_agent = OpenAIAgents::Agent.new(
 # Create tool with dynamic enabling condition
 # The is_enabled lambda is evaluated before each potential tool use
 # This matches Python's tool filtering capabilities
-conditional_function_tool = OpenAIAgents::FunctionTool.new(
+conditional_function_tool = RAAF::FunctionTool.new(
   method(:conditional_tool),
   name: "conditional_tool",
   description: "A tool that's only enabled in certain contexts",
-  
+
   # Dynamic enablement based on runtime conditions
   # Context includes conversation history and current state
-  is_enabled: lambda { |_context| 
+  is_enabled: lambda { |_context|
     # Example: only enable during business hours
     Time.now.hour.between?(9, 17)
   }
@@ -322,24 +322,24 @@ end
 puts "\n7. 🛡️  Parallel Guardrails"
 puts "-" * 40
 
-input_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "length_check") do |_context, _agent, input|
+input_guardrail = RAAF::Guardrails.input_guardrail(name: "length_check") do |_context, _agent, input|
   if input.length > 1000
-    OpenAIAgents::GuardrailFunctionOutput.new(tripwire_triggered: true)
+    RAAF::GuardrailFunctionOutput.new(tripwire_triggered: true)
   else
-    OpenAIAgents::GuardrailFunctionOutput.new(tripwire_triggered: false)
+    RAAF::GuardrailFunctionOutput.new(tripwire_triggered: false)
   end
 end
 
-output_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "safety_check") do |_context, _agent, output|
+output_guardrail = RAAF::Guardrails.output_guardrail(name: "safety_check") do |_context, _agent, output|
   # Simple safety check
   if output.downcase.include?("unsafe")
-    OpenAIAgents::GuardrailFunctionOutput.new(tripwire_triggered: true)
+    RAAF::GuardrailFunctionOutput.new(tripwire_triggered: true)
   else
-    OpenAIAgents::GuardrailFunctionOutput.new(tripwire_triggered: false)
+    RAAF::GuardrailFunctionOutput.new(tripwire_triggered: false)
   end
 end
 
-guardrail_agent = OpenAIAgents::Agent.new(
+guardrail_agent = RAAF::Agent.new(
   name: "Protected Agent",
   instructions: "You are a safe assistant",
   model: "gpt-4o",
@@ -361,18 +361,18 @@ context_wrapper = nil
 # All guardrails run concurrently and results are collected
 # NOTE: Parallel execution is still being implemented
 begin
-  if defined?(OpenAIAgents::ParallelGuardrails)
-    results = OpenAIAgents::ParallelGuardrails.run_input_guardrails_parallel(
+  if defined?(RAAF::ParallelGuardrails)
+    results = RAAF::ParallelGuardrails.run_input_guardrails_parallel(
       guardrails, context_wrapper, guardrail_agent, test_input
     )
-    
+
     puts "Guardrail execution results: #{results.length} results"
-    puts "All guardrails passed: #{results.all?(&:success?)}"  
+    puts "All guardrails passed: #{results.all?(&:success?)}"
   else
     puts "Parallel guardrail execution not yet implemented"
     puts "Would execute #{guardrails.length} guardrails concurrently"
   end
-rescue => e
+rescue StandardError => e
   puts "Guardrail execution error: #{e.class.name}"
 end
 
@@ -388,13 +388,13 @@ puts "-" * 40
 
 puts "Available tool types:"
 puts "✅ LocalShellTool - Safe command execution"
-puts "✅ ComputerTool - Desktop automation" 
+puts "✅ ComputerTool - Desktop automation"
 puts "✅ MCPTool - Model Context Protocol integration"
 puts "✅ FunctionTool with dynamic enabling"
 
 # Create a LocalShellTool (matching Python's LocalShellTool)
-if defined?(OpenAIAgents::Tools::LocalShellTool)
-  shell_tool = OpenAIAgents::Tools::LocalShellTool.new(
+if defined?(RAAF::Tools::LocalShellTool)
+  shell_tool = RAAF::Tools::LocalShellTool.new(
     allowed_commands: %w[ls cat echo date pwd],
     working_dir: Dir.tmpdir
   )

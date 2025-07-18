@@ -5,7 +5,8 @@ require "fileutils"
 require "json"
 require "securerandom"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Logger mixin provides convenient logging methods to any class
   #
@@ -18,16 +19,16 @@ module RubyAIAgentsFactory
   # - Performance benchmarking
   #
   # The Logger module works in conjunction with the Logging module to provide
-  # a unified logging system across the OpenAI Agents framework.
+  # a unified logging system across the RAAF framework.
   #
   # @example Basic usage
   #   class MyClass
-  #     include RubyAIAgentsFactory::Logger
+  #     include RAAF::Logger
   #
   #     def process_data
   #       log_info("Starting process", user_id: 123)
   #       log_debug("Processing data", rows: 1000)
-  #       
+  #
   #       begin
   #         # do work
   #       rescue => e
@@ -38,7 +39,7 @@ module RubyAIAgentsFactory
   #
   # @example Category-specific debug logging
   #   class APIClient
-  #     include RubyAIAgentsFactory::Logger
+  #     include RAAF::Logger
   #
   #     def make_request(url)
   #       log_debug_api("Making API request", url: url, method: "GET")
@@ -53,6 +54,7 @@ module RubyAIAgentsFactory
   #   end
   #
   module Logger
+
     ##
     # Log a debug message with optional category filtering
     #
@@ -61,7 +63,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data to include
     #
     def log_debug(message, category: :general, **context)
-      RubyAIAgentsFactory::Logging.debug(message, category: category, **context)
+      RAAF::Logging.debug(message, category: category, **context)
     end
 
     ##
@@ -71,7 +73,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data to include
     #
     def log_info(message, **context)
-      RubyAIAgentsFactory::Logging.info(message, **context)
+      RAAF::Logging.info(message, **context)
     end
 
     ##
@@ -81,7 +83,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data to include
     #
     def log_warn(message, **context)
-      RubyAIAgentsFactory::Logging.warn(message, **context)
+      RAAF::Logging.warn(message, **context)
     end
 
     ##
@@ -91,7 +93,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data to include
     #
     def log_error(message, **context)
-      RubyAIAgentsFactory::Logging.error(message, **context)
+      RAAF::Logging.error(message, **context)
     end
 
     ##
@@ -101,7 +103,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data to include
     #
     def log_fatal(message, **context)
-      RubyAIAgentsFactory::Logging.fatal(message, **context)
+      RAAF::Logging.fatal(message, **context)
     end
 
     ##
@@ -112,7 +114,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data
     #
     def log_debug_tracing(message, **context)
-      RubyAIAgentsFactory::Logging.debug(message, category: :tracing, **context)
+      RAAF::Logging.debug(message, category: :tracing, **context)
     end
 
     ##
@@ -123,7 +125,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data
     #
     def log_debug_api(message, **context)
-      RubyAIAgentsFactory::Logging.debug(message, category: :api, **context)
+      RAAF::Logging.debug(message, category: :api, **context)
     end
 
     ##
@@ -134,7 +136,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data
     #
     def log_debug_tools(message, **context)
-      RubyAIAgentsFactory::Logging.debug(message, category: :tools, **context)
+      RAAF::Logging.debug(message, category: :tools, **context)
     end
 
     ##
@@ -145,7 +147,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data
     #
     def log_debug_handoff(message, **context)
-      RubyAIAgentsFactory::Logging.debug(message, category: :handoff, **context)
+      RAAF::Logging.debug(message, category: :handoff, **context)
     end
 
     ##
@@ -156,7 +158,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data
     #
     def log_debug_context(message, **context)
-      RubyAIAgentsFactory::Logging.debug(message, category: :context, **context)
+      RAAF::Logging.debug(message, category: :context, **context)
     end
 
     ##
@@ -167,7 +169,7 @@ module RubyAIAgentsFactory
     # @param context [Hash] Additional structured data
     #
     def log_debug_http(message, **context)
-      RubyAIAgentsFactory::Logging.debug(message, category: :http, **context)
+      RAAF::Logging.debug(message, category: :http, **context)
     end
 
     ##
@@ -176,42 +178,43 @@ module RubyAIAgentsFactory
     # @return [Boolean] true if :http debug category is enabled
     #
     def http_debug_enabled?
-      RubyAIAgentsFactory::Logging.configuration.debug_enabled?(:http)
+      RAAF::Logging.configuration.debug_enabled?(:http)
     end
 
     # Utility methods
     def log_benchmark(label, **context, &)
-      RubyAIAgentsFactory::Logging.benchmark(label, **context, &)
+      RAAF::Logging.benchmark(label, **context, &)
     end
 
     # Agent-specific logging methods
     def log_agent_start(agent_name, **context)
-      RubyAIAgentsFactory::Logging.agent_start(agent_name, **context)
+      RAAF::Logging.agent_start(agent_name, **context)
     end
 
     def log_agent_end(agent_name, **context)
-      RubyAIAgentsFactory::Logging.agent_end(agent_name, **context)
+      RAAF::Logging.agent_end(agent_name, **context)
     end
 
     def log_tool_call(tool_name, **context)
-      RubyAIAgentsFactory::Logging.tool_call(tool_name, **context)
+      RAAF::Logging.tool_call(tool_name, **context)
     end
 
     def log_handoff(from_agent, to_agent, **context)
-      RubyAIAgentsFactory::Logging.handoff(from_agent, to_agent, **context)
+      RAAF::Logging.handoff(from_agent, to_agent, **context)
     end
 
     def log_api_call(method, url, **context)
-      RubyAIAgentsFactory::Logging.api_call(method, url, **context)
+      RAAF::Logging.api_call(method, url, **context)
     end
 
     def log_api_error(error, **context)
-      RubyAIAgentsFactory::Logging.api_error(error, **context)
+      RAAF::Logging.api_error(error, **context)
     end
+
   end
 
   ##
-  # Unified logging system for OpenAI Agents framework
+  # Unified logging system for RAAF framework
   #
   # The Logging module provides a centralized, structured logging interface that:
   # - Automatically integrates with Rails when available
@@ -221,12 +224,12 @@ module RubyAIAgentsFactory
   # - Maintains consistent log structure across the framework
   #
   # @example Basic logging
-  #   RubyAIAgentsFactory::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
-  #   RubyAIAgentsFactory::Logging.debug("Tool called", tool: "search", category: :tools)
-  #   RubyAIAgentsFactory::Logging.error("API error", error: e.message, status: 500)
+  #   RAAF::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
+  #   RAAF::Logging.debug("Tool called", tool: "search", category: :tools)
+  #   RAAF::Logging.error("API error", error: e.message, status: 500)
   #
   # @example Configuration
-  #   RubyAIAgentsFactory::Logging.configure do |config|
+  #   RAAF::Logging.configure do |config|
   #     config.log_level = :debug
   #     config.log_format = :json
   #     config.debug_categories = [:api, :tools]
@@ -234,21 +237,21 @@ module RubyAIAgentsFactory
   #
   # @example Category-based debugging
   #   # Enable only specific debug categories
-  #   ENV['OPENAI_AGENTS_DEBUG_CATEGORIES'] = 'api,tracing'
-  #   
+  #   ENV['RAAF_DEBUG_CATEGORIES'] = 'api,tracing'
+  #
   #   # These will be shown:
-  #   RubyAIAgentsFactory::Logging.debug("API call", category: :api)
-  #   RubyAIAgentsFactory::Logging.debug("Span created", category: :tracing)
-  #   
+  #   RAAF::Logging.debug("API call", category: :api)
+  #   RAAF::Logging.debug("Span created", category: :tracing)
+  #
   #   # This will be hidden:
-  #   RubyAIAgentsFactory::Logging.debug("Tool details", category: :tools)
+  #   RAAF::Logging.debug("Tool details", category: :tools)
   #
   # ## Environment Variables
   #
-  # - `OPENAI_AGENTS_LOG_LEVEL` - Set log level (debug, info, warn, error, fatal)
-  # - `OPENAI_AGENTS_LOG_FORMAT` - Output format (text, json)
-  # - `OPENAI_AGENTS_LOG_OUTPUT` - Output destination (console, file, rails, auto)
-  # - `OPENAI_AGENTS_DEBUG_CATEGORIES` - Enabled debug categories (all, none, or comma-separated)
+  # - `RAAF_LOG_LEVEL` - Set log level (debug, info, warn, error, fatal)
+  # - `RAAF_LOG_FORMAT` - Output format (text, json)
+  # - `RAAF_LOG_OUTPUT` - Output destination (console, file, rails, auto)
+  # - `RAAF_DEBUG_CATEGORIES` - Enabled debug categories (all, none, or comma-separated)
   #
   # ## Debug Categories
   #
@@ -261,7 +264,9 @@ module RubyAIAgentsFactory
   # - `:general` - General debug messages
   #
   module Logging
+
     class << self
+
       ##
       # Configure the logging system
       #
@@ -270,7 +275,7 @@ module RubyAIAgentsFactory
       # @return [Configuration] The current configuration
       #
       # @example
-      #   RubyAIAgentsFactory::Logging.configure do |config|
+      #   RAAF::Logging.configure do |config|
       #     config.log_level = :debug
       #     config.log_format = :json
       #     config.debug_categories = [:api, :tracing]
@@ -420,7 +425,7 @@ module RubyAIAgentsFactory
       end
 
       def auto_logger
-        if defined?(Rails) && Rails.logger
+        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
           rails_logger
         else
           console_logger
@@ -428,7 +433,7 @@ module RubyAIAgentsFactory
       end
 
       def rails_logger
-        if defined?(Rails) && Rails.logger
+        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
           RailsLoggerAdapter.new(Rails.logger, configuration)
         else
           console_logger
@@ -463,26 +468,28 @@ module RubyAIAgentsFactory
       def format_text(message, **context)
         if context.any?
           context_str = context.map { |k, v| "#{k}=#{v}" }.join(" ")
-          "[OpenAI Agents] #{message} #{context_str}"
+          "[RAAF] #{message} #{context_str}"
         else
-          "[OpenAI Agents] #{message}"
+          "[RAAF] #{message}"
         end
       end
+
     end
 
     # Configuration class
     class Configuration
+
       attr_accessor :log_level, :log_format, :log_output, :log_file, :debug_categories
 
       def initialize
-        @log_level = ENV.fetch("OPENAI_AGENTS_LOG_LEVEL", "info").to_sym
-        @log_format = ENV.fetch("OPENAI_AGENTS_LOG_FORMAT", "text").to_sym
-        @log_output = ENV.fetch("OPENAI_AGENTS_LOG_OUTPUT", "auto").to_sym
-        @log_file = ENV.fetch("OPENAI_AGENTS_LOG_FILE", "log/openai_agents.log")
+        @log_level = ENV.fetch("RAAF_LOG_LEVEL", "info").to_sym
+        @log_format = ENV.fetch("RAAF_LOG_FORMAT", "text").to_sym
+        @log_output = ENV.fetch("RAAF_LOG_OUTPUT", "auto").to_sym
+        @log_file = ENV.fetch("RAAF_LOG_FILE", "log/raaf.log")
 
         # Debug categories - can be set via environment or configuration
         # Examples: "tracing,api" or "all" or "none"
-        debug_env = ENV.fetch("OPENAI_AGENTS_DEBUG_CATEGORIES", "all")
+        debug_env = ENV.fetch("RAAF_DEBUG_CATEGORIES", "all")
         @debug_categories = parse_debug_categories(debug_env)
       end
 
@@ -501,10 +508,12 @@ module RubyAIAgentsFactory
 
         env_value.split(",").map(&:strip).map(&:to_sym)
       end
+
     end
 
     # Rails logger adapter
     class RailsLoggerAdapter
+
       def initialize(rails_logger, config)
         @rails_logger = rails_logger
         @config = config
@@ -529,10 +538,12 @@ module RubyAIAgentsFactory
       def fatal(message)
         @rails_logger.fatal(message)
       end
+
     end
 
     # Console logger adapter
     class ConsoleLoggerAdapter
+
       def initialize(config)
         @config = config
       end
@@ -556,10 +567,12 @@ module RubyAIAgentsFactory
       def fatal(message)
         puts "[FATAL] #{message}"
       end
+
     end
 
     # File logger adapter
     class FileLoggerAdapter
+
       def initialize(config)
         @config = config
         @logger = create_file_logger
@@ -601,6 +614,9 @@ module RubyAIAgentsFactory
         end
         logger
       end
+
     end
+
   end
+
 end

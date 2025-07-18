@@ -6,7 +6,7 @@ require "spec_helper"
 begin
   require "rails"
   require "active_record"
-  require_relative "../../../../lib/openai_agents/tracing/rails_integrations"
+  require_relative "../../../../lib/raaf/tracing/rails_integrations"
   
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
@@ -15,11 +15,11 @@ rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseEr
   return
 end
 
-RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
-  describe OpenAIAgents::Tracing::RailsIntegrations::JobTracing do
+RSpec.describe RAAF::Tracing::RailsIntegrations do
+  describe RAAF::Tracing::RailsIntegrations::JobTracing do
     let(:job_class) do
       Class.new(ActiveJob::Base) do
-        include OpenAIAgents::Tracing::RailsIntegrations::JobTracing
+        include RAAF::Tracing::RailsIntegrations::JobTracing
         
         def perform(data)
           @performed_data = data
@@ -59,7 +59,7 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
 
     it "propagates job exceptions" do
       failing_job_class = Class.new(ActiveJob::Base) do
-        include OpenAIAgents::Tracing::RailsIntegrations::JobTracing
+        include RAAF::Tracing::RailsIntegrations::JobTracing
         
         def perform
           raise StandardError, "Job failed"
@@ -71,7 +71,7 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
     end
   end
 
-  describe OpenAIAgents::Tracing::RailsIntegrations::CorrelationMiddleware do
+  describe RAAF::Tracing::RailsIntegrations::CorrelationMiddleware do
     let(:app) { ->(_env) { [200, {}, ["OK"]] } }
     let(:middleware) { described_class.new(app) }
     let(:env) { Rack::MockRequest.env_for("http://example.com/test") }
@@ -120,19 +120,19 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
     end
   end
 
-  describe OpenAIAgents::Tracing::RailsIntegrations::ConsoleHelpers do
+  describe RAAF::Tracing::RailsIntegrations::ConsoleHelpers do
     let(:helper_class) do
       Class.new do
-        include OpenAIAgents::Tracing::RailsIntegrations::ConsoleHelpers
+        include RAAF::Tracing::RailsIntegrations::ConsoleHelpers
       end
     end
     
     let(:helper) { helper_class.new }
-    let(:trace) { OpenAIAgents::Tracing::Trace.create!(workflow_name: "Test Workflow") }
+    let(:trace) { RAAF::Tracing::Trace.create!(workflow_name: "Test Workflow") }
 
     describe "#recent_traces" do
       before do
-        allow(OpenAIAgents::Tracing::Trace).to receive(:recent).and_return(
+        allow(RAAF::Tracing::Trace).to receive(:recent).and_return(
           double("relation", limit: double("limited", includes: [trace]))
         )
       end
@@ -143,14 +143,14 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
       end
 
       it "handles missing models gracefully" do
-        stub_const("OpenAIAgents::Tracing::Trace", nil)
+        stub_const("RAAF::Tracing::Trace", nil)
         expect(helper.recent_traces).to eq([])
       end
     end
 
     describe "#traces_for" do
       before do
-        allow(OpenAIAgents::Tracing::Trace).to receive(:by_workflow).with("Test Workflow").and_return(
+        allow(RAAF::Tracing::Trace).to receive(:by_workflow).with("Test Workflow").and_return(
           double("relation", recent: double("recent", limit: double("limited", includes: [trace])))
         )
       end
@@ -163,14 +163,14 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
 
     describe "#performance_stats" do
       before do
-        allow(OpenAIAgents::Tracing::Trace).to receive(:within_timeframe).and_return(
+        allow(RAAF::Tracing::Trace).to receive(:within_timeframe).and_return(
           double("traces", 
                  count: 10,
                  completed: double("completed", count: 8),
                  failed: double("failed", count: 1),
                  running: double("running", count: 1))
         )
-        allow(OpenAIAgents::Tracing::Span).to receive(:within_timeframe).and_return(
+        allow(RAAF::Tracing::Span).to receive(:within_timeframe).and_return(
           double("spans",
                  count: 50,
                  errors: double("errors", count: 5))
@@ -214,10 +214,10 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
     end
   end
 
-  describe OpenAIAgents::Tracing::RailsIntegrations::RakeTasks do
+  describe RAAF::Tracing::RailsIntegrations::RakeTasks do
     describe ".cleanup_old_traces" do
       before do
-        allow(OpenAIAgents::Tracing::Trace).to receive(:cleanup_old_traces).and_return(5)
+        allow(RAAF::Tracing::Trace).to receive(:cleanup_old_traces).and_return(5)
       end
 
       it "calls cleanup and reports results" do
@@ -227,7 +227,7 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
       end
 
       it "handles missing models gracefully" do
-        stub_const("OpenAIAgents::Tracing::Trace", nil)
+        stub_const("RAAF::Tracing::Trace", nil)
         result = described_class.cleanup_old_traces
         expect(result).to eq(0)
       end
@@ -235,15 +235,15 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
 
     describe ".performance_report" do
       before do
-        allow(OpenAIAgents::Tracing::Trace).to receive(:performance_stats).and_return({
+        allow(RAAF::Tracing::Trace).to receive(:performance_stats).and_return({
                                                                                         total_traces: 100,
                                                                                         success_rate: 95.0,
                                                                                         avg_duration: 2.5
                                                                                       })
-        allow(OpenAIAgents::Tracing::Trace).to receive(:top_workflows).and_return([
+        allow(RAAF::Tracing::Trace).to receive(:top_workflows).and_return([
                                                                                     { workflow_name: "Test Workflow", trace_count: 50, success_rate: 98.0 }
                                                                                   ])
-        allow(OpenAIAgents::Tracing::Span).to receive(:error_analysis).and_return({
+        allow(RAAF::Tracing::Span).to receive(:error_analysis).and_return({
                                                                                     total_errors: 5,
                                                                                     errors_by_kind: { "llm" => 3, "tool" => 2 }
                                                                                   })
@@ -256,7 +256,7 @@ RSpec.describe OpenAIAgents::Tracing::RailsIntegrations do
       end
 
       it "handles missing models gracefully" do
-        stub_const("OpenAIAgents::Tracing::Trace", nil)
+        stub_const("RAAF::Tracing::Trace", nil)
         expect { described_class.performance_report }.not_to raise_error
       end
     end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class TraceDetail < Phlex::HTML
       include Phlex::Rails::Helpers::LinkTo

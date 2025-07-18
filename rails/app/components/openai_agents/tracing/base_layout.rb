@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class BaseLayout < Phlex::HTML
       include Phlex::Rails::Helpers::CSRFMetaTags
@@ -19,7 +19,7 @@ module RubyAIAgentsFactory
           head do
             meta(charset: "utf-8")
             meta(name: "viewport", content: "width=device-width, initial-scale=1, shrink-to-fit=no")
-            title { "OpenAI Agents Tracing - #{@title}" }
+            title { "Ruby AI Agents Factory Tracing - #{@title}" }
 
             # Preline CSS
             link(href: "https://preline.co/assets/css/main.min.css", rel: "stylesheet")
@@ -50,7 +50,7 @@ module RubyAIAgentsFactory
             Flex(justify: :between, align: :center, class: "py-4") do
               Container(class: "me-5 lg:me-0 lg:hidden") do
                 Link(href: "#", class: "flex-none text-xl font-semibold text-gray-800") do
-                  "🔍 OpenAI Agents Tracing"
+                  "🔍 Ruby AI Agents Factory Tracing"
                 end
               end
 
@@ -69,7 +69,7 @@ module RubyAIAgentsFactory
         Sidebar(id: "hs-application-sidebar", class: "w-64 bg-white border-r border-gray-200 h-full") do
           Container(class: "px-6 pt-4") do
             Link(href: root_path, class: "flex-none text-xl font-semibold text-gray-800") do
-              "🔍 OpenAI Agents Tracing"
+              "🔍 RAAF Tracing"
             end
           end
 

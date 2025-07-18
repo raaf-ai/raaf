@@ -2,19 +2,19 @@
 
 # Load ActiveRecord models if available
 begin
-  require_relative "../../../app/models/openai_agents/tracing/trace"
-  require_relative "../../../app/models/openai_agents/tracing/span"
+  require_relative "../../../app/models/raaf/tracing/trace"
+  require_relative "../../../app/models/raaf/tracing/span"
 rescue LoadError
   # Models will be loaded by Rails engine
 end
 
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # Processor that saves spans and traces to a Rails database using ActiveRecord
     #
-    # ActiveRecordProcessor integrates with the OpenAI Agents tracing system to
+    # ActiveRecordProcessor integrates with the RAAF tracing system to
     # store traces and spans in your Rails application's database. This enables:
     #
     # - Local storage without external dependencies
@@ -29,16 +29,16 @@ module RubyAIAgentsFactory
     # but can also be set up manually:
     #
     # @example Automatic configuration (via initializer)
-    #   RubyAIAgentsFactory::Tracing.configure do |config|
+    #   RAAF::Tracing.configure do |config|
     #     config.auto_configure = true
     #   end
     #
     # @example Manual configuration
-    #   processor = RubyAIAgentsFactory::Tracing::ActiveRecordProcessor.new
-    #   OpenAIAgents.tracer.add_processor(processor)
+    #   processor = RAAF::Tracing::ActiveRecordProcessor.new
+    #   RAAF::tracer.add_processor(processor)
     #
     # @example With custom options
-    #   processor = RubyAIAgentsFactory::Tracing::ActiveRecordProcessor.new(
+    #   processor = RAAF::Tracing::ActiveRecordProcessor.new(
     #     sampling_rate: 0.1,  # Sample 10% of traces
     #     batch_size: 100      # Batch 100 spans before saving
     #   )
@@ -47,7 +47,7 @@ module RubyAIAgentsFactory
     #
     # This processor requires the Rails database migration to be run:
     #
-    #   rails generate openai_agents:tracing:install
+    #   rails generate raaf:tracing:install
     #   rails db:migrate
     #
     # ## Performance Considerations
@@ -192,7 +192,7 @@ module RubyAIAgentsFactory
           return if @trace_buffer[span.trace_id]
 
           # Check if trace already exists in database
-          existing_trace = ::RubyAIAgentsFactory::Tracing::TraceRecord.find_by(trace_id: span.trace_id)
+          existing_trace = ::RAAF::Tracing::TraceRecord.find_by(trace_id: span.trace_id)
           if existing_trace
             @trace_buffer[span.trace_id] = existing_trace
             return
@@ -202,7 +202,7 @@ module RubyAIAgentsFactory
           trace_attrs = extract_trace_attributes(span)
 
           begin
-            trace = ::RubyAIAgentsFactory::Tracing::TraceRecord.create!(
+            trace = ::RAAF::Tracing::TraceRecord.create!(
               trace_id: span.trace_id,
               workflow_name: trace_attrs[:workflow_name] || "Unknown Workflow",
               group_id: trace_attrs[:group_id],
@@ -265,7 +265,7 @@ module RubyAIAgentsFactory
         return if spans.empty?
 
         begin
-          ::RubyAIAgentsFactory::Tracing::SpanRecord.transaction do
+          ::RAAF::Tracing::SpanRecord.transaction do
             spans.each { |span| save_span_to_database(span) }
           end
 
@@ -297,7 +297,7 @@ module RubyAIAgentsFactory
           status: span.status.to_s
         }
 
-        ::RubyAIAgentsFactory::Tracing::SpanRecord.create!(span_attributes)
+        ::RAAF::Tracing::SpanRecord.create!(span_attributes)
       rescue ActiveRecord::RecordInvalid => e
         log_warn("Failed to save span", span_id: span.span_id, error: e.message, error_class: e.class.name)
       rescue StandardError => e
@@ -399,7 +399,7 @@ module RubyAIAgentsFactory
         return if Time.current - @last_cleanup < 1.hour
 
         Thread.new do
-          deleted_count = ::RubyAIAgentsFactory::Tracing::TraceRecord.cleanup_old_traces(older_than: @cleanup_older_than)
+          deleted_count = ::RAAF::Tracing::TraceRecord.cleanup_old_traces(older_than: @cleanup_older_than)
           log_info("Cleaned up old traces", deleted_count: deleted_count) if deleted_count > 0
         rescue StandardError => e
           log_error("Cleanup error", error: e.message, error_class: e.class.name)
@@ -412,15 +412,15 @@ module RubyAIAgentsFactory
       #
       # @raise [StandardError] If tables don't exist
       def validate_database_setup
-        unless ::RubyAIAgentsFactory::Tracing::TraceRecord.table_exists?
-          raise "OpenAI Agents tracing tables not found. " \
-                "Run: rails generate openai_agents:tracing:install && rails db:migrate"
+        unless ::RAAF::Tracing::TraceRecord.table_exists?
+          raise "RAAF tracing tables not found. " \
+                "Run: rails generate raaf:tracing:install && rails db:migrate"
         end
 
-        return if ::RubyAIAgentsFactory::Tracing::SpanRecord.table_exists?
+        return if ::RAAF::Tracing::SpanRecord.table_exists?
 
-        raise "OpenAI Agents tracing tables not found. " \
-              "Run: rails generate openai_agents:tracing:install && rails db:migrate"
+        raise "RAAF tracing tables not found. " \
+              "Run: rails generate raaf:tracing:install && rails db:migrate"
       end
     end
   end

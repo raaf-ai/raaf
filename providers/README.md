@@ -70,23 +70,23 @@ bundle install
 require 'raaf-providers'
 
 # OpenAI Provider
-openai = RubyAIAgentsFactory::Providers::OpenAI.new(
+openai = RAAF::Providers::OpenAI.new(
   api_key: ENV['OPENAI_API_KEY']
 )
 
 # Anthropic Provider
-anthropic = RubyAIAgentsFactory::Providers::Anthropic.new(
+anthropic = RAAF::Providers::Anthropic.new(
   api_key: ENV['ANTHROPIC_API_KEY']
 )
 
 # Use with agents
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant",
   model: "gpt-4o"
 )
 
-runner = RubyAIAgentsFactory::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
   provider: openai  # or anthropic, cohere, etc.
 )
@@ -96,24 +96,24 @@ runner = RubyAIAgentsFactory::Runner.new(
 
 ```ruby
 # Create provider from configuration
-provider = RubyAIAgentsFactory::Providers::Factory.create(:openai) do |config|
+provider = RAAF::Providers::Factory.create(:openai) do |config|
   config.api_key = ENV['OPENAI_API_KEY']
   config.model = 'gpt-4o'
   config.max_tokens = 4000
 end
 
 # Create from string
-provider = RubyAIAgentsFactory::Providers::Factory.from_string('openai://gpt-4o')
+provider = RAAF::Providers::Factory.from_string('openai://gpt-4o')
 
 # Create from URL
-provider = RubyAIAgentsFactory::Providers::Factory.from_url('https://api.openai.com/v1')
+provider = RAAF::Providers::Factory.from_url('https://api.openai.com/v1')
 ```
 
 ### Multi-Provider Configuration
 
 ```ruby
 # Configure multiple providers
-RubyAIAgentsFactory::Providers.configure do |config|
+RAAF::Providers.configure do |config|
   config.register :openai do |openai|
     openai.api_key = ENV['OPENAI_API_KEY']
     openai.models = ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
@@ -135,14 +135,14 @@ end
 
 ```ruby
 # Switch providers at runtime
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Use OpenAI
-runner.provider = RubyAIAgentsFactory::Providers.get(:openai)
+runner.provider = RAAF::Providers.get(:openai)
 result1 = runner.run("Hello")
 
 # Switch to Anthropic
-runner.provider = RubyAIAgentsFactory::Providers.get(:anthropic)
+runner.provider = RAAF::Providers.get(:anthropic)
 result2 = runner.run("Hello")
 ```
 
@@ -150,14 +150,14 @@ result2 = runner.run("Hello")
 
 ```ruby
 # Configure load balancing across providers
-balancer = RubyAIAgentsFactory::Providers::LoadBalancer.new do |config|
+balancer = RAAF::Providers::LoadBalancer.new do |config|
   config.add_provider(:openai, weight: 70)
   config.add_provider(:anthropic, weight: 20)
   config.add_provider(:cohere, weight: 10)
   config.strategy = :weighted_round_robin
 end
 
-runner = RubyAIAgentsFactory::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
   provider: balancer
 )
@@ -167,14 +167,14 @@ runner = RubyAIAgentsFactory::Runner.new(
 
 ```ruby
 # Configure automatic failover
-failover = RubyAIAgentsFactory::Providers::Failover.new do |config|
+failover = RAAF::Providers::Failover.new do |config|
   config.primary_provider = :openai
   config.fallback_providers = [:anthropic, :cohere]
   config.retry_attempts = 3
   config.retry_delay = 1.0
 end
 
-runner = RubyAIAgentsFactory::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
   provider: failover
 )
@@ -185,7 +185,7 @@ runner = RubyAIAgentsFactory::Runner.new(
 ### OpenAI Features
 
 ```ruby
-openai = RubyAIAgentsFactory::Providers::OpenAI.new do |config|
+openai = RAAF::Providers::OpenAI.new do |config|
   config.api_key = ENV['OPENAI_API_KEY']
   config.organization = ENV['OPENAI_ORG_ID']
   config.use_responses_api = true  # Use new Responses API
@@ -208,7 +208,7 @@ result = openai.chat_completion(
 ### Anthropic Features
 
 ```ruby
-anthropic = RubyAIAgentsFactory::Providers::Anthropic.new do |config|
+anthropic = RAAF::Providers::Anthropic.new do |config|
   config.api_key = ENV['ANTHROPIC_API_KEY']
   config.max_tokens = 4000
   config.streaming = true
@@ -227,7 +227,7 @@ result = anthropic.chat_completion(
 ### Cohere Features
 
 ```ruby
-cohere = RubyAIAgentsFactory::Providers::Cohere.new do |config|
+cohere = RAAF::Providers::Cohere.new do |config|
   config.api_key = ENV['COHERE_API_KEY']
   config.temperature = 0.7
   config.max_tokens = 4000
@@ -284,7 +284,7 @@ result = cohere.chat_completion(
 ### Core Components
 
 ```
-RubyAIAgentsFactory::Providers::
+RAAF::Providers::
 ├── Base                     # Base provider class
 ├── OpenAI                   # OpenAI provider implementation
 ├── Anthropic               # Anthropic provider implementation
@@ -302,7 +302,7 @@ RubyAIAgentsFactory::Providers::
 ### Provider Interface
 
 ```ruby
-class CustomProvider < RubyAIAgentsFactory::Providers::Base
+class CustomProvider < RAAF::Providers::Base
   def chat_completion(messages:, model:, **options)
     # Implementation
   end
@@ -327,7 +327,7 @@ end
 
 ```ruby
 # Create custom provider
-class MyCustomProvider < RubyAIAgentsFactory::Providers::Base
+class MyCustomProvider < RAAF::Providers::Base
   def initialize(api_key:, base_url:)
     @api_key = api_key
     @base_url = base_url
@@ -353,14 +353,14 @@ class MyCustomProvider < RubyAIAgentsFactory::Providers::Base
 end
 
 # Register custom provider
-RubyAIAgentsFactory::Providers.register(:custom, MyCustomProvider)
+RAAF::Providers.register(:custom, MyCustomProvider)
 ```
 
 ### Provider Middleware
 
 ```ruby
 # Add middleware to providers
-class LoggingMiddleware < RubyAIAgentsFactory::Providers::Middleware
+class LoggingMiddleware < RAAF::Providers::Middleware
   def call(request, response)
     log_info("Provider request", provider: request.provider, model: request.model)
     yield
@@ -375,7 +375,7 @@ provider.use(LoggingMiddleware)
 
 ```ruby
 # Configure cost-based provider selection
-optimizer = RubyAIAgentsFactory::Providers::CostOptimizer.new do |config|
+optimizer = RAAF::Providers::CostOptimizer.new do |config|
   config.budget_limit = 100.0  # $100 per day
   config.cost_per_token = {
     'gpt-4o' => 0.00003,
@@ -385,7 +385,7 @@ optimizer = RubyAIAgentsFactory::Providers::CostOptimizer.new do |config|
   config.optimization_strategy = :cost_performance_balance
 end
 
-runner = RubyAIAgentsFactory::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
   provider: optimizer
 )
@@ -412,8 +412,8 @@ bundle exec rspec
 
 ```ruby
 # Test provider implementations
-RSpec.describe RubyAIAgentsFactory::Providers::OpenAI do
-  include RubyAIAgentsFactory::Testing::ProviderMatchers
+RSpec.describe RAAF::Providers::OpenAI do
+  include RAAF::Testing::ProviderMatchers
   
   it "supports chat completion" do
     expect(provider).to support_chat_completion

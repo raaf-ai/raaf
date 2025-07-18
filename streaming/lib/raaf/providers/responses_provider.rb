@@ -7,12 +7,12 @@ require "json"
 require_relative "../../models/responses_provider"
 require_relative "../base"
 
-module RubyAIAgentsFactory
+module RAAF
   module Async
     module Providers
       # Async version of ResponsesProvider using Async::HTTP
-      class ResponsesProvider < RubyAIAgentsFactory::Models::ResponsesProvider
-        include RubyAIAgentsFactory::Async::Base
+      class ResponsesProvider < RAAF::Models::ResponsesProvider
+        include RAAF::Async::Base
 
         def initialize(api_key: nil, base_url: nil, default_model: nil)
           super(api_key: api_key, api_base: base_url)

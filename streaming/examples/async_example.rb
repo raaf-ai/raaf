@@ -1,14 +1,14 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates concurrent agent execution in OpenAI Agents Ruby.
+# This example demonstrates concurrent agent execution in RAAF (Ruby AI Agents Factory).
 # Concurrent operations enable parallel processing, improved performance, and better
 # resource utilization when dealing with multiple agents or time-consuming tools.
 # The concurrency functionality uses Ruby's Concurrent Ruby gem and built-in
 # threading capabilities to provide efficient parallel execution.
 
 require "bundler/setup"
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 require "benchmark"
 require "concurrent-ruby"
 
@@ -25,7 +25,7 @@ require "concurrent-ruby"
 # While the agent itself isn't inherently async, we can execute multiple
 # agents concurrently for parallel processing.
 
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "ConcurrentAssistant",
   
   # Instructions guide the agent's behavior
@@ -95,7 +95,7 @@ puts "=== Example 1: Simple Agent Execution ==="
 puts "Running agent with multiple tools..."
 
 # Create a runner for the agent
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Run the agent with a query that triggers multiple tools
 result = runner.run(
@@ -120,23 +120,23 @@ puts "Running multiple agents in parallel..."
 # Each agent has focused expertise and instructions
 
 # Weather specialist agent
-weather_agent = OpenAIAgents::Agent.new(
+weather_agent = RAAF::Agent.new(
   name: "WeatherAgent",
   instructions: "You provide weather information.",
   model: "gpt-4o-mini"
 )
 
 # Mathematics specialist agent
-math_agent = OpenAIAgents::Agent.new(
+math_agent = RAAF::Agent.new(
   name: "MathAgent", 
   instructions: "You solve math problems.",
   model: "gpt-4o-mini"
 )
 
 # Create runners for each agent
-weather_runner = OpenAIAgents::Runner.new(agent: weather_agent)
-math_runner = OpenAIAgents::Runner.new(agent: math_agent)
-search_runner = OpenAIAgents::Runner.new(agent: agent)
+weather_runner = RAAF::Runner.new(agent: weather_agent)
+math_runner = RAAF::Runner.new(agent: math_agent)
+search_runner = RAAF::Runner.new(agent: agent)
 
 # Measure execution time to demonstrate parallelism benefits
 time = Benchmark.measure do
@@ -206,7 +206,7 @@ time = Benchmark.measure do
   # Submit all queries to the thread pool for concurrent execution
   futures = queries.map do |query|
     Concurrent::Future.execute(executor: thread_pool) do
-      runner = OpenAIAgents::Runner.new(agent: agent)
+      runner = RAAF::Runner.new(agent: agent)
       result = runner.run(query)
       {
         query: query,

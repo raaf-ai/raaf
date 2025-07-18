@@ -6,7 +6,7 @@ require_relative "retryable_provider"
 require_relative "../http_client"
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     ##
     # Ollama API provider implementation for local models

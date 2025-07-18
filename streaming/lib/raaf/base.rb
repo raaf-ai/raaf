@@ -4,9 +4,9 @@ require "async"
 require "async/http"
 require "async/semaphore"
 
-module RubyAIAgentsFactory
+module RAAF
   module Async
-    # Base module for async support across OpenAI Agents
+    # Base module for async support across RAAF
     module Base
       # Executes a block asynchronously, returning a Task
       def async(&)

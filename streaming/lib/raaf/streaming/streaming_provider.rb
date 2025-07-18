@@ -4,7 +4,7 @@ require "json"
 require "net/http"
 require "uri"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # Streaming provider for AI agents
@@ -14,7 +14,7 @@ module RubyAIAgentsFactory
     # simulated streaming for providers that don't support it natively.
     #
     class StreamingProvider
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Object] Underlying provider
       attr_reader :provider
@@ -119,7 +119,7 @@ module RubyAIAgentsFactory
 
       def create_default_provider
         # Create a default ResponsesProvider
-        RubyAIAgentsFactory::Models::ResponsesProvider.new
+        RAAF::Models::ResponsesProvider.new
       end
 
       def supports_native_streaming?
@@ -220,7 +220,7 @@ module RubyAIAgentsFactory
     # and handles streaming responses with proper lifecycle management.
     #
     class StreamingSession
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [StreamingProvider] Streaming provider
       attr_reader :provider

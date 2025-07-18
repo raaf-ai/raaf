@@ -1,6 +1,6 @@
 <%
-  layout = OpenAIAgents::Tracing::BaseLayout.new(title: "Dashboard")
-  dashboard = OpenAIAgents::Tracing::Dashboard.new(
+  layout = RubyAIAgentsFactory::Tracing::BaseLayout.new(title: "Dashboard")
+  dashboard = RubyAIAgentsFactory::Tracing::Dashboard.new(
     overview_stats: @overview_stats,
     top_workflows: @top_workflows,
     recent_traces: @recent_traces,

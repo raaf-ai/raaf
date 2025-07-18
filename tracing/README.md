@@ -40,19 +40,19 @@ bundle install
 require 'raaf-tracing'
 
 # Create a tracer
-tracer = RubyAIAgentsFactory::Tracing::SpanTracer.new
+tracer = RAAF::Tracing::SpanTracer.new
 
 # Add processors
-tracer.add_processor(RubyAIAgentsFactory::Tracing::OpenAIProcessor.new)
-tracer.add_processor(RubyAIAgentsFactory::Tracing::ConsoleProcessor.new)
+tracer.add_processor(RAAF::Tracing::OpenAIProcessor.new)
+tracer.add_processor(RAAF::Tracing::ConsoleProcessor.new)
 
 # Use with agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are helpful"
 )
 
-runner = RubyAIAgentsFactory::Runner.new(agent: agent, tracer: tracer)
+runner = RAAF::Runner.new(agent: agent, tracer: tracer)
 result = runner.run("Hello, world!")
 ```
 
@@ -62,15 +62,15 @@ result = runner.run("Hello, world!")
 require 'raaf-tracing'
 
 # Setup OpenTelemetry
-otel = RubyAIAgentsFactory::Tracing::OpenTelemetryIntegration.new(
+otel = RAAF::Tracing::OpenTelemetryIntegration.new(
   service_name: "my-ai-service",
   service_version: "1.0.0"
 )
 otel.setup_instrumentation
 
 # Use with agent
-agent = RubyAIAgentsFactory::Agent.new(name: "Assistant")
-runner = RubyAIAgentsFactory::Runner.new(agent: agent, tracer: otel)
+agent = RAAF::Agent.new(name: "Assistant")
+runner = RAAF::Runner.new(agent: agent, tracer: otel)
 ```
 
 ## Processors
@@ -80,7 +80,7 @@ runner = RubyAIAgentsFactory::Runner.new(agent: agent, tracer: otel)
 Sends traces to OpenAI's monitoring dashboard:
 
 ```ruby
-processor = RubyAIAgentsFactory::Tracing::OpenAIProcessor.new
+processor = RAAF::Tracing::OpenAIProcessor.new
 tracer.add_processor(processor)
 ```
 
@@ -89,7 +89,7 @@ tracer.add_processor(processor)
 Integrates with Datadog APM:
 
 ```ruby
-processor = RubyAIAgentsFactory::Tracing::DatadogProcessor.new(
+processor = RAAF::Tracing::DatadogProcessor.new(
   service_name: "ai-agents-production",
   env: "production",
   version: "1.0.0"
@@ -102,7 +102,7 @@ tracer.add_processor(processor)
 Outputs traces to console for debugging:
 
 ```ruby
-processor = RubyAIAgentsFactory::Tracing::ConsoleProcessor.new
+processor = RAAF::Tracing::ConsoleProcessor.new
 tracer.add_processor(processor)
 ```
 
@@ -111,7 +111,7 @@ tracer.add_processor(processor)
 Saves traces to JSON files:
 
 ```ruby
-processor = RubyAIAgentsFactory::Tracing::FileProcessor.new("traces.json")
+processor = RAAF::Tracing::FileProcessor.new("traces.json")
 tracer.add_processor(processor)
 ```
 
@@ -120,13 +120,13 @@ tracer.add_processor(processor)
 ### Global Configuration
 
 ```ruby
-RubyAIAgentsFactory::Tracing.configure do |config|
+RAAF::Tracing.configure do |config|
   config.enabled = true
   config.sample_rate = 0.1  # Sample 10% of traces
   config.max_spans_per_trace = 1000
   config.processors = [
-    RubyAIAgentsFactory::Tracing::OpenAIProcessor.new,
-    RubyAIAgentsFactory::Tracing::ConsoleProcessor.new
+    RAAF::Tracing::OpenAIProcessor.new,
+    RAAF::Tracing::ConsoleProcessor.new
   ]
 end
 ```

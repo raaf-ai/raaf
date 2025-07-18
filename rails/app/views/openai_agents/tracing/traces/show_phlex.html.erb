@@ -1,6 +1,6 @@
 <%
-  layout = OpenAIAgents::Tracing::BaseLayout.new(title: @trace.workflow_name)
-  trace_detail = OpenAIAgents::Tracing::TraceDetail.new(trace: @trace)
+  layout = RubyAIAgentsFactory::Tracing::BaseLayout.new(title: @trace.workflow_name)
+  trace_detail = RubyAIAgentsFactory::Tracing::TraceDetail.new(trace: @trace)
 %>
 
 <%= render layout do %>

@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module DSL
+
     ##
     # Workflow builder for DSL-based workflow construction
     #
@@ -10,7 +12,8 @@ module RubyAIAgentsFactory
     # execution, and advanced workflow patterns.
     #
     class WorkflowBuilder
-      include RubyAIAgentsFactory::Logging
+
+      include RAAF::Logging
 
       @@count = 0
 
@@ -230,8 +233,8 @@ module RubyAIAgentsFactory
       #
       def build
         validate_configuration!
-        
-        workflow = RubyAIAgentsFactory::Workflow.new(
+
+        workflow = RAAF::Workflow.new(
           name: @workflow_name,
           **@config
         )
@@ -308,31 +311,31 @@ module RubyAIAgentsFactory
 
       def validate_configuration!
         errors = []
-        
+
         errors << "Workflow name is required" unless @workflow_name
         errors << "At least one agent is required" if @agents.empty?
         errors << "At least one flow is required" if @flows.empty?
-        
+
         # Validate agents exist in flows
         @flows.each do |flow|
           case flow[:type]
           when :parallel, :sequential
             flow[:agents].each do |agent_name|
-              unless @agents.key?(agent_name)
-                errors << "Agent '#{agent_name}' not found in workflow"
-              end
+              errors << "Agent '#{agent_name}' not found in workflow" unless @agents.key?(agent_name)
             end
           end
         end
-        
+
         raise DSL::ValidationError, errors.join(", ") if errors.any?
       end
+
     end
 
     ##
     # Flow builder for defining workflow flows
     #
     class FlowBuilder
+
       attr_reader :flows
 
       def initialize(workflow_builder)
@@ -354,14 +357,14 @@ module RubyAIAgentsFactory
           from: agent_name,
           transitions: []
         }
-        
+
         instance_eval(&block) if block_given?
         @flows << @current_flow
       end
 
       def to(agent_name, **options)
         return unless @current_flow
-        
+
         @current_flow[:transitions] << {
           to: agent_name,
           condition: options[:if],
@@ -380,7 +383,7 @@ module RubyAIAgentsFactory
       def fork(options = {}, &block)
         fork_builder = ForkBuilder.new
         fork_builder.instance_eval(&block)
-        
+
         @flows << {
           type: :fork,
           branches: fork_builder.branches,
@@ -395,12 +398,14 @@ module RubyAIAgentsFactory
           options: options
         }
       end
+
     end
 
     ##
     # Fork builder for parallel execution branches
     #
     class ForkBuilder
+
       attr_reader :branches
 
       def initialize
@@ -412,12 +417,14 @@ module RubyAIAgentsFactory
         branch_builder.instance_eval(&block)
         @branches << branch_builder.build
       end
+
     end
 
     ##
     # Branch builder for individual parallel branches
     #
     class BranchBuilder
+
       def initialize(name)
         @name = name
         @steps = []
@@ -436,12 +443,14 @@ module RubyAIAgentsFactory
           steps: @steps
         }
       end
+
     end
 
     ##
     # Conditional builder for conditional execution
     #
     class ConditionalBuilder
+
       def initialize(condition, options)
         @condition = condition
         @options = options
@@ -470,12 +479,14 @@ module RubyAIAgentsFactory
           options: @options
         }
       end
+
     end
 
     ##
     # Conditional step builder
     #
     class ConditionalStepBuilder
+
       attr_reader :steps
 
       def initialize
@@ -505,12 +516,14 @@ module RubyAIAgentsFactory
           options: options
         }
       end
+
     end
 
     ##
     # Loop builder for loop execution
     #
     class LoopBuilder
+
       def initialize(condition, options)
         @condition = condition
         @options = options
@@ -548,6 +561,9 @@ module RubyAIAgentsFactory
           options: @options
         }
       end
+
     end
+
   end
+
 end

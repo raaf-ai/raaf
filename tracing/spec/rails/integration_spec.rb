@@ -6,7 +6,7 @@ require "spec_helper"
 begin
   require "rails"
   require "active_record"
-  require_relative "../../../../lib/openai_agents/tracing/active_record_processor"
+  require_relative "../../../../lib/raaf/tracing/active_record_processor"
   
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
@@ -18,7 +18,7 @@ end
 RSpec.describe "Rails Tracing Integration" do
   describe "end-to-end integration" do
     let(:agent) do
-      OpenAIAgents::Agent.new(
+      RAAF::Agent.new(
         name: "TestAgent",
         instructions: "You are a helpful test agent.",
         model: "gpt-4o"
@@ -26,7 +26,7 @@ RSpec.describe "Rails Tracing Integration" do
     end
 
     let(:processor) do
-      OpenAIAgents::Tracing::ActiveRecordProcessor.new(
+      RAAF::Tracing::ActiveRecordProcessor.new(
         sampling_rate: 1.0,
         batch_size: 1
       )
@@ -34,11 +34,11 @@ RSpec.describe "Rails Tracing Integration" do
 
     before do
       # Set up tracing with ActiveRecord processor
-      OpenAIAgents.tracer.add_processor(processor)
+      RAAF::tracer.add_processor(processor)
       
       # Mock OpenAI API response
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider).to receive(:run).and_return(
-        OpenAIAgents::Result.new(
+      allow_any_instance_of(RAAF::Models::ResponsesProvider).to receive(:run).and_return(
+        RAAF::Result.new(
           agent: agent,
           messages: [{ role: "assistant", content: "Hello from test agent!" }]
         )
@@ -47,50 +47,50 @@ RSpec.describe "Rails Tracing Integration" do
 
     after do
       # Clean up
-      OpenAIAgents.tracer.instance_variable_set(:@processors, [])
+      RAAF::tracer.instance_variable_set(:@processors, [])
     end
 
     it "traces agent execution and stores in database" do
       # Execute agent within a trace
       trace_result = nil
-      OpenAIAgents.trace("Integration Test") do
-        runner = OpenAIAgents::Runner.new(agent: agent)
+      RAAF::trace("Integration Test") do
+        runner = RAAF::Runner.new(agent: agent)
         trace_result = runner.run("Hello, test agent!")
       end
 
       # Verify trace was created in database
-      expect(OpenAIAgents::Tracing::Trace.count).to eq(1)
+      expect(RAAF::Tracing::Trace.count).to eq(1)
       
-      trace = OpenAIAgents::Tracing::Trace.first
+      trace = RAAF::Tracing::Trace.first
       expect(trace.workflow_name).to eq("Integration Test")
       expect(trace.status).to be_in(%w[completed running])
 
       # Verify spans were created
-      expect(OpenAIAgents::Tracing::Span.count).to be >= 1
+      expect(RAAF::Tracing::Span.count).to be >= 1
       
-      agent_span = OpenAIAgents::Tracing::Span.find_by(kind: "agent")
+      agent_span = RAAF::Tracing::Span.find_by(kind: "agent")
       expect(agent_span).to be_present
       expect(agent_span.name).to include("TestAgent")
       expect(agent_span.trace_id).to eq(trace.trace_id)
 
       # Verify result
-      expect(trace_result).to be_a(OpenAIAgents::Result)
+      expect(trace_result).to be_a(RAAF::Result)
       expect(trace_result.messages.last[:content]).to eq("Hello from test agent!")
     end
 
     it "handles job tracing integration" do
       # Create a test job class
       job_class = Class.new(ActiveJob::Base) do
-        include OpenAIAgents::Tracing::RailsIntegrations::JobTracing
+        include RAAF::Tracing::RailsIntegrations::JobTracing
         
         def perform(message)
-          @test_agent = OpenAIAgents::Agent.new(
+          @test_agent = RAAF::Agent.new(
             name: "JobAgent",
             instructions: "Test job agent",
             model: "gpt-4o"
           )
           
-          runner = OpenAIAgents::Runner.new(agent: @test_agent)
+          runner = RAAF::Runner.new(agent: @test_agent)
           runner.run(message)
         end
       end
@@ -107,7 +107,7 @@ RSpec.describe "Rails Tracing Integration" do
       job.perform_now
 
       # Verify job trace was created
-      job_trace = OpenAIAgents::Tracing::Trace.find_by(workflow_name: /Job/)
+      job_trace = RAAF::Tracing::Trace.find_by(workflow_name: /Job/)
       expect(job_trace).to be_present
       expect(job_trace.metadata["job_id"]).to eq("job_123")
       expect(job_trace.metadata["arguments"]).to eq(["test message"])
@@ -115,14 +115,14 @@ RSpec.describe "Rails Tracing Integration" do
 
     it "provides console helpers functionality" do
       # Create test data
-      trace = OpenAIAgents::Tracing::Trace.create!(
+      trace = RAAF::Tracing::Trace.create!(
         workflow_name: "Console Test",
         status: "completed",
         started_at: 1.hour.ago,
         ended_at: 30.minutes.ago
       )
 
-      span = OpenAIAgents::Tracing::Span.create!(
+      span = RAAF::Tracing::Span.create!(
         span_id: "span_test123",
         trace_id: trace.trace_id,
         name: "test_span",
@@ -135,7 +135,7 @@ RSpec.describe "Rails Tracing Integration" do
 
       # Test console helpers
       helper_class = Class.new do
-        include OpenAIAgents::Tracing::RailsIntegrations::ConsoleHelpers
+        include RAAF::Tracing::RailsIntegrations::ConsoleHelpers
       end
       helper = helper_class.new
 
@@ -158,12 +158,12 @@ RSpec.describe "Rails Tracing Integration" do
 
     it "supports search functionality" do
       # Create searchable test data
-      trace = OpenAIAgents::Tracing::Trace.create!(
+      trace = RAAF::Tracing::Trace.create!(
         workflow_name: "Searchable Workflow",
         status: "completed"
       )
 
-      span = OpenAIAgents::Tracing::Span.create!(
+      span = RAAF::Tracing::Span.create!(
         span_id: "span_search123",
         trace_id: trace.trace_id,
         name: "searchable_operation",
@@ -174,7 +174,7 @@ RSpec.describe "Rails Tracing Integration" do
       )
 
       # Test search controller functionality
-      search_controller = OpenAIAgents::Tracing::SearchController.new
+      search_controller = RAAF::Tracing::SearchController.new
       search_controller.instance_variable_set(:@query, "searchable")
 
       # Test trace search
@@ -188,7 +188,7 @@ RSpec.describe "Rails Tracing Integration" do
 
     it "calculates performance metrics correctly" do
       # Create performance test data
-      trace = OpenAIAgents::Tracing::Trace.create!(
+      trace = RAAF::Tracing::Trace.create!(
         workflow_name: "Performance Test",
         status: "completed",
         started_at: 2.hours.ago,
@@ -196,7 +196,7 @@ RSpec.describe "Rails Tracing Integration" do
       )
 
       # Create spans with known performance characteristics
-      OpenAIAgents::Tracing::Span.create!(
+      RAAF::Tracing::Span.create!(
         span_id: "fast_span123",
         trace_id: trace.trace_id,
         name: "fast_operation",
@@ -206,7 +206,7 @@ RSpec.describe "Rails Tracing Integration" do
         start_time: 2.hours.ago
       )
 
-      OpenAIAgents::Tracing::Span.create!(
+      RAAF::Tracing::Span.create!(
         span_id: "slow_span123", 
         trace_id: trace.trace_id,
         name: "slow_operation",
@@ -217,7 +217,7 @@ RSpec.describe "Rails Tracing Integration" do
       )
 
       # Test performance metrics
-      metrics = OpenAIAgents::Tracing::Span.performance_metrics(kind: "llm")
+      metrics = RAAF::Tracing::Span.performance_metrics(kind: "llm")
       expect(metrics[:total_spans]).to be >= 2
       expect(metrics[:avg_duration_ms]).to be_a(Numeric)
       expect(metrics[:success_rate]).to eq(100.0)
@@ -232,13 +232,13 @@ RSpec.describe "Rails Tracing Integration" do
   describe "engine configuration" do
     it "loads Rails integration components conditionally" do
       # Verify Rails-specific classes are loaded
-      expect(defined?(OpenAIAgents::Tracing::Engine)).to be_truthy
-      expect(defined?(OpenAIAgents::Tracing::ActiveRecordProcessor)).to be_truthy
-      expect(defined?(OpenAIAgents::Tracing::RailsIntegrations)).to be_truthy
+      expect(defined?(RAAF::Tracing::Engine)).to be_truthy
+      expect(defined?(RAAF::Tracing::ActiveRecordProcessor)).to be_truthy
+      expect(defined?(RAAF::Tracing::RailsIntegrations)).to be_truthy
     end
 
     it "provides configuration options" do
-      config = OpenAIAgents::Tracing.configuration
+      config = RAAF::Tracing.configuration
       expect(config).to respond_to(:auto_configure)
       expect(config).to respond_to(:mount_path)
       expect(config).to respond_to(:retention_days)
@@ -247,14 +247,14 @@ RSpec.describe "Rails Tracing Integration" do
 
     it "allows configuration changes" do
       original_config = {
-        auto_configure: OpenAIAgents::Tracing.configuration.auto_configure,
-        mount_path: OpenAIAgents::Tracing.configuration.mount_path,
-        retention_days: OpenAIAgents::Tracing.configuration.retention_days,
-        sampling_rate: OpenAIAgents::Tracing.configuration.sampling_rate
+        auto_configure: RAAF::Tracing.configuration.auto_configure,
+        mount_path: RAAF::Tracing.configuration.mount_path,
+        retention_days: RAAF::Tracing.configuration.retention_days,
+        sampling_rate: RAAF::Tracing.configuration.sampling_rate
       }
 
       # Change configuration
-      OpenAIAgents::Tracing.configure do |config|
+      RAAF::Tracing.configure do |config|
         config.auto_configure = true
         config.mount_path = "/custom-tracing"
         config.retention_days = 14
@@ -262,14 +262,14 @@ RSpec.describe "Rails Tracing Integration" do
       end
 
       # Verify changes
-      config = OpenAIAgents::Tracing.configuration
+      config = RAAF::Tracing.configuration
       expect(config.auto_configure).to be true
       expect(config.mount_path).to eq("/custom-tracing")
       expect(config.retention_days).to eq(14)
       expect(config.sampling_rate).to eq(0.5)
 
       # Restore original configuration
-      OpenAIAgents::Tracing.configure do |config|
+      RAAF::Tracing.configure do |config|
         config.auto_configure = original_config[:auto_configure]
         config.mount_path = original_config[:mount_path]
         config.retention_days = original_config[:retention_days]

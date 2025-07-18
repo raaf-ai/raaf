@@ -4,7 +4,7 @@ require "spec_helper"
 require "tempfile"
 require "tmpdir"
 
-RSpec.describe OpenAIAgents::Configuration do
+RSpec.describe RAAF::Configuration do
   let(:temp_dir) { Dir.mktmpdir }
   let(:config_path) { File.join(temp_dir, "config") }
 
@@ -30,7 +30,7 @@ RSpec.describe OpenAIAgents::Configuration do
     end
 
     it "reads environment from ENV variable" do
-      allow(ENV).to receive(:[]).with("OPENAI_AGENTS_ENVIRONMENT").and_return("test")
+      allow(ENV).to receive(:[]).with("RAAF_ENVIRONMENT").and_return("test")
 
       config = described_class.new(auto_load: false)
 
@@ -121,17 +121,17 @@ RSpec.describe OpenAIAgents::Configuration do
     end
 
     it "loads environment variables" do
-      allow(ENV).to receive(:[]).with("OPENAI_AGENTS_ENVIRONMENT").and_return(nil)
+      allow(ENV).to receive(:[]).with("RAAF_ENVIRONMENT").and_return(nil)
       allow(ENV).to receive(:key?).with("OPENAI_API_KEY").and_return(true)
-      allow(ENV).to receive(:key?).with("OPENAI_AGENTS_MAX_TURNS").and_return(true)
-      allow(ENV).to receive(:key?).with("OPENAI_AGENTS_LOG_LEVEL").and_return(true)
+      allow(ENV).to receive(:key?).with("RAAF_MAX_TURNS").and_return(true)
+      allow(ENV).to receive(:key?).with("RAAF_LOG_LEVEL").and_return(true)
       allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("sk-test-key")
-      allow(ENV).to receive(:fetch).with("OPENAI_AGENTS_MAX_TURNS", nil).and_return("15")
-      allow(ENV).to receive(:fetch).with("OPENAI_AGENTS_LOG_LEVEL", nil).and_return("debug")
+      allow(ENV).to receive(:fetch).with("RAAF_MAX_TURNS", nil).and_return("15")
+      allow(ENV).to receive(:fetch).with("RAAF_LOG_LEVEL", nil).and_return("debug")
 
       # Mock all other ENV_MAPPINGS keys as not present
-      OpenAIAgents::Configuration::ENV_MAPPINGS.each_key do |key|
-        next if %w[OPENAI_API_KEY OPENAI_AGENTS_MAX_TURNS OPENAI_AGENTS_LOG_LEVEL].include?(key)
+      RAAF::Configuration::ENV_MAPPINGS.each_key do |key|
+        next if %w[OPENAI_API_KEY RAAF_MAX_TURNS RAAF_LOG_LEVEL].include?(key)
 
         allow(ENV).to receive(:key?).with(key).and_return(false)
       end
@@ -146,17 +146,17 @@ RSpec.describe OpenAIAgents::Configuration do
       expect(config.get("logging.level")).to eq("debug")
     end
 
-    it "loads custom OPENAI_AGENTS_ prefixed environment variables" do
-      allow(ENV).to receive(:[]).with("OPENAI_AGENTS_ENVIRONMENT").and_return(nil)
+    it "loads custom RAAF_ prefixed environment variables" do
+      allow(ENV).to receive(:[]).with("RAAF_ENVIRONMENT").and_return(nil)
 
       # Mock ENV_MAPPINGS lookups first
-      OpenAIAgents::Configuration::ENV_MAPPINGS.each_key do |key|
+      RAAF::Configuration::ENV_MAPPINGS.each_key do |key|
         allow(ENV).to receive(:key?).with(key).and_return(false)
       end
 
       # Mock the custom environment variables
-      allow(ENV).to receive(:each).and_yield("OPENAI_AGENTS_CUSTOM_SETTING", "custom_value").and_yield(
-        "OPENAI_AGENTS_NESTED_SETTING", "nested_value"
+      allow(ENV).to receive(:each).and_yield("RAAF_CUSTOM_SETTING", "custom_value").and_yield(
+        "RAAF_NESTED_SETTING", "nested_value"
       )
 
       config.load_configuration
@@ -183,14 +183,14 @@ RSpec.describe OpenAIAgents::Configuration do
       YAML
 
       # Set environment variables
-      allow(ENV).to receive(:key?).with("OPENAI_AGENTS_MAX_TURNS").and_return(true)
+      allow(ENV).to receive(:key?).with("RAAF_MAX_TURNS").and_return(true)
       allow(ENV).to receive(:key?).with("OPENAI_API_KEY").and_return(true)
-      allow(ENV).to receive(:fetch).with("OPENAI_AGENTS_MAX_TURNS", nil).and_return("40")
+      allow(ENV).to receive(:fetch).with("RAAF_MAX_TURNS", nil).and_return("40")
       allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("sk-env-key")
 
       # Mock other ENV_MAPPINGS keys as not present
-      OpenAIAgents::Configuration::ENV_MAPPINGS.each_key do |key|
-        next if %w[OPENAI_AGENTS_MAX_TURNS OPENAI_API_KEY].include?(key)
+      RAAF::Configuration::ENV_MAPPINGS.each_key do |key|
+        next if %w[RAAF_MAX_TURNS OPENAI_API_KEY].include?(key)
 
         allow(ENV).to receive(:key?).with(key).and_return(false)
       end
@@ -216,7 +216,13 @@ RSpec.describe OpenAIAgents::Configuration do
     it "warns about invalid configuration files" do
       File.write(File.join(config_path, "openai_agents.yml"), "invalid: yaml: content:")
 
-      expect { config.load_configuration }.to output(/Failed to load config file/).to_stderr
+      # Allow the config to call log_warn without raising errors
+      allow(config).to receive(:log_warn)
+
+      # Verify that log_warn is called with the expected message
+      expect(config).to receive(:log_warn).with(a_string_matching(/Failed to load config file/), any_args)
+
+      config.load_configuration
     end
   end
 
@@ -314,8 +320,8 @@ RSpec.describe OpenAIAgents::Configuration do
     let(:config) { described_class.new }
 
     it "provides method access to configuration sections" do
-      expect(config.openai).to be_a(OpenAIAgents::ConfigurationSection)
-      expect(config.agent).to be_a(OpenAIAgents::ConfigurationSection)
+      expect(config.openai).to be_a(RAAF::ConfigurationSection)
+      expect(config.agent).to be_a(RAAF::ConfigurationSection)
     end
 
     it "allows chained method access" do
@@ -375,7 +381,7 @@ RSpec.describe OpenAIAgents::Configuration do
 
     it "validates required API keys in production" do
       config = described_class.new(environment: "production", auto_load: false)
-      config.instance_variable_set(:@config_data, OpenAIAgents::Configuration::DEFAULT_CONFIG.dup)
+      config.instance_variable_set(:@config_data, RAAF::Configuration::DEFAULT_CONFIG.dup)
 
       errors = config.validate
       expect(errors).to include(/OpenAI API key is required/)
@@ -553,7 +559,7 @@ RSpec.describe OpenAIAgents::Configuration do
 
     it "returns nested sections" do
       tools_section = config.tools
-      expect(tools_section.file_search).to be_a(OpenAIAgents::ConfigurationSection)
+      expect(tools_section.file_search).to be_a(RAAF::ConfigurationSection)
       expect(tools_section.file_search.max_results).to eq(10)
     end
 
@@ -573,14 +579,20 @@ RSpec.describe OpenAIAgents::Configuration do
     it "raises ConfigurationError for validation failures in production" do
       config = described_class.new(environment: "production", auto_load: false)
 
-      expect { config.send(:validate_configuration) }.to raise_error(OpenAIAgents::ConfigurationError)
+      expect { config.send(:validate_configuration) }.to raise_error(RAAF::ConfigurationError)
     end
 
     it "warns about validation failures in development" do
       config = described_class.new(environment: "development", auto_load: false)
       config.set("agent.max_turns", -1)
 
-      expect { config.send(:validate_configuration) }.to output(/Configuration warnings/).to_stderr
+      # Allow the config to call log_warn without raising errors
+      allow(config).to receive(:log_warn)
+
+      # Verify that log_warn is called with the expected message
+      expect(config).to receive(:log_warn).with(a_string_matching(/Configuration warnings/), any_args)
+
+      config.send(:validate_configuration)
     end
   end
 

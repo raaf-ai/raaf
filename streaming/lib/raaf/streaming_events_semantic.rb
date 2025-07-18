@@ -1,4 +1,4 @@
-module RubyAIAgentsFactory
+module RAAF
   module StreamingEvents
     # Base event class
     class StreamEvent

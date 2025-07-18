@@ -7,7 +7,7 @@
 # shows how to implement audit logging, PII detection, consent management, and compliance
 # monitoring to meet regulatory requirements and enable forensic analysis.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 require_relative "../lib/openai_agents/compliance"
 
 # Set API key from environment
@@ -29,7 +29,7 @@ puts "-" * 50
 
 # Create audit logger with comprehensive configuration
 # The logger supports multiple storage backends and compliance standards
-audit_logger = OpenAIAgents::Compliance::AuditLogger.new(
+audit_logger = RAAF::Compliance::AuditLogger.new(
   log_file: "audit_example.log",  # Primary log file for quick access
   storage_path: "./audit_logs_example",  # Directory for archived logs
   store_conversations: true,  # Store full conversation history for context
@@ -37,7 +37,7 @@ audit_logger = OpenAIAgents::Compliance::AuditLogger.new(
 )
 
 # Create test agent
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "CustomerServiceAgent",
   model: "gpt-4o-mini",
   instructions: "You are a helpful customer service agent."
@@ -49,7 +49,7 @@ messages = [
   { role: "assistant", content: "I'd be happy to help you with your account. What specific assistance do you need?" }
 ]
 
-result = OpenAIAgents::Result.new(
+result = RAAF::Result.new(
   messages: messages,
   agent: agent,
   usage: { total_tokens: 45, prompt_tokens: 20, completion_tokens: 25 }
@@ -320,7 +320,7 @@ puts "-" * 50
 
 # Create policy manager with default enterprise policies
 # Policies can be customized per organization requirements
-policy_manager = OpenAIAgents::Compliance::PolicyManager.new
+policy_manager = RAAF::Compliance::PolicyManager.new
 
 # Check various compliance scenarios
 scenarios = [
@@ -370,7 +370,7 @@ puts "-" * 50
 
 # Create compliance monitor combining audit logs and policies
 # The monitor correlates events with policies for real-time enforcement
-monitor = OpenAIAgents::Compliance::ComplianceMonitor.new(audit_logger, policy_manager)
+monitor = RAAF::Compliance::ComplianceMonitor.new(audit_logger, policy_manager)
 
 puts "Starting compliance monitoring..."
 monitor.start_monitoring

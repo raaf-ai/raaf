@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module MCP
     # MCP Protocol constants and helpers
     module Protocol

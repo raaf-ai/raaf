@@ -3,7 +3,7 @@
 require "spec_helper"
 require "net/http"
 
-RSpec.describe OpenAIAgents::Models do
+RSpec.describe RAAF::Models do
   shared_examples "a model provider" do
     it "responds to required interface methods" do
       expect(provider).to respond_to(:chat_completion)
@@ -29,7 +29,7 @@ RSpec.describe OpenAIAgents::Models do
     end
   end
 
-  describe OpenAIAgents::Models::ModelInterface do
+  describe RAAF::Models::ModelInterface do
     let(:interface) { described_class.new }
 
     describe "abstract methods" do
@@ -67,7 +67,7 @@ RSpec.describe OpenAIAgents::Models do
       end
 
       it "handles FunctionTool objects" do
-        tool = OpenAIAgents::FunctionTool.new(proc { |value| value }, name: "test_tool")
+        tool = RAAF::FunctionTool.new(proc { |value| value }, name: "test_tool")
         tools = [tool]
 
         result = interface.send(:prepare_tools, tools)
@@ -86,7 +86,7 @@ RSpec.describe OpenAIAgents::Models do
 
       it "handles mixed tool types" do
         tool_hash = { type: "function", function: { name: "hash_tool" } }
-        tool_object = OpenAIAgents::FunctionTool.new(proc { |value| value }, name: "object_tool")
+        tool_object = RAAF::FunctionTool.new(proc { |value| value }, name: "object_tool")
         tools = [tool_hash, tool_object]
 
         result = interface.send(:prepare_tools, tools)
@@ -105,7 +105,7 @@ RSpec.describe OpenAIAgents::Models do
         expect do
           interface.send(:handle_api_error, mock_response,
                          "TestProvider")
-        end.to raise_error(OpenAIAgents::Models::AuthenticationError, /Invalid API key/)
+        end.to raise_error(RAAF::Models::AuthenticationError, /Invalid API key/)
       end
 
       it "raises RateLimitError for 429" do
@@ -114,7 +114,7 @@ RSpec.describe OpenAIAgents::Models do
         expect do
           interface.send(:handle_api_error, mock_response,
                          "TestProvider")
-        end.to raise_error(OpenAIAgents::Models::RateLimitError, /Rate limit exceeded/)
+        end.to raise_error(RAAF::Models::RateLimitError, /Rate limit exceeded/)
       end
 
       it "raises ServerError for 5xx codes" do
@@ -123,7 +123,7 @@ RSpec.describe OpenAIAgents::Models do
         expect do
           interface.send(:handle_api_error, mock_response,
                          "TestProvider")
-        end.to raise_error(OpenAIAgents::Models::ServerError, /Server error/)
+        end.to raise_error(RAAF::Models::ServerError, /Server error/)
       end
 
       it "raises APIError for other error codes" do
@@ -132,12 +132,12 @@ RSpec.describe OpenAIAgents::Models do
         expect do
           interface.send(:handle_api_error, mock_response,
                          "TestProvider")
-        end.to raise_error(OpenAIAgents::Models::APIError, /API error/)
+        end.to raise_error(RAAF::Models::APIError, /API error/)
       end
     end
   end
 
-  describe OpenAIAgents::Models::OpenAIProvider do
+  describe RAAF::Models::OpenAIProvider do
     let(:api_key) { "sk-test-key" }
     let(:provider) { described_class.new(api_key: api_key) }
 
@@ -146,7 +146,9 @@ RSpec.describe OpenAIAgents::Models do
     describe "#initialize" do
       it "requires API key" do
         allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return(nil)
-        expect { described_class.new }.to raise_error(OpenAIAgents::Models::AuthenticationError, /API key is required/)
+        expect do
+          described_class.new
+        end.to raise_error(RAAF::Models::AuthenticationError, /API key is required/)
       end
 
       it "accepts API key parameter" do
@@ -350,63 +352,12 @@ RSpec.describe OpenAIAgents::Models do
     end
   end
 
-  describe OpenAIAgents::Models::AnthropicProvider do
-    let(:api_key) { "sk-ant-test-key" }
-    let(:provider) { described_class.new(api_key: api_key) }
-
-    it_behaves_like "a model provider"
-
-    describe "#initialize" do
-      it "requires API key" do
-        expect { described_class.new }.to raise_error(OpenAIAgents::Models::AuthenticationError, /API key is required/)
-      end
-
-      it "accepts API key parameter" do
-        provider = described_class.new(api_key: "sk-ant-test")
-        expect(provider.instance_variable_get(:@api_key)).to eq("sk-ant-test")
-      end
-
-      it "reads API key from environment" do
-        allow(ENV).to receive(:fetch).with("ANTHROPIC_API_KEY", nil).and_return("sk-ant-env-key")
-        allow(ENV).to receive(:[]).with("ANTHROPIC_API_BASE").and_return(nil)
-
-        provider = described_class.new
-        expect(provider.instance_variable_get(:@api_key)).to eq("sk-ant-env-key")
-      end
-
-      it "uses default API base" do
-        provider = described_class.new(api_key: "sk-ant-test")
-        expect(provider.instance_variable_get(:@api_base)).to eq("https://api.anthropic.com")
-      end
-
-      it "accepts custom API base" do
-        provider = described_class.new(api_key: "sk-ant-test", api_base: "https://custom.anthropic.com")
-        expect(provider.instance_variable_get(:@api_base)).to eq("https://custom.anthropic.com")
-      end
-    end
-
-    describe "#supported_models" do
-      it "returns array of supported Claude models" do
-        models = provider.supported_models
-
-        expect(models).to include("claude-3-5-sonnet-20241022", "claude-3-opus-20240229")
-        expect(models).to be_frozen
-      end
-    end
-
-    describe "#provider_name" do
-      it "returns Anthropic" do
-        expect(provider.provider_name).to eq("Anthropic")
-      end
-    end
-  end
-
   describe "Error classes" do
     it "defines model-specific error hierarchy" do
-      expect(OpenAIAgents::Models::AuthenticationError).to be < OpenAIAgents::Error
-      expect(OpenAIAgents::Models::RateLimitError).to be < OpenAIAgents::Error
-      expect(OpenAIAgents::Models::ServerError).to be < OpenAIAgents::Error
-      expect(OpenAIAgents::Models::APIError).to be < OpenAIAgents::Error
+      expect(RAAF::Models::AuthenticationError).to be < RAAF::Error
+      expect(RAAF::Models::RateLimitError).to be < RAAF::Error
+      expect(RAAF::Models::ServerError).to be < RAAF::Error
+      expect(RAAF::Models::APIError).to be < RAAF::Error
     end
   end
 end

@@ -9,7 +9,8 @@
 require_relative "../lib/ai_agent_dsl"
 
 # Example 1: Simple prompt with basic schema
-class UserExtractionPrompt < AiAgentDsl::Prompts::Base
+class UserExtractionPrompt < RAAF::DSL::Prompts::Base
+
   requires :text_content
 
   # Define schema using the same DSL as agents
@@ -33,10 +34,12 @@ class UserExtractionPrompt < AiAgentDsl::Prompts::Base
       #{text_content}
     USER
   end
+
 end
 
 # Example 2: Complex nested schema for company analysis
-class CompanyAnalysisPrompt < AiAgentDsl::Prompts::Base
+class CompanyAnalysisPrompt < RAAF::DSL::Prompts::Base
+
   requires :company_name, :analysis_criteria
 
   # Complex nested schema with objects and arrays
@@ -56,7 +59,7 @@ class CompanyAnalysisPrompt < AiAgentDsl::Prompts::Base
       field :business_metrics, type: :object, required: true do
         field :revenue_estimate, type: :string
         field :employee_count_range, type: :string, enum: ["1-10", "11-50", "51-200", "201-500", "500+"]
-        field :growth_stage, type: :string, enum: ["startup", "growth", "mature", "enterprise"]
+        field :growth_stage, type: :string, enum: %w[startup growth mature enterprise]
       end
     end
 
@@ -71,7 +74,7 @@ class CompanyAnalysisPrompt < AiAgentDsl::Prompts::Base
       field :overall_score, type: :integer, range: 0..100, required: true
       field :key_strengths, type: :array, items_type: :string, required: true
       field :potential_concerns, type: :array, items_type: :string
-      field :recommendation, type: :string, enum: ["highly_recommended", "recommended", "neutral", "not_recommended"]
+      field :recommendation, type: :string, enum: %w[highly_recommended recommended neutral not_recommended]
     end
 
     field :data_sources, type: :array, items_type: :string, required: true
@@ -96,11 +99,13 @@ class CompanyAnalysisPrompt < AiAgentDsl::Prompts::Base
       Provide detailed analysis with scoring and evidence.
     USER
   end
+
 end
 
 # Example 3: Agent using prompt with schema
-class CompanyAnalysisAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class CompanyAnalysisAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "CompanyAnalyst"
   model "gpt-4o"
@@ -112,11 +117,13 @@ class CompanyAnalysisAgent < AiAgentDsl::Agents::Base
   def initialize(context: {}, processing_params: {})
     super
   end
+
 end
 
 # Example 4: Demonstration of schema conflict detection
-class ConflictingAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class ConflictingAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "ConflictingAgent"
   prompt_class UserExtractionPrompt # This prompt has a schema
@@ -129,6 +136,7 @@ class ConflictingAgent < AiAgentDsl::Agents::Base
   def initialize(context: {}, processing_params: {})
     super
   end
+
 end
 
 # Demo the functionality
@@ -145,7 +153,7 @@ if __FILE__ == $PROGRAM_NAME
   # Example 2: Complex company analysis schema
   puts "2. Complex Company Analysis Prompt Schema:"
   company_prompt = CompanyAnalysisPrompt.new(
-    company_name:      "TechCorp Inc",
+    company_name: "TechCorp Inc",
     analysis_criteria: ["Market position", "Financial health", "Innovation"]
   )
   puts "   Schema defined: #{company_prompt.has_schema?}"
@@ -157,7 +165,7 @@ if __FILE__ == $PROGRAM_NAME
   begin
     agent = CompanyAnalysisAgent.new(
       context: {
-        company_name:      "TechCorp Inc",
+        company_name: "TechCorp Inc",
         analysis_criteria: ["Market position", "Financial health"]
       }
     )

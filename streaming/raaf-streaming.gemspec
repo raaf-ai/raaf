@@ -4,7 +4,7 @@ require_relative "lib/raaf/streaming/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-streaming"
-  spec.version = RubyAIAgentsFactory::Streaming::VERSION
+  spec.version = RAAF::Streaming::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -38,8 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "eventmachine", "~> 1.2"
   spec.add_dependency "faye-websocket", "~> 0.11"
   spec.add_dependency "json", "~> 2.0"
-  spec.add_dependency "raaf-core", "~> 1.0"
-  spec.add_dependency "redis", "~> 4.0"
+  spec.add_dependency "raaf-core", "0.1.0"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"

@@ -4,7 +4,7 @@
 # Debugging Tools Example
 #
 # This example demonstrates the comprehensive debugging and development tools
-# built into the OpenAI Agents Ruby gem. The debugging system provides:
+# built into the RAAF (Ruby AI Agents Factory) gem. The debugging system provides:
 #
 # - Breakpoint management and step-by-step execution
 # - Variable watching and inspection
@@ -21,7 +21,7 @@
 # - Development and testing of new features
 # - Production debugging and monitoring
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # ============================================================================
 # ENVIRONMENT VALIDATION
@@ -49,7 +49,7 @@ puts "-" * 60
 puts "\n=== Example 1: Debugger Creation and Configuration ==="
 
 # Create a debugger instance with standard configuration
-debugger = OpenAIAgents::Debugging::Debugger.new(
+debugger = RAAF::Debugging::Debugger.new(
   output: $stdout,
   log_level: ::Logger::DEBUG
 )
@@ -112,7 +112,7 @@ def data_processor(data:, filters: [])
 end
 
 # Create agent with debugging enabled
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "DebugAgent",
   instructions: "You are a data processing agent. Use the provided tools to process data and handle errors gracefully.",
   model: "gpt-4o"
@@ -123,7 +123,7 @@ agent.add_tool(method(:complex_calculation))
 agent.add_tool(method(:data_processor))
 
 # Create debug-enabled runner
-runner = OpenAIAgents::Debugging::DebugRunner.new(
+runner = RAAF::Debugging::DebugRunner.new(
   agent: agent,
   debugger: debugger
 )

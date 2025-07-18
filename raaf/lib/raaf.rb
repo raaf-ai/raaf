@@ -13,14 +13,14 @@ require_relative "raaf/version"
 #   require 'raaf'
 #   
 #   # Create an agent
-#   agent = RubyAIAgentsFactory::Agent.new(
+#   agent = RAAF::Agent.new(
 #     name: "Assistant",
 #     instructions: "You are a helpful assistant.",
 #     model: "gpt-4o"
 #   )
 #   
 #   # Run the agent
-#   runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+#   runner = RAAF::Runner.new(agent: agent)
 #   result = runner.run("Hello, how are you?")
 #   puts result.messages.last[:content]
 #
@@ -33,37 +33,37 @@ require_relative "raaf/version"
 #   end
 #   
 #   # Create agent with tools
-#   agent = RubyAIAgentsFactory::Agent.new(
+#   agent = RAAF::Agent.new(
 #     name: "WeatherBot",
 #     instructions: "You are a weather assistant.",
 #     model: "gpt-4o",
 #     tools: [method(:get_weather)]
 #   )
 #   
-#   runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+#   runner = RAAF::Runner.new(agent: agent)
 #   result = runner.run("What's the weather in Tokyo?")
 #
 # @example With tracing
 #   require 'raaf'
 #   
 #   # Set up tracing
-#   tracer = RubyAIAgentsFactory::Tracing::SpanTracer.new
-#   tracer.add_processor(RubyAIAgentsFactory::Tracing::OpenAIProcessor.new)
+#   tracer = RAAF::Tracing::SpanTracer.new
+#   tracer.add_processor(RAAF::Tracing::OpenAIProcessor.new)
 #   
 #   # Create agent with tracing
-#   agent = RubyAIAgentsFactory::Agent.new(
+#   agent = RAAF::Agent.new(
 #     name: "TracedAgent",
 #     instructions: "You are a helpful assistant.",
 #     model: "gpt-4o"
 #   )
 #   
-#   runner = RubyAIAgentsFactory::Runner.new(agent: agent, tracer: tracer)
+#   runner = RAAF::Runner.new(agent: agent, tracer: tracer)
 #   result = runner.run("Explain quantum computing")
 #
 # @author Bert Hajee
 # @since 0.1.0
 #
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Main configuration class for RAAF
   #
@@ -95,7 +95,7 @@ module RubyAIAgentsFactory
   # @yield [Configuration] The configuration object
   #
   # @example
-  #   RubyAIAgentsFactory.configure do |config|
+  #   RAAF.configure do |config|
   #     config.default_model = "gpt-4o"
   #     config.tracing_enabled = true
   #   end
@@ -123,8 +123,7 @@ begin
   require "raaf-providers"
   
   # Tools (required)
-  require "raaf-tools-basic"
-  require "raaf-tools-advanced"
+  require "raaf-tools"
   
   # Guardrails (required)
   require "raaf-guardrails"
@@ -150,9 +149,6 @@ begin
   # Testing utilities (required)
   require "raaf-testing"
   
-  # Visualization (required)
-  require "raaf-visualization"
-  
   # Compliance (required)
   require "raaf-compliance"
   
@@ -167,12 +163,12 @@ rescue LoadError => e
   warn "Please ensure all RAAF subgems are installed or install the complete bundle."
 end
 
-# Set up logging
-RubyAIAgentsFactory::Logging.configure do |config|
-  config.log_level = RubyAIAgentsFactory.configuration.log_level
+# Set up logging (now part of core)
+RAAF::Logging.configure do |config|
+  config.log_level = RAAF.configuration.log_level
   config.log_format = :text
   config.log_output = :auto
 end
 
 # Log successful initialization
-RubyAIAgentsFactory::Logging.info("RAAF initialized successfully", version: RubyAIAgentsFactory::VERSION)
+RAAF::Logging.info("RAAF initialized successfully", version: RAAF::VERSION)

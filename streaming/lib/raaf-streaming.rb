@@ -11,7 +11,7 @@ require_relative "raaf/streaming/message_queue"
 require_relative "raaf/streaming/real_time_chat"
 require_relative "raaf/streaming/streaming_provider"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Real-time streaming and async processing for Ruby AI Agents Factory
   #
@@ -35,10 +35,10 @@ module RubyAIAgentsFactory
   #   require 'raaf-streaming'
   #   
   #   # Create streaming provider
-  #   streaming_provider = RubyAIAgentsFactory::Streaming::StreamingProvider.new
+  #   streaming_provider = RAAF::Streaming::StreamingProvider.new
   #   
   #   # Create agent with streaming
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "StreamingAgent",
   #     instructions: "You are a helpful assistant",
   #     provider: streaming_provider
@@ -53,7 +53,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-streaming'
   #   
   #   # Create WebSocket server
-  #   server = RubyAIAgentsFactory::Streaming::WebSocketServer.new(port: 8080)
+  #   server = RAAF::Streaming::WebSocketServer.new(port: 8080)
   #   
   #   # Handle connections
   #   server.on_connection do |client|
@@ -76,7 +76,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-streaming'
   #   
   #   # Create async runner
-  #   async_runner = RubyAIAgentsFactory::Streaming::AsyncRunner.new
+  #   async_runner = RAAF::Streaming::AsyncRunner.new
   #   
   #   # Process messages asynchronously
   #   async_runner.process_async(agent, "Hello") do |result|
@@ -87,7 +87,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-streaming'
   #   
   #   # Create background processor
-  #   processor = RubyAIAgentsFactory::Streaming::BackgroundProcessor.new
+  #   processor = RAAF::Streaming::BackgroundProcessor.new
   #   
   #   # Queue background job
   #   processor.enqueue_job(:process_message, {
@@ -100,7 +100,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-streaming'
   #   
   #   # Create real-time chat
-  #   chat = RubyAIAgentsFactory::Streaming::RealTimeChat.new(
+  #   chat = RAAF::Streaming::RealTimeChat.new(
   #     agent: agent,
   #     websocket_port: 8080
   #   )
@@ -170,7 +170,7 @@ module RubyAIAgentsFactory
       # @yield [config] Configuration block
       #
       # @example Configure streaming
-      #   RubyAIAgentsFactory::Streaming.configure do |config|
+      #   RAAF::Streaming.configure do |config|
       #     config.websocket.port = 9090
       #     config.streaming.chunk_size = 512
       #     config.async.pool_size = 20

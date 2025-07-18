@@ -1,14 +1,14 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates the comprehensive guardrails system in OpenAI Agents.
+# This example demonstrates the comprehensive guardrails system in RAAF.
 # Guardrails provide safety, compliance, and quality control for AI applications.
 # They can validate inputs before processing, check outputs before returning them,
 # and enforce business rules, security policies, and content standards.
 # The Ruby implementation maintains compatibility with Python's guardrails API.
 
 require "bundler/setup"
-require "openai_agents"
+require "raaf"
 
 # ============================================================================
 # GUARDRAILS EXAMPLES
@@ -24,7 +24,7 @@ require "openai_agents"
 puts "=== Example 1: Basic Input/Output Guardrails ==="
 
 # Create an agent with multiple guardrails for safety and compliance
-safe_agent = OpenAIAgents::Agent.new(
+safe_agent = RAAF::Agent.new(
   name: "SafeAssistant",
   instructions: "You are a helpful assistant that provides safe, appropriate responses.",
   model: "gpt-4o-mini",  # Using smaller model for faster examples
@@ -32,22 +32,22 @@ safe_agent = OpenAIAgents::Agent.new(
   # Input guardrails prevent problematic content from reaching the AI
   input_guardrails: [
     # Profanity filter - blocks offensive language
-    OpenAIAgents::Guardrails.profanity_guardrail,
+    RAAF::Guardrails.profanity_guardrail,
     
     # PII detector - prevents accidental exposure of sensitive data
     # Detects: SSN, credit cards, phone numbers, emails, etc.
-    OpenAIAgents::Guardrails.pii_guardrail
+    RAAF::Guardrails.pii_guardrail
   ],
   
   # Output guardrails ensure responses meet quality standards
   output_guardrails: [
     # Length limiter - prevents overly long responses
     # Useful for: chat interfaces, SMS, cost control
-    OpenAIAgents::Guardrails.length_guardrail(max_length: 500)
+    RAAF::Guardrails.length_guardrail(max_length: 500)
   ]
 )
 
-runner = OpenAIAgents::Runner.new(agent: safe_agent)
+runner = RAAF::Runner.new(agent: safe_agent)
 
 # Test Case 1: Clean input passes through without issues
 puts "\nTest 1: Clean input..."
@@ -64,7 +64,7 @@ begin
   # This will trigger the PII guardrail before reaching the AI
   result = runner.run("My SSN is 123-45-6789, can you help me?")
   puts "✗ PII guardrail failed to trigger!\n"
-rescue OpenAIAgents::Guardrails::InputGuardrailTripwireTriggered => e
+rescue RAAF::Guardrails::InputGuardrailTripwireTriggered => e
   puts "✓ PII Guardrail triggered successfully!"
   puts "  - Guardrail: #{e.triggered_by}"
   puts "  - Reason: #{e.message}"
@@ -84,7 +84,7 @@ puts "\n=== Example 2: Custom Guardrails ==="
 # Custom Input Guardrail: Competitor mention detection
 # Prevents users from asking about competitor products
 # Useful for: customer service bots, internal tools
-no_competitor_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "competitor_check") do |_context, _agent, input|
+no_competitor_guardrail = RAAF::Guardrails.input_guardrail(name: "competitor_check") do |_context, _agent, input|
   # Define competitor names to watch for
   competitors = %w[ChatGPT Claude Gemini Copilot]
   input_text = input.to_s.downcase
@@ -94,7 +94,7 @@ no_competitor_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "compet
   
   if mentioned.any?
     # Return a tripwire result - this will block the request
-    OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(
+    RAAF::Guardrails::GuardrailFunctionOutput.new(
       output_info: { 
         competitors_mentioned: mentioned,
         message: "Input mentions competitor products",
@@ -104,7 +104,7 @@ no_competitor_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "compet
     )
   else
     # Return success - request continues normally
-    OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(
+    RAAF::Guardrails::GuardrailFunctionOutput.new(
       output_info: { checked: true, competitors_found: 0 },
       tripwire_triggered: false
     )
@@ -114,7 +114,7 @@ end
 # Custom Output Guardrail: Sentiment enforcement
 # Ensures responses maintain a positive, helpful tone
 # Useful for: customer-facing bots, brand voice consistency
-sentiment_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "positive_sentiment") do |_context, _agent, output|
+sentiment_guardrail = RAAF::Guardrails.output_guardrail(name: "positive_sentiment") do |_context, _agent, output|
   # Simple sentiment check using keyword analysis
   # In production, integrate with sentiment analysis APIs like:
   # - AWS Comprehend, Google Natural Language API, Azure Text Analytics
@@ -126,7 +126,7 @@ sentiment_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "positive_
   
   # Business rule: More than 2 negative words = too negative
   if negative_count > 2
-    OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(
+    RAAF::Guardrails::GuardrailFunctionOutput.new(
       output_info: { 
         negative_words_count: negative_count,
         message: "Response tone is too negative",
@@ -135,7 +135,7 @@ sentiment_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "positive_
       tripwire_triggered: true  # Blocks this response
     )
   else
-    OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(
+    RAAF::Guardrails::GuardrailFunctionOutput.new(
       output_info: { 
         negative_words_count: negative_count,
         sentiment: "acceptable",
@@ -147,7 +147,7 @@ sentiment_guardrail = OpenAIAgents::Guardrails.output_guardrail(name: "positive_
 end
 
 # Create agent and add guardrails dynamically
-business_agent = OpenAIAgents::Agent.new(
+business_agent = RAAF::Agent.new(
   name: "BusinessAssistant",
   instructions: "You are a business assistant. Never mention competitors.",
   model: "gpt-4o-mini"
@@ -158,14 +158,14 @@ business_agent = OpenAIAgents::Agent.new(
 business_agent.add_input_guardrail(no_competitor_guardrail)
 business_agent.add_output_guardrail(sentiment_guardrail)
 
-runner = OpenAIAgents::Runner.new(agent: business_agent)
+runner = RAAF::Runner.new(agent: business_agent)
 
 # Test custom guardrails
 puts "\nTest: Competitor mention detection..."
 begin
   result = runner.run("How does our product compare to ChatGPT?")
   puts "✗ Competitor guardrail failed to trigger!\n"
-rescue OpenAIAgents::Guardrails::InputGuardrailTripwireTriggered => e
+rescue RAAF::Guardrails::InputGuardrailTripwireTriggered => e
   puts "✓ Competitor guardrail triggered!"
   puts "  - Competitors detected: #{e.metadata[:competitors_mentioned]}"
   puts "  - Suggestion: #{e.metadata[:suggestion]}\n"
@@ -206,7 +206,7 @@ user_schema = {
 }
 
 # Create an agent that extracts structured data
-data_agent = OpenAIAgents::Agent.new(
+data_agent = RAAF::Agent.new(
   name: "DataAgent",
   instructions: "You extract user data and return it as JSON. Always extract name, age, and email.",
   model: "gpt-4o-mini",
@@ -224,11 +224,11 @@ data_agent = OpenAIAgents::Agent.new(
   
   # Additional validation layer for extra safety
   output_guardrails: [
-    OpenAIAgents::Guardrails.json_schema_guardrail(schema: user_schema)
+    RAAF::Guardrails.json_schema_guardrail(schema: user_schema)
   ]
 )
 
-runner = OpenAIAgents::Runner.new(agent: data_agent)
+runner = RAAF::Runner.new(agent: data_agent)
 
 puts "\nTest: Structured data extraction..."
 begin
@@ -255,7 +255,7 @@ puts "=" * 50
 puts "\n=== Example 4: Topic Relevance Guardrail ==="
 
 # Create a specialized agent that only handles technical topics
-support_agent = OpenAIAgents::Agent.new(
+support_agent = RAAF::Agent.new(
   name: "TechSupport",
   instructions: "You are a technical support agent. Only answer technical questions.",
   model: "gpt-4o-mini",
@@ -263,7 +263,7 @@ support_agent = OpenAIAgents::Agent.new(
   input_guardrails: [
     # Topic filter ensures agent only processes relevant questions
     # This prevents: off-topic questions, prompt injection, scope creep
-    OpenAIAgents::Guardrails.topic_relevance_guardrail(
+    RAAF::Guardrails.topic_relevance_guardrail(
       allowed_topics: %w[
         software hardware technical computer programming 
         bug error crash issue problem troubleshoot
@@ -274,7 +274,7 @@ support_agent = OpenAIAgents::Agent.new(
   ]
 )
 
-runner = OpenAIAgents::Runner.new(agent: support_agent)
+runner = RAAF::Runner.new(agent: support_agent)
 
 # Test Case 1: On-topic technical question
 puts "\nTest 1: On-topic question..."
@@ -291,7 +291,7 @@ puts "Test 2: Off-topic question..."
 begin
   result = runner.run("What's a good recipe for chocolate cake?")
   puts "✗ Topic filter failed - off-topic question was accepted!\n"
-rescue OpenAIAgents::Guardrails::InputGuardrailTripwireTriggered => e
+rescue RAAF::Guardrails::InputGuardrailTripwireTriggered => e
   puts "✓ Topic filter working correctly!"
   puts "  - Reason: Question not related to allowed topics"
   puts "  - Allowed topics: technical, software, hardware, etc.\n"
@@ -309,13 +309,13 @@ puts "\n=== Example 5: Run-level Guardrails ==="
 
 # Create a basic agent without any built-in guardrails
 # This agent is flexible and guardrails are applied per-request
-simple_agent = OpenAIAgents::Agent.new(
+simple_agent = RAAF::Agent.new(
   name: "SimpleAgent",
   instructions: "You are a helpful assistant.",
   model: "gpt-4o-mini"
 )
 
-runner = OpenAIAgents::Runner.new(agent: simple_agent)
+runner = RAAF::Runner.new(agent: simple_agent)
 
 # Run with guardrails specific to this request
 # These override or supplement agent-level guardrails
@@ -325,12 +325,12 @@ begin
     "Tell me about Ruby programming",
     # Input guardrails for this run only
     input_guardrails: [
-      OpenAIAgents::Guardrails.profanity_guardrail
+      RAAF::Guardrails.profanity_guardrail
     ],
     # Output guardrails for this run only
     output_guardrails: [
       # Strict length limit for this specific request
-      OpenAIAgents::Guardrails.length_guardrail(max_length: 200)
+      RAAF::Guardrails.length_guardrail(max_length: 200)
     ]
   )
   
@@ -355,13 +355,13 @@ puts "\n=== Example 6: Async Guardrails ==="
 if defined?(Async)
   # Create guardrail that performs async operations
   # Examples: API calls, database lookups, external validations
-  async_guardrail = OpenAIAgents::Guardrails.input_guardrail(name: "async_validation") do |_context, _agent, input|
+  async_guardrail = RAAF::Guardrails.input_guardrail(name: "async_validation") do |_context, _agent, input|
     # Simulate async operation (e.g., checking against external service)
     # In production: HTTP request, database query, cache lookup
     sleep(0.1)  # Simulate network latency
     
     # Return validation result
-    OpenAIAgents::Guardrails::GuardrailFunctionOutput.new(
+    RAAF::Guardrails::GuardrailFunctionOutput.new(
       output_info: { 
         async_check: true,
         validation_time_ms: 100,
@@ -372,7 +372,7 @@ if defined?(Async)
   end
 
   # Create async-enabled agent
-  async_agent = OpenAIAgents::Async.agent(
+  async_agent = RAAF::Async.agent(
     name: "AsyncAgent",
     instructions: "You are an async assistant with external validation.",
     model: "gpt-4o-mini",
@@ -381,7 +381,7 @@ if defined?(Async)
 
   # Run in async context
   Async do
-    runner = OpenAIAgents::Async.runner(agent: async_agent)
+    runner = RAAF::Async.runner(agent: async_agent)
     result = runner.run_async("Hello from async!").wait
     puts "✓ Async response: #{result.messages.last[:content]}"
   end

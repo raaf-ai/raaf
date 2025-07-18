@@ -3,7 +3,7 @@
 require_relative "../security"
 require_relative "base"
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     # Security guardrail to protect against various threats
     class SecurityGuardrail < Base

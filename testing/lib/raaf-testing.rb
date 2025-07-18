@@ -10,7 +10,7 @@ require_relative "raaf/testing/vcr_config"
 require_relative "raaf/testing/conversation_helper"
 require_relative "raaf/testing/response_validator"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Testing utilities and RSpec matchers for Ruby AI Agents Factory
   #
@@ -33,7 +33,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-testing'
   #   
   #   RSpec.describe "My Agent" do
-  #     include RubyAIAgentsFactory::Testing::Helpers
+  #     include RAAF::Testing::Helpers
   #     
   #     let(:agent) { create_test_agent }
   #     
@@ -48,12 +48,12 @@ module RubyAIAgentsFactory
   #   require 'raaf-testing'
   #   
   #   # Create mock provider with predefined responses
-  #   mock_provider = RubyAIAgentsFactory::Testing::MockProvider.new
+  #   mock_provider = RAAF::Testing::MockProvider.new
   #   mock_provider.add_response("Hello", "Hi there!")
   #   mock_provider.add_response("Goodbye", "See you later!")
   #   
   #   # Use with agent
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "TestAgent",
   #     provider: mock_provider
   #   )
@@ -61,7 +61,7 @@ module RubyAIAgentsFactory
   # @example Conversation testing
   #   require 'raaf-testing'
   #   
-  #   conversation = RubyAIAgentsFactory::Testing::ConversationHelper.new(agent)
+  #   conversation = RAAF::Testing::ConversationHelper.new(agent)
   #   
   #   conversation.user_says("What's the weather like?")
   #   conversation.agent_responds_with(/weather|temperature/i)
@@ -74,7 +74,7 @@ module RubyAIAgentsFactory
   # @example Response validation
   #   require 'raaf-testing'
   #   
-  #   validator = RubyAIAgentsFactory::Testing::ResponseValidator.new
+  #   validator = RAAF::Testing::ResponseValidator.new
   #   
   #   # Add validation rules
   #   validator.must_contain_keywords(["helpful", "assistant"])
@@ -139,7 +139,7 @@ module RubyAIAgentsFactory
       # @yield [config] Configuration block
       #
       # @example Configure testing
-      #   RubyAIAgentsFactory::Testing.configure do |config|
+      #   RAAF::Testing.configure do |config|
       #     config.mock_provider.default_response = "Test response"
       #     config.performance.max_response_time = 3.0
       #     config.validation.strict_mode = true
@@ -167,15 +167,15 @@ module RubyAIAgentsFactory
       #
       # @example Setup RSpec
       #   # In spec_helper.rb
-      #   RubyAIAgentsFactory::Testing.setup_rspec
+      #   RAAF::Testing.setup_rspec
       #
       def setup_rspec
         return unless defined?(RSpec)
 
         RSpec.configure do |config|
           # Include testing helpers
-          config.include RubyAIAgentsFactory::Testing::Helpers
-          config.include RubyAIAgentsFactory::Testing::Matchers
+          config.include RAAF::Testing::Helpers
+          config.include RAAF::Testing::Matchers
           
           # Setup VCR
           setup_vcr if defined?(VCR)
@@ -185,19 +185,19 @@ module RubyAIAgentsFactory
           
           # Global setup and teardown
           config.before(:suite) do
-            RubyAIAgentsFactory::Testing.setup_test_environment
+            RAAF::Testing.setup_test_environment
           end
           
           config.after(:suite) do
-            RubyAIAgentsFactory::Testing.cleanup_test_environment
+            RAAF::Testing.cleanup_test_environment
           end
           
           config.before(:each) do
-            RubyAIAgentsFactory::Testing.reset_test_state
+            RAAF::Testing.reset_test_state
           end
           
           config.after(:each) do
-            RubyAIAgentsFactory::Testing.cleanup_test_resources
+            RAAF::Testing.cleanup_test_resources
           end
         end
       end
@@ -223,7 +223,7 @@ module RubyAIAgentsFactory
           provider: create_mock_provider
         }
         
-        RubyAIAgentsFactory::Agent.new(**defaults.merge(options))
+        RAAF::Agent.new(**defaults.merge(options))
       end
 
       ##
@@ -252,7 +252,7 @@ module RubyAIAgentsFactory
       #
       def setup_test_environment
         # Setup logging for tests
-        RubyAIAgentsFactory::Logging.configure do |logging_config|
+        RAAF::Logging.configure do |logging_config|
           logging_config.log_level = :warn
           logging_config.log_output = :console
         end
@@ -284,7 +284,7 @@ module RubyAIAgentsFactory
       #
       def reset_test_state
         # Clear agent registry
-        RubyAIAgentsFactory::Agent.registry.clear if RubyAIAgentsFactory::Agent.respond_to?(:registry)
+        RAAF::Agent.registry.clear if RAAF::Agent.respond_to?(:registry)
         
         # Reset configuration
         @config = nil
@@ -336,7 +336,7 @@ module RubyAIAgentsFactory
         @debug_mode = enabled
         
         if enabled
-          RubyAIAgentsFactory::Logging.configure do |config|
+          RAAF::Logging.configure do |config|
             config.log_level = :debug
             config.debug_categories = [:all]
           end

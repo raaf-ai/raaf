@@ -2,7 +2,7 @@
 
 require "raaf/logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # Base controller for the Ruby AI Agents Factory tracing engine
     #
@@ -12,7 +12,7 @@ module RubyAIAgentsFactory
     # - Shared before actions
     # - Helper methods for pagination and filtering
     class ApplicationController < ActionController::Base
-      include RubyAIAgentsFactory::Logger
+      include RAAF::Logger
       protect_from_forgery with: :exception
 
       # Include helpers for content_tag

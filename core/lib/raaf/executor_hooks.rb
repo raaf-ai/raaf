@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Template method hooks for executor lifecycle events
     #
@@ -12,15 +14,15 @@ module RubyAIAgentsFactory
     # @example Custom executor with hooks
     #   class CustomExecutor < RunExecutor
     #     include ExecutorHooks
-    #     
+    #
     #     def before_turn(conversation, agent, context, turns)
     #       log_info("Starting turn #{turns + 1} with #{agent.name}")
     #     end
-    #     
+    #
     #     def after_turn(conversation, agent, context, turns, result)
     #       log_info("Completed turn", tokens: result[:usage][:total_tokens])
     #     end
-    #     
+    #
     #     def wrap_tool_execution(tool_name, arguments)
     #       start_time = Time.now
     #       result = yield
@@ -35,13 +37,14 @@ module RubyAIAgentsFactory
     #     def before_turn(conversation, agent, context, turns)
     #       @span = tracer.start_span("agent.turn", parent_id: @run_span.span_id)
     #     end
-    #     
+    #
     #     def after_turn(conversation, agent, context, turns, result)
     #       @span.end_with_metadata(usage: result[:usage])
     #     end
     #   end
     #
     module ExecutorHooks
+
       ##
       # Hook called before each conversation turn
       #
@@ -115,10 +118,13 @@ module RubyAIAgentsFactory
       # @yield The tool execution block
       # @return [Object] The tool execution result
       #
-      def wrap_tool_execution(tool_name, arguments, &block)
+      def wrap_tool_execution(_tool_name, _arguments)
         # Default implementation just yields
         yield
       end
+
     end
+
   end
+
 end

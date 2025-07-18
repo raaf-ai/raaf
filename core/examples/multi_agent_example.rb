@@ -7,7 +7,7 @@
 # This pattern is useful for building complex AI systems where different agents
 # have different capabilities, tools, and knowledge domains.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 # ============================================================================
 # MULTI-AGENT SYSTEM WITH HANDOFFS
@@ -89,16 +89,16 @@ end
 # helping the AI understand when to delegate to another specialist.
 
 # Weather specialist agent
-weather_agent = OpenAIAgents::Agent.new(
+weather_agent = RAAF::Agent.new(
   name: "WeatherAgent",
   # Instructions define the agent's role and handoff criteria
   instructions: "You are a weather specialist. You can provide weather information and forecasts. " \
                 "If asked about math, calculations, or equations, handoff to MathAgent.",
-  model: "gpt-4o"  # Uses ResponsesProvider by default for Python compatibility
+  model: "gpt-4o" # Uses ResponsesProvider by default for Python compatibility
 )
 
 # Mathematics specialist agent
-math_agent = OpenAIAgents::Agent.new(
+math_agent = RAAF::Agent.new(
   name: "MathAgent",
   # Clear instructions about capabilities and when to delegate
   instructions: "You are a math specialist. You can perform calculations and solve equations. " \
@@ -139,12 +139,18 @@ math_agent.add_handoff(weather_agent)
 
 # Create a tracer for monitoring agent interactions and handoffs.
 # This will show how agents collaborate in the trace output.
-tracer = OpenAIAgents.tracer
+# Note: Basic tracing functionality may be limited without the tracing gem
+begin
+  tracer = RAAF::Tracing.tracer
+rescue NameError
+  puts "⚠️  Note: RAAF::Tracing not available - running without detailed tracing"
+  tracer = nil
+end
 
 # Create runner starting with the weather agent.
 # The runner will automatically handle handoffs between agents,
 # maintaining conversation context across agent transitions.
-runner = OpenAIAgents::Runner.new(agent: weather_agent, tracer: tracer)
+runner = RAAF::Runner.new(agent: weather_agent, tracer: tracer)
 
 # ============================================================================
 # EXAMPLE EXECUTION
@@ -171,15 +177,15 @@ puts "6. Both results are combined in the final response"
 begin
   messages = [{ role: "user", content: "What's the weather in Tokyo and what's 25 * 14?" }]
   result = runner.run(messages)
-  
+
   puts "\n=== Actual Response ==="
   puts "Assistant: #{result.final_output}"
   puts "\nAgent transitions: #{result.agent_name}"
   puts "Total turns: #{result.turns}"
-rescue OpenAIAgents::Error => e
+rescue RAAF::Error => e
   puts "\n=== Demo Mode (No API Key) ==="
   puts "Error: #{e.message}"
-  
+
   # Demonstrate tools directly
   puts "\n=== Direct Tool Execution Demo ==="
   puts "Weather tool: #{get_weather(city: "Tokyo")}"
@@ -202,6 +208,6 @@ puts "\n=== Handoff Configuration Details ==="
 # In the Responses API, handoffs are handled through special tool functions
 # that are created dynamically when agents execute handoffs
 puts "WeatherAgent handoffs configured: #{weather_agent.handoffs.size} agent(s)"
-puts "  - Can handoff to: #{weather_agent.handoffs.map(&:name).join(', ')}"
+puts "  - Can handoff to: #{weather_agent.handoffs.map(&:name).join(", ")}"
 puts "MathAgent handoffs configured: #{math_agent.handoffs.size} agent(s)"
-puts "  - Can handoff to: #{math_agent.handoffs.map(&:name).join(', ')}"
+puts "  - Can handoff to: #{math_agent.handoffs.map(&:name).join(", ")}"

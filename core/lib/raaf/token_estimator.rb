@@ -1,29 +1,20 @@
 # frozen_string_literal: true
 
-# Try to load tiktoken for accurate token counting
-begin
-  require "tiktoken_ruby"
-  USE_TIKTOKEN = true
-rescue LoadError
-  USE_TIKTOKEN = false
-  warn "tiktoken_ruby not available. Using character-based token estimation. Run 'bundle install' to get accurate token counts." # rubocop:disable Layout/LineLength
-end
+require "tiktoken_ruby"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Token estimation for OpenAI models when usage data is not provided
   #
   # The TokenEstimator provides accurate token counting and estimation capabilities
-  # for OpenAI models. It uses the tiktoken library for precise token counting when
-  # available, falling back to character-based estimation when tiktoken is unavailable.
+  # for OpenAI models. It uses the tiktoken library for precise token counting.
   #
   # == Token Counting Methods
   #
   # * **Tiktoken Integration**: Precise token counting using OpenAI's tiktoken library
-  # * **Character-based Fallback**: Conservative estimates based on character ratios
   # * **Message Format Aware**: Accounts for OpenAI's message formatting overhead
   # * **Tool Call Support**: Estimates tokens for function calls and arguments
-  # * **Model-specific Ratios**: Different estimation ratios for various model families
   #
   # == Supported Models
   #
@@ -42,7 +33,7 @@ module RubyAIAgentsFactory
   #     { role: "user", content: "What's the weather like?" },
   #     { role: "assistant", content: "I'd be happy to help with weather information..." }
   #   ]
-  #   
+  #
   #   usage = TokenEstimator.estimate_usage(
   #     messages: messages,
   #     response_content: "The weather is sunny today.",
@@ -71,10 +62,11 @@ module RubyAIAgentsFactory
   #   }
   #   tokens = TokenEstimator.estimate_message_tokens(message_with_tools, "gpt-4")
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see https://github.com/openai/tiktoken For the tiktoken tokenization library
   class TokenEstimator
+
     ##
     # Token estimates per 1000 characters for different models
     #
@@ -110,14 +102,15 @@ module RubyAIAgentsFactory
     #
     # OpenAI's chat completion format adds overhead tokens for message structure,
     # role specification, and formatting markers.
-    
+
     # Base tokens added per message for formatting
     MESSAGE_OVERHEAD = 4
-    
+
     # Additional tokens for role specification (user, assistant, system)
     ROLE_TOKENS = 1
 
     class << self
+
       ##
       # Estimates token usage for a chat completion request/response
       #
@@ -198,34 +191,25 @@ module RubyAIAgentsFactory
       def estimate_message_tokens(message, model)
         return 0 unless message.is_a?(Hash)
 
-        if USE_TIKTOKEN
-          # More accurate message token counting with tiktoken
-          # Based on OpenAI's cookbook for counting tokens
-          tokens_per_message = 3  # Every message follows <|im_start|>{role/name}\n{content}<|im_end|>\n
-          tokens_per_name = 1     # If there's a name, the role is omitted
+        # More accurate message token counting with tiktoken
+        # Based on OpenAI's cookbook for counting tokens
+        tokens_per_message = 3  # Every message follows <|im_start|>{role/name}\n{content}<|im_end|>\n
+        tokens_per_name = 1     # If there's a name, the role is omitted
 
-          tokens = tokens_per_message
+        tokens = tokens_per_message
 
-          # Count role tokens
-          role = message[:role] || message["role"] || ""
-          tokens += estimate_text_tokens(role, model)
+        # Count role tokens
+        role = message[:role] || message["role"] || ""
+        tokens += estimate_text_tokens(role, model)
 
-          # Count content tokens
-          content = message[:content] || message["content"] || ""
-          tokens += estimate_text_tokens(content, model)
+        # Count content tokens
+        content = message[:content] || message["content"] || ""
+        tokens += estimate_text_tokens(content, model)
 
-          # Count name tokens if present
-          if message[:name] || message["name"]
-            name = message[:name] || message["name"]
-            tokens += estimate_text_tokens(name, model) + tokens_per_name
-          end
-        else
-          # Fallback to simple estimation
-          tokens = MESSAGE_OVERHEAD + ROLE_TOKENS
-
-          # Add content tokens
-          content = message[:content] || message["content"] || ""
-          tokens += estimate_text_tokens(content, model)
+        # Count name tokens if present
+        if message[:name] || message["name"]
+          name = message[:name] || message["name"]
+          tokens += estimate_text_tokens(name, model) + tokens_per_name
         end
 
         # Add tokens for tool calls if present
@@ -254,15 +238,7 @@ module RubyAIAgentsFactory
       def estimate_text_tokens(text, model)
         return 0 if text.nil? || text.empty?
 
-        if USE_TIKTOKEN
-          count_tokens_with_tiktoken(text, model)
-        else
-          # Fallback to character-based estimation
-          char_count = text.length
-          ratio = TOKEN_RATIOS[model] || TOKEN_RATIOS["default"]
-          tokens = (char_count.to_f / 1000 * ratio).ceil
-          [tokens, 1].max
-        end
+        count_tokens_with_tiktoken(text, model)
       end
 
       ##
@@ -297,7 +273,8 @@ module RubyAIAgentsFactory
         tokens.length
       rescue StandardError => e
         # If tiktoken fails, fall back to character estimation
-        RubyAIAgentsFactory::Logging.warn("Tiktoken encoding failed, falling back to estimation", model: model, error: e.message, error_class: e.class.name)
+        RAAF::Logging.warn("Tiktoken encoding failed, falling back to estimation", model: model,
+                                                                                   error: e.message, error_class: e.class.name)
         char_count = text.length
         ratio = TOKEN_RATIOS[model] || TOKEN_RATIOS["default"]
         tokens = (char_count.to_f / 1000 * ratio).ceil
@@ -397,6 +374,9 @@ module RubyAIAgentsFactory
         base = model.split("-").first(2).join("-")
         TOKEN_RATIOS.key?(base) ? base : "default"
       end
+
     end
+
   end
+
 end

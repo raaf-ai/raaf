@@ -1,6 +1,6 @@
-# Enhanced Debugging Capabilities in AiAgentDsl::Agents::Base
+# Enhanced Debugging Capabilities in RAAF::DSL::Agents::Base
 
-This document describes the enhanced debugging capabilities added to the AiAgentDsl::Agents::Base class, which provide comprehensive visibility into agent execution for troubleshooting and optimization.
+This document describes the enhanced debugging capabilities added to the RAAF::DSL::Agents::Base class, which provide comprehensive visibility into agent execution for troubleshooting and optimization.
 
 ## Overview
 
@@ -274,7 +274,7 @@ Debug behavior can be controlled through:
 
 2. **Global configuration:**
    ```ruby
-   AiAgentDsl.configure do |config|
+   RAAF::DSL.configure do |config|
      config.debug_enabled = true
      config.debug_level = :standard
    end

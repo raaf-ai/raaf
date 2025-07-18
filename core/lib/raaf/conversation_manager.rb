@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Manages conversation flow and state during agent execution
     #
@@ -11,6 +13,7 @@ module RubyAIAgentsFactory
     # tracking usage statistics, and coordinating the overall execution flow.
     #
     class ConversationManager
+
       include Logger
 
       attr_reader :config, :accumulated_usage
@@ -45,7 +48,7 @@ module RubyAIAgentsFactory
         while turns < max_turns
           # Check if execution should stop
           check_execution_stop(conversation, executor)
-          
+
           # Execute single turn
           turn_data = {
             conversation: conversation,
@@ -74,9 +77,7 @@ module RubyAIAgentsFactory
         end
 
         # Check if we exceeded max turns
-        if turns >= max_turns
-          handle_max_turns_exceeded(conversation, max_turns)
-        end
+        handle_max_turns_exceeded(conversation, max_turns) if turns >= max_turns
 
         {
           conversation: conversation,
@@ -92,7 +93,7 @@ module RubyAIAgentsFactory
       #
       def accumulate_usage(usage)
         return unless usage
-        
+
         accumulated_usage[:input_tokens] += usage[:input_tokens] || usage[:prompt_tokens] || 0
         accumulated_usage[:output_tokens] += usage[:output_tokens] || usage[:completion_tokens] || 0
         accumulated_usage[:total_tokens] += usage[:total_tokens] || 0
@@ -149,10 +150,10 @@ module RubyAIAgentsFactory
       # @private
       #
       def check_execution_stop(conversation, executor)
-        if executor.runner.should_stop?
-          conversation << { role: "assistant", content: "Execution stopped by user request." }
-          raise ExecutionStoppedError, "Execution stopped by user request"
-        end
+        return unless executor.runner.should_stop?
+
+        conversation << { role: "assistant", content: "Execution stopped by user request." }
+        raise ExecutionStoppedError, "Execution stopped by user request"
       end
 
       ##
@@ -167,10 +168,10 @@ module RubyAIAgentsFactory
       # @param current_agent [Agent] The agent that produced the result
       # @private
       #
-      def process_turn_result(result, conversation, current_agent)
+      def process_turn_result(result, conversation, _current_agent)
         message = result[:message]
         usage = result[:usage]
-        
+
         # Accumulate usage
         accumulate_usage(usage) if usage
 
@@ -194,6 +195,9 @@ module RubyAIAgentsFactory
         conversation << { role: "assistant", content: error_msg }
         raise MaxTurnsError, error_msg
       end
+
     end
+
   end
+
 end

@@ -4,9 +4,9 @@ require "spec_helper"
 require "openai_agents/memory/in_memory_store"
 require "openai_agents/memory/memory"
 
-RSpec.describe OpenAIAgents::Memory::InMemoryStore do
+RSpec.describe RAAF::Memory::InMemoryStore do
   let(:store) { described_class.new }
-  let(:memory) { OpenAIAgents::Memory::Memory.new(content: "Test memory", agent_name: "TestAgent") }
+  let(:memory) { RAAF::Memory::Memory.new(content: "Test memory", agent_name: "TestAgent") }
 
   describe "#store" do
     it "stores a memory object" do
@@ -56,19 +56,19 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
 
   describe "#search" do
     before do
-      store.store("mem1", OpenAIAgents::Memory::Memory.new(
+      store.store("mem1", RAAF::Memory::Memory.new(
                             content: "Ruby programming guide",
                             agent_name: "Agent1",
                             metadata: { tags: %w[ruby programming] }
                           ))
       
-      store.store("mem2", OpenAIAgents::Memory::Memory.new(
+      store.store("mem2", RAAF::Memory::Memory.new(
                             content: "Python tutorial",
                             agent_name: "Agent2",
                             metadata: { tags: %w[python programming] }
                           ))
       
-      store.store("mem3", OpenAIAgents::Memory::Memory.new(
+      store.store("mem3", RAAF::Memory::Memory.new(
                             content: "Ruby on Rails framework",
                             agent_name: "Agent1",
                             conversation_id: "conv-123"
@@ -128,9 +128,9 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
 
   describe "#list_keys" do
     before do
-      store.store("key1", OpenAIAgents::Memory::Memory.new(content: "1", agent_name: "Agent1"))
-      store.store("key2", OpenAIAgents::Memory::Memory.new(content: "2", agent_name: "Agent2"))
-      store.store("key3", OpenAIAgents::Memory::Memory.new(content: "3", agent_name: "Agent1", conversation_id: "conv-123"))
+      store.store("key1", RAAF::Memory::Memory.new(content: "1", agent_name: "Agent1"))
+      store.store("key2", RAAF::Memory::Memory.new(content: "2", agent_name: "Agent2"))
+      store.store("key3", RAAF::Memory::Memory.new(content: "3", agent_name: "Agent1", conversation_id: "conv-123"))
     end
 
     it "lists all keys" do
@@ -174,13 +174,13 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
     it "returns memories within time range" do
       Time.now
       
-      store.store("old", OpenAIAgents::Memory::Memory.new(content: "Old memory"))
+      store.store("old", RAAF::Memory::Memory.new(content: "Old memory"))
       
       sleep 0.1
       start_time = Time.now
       
-      store.store("new1", OpenAIAgents::Memory::Memory.new(content: "New memory 1"))
-      store.store("new2", OpenAIAgents::Memory::Memory.new(content: "New memory 2"))
+      store.store("new1", RAAF::Memory::Memory.new(content: "New memory 1"))
+      store.store("new2", RAAF::Memory::Memory.new(content: "New memory 2"))
       
       end_time = Time.now + 1
       
@@ -193,11 +193,11 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
 
   describe "#get_recent" do
     it "returns most recent memories" do
-      store.store("old", OpenAIAgents::Memory::Memory.new(content: "Old"))
+      store.store("old", RAAF::Memory::Memory.new(content: "Old"))
       sleep 0.01
-      store.store("middle", OpenAIAgents::Memory::Memory.new(content: "Middle"))
+      store.store("middle", RAAF::Memory::Memory.new(content: "Middle"))
       sleep 0.01
-      store.store("new", OpenAIAgents::Memory::Memory.new(content: "New"))
+      store.store("new", RAAF::Memory::Memory.new(content: "New"))
       
       results = store.get_recent(2)
       
@@ -218,9 +218,9 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
 
   describe "#get_by_agent" do
     before do
-      store.store("a1", OpenAIAgents::Memory::Memory.new(content: "A1", agent_name: "Agent1"))
-      store.store("a2", OpenAIAgents::Memory::Memory.new(content: "A2", agent_name: "Agent1"))
-      store.store("b1", OpenAIAgents::Memory::Memory.new(content: "B1", agent_name: "Agent2"))
+      store.store("a1", RAAF::Memory::Memory.new(content: "A1", agent_name: "Agent1"))
+      store.store("a2", RAAF::Memory::Memory.new(content: "A2", agent_name: "Agent1"))
+      store.store("b1", RAAF::Memory::Memory.new(content: "B1", agent_name: "Agent2"))
     end
 
     it "returns memories for specific agent" do
@@ -239,9 +239,9 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
 
   describe "#get_by_conversation" do
     before do
-      store.store("c1", OpenAIAgents::Memory::Memory.new(content: "C1", conversation_id: "conv-123"))
-      store.store("c2", OpenAIAgents::Memory::Memory.new(content: "C2", conversation_id: "conv-123"))
-      store.store("d1", OpenAIAgents::Memory::Memory.new(content: "D1", conversation_id: "conv-456"))
+      store.store("c1", RAAF::Memory::Memory.new(content: "C1", conversation_id: "conv-123"))
+      store.store("c2", RAAF::Memory::Memory.new(content: "C2", conversation_id: "conv-123"))
+      store.store("d1", RAAF::Memory::Memory.new(content: "D1", conversation_id: "conv-456"))
     end
 
     it "returns memories for specific conversation" do
@@ -254,8 +254,8 @@ RSpec.describe OpenAIAgents::Memory::InMemoryStore do
 
   describe "#export and #import" do
     it "exports and imports all memories" do
-      store.store("key1", OpenAIAgents::Memory::Memory.new(content: "Memory 1"))
-      store.store("key2", OpenAIAgents::Memory::Memory.new(content: "Memory 2"))
+      store.store("key1", RAAF::Memory::Memory.new(content: "Memory 1"))
+      store.store("key2", RAAF::Memory::Memory.new(content: "Memory 2"))
       
       exported = store.export
       

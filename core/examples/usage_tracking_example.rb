@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates comprehensive usage tracking for OpenAI Agents Ruby.
+# This example demonstrates comprehensive usage tracking for RAAF (Ruby AI Agents Factory).
 # The usage tracking system provides detailed monitoring of API calls, token consumption,
 # costs, agent interactions, tool usage, and custom business metrics. It includes
 # real-time monitoring, alerting, analytics, and reporting capabilities essential
 # for production deployments and business intelligence.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 puts "=== Usage Tracking Example ==="
 puts
@@ -22,7 +22,7 @@ puts "Example 1: Basic Usage Tracking Setup"
 puts "-" * 50
 
 # Create usage tracker with default settings
-usage_tracker = OpenAIAgents::UsageTracking::UsageTracker.new(
+usage_tracker = RAAF::UsageTracking::UsageTracker.new(
   enable_real_time: true,      # Enable real-time monitoring
   retention_days: 90           # Keep data for 90 days
 )
@@ -52,7 +52,7 @@ api_calls = [
     metadata: { agent: "CustomerSupport", user_id: "user123", session_id: "cs_456" }
   },
   {
-    provider: "openai", 
+    provider: "openai",
     model: "gpt-4o-mini",
     tokens_used: { prompt_tokens: 200, completion_tokens: 100, total_tokens: 300 },
     cost: 0.0018,
@@ -92,7 +92,7 @@ interactions = [
   {
     agent_name: "CustomerSupport",
     user_id: "user123",
-    session_id: "cs_456", 
+    session_id: "cs_456",
     duration: 180.5,
     message_count: 8,
     satisfaction_score: 4.2,
@@ -249,7 +249,7 @@ custom_events = [
 
 puts "Tracking custom events..."
 custom_events.each_with_index do |event, index|
-  event_id = usage_tracker.track_custom_event(event[:event_type], event[:data], 
+  event_id = usage_tracker.track_custom_event(event[:event_type], event[:data],
                                               metadata: event[:metadata])
   puts "  #{index + 1}. #{event[:event_type]} - ID: #{event_id}"
 end
@@ -267,12 +267,12 @@ puts "Example 6: Usage Analytics and Insights"
 puts "-" * 50
 
 # Get analytics for different time periods
-periods = [:today, :week, :month, :all]
+periods = %i[today week month all]
 
 periods.each do |period|
   puts "Analytics for #{period}:"
   analytics = usage_tracker.analytics(period)
-  
+
   puts "  Total events: #{analytics[:total_events]}"
   puts "  API calls: #{analytics[:api_calls][:count]}"
   puts "  Total tokens: #{analytics[:api_calls][:total_tokens]}"
@@ -340,30 +340,30 @@ puts "Setting up usage alerts..."
 
 # Cost monitoring alerts
 usage_tracker.add_alert(:daily_cost_limit) do |data|
-  data[:total_cost_today] > 10.0  # Alert if daily cost exceeds $10
+  data[:total_cost_today] > 10.0 # Alert if daily cost exceeds $10
 end
 
 usage_tracker.add_alert(:high_api_rate) do |data|
-  data[:current_api_rate] > 50  # Alert if API rate exceeds 50 calls/min
+  data[:current_api_rate] > 50 # Alert if API rate exceeds 50 calls/min
 end
 
 # Performance monitoring alerts
 usage_tracker.add_alert(:slow_response_time) do |data|
-  data[:average_response_time] > 5.0  # Alert if response time > 5 seconds
+  data[:average_response_time] > 5.0 # Alert if response time > 5 seconds
 end
 
 usage_tracker.add_alert(:high_error_rate) do |data|
-  data[:error_rate] > 10.0  # Alert if error rate > 10%
+  data[:error_rate] > 10.0 # Alert if error rate > 10%
 end
 
 # Token usage alerts
 usage_tracker.add_alert(:token_usage_spike) do |data|
-  data[:tokens_used_today] > 100_000  # Alert if daily tokens > 100k
+  data[:tokens_used_today] > 100_000 # Alert if daily tokens > 100k
 end
 
 puts "Configured #{usage_tracker.alerts.size} usage alerts:"
 usage_tracker.alerts.each do |name, alert|
-  puts "  - #{name}: #{alert[:triggered] ? 'TRIGGERED' : 'OK'}"
+  puts "  - #{name}: #{alert[:triggered] ? "TRIGGERED" : "OK"}"
 end
 puts
 
@@ -388,19 +388,19 @@ puts "Available periods: today, week, month, all"
 puts
 
 # Export data in different formats
-export_formats = [:json, :csv]
+export_formats = %i[json csv]
 export_formats.each do |format|
   puts "Exporting #{format.upcase} data..."
-  
+
   # Export sample data
   file_path = usage_tracker.export_data(format, :all)
   puts "  Exported to: #{file_path}"
-  
+
   # Check file size
   if File.exist?(file_path)
     file_size = File.size(file_path)
     puts "  File size: #{file_size} bytes"
-    
+
     # Clean up demo files
     File.delete(file_path)
     puts "  Demo file cleaned up"
@@ -416,12 +416,12 @@ puts report.summary
 puts
 
 # Save report to file
-report_file = "usage_report_#{Time.now.strftime('%Y%m%d_%H%M%S')}.html"
+report_file = "usage_report_#{Time.now.strftime("%Y%m%d_%H%M%S")}.html"
 report.save_to_file(report_file)
 puts "Report saved to: #{report_file}"
 
 # Clean up demo file
-File.delete(report_file) if File.exist?(report_file)
+FileUtils.rm_f(report_file)
 puts "Demo report file cleaned up"
 puts
 
@@ -436,20 +436,21 @@ puts "-" * 50
 
 # Create advanced analytics class
 class AdvancedAnalytics
+
   def initialize(usage_tracker)
     @usage_tracker = usage_tracker
   end
-  
+
   def cost_optimization_insights
     analytics = @usage_tracker.analytics(:all)
-    
+
     insights = {
       total_cost: analytics[:costs][:total],
       cost_by_provider: analytics[:costs][:by_provider],
       cost_by_model: analytics[:costs][:by_model],
       recommendations: []
     }
-    
+
     # Analyze cost distribution
     if analytics[:costs][:by_model].any?
       most_expensive_model = analytics[:costs][:by_model].max_by { |_, cost| cost }
@@ -458,7 +459,7 @@ class AdvancedAnalytics
         cost: most_expensive_model[1],
         percentage: (most_expensive_model[1] / analytics[:costs][:total] * 100).round(2)
       }
-      
+
       # Generate recommendations
       if insights[:most_expensive_model][:percentage] > 50
         insights[:recommendations] << {
@@ -469,14 +470,14 @@ class AdvancedAnalytics
         }
       end
     end
-    
+
     insights
   end
-  
+
   def performance_insights
     analytics = @usage_tracker.analytics(:all)
     dashboard = @usage_tracker.dashboard_data
-    
+
     insights = {
       api_performance: {
         total_calls: analytics[:api_calls][:count],
@@ -495,7 +496,7 @@ class AdvancedAnalytics
       },
       recommendations: []
     }
-    
+
     # Generate performance recommendations
     if insights[:tool_performance][:success_rate] < 90
       insights[:recommendations] << {
@@ -505,24 +506,24 @@ class AdvancedAnalytics
         current_rate: insights[:tool_performance][:success_rate]
       }
     end
-    
-    if insights[:agent_performance][:average_satisfaction] && 
+
+    if insights[:agent_performance][:average_satisfaction] &&
        insights[:agent_performance][:average_satisfaction] < 4.0
       insights[:recommendations] << {
         type: "user_experience",
-        priority: "high", 
+        priority: "high",
         description: "Improve agent interactions - satisfaction below 4.0/5.0",
         current_score: insights[:agent_performance][:average_satisfaction]
       }
     end
-    
+
     insights
   end
-  
+
   def usage_patterns
     analytics = @usage_tracker.analytics(:all)
-    
-    patterns = {
+
+    {
       peak_usage_times: analytics[:performance][:peak_hour],
       usage_distribution: {
         by_provider: analytics[:api_calls][:by_provider],
@@ -537,9 +538,8 @@ class AdvancedAnalytics
         by_agent: analytics[:tool_usage][:by_agent]
       }
     }
-    
-    patterns
   end
+
 end
 
 # Generate advanced insights
@@ -563,15 +563,15 @@ puts "Performance Insights:"
 perf_insights = advanced_analytics.performance_insights
 puts "  API Performance:"
 puts "    Total calls: #{perf_insights[:api_performance][:total_calls]}"
-puts "    Average duration: #{perf_insights[:api_performance][:average_duration]&.round(2) || 'N/A'}s"
+puts "    Average duration: #{perf_insights[:api_performance][:average_duration]&.round(2) || "N/A"}s"
 puts "    Current rate: #{perf_insights[:api_performance][:current_rate]} calls/min"
 puts "  Agent Performance:"
 puts "    Total interactions: #{perf_insights[:agent_performance][:total_interactions]}"
-puts "    Average satisfaction: #{perf_insights[:agent_performance][:average_satisfaction]&.round(2) || 'N/A'}/5.0"
-puts "    Average duration: #{perf_insights[:agent_performance][:average_duration]&.round(1) || 'N/A'}s"
+puts "    Average satisfaction: #{perf_insights[:agent_performance][:average_satisfaction]&.round(2) || "N/A"}/5.0"
+puts "    Average duration: #{perf_insights[:agent_performance][:average_duration]&.round(1) || "N/A"}s"
 puts "  Tool Performance:"
 puts "    Success rate: #{perf_insights[:tool_performance][:success_rate]}%"
-puts "    Average execution time: #{perf_insights[:tool_performance][:average_execution_time]&.round(2) || 'N/A'}s"
+puts "    Average execution time: #{perf_insights[:tool_performance][:average_execution_time]&.round(2) || "N/A"}s"
 puts "  Recommendations: #{perf_insights[:recommendations].size}"
 perf_insights[:recommendations].each do |rec|
   puts "    • #{rec[:description]} (#{rec[:priority]} priority)"
@@ -580,8 +580,10 @@ puts
 
 puts "Usage Patterns:"
 patterns = advanced_analytics.usage_patterns
-puts "  Peak usage time: #{patterns[:peak_usage_times][:hour]}:00 " \
-     "(#{patterns[:peak_usage_times][:count]} events)" if patterns[:peak_usage_times]
+if patterns[:peak_usage_times]
+  puts "  Peak usage time: #{patterns[:peak_usage_times][:hour]}:00 " \
+       "(#{patterns[:peak_usage_times][:count]} events)"
+end
 puts "  Provider distribution: #{patterns[:usage_distribution][:by_provider]}"
 puts "  Model distribution: #{patterns[:usage_distribution][:by_model]}"
 puts
@@ -596,40 +598,44 @@ puts "-" * 50
 
 # Custom storage adapter for database integration
 class CustomDatabaseStorage
+
   def initialize(database_connection)
     @db = database_connection
   end
-  
+
   def store_event(event)
     # In real implementation, store to database
     puts "Storing event to database: #{event[:type]} - #{event[:id]}"
   end
-  
+
   def get_events(since: nil)
     # In real implementation, query database
-    puts "Querying events from database since: #{since || 'all time'}"
+    puts "Querying events from database since: #{since || "all time"}"
     []
   end
-  
+
   def delete_events_before(cutoff_date)
     # In real implementation, delete old events
     puts "Deleting events before: #{cutoff_date}"
     0
   end
+
 end
 
 # Custom alert handler for external notifications
 class CustomAlertHandler
+
   def initialize(webhook_url)
     @webhook_url = webhook_url
   end
-  
+
   def handle_alert(alert_name, data)
     # In real implementation, send to webhook
     puts "Sending alert to webhook: #{alert_name}"
     puts "  Alert data: #{data}"
     puts "  Webhook URL: #{@webhook_url}"
   end
+
 end
 
 puts "Example integrations:"
@@ -652,43 +658,43 @@ puts <<~PRACTICES
      - Include sufficient metadata for analysis
      - Balance detail with storage efficiency
      - Implement proper data retention policies
-  
+
   2. Real-Time Monitoring:
      - Set up appropriate alert thresholds
      - Monitor critical metrics continuously
      - Implement automated responses where possible
      - Provide real-time dashboards for operators
-  
+
   3. Cost Management:
      - Track costs at granular level (per user, per feature)
      - Set up budget alerts and limits
      - Analyze cost optimization opportunities
      - Implement cost allocation for multi-tenant systems
-  
+
   4. Performance Optimization:
      - Monitor response times and error rates
      - Track tool usage and success rates
      - Identify bottlenecks and optimization opportunities
      - Implement performance baselines and SLAs
-  
+
   5. Business Intelligence:
      - Track custom business metrics
      - Analyze user behavior and satisfaction
      - Generate actionable insights
      - Support data-driven decision making
-  
+
   6. Data Security and Privacy:
      - Implement proper access controls
      - Anonymize sensitive data
      - Comply with data protection regulations
      - Secure data in transit and at rest
-  
+
   7. Scalability Considerations:
      - Use appropriate storage solutions
      - Implement data archiving strategies
      - Consider sampling for high-volume systems
      - Optimize query performance for analytics
-  
+
   8. Integration and Automation:
      - Integrate with existing monitoring systems
      - Automate report generation and distribution

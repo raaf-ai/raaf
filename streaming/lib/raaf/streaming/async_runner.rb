@@ -3,7 +3,7 @@
 require "async"
 require "concurrent-ruby"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # Async runner for non-blocking agent operations
@@ -13,7 +13,7 @@ module RubyAIAgentsFactory
     # error handling and resource management.
     #
     class AsyncRunner
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Integer] Thread pool size
       attr_reader :pool_size
@@ -428,7 +428,7 @@ module RubyAIAgentsFactory
     # with proper lifecycle management and error handling.
     #
     class AsyncStreamingSession
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Agent] Agent instance
       attr_reader :agent

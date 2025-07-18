@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Testing
     ##
     # Mock provider for testing AI agents
@@ -9,7 +9,7 @@ module RubyAIAgentsFactory
     # without making actual API calls. Useful for consistent, fast testing.
     #
     class MockProvider
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [String] Default response when no specific response is configured
       attr_reader :default_response
@@ -29,9 +29,10 @@ module RubyAIAgentsFactory
       # @return [Hash] Usage statistics
       attr_reader :usage_stats
 
-      # Class-level tracking
+      # Class-level tracking with thread safety
       @@instances = []
       @@global_responses = {}
+      @@class_mutex = Mutex.new
 
       ##
       # Initialize mock provider
@@ -56,7 +57,9 @@ module RubyAIAgentsFactory
         }
         @request_history = []
         
-        @@instances << self
+        @@class_mutex.synchronize do
+          @@instances << self
+        end
       end
 
       ##
@@ -264,7 +267,9 @@ module RubyAIAgentsFactory
         # @return [Array<MockProvider>] All provider instances
         #
         def instances
-          @@instances
+          @@class_mutex.synchronize do
+            @@instances.dup
+          end
         end
 
         ##
@@ -274,21 +279,27 @@ module RubyAIAgentsFactory
         # @param response [String, Hash] Response to return
         #
         def add_global_response(input, response)
-          @@global_responses[input] = response
+          @@class_mutex.synchronize do
+            @@global_responses[input] = response
+          end
         end
 
         ##
         # Clear all global responses
         #
         def clear_global_responses
-          @@global_responses.clear
+          @@class_mutex.synchronize do
+            @@global_responses.clear
+          end
         end
 
         ##
         # Clear all responses from all providers
         #
         def clear_all_responses
-          @@instances.each(&:clear_responses)
+          @@class_mutex.synchronize do
+            @@instances.each(&:clear_responses)
+          end
           clear_global_responses
         end
 
@@ -303,15 +314,19 @@ module RubyAIAgentsFactory
             successful_requests: 0,
             failed_requests: 0,
             total_tokens: 0,
-            provider_count: @@instances.size
+            provider_count: 0
           }
 
-          @@instances.each do |provider|
-            stats = provider.stats
-            total_stats[:total_requests] += stats[:total_requests]
-            total_stats[:successful_requests] += stats[:successful_requests]
-            total_stats[:failed_requests] += stats[:failed_requests]
-            total_stats[:total_tokens] += stats[:total_tokens]
+          @@class_mutex.synchronize do
+            total_stats[:provider_count] = @@instances.size
+            
+            @@instances.each do |provider|
+              stats = provider.stats
+              total_stats[:total_requests] += stats[:total_requests]
+              total_stats[:successful_requests] += stats[:successful_requests]
+              total_stats[:failed_requests] += stats[:failed_requests]
+              total_stats[:total_tokens] += stats[:total_tokens]
+            end
           end
 
           total_stats[:success_rate] = if total_stats[:total_requests] > 0
@@ -327,14 +342,18 @@ module RubyAIAgentsFactory
         # Reset all provider statistics
         #
         def reset_all_stats
-          @@instances.each(&:reset_stats)
+          @@class_mutex.synchronize do
+            @@instances.each(&:reset_stats)
+          end
         end
 
         ##
         # Clear all cached responses
         #
         def clear_all_caches
-          @@instances.each(&:clear_responses)
+          @@class_mutex.synchronize do
+            @@instances.each(&:clear_responses)
+          end
         end
 
         ##
@@ -343,7 +362,9 @@ module RubyAIAgentsFactory
         # @return [Integer] Total cached responses
         #
         def cached_responses
-          @@instances.sum { |provider| provider.responses.size }
+          @@class_mutex.synchronize do
+            @@instances.sum { |provider| provider.responses.size }
+          end
         end
       end
 
@@ -364,9 +385,11 @@ module RubyAIAgentsFactory
         matching_response = find_response_match(@responses, input)
         return matching_response if matching_response
         
-        # Check global responses
-        matching_response = find_response_match(@@global_responses, input)
-        return matching_response if matching_response
+        # Check global responses (with synchronization)
+        @@class_mutex.synchronize do
+          matching_response = find_response_match(@@global_responses, input)
+          return matching_response if matching_response
+        end
         
         # Return default response
         @default_response

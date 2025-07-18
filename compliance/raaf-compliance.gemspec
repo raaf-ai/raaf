@@ -4,7 +4,7 @@ require_relative "lib/raaf/compliance/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-compliance"
-  spec.version = RubyAIAgentsFactory::Compliance::VERSION
+  spec.version = RAAF::Compliance::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -40,9 +40,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pg", "~> 1.0"
   spec.add_dependency "prawn", "~> 2.4"
   spec.add_dependency "prawn-table", "~> 0.2"
-  spec.add_dependency "raaf-core", "~> 1.0"
-  spec.add_dependency "raaf-logging", "~> 1.0"
-  spec.add_dependency "redis", "~> 4.0"
+  spec.add_dependency "raaf-core", "0.1.0"
   spec.add_dependency "rubyzip", "~> 2.3"
 
   # Development dependencies

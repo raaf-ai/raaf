@@ -2,22 +2,22 @@
 
 require "spec_helper"
 
-RSpec.describe OpenAIAgents::Tracing do
+RSpec.describe RAAF::Tracing do
   describe ".tracer" do
     it "returns a tracer instance" do
       tracer = described_class.tracer
       # When tracing is disabled, returns NoOpTracer; otherwise SpanTracer
-      if ENV["OPENAI_AGENTS_DISABLE_TRACING"] == "true"
-        expect(tracer).to be_a(OpenAIAgents::Tracing::NoOpTracer)
+      if ENV["RAAF_DISABLE_TRACING"] == "true"
+        expect(tracer).to be_a(RAAF::Tracing::NoOpTracer)
       else
-        expect(tracer).to be_a(OpenAIAgents::Tracing::SpanTracer)
+        expect(tracer).to be_a(RAAF::Tracing::SpanTracer)
       end
     end
   end
 
   describe ".trace" do
     it "creates a trace context" do
-      expect(OpenAIAgents::Tracing::Trace).to receive(:create).with("test workflow")
+      expect(RAAF::Tracing::Trace).to receive(:create).with("test workflow")
       described_class.trace("test workflow")
     end
   end

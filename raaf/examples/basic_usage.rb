@@ -14,7 +14,7 @@ puts "=== Basic RAAF Usage Example ==="
 puts
 
 # Create a simple agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant. Be concise and friendly.",
   model: "gpt-4o"
@@ -25,7 +25,7 @@ puts "Model: #{agent.model}"
 puts
 
 # Create a runner
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Run a simple conversation
 puts "Running conversation..."

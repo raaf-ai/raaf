@@ -23,8 +23,9 @@ end
 puts "\n=== Demonstrating error when no prompt class is configured ==="
 
 # Example of what happens when no prompt class is configured
-class BadAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class BadAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "bad_agent"
   uses_tool :web_search
@@ -36,33 +37,34 @@ class BadAgent < AiAgentDsl::Agents::Base
   def build_schema
     { type: "object", properties: {}, additionalProperties: false }
   end
+
 end
 
 bad_agent = BadAgent.new(context: context, processing_params: processing_params)
 
 begin
   bad_agent.run
-rescue AiAgentDsl::Error => e
+rescue RAAF::DSL::Error => e
   puts "Expected error: #{e.message}"
 end
 
 puts "\n=== Example usage patterns ==="
 puts <<~USAGE
   # 1. Create a prompt class (REQUIRED):
-  class MyPrompt < AiAgentDsl::Prompts::Base
+  class MyPrompt < RAAF::DSL::Prompts::Base
     def system
       "You are a helpful assistant."
     end
-  #{'  '}
+  #{"  "}
     def user
       "Hello there!"
     end
   end
 
   # 2. Configure the agent to use the prompt class:
-  class MyAgent < AiAgentDsl::Agents::Base
-    include AiAgentDsl::AgentDsl
-  #{'  '}
+  class MyAgent < RAAF::DSL::Agents::Base
+    include RAAF::DSL::AgentDsl
+  #{"  "}
     prompt_class MyPrompt
   end
 

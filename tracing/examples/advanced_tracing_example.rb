@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates advanced tracing capabilities in OpenAI Agents Ruby.
+# This example demonstrates advanced tracing capabilities in RAAF (Ruby AI Agents Factory).
 # Beyond basic tracing, the library provides enterprise-grade features including
 # cost management, real-time alerting, anomaly detection, and performance monitoring.
 # These features are essential for production deployments where you need comprehensive
 # observability, cost control, and proactive issue detection.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-tracing"
 
 puts "=== Advanced Tracing Example ==="
 puts
@@ -23,7 +23,7 @@ puts "Example 1: Cost Management System"
 puts "-" * 50
 
 # Create a cost manager with custom configuration
-cost_manager = OpenAIAgents::Tracing::CostManager.new(
+cost_manager = RAAF::Tracing::CostManager.new(
   # Custom pricing for different models
   pricing: {
     "gpt-4o" => { input: 0.000005, output: 0.000015 },
@@ -136,7 +136,7 @@ puts "Example 2: Real-Time Alerting System"
 puts "-" * 50
 
 # Create alert engine with custom rules
-alert_engine = OpenAIAgents::Tracing::AlertEngine.new(
+alert_engine = RAAF::Tracing::AlertEngine.new(
   rules: [
     # Custom rule for high API costs
     {
@@ -168,14 +168,14 @@ puts "Alert Engine initialized with #{alert_engine.list_rules.size} rules"
 puts "Adding custom alert handlers..."
 
 # Webhook handler for external systems
-webhook_handler = OpenAIAgents::Tracing::AlertEngine::WebhookHandler.new(
+webhook_handler = RAAF::Tracing::AlertEngine::WebhookHandler.new(
   "https://api.example.com/alerts",
   "webhook_secret_key"
 )
 alert_engine.add_alert_handler(webhook_handler)
 
 # Slack handler for team notifications
-slack_handler = OpenAIAgents::Tracing::AlertEngine::SlackHandler.new(
+slack_handler = RAAF::Tracing::AlertEngine::SlackHandler.new(
   "https://hooks.slack.com/services/your/slack/webhook",
   "#engineering-alerts"
 )
@@ -222,7 +222,7 @@ puts "Example 3: Anomaly Detection System"
 puts "-" * 50
 
 # Create anomaly detector with custom sensitivity
-anomaly_detector = OpenAIAgents::Tracing::AnomalyDetector.new(
+anomaly_detector = RAAF::Tracing::AnomalyDetector.new(
   # Statistical thresholds
   z_score_threshold: 2.5,        # More sensitive than default (3.0)
   min_samples: 15,               # Minimum data points for analysis
@@ -320,9 +320,9 @@ puts "-" * 50
 # Create integrated monitoring system
 class AdvancedMonitoringDashboard
   def initialize
-    @cost_manager = OpenAIAgents::Tracing::CostManager.new
-    @alert_engine = OpenAIAgents::Tracing::AlertEngine.new
-    @anomaly_detector = OpenAIAgents::Tracing::AnomalyDetector.new
+    @cost_manager = RAAF::Tracing::CostManager.new
+    @alert_engine = RAAF::Tracing::AlertEngine.new
+    @anomaly_detector = RAAF::Tracing::AnomalyDetector.new
   end
   
   def generate_health_report
@@ -447,7 +447,7 @@ puts "Example 5: Distributed Tracing Correlation"
 puts "-" * 50
 
 # Create distributed tracer
-distributed_tracer = OpenAIAgents::Tracing::DistributedTracer.new(
+distributed_tracer = RAAF::Tracing::DistributedTracer.new(
   service_name: "ai-agent-service",
   service_version: "1.0.0",
   correlation_header: "X-Correlation-ID",

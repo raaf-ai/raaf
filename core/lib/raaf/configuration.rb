@@ -4,11 +4,12 @@ require "yaml"
 require "json"
 require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Configuration - Environment-based configuration management system
   #
-  # Provides centralized configuration management for OpenAI Agents with support for
+  # Provides centralized configuration management for RAAF with support for
   # environment variables, configuration files, and runtime overrides. Supports
   # multiple environments (development, test, production) and secure credential handling.
   #
@@ -25,7 +26,7 @@ module RubyAIAgentsFactory
   # == Basic Usage
   #
   #   # Load configuration
-  #   config = RubyAIAgentsFactory::Configuration.new
+  #   config = RAAF::Configuration.new
   #
   #   # Access configuration values
   #   config.openai.api_key        # => "sk-..."
@@ -36,7 +37,7 @@ module RubyAIAgentsFactory
   #
   #   # 1. Environment variables
   #   export OPENAI_API_KEY="sk-..."
-  #   export OPENAI_AGENTS_MAX_TURNS="20"
+  #   export RAAF_MAX_TURNS="20"
   #
   #   # 2. Configuration files
   #   # config/openai_agents.yml
@@ -48,14 +49,15 @@ module RubyAIAgentsFactory
   # == Environment-Specific Configuration
   #
   #   # Development environment
-  #   config = RubyAIAgentsFactory::Configuration.new(environment: "development")
+  #   config = RAAF::Configuration.new(environment: "development")
   #
   #   # Production environment
-  #   config = RubyAIAgentsFactory::Configuration.new(environment: "production")
+  #   config = RAAF::Configuration.new(environment: "production")
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   class Configuration
+
     include Logger
     ##
     # Default configuration values
@@ -160,7 +162,7 @@ module RubyAIAgentsFactory
 
       # REPL Configuration
       repl: {
-        history_file: "~/.openai_agents_history",
+        history_file: "~/.raaf_history",
         auto_save: true,
         debug_mode: false
       },
@@ -183,11 +185,11 @@ module RubyAIAgentsFactory
       "ANTHROPIC_API_KEY" => "anthropic.api_key",
       "ANTHROPIC_API_BASE" => "anthropic.api_base",
       "GEMINI_API_KEY" => "gemini.api_key",
-      "OPENAI_AGENTS_ENVIRONMENT" => "environment",
-      "OPENAI_AGENTS_MAX_TURNS" => "agent.max_turns",
-      "OPENAI_AGENTS_DEFAULT_MODEL" => "agent.default_model",
-      "OPENAI_AGENTS_LOG_LEVEL" => "logging.level",
-      "OPENAI_AGENTS_DEBUG" => "repl.debug_mode"
+      "RAAF_ENVIRONMENT" => "environment",
+      "RAAF_MAX_TURNS" => "agent.max_turns",
+      "RAAF_DEFAULT_MODEL" => "agent.default_model",
+      "RAAF_LOG_LEVEL" => "logging.level",
+      "RAAF_DEBUG" => "repl.debug_mode"
     }.freeze
 
     attr_reader :environment, :config_data, :config_paths
@@ -200,17 +202,17 @@ module RubyAIAgentsFactory
     # @param auto_load [Boolean] whether to automatically load configuration (default: true)
     #
     # @example Create default configuration
-    #   config = RubyAIAgentsFactory::Configuration.new
+    #   config = RAAF::Configuration.new
     #
     # @example Create production configuration
-    #   config = RubyAIAgentsFactory::Configuration.new(environment: "production")
+    #   config = RAAF::Configuration.new(environment: "production")
     #
     # @example Custom configuration paths
-    #   config = RubyAIAgentsFactory::Configuration.new(
+    #   config = RAAF::Configuration.new(
     #     config_paths: ["./config", "/etc/openai_agents"]
     #   )
     def initialize(environment: nil, config_paths: nil, auto_load: true)
-      @environment = environment || ENV["OPENAI_AGENTS_ENVIRONMENT"] || "development"
+      @environment = environment || ENV["RAAF_ENVIRONMENT"] || "development"
       @config_paths = config_paths || default_config_paths
       @config_data = {}
       @watchers = []
@@ -540,11 +542,11 @@ module RubyAIAgentsFactory
         set(config_key, value)
       end
 
-      # Load any OPENAI_AGENTS_ prefixed variables
+      # Load any RAAF_ prefixed variables
       ENV.each do |key, value|
-        next unless key.start_with?("OPENAI_AGENTS_")
+        next unless key.start_with?("RAAF_")
 
-        config_key = key.sub("OPENAI_AGENTS_", "").downcase.gsub("_", ".")
+        config_key = key.sub("RAAF_", "").downcase.gsub("_", ".")
         set(config_key, value)
       end
     end
@@ -633,6 +635,7 @@ module RubyAIAgentsFactory
     def sensitive_key?(key)
       key.to_s.match?(/api_key|password|secret|token|credential/i)
     end
+
   end
 
   ##
@@ -640,6 +643,7 @@ module RubyAIAgentsFactory
   #
   # Provides method-based access to configuration values within a section.
   class ConfigurationSection
+
     def initialize(data, path, config)
       @data = data
       @path = path
@@ -666,9 +670,11 @@ module RubyAIAgentsFactory
     def to_h
       @data
     end
+
   end
 
   ##
   # ConfigurationError - Exception for configuration-related errors
   class ConfigurationError < Error; end
+
 end

@@ -41,16 +41,16 @@ bundle install
 require 'raaf-memory'
 
 # Create memory store
-store = RubyAIAgentsFactory::Memory.create_store(:file, base_dir: "./memory")
+store = RAAF::Memory.create_store(:file, base_dir: "./memory")
 
 # Use with agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   memory_store: store
 )
 
 # Agent will remember across sessions
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Remember my name is Alice")
 ```
 
@@ -60,7 +60,7 @@ result = runner.run("Remember my name is Alice")
 require 'raaf-memory'
 
 # Create vector store
-vector_store = RubyAIAgentsFactory::VectorStore.new(
+vector_store = RAAF::VectorStore.new(
   name: "knowledge_base",
   dimensions: 1536
 )
@@ -85,13 +85,13 @@ results.each { |result| puts result[:content] }
 require 'raaf-memory'
 
 # Create semantic search database
-db = RubyAIAgentsFactory::SemanticSearch::VectorDatabase.new(
+db = RAAF::SemanticSearch::VectorDatabase.new(
   dimension: 1536,
   index_type: :hnsw
 )
 
 # Index documents with metadata
-indexer = RubyAIAgentsFactory::SemanticSearch::DocumentIndexer.new(
+indexer = RAAF::SemanticSearch::DocumentIndexer.new(
   vector_db: db
 )
 
@@ -124,14 +124,14 @@ results = indexer.search(
 
 ```ruby
 # Ephemeral storage - data lost when process ends
-store = RubyAIAgentsFactory::Memory.create_store(:in_memory)
+store = RAAF::Memory.create_store(:in_memory)
 ```
 
 ### File Store
 
 ```ruby
 # Persistent file-based storage
-store = RubyAIAgentsFactory::Memory.create_store(
+store = RAAF::Memory.create_store(
   :file, 
   base_dir: "./agent_memory"
 )
@@ -141,7 +141,7 @@ store = RubyAIAgentsFactory::Memory.create_store(
 
 ```ruby
 # Implement your own store
-class RedisStore < RubyAIAgentsFactory::Memory::BaseStore
+class RedisStore < RAAF::Memory::BaseStore
   def initialize(redis_client)
     @redis = redis_client
   end
@@ -155,7 +155,7 @@ class RedisStore < RubyAIAgentsFactory::Memory::BaseStore
   end
 end
 
-store = RubyAIAgentsFactory::Memory.create_store(
+store = RAAF::Memory.create_store(
   :custom,
   store_class: RedisStore,
   redis_client: Redis.new
@@ -168,7 +168,7 @@ store = RubyAIAgentsFactory::Memory.create_store(
 
 ```ruby
 # Good for development and small datasets
-vector_store = RubyAIAgentsFactory::VectorStore.new(
+vector_store = RAAF::VectorStore.new(
   name: "dev_knowledge",
   dimensions: 1536
 )
@@ -180,11 +180,11 @@ vector_store = RubyAIAgentsFactory::VectorStore.new(
 require 'pg'
 
 # Production-ready PostgreSQL + pgvector
-adapter = RubyAIAgentsFactory::Adapters::PgVectorAdapter.new(
+adapter = RAAF::Adapters::PgVectorAdapter.new(
   connection_string: "postgres://user:pass@localhost/db"
 )
 
-vector_store = RubyAIAgentsFactory::VectorStore.new(
+vector_store = RAAF::VectorStore.new(
   name: "production_knowledge",
   adapter: adapter,
   dimensions: 1536
@@ -227,7 +227,7 @@ results = vector_store.search(
 
 ```ruby
 # Create high-performance vector database
-db = RubyAIAgentsFactory::SemanticSearch::VectorDatabase.new(
+db = RAAF::SemanticSearch::VectorDatabase.new(
   dimension: 1536,
   index_type: :hnsw  # or :flat for smaller datasets
 )
@@ -259,7 +259,7 @@ results = db.search(
 
 ```ruby
 # Index documents with chunking
-indexer = RubyAIAgentsFactory::SemanticSearch::DocumentIndexer.new
+indexer = RAAF::SemanticSearch::DocumentIndexer.new
 
 documents = [
   { content: "Long article content...", title: "Article 1" },
@@ -276,10 +276,10 @@ results = indexer.search("machine learning", k: 10)
 
 ```ruby
 # Combine semantic and keyword search
-semantic_indexer = RubyAIAgentsFactory::SemanticSearch::DocumentIndexer.new
-keyword_indexer = RubyAIAgentsFactory::SemanticSearch::KeywordIndexer.new
+semantic_indexer = RAAF::SemanticSearch::DocumentIndexer.new
+keyword_indexer = RAAF::SemanticSearch::KeywordIndexer.new
 
-hybrid = RubyAIAgentsFactory::SemanticSearch::HybridSearch.new(
+hybrid = RAAF::SemanticSearch::HybridSearch.new(
   semantic_indexer,
   keyword_indexer
 )
@@ -299,7 +299,7 @@ results = hybrid.search(
 ### Global Configuration
 
 ```ruby
-RubyAIAgentsFactory::Memory.configure do |config|
+RAAF::Memory.configure do |config|
   config.default_store_type = :file
   config.default_base_dir = "/var/lib/agent_memory"
   config.default_dimensions = 1536
@@ -331,20 +331,20 @@ require 'raaf-core'
 require 'raaf-memory'
 
 # Create memory store
-memory_store = RubyAIAgentsFactory::Memory.create_store(
+memory_store = RAAF::Memory.create_store(
   :file,
   base_dir: "./agent_memory"
 )
 
 # Create agent with memory
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant with memory",
   memory_store: memory_store
 )
 
 # Agent will remember across conversations
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("My favorite color is blue")
 ```
 
@@ -355,7 +355,7 @@ require 'raaf-core'
 require 'raaf-memory'
 
 # Create knowledge base
-knowledge_base = RubyAIAgentsFactory::SemanticSearch::DocumentIndexer.new
+knowledge_base = RAAF::SemanticSearch::DocumentIndexer.new
 
 # Add documents
 documents = [
@@ -365,21 +365,21 @@ documents = [
 knowledge_base.index_documents(documents)
 
 # Create search tool
-search_tool = RubyAIAgentsFactory::SemanticSearch::SemanticSearchTool.new(
+search_tool = RAAF::SemanticSearch::SemanticSearchTool.new(
   knowledge_base,
   name: "search_knowledge",
   description: "Search the knowledge base"
 )
 
 # Add to agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "KnowledgeAssistant",
   instructions: "Answer questions using the knowledge base"
 )
 agent.add_tool(search_tool)
 
 # Agent can now search the knowledge base
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("What is Ruby?")
 ```
 
@@ -389,13 +389,13 @@ result = runner.run("What is Ruby?")
 
 ```ruby
 # Use HNSW for large datasets (faster search)
-db = RubyAIAgentsFactory::SemanticSearch::VectorDatabase.new(
+db = RAAF::SemanticSearch::VectorDatabase.new(
   dimension: 1536,
   index_type: :hnsw
 )
 
 # Use Flat for small datasets (exact search)
-db = RubyAIAgentsFactory::SemanticSearch::VectorDatabase.new(
+db = RAAF::SemanticSearch::VectorDatabase.new(
   dimension: 1536,
   index_type: :flat
 )
@@ -405,7 +405,7 @@ db = RubyAIAgentsFactory::SemanticSearch::VectorDatabase.new(
 
 ```ruby
 # Enable caching for embedding generation
-generator = RubyAIAgentsFactory::SemanticSearch::EmbeddingGenerator.new
+generator = RAAF::SemanticSearch::EmbeddingGenerator.new
 embeddings = generator.generate(texts, cache: true)
 
 # Clear cache when needed
@@ -416,7 +416,7 @@ generator.clear_cache
 
 ```ruby
 # Use connection pooling
-adapter = RubyAIAgentsFactory::Adapters::PgVectorAdapter.new(
+adapter = RAAF::Adapters::PgVectorAdapter.new(
   connection_string: "postgres://user:pass@localhost/db",
   pool_size: 10
 )

@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Centralized error handling with recovery strategies
     #
@@ -11,16 +13,19 @@ module RubyAIAgentsFactory
     # agent execution, with configurable recovery strategies.
     #
     class ErrorHandler
+
       include Logger
 
       ##
       # Error recovery strategies
       #
       module RecoveryStrategy
-        FAIL_FAST = :fail_fast       # Re-raise immediately
-        LOG_AND_CONTINUE = :log_and_continue  # Log error but continue execution
-        RETRY_ONCE = :retry_once      # Retry the operation once
-        GRACEFUL_DEGRADATION = :graceful_degradation  # Continue with reduced functionality
+
+        FAIL_FAST = :fail_fast # Re-raise immediately
+        LOG_AND_CONTINUE = :log_and_continue # Log error but continue execution
+        RETRY_ONCE = :retry_once # Retry the operation once
+        GRACEFUL_DEGRADATION = :graceful_degradation # Continue with reduced functionality
+
       end
 
       attr_reader :strategy
@@ -50,10 +55,20 @@ module RubyAIAgentsFactory
         handle_max_turns_error(e, context)
       rescue ExecutionStoppedError => e
         handle_stopped_execution_error(e, context)
-      rescue Guardrails::InputGuardrailTripwireTriggered => e
-        handle_guardrail_error(e, context, :input)
-      rescue Guardrails::OutputGuardrailTripwireTriggered => e
-        handle_guardrail_error(e, context, :output)
+      rescue StandardError => e
+        # Check if this is a guardrails error when guardrails gem is loaded
+        raise unless defined?(Guardrails)
+
+        case e
+        when Guardrails::InputGuardrailTripwireTriggered
+          handle_guardrail_error(e, context, :input)
+        when Guardrails::OutputGuardrailTripwireTriggered
+          handle_guardrail_error(e, context, :output)
+        else
+          raise # Re-raise if not a guardrails error
+        end
+
+      # Re-raise if guardrails not available
       rescue JSON::ParserError => e
         handle_parsing_error(e, context)
       rescue StandardError => e
@@ -89,16 +104,16 @@ module RubyAIAgentsFactory
       #
       def handle_tool_error(tool_name, error, context = {})
         error_context = context.merge(tool: tool_name, error_class: error.class.name)
-        
+
         case error
         when JSON::ParserError
-          log_error("Tool argument parsing failed", **error_context.merge(message: error.message))
+          log_error("Tool argument parsing failed", **error_context, message: error.message)
           "Error: Invalid tool arguments format"
         when ArgumentError
-          log_error("Tool argument error", **error_context.merge(message: error.message))
+          log_error("Tool argument error", **error_context, message: error.message)
           "Error: Invalid arguments provided to tool"
         when StandardError
-          log_error("Tool execution failed", **error_context.merge(message: error.message))
+          log_error("Tool execution failed", **error_context, message: error.message)
           "Error: Tool execution failed - #{error.message}"
         end
       end
@@ -117,17 +132,16 @@ module RubyAIAgentsFactory
       # @private
       #
       def handle_max_turns_error(error, context)
-        log_error("Maximum turns exceeded", **context.merge(message: error.message))
-        
+        log_error("Maximum turns exceeded", **context, message: error.message)
+
         case strategy
-        when RecoveryStrategy::FAIL_FAST
-          raise error
         when RecoveryStrategy::LOG_AND_CONTINUE
           log_warn("Continuing despite max turns exceeded")
           { error: :max_turns_exceeded, handled: true }
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :max_turns_exceeded, message: "Conversation truncated due to length" }
         else
+          # RecoveryStrategy::FAIL_FAST and any other strategy
           raise error
         end
       end
@@ -144,8 +158,8 @@ module RubyAIAgentsFactory
       # @private
       #
       def handle_stopped_execution_error(error, context)
-        log_info("Execution stopped by request", **context.merge(message: error.message))
-        
+        log_info("Execution stopped by request", **context, message: error.message)
+
         # Execution stopped errors are usually intentional, so we handle them gracefully
         { error: :execution_stopped, message: error.message, handled: true }
       end
@@ -163,12 +177,10 @@ module RubyAIAgentsFactory
       # @private
       #
       def handle_guardrail_error(error, context, guardrail_type)
-        log_warn("#{guardrail_type.capitalize} guardrail triggered", 
-                **context.merge(guardrail: error.triggered_by, message: error.message))
-        
+        log_warn("#{guardrail_type.capitalize} guardrail triggered",
+                 **context, guardrail: error.triggered_by, message: error.message)
+
         case strategy
-        when RecoveryStrategy::FAIL_FAST
-          raise error
         when RecoveryStrategy::LOG_AND_CONTINUE, RecoveryStrategy::GRACEFUL_DEGRADATION
           {
             error: :"#{guardrail_type}_guardrail_triggered",
@@ -177,6 +189,7 @@ module RubyAIAgentsFactory
             handled: true
           }
         else
+          # RecoveryStrategy::FAIL_FAST and any other strategy
           raise error
         end
       end
@@ -193,8 +206,8 @@ module RubyAIAgentsFactory
       # @private
       #
       def handle_parsing_error(error, context)
-        log_error("JSON parsing failed", **context.merge(message: error.message))
-        
+        log_error("JSON parsing failed", **context, message: error.message)
+
         case strategy
         when RecoveryStrategy::FAIL_FAST
           raise error
@@ -226,8 +239,8 @@ module RubyAIAgentsFactory
       # @private
       #
       def handle_timeout_error(error, context)
-        log_error("API request timed out", **context.merge(message: error.message))
-        
+        log_error("API request timed out", **context, message: error.message)
+
         case strategy
         when RecoveryStrategy::RETRY_ONCE
           if @retry_count < @max_retries
@@ -256,8 +269,8 @@ module RubyAIAgentsFactory
       # @private
       #
       def handle_http_error(error, context)
-        log_error("HTTP error occurred", **context.merge(message: error.message))
-        
+        log_error("HTTP error occurred", **context, message: error.message)
+
         case strategy
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :http_error, message: "Service temporarily unavailable", handled: true }
@@ -278,9 +291,9 @@ module RubyAIAgentsFactory
       # @private
       #
       def handle_general_error(error, context)
-        log_error("Unexpected error occurred", 
-                 **context.merge(error_class: error.class.name, message: error.message))
-        
+        log_error("Unexpected error occurred",
+                  **context, error_class: error.class.name, message: error.message)
+
         case strategy
         when RecoveryStrategy::FAIL_FAST
           raise error
@@ -292,6 +305,9 @@ module RubyAIAgentsFactory
           raise error
         end
       end
+
     end
+
   end
+
 end

@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates Ollama integration with OpenAI Agents Ruby.
+# This example demonstrates Ollama integration with RAAF (Ruby AI Agents Factory).
 # Ollama enables running large language models locally on your machine,
 # providing privacy, control, and cost-effectiveness for AI applications.
 # The multi-provider architecture allows seamless switching between cloud and local models,
 # enabling hybrid deployments and offline capabilities.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 puts "=== Ollama Provider Example ==="
 puts
@@ -19,7 +19,7 @@ puts
 # Create an Ollama provider instance
 # This provider connects to your local Ollama installation
 # Enables using local models with the same code structure as cloud providers
-provider = OpenAIAgents::Models::OllamaProvider.new
+provider = RAAF::Models::OllamaProvider.new
 
 # ============================================================================
 # EXAMPLE 1: OLLAMA CONNECTION CHECK
@@ -44,7 +44,7 @@ begin
   
   puts
   
-rescue OpenAIAgents::Models::ConnectionError => e
+rescue RAAF::Models::ConnectionError => e
   puts "❌ Ollama connection failed: #{e.message}"
   puts
   puts "To use Ollama:"
@@ -127,7 +127,7 @@ if available_models.any?
   end
   
   # Create privacy-focused agent using local model
-  privacy_agent = OpenAIAgents::Agent.new(
+  privacy_agent = RAAF::Agent.new(
     name: "PrivacyAgent",
     instructions: "You are a privacy-focused assistant. All processing happens locally. Emphasize data security and privacy in your responses.",
     model: test_model
@@ -138,7 +138,7 @@ if available_models.any?
   privacy_agent.add_tool(method(:secure_calculation))
   
   # Create runner with Ollama provider
-  privacy_runner = OpenAIAgents::Runner.new(
+  privacy_runner = RAAF::Runner.new(
     agent: privacy_agent,
     provider: provider
   )
@@ -176,7 +176,7 @@ if available_models.any?
   end
   
   # Create development agent using local model
-  dev_agent = OpenAIAgents::Agent.new(
+  dev_agent = RAAF::Agent.new(
     name: "OfflineDevAgent",
     instructions: "You are a development assistant that works completely offline. Help with coding, debugging, and development tasks using only local resources.",
     model: test_model
@@ -187,7 +187,7 @@ if available_models.any?
   dev_agent.add_tool(method(:review_code))
   
   # Create runner for development workflow
-  dev_runner = OpenAIAgents::Runner.new(
+  dev_runner = RAAF::Runner.new(
     agent: dev_agent,
     provider: provider
   )
@@ -290,7 +290,7 @@ puts "7. Hybrid cloud-local agent setup:"
 
 if available_models.any?
   # Create local agent for privacy-sensitive tasks
-  local_agent = OpenAIAgents::Agent.new(
+  local_agent = RAAF::Agent.new(
     name: "LocalAgent",
     instructions: "You handle privacy-sensitive tasks locally. For complex reasoning that requires more capability, handoff to CloudAgent.",
     model: test_model
@@ -298,7 +298,7 @@ if available_models.any?
   
   # Create cloud agent for complex tasks (if API key available)
   if ENV["OPENAI_API_KEY"]
-    cloud_agent = OpenAIAgents::Agent.new(
+    cloud_agent = RAAF::Agent.new(
       name: "CloudAgent",
       instructions: "You handle complex reasoning tasks using cloud resources. You have access to more advanced capabilities.",
       model: "gpt-4o"
@@ -308,7 +308,7 @@ if available_models.any?
     local_agent.add_handoff(cloud_agent)
     
     # Create runner starting with local agent
-    hybrid_runner = OpenAIAgents::Runner.new(
+    hybrid_runner = RAAF::Runner.new(
       agent: local_agent,
       provider: provider
     )
@@ -354,7 +354,7 @@ if available_models.any?
   # Test cloud performance if available
   if ENV["OPENAI_API_KEY"]
     puts "\nCloud model performance:"
-    cloud_provider = OpenAIAgents::Models::OpenAIProvider.new
+    cloud_provider = RAAF::Models::OpenAIProvider.new
     
     cloud_start = Time.now
     cloud_response = cloud_provider.chat_completion(

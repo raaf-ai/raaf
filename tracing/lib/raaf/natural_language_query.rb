@@ -2,11 +2,11 @@
 
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # rubocop:disable Metrics/ClassLength
     class NaturalLanguageQuery
-      include RubyAIAgentsFactory::Logger
+      include RAAF::Logger
       # Natural language interface for querying tracing data
       # Supports queries like "show me slow traces from yesterday" or "find errors in customer support workflow"
 
@@ -852,14 +852,14 @@ module RubyAIAgentsFactory
         def base_query
           case @parsed[:entity]
           when :traces
-            if defined?(RubyAIAgentsFactory::Tracing::Trace)
-              RubyAIAgentsFactory::Tracing::Trace.all
+            if defined?(RAAF::Tracing::Trace)
+              RAAF::Tracing::Trace.all
             else
               []
             end
           when :spans
-            if defined?(RubyAIAgentsFactory::Tracing::Span)
-              RubyAIAgentsFactory::Tracing::Span.all
+            if defined?(RAAF::Tracing::Span)
+              RAAF::Tracing::Span.all
             else
               []
             end

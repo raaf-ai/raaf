@@ -2,23 +2,23 @@
 
 require_relative "raaf/rails/version"
 require_relative "raaf/rails/engine"
-require_relative "raaf/rails/configuration"
-require_relative "raaf/rails/authenticator"
-require_relative "raaf/rails/middleware"
-require_relative "raaf/rails/controllers/base_controller"
-require_relative "raaf/rails/controllers/agents_controller"
-require_relative "raaf/rails/controllers/conversations_controller"
-require_relative "raaf/rails/controllers/dashboard_controller"
-require_relative "raaf/rails/controllers/api/v1/agents_controller"
-require_relative "raaf/rails/jobs/agent_job"
-require_relative "raaf/rails/jobs/conversation_job"
-require_relative "raaf/rails/models/agent_model"
-require_relative "raaf/rails/models/conversation_model"
-require_relative "raaf/rails/models/message_model"
-require_relative "raaf/rails/helpers/agent_helper"
 require_relative "raaf/rails/websocket_handler"
+# require_relative "raaf/rails/configuration"
+# require_relative "raaf/rails/authenticator"
+# require_relative "raaf/rails/middleware"
+# require_relative "raaf/rails/controllers/base_controller"
+# require_relative "raaf/rails/controllers/agents_controller"
+# require_relative "raaf/rails/controllers/conversations_controller"
+# require_relative "raaf/rails/controllers/dashboard_controller"
+# require_relative "raaf/rails/controllers/api/v1/agents_controller"
+# require_relative "raaf/rails/jobs/agent_job"
+# require_relative "raaf/rails/jobs/conversation_job"
+# require_relative "raaf/rails/models/agent_model"
+# require_relative "raaf/rails/models/conversation_model"
+# require_relative "raaf/rails/models/message_model"
+require_relative "raaf/rails/helpers/agent_helper"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Rails integration and web interface for Ruby AI Agents Factory
   #
@@ -36,10 +36,10 @@ module RubyAIAgentsFactory
   #   gem 'raaf-rails'
   #   
   #   # Mount the engine in config/routes.rb
-  #   mount RubyAIAgentsFactory::Rails::Engine, at: "/agents"
+  #   mount RAAF::Rails::Engine, at: "/agents"
   #   
   #   # Configure in config/initializers/raaf.rb
-  #   RubyAIAgentsFactory::Rails.configure do |config|
+  #   RAAF::Rails.configure do |config|
   #     config.authentication_method = :devise
   #     config.enable_dashboard = true
   #     config.enable_api = true
@@ -49,7 +49,7 @@ module RubyAIAgentsFactory
   #   # In a Rails controller
   #   class AgentsController < ApplicationController
   #     def create
-  #       @agent = RubyAIAgentsFactory::Rails::AgentModel.create!(
+  #       @agent = RAAF::Rails::AgentModel.create!(
   #         name: params[:name],
   #         instructions: params[:instructions],
   #         model: params[:model],
@@ -141,7 +141,7 @@ module RubyAIAgentsFactory
       # @option options [Array] :allowed_origins (["*"]) CORS allowed origins
       #
       # @example Configure Rails integration
-      #   RubyAIAgentsFactory::Rails.configure do |config|
+      #   RAAF::Rails.configure do |config|
       #     config.authentication_method = :devise
       #     config.enable_dashboard = true
       #     config.enable_api = true
@@ -239,7 +239,7 @@ module RubyAIAgentsFactory
         return unless defined?(::Rails)
 
         ::Rails.application.config.middleware.use(
-          RubyAIAgentsFactory::Rails::Middleware
+          RAAF::Rails::Middleware
         )
       end
 
@@ -247,7 +247,7 @@ module RubyAIAgentsFactory
         return unless defined?(::Rails)
 
         ::Rails.application.routes.draw do
-          mount RubyAIAgentsFactory::Rails::Engine, at: config[:dashboard_path]
+          mount RAAF::Rails::Engine, at: config[:dashboard_path]
           
           if config[:enable_api]
             namespace :api do
@@ -260,7 +260,7 @@ module RubyAIAgentsFactory
           end
 
           if config[:enable_websockets]
-            mount RubyAIAgentsFactory::Rails::WebsocketHandler, at: config[:websocket_path]
+            mount RAAF::Rails::WebsocketHandler, at: config[:websocket_path]
           end
         end
       end
@@ -278,7 +278,7 @@ module RubyAIAgentsFactory
 
         # Setup logging integration
         if defined?(::Rails.logger)
-          RubyAIAgentsFactory::Logging.configure do |logging_config|
+          RAAF::Logging.configure do |logging_config|
             logging_config.log_output = :rails
           end
         end

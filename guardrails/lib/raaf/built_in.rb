@@ -3,7 +3,7 @@
 require_relative "input_guardrail"
 require_relative "output_guardrail"
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     ##
     # Built-in guardrails for common use cases
@@ -14,21 +14,21 @@ module RubyAIAgentsFactory
     # for custom validation logic.
     #
     # @example Using built-in guardrails
-    #   agent = RubyAIAgentsFactory::Agent.new(name: "Support")
+    #   agent = RAAF::Agent.new(name: "Support")
     #   
     #   # Add profanity filter
     #   agent.add_input_guardrail(
-    #     RubyAIAgentsFactory::Guardrails.profanity_guardrail
+    #     RAAF::Guardrails.profanity_guardrail
     #   )
     #   
     #   # Add PII detection
     #   agent.add_input_guardrail(
-    #     RubyAIAgentsFactory::Guardrails.pii_guardrail
+    #     RAAF::Guardrails.pii_guardrail
     #   )
     #   
     #   # Add length limit for outputs
     #   agent.add_output_guardrail(
-    #     RubyAIAgentsFactory::Guardrails.length_guardrail(max_length: 1000)
+    #     RAAF::Guardrails.length_guardrail(max_length: 1000)
     #   )
     #
     module BuiltIn

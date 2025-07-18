@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Config
+
     ##
     # Configuration for tracing and monitoring
     #
@@ -24,6 +26,7 @@ module RubyAIAgentsFactory
     #   # => { trace_id: "custom-trace-123", group_id: "session-456", metadata: {...} }
     #
     class TracingConfig
+
       # @return [String, nil] Custom trace ID for this run
       attr_accessor :trace_id
 
@@ -124,6 +127,9 @@ module RubyAIAgentsFactory
           workflow_name: workflow_name
         }
       end
+
     end
+
   end
+
 end

@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe OpenAIAgents::Agent do
+RSpec.describe RAAF::Agent do
   describe "#initialize" do
     it "creates an agent with default values" do
       agent = described_class.new(name: "TestAgent")
@@ -30,7 +30,7 @@ RSpec.describe OpenAIAgents::Agent do
     end
 
     it "creates an agent with pre-configured tools and handoffs" do
-      existing_tool = OpenAIAgents::FunctionTool.new(proc { |value| value * 2 })
+      existing_tool = RAAF::FunctionTool.new(proc { |value| value * 2 })
       other_agent = described_class.new(name: "OtherAgent")
 
       agent = described_class.new(
@@ -74,7 +74,7 @@ RSpec.describe OpenAIAgents::Agent do
       agent.add_tool(tool_proc)
 
       expect(agent.tools.size).to eq(1)
-      expect(agent.tools.first).to be_a(OpenAIAgents::FunctionTool)
+      expect(agent.tools.first).to be_a(RAAF::FunctionTool)
     end
 
     it "adds a method as a tool" do
@@ -85,11 +85,11 @@ RSpec.describe OpenAIAgents::Agent do
       agent.add_tool(method(:test_method))
 
       expect(agent.tools.size).to eq(1)
-      expect(agent.tools.first).to be_a(OpenAIAgents::FunctionTool)
+      expect(agent.tools.first).to be_a(RAAF::FunctionTool)
     end
 
     it "adds a FunctionTool directly" do
-      function_tool = OpenAIAgents::FunctionTool.new(proc { |value| value * 2 })
+      function_tool = RAAF::FunctionTool.new(proc { |value| value * 2 })
       agent.add_tool(function_tool)
 
       expect(agent.tools.size).to eq(1)
@@ -97,7 +97,7 @@ RSpec.describe OpenAIAgents::Agent do
     end
 
     it "raises error for invalid tool" do
-      expect { agent.add_tool("invalid") }.to raise_error(OpenAIAgents::ToolError)
+      expect { agent.add_tool("invalid") }.to raise_error(RAAF::ToolError)
     end
 
     it "accumulates multiple tools" do
@@ -120,7 +120,7 @@ RSpec.describe OpenAIAgents::Agent do
     end
 
     it "raises error for invalid handoff" do
-      expect { agent.add_handoff("invalid") }.to raise_error(OpenAIAgents::HandoffError)
+      expect { agent.add_handoff("invalid") }.to raise_error(RAAF::HandoffError)
     end
 
     it "accumulates multiple handoffs" do
@@ -195,31 +195,32 @@ RSpec.describe OpenAIAgents::Agent do
     end
   end
 
-  describe "#input_guardrails?" do
-    let(:agent) { described_class.new(name: "TestAgent") }
-
-    it "returns false when no input guardrails are set" do
-      expect(agent.input_guardrails?).to be false
-    end
-
-    it "returns true when input guardrails are set" do
-      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_, _, _| true })]
-      expect(agent.input_guardrails?).to be true
-    end
-  end
-
-  describe "#output_guardrails?" do
-    let(:agent) { described_class.new(name: "TestAgent") }
-
-    it "returns false when no output guardrails are set" do
-      expect(agent.output_guardrails?).to be false
-    end
-
-    it "returns true when output guardrails are set" do
-      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_, _, _| true })]
-      expect(agent.output_guardrails?).to be true
-    end
-  end
+  # MOVED TO GUARDRAILS GEM
+  # describe "#input_guardrails?" do
+  #   let(:agent) { described_class.new(name: "TestAgent") }
+  #
+  #   it "returns false when no input guardrails are set" do
+  #     expect(agent.input_guardrails?).to be false
+  #   end
+  #
+  #   it "returns true when input guardrails are set" do
+  #     agent.input_guardrails = [RAAF::Guardrails::InputGuardrail.new(proc { |_, _, _| true })]
+  #     expect(agent.input_guardrails?).to be true
+  #   end
+  # end
+  #
+  # describe "#output_guardrails?" do
+  #   let(:agent) { described_class.new(name: "TestAgent") }
+  #
+  #   it "returns false when no output guardrails are set" do
+  #     expect(agent.output_guardrails?).to be false
+  #   end
+  #
+  #   it "returns true when output guardrails are set" do
+  #     agent.output_guardrails = [RAAF::Guardrails::OutputGuardrail.new(proc { |_, _, _| true })]
+  #     expect(agent.output_guardrails?).to be true
+  #   end
+  # end
 
   describe "bang methods for mutation" do
     let(:agent) do
@@ -227,8 +228,9 @@ RSpec.describe OpenAIAgents::Agent do
       agent.add_tool(proc { |_| })
       handoff_agent = described_class.new(name: "HandoffAgent")
       agent.add_handoff(handoff_agent)
-      agent.input_guardrails = [OpenAIAgents::Guardrails::InputGuardrail.new(proc { |_, _, _| true })]
-      agent.output_guardrails = [OpenAIAgents::Guardrails::OutputGuardrail.new(proc { |_, _, _| true })]
+      # MOVED TO GUARDRAILS GEM - these lines would set guardrails
+      # agent.input_guardrails = [RAAF::Guardrails::InputGuardrail.new(proc { |_, _, _| true })]
+      # agent.output_guardrails = [RAAF::Guardrails::OutputGuardrail.new(proc { |_, _, _| true })]
       agent
     end
 
@@ -250,37 +252,40 @@ RSpec.describe OpenAIAgents::Agent do
       end
     end
 
-    describe "#reset_input_guardrails!" do
-      it "clears all input guardrails and returns self" do
-        expect(agent.input_guardrails?).to be true
-        result = agent.reset_input_guardrails!
-        expect(agent.input_guardrails?).to be false
-        expect(result).to eq(agent)
-      end
-    end
-
-    describe "#reset_output_guardrails!" do
-      it "clears all output guardrails and returns self" do
-        expect(agent.output_guardrails?).to be true
-        result = agent.reset_output_guardrails!
-        expect(agent.output_guardrails?).to be false
-        expect(result).to eq(agent)
-      end
-    end
+    # MOVED TO GUARDRAILS GEM
+    # describe "#reset_input_guardrails!" do
+    #   it "clears all input guardrails and returns self" do
+    #     expect(agent.input_guardrails?).to be true
+    #     result = agent.reset_input_guardrails!
+    #     expect(agent.input_guardrails?).to be false
+    #     expect(result).to eq(agent)
+    #   end
+    # end
+    #
+    # describe "#reset_output_guardrails!" do
+    #   it "clears all output guardrails and returns self" do
+    #     expect(agent.output_guardrails?).to be true
+    #     result = agent.reset_output_guardrails!
+    #     expect(agent.output_guardrails?).to be false
+    #     expect(result).to eq(agent)
+    #   end
+    # end
 
     describe "#reset!" do
       it "clears everything and returns self" do
         expect(agent.tools?).to be true
         expect(agent.handoffs?).to be true
-        expect(agent.input_guardrails?).to be true
-        expect(agent.output_guardrails?).to be true
+        # MOVED TO GUARDRAILS GEM - guardrails checks
+        # expect(agent.input_guardrails?).to be true
+        # expect(agent.output_guardrails?).to be true
 
         result = agent.reset!
 
         expect(agent.tools?).to be false
         expect(agent.handoffs?).to be false
-        expect(agent.input_guardrails?).to be false
-        expect(agent.output_guardrails?).to be false
+        # MOVED TO GUARDRAILS GEM - guardrails checks
+        # expect(agent.input_guardrails?).to be false
+        # expect(agent.output_guardrails?).to be false
         expect(result).to eq(agent)
       end
     end
@@ -290,12 +295,12 @@ RSpec.describe OpenAIAgents::Agent do
     let(:agent) { described_class.new(name: "TestAgent") }
 
     before do
-      agent.add_tool(OpenAIAgents::FunctionTool.new(
+      agent.add_tool(RAAF::FunctionTool.new(
                        proc { |value:| value * 2 },
                        name: "double",
                        description: "Doubles a number"
                      ))
-      agent.add_tool(OpenAIAgents::FunctionTool.new(
+      agent.add_tool(RAAF::FunctionTool.new(
                        proc { |name:| "Hello, #{name}!" },
                        name: "greet",
                        description: "Greets a person"
@@ -329,12 +334,12 @@ RSpec.describe OpenAIAgents::Agent do
     let(:agent) { described_class.new(name: "TestAgent") }
 
     before do
-      agent.add_tool(OpenAIAgents::FunctionTool.new(
+      agent.add_tool(RAAF::FunctionTool.new(
                        proc { |value:| value * 2 },
                        name: "double",
                        description: "Doubles a number"
                      ))
-      agent.add_tool(OpenAIAgents::FunctionTool.new(
+      agent.add_tool(RAAF::FunctionTool.new(
                        proc { |name:| "Hello, #{name}!" },
                        name: "greet",
                        description: "Greets a person"
@@ -354,18 +359,18 @@ RSpec.describe OpenAIAgents::Agent do
     it "raises error when tool not found" do
       expect do
         agent.execute_tool("nonexistent")
-      end.to raise_error(OpenAIAgents::ToolError, /Tool 'nonexistent' not found/)
+      end.to raise_error(RAAF::ToolError, /Tool 'nonexistent' not found/)
     end
 
     it "propagates tool execution errors" do
-      agent.add_tool(OpenAIAgents::FunctionTool.new(
+      agent.add_tool(RAAF::FunctionTool.new(
                        proc { raise StandardError, "Tool failed" },
                        name: "failing_tool"
                      ))
 
       expect do
         agent.execute_tool("failing_tool")
-      end.to raise_error(OpenAIAgents::ToolError, /Error executing tool 'failing_tool'/)
+      end.to raise_error(RAAF::ToolError, /Error executing tool 'failing_tool'/)
     end
   end
 
@@ -386,7 +391,7 @@ RSpec.describe OpenAIAgents::Agent do
     end
 
     it "includes tools and handoffs in hash" do
-      tool = OpenAIAgents::FunctionTool.new(proc { |value| value }, name: "test_tool")
+      tool = RAAF::FunctionTool.new(proc { |value| value }, name: "test_tool")
       other_agent = described_class.new(name: "OtherAgent")
 
       agent.add_tool(tool)
@@ -429,7 +434,7 @@ RSpec.describe OpenAIAgents::Agent do
     end
 
     it "allows direct manipulation of tools and handoffs arrays" do
-      tool = OpenAIAgents::FunctionTool.new(proc { |value| value })
+      tool = RAAF::FunctionTool.new(proc { |value| value })
       other_agent = described_class.new(name: "OtherAgent")
 
       agent.tools << tool

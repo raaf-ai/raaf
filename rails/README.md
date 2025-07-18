@@ -41,7 +41,7 @@ In your Rails application's `config/routes.rb`:
 
 ```ruby
 Rails.application.routes.draw do
-  mount RubyAIAgentsFactory::Rails::Engine, at: "/agents"
+  mount RAAF::Rails::Engine, at: "/agents"
 end
 ```
 
@@ -50,7 +50,7 @@ end
 Create `config/initializers/raaf.rb`:
 
 ```ruby
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   config.authentication_method = :devise
   config.enable_dashboard = true
   config.enable_api = true
@@ -79,7 +79,7 @@ Visit `http://localhost:3000/agents` to access the dashboard.
 
 ```ruby
 # config/initializers/raaf.rb
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   config.authentication_method = :devise
 end
 ```
@@ -88,7 +88,7 @@ end
 
 ```ruby
 # config/initializers/raaf.rb
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   config.authentication_method = :custom
   config.authentication_handler = ->(request) {
     # Your custom authentication logic
@@ -100,7 +100,7 @@ end
 ### Dashboard Configuration
 
 ```ruby
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   config.enable_dashboard = true
   config.dashboard_path = "/admin/agents"
   config.dashboard_title = "AI Agents Dashboard"
@@ -111,7 +111,7 @@ end
 ### API Configuration
 
 ```ruby
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   config.enable_api = true
   config.api_path = "/api/v1"
   config.api_version = "v1"
@@ -125,7 +125,7 @@ end
 ### WebSocket Configuration
 
 ```ruby
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   config.enable_websockets = true
   config.websocket_path = "/chat"
   config.websocket_origins = ["http://localhost:3000"]
@@ -160,7 +160,7 @@ curl -X POST http://localhost:3000/api/v1/agents \
 #### Via Rails Console
 
 ```ruby
-agent = RubyAIAgentsFactory::Rails.create_agent(
+agent = RAAF::Rails.create_agent(
   name: "Assistant",
   instructions: "You are a helpful assistant",
   model: "gpt-4o",
@@ -214,7 +214,7 @@ ws.send(JSON.stringify({
 #### Via Rails Code
 
 ```ruby
-result = RubyAIAgentsFactory::Rails.start_conversation(
+result = RAAF::Rails.start_conversation(
   agent_id: "agent_123",
   message: "Hello!",
   context: { user: current_user }
@@ -229,7 +229,7 @@ puts result[:message]
 
 ```ruby
 # config/initializers/raaf.rb
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   config.enable_background_jobs = true
 end
 ```
@@ -255,7 +255,7 @@ end
 ### Agent Model
 
 ```ruby
-agent = RubyAIAgentsFactory::Rails::AgentModel.create!(
+agent = RAAF::Rails::AgentModel.create!(
   name: "Customer Support",
   instructions: "You are a helpful customer support agent",
   model: "gpt-4o",
@@ -278,7 +278,7 @@ agent.total_tokens_used
 ### Conversation Model
 
 ```ruby
-conversation = RubyAIAgentsFactory::Rails::ConversationModel.create!(
+conversation = RAAF::Rails::ConversationModel.create!(
   agent: agent,
   user: current_user,
   context: { session_id: "abc123" }
@@ -297,7 +297,7 @@ conversation.total_tokens
 ### Message Model
 
 ```ruby
-message = RubyAIAgentsFactory::Rails::MessageModel.create!(
+message = RAAF::Rails::MessageModel.create!(
   conversation: conversation,
   content: "Hello, world!",
   role: "user",
@@ -318,7 +318,7 @@ message = RubyAIAgentsFactory::Rails::MessageModel.create!(
 ### Custom Controllers
 
 ```ruby
-class MyAgentsController < RubyAIAgentsFactory::Rails::Controllers::BaseController
+class MyAgentsController < RAAF::Rails::Controllers::BaseController
   def index
     @agents = current_user.agents
   end
@@ -333,7 +333,7 @@ end
 ### API Controllers
 
 ```ruby
-class Api::V1::MyAgentsController < RubyAIAgentsFactory::Rails::Controllers::Api::V1::BaseController
+class Api::V1::MyAgentsController < RAAF::Rails::Controllers::Api::V1::BaseController
   def chat
     agent = find_agent(params[:id])
     result = agent.process_message(
@@ -362,7 +362,7 @@ end
 
 ```ruby
 class AgentsController < ApplicationController
-  include RubyAIAgentsFactory::Rails::Helpers::AgentHelper
+  include RAAF::Rails::Helpers::AgentHelper
 
   def show
     @agent = find_agent(params[:id])
@@ -401,13 +401,13 @@ end
 
 ```ruby
 # Custom metrics
-RubyAIAgentsFactory::Rails.collect_metric(
+RAAF::Rails.collect_metric(
   :conversation_started,
   agent_id: agent.id,
   user_id: current_user.id
 )
 
-RubyAIAgentsFactory::Rails.collect_metric(
+RAAF::Rails.collect_metric(
   :token_usage,
   value: usage[:total_tokens],
   agent_id: agent.id
@@ -459,7 +459,7 @@ CMD ["rails", "server", "-b", "0.0.0.0"]
 
 ```ruby
 # config/initializers/raaf.rb
-RubyAIAgentsFactory::Rails.configure do |config|
+RAAF::Rails.configure do |config|
   # Use Redis for shared state in multi-server deployments
   config.websocket_adapter = :redis
   config.cache_store = :redis_cache_store

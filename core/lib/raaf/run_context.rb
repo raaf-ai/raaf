@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # RunContext maintains the state and conversation history during agent execution
   #
@@ -31,6 +32,7 @@ module RubyAIAgentsFactory
   #   generated = context.generated_messages  # => [{ role: "assistant", content: "Hi there!" }]
   #
   class RunContext
+
     # @!attribute [r] messages
     #   @return [Array<Hash>] The conversation messages
     # @!attribute [r] metadata
@@ -205,6 +207,7 @@ module RubyAIAgentsFactory
         custom_data: @custom_data
       }
     end
+
   end
 
   ##
@@ -223,7 +226,7 @@ module RubyAIAgentsFactory
   #       context.push_agent(agent)
   #       puts "Agent stack: #{context.agent_stack.map(&:name)}"
   #     end
-  #     
+  #
   #     def on_tool_end(context, agent, tool, result)
   #       context.add_tool_call(tool.name, {}, result)
   #     end
@@ -234,7 +237,17 @@ module RubyAIAgentsFactory
   #   handoff_history = wrapper.handoffs
   #   # => [{ from: "Sales", to: "Support", turn: 2, timestamp: ... }]
   #
+  # @example Type-safe context usage
+  #   # For basic context
+  #   wrapper = RunContextWrapper.new(context)
+  #   
+  #   # For typed context (Python SDK compatibility)
+  #   typed_wrapper = TypedRunContextWrapper.new(context, UserSession)
+  #   typed_wrapper.typed_context = UserSession.new(user_id: 123)
+  #   session = typed_wrapper.typed_context  # Returns UserSession instance
+  #
   class RunContextWrapper
+
     # @!attribute [r] context
     #   @return [RunContext] The wrapped RunContext instance
     attr_reader :context
@@ -344,5 +357,226 @@ module RubyAIAgentsFactory
       }
       store(:handoffs, handoff_list)
     end
+
   end
+
+  ##
+  # TypedRunContextWrapper provides type-safe context functionality
+  #
+  # This class extends RunContextWrapper with type safety features that match
+  # the Python SDK's RunContextWrapper[T] functionality. It allows storing
+  # and retrieving typed context objects with compile-time type checking
+  # (where supported by static analysis tools).
+  #
+  # @example Basic typed context usage
+  #   class UserSession
+  #     attr_accessor :user_id, :session_id, :preferences
+  #     
+  #     def initialize(user_id:, session_id: nil, preferences: {})
+  #       @user_id = user_id
+  #       @session_id = session_id
+  #       @preferences = preferences
+  #     end
+  #   end
+  #
+  #   # Create typed wrapper
+  #   typed_wrapper = TypedRunContextWrapper.new(context, UserSession)
+  #   typed_wrapper.typed_context = UserSession.new(user_id: 123)
+  #   
+  #   # Access typed context with type safety
+  #   session = typed_wrapper.typed_context  # Returns UserSession instance
+  #   puts session.user_id  # => 123
+  #
+  # @example Advanced typed context with validation
+  #   class APIContext
+  #     attr_accessor :api_key, :rate_limit, :retry_count
+  #     
+  #     def initialize(api_key:, rate_limit: 100, retry_count: 3)
+  #       @api_key = api_key
+  #       @rate_limit = rate_limit
+  #       @retry_count = retry_count
+  #       validate!
+  #     end
+  #     
+  #     private
+  #     
+  #     def validate!
+  #       raise ArgumentError, "API key is required" if @api_key.nil? || @api_key.empty?
+  #       raise ArgumentError, "Rate limit must be positive" if @rate_limit <= 0
+  #     end
+  #   end
+  #
+  #   # Usage with validation
+  #   api_wrapper = TypedRunContextWrapper.new(context, APIContext)
+  #   api_wrapper.typed_context = APIContext.new(api_key: "sk-123", rate_limit: 200)
+  #
+  class TypedRunContextWrapper < RunContextWrapper
+
+    # @!attribute [r] type_class
+    #   @return [Class] The expected type class for the typed context
+    attr_reader :type_class
+
+    ##
+    # Initialize a new typed wrapper
+    #
+    # @param context [RunContext] The context to wrap
+    # @param type_class [Class] The expected type class for typed_context
+    #
+    def initialize(context, type_class = nil)
+      super(context)
+      @type_class = type_class
+      @typed_context = nil
+    end
+
+    ##
+    # Get the typed context
+    #
+    # @return [Object, nil] The typed context object
+    #
+    def typed_context
+      @typed_context
+    end
+
+    ##
+    # Set the typed context with type validation
+    #
+    # @param value [Object] The typed context object
+    # @raise [TypeError] if value is not of the expected type
+    #
+    def typed_context=(value)
+      if value.nil?
+        @typed_context = nil
+        return
+      end
+
+      if @type_class && !value.is_a?(@type_class)
+        raise TypeError, "Expected #{@type_class.name}, got #{value.class.name}"
+      end
+
+      @typed_context = value
+    end
+
+    ##
+    # Check if typed context is set
+    #
+    # @return [Boolean] true if typed context is set
+    #
+    def typed_context?
+      !@typed_context.nil?
+    end
+
+    ##
+    # Get typed context or raise error if not set
+    #
+    # @return [Object] The typed context object
+    # @raise [RuntimeError] if typed context is not set
+    #
+    def typed_context!
+      raise "Typed context not set" if @typed_context.nil?
+      @typed_context
+    end
+
+    ##
+    # Get typed context or return default
+    #
+    # @param default [Object] Default value if typed context is not set
+    # @return [Object] The typed context object or default
+    #
+    def typed_context_or(default)
+      @typed_context || default
+    end
+
+    ##
+    # Update typed context if it responds to update method
+    #
+    # @param updates [Hash] Updates to apply to typed context
+    # @return [Object] The updated typed context
+    #
+    def update_typed_context(updates)
+      return nil unless @typed_context
+
+      if @typed_context.respond_to?(:update)
+        @typed_context.update(updates)
+      else
+        # Try to set attributes individually
+        updates.each do |key, value|
+          if @typed_context.respond_to?("#{key}=")
+            @typed_context.send("#{key}=", value)
+          end
+        end
+      end
+
+      @typed_context
+    end
+
+    ##
+    # Convert typed context to hash if possible
+    #
+    # @return [Hash, nil] Hash representation of typed context
+    #
+    def typed_context_to_h
+      return nil unless @typed_context
+
+      if @typed_context.respond_to?(:to_h)
+        @typed_context.to_h
+      elsif @typed_context.respond_to?(:to_hash)
+        @typed_context.to_hash
+      else
+        # Try to extract instance variables
+        hash = {}
+        @typed_context.instance_variables.each do |var|
+          key = var.to_s.sub('@', '').to_sym
+          hash[key] = @typed_context.instance_variable_get(var)
+        end
+        hash
+      end
+    end
+
+    ##
+    # Create a typed wrapper from existing wrapper
+    #
+    # @param wrapper [RunContextWrapper] Existing wrapper
+    # @param type_class [Class] The expected type class
+    # @return [TypedRunContextWrapper] New typed wrapper
+    #
+    def self.from_wrapper(wrapper, type_class)
+      new(wrapper.context, type_class)
+    end
+
+    ##
+    # Factory method to create typed wrapper with initial context
+    #
+    # @param context [RunContext] The context to wrap
+    # @param type_class [Class] The expected type class
+    # @param initial_context [Object] Initial typed context object
+    # @return [TypedRunContextWrapper] New typed wrapper with initial context
+    #
+    def self.create_with_context(context, type_class, initial_context)
+      wrapper = new(context, type_class)
+      wrapper.typed_context = initial_context
+      wrapper
+    end
+
+    ##
+    # String representation including type information
+    #
+    # @return [String] String representation
+    #
+    def to_s
+      type_info = @type_class ? " <#{@type_class.name}>" : ""
+      context_info = @typed_context ? " [SET]" : " [UNSET]"
+      "#<#{self.class.name}#{type_info}#{context_info}>"
+    end
+
+    ##
+    # Inspect representation
+    #
+    # @return [String] Inspect representation
+    #
+    def inspect
+      to_s
+    end
+
+  end
+
 end

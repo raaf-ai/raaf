@@ -2,13 +2,13 @@
 # frozen_string_literal: true
 
 # This example demonstrates PII (Personally Identifiable Information) detection
-# and protection using guardrails in OpenAI Agents Ruby. PII protection is
+# and protection using guardrails in RAAF (Ruby AI Agents Factory). PII protection is
 # critical for compliance with privacy regulations like GDPR, HIPAA, and CCPA.
 # The guardrail system can detect, redact, or block messages containing sensitive
 # information before they reach the AI model or are stored. This ensures data
 # privacy and prevents accidental exposure of sensitive information in AI systems.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 require_relative "../lib/openai_agents/guardrails/pii_detector"
 
 # Configure API access (if implemented)
@@ -29,7 +29,7 @@ puts
 # Standard detector for general use
 # Medium sensitivity balances detection accuracy with false positives
 # Redaction replaces detected PII with type indicators like [EMAIL]
-standard_detector = OpenAIAgents::Guardrails::PIIDetector.new(
+standard_detector = RAAF::Guardrails::PIIDetector.new(
   name: "standard_pii",
   sensitivity_level: :medium,  # Detects common PII patterns
   redaction_enabled: true      # Automatically redact detected PII
@@ -38,7 +38,7 @@ standard_detector = OpenAIAgents::Guardrails::PIIDetector.new(
 # High sensitivity detector for maximum protection
 # Detects potential PII even with lower confidence
 # Suitable for highly regulated environments
-high_sensitivity_detector = OpenAIAgents::Guardrails::PIIDetector.new(
+high_sensitivity_detector = RAAF::Guardrails::PIIDetector.new(
   name: "high_sensitivity_pii",
   sensitivity_level: :high,     # More aggressive detection
   redaction_enabled: true
@@ -47,7 +47,7 @@ high_sensitivity_detector = OpenAIAgents::Guardrails::PIIDetector.new(
 # Specialized detector for healthcare contexts
 # Includes patterns for medical record numbers, insurance IDs, etc.
 # Essential for HIPAA compliance
-healthcare_detector = OpenAIAgents::Guardrails::HealthcarePIIDetector.new(
+healthcare_detector = RAAF::Guardrails::HealthcarePIIDetector.new(
   name: "healthcare_pii",
   sensitivity_level: :high,     # Healthcare requires high sensitivity
   redaction_enabled: true
@@ -56,7 +56,7 @@ healthcare_detector = OpenAIAgents::Guardrails::HealthcarePIIDetector.new(
 # Specialized detector for financial contexts
 # Detects account numbers, routing numbers, crypto addresses
 # Critical for PCI-DSS and financial regulations
-financial_detector = OpenAIAgents::Guardrails::FinancialPIIDetector.new(
+financial_detector = RAAF::Guardrails::FinancialPIIDetector.new(
   name: "financial_pii",
   sensitivity_level: :medium,   # Balance security with usability
   redaction_enabled: true
@@ -64,13 +64,13 @@ financial_detector = OpenAIAgents::Guardrails::FinancialPIIDetector.new(
 
 # Create guardrail manager to coordinate multiple detectors
 # The manager applies guardrails in sequence and handles failures
-guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
+guardrails = RAAF::Guardrails::GuardrailManager.new
 guardrails.add_guardrail(standard_detector)
 
 # Create an agent with security-conscious instructions
 # The agent is trained to handle PII carefully even without guardrails
 # This provides defense in depth - both technical and behavioral protection
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "SecureAssistant",
   model: "gpt-4o",
   
@@ -83,7 +83,7 @@ agent = OpenAIAgents::Agent.new(
 )
 
 # Create runner with guardrails
-runner = OpenAIAgents::Runner.new(agent: agent, guardrails: guardrails)
+runner = RAAF::Runner.new(agent: agent, guardrails: guardrails)
 
 # ============================================================================
 # EXAMPLE 1: BASIC PII DETECTION
@@ -218,7 +218,7 @@ puts "-" * 50
 
 # Test without guardrails first
 puts "WITHOUT guardrails:"
-unsafe_runner = OpenAIAgents::Runner.new(agent: agent)
+unsafe_runner = RAAF::Runner.new(agent: agent)
 result = unsafe_runner.run("My SSN is 123-45-6789. Can you help me understand social security benefits?")
 puts "Response: #{result.messages.last[:content]}"
 
@@ -227,7 +227,7 @@ puts "\nWITH guardrails:"
 begin
   result = runner.run("My SSN is 123-45-6789. Can you help me understand social security benefits?")
   puts "Response: #{result.messages.last[:content]}"
-rescue OpenAIAgents::Guardrails::GuardrailError => e
+rescue RAAF::Guardrails::GuardrailError => e
   puts "Guardrail blocked: #{e.message}"
   puts "Attempting with redaction..."
   
@@ -249,7 +249,7 @@ puts "\n\nExample 6: Custom PII Patterns"
 puts "-" * 50
 
 # Create detector with custom patterns
-custom_detector = OpenAIAgents::Guardrails::PIIDetector.new(
+custom_detector = RAAF::Guardrails::PIIDetector.new(
   name: "custom_pii",
   sensitivity_level: :medium,
   custom_patterns: {

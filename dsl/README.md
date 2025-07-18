@@ -93,8 +93,8 @@ Building AI agents in production requires more than just API calls. You need:
 Define AI agents using a clean, readable DSL that makes complex agent configurations simple and maintainable:
 
 ```ruby
-class DocumentAnalyzer < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class DocumentAnalyzer < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
 
   agent_name "DocumentAnalyzerAgent"
   model "gpt-4o"
@@ -136,7 +136,7 @@ Automatic model switching and turn control that can reduce your AI costs by 50-9
 Structured prompt building with variable contracts, context mapping, and automatic validation:
 
 ```ruby
-class ContentAnalysis < AiAgentDsl::Prompts::Base
+class ContentAnalysis < RAAF::DSL::Prompts::Base
   requires :content_type, :analysis_depth
   requires_from_context :document_format, path: [:document, :format]
   
@@ -155,8 +155,8 @@ end
 Orchestrate complex workflows with agent handoffs and sequential processing:
 
 ```ruby
-class ContentWorkflow < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class ContentWorkflow < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
   
   processing_workflow do
     extract_content
@@ -171,7 +171,7 @@ end
 Easy integration of external tools with automatic parameter validation and error handling:
 
 ```ruby
-class ContentAgent < AiAgentDsl::Agents::Base
+class ContentAgent < RAAF::DSL::Agents::Base
   uses_tool :document_parser, max_size: '10MB', timeout: 30
   uses_tool :database_query, connection: :primary
   uses_tool :api_client, base_url: ENV['API_BASE_URL']
@@ -280,7 +280,7 @@ production:
 #### `config/initializers/ai_config.rb` - Custom configuration
 ```ruby
 # Optional: Override default gem settings
-AiAgentDsl.configure do |config|
+RAAF::DSL.configure do |config|
   config.default_model = "gpt-4o"
   config.default_max_turns = 3
   config.default_temperature = 0.7
@@ -299,8 +299,8 @@ This creates two files with full scaffolding:
 
 #### `app/ai/agents/document_analyzer.rb` - Agent class
 ```ruby
-class DocumentAnalyzer < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class DocumentAnalyzer < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
 
   # Agent identification and configuration
   agent_name "DocumentAnalyzerAgent"
@@ -327,7 +327,7 @@ end
 
 #### `app/ai/prompts/document_analyzer.rb` - Prompt class
 ```ruby
-class DocumentAnalyzer < AiAgentDsl::Prompts::Base
+class DocumentAnalyzer < RAAF::DSL::Prompts::Base
   # Variable contracts with validation
   requires :content_type, :depth, :focus_areas
   requires_from_context :document_name, path: [:document, :name]
@@ -453,7 +453,7 @@ agent = DocumentAnalyzer.new(
 The DSL provides powerful path navigation to access nested context data safely:
 
 ```ruby
-class DocumentPrompt < AiAgentDsl::Prompts::Base
+class DocumentPrompt < RAAF::DSL::Prompts::Base
   # Map context paths to prompt variables
   requires_from_context :document_name, path: [:document, :name]
   requires_from_context :author, path: [:document, :metadata, :author], default: "Unknown"
@@ -487,8 +487,8 @@ end
 Context flows and evolves through agent handoffs:
 
 ```ruby
-class ResearchWorkflow < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class ResearchWorkflow < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
   
   agent_name "ResearchWorkflow"
   
@@ -568,7 +568,7 @@ context = {
 The DSL provides comprehensive validation:
 
 ```ruby
-class ValidatedPrompt < AiAgentDsl::Prompts::Base
+class ValidatedPrompt < RAAF::DSL::Prompts::Base
   # These will raise errors if missing
   requires_from_context :company_name, path: [:company, :name]
   requires_from_context :industry, path: [:company, :industry]
@@ -682,8 +682,8 @@ The gem automatically optimizes costs across environments:
 Create complex workflows with multiple agents working together:
 
 ```ruby
-class ContentProcessingOrchestrator < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class ContentProcessingOrchestrator < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
 
   agent_name "ContentProcessingOrchestrator"
   description "Orchestrates multi-step content analysis workflow"
@@ -723,8 +723,8 @@ end
 Create sophisticated tool integrations with validation and error handling:
 
 ```ruby
-class AdvancedContentAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class AdvancedContentAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
 
   # Multiple tools with specific configurations
   uses_tool :document_parser, max_pages: 100, timeout: 45
@@ -756,7 +756,7 @@ end
 Sophisticated prompt management with contracts and validation:
 
 ```ruby
-class AdvancedContentAnalysis < AiAgentDsl::Prompts::Base
+class AdvancedContentAnalysis < RAAF::DSL::Prompts::Base
   # Required variables with strict validation
   requires :analysis_depth, :focus_areas, :timeline
   
@@ -846,8 +846,8 @@ end
 Define complex response schemas with nested validation:
 
 ```ruby
-class ComprehensiveContentAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class ComprehensiveContentAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
 
   schema do
     # Document overview with nested structure
@@ -950,7 +950,7 @@ agent = DocumentAnalyzer.new(context: {...}, **params)
 result = agent.run
 
 # Access configuration
-AiAgentDsl::Config.for_agent("document_analyzer")
+RAAF::DSL::Config.for_agent("document_analyzer")
 ```
 
 ### 🔗 Lifecycle Hooks & Callbacks
@@ -962,25 +962,25 @@ Register global callbacks that trigger for all agents:
 
 ```ruby
 # Global callbacks for all agents
-AiAgentDsl::Hooks::RunHooks.on_agent_start do |agent|
+RAAF::DSL::Hooks::RunHooks.on_agent_start do |agent|
   puts "Agent #{agent.name} is starting"
   # Log to your monitoring system
   MetricsCollector.increment("agent.start", tags: { agent: agent.name })
 end
 
-AiAgentDsl::Hooks::RunHooks.on_agent_end do |agent, result|
+RAAF::DSL::Hooks::RunHooks.on_agent_end do |agent, result|
   puts "Agent #{agent.name} completed with result: #{result.inspect}"
   # Track completion metrics
   MetricsCollector.timing("agent.duration", result[:duration])
 end
 
-AiAgentDsl::Hooks::RunHooks.on_tool_start do |agent, tool_name, params|
+RAAF::DSL::Hooks::RunHooks.on_tool_start do |agent, tool_name, params|
   puts "Agent #{agent.name} using tool: #{tool_name}"
   # Log tool usage
   ToolUsageLogger.log(agent.name, tool_name, params)
 end
 
-AiAgentDsl::Hooks::RunHooks.on_error do |agent, error|
+RAAF::DSL::Hooks::RunHooks.on_error do |agent, error|
   puts "Error in agent #{agent.name}: #{error.message}"
   # Report to error tracking
   ErrorTracker.report(error, agent: agent.name)
@@ -991,9 +991,9 @@ end
 Register callbacks for specific agent instances:
 
 ```ruby
-class DocumentAnalyzer < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
-  include AiAgentDsl::Hooks::AgentHooks
+class DocumentAnalyzer < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Hooks::AgentHooks
 
   agent_name "document_analyzer"
   description "Analyzes documents with lifecycle tracking"
@@ -1046,13 +1046,13 @@ Both global and agent-specific hooks support multiple handlers executed in regis
 
 ```ruby
 # Multiple global handlers
-AiAgentDsl::Hooks::RunHooks.on_agent_start { |agent| log_to_stdout(agent) }
-AiAgentDsl::Hooks::RunHooks.on_agent_start { |agent| log_to_file(agent) }
-AiAgentDsl::Hooks::RunHooks.on_agent_start { |agent| send_to_monitoring(agent) }
+RAAF::DSL::Hooks::RunHooks.on_agent_start { |agent| log_to_stdout(agent) }
+RAAF::DSL::Hooks::RunHooks.on_agent_start { |agent| log_to_file(agent) }
+RAAF::DSL::Hooks::RunHooks.on_agent_start { |agent| send_to_monitoring(agent) }
 
 # Multiple agent-specific handlers
-class MyAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::Hooks::AgentHooks
+class MyAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Hooks::AgentHooks
   
   on_start :prepare_environment
   on_start :load_dependencies
@@ -1090,17 +1090,17 @@ end
 
 ```ruby
 # Application monitoring
-AiAgentDsl::Hooks::RunHooks.on_agent_start do |agent|
+RAAF::DSL::Hooks::RunHooks.on_agent_start do |agent|
   ApplicationMonitor.track_agent_start(agent.name)
 end
 
 # Cost tracking
-AiAgentDsl::Hooks::RunHooks.on_tool_end do |agent, tool_name, params, result|
+RAAF::DSL::Hooks::RunHooks.on_tool_end do |agent, tool_name, params, result|
   CostTracker.record_tool_usage(agent.name, tool_name, result[:token_count])
 end
 
 # Performance monitoring
-AiAgentDsl::Hooks::RunHooks.on_agent_end do |agent, result|
+RAAF::DSL::Hooks::RunHooks.on_agent_end do |agent, result|
   PerformanceMonitor.record_agent_completion(
     agent: agent.name,
     duration: result[:duration],
@@ -1109,7 +1109,7 @@ AiAgentDsl::Hooks::RunHooks.on_agent_end do |agent, result|
 end
 
 # Security auditing
-AiAgentDsl::Hooks::RunHooks.on_error do |agent, error|
+RAAF::DSL::Hooks::RunHooks.on_error do |agent, error|
   SecurityAuditor.log_agent_error(agent.name, error.message)
 end
 ```
@@ -1129,8 +1129,8 @@ The gem includes intelligent cost optimization that can reduce your AI API costs
 ### Cost Monitoring
 ```ruby
 # Track costs per agent
-class CostTrackingAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class CostTrackingAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
   
   
   private
@@ -1151,8 +1151,8 @@ end
 
 ### Error Handling & Resilience
 ```ruby
-class ProductionAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class ProductionAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
   
   # Execution hooks for monitoring
   
@@ -1184,7 +1184,7 @@ end
 ### Monitoring & Observability
 ```ruby
 # config/initializers/ai_config.rb
-AiAgentDsl.configure do |config|
+RAAF::DSL.configure do |config|
   # Custom monitoring integration
   config.before_agent_execution = lambda do |agent, context|
     StatsD.increment("ai_agent.execution.started", tags: ["agent:#{agent.class.name}"])
@@ -1199,8 +1199,8 @@ end
 
 ### Security Best Practices
 ```ruby
-class SecureAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class SecureAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::AgentDsl
   
   
   private
@@ -1271,15 +1271,15 @@ module AiAgentHelpers
   end
   
   def with_ai_config(overrides = {})
-    original_config = AiAgentDsl.configuration.dup
+    original_config = RAAF::DSL.configuration.dup
     
     overrides.each do |key, value|
-      AiAgentDsl.configuration.send("#{key}=", value)
+      RAAF::DSL.configuration.send("#{key}=", value)
     end
     
     yield
   ensure
-    AiAgentDsl.configuration = original_config
+    RAAF::DSL.configuration = original_config
   end
 end
 
@@ -1386,7 +1386,7 @@ Special thanks to our contributors who make this project possible:
 
 ## 🔗 Related Projects
 
-- [**OpenAI Agents**](https://github.com/enterprisemodules/openai_agents) - Ruby SDK for OpenAI's assistant API
+- [**RAAF (Ruby AI Agents Factory)**](https://github.com/enterprisemodules/raaf) - Ruby SDK for OpenAI's assistant API
 - [**Phlex**](https://github.com/phlex-ruby/phlex) - Framework for building fast, reusable, testable views
 - [**ActiveSupport**](https://github.com/rails/rails/tree/main/activesupport) - Ruby extensions and utilities
 

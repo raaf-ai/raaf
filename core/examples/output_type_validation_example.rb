@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
-require "openai_agents"
+require_relative "../lib/raaf-core"
 require "json"
 
 # Example demonstrating output type validation with TypeAdapter
@@ -15,14 +15,14 @@ puts
 # 1. Basic String Output (default)
 puts "=== Example 1: Basic String Output ==="
 
-basic_agent = OpenAIAgents::Agent.new(
+basic_agent = RAAF::Agent.new(
   name: "BasicAgent",
   instructions: "You are a helpful assistant.",
   model: "gpt-4o-mini"
   # output_type defaults to String
 )
 
-runner = OpenAIAgents::Runner.new(agent: basic_agent)
+runner = RAAF::Runner.new(agent: basic_agent)
 result = runner.run("What is 2 + 2?")
 puts "Response: #{result.messages.last[:content]}"
 puts "Response class: #{result.messages.last[:content].class}\n\n"
@@ -34,6 +34,7 @@ puts "\n=== Example 2: Hash Output Type ==="
 
 # Define a simple data structure
 class UserInfo
+
   attr_accessor :name, :age, :email
 
   def initialize(data = {})
@@ -62,16 +63,17 @@ class UserInfo
   def to_h
     { name: @name, age: @age, email: @email }
   end
+
 end
 
-structured_agent = OpenAIAgents::Agent.new(
+structured_agent = RAAF::Agent.new(
   name: "StructuredAgent",
   instructions: "Extract user information and return it in the specified format.",
   model: "gpt-4o-mini",
   output_type: Hash
 )
 
-runner = OpenAIAgents::Runner.new(agent: structured_agent)
+runner = RAAF::Runner.new(agent: structured_agent)
 result = runner.run("Extract info from: John Doe, 30 years old, john.doe@example.com")
 puts "Response: #{result.messages.last[:content]}"
 puts "Response class: #{result.messages.last[:content].class}\n\n"
@@ -81,14 +83,14 @@ puts "=" * 50
 # 3. Custom Class Output Type
 puts "\n=== Example 3: Custom Class Output Type ==="
 
-user_agent = OpenAIAgents::Agent.new(
+user_agent = RAAF::Agent.new(
   name: "UserAgent",
   instructions: "Extract user information and return it as a UserInfo object.",
   model: "gpt-4o-mini",
   output_type: UserInfo
 )
 
-runner = OpenAIAgents::Runner.new(agent: user_agent)
+runner = RAAF::Runner.new(agent: user_agent)
 result = runner.run("Parse: Jane Smith, age 25, email jane@example.com")
 content = result.messages.last[:content]
 puts "Raw response: #{content}"
@@ -104,19 +106,19 @@ if content.is_a?(String) && content.start_with?("{")
   end
 end
 
-puts "\n" + ("=" * 50)
+puts "\n#{"=" * 50}"
 
 # 4. Array Output Type
 puts "\n=== Example 4: Array Output Type ==="
 
-list_agent = OpenAIAgents::Agent.new(
+list_agent = RAAF::Agent.new(
   name: "ListAgent",
   instructions: "Extract items as a JSON array.",
   model: "gpt-4o-mini",
   output_type: Array
 )
 
-runner = OpenAIAgents::Runner.new(agent: list_agent)
+runner = RAAF::Runner.new(agent: list_agent)
 result = runner.run("List the primary colors: red, green, blue")
 puts "Response: #{result.messages.last[:content]}"
 puts "Response class: #{result.messages.last[:content].class}\n\n"
@@ -127,8 +129,10 @@ puts "=" * 50
 puts "\n=== Example 5: Custom AgentOutputSchema ==="
 
 # Create a custom output schema with non-strict validation
-class FlexibleOutputSchema < OpenAIAgents::AgentOutputSchemaBase
+class FlexibleOutputSchema < RAAF::AgentOutputSchemaBase
+
   def initialize
+    super
     @schema = {
       type: "object",
       properties: {
@@ -159,28 +163,32 @@ class FlexibleOutputSchema < OpenAIAgents::AgentOutputSchemaBase
 
   def validate_json(json_str)
     data = JSON.parse(json_str)
-    
+
     # Basic validation
-    raise OpenAIAgents::ModelBehaviorError, "Missing required 'status' field" unless data.is_a?(Hash) && data["status"]
-    
-    unless %w[success error pending].include?(data["status"])
-      raise OpenAIAgents::ModelBehaviorError, "Invalid status: #{data["status"]}"
+    unless data.is_a?(Hash) && data["status"]
+      raise RAAF::ModelBehaviorError,
+            "Missing required 'status' field"
     end
-    
+
+    unless %w[success error pending].include?(data["status"])
+      raise RAAF::ModelBehaviorError, "Invalid status: #{data["status"]}"
+    end
+
     data
   rescue JSON::ParserError => e
-    raise OpenAIAgents::ModelBehaviorError, "Invalid JSON: #{e.message}"
+    raise RAAF::ModelBehaviorError, "Invalid JSON: #{e.message}"
   end
+
 end
 
-flexible_agent = OpenAIAgents::Agent.new(
+flexible_agent = RAAF::Agent.new(
   name: "FlexibleAgent",
   instructions: "Process the request and return a status response.",
   model: "gpt-4o-mini",
   output_type: FlexibleOutputSchema.new
 )
 
-runner = OpenAIAgents::Runner.new(agent: flexible_agent)
+runner = RAAF::Runner.new(agent: flexible_agent)
 result = runner.run("Process this task and return success status with current time")
 puts "Response: #{result.messages.last[:content]}\n\n"
 
@@ -191,6 +199,7 @@ puts "\n=== Example 6: Strict Validation with AgentOutputSchema ==="
 
 # Create a product schema
 class Product
+
   attr_accessor :name, :price, :in_stock
 
   def self.json_schema
@@ -205,19 +214,20 @@ class Product
       additionalProperties: false
     }
   end
+
 end
 
 # Create agent with strict output schema
-product_schema = OpenAIAgents::AgentOutputSchema.new(Product, strict_json_schema: true)
+product_schema = RAAF::AgentOutputSchema.new(Product, strict_json_schema: true)
 
-product_agent = OpenAIAgents::Agent.new(
+product_agent = RAAF::Agent.new(
   name: "ProductAgent",
   instructions: "Extract product information in the exact format specified.",
   model: "gpt-4o-mini",
   output_type: product_schema
 )
 
-runner = OpenAIAgents::Runner.new(agent: product_agent)
+runner = RAAF::Runner.new(agent: product_agent)
 
 puts "Testing product extraction..."
 result = runner.run("Product: iPhone 15, costs $999, currently available")
@@ -230,7 +240,7 @@ begin
     validated = product_schema.validate_json(content)
     puts "Validation passed! Product data: #{validated}"
   end
-rescue OpenAIAgents::ModelBehaviorError => e
+rescue RAAF::ModelBehaviorError => e
   puts "Validation failed: #{e.message}"
 end
 

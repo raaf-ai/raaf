@@ -2,7 +2,7 @@
 
 require "logger"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     # Mixin for adding retry logic to model providers
     #

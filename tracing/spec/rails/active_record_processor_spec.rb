@@ -6,7 +6,7 @@ require "spec_helper"
 begin
   require "rails"
   require "active_record"
-  require_relative "../../../../lib/openai_agents/tracing/active_record_processor"
+  require_relative "../../../../lib/raaf/tracing/active_record_processor"
   
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
@@ -15,13 +15,13 @@ rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseEr
   return
 end
 
-RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
+RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
   let(:processor) { described_class.new(sampling_rate: 1.0, batch_size: 1) }
   let(:trace_id) { "trace_#{SecureRandom.alphanumeric(32)}" }
   let(:span_id) { "span_#{SecureRandom.hex(12)}" }
   
   let(:test_span) do
-    OpenAIAgents::Tracing::Span.new(
+    RAAF::Tracing::Span.new(
       name: "test_operation",
       trace_id: trace_id,
       kind: :llm
@@ -66,12 +66,12 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
 
     context "when database tables do not exist" do
       before do
-        allow(OpenAIAgents::Tracing::Trace).to receive(:table_exists?).and_return(false)
+        allow(RAAF::Tracing::Trace).to receive(:table_exists?).and_return(false)
       end
 
       it "raises an error with helpful message" do
         expect { described_class.new }.to raise_error(
-          /OpenAI Agents tracing tables not found/
+          /RAAF tracing tables not found/
         )
       end
     end
@@ -81,9 +81,9 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     it "creates trace record if it does not exist" do
       expect do
         processor.on_span_start(test_span)
-      end.to change { OpenAIAgents::Tracing::Trace.count }.by(1)
+      end.to change { RAAF::Tracing::Trace.count }.by(1)
       
-      trace = OpenAIAgents::Tracing::Trace.find_by(trace_id: trace_id)
+      trace = RAAF::Tracing::Trace.find_by(trace_id: trace_id)
       expect(trace).to be_present
       expect(trace.workflow_name).to eq("test_operation")
       expect(trace.status).to eq("running")
@@ -94,7 +94,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
       
       expect do
         processor.on_span_start(test_span)
-      end.not_to(change { OpenAIAgents::Tracing::Trace.count })
+      end.not_to(change { RAAF::Tracing::Trace.count })
     end
 
     context "with sampling rate less than 1.0" do
@@ -103,7 +103,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
       it "skips processing when not sampled" do
         expect do
           processor.on_span_start(test_span)
-        end.not_to(change { OpenAIAgents::Tracing::Trace.count })
+        end.not_to(change { RAAF::Tracing::Trace.count })
       end
     end
   end
@@ -116,9 +116,9 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     it "saves span to database" do
       expect do
         processor.on_span_end(test_span)
-      end.to change { OpenAIAgents::Tracing::Span.count }.by(1)
+      end.to change { RAAF::Tracing::Span.count }.by(1)
       
-      span = OpenAIAgents::Tracing::Span.find_by(span_id: span_id)
+      span = RAAF::Tracing::Span.find_by(span_id: span_id)
       expect(span).to be_present
       expect(span.name).to eq("test_operation")
       expect(span.kind).to eq("llm")
@@ -128,7 +128,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     it "saves span attributes correctly" do
       processor.on_span_end(test_span)
       
-      span = OpenAIAgents::Tracing::Span.find_by(span_id: span_id)
+      span = RAAF::Tracing::Span.find_by(span_id: span_id)
       expect(span.attributes["llm.request.model"]).to eq("gpt-4o")
       expect(span.attributes["llm.usage.prompt_tokens"]).to eq(10)
       expect(span.attributes["llm.usage.completion_tokens"]).to eq(20)
@@ -137,7 +137,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     it "calculates duration correctly" do
       processor.on_span_end(test_span)
       
-      span = OpenAIAgents::Tracing::Span.find_by(span_id: span_id)
+      span = RAAF::Tracing::Span.find_by(span_id: span_id)
       expect(span.duration_ms).to be_within(50).of(1000) # ~1 second
     end
 
@@ -147,14 +147,14 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
       it "buffers spans until batch size is reached" do
         processor.on_span_end(test_span)
         
-        expect(OpenAIAgents::Tracing::Span.count).to eq(0)
+        expect(RAAF::Tracing::Span.count).to eq(0)
         
         # Second span should trigger batch processing
         second_span = test_span.dup
         second_span.instance_variable_set(:@span_id, "span_#{SecureRandom.hex(12)}")
         processor.on_span_end(second_span)
         
-        expect(OpenAIAgents::Tracing::Span.count).to eq(2)
+        expect(RAAF::Tracing::Span.count).to eq(2)
       end
     end
   end
@@ -168,11 +168,11 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     end
 
     it "forces immediate processing of buffered spans" do
-      expect(OpenAIAgents::Tracing::Span.count).to eq(0)
+      expect(RAAF::Tracing::Span.count).to eq(0)
       
       processor.flush
       
-      expect(OpenAIAgents::Tracing::Span.count).to eq(1)
+      expect(RAAF::Tracing::Span.count).to eq(1)
     end
   end
 
@@ -219,7 +219,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     it "truncates very long strings" do
       processor.on_span_end(test_span)
       
-      span = OpenAIAgents::Tracing::Span.find_by(span_id: span_id)
+      span = RAAF::Tracing::Span.find_by(span_id: span_id)
       stored_value = span.attributes["large_string"]
       expect(stored_value.length).to be <= 10_000
       expect(stored_value).to end_with("...")
@@ -228,7 +228,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     it "limits array sizes" do
       processor.on_span_end(test_span)
       
-      span = OpenAIAgents::Tracing::Span.find_by(span_id: span_id)
+      span = RAAF::Tracing::Span.find_by(span_id: span_id)
       stored_array = span.attributes["large_array"]
       expect(stored_array.length).to be <= 100
     end
@@ -236,7 +236,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     it "flattens nested hashes" do
       processor.on_span_end(test_span)
       
-      span = OpenAIAgents::Tracing::Span.find_by(span_id: span_id)
+      span = RAAF::Tracing::Span.find_by(span_id: span_id)
       nested_data = span.attributes["nested_data"]
       expect(nested_data).to have_key("user.email")
       expect(nested_data).to have_key("user.nested.deep")
@@ -245,7 +245,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
 
   describe "error handling" do
     it "handles database errors gracefully" do
-      allow(OpenAIAgents::Tracing::Span).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new)
+      allow(RAAF::Tracing::Span).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new)
       allow(Rails.logger).to receive(:warn)
       
       expect { processor.on_span_end(test_span) }.not_to raise_error
@@ -253,7 +253,7 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     end
 
     it "handles trace creation errors gracefully" do
-      allow(OpenAIAgents::Tracing::Trace).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new)
+      allow(RAAF::Tracing::Trace).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new)
       allow(Rails.logger).to receive(:warn)
       
       expect { processor.on_span_start(test_span) }.not_to raise_error
@@ -270,11 +270,11 @@ RSpec.describe OpenAIAgents::Tracing::ActiveRecordProcessor do
     end
 
     it "flushes remaining spans on shutdown" do
-      expect(OpenAIAgents::Tracing::Span.count).to eq(0)
+      expect(RAAF::Tracing::Span.count).to eq(0)
       
       processor.shutdown
       
-      expect(OpenAIAgents::Tracing::Span.count).to eq(1)
+      expect(RAAF::Tracing::Span.count).to eq(1)
     end
   end
 end

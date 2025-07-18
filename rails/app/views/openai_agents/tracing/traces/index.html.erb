@@ -41,7 +41,7 @@
     <div class="col-md-2">
       <%= form.select :workflow, 
           options_for_select([['All Workflows', '']] + 
-            OpenAIAgents::Tracing::TraceRecord.distinct.pluck(:workflow_name).compact.map { |w| [w, w] }, 
+            RubyAIAgentsFactory::Tracing::TraceRecord.distinct.pluck(:workflow_name).compact.map { |w| [w, w] }, 
             params[:workflow]),
           {}, { class: "form-select form-select-sm" } %>
     </div>

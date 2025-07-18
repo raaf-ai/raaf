@@ -6,7 +6,7 @@ require "timeout"
 require_relative "protocol"
 require_relative "types"
 
-module RubyAIAgentsFactory
+module RAAF
   module MCP
     # MCP Client for connecting to Model Context Protocol servers
     #

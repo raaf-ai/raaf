@@ -3,7 +3,7 @@
 require_relative "base_store"
 require_relative "memory"
 
-module RubyAIAgentsFactory
+module RAAF
   module Memory
     ##
     # In-memory implementation of memory storage

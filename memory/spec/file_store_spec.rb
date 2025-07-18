@@ -6,10 +6,10 @@ require "openai_agents/memory/memory"
 require "tmpdir"
 require "fileutils"
 
-RSpec.describe OpenAIAgents::Memory::FileStore do
+RSpec.describe RAAF::Memory::FileStore do
   let(:temp_dir) { Dir.mktmpdir }
   let(:store) { described_class.new(temp_dir) }
-  let(:memory) { OpenAIAgents::Memory::Memory.new(content: "Test memory", agent_name: "TestAgent") }
+  let(:memory) { RAAF::Memory::Memory.new(content: "Test memory", agent_name: "TestAgent") }
 
   after do
     FileUtils.rm_rf(temp_dir)
@@ -88,19 +88,19 @@ RSpec.describe OpenAIAgents::Memory::FileStore do
 
   describe "#search" do
     before do
-      store.store("mem1", OpenAIAgents::Memory::Memory.new(
+      store.store("mem1", RAAF::Memory::Memory.new(
                             content: "Ruby programming guide",
                             agent_name: "Agent1",
                             metadata: { tags: %w[ruby programming] }
                           ))
       
-      store.store("mem2", OpenAIAgents::Memory::Memory.new(
+      store.store("mem2", RAAF::Memory::Memory.new(
                             content: "Python tutorial",
                             agent_name: "Agent2",
                             metadata: { tags: %w[python programming] }
                           ))
       
-      store.store("mem3", OpenAIAgents::Memory::Memory.new(
+      store.store("mem3", RAAF::Memory::Memory.new(
                             content: "Ruby on Rails",
                             agent_name: "Agent1",
                             conversation_id: "conv-123"

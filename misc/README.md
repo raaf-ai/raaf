@@ -39,7 +39,7 @@ Voice interaction and speech processing capabilities for AI agents.
 require 'raaf-misc'
 
 # Create voice workflow
-voice = RubyAIAgentsFactory::Misc::Voice::VoiceWorkflow.new
+voice = RAAF::Misc::Voice::VoiceWorkflow.new
 
 # Configure speech settings
 voice.configure do |config|
@@ -60,7 +60,7 @@ Utilities for managing and organizing prompts across your AI agents.
 require 'raaf-misc'
 
 # Create prompt manager
-prompts = RubyAIAgentsFactory::Misc::Prompts::Manager.new
+prompts = RAAF::Misc::Prompts::Manager.new
 
 # Register prompts
 prompts.register(:customer_service, "You are a helpful customer service agent")
@@ -78,7 +78,7 @@ Plugin architecture and extension points for customizing RAAF functionality.
 require 'raaf-misc'
 
 # Create extension manager
-extensions = RubyAIAgentsFactory::Misc::Extensions::Manager.new
+extensions = RAAF::Misc::Extensions::Manager.new
 
 # Register extension
 extensions.register(:custom_tool) do |config|
@@ -99,7 +99,7 @@ Data processing and transformation utilities for AI workflows.
 require 'raaf-misc'
 
 # Create data pipeline
-pipeline = RubyAIAgentsFactory::Misc::DataPipeline::Processor.new
+pipeline = RAAF::Misc::DataPipeline::Processor.new
 
 # Add processing steps
 pipeline.add_step(:extract, DataExtractor.new)
@@ -118,7 +118,7 @@ Multi-modal content processing for text, images, and audio.
 require 'raaf-misc'
 
 # Create multimodal processor
-multimodal = RubyAIAgentsFactory::Misc::Multimodal::Processor.new
+multimodal = RAAF::Misc::Multimodal::Processor.new
 
 # Process different content types
 text_result = multimodal.process_text("Hello world")
@@ -141,18 +141,18 @@ require 'raaf-misc'
 require 'raaf-core'
 
 # Create agent with voice capabilities
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "VoiceAssistant",
   instructions: "You are a voice-enabled assistant",
   model: "gpt-4o"
 )
 
 # Add voice workflow
-voice = RubyAIAgentsFactory::Misc::Voice::VoiceWorkflow.new
+voice = RAAF::Misc::Voice::VoiceWorkflow.new
 agent.add_capability(:voice, voice)
 
 # Process voice input
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run_voice(audio_input)
 ```
 
@@ -169,7 +169,7 @@ class CustomAnalyzer
 end
 
 # Register as extension
-extensions = RubyAIAgentsFactory::Misc::Extensions::Manager.new
+extensions = RAAF::Misc::Extensions::Manager.new
 extensions.register(:sentiment_analyzer) do |config|
   config.handler = CustomAnalyzer
   config.priority = 10
@@ -186,7 +186,7 @@ result = analyzer.analyze("Great product!")
 require 'raaf-misc'
 
 # Create processing pipeline
-pipeline = RubyAIAgentsFactory::Misc::DataPipeline::Processor.new
+pipeline = RAAF::Misc::DataPipeline::Processor.new
 
 # Add steps
 pipeline.add_step(:clean) do |data|
@@ -243,7 +243,7 @@ result = pipeline.process("Hello World Example")
 ### Core Components
 
 ```
-RubyAIAgentsFactory::Misc::
+RAAF::Misc::
 ├── Voice/
 │   ├── VoiceWorkflow        # Voice processing workflow
 │   ├── SpeechRecognition    # Speech-to-text
@@ -282,7 +282,7 @@ Each component provides extension points for customization:
 
 ```ruby
 # Global configuration
-RubyAIAgentsFactory::Misc.configure do |config|
+RAAF::Misc.configure do |config|
   config.voice.default_provider = :azure
   config.prompts.cache_enabled = true
   config.extensions.auto_load = true
@@ -295,7 +295,7 @@ end
 
 ```ruby
 # Create custom plugin
-class MyPlugin < RubyAIAgentsFactory::Misc::Extensions::Base
+class MyPlugin < RAAF::Misc::Extensions::Base
   def initialize(config)
     @config = config
   end
@@ -306,21 +306,21 @@ class MyPlugin < RubyAIAgentsFactory::Misc::Extensions::Base
 end
 
 # Register plugin
-RubyAIAgentsFactory::Misc::Extensions.register(:my_plugin, MyPlugin)
+RAAF::Misc::Extensions.register(:my_plugin, MyPlugin)
 ```
 
 ### Performance Optimization
 
 ```ruby
 # Enable caching
-RubyAIAgentsFactory::Misc.configure do |config|
+RAAF::Misc.configure do |config|
   config.caching.enabled = true
   config.caching.ttl = 3600
   config.caching.backend = :redis
 end
 
 # Parallel processing
-pipeline = RubyAIAgentsFactory::Misc::DataPipeline::Processor.new
+pipeline = RAAF::Misc::DataPipeline::Processor.new
 pipeline.configure do |config|
   config.parallel = true
   config.max_threads = 4
@@ -348,7 +348,7 @@ bundle exec rspec
 
 ```ruby
 # Test voice workflow
-RSpec.describe RubyAIAgentsFactory::Misc::Voice::VoiceWorkflow do
+RSpec.describe RAAF::Misc::Voice::VoiceWorkflow do
   it "processes audio correctly" do
     voice = described_class.new
     result = voice.process_audio(sample_audio)

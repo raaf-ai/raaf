@@ -6,11 +6,12 @@
 require_relative "../spec/spec_helper"
 
 # Example prompt class for testing
-class DocumentAnalysisPrompt < AiAgentDsl::Prompts::Base
+class DocumentAnalysisPrompt < RAAF::DSL::Prompts::Base
+
   required :document_name, :analysis_type
   optional :urgency_level
-  required :document_path, path: [:document, :file_path]
-  optional :page_count, path: [:document, :metadata, :pages], default: "unknown"
+  required :document_path, path: %i[document file_path]
+  optional :page_count, path: %i[document metadata pages], default: "unknown"
 
   contract_mode :strict
 
@@ -35,6 +36,7 @@ class DocumentAnalysisPrompt < AiAgentDsl::Prompts::Base
       Focus on key insights and actionable recommendations.
     USER
   end
+
 end
 
 # Example test class demonstrating all matcher capabilities
@@ -43,9 +45,9 @@ RSpec.describe DocumentAnalysisPrompt do
     {
       document_name: "Annual Financial Report 2024",
       analysis_type: "financial",
-      document:      {
+      document: {
         file_path: "/documents/annual_report_2024.pdf",
-        metadata:  {
+        metadata: {
           pages: 150
         }
       }
@@ -108,7 +110,7 @@ RSpec.describe DocumentAnalysisPrompt do
     it "fails validation with missing required fields" do
       incomplete_context = {
         document_name: "Test Doc",
-        document:      { file_path: "/test.pdf" }
+        document: { file_path: "/test.pdf" }
         # Missing analysis_type
       }
 
@@ -158,7 +160,7 @@ RSpec.describe DocumentAnalysisPrompt do
       minimal_context = {
         document_name: "Minimal Doc",
         analysis_type: "basic",
-        document:      { file_path: "/tmp/doc.pdf" }
+        document: { file_path: "/tmp/doc.pdf" }
         # Missing metadata.pages
       }
 
@@ -200,7 +202,7 @@ RSpec.describe DocumentAnalysisPrompt do
       minimal_context = {
         document_name: "Simple Doc",
         analysis_type: "basic",
-        document:      { file_path: "/tmp/simple.pdf" }
+        document: { file_path: "/tmp/simple.pdf" }
       }
 
       expect(described_class).to validate_successfully.with_context(minimal_context)
@@ -216,17 +218,17 @@ RSpec.describe DocumentAnalysisPrompt do
 
       expect(described_class).to fail_validation
         .with_context({
-          document_name: "Test",
-          document:      { file_path: "/test.pdf" }
-          # Missing analysis_type
-        })
+                        document_name: "Test",
+                        document: { file_path: "/test.pdf" }
+                        # Missing analysis_type
+                      })
         .with_error(/Missing required variables/)
 
       expect(described_class).to fail_validation
         .with_context({
-          document_name: "Test",
-          analysis_type: "basic"
-        })
+                        document_name: "Test",
+                        analysis_type: "basic"
+                      })
         .with_error(/Missing required context paths/)
     end
   end

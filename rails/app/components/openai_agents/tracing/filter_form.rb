@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class FilterForm < Phlex::HTML
       include Phlex::Rails::Helpers::FormWith
@@ -107,7 +107,7 @@ module RubyAIAgentsFactory
 
       def workflow_options
         # This would typically come from the controller
-        OpenAIAgents::Tracing::TraceRecord.distinct.pluck(:workflow_name).compact
+        RAAF::Tracing::TraceRecord.distinct.pluck(:workflow_name).compact
       rescue StandardError
         []
       end

@@ -6,9 +6,9 @@ require "logger"
 require "set"
 require_relative "tracing/spans"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
-  # Debugging System for OpenAI Agents
+  # Debugging System for RAAF
   #
   # This module provides comprehensive debugging capabilities for agent workflows,
   # including breakpoints, step-by-step execution, performance monitoring, and
@@ -26,18 +26,18 @@ module RubyAIAgentsFactory
   # * **Export Capabilities**: Export debug sessions for analysis
   #
   # @example Basic debugging setup
-  #   debugger = RubyAIAgentsFactory::Debugging::Debugger.new
+  #   debugger = RAAF::Debugging::Debugger.new
   #   debugger.breakpoint("agent_run_start")
   #   debugger.enable_step_mode
   #   
-  #   debug_runner = RubyAIAgentsFactory::Debugging::DebugRunner.new(
+  #   debug_runner = RAAF::Debugging::DebugRunner.new(
   #     agent: agent,
   #     debugger: debugger
   #   )
   #   result = debug_runner.run(messages, debug: true)
   #
   # @example Advanced debugging with monitoring
-  #   debugger = RubyAIAgentsFactory::Debugging::Debugger.new
+  #   debugger = RAAF::Debugging::Debugger.new
   #   debugger.watch_variable("message_count") { @conversation.length }
   #   debugger.breakpoint("tool_call:search")
   #   
@@ -46,9 +46,9 @@ module RubyAIAgentsFactory
   #   debugger.show_performance_metrics
   #   debugger.export_debug_session("my_debug_session.json")
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
-  # @see RubyAIAgentsFactory::Debugging::DebugRunner For debug-enabled agent execution
+  # @see RAAF::Debugging::DebugRunner For debug-enabled agent execution
   module Debugging
     ##
     # Enhanced debugger for agent workflows

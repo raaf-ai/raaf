@@ -54,14 +54,14 @@ gem install raaf-streaming
 require 'raaf-streaming'
 
 # Create an agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "StreamingAgent",
   instructions: "You are a helpful assistant that provides streaming responses",
   model: "gpt-4o"
 )
 
 # Create streaming runner
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Stream responses in real-time
 runner.run("Tell me about AI streaming", stream: true) do |chunk|
@@ -76,7 +76,7 @@ end
 require 'raaf-streaming'
 
 # Create WebSocket server
-server = RubyAIAgentsFactory::Streaming::WebSocketServer.new(
+server = RAAF::Streaming::WebSocketServer.new(
   port: 8080,
   max_connections: 1000
 )
@@ -106,7 +106,7 @@ server.start
 require 'raaf-streaming'
 
 # Create async runner
-async_runner = RubyAIAgentsFactory::Streaming::AsyncRunner.new(
+async_runner = RAAF::Streaming::AsyncRunner.new(
   pool_size: 10,
   queue_size: 100
 )
@@ -162,7 +162,7 @@ end
 Full-featured WebSocket server with connection management:
 
 ```ruby
-server = RubyAIAgentsFactory::Streaming::WebSocketServer.new(
+server = RAAF::Streaming::WebSocketServer.new(
   port: 8080,
   host: "localhost",
   max_connections: 5000,
@@ -215,7 +215,7 @@ puts "WebSocket server running on ws://localhost:8080"
 Non-blocking agent processing with thread pool management:
 
 ```ruby
-async_runner = RubyAIAgentsFactory::Streaming::AsyncRunner.new(
+async_runner = RAAF::Streaming::AsyncRunner.new(
   pool_size: 20,
   queue_size: 500,
   timeout: 60
@@ -259,7 +259,7 @@ end
 Redis-based background job processing for heavy workloads:
 
 ```ruby
-processor = RubyAIAgentsFactory::Streaming::BackgroundProcessor.new(
+processor = RAAF::Streaming::BackgroundProcessor.new(
   redis_url: "redis://localhost:6379",
   workers: 5,
   retry_count: 3,
@@ -318,7 +318,7 @@ puts processor.stats
 Publish-subscribe event system for decoupled communication:
 
 ```ruby
-emitter = RubyAIAgentsFactory::Streaming::EventEmitter.new(
+emitter = RAAF::Streaming::EventEmitter.new(
   max_listeners: 50,
   enable_wildcards: true,
   enable_history: true
@@ -377,7 +377,7 @@ Complete chat interface with rooms, handoffs, and message history:
 
 ```ruby
 # Create chat system with multiple agents
-chat = RubyAIAgentsFactory::Streaming::RealTimeChat.new(
+chat = RAAF::Streaming::RealTimeChat.new(
   agent: primary_agent,
   websocket_port: 8080,
   redis_url: "redis://localhost:6379"
@@ -433,7 +433,7 @@ puts chat.stats
 ### Global Configuration
 
 ```ruby
-RubyAIAgentsFactory::Streaming.configure do |config|
+RAAF::Streaming.configure do |config|
   # WebSocket server settings
   config.websocket.port = 8080
   config.websocket.host = "0.0.0.0"
@@ -502,7 +502,7 @@ export STREAMING_TIMEOUT=60
 ### Custom Stream Processor
 
 ```ruby
-class CustomStreamProcessor < RubyAIAgentsFactory::Streaming::StreamProcessor
+class CustomStreamProcessor < RAAF::Streaming::StreamProcessor
   def initialize(options = {})
     super(options)
     @custom_filters = options[:filters] || []
@@ -545,7 +545,7 @@ processor = CustomStreamProcessor.new(
 ### WebSocket Client
 
 ```ruby
-client = RubyAIAgentsFactory::Streaming::WebSocketClient.new(
+client = RAAF::Streaming::WebSocketClient.new(
   "ws://localhost:8080",
   auto_reconnect: true,
   max_reconnect_attempts: 5,
@@ -602,7 +602,7 @@ end
 
 ```ruby
 # Configure Redis connection pooling
-RubyAIAgentsFactory::Streaming.configure do |config|
+RAAF::Streaming.configure do |config|
   config.background.redis_url = "redis://localhost:6379"
   config.background.pool_size = 20
   config.background.pool_timeout = 5
@@ -610,7 +610,7 @@ RubyAIAgentsFactory::Streaming.configure do |config|
 end
 
 # WebSocket connection limits
-RubyAIAgentsFactory::Streaming.configure do |config|
+RAAF::Streaming.configure do |config|
   config.websocket.max_connections = 10000
   config.websocket.connection_timeout = 30
   config.websocket.keepalive_interval = 30
@@ -621,7 +621,7 @@ end
 
 ```ruby
 # Process messages in batches for better performance
-queue = RubyAIAgentsFactory::Streaming::MessageQueue.new(
+queue = RAAF::Streaming::MessageQueue.new(
   redis_url: "redis://localhost:6379",
   batch_size: 100
 )
@@ -641,7 +641,7 @@ end
 
 ```ruby
 # Use appropriate pool sizes
-async_runner = RubyAIAgentsFactory::Streaming::AsyncRunner.new(
+async_runner = RAAF::Streaming::AsyncRunner.new(
   pool_size: [20, Concurrent.processor_count * 2].min,
   queue_size: 1000,
   timeout: 30
@@ -673,7 +673,7 @@ stats = {
 }
 
 # Combined system statistics
-all_stats = RubyAIAgentsFactory::Streaming.stats
+all_stats = RAAF::Streaming.stats
 puts JSON.pretty_generate(all_stats)
 ```
 
@@ -681,15 +681,15 @@ puts JSON.pretty_generate(all_stats)
 
 ```ruby
 # Enable comprehensive debug logging
-RubyAIAgentsFactory::Logging.configure do |config|
+RAAF::Logging.configure do |config|
   config.log_level = :debug
   config.debug_categories = [:streaming, :websocket, :async, :background]
   config.log_format = :json
 end
 
 # Log streaming events
-class DebugStreamProcessor < RubyAIAgentsFactory::Streaming::StreamProcessor
-  include RubyAIAgentsFactory::Logger
+class DebugStreamProcessor < RAAF::Streaming::StreamProcessor
+  include RAAF::Logger
   
   def process_chunk(chunk, stream_id)
     log_debug_streaming("Processing chunk", {
@@ -745,15 +745,15 @@ end
 
 ```ruby
 # Mock provider for testing
-mock_provider = RubyAIAgentsFactory::Testing::MockProvider.new
-streaming_provider = RubyAIAgentsFactory::Streaming::StreamingProvider.new(
+mock_provider = RAAF::Testing::MockProvider.new
+streaming_provider = RAAF::Streaming::StreamingProvider.new(
   provider: mock_provider,
   enable_simulation: true,
   simulation_delay: 0.01
 )
 
 # Test streaming functionality
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "TestAgent",
   provider: streaming_provider
 )
@@ -771,10 +771,10 @@ expect(chunks.first).to respond_to(:content)
 
 ```ruby
 # Test WebSocket server
-server = RubyAIAgentsFactory::Streaming::WebSocketServer.new(port: 8081)
+server = RAAF::Streaming::WebSocketServer.new(port: 8081)
 server.start
 
-client = RubyAIAgentsFactory::Streaming::WebSocketClient.new("ws://localhost:8081")
+client = RAAF::Streaming::WebSocketClient.new("ws://localhost:8081")
 client.connect
 
 received_messages = []
@@ -792,7 +792,7 @@ expect(received_messages).not_to be_empty
 
 ```ruby
 # Test async processing
-async_runner = RubyAIAgentsFactory::Streaming::AsyncRunner.new(
+async_runner = RAAF::Streaming::AsyncRunner.new(
   pool_size: 2,
   queue_size: 10
 )
@@ -820,10 +820,10 @@ begin
   runner.run("Message", stream: true) do |chunk|
     process_chunk(chunk)
   end
-rescue RubyAIAgentsFactory::Streaming::StreamingError => e
+rescue RAAF::Streaming::StreamingError => e
   puts "Streaming error: #{e.message}"
   fallback_to_non_streaming(message)
-rescue RubyAIAgentsFactory::Streaming::ConnectionError => e
+rescue RAAF::Streaming::ConnectionError => e
   puts "Connection error: #{e.message}"
   retry_with_backoff
 rescue StandardError => e
@@ -837,13 +837,13 @@ end
 ```ruby
 websocket_server.on_error do |client, error|
   case error
-  when RubyAIAgentsFactory::Streaming::ProtocolError
+  when RAAF::Streaming::ProtocolError
     puts "Protocol error from #{client.id}: #{error.message}"
     client.close(1002, "Protocol error")
-  when RubyAIAgentsFactory::Streaming::ConnectionError
+  when RAAF::Streaming::ConnectionError
     puts "Connection error from #{client.id}: #{error.message}"
     attempt_reconnection(client)
-  when RubyAIAgentsFactory::Streaming::TimeoutError
+  when RAAF::Streaming::TimeoutError
     puts "Timeout error from #{client.id}: #{error.message}"
     client.ping
   else
@@ -930,7 +930,7 @@ end
 
 ```ruby
 # Implement rate limiting
-class RateLimitedServer < RubyAIAgentsFactory::Streaming::WebSocketServer
+class RateLimitedServer < RAAF::Streaming::WebSocketServer
   def initialize(*args)
     super
     @rate_limits = {}
@@ -992,7 +992,7 @@ RAAF Streaming builds on and extends several core gems:
 ### Component Architecture
 
 ```
-RubyAIAgentsFactory::Streaming::
+RAAF::Streaming::
 ├── StreamingProvider           # Core streaming functionality
 ├── WebSocketServer            # WebSocket server implementation
 ├── WebSocketClient            # WebSocket client implementation

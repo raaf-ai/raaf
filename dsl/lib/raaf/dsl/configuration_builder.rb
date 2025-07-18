@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module DSL
+
     ##
     # Configuration builder for DSL-based configuration management
     #
@@ -9,7 +11,8 @@ module RubyAIAgentsFactory
     # syntax with support for nested configurations, validation, and templates.
     #
     class ConfigurationBuilder
-      include RubyAIAgentsFactory::Logging
+
+      include RAAF::Logging
 
       # @return [Hash] Configuration data
       attr_reader :config
@@ -249,19 +252,17 @@ module RubyAIAgentsFactory
       # @param file_path [String] Configuration file path
       #
       def load_from_file(file_path)
-        if File.exist?(file_path)
-          case File.extname(file_path)
-          when '.json'
-            load_json(file_path)
-          when '.yaml', '.yml'
-            load_yaml(file_path)
-          when '.rb'
-            load_ruby(file_path)
-          else
-            raise ArgumentError, "Unsupported configuration file format: #{file_path}"
-          end
+        raise ArgumentError, "Configuration file not found: #{file_path}" unless File.exist?(file_path)
+
+        case File.extname(file_path)
+        when ".json"
+          load_json(file_path)
+        when ".yaml", ".yml"
+          load_yaml(file_path)
+        when ".rb"
+          load_ruby(file_path)
         else
-          raise ArgumentError, "Configuration file not found: #{file_path}"
+          raise ArgumentError, "Unsupported configuration file format: #{file_path}"
         end
       end
 
@@ -270,16 +271,16 @@ module RubyAIAgentsFactory
       #
       # @param prefix [String] Environment variable prefix
       #
-      def load_from_env(prefix = 'RAAF')
+      def load_from_env(prefix = "RAAF")
         env_config = {}
-        
+
         ENV.each do |key, value|
           if key.start_with?(prefix)
-            config_key = key.sub(/^#{prefix}_/, '').downcase.to_sym
+            config_key = key.sub(/^#{prefix}_/, "").downcase.to_sym
             env_config[config_key] = parse_env_value(value)
           end
         end
-        
+
         merge(env_config)
       end
 
@@ -310,15 +311,15 @@ module RubyAIAgentsFactory
       def build
         # Apply defaults
         final_config = deep_merge(@defaults, @config)
-        
+
         # Apply transformers
         @transformers.each do |transformer|
           final_config = transformer[:block].call(final_config)
         end
-        
+
         # Validate configuration
         validate_configuration(final_config)
-        
+
         final_config
       end
 
@@ -330,24 +331,20 @@ module RubyAIAgentsFactory
       #
       def validate_configuration(config)
         errors = []
-        
+
         @validators.each do |validator|
-          begin
-            result = validator[:block].call(config)
-            if result.is_a?(String)
-              errors << result
-            elsif result.is_a?(Array)
-              errors.concat(result)
-            end
-          rescue StandardError => e
-            errors << "Validator '#{validator[:name]}' failed: #{e.message}"
+          result = validator[:block].call(config)
+          if result.is_a?(String)
+            errors << result
+          elsif result.is_a?(Array)
+            errors.concat(result)
           end
+        rescue StandardError => e
+          errors << "Validator '#{validator[:name]}' failed: #{e.message}"
         end
-        
-        if errors.any?
-          raise DSL::ValidationError, "Configuration validation failed: #{errors.join(', ')}"
-        end
-        
+
+        raise DSL::ValidationError, "Configuration validation failed: #{errors.join(", ")}" if errors.any?
+
         errors
       end
 
@@ -390,7 +387,7 @@ module RubyAIAgentsFactory
       end
 
       def deep_merge(hash1, hash2)
-        hash1.merge(hash2) do |key, old_val, new_val|
+        hash1.merge(hash2) do |_key, old_val, new_val|
           if old_val.is_a?(Hash) && new_val.is_a?(Hash)
             deep_merge(old_val, new_val)
           else
@@ -400,29 +397,39 @@ module RubyAIAgentsFactory
       end
 
       def load_json(file_path)
-        require 'json'
+        require "json"
         config = JSON.parse(File.read(file_path), symbolize_names: true)
         merge(config)
       end
 
       def load_yaml(file_path)
-        require 'yaml'
+        require "yaml"
         config = YAML.load_file(file_path)
         merge(config.transform_keys(&:to_sym))
       end
 
       def load_ruby(file_path)
-        config = eval(File.read(file_path))
+        # Load Ruby configuration file safely
+        config = load_file_safely(file_path)
         merge(config)
       end
 
+      def load_file_safely(file_path)
+        # Create a safe binding context
+        binding_context = binding
+
+        # Read and evaluate the file content
+        file_content = File.read(file_path)
+        eval(file_content, binding_context, file_path, 1)
+      end
+
       def export_json(file_path)
-        require 'json'
+        require "json"
         File.write(file_path, JSON.pretty_generate(@config))
       end
 
       def export_yaml(file_path)
-        require 'yaml'
+        require "yaml"
         File.write(file_path, @config.to_yaml)
       end
 
@@ -432,9 +439,9 @@ module RubyAIAgentsFactory
 
       def parse_env_value(value)
         case value.downcase
-        when 'true'
+        when "true"
           true
-        when 'false'
+        when "false"
           false
         when /^\d+$/
           value.to_i
@@ -444,12 +451,14 @@ module RubyAIAgentsFactory
           value
         end
       end
+
     end
 
     ##
     # Nested configuration builder
     #
     class NestedConfigBuilder
+
       attr_reader :config
 
       def initialize
@@ -468,7 +477,7 @@ module RubyAIAgentsFactory
         end
       end
 
-      def respond_to_missing?(method_name, include_private = false)
+      def respond_to_missing?(_method_name, _include_private = false)
         true
       end
 
@@ -493,7 +502,7 @@ module RubyAIAgentsFactory
       end
 
       def deep_merge(hash1, hash2)
-        hash1.merge(hash2) do |key, old_val, new_val|
+        hash1.merge(hash2) do |_key, old_val, new_val|
           if old_val.is_a?(Hash) && new_val.is_a?(Hash)
             deep_merge(old_val, new_val)
           else
@@ -501,6 +510,9 @@ module RubyAIAgentsFactory
           end
         end
       end
+
     end
+
   end
+
 end

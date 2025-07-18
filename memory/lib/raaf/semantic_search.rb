@@ -12,7 +12,7 @@ rescue LoadError
   raise LoadError, "Matrix gem required for semantic search functionality. Add 'gem \"matrix\"' to your Gemfile."
 end
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Semantic search capabilities for agents
   #

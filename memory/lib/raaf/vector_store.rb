@@ -13,7 +13,7 @@ rescue LoadError
   raise LoadError, "Matrix gem required for vector store functionality. Add 'gem \"matrix\"' to your Gemfile."
 end
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Vector store for semantic search and retrieval
   #

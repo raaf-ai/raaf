@@ -4,12 +4,12 @@ require_relative "lib/raaf/tracing/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-tracing"
-  spec.version = RubyAIAgentsFactory::Tracing::VERSION
+  spec.version = RAAF::Tracing::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
-  spec.summary = "Distributed tracing and monitoring for Ruby AI Agents Factory"
-  spec.description = "Provides comprehensive distributed tracing, monitoring, and observability for AI agent workflows. Includes span-based tracking, performance metrics, and integration with popular monitoring platforms."
+  spec.summary = "Distributed tracing, monitoring, and visualization for Ruby AI Agents Factory"
+  spec.description = "Provides comprehensive distributed tracing, monitoring, observability, and visualization for AI agent workflows. Includes span-based tracking, performance metrics, trace visualization, and integration with popular monitoring platforms."
   spec.homepage = "https://github.com/raaf-ai/ruby-ai-agents-factory"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
@@ -36,13 +36,26 @@ Gem::Specification.new do |spec|
   spec.add_dependency "opentelemetry-exporter-otlp", "~> 0.20"
   spec.add_dependency "opentelemetry-instrumentation-net_http", "~> 0.20"
   spec.add_dependency "opentelemetry-sdk", "~> 1.0"
-  spec.add_dependency "raaf-core", "~> 1.0"
+  spec.add_dependency "raaf-core", "0.1.0"
+  
+  # Visualization dependencies
+  spec.add_dependency "csv", "~> 3.0"
+  spec.add_dependency "descriptive_statistics", "~> 2.5"
+  spec.add_dependency "erb", "~> 4.0"
+  spec.add_dependency "gruff", "~> 0.19"
+  spec.add_dependency "matrix", "~> 0.4"
+  spec.add_dependency "mini_magick", "~> 4.11"
+  spec.add_dependency "numo-gnuplot", "~> 0.2"
+  spec.add_dependency "prawn", "~> 2.4"
+  spec.add_dependency "prawn-svg", "~> 0.32"
+  spec.add_dependency "rmagick", "~> 4.2"
+  spec.add_dependency "ruby-plot", "~> 0.6"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.0"
-  spec.add_development_dependency "rubocop", "~> 1.0"
+  spec.add_development_dependency "rubocop", "~> 1.21"
   spec.add_development_dependency "rubocop-rake", "~> 0.6"
   spec.add_development_dependency "rubocop-rspec", "~> 2.0"
 end

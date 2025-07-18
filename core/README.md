@@ -42,14 +42,14 @@ gem install raaf-core
 require 'raaf-core'
 
 # Create an agent
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant",
   model: "gpt-4o"
 )
 
 # Run the agent
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello, how can you help me?")
 
 # Get the response
@@ -62,7 +62,7 @@ puts result.messages.last[:content]
 The main class for creating AI agents with specific instructions and capabilities.
 
 ```ruby
-agent = RubyAIAgentsFactory::Agent.new(
+agent = RAAF::Agent.new(
   name: "Customer Support",
   instructions: "You help customers with their questions",
   model: "gpt-4o",
@@ -74,7 +74,7 @@ agent = RubyAIAgentsFactory::Agent.new(
 The execution engine that handles agent conversations, tool calls, and response processing.
 
 ```ruby
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 result = runner.run("What services do you offer?")
 ```
 
@@ -97,12 +97,12 @@ RAAF Core includes two OpenAI providers:
 
 ```ruby
 # Using default ResponsesProvider
-runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 # Using legacy OpenAIProvider explicitly
-runner = RubyAIAgentsFactory::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
-  provider: RubyAIAgentsFactory::Models::OpenAIProvider.new
+  provider: RAAF::Models::OpenAIProvider.new
 )
 ```
 
@@ -149,7 +149,7 @@ RAAF Core is the foundation that **all other gems** depend on:
 ### Core Classes
 
 ```
-RubyAIAgentsFactory::Core::
+RAAF::Core::
 ├── Agent                    # Base agent class
 ├── Provider                 # LLM provider interface
 ├── Tool                     # Agent tool interface
@@ -177,7 +177,7 @@ The core gem provides several extension points:
 
 ```ruby
 # Custom middleware for request processing
-class LoggingMiddleware < RubyAIAgentsFactory::Core::Middleware
+class LoggingMiddleware < RAAF::Core::Middleware
   def call(request, response)
     logger.info "Processing: #{request.input}"
     yield
@@ -192,7 +192,7 @@ agent.use(LoggingMiddleware)
 
 ```ruby
 # Register custom plugins
-RubyAIAgentsFactory::Core::PluginManager.register(:custom_feature) do |agent|
+RAAF::Core::PluginManager.register(:custom_feature) do |agent|
   agent.extend(CustomFeature)
 end
 ```

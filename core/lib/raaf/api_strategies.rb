@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Base strategy for API provider interactions
     #
@@ -28,6 +30,7 @@ module RubyAIAgentsFactory
     # @see ResponsesApiStrategy For OpenAI Responses API
     #
     class BaseApiStrategy
+
       include Logger
 
       attr_reader :provider, :config
@@ -68,17 +71,19 @@ module RubyAIAgentsFactory
       #
       def build_base_model_params(agent)
         model_params = config.to_model_params
-        
-        # Add structured output support
-        if agent.response_format
-          model_params[:response_format] = agent.response_format
+
+        # Merge with agent's model settings if available
+        if agent.model_settings
+          model_settings_params = agent.model_settings.to_h
+          model_params.merge!(model_settings_params)
         end
-        
-        # Add tool choice support
-        if agent.respond_to?(:tool_choice) && agent.tool_choice
-          model_params[:tool_choice] = agent.tool_choice
-        end
-        
+
+        # Add structured output support (agent-level overrides model settings)
+        model_params[:response_format] = agent.response_format if agent.response_format
+
+        # Add tool choice support (agent-level overrides model settings)
+        model_params[:tool_choice] = agent.tool_choice if agent.respond_to?(:tool_choice) && agent.tool_choice
+
         model_params
       end
 
@@ -93,7 +98,7 @@ module RubyAIAgentsFactory
       #
       def extract_message_from_response(response)
         if response.is_a?(Hash)
-          if response[:choices] && response[:choices].first
+          if response[:choices]&.first
             # Standard OpenAI format
             response[:choices].first[:message]
           elsif response[:message]
@@ -117,8 +122,10 @@ module RubyAIAgentsFactory
       #
       def extract_usage_from_response(response)
         return nil unless response.is_a?(Hash)
+
         response[:usage]
       end
+
     end
 
     ##
@@ -143,6 +150,7 @@ module RubyAIAgentsFactory
     #   }
     #
     class StandardApiStrategy < BaseApiStrategy
+
       ##
       # Execute using standard chat completion API
       #
@@ -185,15 +193,15 @@ module RubyAIAgentsFactory
       # @param runner [Runner] Runner instance (unused but kept for consistency)
       # @return [Hash] Complete model parameters for API call
       #
-      def build_model_params(agent, runner)
+      def build_model_params(agent, _runner)
         model_params = build_base_model_params(agent)
-        
+
         # Add prompt support for compatible providers
         if agent.prompt && provider.respond_to?(:supports_prompts?) && provider.supports_prompts?
           prompt_input = PromptUtil.to_model_input(agent.prompt, nil, agent)
           model_params[:prompt] = prompt_input if prompt_input
         end
-        
+
         model_params
       end
 
@@ -223,6 +231,7 @@ module RubyAIAgentsFactory
           )
         end
       end
+
     end
 
     ##
@@ -250,7 +259,7 @@ module RubyAIAgentsFactory
     #     { role: "assistant", tool_calls: [...] },
     #     { role: "tool", content: "75°F", tool_call_id: "123" }
     #   ]
-    #   
+    #
     #   # Converted to items format:
     #   [
     #     { type: "message", role: "user", content: "What's the weather?" },
@@ -261,6 +270,7 @@ module RubyAIAgentsFactory
     # @see https://platform.openai.com/docs/api-reference/responses OpenAI Responses API
     #
     class ResponsesApiStrategy < BaseApiStrategy
+
       ##
       # Execute using Responses API
       #
@@ -269,21 +279,20 @@ module RubyAIAgentsFactory
       # @param runner [Runner] Runner for context (unused in this strategy)
       # @return [Hash] Result with final conversation and usage
       #
-      def execute(messages, agent, runner)
+      def execute(messages, _agent, runner)
         log_debug_api("Using Responses API", provider: provider.class.name)
-        
-        # Convert messages to items format
-        items = convert_messages_to_items(messages)
-        model = config.model&.model || agent.model
-        
-        # Build provider parameters
-        provider_params = build_provider_params(agent)
-        
-        # Make API call
-        response = make_api_call(items, model, provider_params)
-        
-        # Process response into final result
-        process_response(messages, response)
+
+        # Use the runner's execute_responses_api_core method which handles multi-turn properly
+        # This delegates the complex multi-turn logic back to the runner
+        result = runner.send(:execute_responses_api_core, messages, config, with_tracing: false)
+
+        # Convert RunResult to the expected format
+        {
+          conversation: result.messages,
+          usage: result.usage,
+          final_result: true,
+          last_agent: result.last_agent
+        }
       end
 
       private
@@ -356,17 +365,13 @@ module RubyAIAgentsFactory
           max_tokens: config.max_tokens,
           metadata: config.metadata
         }.compact
-        
+
         # Add response format if specified
-        if agent.response_format
-          params[:response_format] = agent.response_format
-        end
-        
+        params[:response_format] = agent.response_format if agent.response_format
+
         # Add tool choice if specified
-        if agent.respond_to?(:tool_choice) && agent.tool_choice
-          params[:tool_choice] = agent.tool_choice
-        end
-        
+        params[:tool_choice] = agent.tool_choice if agent.respond_to?(:tool_choice) && agent.tool_choice
+
         params
       end
 
@@ -438,11 +443,11 @@ module RubyAIAgentsFactory
       def process_response(original_messages, response)
         conversation = original_messages.dup
         usage = response[:usage] || {}
-        
+
         # Convert response back to messages format
         new_messages = convert_response_to_messages(response)
         conversation.concat(new_messages)
-        
+
         {
           conversation: conversation,
           usage: usage,
@@ -463,31 +468,61 @@ module RubyAIAgentsFactory
       #
       def convert_response_to_messages(response)
         # Convert Responses API response back to messages format
-        return [] unless response[:choices]
+        # The Responses API uses 'output' array instead of 'choices'
+        output = response[:output] || response["output"]
+        return [] unless output
 
         messages = []
-        choice = response[:choices].first
-        return messages unless choice[:message]
+        assistant_content = ""
+        tool_calls = []
 
-        message = choice[:message]
-        messages << {
-          role: "assistant",
-          content: message[:content]
-        }
+        output.each do |item|
+          item_type = item[:type] || item["type"]
 
-        # Handle tool calls if present
-        if message[:tool_calls]
-          messages.last[:tool_calls] = message[:tool_calls]
+          case item_type
+          when "message", "text", "output_text"
+            content = item[:content] || item["content"]
+            if content.is_a?(Array)
+              # Handle array format like [{ type: "text", text: "content" }]
+              content.each do |content_item|
+                if content_item.is_a?(Hash)
+                  text = content_item[:text] || content_item["text"]
+                  assistant_content += text if text
+                end
+              end
+            elsif content.is_a?(String)
+              assistant_content += content
+            end
+          when "function_call"
+            # Convert to tool call format
+            tool_calls << {
+              "id" => item[:call_id] || item["call_id"] || item[:id] || item["id"],
+              "type" => "function",
+              "function" => {
+                "name" => item[:name] || item["name"],
+                "arguments" => item[:arguments] || item["arguments"] || "{}"
+              }
+            }
+          end
+        end
+
+        # Add assistant message if we have content or tool calls
+        if !assistant_content.empty? || !tool_calls.empty?
+          message = { role: "assistant", content: assistant_content }
+          message[:tool_calls] = tool_calls unless tool_calls.empty?
+          messages << message
         end
 
         messages
       end
+
     end
 
     ##
     # Factory for creating appropriate API strategies
     #
     class ApiStrategyFactory
+
       ##
       # Create the appropriate strategy for the given provider
       #
@@ -502,6 +537,9 @@ module RubyAIAgentsFactory
           StandardApiStrategy.new(provider, config)
         end
       end
+
     end
+
   end
+
 end

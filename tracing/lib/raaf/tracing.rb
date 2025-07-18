@@ -19,8 +19,8 @@ if defined?(ActiveRecord)
   end
 end
 
-module RubyAIAgentsFactory
-  # Comprehensive tracing system for OpenAI Agents
+module RAAF
+  # Comprehensive tracing system for RAAF
   #
   # The Tracing module provides a complete observability solution for agent workflows,
   # allowing you to track, debug, and monitor agent executions. Traces are automatically
@@ -45,17 +45,17 @@ module RubyAIAgentsFactory
   #
   # ```ruby
   # # Automatic tracing (enabled by default)
-  # runner = RubyAIAgentsFactory::Runner.new(agent: agent)
+  # runner = RAAF::Runner.new(agent: agent)
   # result = runner.run(messages)  # Automatically traced
   #
   # # Group multiple operations in a trace
-  # RubyAIAgentsFactory::Tracing.trace("Customer Support") do
+  # RAAF::Tracing.trace("Customer Support") do
   #   result1 = runner.run(agent1, "Hello")
   #   result2 = runner.run(agent2, "Process: #{result1}")
   # end
   #
   # # Custom spans
-  # tracer = OpenAIAgents.tracer
+  # tracer = RAAF::tracer
   # tracer.custom_span("data_processing", { rows: 1000 }) do |span|
   #   span.set_attribute("processing.type", "batch")
   #   # Your processing code
@@ -65,9 +65,9 @@ module RubyAIAgentsFactory
   # ## Configuration
   #
   # Tracing can be configured via environment variables:
-  # - `OPENAI_AGENTS_DISABLE_TRACING=1` - Disable all tracing
-  # - `OPENAI_AGENTS_TRACE_BATCH_SIZE=100` - Set batch size for exports
-  # - `OPENAI_AGENTS_TRACE_FLUSH_INTERVAL=10` - Set flush interval in seconds
+  # - `RAAF_DISABLE_TRACING=1` - Disable all tracing
+  # - `RAAF_TRACE_BATCH_SIZE=100` - Set batch size for exports
+  # - `RAAF_TRACE_FLUSH_INTERVAL=10` - Set flush interval in seconds
   #
   # @see https://platform.openai.com/traces OpenAI Traces Dashboard
   module Tracing
@@ -108,13 +108,13 @@ module RubyAIAgentsFactory
       # @return [Trace] The trace object (when used without block)
       #
       # @example Group multiple agent runs
-      #   RubyAIAgentsFactory::Tracing.trace("Customer Support") do
+      #   RAAF::Tracing.trace("Customer Support") do
       #     result1 = runner.run(agent1, "Hello")
       #     result2 = runner.run(agent2, "Process: #{result1}")
       #   end
       #
       # @example With custom metadata
-      #   RubyAIAgentsFactory::Tracing.trace("Data Processing",
+      #   RAAF::Tracing.trace("Data Processing",
       #     trace_id: "trace_#{SecureRandom.hex(16)}",
       #     group_id: "session_123",
       #     metadata: { user_id: "user_456", version: "1.0" }
@@ -147,7 +147,7 @@ module RubyAIAgentsFactory
       #     end
       #   end
       #
-      #   RubyAIAgentsFactory::Tracing.add_trace_processor(MyProcessor.new)
+      #   RAAF::Tracing.add_trace_processor(MyProcessor.new)
       def add_trace_processor(processor)
         TraceProvider.add_processor(processor)
       end
@@ -161,7 +161,7 @@ module RubyAIAgentsFactory
       # @param processors [Array<Object>] New processors to use
       #
       # @example Replace default processor
-      #   RubyAIAgentsFactory::Tracing.set_trace_processors(
+      #   RAAF::Tracing.set_trace_processors(
       #     MyCustomProcessor.new,
       #     FileProcessor.new("traces.log")
       #   )
@@ -177,7 +177,7 @@ module RubyAIAgentsFactory
       # @return [SpanTracer, NoOpTracer] The tracer instance
       #
       # @example Create custom spans
-      #   tracer = RubyAIAgentsFactory::Tracing.tracer
+      #   tracer = RAAF::Tracing.tracer
       #   tracer.custom_span("data_processing", { rows: 1000 }) do |span|
       #     span.set_attribute("status", "processing")
       #     # Your code here
@@ -199,7 +199,7 @@ module RubyAIAgentsFactory
       # Existing processors are retained but won't receive new data.
       #
       # @example
-      #   RubyAIAgentsFactory::Tracing.disable!
+      #   RAAF::Tracing.disable!
       #   # No traces will be created after this point
       def disable!
         TraceProvider.disable!
@@ -211,7 +211,7 @@ module RubyAIAgentsFactory
       # are configured, default processors will be set up.
       #
       # @example
-      #   RubyAIAgentsFactory::Tracing.enable!
+      #   RAAF::Tracing.enable!
       #   # Tracing is now active again
       def enable!
         TraceProvider.enable!
@@ -224,7 +224,7 @@ module RubyAIAgentsFactory
       #
       # @example
       #   # At application shutdown
-      #   RubyAIAgentsFactory::Tracing.force_flush
+      #   RAAF::Tracing.force_flush
       #   sleep(1)  # Give time for network requests
       def force_flush
         TraceProvider.force_flush
@@ -236,7 +236,7 @@ module RubyAIAgentsFactory
       # After shutdown, no new traces can be created.
       #
       # @example
-      #   at_exit { RubyAIAgentsFactory::Tracing.shutdown }
+      #   at_exit { RAAF::Tracing.shutdown }
       def shutdown
         TraceProvider.shutdown
       end
@@ -248,7 +248,7 @@ module RubyAIAgentsFactory
     # Create a trace
     #
     # @example
-    #   OpenAIAgents.trace("My Workflow") do
+    #   RAAF::trace("My Workflow") do
     #     # Your code here
     #   end
     def trace(workflow_name, **, &)
@@ -264,5 +264,5 @@ end
 
 # Ensure tracing is properly cleaned up on exit
 at_exit do
-  RubyAIAgentsFactory::Tracing.shutdown
+  RAAF::Tracing.shutdown
 end

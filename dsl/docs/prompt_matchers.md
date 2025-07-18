@@ -126,7 +126,7 @@ Here's a comprehensive example showing all matchers in action:
 
 ```ruby
 # Define a prompt class
-class DocumentAnalysisPrompt < AiAgentDsl::Prompts::Base
+class DocumentAnalysisPrompt < RAAF::DSL::Prompts::Base
   requires :document_name, :analysis_type
   optional :urgency_level
   requires_from_context :document_path, path: [:document, :file_path]
@@ -328,7 +328,7 @@ puts messages[:user]
 # Debug validation
 begin
   prompt.validate!
-rescue AiAgentDsl::Prompts::VariableContractError => e
+rescue RAAF::DSL::Prompts::VariableContractError => e
   puts "Validation failed: #{e.message}"
 end
 

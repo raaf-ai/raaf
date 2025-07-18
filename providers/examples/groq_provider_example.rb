@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates Groq integration with OpenAI Agents Ruby.
+# This example demonstrates Groq integration with RAAF (Ruby AI Agents Factory).
 # Groq provides ultra-fast inference for open-source models like Llama, Mixtral, and Gemma.
 # The multi-provider architecture allows seamless switching between AI providers,
 # enabling cost optimization, speed optimization, and provider redundancy.
 # Groq excels at high-throughput, low-latency applications requiring fast responses.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Groq requires an API key for authentication
 # Sign up at https://console.groq.com to get your key
@@ -28,7 +28,7 @@ puts
 # Create a Groq provider instance
 # This provider translates between OpenAI's interface and Groq's API
 # Enables using Groq models with the same code structure as OpenAI
-provider = OpenAIAgents::Models::GroqProvider.new
+provider = RAAF::Models::GroqProvider.new
 
 # ============================================================================
 # EXAMPLE 1: SPEED DEMONSTRATION
@@ -114,7 +114,7 @@ def quick_word_count(text:)
 end
 
 # Create a high-speed agent for utility tasks
-speed_agent = OpenAIAgents::Agent.new(
+speed_agent = RAAF::Agent.new(
   name: "GroqSpeedAgent",
   instructions: "You are a high-speed utility assistant. Provide quick, concise responses. Use tools for calculations and analysis.",
   model: "llama3-8b-8192"  # Fast model for utility tasks
@@ -125,7 +125,7 @@ speed_agent.add_tool(method(:quick_calculation))
 speed_agent.add_tool(method(:quick_word_count))
 
 # Create runner with Groq provider
-runner = OpenAIAgents::Runner.new(
+runner = RAAF::Runner.new(
   agent: speed_agent,
   provider: provider
 )
@@ -248,14 +248,14 @@ puts
 puts "7. Agent handoff to Groq for speed:"
 
 # Create an analysis agent that hands off to Groq for speed
-analysis_agent = OpenAIAgents::Agent.new(
+analysis_agent = RAAF::Agent.new(
   name: "AnalysisAgent",
   instructions: "You analyze requests and handoff to GroqSpeedAgent for tasks requiring fast responses.",
   model: "gpt-4o"
 )
 
 # Create Groq agent for fast responses
-groq_agent = OpenAIAgents::Agent.new(
+groq_agent = RAAF::Agent.new(
   name: "GroqSpeedAgent",
   instructions: "You provide ultra-fast responses using Groq. Be concise and quick.",
   model: "llama3-8b-8192"
@@ -265,9 +265,9 @@ groq_agent = OpenAIAgents::Agent.new(
 analysis_agent.add_handoff(groq_agent)
 
 # Create runner starting with analysis agent
-handoff_runner = OpenAIAgents::Runner.new(
+handoff_runner = RAAF::Runner.new(
   agent: analysis_agent,
-  provider: OpenAIAgents::Models::OpenAIProvider.new  # Start with OpenAI
+  provider: RAAF::Models::OpenAIProvider.new  # Start with OpenAI
 )
 
 # Request that triggers handoff to Groq
@@ -287,18 +287,18 @@ puts
 puts "8. Performance monitoring with Groq:"
 
 # Create agent with tracing for performance monitoring
-traced_agent = OpenAIAgents::Agent.new(
+traced_agent = RAAF::Agent.new(
   name: "TracedGroqAgent",
   instructions: "You are a performance-monitored agent using Groq.",
   model: "llama3-8b-8192"
 )
 
 # Setup tracing
-tracer = OpenAIAgents::Tracing::SpanTracer.new
-tracer.add_processor(OpenAIAgents::Tracing::ConsoleProcessor.new)
+tracer = RAAF::Tracing::SpanTracer.new
+tracer.add_processor(RAAF::Tracing::ConsoleProcessor.new)
 
 # Create runner with tracing
-traced_runner = OpenAIAgents::Runner.new(
+traced_runner = RAAF::Runner.new(
   agent: traced_agent,
   provider: provider,
   tracer: tracer

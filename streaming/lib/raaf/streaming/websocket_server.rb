@@ -6,7 +6,7 @@ require "async/http/endpoint"
 require "json"
 require "securerandom"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # WebSocket server for real-time communication
@@ -16,7 +16,7 @@ module RubyAIAgentsFactory
     # broadcasting, and channel-based communication.
     #
     class WebSocketServer
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Integer] Server port
       attr_reader :port

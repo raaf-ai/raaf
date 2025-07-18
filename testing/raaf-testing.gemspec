@@ -4,7 +4,7 @@ require_relative "lib/raaf/testing/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-testing"
-  spec.version = RubyAIAgentsFactory::Testing::VERSION
+  spec.version = RAAF::Testing::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -33,7 +33,7 @@ Gem::Specification.new do |spec|
   # Dependencies
   spec.add_dependency "faker", "~> 3.0"
   spec.add_dependency "json", "~> 2.0"
-  spec.add_dependency "raaf-core", "~> 1.0"
+  spec.add_dependency "raaf-core", "0.1.0"
   spec.add_dependency "rspec", "~> 3.0"
   spec.add_dependency "timecop", "~> 0.9"
   spec.add_dependency "vcr", "~> 6.0"

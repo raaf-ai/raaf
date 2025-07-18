@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Handles tool execution during agent conversations
     #
@@ -11,6 +13,7 @@ module RubyAIAgentsFactory
     # error handling, and result processing.
     #
     class ToolExecutor
+
       include Logger
 
       ##
@@ -34,7 +37,7 @@ module RubyAIAgentsFactory
       # @param tool_wrapper [Proc] Optional block to wrap tool execution
       # @return [Boolean] true if execution should continue, false to stop
       #
-      def execute_tool_calls(tool_calls, conversation, context_wrapper, response, &tool_wrapper)
+      def execute_tool_calls(tool_calls, conversation, context_wrapper, _response, &tool_wrapper)
         tool_calls.each do |tool_call|
           execute_single_tool_call(tool_call, conversation, context_wrapper, &tool_wrapper)
         end
@@ -63,10 +66,10 @@ module RubyAIAgentsFactory
       def should_continue?(message)
         # Continue if there are tool calls
         return true if has_tool_calls?(message)
-        
+
         # Stop if no content
         return false unless message[:content]
-        
+
         # Stop if content indicates termination
         !message[:content].match?(/\b(STOP|TERMINATE|DONE|FINISHED)\b/i)
       end
@@ -112,13 +115,12 @@ module RubyAIAgentsFactory
 
           # Call tool end hook
           @runner.call_hook(:on_tool_end, context_wrapper, function_name, result)
-
         rescue JSON::ParserError => e
-          handle_tool_error(conversation, context_wrapper, function_name, tool_call_id, 
-                           "Failed to parse tool arguments: #{e.message}", e, arguments_str)
+          handle_tool_error(conversation, context_wrapper, function_name, tool_call_id,
+                            "Failed to parse tool arguments: #{e.message}", e, arguments_str)
         rescue StandardError => e
           handle_tool_error(conversation, context_wrapper, function_name, tool_call_id,
-                           "Tool execution failed: #{e.message}", e)
+                            "Tool execution failed: #{e.message}", e)
         end
       end
 
@@ -202,17 +204,21 @@ module RubyAIAgentsFactory
       # @param extra_context [Object, nil] Additional error context
       # @private
       #
-      def handle_tool_error(conversation, context_wrapper, function_name, tool_call_id, error_msg, error, extra_context = nil)
+      def handle_tool_error(conversation, context_wrapper, function_name, tool_call_id, error_msg, error,
+                            extra_context = nil)
         log_error(error_msg, tool: function_name, error_class: error.class.name, extra: extra_context)
-        
+
         conversation << {
           role: "tool",
           content: error_msg,
           tool_call_id: tool_call_id
         }
-        
+
         @runner.call_hook(:on_tool_error, context_wrapper, function_name, error)
       end
+
     end
+
   end
+
 end

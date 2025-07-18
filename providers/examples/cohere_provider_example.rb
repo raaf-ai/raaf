@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates Cohere AI integration with OpenAI Agents Ruby.
+# This example demonstrates Cohere AI integration with RAAF (Ruby AI Agents Factory).
 # Cohere provides powerful language models like Command R for chat and generation tasks.
 # The multi-provider architecture allows seamless switching between AI providers,
 # enabling cost optimization, feature comparison, and provider redundancy.
 # This integration maintains API compatibility while leveraging Cohere's strengths.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Cohere requires an API key for authentication
 # Sign up at https://cohere.com to get your key
@@ -24,7 +24,7 @@ puts
 # Create a Cohere provider instance
 # This provider translates between OpenAI's interface and Cohere's API
 # Enables using Cohere models with the same code structure as OpenAI
-provider = OpenAIAgents::Models::CohereProvider.new
+provider = RAAF::Models::CohereProvider.new
 
 # Example 1: Basic chat completion
 # Demonstrates using Cohere's Command R model for general conversation
@@ -71,7 +71,7 @@ end
 
 # Create an agent configured to use Cohere's Command R model
 # The agent abstraction works identically across providers
-weather_agent = OpenAIAgents::Agent.new(
+weather_agent = RAAF::Agent.new(
   name: "WeatherAssistant",
   
   # Instructions guide the model's behavior and tool usage
@@ -84,7 +84,7 @@ weather_agent = OpenAIAgents::Agent.new(
 # Add the weather tool to the agent's capabilities
 # FunctionTool wraps Ruby methods for AI consumption
 weather_agent.add_tool(
-  OpenAIAgents::FunctionTool.new(
+  RAAF::FunctionTool.new(
     method(:get_weather),
     name: "get_weather",
     description: "Get the current weather for a location"
@@ -93,7 +93,7 @@ weather_agent.add_tool(
 
 # Create runner with explicit Cohere provider
 # The runner manages conversation flow and tool execution
-runner = OpenAIAgents::Runner.new(
+runner = RAAF::Runner.new(
   agent: weather_agent,
   provider: provider  # Use Cohere instead of default OpenAI
 )
@@ -117,7 +117,7 @@ puts "3. Multi-provider agent handoff:"
 
 # Create a Cohere-powered analyst agent
 # Cohere excels at factual analysis and reasoning
-cohere_agent = OpenAIAgents::Agent.new(
+cohere_agent = RAAF::Agent.new(
   name: "CohereAnalyst",
   
   # Instructions include handoff trigger for creative tasks
@@ -128,7 +128,7 @@ cohere_agent = OpenAIAgents::Agent.new(
 
 # Create an OpenAI-powered creative agent
 # GPT-4 excels at creative and nuanced writing
-openai_agent = OpenAIAgents::Agent.new(
+openai_agent = RAAF::Agent.new(
   name: "CreativeWriter",
   
   instructions: "You are a creative writer using GPT-4. Write engaging stories and poems.",
@@ -142,7 +142,7 @@ cohere_agent.add_handoff(openai_agent)
 
 # Create runner starting with Cohere provider
 # The runner will switch providers automatically during handoff
-runner2 = OpenAIAgents::Runner.new(
+runner2 = RAAF::Runner.new(
   agent: cohere_agent,
   provider: provider  # Initial provider is Cohere
 )
@@ -190,7 +190,7 @@ puts "5. Using retry logic with Cohere:"
 
 # Wrap Cohere provider with retry capabilities
 # Handles network issues, rate limits, and temporary outages
-retryable_provider = OpenAIAgents::Models::RetryableProviderWrapper.new(
+retryable_provider = RAAF::Models::RetryableProviderWrapper.new(
   provider,
   max_attempts: 3,     # Retry up to 3 times
   base_delay: 1.0      # Initial retry delay in seconds

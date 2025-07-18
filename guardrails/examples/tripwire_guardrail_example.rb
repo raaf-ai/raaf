@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates tripwire guardrails for OpenAI Agents Ruby.
+# This example demonstrates tripwire guardrails for RAAF (Ruby AI Agents Factory).
 # Tripwires provide an immediate-stop security mechanism that halts execution
 # when dangerous patterns are detected. Unlike other guardrails that may
 # modify or redirect behavior, tripwires act as circuit breakers - they
@@ -9,7 +9,7 @@
 # This is essential for preventing security breaches, data loss, and
 # maintaining compliance in production AI applications.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 require_relative "../lib/openai_agents/guardrails/tripwire"
 
 # Example demonstrating Guardrail Tripwire functionality
@@ -37,7 +37,7 @@ puts "1. Basic tripwire with patterns and keywords:"
 
 # Create tripwire with common dangerous patterns
 # These patterns catch SQL injection, filesystem destruction, and malicious terms
-tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new(
+tripwire = RAAF::Guardrails::TripwireGuardrail.new(
   patterns: [
     /DROP TABLE/i,      # SQL table deletion
     /DELETE FROM/i,     # SQL data deletion
@@ -60,7 +60,7 @@ test_contents = [
 test_contents.each do |content|
   tripwire.check_input(content)
   puts "✓ Safe: #{content[0..50]}..."
-rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
+rescue RAAF::Guardrails::TripwireGuardrail::TripwireException => e
   # TripwireException provides detailed blocking information
   puts "✗ BLOCKED: #{content[0..50]}..."
   puts "  Reason: #{e.message}"
@@ -80,7 +80,7 @@ puts "2. Tripwire with custom detector for financial fraud:"
 
 # Create tripwire with custom detection logic
 # Block evaluates content and returns boolean
-fraud_tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new do |content|
+fraud_tripwire = RAAF::Guardrails::TripwireGuardrail.new do |content|
   # Multi-factor fraud detection logic
   # Combines urgency, money mentions, and suspicious payment methods
   urgent = content.match?(/urgent|immediately|asap|right now/i)
@@ -101,7 +101,7 @@ fraud_tests = [
 fraud_tests.each do |content|
   fraud_tripwire.check_input(content)
   puts "✓ Safe: #{content}"
-rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException
+rescue RAAF::Guardrails::TripwireGuardrail::TripwireException
   puts "✗ FRAUD ALERT: #{content}"
 end
 puts
@@ -118,7 +118,7 @@ puts "3. Protecting dangerous tool calls:"
 
 # Create tripwire for tool protection
 # Will use default dangerous command patterns
-tool_tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new
+tool_tripwire = RAAF::Guardrails::TripwireGuardrail.new
 
 # Test various tool calls - some safe, some dangerous
 # Tool protection is crucial for agents with system access
@@ -133,7 +133,7 @@ dangerous_tools = [
 dangerous_tools.each do |tool|
   tool_tripwire.check_tool_call(tool[:name], tool[:args])
   puts "✓ Allowed: #{tool[:name]}(#{tool[:args]})"
-rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
+rescue RAAF::Guardrails::TripwireGuardrail::TripwireException => e
   puts "✗ BLOCKED: #{tool[:name]}(#{tool[:args]})"
   puts "  Reason: #{e.message}"
 end
@@ -151,7 +151,7 @@ puts "4. Using pre-configured security tripwires:"
 
 # SQL injection tripwire with comprehensive pattern matching
 # Detects UNION attacks, comment injection, boolean blinds, etc.
-sql_tripwire = OpenAIAgents::Guardrails::CommonTripwires.sql_injection
+sql_tripwire = RAAF::Guardrails::CommonTripwires.sql_injection
 
 sql_tests = [
   "SELECT * FROM products WHERE id = 123",
@@ -170,7 +170,7 @@ end
 
 # Path traversal tripwire prevents directory traversal attacks
 # Detects ../, encoded traversal sequences, and absolute path escapes
-path_tripwire = OpenAIAgents::Guardrails::CommonTripwires.path_traversal
+path_tripwire = RAAF::Guardrails::CommonTripwires.path_traversal
 
 # Test paths including safe paths and various traversal attempts
 path_tests = [
@@ -207,14 +207,14 @@ def execute_code(language:, code:)
 end
 
 # Create agent
-code_agent = OpenAIAgents::Agent.new(
+code_agent = RAAF::Agent.new(
   name: "CodeAssistant",
   instructions: "You help users write and execute code safely.",
   model: "gpt-4o"
 )
 
 code_agent.add_tool(
-  OpenAIAgents::FunctionTool.new(
+  RAAF::FunctionTool.new(
     method(:execute_code),
     name: "execute_code",
     description: "Execute code in various languages"
@@ -224,7 +224,7 @@ code_agent.add_tool(
 # Create comprehensive code execution tripwire
 # Detects various code injection and system access attempts
 # Patterns cover multiple languages (Ruby, Python, JavaScript)
-code_tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new(
+code_tripwire = RAAF::Guardrails::TripwireGuardrail.new(
   patterns: [
     /system\s*\(/i,     # System calls in various languages
     /exec\s*\(/i,       # Process execution
@@ -259,7 +259,7 @@ puts "\nProtected code execution:"
 test_codes.each do |test|
   code_agent.execute_tool("execute_code", **test)
   puts "✓ Executed: #{test[:code][0..40]}..."
-rescue OpenAIAgents::Guardrails::TripwireGuardrail::TripwireException => e
+rescue RAAF::Guardrails::TripwireGuardrail::TripwireException => e
   puts "✗ BLOCKED: #{test[:code][0..40]}..."
   puts "  Security violation: #{e.triggered_by}"
 end
@@ -276,7 +276,7 @@ puts "6. Comprehensive security with composite tripwire:"
 
 # Create composite tripwire with all security patterns
 # Includes: SQL injection, command injection, path traversal, XSS, etc.
-security_tripwire = OpenAIAgents::Guardrails::CommonTripwires.all_security
+security_tripwire = RAAF::Guardrails::CommonTripwires.all_security
 
 security_tests = [
   "Normal conversation about programming",
@@ -306,7 +306,7 @@ puts
 puts "7. Tripwire statistics and logging:"
 
 # Create tripwire with simple keywords for demonstration
-stats_tripwire = OpenAIAgents::Guardrails::TripwireGuardrail.new(
+stats_tripwire = RAAF::Guardrails::TripwireGuardrail.new(
   keywords: %w[danger risk]
 )
 

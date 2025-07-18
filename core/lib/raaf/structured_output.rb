@@ -3,7 +3,8 @@
 require "json"
 require_relative "errors"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Structured output validation and formatting
   #
@@ -24,7 +25,7 @@ module RubyAIAgentsFactory
   #     integer :age, minimum: 0, maximum: 120
   #     array :tags, items: { type: "string" }
   #   end
-  #   
+  #
   #   formatter = StructuredOutput::ResponseFormatter.new(schema)
   #   result = formatter.format_response({ name: "Alice", age: 30, tags: ["user"] })
   #
@@ -37,14 +38,15 @@ module RubyAIAgentsFactory
   #     },
   #     required: ["status"]
   #   })
-  #   
+  #
   #   schema.validate({ status: "success", message: "Done" })
   #
   module StructuredOutput
+
     ##
     # Raised when data fails schema validation
     class ValidationError < Error; end
-    
+
     ##
     # Raised when schema definition is invalid
     class SchemaError < Error; end
@@ -64,10 +66,11 @@ module RubyAIAgentsFactory
     #     },
     #     required: ["name"]
     #   })
-    #   
+    #
     #   schema.validate({ name: "Alice", age: 30 })
     #
     class BaseSchema
+
       # @!attribute [r] schema
       #   @return [Hash] The JSON Schema definition
       # @!attribute [r] required_fields
@@ -287,6 +290,7 @@ module RubyAIAgentsFactory
 
         raise ValidationError, "Expected null at #{path}, got #{data.class}"
       end
+
     end
 
     ##
@@ -314,6 +318,7 @@ module RubyAIAgentsFactory
     #   end
     #
     class ObjectSchema < BaseSchema
+
       ##
       # Initialize an object schema
       #
@@ -355,6 +360,7 @@ module RubyAIAgentsFactory
           additional_properties: builder.additional_properties
         )
       end
+
     end
 
     ##
@@ -371,9 +377,10 @@ module RubyAIAgentsFactory
     #   builder.array :tags, items: { type: "string" }
     #
     class ObjectSchemaBuilder
+
       # @!attribute [r] properties
       #   @return [Hash] Built property definitions
-      # @!attribute [r] required_fields  
+      # @!attribute [r] required_fields
       #   @return [Array] List of required field names
       # @!attribute [r] additional_properties
       #   @return [Boolean] Whether additional properties are allowed
@@ -395,7 +402,7 @@ module RubyAIAgentsFactory
       # @param options [Hash] String constraints (min_length, max_length, pattern, enum)
       # @option options [Boolean] :required Whether this field is required
       # @option options [Integer] :min_length Minimum string length
-      # @option options [Integer] :max_length Maximum string length  
+      # @option options [Integer] :max_length Maximum string length
       # @option options [String] :pattern Regex pattern to match
       # @option options [Array<String>] :enum Allowed values
       # @return [void]
@@ -477,10 +484,19 @@ module RubyAIAgentsFactory
       # @option options [Array] :required_properties Required properties in the nested object
       # @return [void]
       #
-      def object(name, properties:, **options)
-        required = options.delete(:required)
-        @properties[name] = { type: "object", properties: properties, **options }
-        @required_fields << name if required
+      def object(name, properties:, required: nil, **options)
+        # Check if this field itself is required
+        field_required = options.delete(:required)
+
+        # Build the object schema
+        object_def = { type: "object", properties: properties }
+        object_def[:required] = required if required
+        object_def.merge!(options)
+
+        @properties[name] = object_def
+
+        # Add to parent's required fields if needed
+        @required_fields << name if field_required
       end
 
       ##
@@ -504,6 +520,7 @@ module RubyAIAgentsFactory
       def no_additional_properties
         @additional_properties = false
       end
+
     end
 
     ##
@@ -531,6 +548,7 @@ module RubyAIAgentsFactory
     #   )
     #
     class ArraySchema < BaseSchema
+
       ##
       # Initialize an array schema
       #
@@ -547,6 +565,7 @@ module RubyAIAgentsFactory
         schema[:maxItems] = max_items if max_items
         super(schema)
       end
+
     end
 
     ##
@@ -567,6 +586,7 @@ module RubyAIAgentsFactory
     #   )
     #
     class StringSchema < BaseSchema
+
       ##
       # Initialize a string schema
       #
@@ -583,6 +603,7 @@ module RubyAIAgentsFactory
         schema[:enum] = enum if enum
         super(schema)
       end
+
     end
 
     ##
@@ -599,7 +620,7 @@ module RubyAIAgentsFactory
     #       code: { type: "integer" }
     #     }
     #   })
-    #   
+    #
     #   result = formatter.format_response({ status: "ok", code: 200 })
     #   # => { data: {...}, schema: {...}, valid: true }
     #
@@ -608,6 +629,7 @@ module RubyAIAgentsFactory
     #   # => { data: {...}, schema: {...}, valid: false, error: "Expected integer..." }
     #
     class ResponseFormatter
+
       ##
       # Initialize a formatter with a schema
       #
@@ -681,6 +703,9 @@ module RubyAIAgentsFactory
           error: "Invalid JSON: #{e.message}"
         }
       end
+
     end
+
   end
+
 end

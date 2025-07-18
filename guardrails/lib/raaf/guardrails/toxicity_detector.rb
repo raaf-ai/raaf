@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     ##
     # Toxicity detection for content validation
@@ -10,7 +10,7 @@ module RubyAIAgentsFactory
     # machine learning models, and external APIs.
     #
     class ToxicityDetector
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Float] Toxicity threshold (0.0-1.0)
       attr_reader :threshold

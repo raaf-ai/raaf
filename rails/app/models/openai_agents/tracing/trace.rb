@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # ActiveRecord model for storing trace data
     #
@@ -19,23 +19,23 @@ module RubyAIAgentsFactory
     # and analyzed directly:
     #
     # @example Find recent traces
-    #   RubyAIAgentsFactory::Tracing::Trace.recent.limit(10)
+    #   RAAF::Tracing::Trace.recent.limit(10)
     #
     # @example Find traces by workflow
-    #   RubyAIAgentsFactory::Tracing::Trace.by_workflow("Order Processing")
+    #   RAAF::Tracing::Trace.by_workflow("Order Processing")
     #
     # @example Find failed traces
-    #   RubyAIAgentsFactory::Tracing::Trace.failed
+    #   RAAF::Tracing::Trace.failed
     #
     # @example Get trace performance summary
-    #   trace = RubyAIAgentsFactory::Tracing::Trace.find_by(trace_id: "trace_abc123")
+    #   trace = RAAF::Tracing::Trace.find_by(trace_id: "trace_abc123")
     #   trace.performance_summary
     class TraceRecord < ActiveRecord::Base
       self.table_name = "raaf_tracing_traces"
 
       # Associations
       has_many :spans, primary_key: :trace_id, foreign_key: :trace_id,
-                       class_name: "RubyAIAgentsFactory::Tracing::SpanRecord", dependent: :destroy
+                       class_name: "RAAF::Tracing::SpanRecord", dependent: :destroy
 
       # Validations
       validates :trace_id, presence: true, uniqueness: true,

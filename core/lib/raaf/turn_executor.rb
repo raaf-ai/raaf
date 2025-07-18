@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Execution
+
     ##
     # Handles execution of individual conversation turns
     #
@@ -12,6 +14,7 @@ module RubyAIAgentsFactory
     # guardrails, and handoff detection.
     #
     class TurnExecutor
+
       include Logger
 
       ##
@@ -51,29 +54,29 @@ module RubyAIAgentsFactory
 
         # Pre-turn hook via executor
         executor.before_turn(conversation, current_agent, context_wrapper, turns)
-        
+
         # Update context
         context_wrapper.context.current_agent = current_agent
         context_wrapper.context.current_turn = turns
-        
+
         # Run hooks via runner
         runner.call_hook(:on_agent_start, context_wrapper, current_agent)
-        
+
         # Run input guardrails
         current_input = conversation.last[:content] if conversation.last && conversation.last[:role] == "user"
         runner.run_input_guardrails(context_wrapper, current_agent, current_input) if current_input
-        
+
         # Execute API call via strategy
         result = @api_strategy.execute(conversation, current_agent, runner)
         message = result[:message]
         usage = result[:usage]
-        
+
         # Run output guardrails
         runner.run_output_guardrails(context_wrapper, current_agent, message[:content]) if message[:content]
-        
+
         # Call agent end hook
         runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)
-        
+
         # Handle tool calls if present
         if @tool_executor.has_tool_calls?(message)
           @tool_executor.execute_tool_calls(
@@ -84,11 +87,17 @@ module RubyAIAgentsFactory
           ) do |tool_name, arguments, &tool_block|
             executor.wrap_tool_execution(tool_name, arguments, &tool_block)
           end
+
+          # Reset tool choice after tool calls if configured
+          if current_agent.reset_tool_choice
+            log_debug("🔄 TURN_EXECUTOR: Resetting tool_choice after tool calls", agent: current_agent.name)
+            current_agent.tool_choice = nil
+          end
         end
 
         # Check for handoff
         handoff_result = @handoff_detector.check_for_handoff(message, current_agent)
-        
+
         # Check tool calls for handoff patterns
         if @tool_executor.has_tool_calls?(message)
           tool_handoff_result = @handoff_detector.check_tool_calls_for_handoff(
@@ -97,22 +106,25 @@ module RubyAIAgentsFactory
           )
           handoff_result = tool_handoff_result if tool_handoff_result[:handoff_occurred]
         end
-        
+
         # Determine if execution should continue
         should_continue = @tool_executor.should_continue?(message)
-        
+
         turn_result = {
           message: message,
           usage: usage,
           handoff_result: handoff_result,
           should_continue: should_continue
         }
-        
+
         # Post-turn hook via executor
         executor.after_turn(conversation, current_agent, context_wrapper, turns, turn_result)
-        
+
         turn_result
       end
+
     end
+
   end
+
 end

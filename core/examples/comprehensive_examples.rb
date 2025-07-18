@@ -1,17 +1,17 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Comprehensive Examples for OpenAI Agents Ruby
+# Comprehensive Examples for RAAF (Ruby AI Agents Factory)
 # This file demonstrates all major features with practical examples
 #
 # This showcase provides real-world examples of every major feature in the
-# OpenAI Agents Ruby library. Each example is self-contained and demonstrates
+# RAAF (Ruby AI Agents Factory) library. Each example is self-contained and demonstrates
 # best practices for production use. The examples cover basic usage, memory
 # management, vector search, document generation, security guardrails,
 # debugging, compliance, multi-provider support, streaming, and advanced tools.
 # Use this as a reference for implementing these features in your applications.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 require "json"
 require "fileutils"
 
@@ -20,12 +20,13 @@ require "fileutils"
 ENV["OPENAI_API_KEY"] ||= "your-api-key-here"
 
 class ComprehensiveExamples
+
   def self.run_all
     new.run_all_examples
   end
 
   def run_all_examples
-    puts "=== OpenAI Agents Ruby - Comprehensive Examples ==="
+    puts "=== RAAF (Ruby AI Agents Factory) - Comprehensive Examples ==="
     puts
 
     # Run each example category
@@ -39,7 +40,7 @@ class ComprehensiveExamples
     multi_provider_examples
     streaming_examples
     advanced_tools_examples
-    
+
     puts "\n=== All examples completed! ==="
   end
 
@@ -59,17 +60,17 @@ class ComprehensiveExamples
         "Error: #{e.message}"
       end
 
-      agent = OpenAIAgents::Agent.new(
+      agent = RAAF::Agent.new(
         name: "Calculator",
         instructions: "You are a helpful math assistant. Use the calculator tool for computations.",
-        model: "gpt-4o"  # Latest optimized model
+        model: "gpt-4o" # Latest optimized model
       )
-      
+
       agent.add_tool(method(:calculator))
-      
-      runner = OpenAIAgents::Runner.new(agent: agent)
+
+      runner = RAAF::Runner.new(agent: agent)
       result = runner.run("What is 25 * 4 + 10?")
-      
+
       puts "Calculator result: #{result.messages.last[:content]}"
     end
   end
@@ -80,32 +81,32 @@ class ComprehensiveExamples
       # maintaining conversation continuity. The memory manager
       # automatically prunes old messages when approaching token limits,
       # ensuring the agent always has relevant context without errors.
-      memory_store = OpenAIAgents::Memory::InMemoryStore.new
-      memory_manager = OpenAIAgents::Memory::MemoryManager.new(
+      memory_store = RAAF::Memory::InMemoryStore.new
+      memory_manager = RAAF::Memory::MemoryManager.new(
         store: memory_store,
-        token_limit: 2000,  # Conservative limit for safety
-        pruning_strategy: :sliding_window  # Keeps recent context
+        token_limit: 2000, # Conservative limit for safety
+        pruning_strategy: :sliding_window # Keeps recent context
       )
-      
-      agent = OpenAIAgents::Agent.new(
+
+      agent = RAAF::Agent.new(
         name: "MemoryAssistant",
         instructions: "You are a helpful assistant with memory of our conversations.",
         model: "gpt-4o"
       )
-      
-      runner = OpenAIAgents::Runner.new(
+
+      runner = RAAF::Runner.new(
         agent: agent,
         memory_manager: memory_manager
       )
-      
+
       # First interaction
       runner.run("My name is Alice and I work at TechCorp as a senior developer.")
       runner.run("I'm working on a Ruby on Rails project.")
-      
+
       # Test memory recall
       result = runner.run("What do you remember about me?")
       puts "Memory recall: #{result.messages.last[:content]}"
-      
+
       # Show memory stats
       puts "Memory stats: #{memory_manager.get_stats}"
     end
@@ -118,11 +119,11 @@ class ComprehensiveExamples
       # that capture meaning. Searches find semantically similar content
       # even when exact words don't match. This is ideal for knowledge bases,
       # documentation search, and context-aware responses.
-      
+
       # Create in-memory vector store for demonstration
       # Production would use Pinecone, Weaviate, or PostgreSQL with pgvector
-      vector_store = OpenAIAgents::VectorStore.new(adapter: :in_memory)
-      
+      vector_store = RAAF::VectorStore.new(adapter: :in_memory)
+
       # Add technical documentation with rich metadata
       # Metadata enables filtered searches for precise results
       documents = [
@@ -143,33 +144,33 @@ class ComprehensiveExamples
           metadata: { topic: "databases", type: "sql", category: "storage" }
         }
       ]
-      
+
       vector_store.add_documents(documents)
-      
+
       # Create agent with vector search
-      agent = OpenAIAgents::Agent.new(
+      agent = RAAF::Agent.new(
         name: "TechExpert",
         instructions: "You are a technical expert. Use vector search to find relevant information before answering.",
         model: "gpt-4o"
       )
-      
+
       # Add vector search tool
-      search_tool = OpenAIAgents::Tools::VectorSearchTool.new(
+      search_tool = RAAF::Tools::VectorSearchTool.new(
         vector_store: vector_store,
         num_results: 3,
         metadata_filter: nil
       )
       agent.add_tool(search_tool)
-      
-      runner = OpenAIAgents::Runner.new(agent: agent)
-      
+
+      runner = RAAF::Runner.new(agent: agent)
+
       # Test searches
       queries = [
         "What Ruby frameworks are available for web development?",
         "Tell me about JavaScript libraries for UI development",
         "What databases should I consider for my project?"
       ]
-      
+
       queries.each do |query|
         result = runner.run(query)
         puts "\nQuery: #{query}"
@@ -184,31 +185,31 @@ class ComprehensiveExamples
       # The agent can generate various formats (PDF, Excel, Word) with proper
       # formatting, charts, and professional layouts. This automates routine
       # document creation tasks while maintaining quality and consistency.
-      
+
       # Create document generation agent with professional instructions
-      agent = OpenAIAgents::Agent.new(
+      agent = RAAF::Agent.new(
         name: "DocumentCreator",
         instructions: "You are a professional document creator. Generate well-formatted documents based on user requests.",
         model: "gpt-4o"
       )
-      
+
       # Add document tools for different output formats
       # Each tool handles specific document types and formatting
-      doc_tool = OpenAIAgents::Tools::DocumentTool.new(
-        output_dir: "./generated_docs"  # Output directory for documents
+      doc_tool = RAAF::Tools::DocumentTool.new(
+        output_dir: "./generated_docs" # Output directory for documents
       )
-      report_tool = OpenAIAgents::Tools::ReportTool.new(
-        output_dir: "./generated_reports"  # Separate dir for reports
+      report_tool = RAAF::Tools::ReportTool.new(
+        output_dir: "./generated_reports" # Separate dir for reports
       )
-      
+
       agent.add_tool(doc_tool)
       agent.add_tool(report_tool)
-      
-      runner = OpenAIAgents::Runner.new(agent: agent)
-      
+
+      runner = RAAF::Runner.new(agent: agent)
+
       # Generate different document types
       puts "Generating sample documents..."
-      
+
       # PDF Invoice
       runner.run(<<~PROMPT)
         Create a PDF invoice for:
@@ -217,7 +218,7 @@ class ComprehensiveExamples
         - Services: Ruby on Rails Development (40 hours @ $150/hour)
         - Due: Net 30
       PROMPT
-      
+
       # Excel report
       runner.run(<<~PROMPT)
         Create an Excel spreadsheet with quarterly sales data:
@@ -227,7 +228,7 @@ class ComprehensiveExamples
         - Q4: Product A: $55,000, Product B: $41,000, Product C: $36,000
         Include totals and a summary sheet.
       PROMPT
-      
+
       puts "Documents generated in ./generated_docs/ and ./generated_reports/"
     end
   end
@@ -239,16 +240,16 @@ class ComprehensiveExamples
       # and policy violations. Multiple guardrails can work in parallel for
       # comprehensive protection without impacting performance. This example
       # shows PII detection, security patterns, and dangerous command blocking.
-      
+
       # Configure PII detection to protect personal information
       # High sensitivity catches more patterns but may have false positives
-      pii_guardrail = OpenAIAgents::Guardrails::PIIDetector.new(
-        action: :redact,  # Options: :redact, :block, :warn
-        sensitivity: :high,  # :low, :medium, :high
+      pii_guardrail = RAAF::Guardrails::PIIDetector.new(
+        action: :redact, # Options: :redact, :block, :warn
+        sensitivity: :high, # :low, :medium, :high
         redaction_placeholder: "[REDACTED]"
       )
-      
-      security_guardrail = OpenAIAgents::Guardrails::SecurityGuardrail.new(
+
+      security_guardrail = RAAF::Guardrails::SecurityGuardrail.new(
         block_patterns: [
           /password\s*[:=]\s*\S+/i,
           /api[_-]?key\s*[:=]\s*\S+/i,
@@ -256,41 +257,41 @@ class ComprehensiveExamples
         ],
         action: :block
       )
-      
-      tripwire = OpenAIAgents::Guardrails::Tripwire.new(
+
+      tripwire = RAAF::Guardrails::Tripwire.new(
         patterns: [%r{rm\s+-rf\s+/}, /drop\s+database/i],
         action: :terminate
       )
-      
+
       # Use parallel guardrails for performance
-      guardrails = OpenAIAgents::ParallelGuardrails.new([
-                                                          pii_guardrail,
-                                                          security_guardrail,
-                                                          tripwire
-                                                        ])
-      
-      agent = OpenAIAgents::Agent.new(
+      guardrails = RAAF::ParallelGuardrails.new([
+                                                  pii_guardrail,
+                                                  security_guardrail,
+                                                  tripwire
+                                                ])
+
+      agent = RAAF::Agent.new(
         name: "SecureAssistant",
         instructions: "You are a security-conscious assistant.",
         model: "gpt-4o",
         guardrails: guardrails
       )
-      
-      runner = OpenAIAgents::Runner.new(agent: agent)
-      
+
+      runner = RAAF::Runner.new(agent: agent)
+
       # Test guardrails
       test_inputs = [
         "My email is john@example.com and SSN is 123-45-6789",
         "Can you help me format this data?",
         "The API_KEY=secret123 should be stored securely"
       ]
-      
+
       test_inputs.each do |input|
         puts "\nInput: #{input}"
         begin
           result = runner.run(input)
           puts "Output: #{result.messages.last[:content]}"
-        rescue OpenAIAgents::GuardrailViolation => e
+        rescue RAAF::GuardrailViolation => e
           puts "Blocked: #{e.message}"
         end
       end
@@ -304,51 +305,51 @@ class ComprehensiveExamples
       # variable watching, performance profiling, and session recording.
       # This is invaluable for understanding complex agent behaviors and
       # diagnosing issues in production.
-      
+
       # Create debugger with comprehensive monitoring
-      debugger = OpenAIAgents::Debugging::Debugger.new(
-        log_level: :debug,  # Captures detailed execution info
-        capture_snapshots: true,  # Records state at each step
-        enable_profiling: true  # Tracks performance metrics
+      debugger = RAAF::Debugging::Debugger.new(
+        log_level: :debug, # Captures detailed execution info
+        capture_snapshots: true, # Records state at each step
+        enable_profiling: true # Tracks performance metrics
       )
-      
+
       # Create agent with tools for debugging demo
       def slow_operation(seconds)
         sleep(seconds.to_i)
         "Operation completed after #{seconds} seconds"
       end
-      
-      agent = OpenAIAgents::Agent.new(
+
+      agent = RAAF::Agent.new(
         name: "DebugDemo",
         instructions: "You are an agent being debugged. Use tools when asked.",
         model: "gpt-4o"
       )
-      
+
       agent.add_tool(method(:slow_operation))
-      
+
       # Use debug runner
-      runner = OpenAIAgents::DebugRunner.new(
+      runner = RAAF::DebugRunner.new(
         agent: agent,
         debugger: debugger
       )
-      
+
       # Set breakpoints
       debugger.set_breakpoint(:before_tool_call)
       debugger.set_breakpoint(:after_response)
-      
+
       # Watch variables
       debugger.watch(:messages)
       debugger.watch(:token_usage)
-      
+
       puts "Running with debugger..."
-      result = runner.run("Please run the slow operation for 2 seconds")
-      
+      runner.run("Please run the slow operation for 2 seconds")
+
       # Show debug info
       puts "\nDebug Summary:"
       puts "- Breakpoints hit: #{debugger.breakpoints_hit}"
       puts "- Performance metrics: #{debugger.performance_metrics}"
       puts "- Token usage: #{debugger.watched_variables[:token_usage]}"
-      
+
       # Export debug session
       debugger.export_session("debug_session.json")
       puts "Debug session exported to debug_session.json"
@@ -362,18 +363,18 @@ class ComprehensiveExamples
       # provides comprehensive audit logging, policy enforcement, and
       # compliance monitoring. This example demonstrates GDPR and SOC2
       # compliance patterns including data retention and PII handling.
-      
+
       # Set up audit logger for compliance tracking
       # All agent interactions are logged for forensic analysis
-      audit_logger = OpenAIAgents::Compliance::AuditLogger.new(
-        storage_backend: :file,  # Options: :file, :database, :cloud
+      audit_logger = RAAF::Compliance::AuditLogger.new(
+        storage_backend: :file, # Options: :file, :database, :cloud
         file_path: "./audit_logs.json",
-        retention_days: 90  # Configurable per regulation
+        retention_days: 90 # Configurable per regulation
       )
-      
+
       # Set up policy manager
-      policy_manager = OpenAIAgents::Compliance::PolicyManager.new
-      
+      policy_manager = RAAF::Compliance::PolicyManager.new
+
       # Add data retention policy
       policy_manager.add_policy(
         name: "data_retention",
@@ -383,8 +384,8 @@ class ComprehensiveExamples
           financial_data: { retention_days: 2555 }
         }
       )
-      
-      # Add PII handling policy  
+
+      # Add PII handling policy
       policy_manager.add_policy(
         name: "pii_handling",
         type: :data_handling,
@@ -394,40 +395,40 @@ class ComprehensiveExamples
           phone: { action: :mask, format: "XXX-XXX-####" }
         }
       )
-      
+
       # Create compliance monitor
-      compliance_monitor = OpenAIAgents::Compliance::ComplianceMonitor.new(
+      compliance_monitor = RAAF::Compliance::ComplianceMonitor.new(
         frameworks: %i[gdpr soc2],
         alert_thresholds: {
           pii_exposure_rate: 0.01,
           unauthorized_access: 0
         }
       )
-      
-      agent = OpenAIAgents::Agent.new(
+
+      agent = RAAF::Agent.new(
         name: "ComplianceAgent",
         instructions: "You are a compliance-aware assistant.",
         model: "gpt-4o"
       )
-      
-      runner = OpenAIAgents::Runner.new(
+
+      runner = RAAF::Runner.new(
         agent: agent,
         audit_logger: audit_logger,
         policy_manager: policy_manager,
         compliance_monitor: compliance_monitor
       )
-      
+
       # Run some interactions
       runner.run("Process payment for customer John Doe")
       runner.run("Update user email to john@example.com")
-      
+
       # Generate compliance report
       report = compliance_monitor.generate_report
       puts "\nCompliance Report:"
       puts "- GDPR Score: #{report[:gdpr][:score]}%"
       puts "- SOC2 Score: #{report[:soc2][:score]}%"
       puts "- Total events logged: #{audit_logger.event_count}"
-      
+
       # Export audit logs
       audit_logger.export_logs(format: :json, output_file: "audit_export.json")
       puts "Audit logs exported to audit_export.json"
@@ -441,7 +442,7 @@ class ComprehensiveExamples
       # provider-specific differences transparently. This example shows
       # structured output working identically across OpenAI and Anthropic,
       # demonstrating true provider independence.
-      
+
       # Structured output schema that works with all providers
       # The framework translates this to provider-specific formats
       user_schema = {
@@ -457,20 +458,20 @@ class ComprehensiveExamples
         },
         required: %w[name role skills]
       }
-      
+
       # Test with different providers
       providers = [
         { name: "OpenAI", model: "gpt-4o", provider: nil }, # Default
-        { name: "Anthropic", model: "claude-3-sonnet-20240229", provider: OpenAIAgents::Models::AnthropicProvider.new }
+        { name: "Anthropic", model: "claude-3-sonnet-20240229", provider: RAAF::Models::AnthropicProvider.new }
         # Add other providers as needed
       ]
-      
+
       providers.each do |config|
         next unless ENV["#{config[:name].upcase}_API_KEY"]
-        
+
         puts "\nTesting with #{config[:name]}:"
-        
-        agent = OpenAIAgents::Agent.new(
+
+        agent = RAAF::Agent.new(
           name: "#{config[:name]}Agent",
           instructions: "Extract user information from the text.",
           model: config[:model],
@@ -484,9 +485,9 @@ class ComprehensiveExamples
             }
           }
         )
-        
-        runner = OpenAIAgents::Runner.new(agent: agent)
-        
+
+        runner = RAAF::Runner.new(agent: agent)
+
         begin
           result = runner.run("I'm Sarah, a senior developer with 8 years of experience in Ruby, Python, and JavaScript")
           user_data = JSON.parse(result.messages.last[:content])
@@ -505,45 +506,45 @@ class ComprehensiveExamples
       # see text as it's generated. The event system enables progress
       # tracking, error handling, and custom UI updates. This is essential
       # for chat interfaces and long-form content generation.
-      
-      agent = OpenAIAgents::Agent.new(
+
+      agent = RAAF::Agent.new(
         name: "StreamingAgent",
         instructions: "You are a helpful assistant who provides detailed explanations.",
         model: "gpt-4o"
       )
-      
-      runner = OpenAIAgents::Runner.new(agent: agent)
-      
+
+      runner = RAAF::Runner.new(agent: agent)
+
       puts "Streaming response with event handling:"
       puts "-" * 50
-      
+
       total_tokens = 0
       start_time = Time.now
-      
+
       runner.run_streaming("Explain the concept of recursion in programming with an example") do |event|
         case event
-        when OpenAIAgents::StreamingEvents::ResponseCreatedEvent
+        when RAAF::StreamingEvents::ResponseCreatedEvent
           puts "\n[Response started]"
-          
-        when OpenAIAgents::StreamingEvents::ResponseTextDeltaEvent
+
+        when RAAF::StreamingEvents::ResponseTextDeltaEvent
           print event.text_delta
           $stdout.flush
-          
-        when OpenAIAgents::StreamingEvents::ResponseCompletedEvent
+
+        when RAAF::StreamingEvents::ResponseCompletedEvent
           elapsed = Time.now - start_time
           puts "\n\n[Response completed in #{elapsed.round(2)}s]"
-          
+
           if event.usage
             total_tokens = event.usage[:total_tokens]
             puts "[Tokens used: #{total_tokens}]"
           end
-          
-        when OpenAIAgents::StreamingEvents::ErrorEvent
+
+        when RAAF::StreamingEvents::ErrorEvent
           puts "\n[Error: #{event.error.message}]"
         end
       end
-      
-      puts "\n" + ("-" * 50)
+
+      puts "\n#{"-" * 50}"
     end
   end
 
@@ -554,60 +555,61 @@ class ComprehensiveExamples
       # tool discovery and execution. Local shell tools provide system
       # integration with security controls. These examples demonstrate
       # how to safely extend agent capabilities for complex workflows.
-      
+
       # MCP Tool example (if MCP server is available)
       # MCP allows dynamic tool discovery from external servers
       if ENV["MCP_SERVER_COMMAND"]
-        mcp_tool = OpenAIAgents::Tools::MCPTool.new(
+        mcp_tool = RAAF::Tools::MCPTool.new(
           server_name: "demo-mcp-server",
-          transport: :stdio,  # Communication method
+          transport: :stdio, # Communication method
           command: ENV["MCP_SERVER_COMMAND"],
           args: ENV["MCP_SERVER_ARGS"]&.split || []
         )
-        
-        agent = OpenAIAgents::Agent.new(
+
+        agent = RAAF::Agent.new(
           name: "MCPAgent",
           instructions: "Use MCP tools to help users.",
           model: "gpt-4o"
         )
-        
+
         # Discover and add MCP tools
         discovered_tools = mcp_tool.discover_tools
         puts "Discovered #{discovered_tools.length} MCP tools"
         discovered_tools.each { |tool| agent.add_tool(tool) }
       end
-      
+
       # Local Shell Tool (safe commands only)
-      shell_tool = OpenAIAgents::Tools::LocalShellTool.new(
+      shell_tool = RAAF::Tools::LocalShellTool.new(
         allowed_commands: %w[date echo pwd ls],
         working_directory: ".",
         timeout: 5
       )
-      
-      agent = OpenAIAgents::Agent.new(
+
+      agent = RAAF::Agent.new(
         name: "SystemAgent",
         instructions: "Help with safe system commands.",
         model: "gpt-4o"
       )
-      
+
       agent.add_tool(shell_tool)
-      
-      runner = OpenAIAgents::Runner.new(agent: agent)
+
+      runner = RAAF::Runner.new(agent: agent)
       result = runner.run("What's the current date and list files in the current directory?")
       puts "\nSystem command result: #{result.messages.last[:content]}"
     end
   end
 
   def section(title)
-    puts "\n#{'=' * 60}"
+    puts "\n#{"=" * 60}"
     puts "## #{title}"
-    puts "#{'=' * 60}\n"
+    puts "#{"=" * 60}\n"
     yield
   rescue StandardError => e
     puts "\nError in #{title}: #{e.message}"
     puts e.backtrace.first(3).join("\n")
   end
+
 end
 
 # Run all examples if executed directly
-ComprehensiveExamples.run_all if __FILE__ == $0
+ComprehensiveExamples.run_all if __FILE__ == $PROGRAM_NAME

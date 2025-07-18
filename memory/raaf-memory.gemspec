@@ -4,7 +4,7 @@ require_relative "lib/raaf/memory/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-memory"
-  spec.version = RubyAIAgentsFactory::Memory::VERSION
+  spec.version = RAAF::Memory::VERSION
   spec.authors = ["Bert Hajee"]
   spec.email = ["bert.hajee@enterprisemodules.com"]
 
@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "digest", "~> 3.0"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "matrix", "~> 0.4"
-  spec.add_dependency "raaf-core", "~> 1.0"
+  spec.add_dependency "raaf-core", "0.1.0"
 
   # Optional dependencies for specific adapters
   spec.add_development_dependency "pg", "~> 1.0"

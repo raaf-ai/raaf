@@ -1,21 +1,21 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates the integrated memory system for OpenAI Agents Ruby.
+# This example demonstrates the integrated memory system for RAAF (Ruby AI Agents Factory).
 # Memory systems are crucial for creating intelligent agents that can learn,
 # personalize responses, and maintain context over time. The Agent class now
 # includes full memory integration with built-in methods for storing, retrieving,
 # and managing memories. This example shows how to use the memory system for
 # persistent context, knowledge accumulation, and multi-agent collaboration.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 require_relative "../lib/openai_agents/memory"
 
 # ============================================================================
 # MEMORY SYSTEM DEMONSTRATION
 # ============================================================================
 
-puts "=== OpenAI Agents Memory System Components ==="
+puts "=== RAAF Memory System Components ==="
 puts
 
 # ============================================================================
@@ -33,12 +33,12 @@ puts "-" * 40
 # Create an in-memory store instance
 # Internally uses Ruby hashes for efficient storage and retrieval
 # Thread-safe implementation for concurrent access
-memory_store = OpenAIAgents::Memory::InMemoryStore.new
+memory_store = RAAF::Memory::InMemoryStore.new
 
 # Create memory objects with structured data
 # Each memory represents a discrete piece of information
 # The Memory class encapsulates content with metadata for rich querying
-memory1 = OpenAIAgents::Memory::Memory.new(
+memory1 = RAAF::Memory::Memory.new(
   content: "User prefers Python for data science projects",
   agent_name: "assistant_1",  # Links memory to specific agent
   metadata: {                  # Metadata enables filtering and categorization
@@ -47,7 +47,7 @@ memory1 = OpenAIAgents::Memory::Memory.new(
   }
 )
 
-memory2 = OpenAIAgents::Memory::Memory.new(
+memory2 = RAAF::Memory::Memory.new(
   content: "User is working on a machine learning model",
   agent_name: "assistant_1",
   metadata: { category: "project", field: "ml" }
@@ -93,12 +93,12 @@ puts "-" * 40
 # Create a file store with a specified directory
 # The directory is created if it doesn't exist
 # Each agent gets a subdirectory for organization
-file_store = OpenAIAgents::Memory::FileStore.new("./agent_memories")
+file_store = RAAF::Memory::FileStore.new("./agent_memories")
 
 # Create a support ticket memory with rich metadata
 # Conversation IDs group related memories together
 # Metadata provides context for filtering and reporting
-memory3 = OpenAIAgents::Memory::Memory.new(
+memory3 = RAAF::Memory::Memory.new(
   content: "Customer reported issue with login functionality",
   agent_name: "support_bot",
   conversation_id: "ticket_123",    # Groups memories by support ticket
@@ -136,13 +136,13 @@ puts "\n3. Advanced Memory Search:"
 puts "-" * 40
 
 # Add memories with rich metadata for filtering
-memory_store.store("doc:1", OpenAIAgents::Memory::Memory.new(
+memory_store.store("doc:1", RAAF::Memory::Memory.new(
   content: "API rate limit is 100 requests per minute",
   agent_name: "assistant_1",
   metadata: { category: "technical", type: "limit", api: "openai" }
 ))
 
-memory_store.store("doc:2", OpenAIAgents::Memory::Memory.new(
+memory_store.store("doc:2", RAAF::Memory::Memory.new(
   content: "User interface should be responsive and mobile-friendly",
   agent_name: "assistant_1", 
   metadata: { category: "design", type: "requirement", priority: "high" }
@@ -169,7 +169,7 @@ puts "-" * 40
 
 # Create a standard agent without built-in memory
 # The agent operates normally but lacks persistence
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "ContextualAssistant",
   instructions: "You are a helpful assistant.",
   model: "gpt-4o-mini"
@@ -189,7 +189,7 @@ class MemoryEnhancedAgent
   # This method mimics the proposed agent.remember API
   # Metadata enables rich querying and categorization
   def remember(content, metadata = {})
-    memory = OpenAIAgents::Memory::Memory.new(
+    memory = RAAF::Memory::Memory.new(
       content: content,
       agent_name: @agent_name,
       metadata: metadata
@@ -268,7 +268,7 @@ puts "-" * 40
 
 # Create an agent with automatic memory store
 # The agent gets a default InMemoryStore if none specified
-agent_with_memory = OpenAIAgents::Agent.new(
+agent_with_memory = RAAF::Agent.new(
   name: "MemoryAgent",
   instructions: "You are an assistant with memory capabilities",
   model: "gpt-4o-mini"
@@ -323,8 +323,8 @@ end
 
 # Create agent with persistent file store
 puts "\nCreating agent with persistent file storage..."
-file_store = OpenAIAgents::Memory::FileStore.new("./persistent_memories")
-persistent_agent = OpenAIAgents::Agent.new(
+file_store = RAAF::Memory::FileStore.new("./persistent_memories")
+persistent_agent = RAAF::Agent.new(
   name: "PersistentAgent",
   instructions: "You maintain persistent memories",
   model: "gpt-4o-mini",

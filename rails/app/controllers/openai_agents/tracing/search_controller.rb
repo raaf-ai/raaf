@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # Controller for search functionality across traces and spans
     class SearchController < ApplicationController

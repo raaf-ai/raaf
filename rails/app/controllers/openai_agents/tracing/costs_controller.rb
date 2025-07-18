@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class CostsController < ApplicationController
       before_action :set_cost_manager
@@ -169,7 +169,7 @@ module RubyAIAgentsFactory
       private
 
       def set_cost_manager
-        @cost_manager = OpenAIAgents::Tracing::CostManager.new(
+        @cost_manager = RAAF::Tracing::CostManager.new(
           tenant_field: "tenant_id",
           project_field: "project_id",
           user_field: "user_id",

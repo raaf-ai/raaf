@@ -6,8 +6,8 @@ require "spec_helper"
 begin
   require "rails"
   require "active_record"
-  require_relative "../../../../app/models/openai_agents/tracing/trace"
-  require_relative "../../../../app/models/openai_agents/tracing/span"
+  require_relative "../../../../app/models/raaf/tracing/trace"
+  require_relative "../../../../app/models/raaf/tracing/span"
   
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
@@ -17,7 +17,7 @@ rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseEr
 end
 
 RSpec.describe "Rails Tracing Models" do
-  describe OpenAIAgents::Tracing::TraceRecord do
+  describe RAAF::Tracing::TraceRecord do
     let(:trace_id) { "trace_#{SecureRandom.alphanumeric(32)}" }
     let(:trace) do
       described_class.create!(
@@ -173,7 +173,7 @@ RSpec.describe "Rails Tracing Models" do
     private
 
     def create_span(trace, span_id, **attributes)
-      OpenAIAgents::Tracing::Span.create!({
+      RAAF::Tracing::Span.create!({
         span_id: span_id,
         trace_id: trace.trace_id,
         name: "test_span",
@@ -187,8 +187,8 @@ RSpec.describe "Rails Tracing Models" do
     end
   end
 
-  describe OpenAIAgents::Tracing::SpanRecord do
-    let(:trace) { OpenAIAgents::Tracing::TraceRecord.create!(workflow_name: "Test Trace") }
+  describe RAAF::Tracing::SpanRecord do
+    let(:trace) { RAAF::Tracing::TraceRecord.create!(workflow_name: "Test Trace") }
     let(:span_id) { "span_#{SecureRandom.hex(12)}" }
     let(:span) do
       described_class.create!(

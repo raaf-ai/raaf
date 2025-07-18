@@ -2,7 +2,7 @@
 
 require_relative "../errors"
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     ##
     # Base class for all guardrail implementations

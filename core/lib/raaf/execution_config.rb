@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Config
+
     ##
     # Configuration for execution control
     #
@@ -26,6 +28,7 @@ module RubyAIAgentsFactory
     #   # Uses config max_turns or falls back to agent.max_turns
     #
     class ExecutionConfig
+
       # @return [Integer] Maximum number of agent turns (default: from agent)
       attr_accessor :max_turns
 
@@ -38,16 +41,26 @@ module RubyAIAgentsFactory
       # @return [Array<Guardrails::OutputGuardrail>, nil] Output guardrails for this run
       attr_accessor :output_guardrails
 
+      # @return [Object, nil] Context object for dependency injection (Python SDK compatible)
+      attr_accessor :context
+
+      # @return [Session, nil] Session object for conversation history management (Python SDK compatible)
+      attr_accessor :session
+
       def initialize(
         max_turns: nil,
         hooks: nil,
         input_guardrails: nil,
-        output_guardrails: nil
+        output_guardrails: nil,
+        context: nil,
+        session: nil
       )
         @max_turns = max_turns
         @hooks = hooks
         @input_guardrails = input_guardrails
         @output_guardrails = output_guardrails
+        @context = context
+        @session = session
       end
 
       ##
@@ -117,6 +130,9 @@ module RubyAIAgentsFactory
           output_guardrails: output_guardrails
         }
       end
+
     end
+
   end
+
 end

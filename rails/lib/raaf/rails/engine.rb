@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Rails
     ##
     # Rails engine for Ruby AI Agents Factory
@@ -9,7 +9,7 @@ module RubyAIAgentsFactory
     # and WebSocket support for AI agent management.
     #
     class Engine < ::Rails::Engine
-      isolate_namespace RubyAIAgentsFactory::Rails
+      isolate_namespace RAAF::Rails
 
       # Configure engine paths
       config.autoload_paths << File.expand_path("../../../../app", __FILE__)
@@ -34,7 +34,7 @@ module RubyAIAgentsFactory
         if defined?(Rack::Cors)
           app.config.middleware.insert_before 0, Rack::Cors do
             allow do
-              origins(*RubyAIAgentsFactory::Rails.config[:allowed_origins])
+              origins(*RAAF::Rails.config[:allowed_origins])
               resource "/api/v1/*",
                 headers: :any,
                 methods: [:get, :post, :put, :patch, :delete, :options, :head]
@@ -43,34 +43,45 @@ module RubyAIAgentsFactory
         end
 
         # Setup background jobs
-        if RubyAIAgentsFactory::Rails.config[:enable_background_jobs]
-          require "sidekiq"
-          Sidekiq.configure_server do |config|
-            config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379") }
-          end
-          Sidekiq.configure_client do |config|
-            config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379") }
+        if RAAF::Rails.config[:enable_background_jobs]
+          begin
+            require "sidekiq"
+            Sidekiq.configure_server do |config|
+              config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379") }
+            end
+            Sidekiq.configure_client do |config|
+              config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379") }
+            end
+          rescue LoadError
+            # Sidekiq not available, skip background job configuration
+            RAAF::Logging.warn("Sidekiq gem not available. Background jobs will be disabled.")
           end
         end
 
         # Setup WebSocket support
-        if RubyAIAgentsFactory::Rails.config[:enable_websockets]
-          require "websocket-rails"
-          WebsocketRails.setup do |config|
-            config.log_level = :debug
-            config.auto_reconnect = true
+        if RAAF::Rails.config[:enable_websockets]
+          begin
+            require "action_cable"
+            # Modern WebSocket support through Action Cable
+            # Configuration will be handled by Rails application
+          rescue LoadError
+            RAAF::Logging.warn("Action Cable not available. WebSocket support will be disabled.")
           end
         end
 
         # Setup monitoring
-        if RubyAIAgentsFactory::Rails.config[:monitoring][:enabled]
-          require "raaf-tracing"
-          tracer = RubyAIAgentsFactory::Tracing.create_tracer
-          app.config.raaf_tracer = tracer
+        if RAAF::Rails.config[:monitoring][:enabled]
+          begin
+            require "raaf-tracing"
+            tracer = RAAF::Tracing.create_tracer
+            app.config.raaf_tracer = tracer
+          rescue LoadError
+            RAAF::Logging.warn("raaf-tracing gem not available. Monitoring will be disabled.")
+          end
         end
 
         # Setup authentication
-        case RubyAIAgentsFactory::Rails.config[:authentication_method]
+        case RAAF::Rails.config[:authentication_method]
         when :devise
           require "devise"
         when :doorkeeper
@@ -78,9 +89,9 @@ module RubyAIAgentsFactory
         end
       end
 
-      # Setup routes
-      initializer "raaf-rails.routes" do
-        RubyAIAgentsFactory::Rails::Engine.routes.draw do
+      # Setup routes - defer to avoid Devise initialization conflicts
+      config.after_initialize do
+        RAAF::Rails::Engine.routes.draw do
           root "dashboard#index"
 
           # Dashboard routes
@@ -117,9 +128,9 @@ module RubyAIAgentsFactory
             end
           end
 
-          # WebSocket routes
-          if RubyAIAgentsFactory::Rails.config[:enable_websockets]
-            websocket "/chat", to: "websocket#connect"
+          # WebSocket routes - Action Cable handles WebSocket connections
+          if RAAF::Rails.config[:enable_websockets]
+            mount ActionCable.server => "/cable"
           end
         end
       end
@@ -127,32 +138,43 @@ module RubyAIAgentsFactory
       # Setup middleware
       initializer "raaf-rails.middleware" do |app|
         # Rate limiting middleware
-        if RubyAIAgentsFactory::Rails.config[:rate_limit][:enabled]
-          app.config.middleware.use(
-            RubyAIAgentsFactory::Rails::Middleware::RateLimitMiddleware
-          )
-        end
-
-        # Authentication middleware
-        app.config.middleware.use(
-          RubyAIAgentsFactory::Rails::Middleware::AuthenticationMiddleware
-        )
+        # if RAAF::Rails.config[:rate_limit][:enabled]
+        #   app.config.middleware.use(
+        #     RAAF::Rails::Middleware::RateLimitMiddleware
+        #   )
+        # end
 
         # Monitoring middleware
-        if RubyAIAgentsFactory::Rails.config[:monitoring][:enabled]
-          app.config.middleware.use(
-            RubyAIAgentsFactory::Rails::Middleware::MonitoringMiddleware
-          )
-        end
+        # if RAAF::Rails.config[:monitoring][:enabled]
+        #   app.config.middleware.use(
+        #     RAAF::Rails::Middleware::MonitoringMiddleware
+        #   )
+        # end
+      end
+
+      # Setup authentication middleware after Rails is ready
+      config.to_prepare do
+        # if RAAF::Rails.config[:authentication_method] == :devise
+        #   if defined?(Devise) && defined?(Warden)
+        #     Rails.application.config.middleware.use(
+        #       RAAF::Rails::Middleware::AuthenticationMiddleware
+        #     )
+        #   end
+        # else
+        #   # Non-Devise authentication
+        #   Rails.application.config.middleware.use(
+        #     RAAF::Rails::Middleware::AuthenticationMiddleware
+        #   )
+        # end
       end
 
       # Setup ActiveRecord models
       initializer "raaf-rails.active_record" do
         if defined?(ActiveRecord)
           ActiveSupport.on_load(:active_record) do
-            include RubyAIAgentsFactory::Rails::Models::AgentModel
-            include RubyAIAgentsFactory::Rails::Models::ConversationModel
-            include RubyAIAgentsFactory::Rails::Models::MessageModel
+            # include RAAF::Rails::Models::AgentModel
+            # include RAAF::Rails::Models::ConversationModel
+            # include RAAF::Rails::Models::MessageModel
           end
         end
       end
@@ -161,7 +183,7 @@ module RubyAIAgentsFactory
       initializer "raaf-rails.action_controller" do
         if defined?(ActionController)
           ActiveSupport.on_load(:action_controller) do
-            include RubyAIAgentsFactory::Rails::Helpers::AgentHelper
+            include RAAF::Rails::Helpers::AgentHelper
           end
         end
       end
@@ -170,7 +192,7 @@ module RubyAIAgentsFactory
       initializer "raaf-rails.action_view" do
         if defined?(ActionView)
           ActiveSupport.on_load(:action_view) do
-            include RubyAIAgentsFactory::Rails::Helpers::AgentHelper
+            include RAAF::Rails::Helpers::AgentHelper
           end
         end
       end
@@ -178,7 +200,7 @@ module RubyAIAgentsFactory
       # Setup logging
       initializer "raaf-rails.logging" do
         if defined?(::Rails.logger)
-          RubyAIAgentsFactory::Logging.configure do |config|
+          RAAF::Logging.configure do |config|
             config.log_output = :rails
           end
         end

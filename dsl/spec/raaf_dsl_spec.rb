@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe AiAgentDsl do
+RSpec.describe RAAF::DSL do
   it_behaves_like "a configurable class"
 
   describe "module constants" do
@@ -247,9 +247,9 @@ RSpec.describe AiAgentDsl do
     end
 
     it "maintains proper module hierarchy" do
-      expect(described_class::Agents::Base.name).to eq("AiAgentDsl::Agents::Base")
-      expect(described_class::Prompts::Base.name).to eq("AiAgentDsl::Prompts::Base")
-      expect(described_class::Tools::Base.name).to eq("AiAgentDsl::Tools::Base")
+      expect(described_class::Agents::Base.name).to eq("RAAF::DSL::Agents::Base")
+      expect(described_class::Prompts::Base.name).to eq("RAAF::DSL::Prompts::Base")
+      expect(described_class::Tools::Base.name).to eq("RAAF::DSL::Tools::Base")
     end
   end
 
@@ -301,13 +301,13 @@ RSpec.describe AiAgentDsl do
     it "has proper file organization" do
       lib_path = File.expand_path("../lib", __dir__)
 
-      expect(File.exist?(File.join(lib_path, "ai_agent_dsl.rb"))).to be true
-      expect(Dir.exist?(File.join(lib_path, "ai_agent_dsl"))).to be true
+      expect(File.exist?(File.join(lib_path, "raaf-dsl.rb"))).to be true
+      expect(Dir.exist?(File.join(lib_path, "raaf/dsl"))).to be true
     end
 
     it "follows Ruby naming conventions" do
-      expect(described_class.name).to eq("AiAgentDsl")
-      expect(described_class.name).to match(/\A[A-Z][a-zA-Z0-9]*\z/)
+      expect(described_class.name).to eq("RAAF::DSL")
+      expect(described_class.name).to match(/\A[A-Z][a-zA-Z0-9]*(::[A-Z][a-zA-Z0-9]*)*\z/)
     end
   end
 end

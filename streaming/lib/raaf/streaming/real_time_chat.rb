@@ -3,7 +3,7 @@
 require "json"
 require "securerandom"
 
-module RubyAIAgentsFactory
+module RAAF
   module Streaming
     ##
     # Real-time chat interface for AI agents
@@ -13,7 +13,7 @@ module RubyAIAgentsFactory
     # agent handoffs, and message persistence.
     #
     class RealTimeChat
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Agent] Primary agent
       attr_reader :agent

@@ -19,26 +19,27 @@ puts
 # ========================================
 
 # Example tool that analyzes requests and updates context
-class AnalyzeRequestTool < AiAgentDsl::Tools::Base
+class AnalyzeRequestTool < RAAF::DSL::Tools::Base
+
   def tool_name
     "analyze_request"
   end
 
   def build_tool_definition
     {
-      type:     "function",
+      type: "function",
       function: {
-        name:        tool_name,
+        name: tool_name,
         description: "Analyze a customer request and determine priority and category",
-        parameters:  {
-          type:                 "object",
-          properties:           {
+        parameters: {
+          type: "object",
+          properties: {
             request: {
-              type:        "string",
+              type: "string",
               description: "The customer request to analyze"
             }
           },
-          required:             ["request"],
+          required: ["request"],
           additionalProperties: false
         }
       }
@@ -76,19 +77,19 @@ class AnalyzeRequestTool < AiAgentDsl::Tools::Base
 
     # Return result with context updates (Swarm-style)
     {
-      analysis:        {
-        priority:       priority,
-        category:       category,
+      analysis: {
+        priority: priority,
+        category: category,
         request_length: request.length,
-        keywords:       extract_keywords(request)
+        keywords: extract_keywords(request)
       },
       # Context updates that will be merged automatically
       context_updates: {
-        request_analyzed:  true,
+        request_analyzed: true,
         analysis_priority: priority,
         analysis_category: category,
-        analyzed_at:       Time.current.iso8601,
-        analysis_count:    (context_variables&.get(:analysis_count, 0) || 0) + 1
+        analyzed_at: Time.current.iso8601,
+        analysis_count: (context_variables&.get(:analysis_count, 0) || 0) + 1
       }
     }
   end
@@ -101,23 +102,25 @@ class AnalyzeRequestTool < AiAgentDsl::Tools::Base
     important_words = words.select { |w| w.length > 4 }
     important_words.first(5)
   end
+
 end
 
 # Example tool that routes to appropriate specialist
-class RouteToSpecialistTool < AiAgentDsl::Tools::Base
+class RouteToSpecialistTool < RAAF::DSL::Tools::Base
+
   def tool_name
     "route_to_specialist"
   end
 
   def build_tool_definition
     {
-      type:     "function",
+      type: "function",
       function: {
-        name:        tool_name,
+        name: tool_name,
         description: "Route customer to appropriate specialist based on analysis",
-        parameters:  {
-          type:                 "object",
-          properties:           {},
+        parameters: {
+          type: "object",
+          properties: {},
           additionalProperties: false
         }
       }
@@ -142,20 +145,21 @@ class RouteToSpecialistTool < AiAgentDsl::Tools::Base
 
     # Return routing decision with context updates
     {
-      routing:         {
+      routing: {
         specialist: specialist,
-        category:   category,
-        priority:   priority,
-        escalated:  priority == "high"
+        category: category,
+        priority: priority,
+        escalated: priority == "high"
       },
       context_updates: {
-        routed_to:             specialist,
+        routed_to: specialist,
         routing_decision_made: true,
-        routed_at:             Time.current.iso8601,
-        escalated:             priority == "high"
+        routed_at: Time.current.iso8601,
+        escalated: priority == "high"
       }
     }
   end
+
 end
 
 # ========================================
@@ -163,8 +167,9 @@ end
 # ========================================
 
 # Triage agent that analyzes requests and routes them
-class TriageAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class TriageAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "TriageAgent"
   model "gpt-4o-mini" # Use cheaper model for triage
@@ -197,11 +202,13 @@ class TriageAgent < AiAgentDsl::Agents::Base
       Please analyze this request and route the customer appropriately.
     PROMPT
   end
+
 end
 
 # Specialist agent that handles routed requests
-class SpecialistAgent < AiAgentDsl::Agents::Base
-  include AiAgentDsl::AgentDsl
+class SpecialistAgent < RAAF::DSL::Agents::Base
+
+  include RAAF::DSL::AgentDsl
 
   agent_name "SpecialistAgent"
   model "gpt-4o-mini"
@@ -227,6 +234,7 @@ class SpecialistAgent < AiAgentDsl::Agents::Base
       Provide appropriate assistance based on the triage analysis.
     PROMPT
   end
+
 end
 
 # ========================================
@@ -238,20 +246,20 @@ def run_swarm_demo
   puts
 
   # Create SwarmDebugger for comprehensive debugging
-  debugger = AiAgentDsl::SwarmDebugger.new(enabled: true)
+  debugger = RAAF::DSL::SwarmDebugger.new(enabled: true)
 
   # Start debugging session
-  initial_context = AiAgentDsl::ContextVariables.new({
-    session_id:    "demo-#{Time.current.strftime('%H%M%S')}",
-    customer_name: "Alice Johnson",
-    customer_tier: "premium",
-    workflow_step: "triage"
-  }, debug: true)
+  initial_context = RAAF::DSL::ContextVariables.new({
+                                                      session_id: "demo-#{Time.current.strftime("%H%M%S")}",
+                                                      customer_name: "Alice Johnson",
+                                                      customer_tier: "premium",
+                                                      workflow_step: "triage"
+                                                    }, debug: true)
 
   debugger.start_workflow_session(
     "Customer Support Triage",
     initial_context: initial_context,
-    metadata:        { demo: true, version: "1.0" }
+    metadata: { demo: true, version: "1.0" }
   )
 
   begin
@@ -260,16 +268,16 @@ def run_swarm_demo
     puts "-" * 40
 
     triage_agent = TriageAgent.new(
-      context:           {
-        document:         { name: "customer_request", description: "Support ticket" },
+      context: {
+        document: { name: "customer_request", description: "Support ticket" },
         customer_request: "URGENT: My payment failed and I can't access my account!"
       },
       processing_params: {
         content_type: "customer_support",
-        priority:     "auto-detect"
+        priority: "auto-detect"
       },
       context_variables: initial_context,
-      debug:             true
+      debug: true
     )
 
     # Execute triage with debugging
@@ -283,30 +291,30 @@ def run_swarm_demo
     debugger.debug_context_evolution(
       "After Triage Analysis",
       before_context: initial_context,
-      after_context:  updated_context,
-      operation:      "Request analysis and routing"
+      after_context: updated_context,
+      operation: "Request analysis and routing"
     )
 
     # Step 3: Handoff Decision
     specialist_context = updated_context.update(workflow_step: "specialist_handling")
 
     specialist_agent = SpecialistAgent.new(
-      context:           {
+      context: {
         document: { name: "analyzed_request", description: "Triaged support ticket" }
       },
       processing_params: {
         content_type: "specialist_support"
       },
       context_variables: specialist_context,
-      debug:             true
+      debug: true
     )
 
     # Debug handoff decision
     debugger.debug_handoff_decision(
-      from_agent:        triage_agent,
-      to_agent:          specialist_agent,
+      from_agent: triage_agent,
+      to_agent: specialist_agent,
       context_variables: specialist_context,
-      reason:            "Request analysis complete, routing to #{specialist_context.get(:routed_to)}"
+      reason: "Request analysis complete, routing to #{specialist_context.get(:routed_to)}"
     )
 
     # Step 4: Specialist Agent
@@ -323,8 +331,8 @@ def run_swarm_demo
     debugger.debug_context_evolution(
       "Workflow Complete",
       before_context: specialist_context,
-      after_context:  final_context,
-      operation:      "Specialist handling complete"
+      after_context: final_context,
+      operation: "Specialist handling complete"
     )
 
     puts "\n🎉 WORKFLOW COMPLETED SUCCESSFULLY!"
@@ -333,7 +341,7 @@ def run_swarm_demo
     puts final_context.debug_info(include_history: true)
   rescue StandardError => e
     puts "\n❌ DEMO ERROR: #{e.message}"
-    puts "Backtrace: #{e.backtrace.first(3).join(', ')}"
+    puts "Backtrace: #{e.backtrace.first(3).join(", ")}"
   ensure
     # End debugging session
     debugger.end_workflow_session
@@ -349,13 +357,13 @@ def run_interactive_demo
 
   # Create example agent for interactive debugging
   agent = TriageAgent.new(
-    context:           { document: { name: "test" } },
+    context: { document: { name: "test" } },
     processing_params: { content_type: "demo" },
-    context_variables: AiAgentDsl::ContextVariables.new(session_id: "interactive-demo"),
-    debug:             true
+    context_variables: RAAF::DSL::ContextVariables.new(session_id: "interactive-demo"),
+    debug: true
   )
 
-  AiAgentDsl::SwarmDebugger.new(enabled: true)
+  RAAF::DSL::SwarmDebugger.new(enabled: true)
 
   puts "In a real environment, you would now have an interactive session with commands like:"
   puts "  - context: Show current context variables"
@@ -373,11 +381,11 @@ def show_context_features_demo
   puts "=" * 50
 
   # Create initial context
-  context = AiAgentDsl::ContextVariables.new({
-    session_id: "demo-123",
-    user:       "alice",
-    tier:       "premium"
-  }, debug: true)
+  context = RAAF::DSL::ContextVariables.new({
+                                              session_id: "demo-123",
+                                              user: "alice",
+                                              tier: "premium"
+                                            }, debug: true)
 
   puts "1. Initial Context:"
   puts context.debug_info
@@ -402,7 +410,7 @@ def show_context_features_demo
   json = updated.to_json
   puts "JSON: #{json}"
 
-  restored = AiAgentDsl::ContextVariables.from_json(json, debug: true)
+  restored = RAAF::DSL::ContextVariables.from_json(json, debug: true)
   puts "Restored identical? #{updated.to_h == restored.to_h}"
   puts
 end
@@ -431,9 +439,9 @@ if __FILE__ == $PROGRAM_NAME
       show_context_features_demo
     when "4"
       run_swarm_demo
-      puts "\n#{'=' * 70}"
+      puts "\n#{"=" * 70}"
       run_interactive_demo
-      puts "\n#{'=' * 70}"
+      puts "\n#{"=" * 70}"
       show_context_features_demo
     else
       puts "Invalid choice, running full demo..."

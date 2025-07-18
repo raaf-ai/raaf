@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class DistributedTracer
       # Enhanced tracing with distributed system support
@@ -51,7 +51,7 @@ module RubyAIAgentsFactory
         @baggage_context = @baggage_context.merge(baggage) if baggage.any?
 
         # Start the trace with distributed context
-        OpenAIAgents.trace(name, trace_id: trace_id) do |trace|
+        RAAF::trace(name, trace_id: trace_id) do |trace|
           # Add distributed tracing metadata
           trace.metadata.merge!(
             service_name: @config[:service_name],
@@ -85,7 +85,7 @@ module RubyAIAgentsFactory
       end
 
       def create_outbound_headers(current_trace = nil)
-        current_trace ||= OpenAIAgents.current_trace
+        current_trace ||= RAAF::current_trace
         return {} unless current_trace
 
         headers = {
@@ -120,7 +120,7 @@ module RubyAIAgentsFactory
       end
 
       def correlate_with_external_service(service_name, operation, headers: {})
-        current_trace = OpenAIAgents.current_trace
+        current_trace = RAAF::current_trace
         return yield if current_trace.nil?
 
         # Create span for external service call
@@ -238,7 +238,7 @@ module RubyAIAgentsFactory
 
       def create_profiling_span(name, **metadata)
         # Enhanced span with profiling capabilities
-        span = OpenAIAgents.current_trace&.start_span(name)
+        span = RAAF::current_trace&.start_span(name)
         return yield unless span
 
         # Capture method information
@@ -367,9 +367,9 @@ module RubyAIAgentsFactory
         return correlation[:trace] if correlation
 
         # Fall back to database lookup
-        return unless defined?(RubyAIAgentsFactory::Tracing::Trace)
+        return unless defined?(RAAF::Tracing::Trace)
 
-        RubyAIAgentsFactory::Tracing::Trace.find_by(trace_id: trace_id)
+        RAAF::Tracing::Trace.find_by(trace_id: trace_id)
       end
 
       def create_child_span(trace, name, **metadata)
@@ -624,7 +624,7 @@ module RubyAIAgentsFactory
 
           if headers.any?
             # Continue existing trace
-            tracer = RubyAIAgentsFactory::Tracing::DistributedTracer.new
+            tracer = RAAF::Tracing::DistributedTracer.new
             tracer.start_distributed_trace("http.request", headers: headers) do
               @app.call(env)
             end
@@ -663,7 +663,7 @@ module RubyAIAgentsFactory
           trace_context = extract_trace_context_from_job
 
           if trace_context
-            tracer = RubyAIAgentsFactory::Tracing::DistributedTracer.new
+            tracer = RAAF::Tracing::DistributedTracer.new
             tracer.start_distributed_trace("job.#{self.class.name}", headers: trace_context, &)
           else
             yield

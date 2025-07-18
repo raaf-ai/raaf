@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates context management in OpenAI Agents Ruby.
+# This example demonstrates context management in RAAF (Ruby AI Agents Factory).
 # Context management is crucial for handling long conversations that exceed
 # model token limits. It automatically truncates conversations while preserving
 # important messages, preventing errors and reducing costs. The system uses
 # intelligent strategies to maintain conversation coherence.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # ============================================================================
 # CONTEXT MANAGEMENT EXAMPLES
@@ -19,7 +19,7 @@ require_relative "../lib/openai_agents"
 # Create a standard agent that will handle long conversations.
 # The context manager will be attached to the runner, not the agent.
 
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
   
   # Simple instructions - agent doesn't need to know about context management
@@ -37,7 +37,7 @@ agent = OpenAIAgents::Agent.new(
 
 # Option 1: Default settings with model-aware limits
 # The manager automatically knows token limits for common models
-context_manager = OpenAIAgents::ContextManager.new(
+context_manager = RAAF::ContextManager.new(
   model: "gpt-4o",        # Auto-configures for 128k token limit
   
   preserve_system: true,  # System messages contain critical instructions
@@ -49,7 +49,7 @@ context_manager = OpenAIAgents::ContextManager.new(
 
 # Option 2: Custom configuration for specific needs
 # Use when you need different limits or preservation strategies
-custom_context_manager = OpenAIAgents::ContextManager.new(
+custom_context_manager = RAAF::ContextManager.new(
   model: "gpt-4o",
   
   max_tokens: 50_000,     # Custom limit (less than model maximum)
@@ -67,7 +67,7 @@ custom_context_manager = OpenAIAgents::ContextManager.new(
 # Attach the context manager to the runner, not the agent.
 # This allows different runners to use different context strategies.
 
-runner = OpenAIAgents::Runner.new(
+runner = RAAF::Runner.new(
   agent: agent,
   
   # Enable automatic context management

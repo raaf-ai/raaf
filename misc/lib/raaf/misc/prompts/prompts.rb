@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Prompt configuration for interacting with OpenAI models
   #
@@ -21,7 +21,7 @@ module RubyAIAgentsFactory
   # prompt structure.
   #
   # @example Basic static prompt
-  #   prompt = RubyAIAgentsFactory::Prompt.new(
+  #   prompt = RAAF::Prompt.new(
   #     id: "customer_service",
   #     version: "v2.1",
   #     variables: { company_name: "ACME Corp", tone: "friendly" }
@@ -33,7 +33,7 @@ module RubyAIAgentsFactory
   #     date: Date.today.strftime("%B %d, %Y"),
   #     context: previous_conversation.summary
   #   }
-  #   prompt = RubyAIAgentsFactory::Prompt.new(
+  #   prompt = RAAF::Prompt.new(
   #     id: "personalized_assistant",
   #     variables: variables
   #   )
@@ -42,7 +42,7 @@ module RubyAIAgentsFactory
   #   api_format = prompt.to_h
   #   # => { id: "customer_service", version: "v2.1", variables: {...} }
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see DynamicPromptFunction For dynamic prompt generation
   # @see PromptUtil For prompt conversion utilities
@@ -151,7 +151,7 @@ module RubyAIAgentsFactory
   #     )
   #   end
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see DynamicPromptFunction For usage in dynamic prompts
   class DynamicPromptData
@@ -220,7 +220,7 @@ module RubyAIAgentsFactory
   #     end
   #   end
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see DynamicPromptData For available context data
   class DynamicPromptFunction
@@ -308,7 +308,7 @@ module RubyAIAgentsFactory
   #   # Raw proc
   #   api_format = PromptUtil.to_model_input(proc { |data| ... }, context, agent)
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   module PromptUtil
     ##
@@ -426,7 +426,7 @@ module RubyAIAgentsFactory
     #     end
     #   end
     #
-    # @author OpenAI Agents Ruby Team
+    # @author RAAF (Ruby AI Agents Factory) Team
     # @since 0.1.0
     class DynamicInstructions
       # @return [#call] the function that generates instructions

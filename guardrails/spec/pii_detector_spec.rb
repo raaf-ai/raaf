@@ -3,7 +3,7 @@
 require "spec_helper"
 require "openai_agents/guardrails/pii_detector"
 
-RSpec.describe OpenAIAgents::Guardrails::PIIDetector do
+RSpec.describe RAAF::Guardrails::PIIDetector do
   let(:detector) { described_class.new(sensitivity_level: :medium) }
   
   describe "#detect_pii" do
@@ -223,7 +223,7 @@ RSpec.describe OpenAIAgents::Guardrails::PIIDetector do
   end
 end
 
-RSpec.describe OpenAIAgents::Guardrails::HealthcarePIIDetector do
+RSpec.describe RAAF::Guardrails::HealthcarePIIDetector do
   let(:detector) { described_class.new }
   
   it "detects medical record numbers" do
@@ -243,7 +243,7 @@ RSpec.describe OpenAIAgents::Guardrails::HealthcarePIIDetector do
   end
 end
 
-RSpec.describe OpenAIAgents::Guardrails::FinancialPIIDetector do
+RSpec.describe RAAF::Guardrails::FinancialPIIDetector do
   let(:detector) { described_class.new }
   
   it "detects SWIFT codes" do

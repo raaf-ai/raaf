@@ -2,10 +2,10 @@
 
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class AlertEngine
-      include RubyAIAgentsFactory::Logger
+      include RAAF::Logger
       DEFAULT_RULES = [
         {
           name: "high_error_rate",
@@ -252,7 +252,7 @@ module RubyAIAgentsFactory
 
       def calculate_cost_metrics(window_start, window_end)
         spans = Span.joins(:trace)
-                    .where(openai_agents_tracing_traces: { started_at: window_start..window_end })
+                    .where(raaf_tracing_traces: { started_at: window_start..window_end })
                     .where(kind: "llm")
 
         total_input_tokens = 0
@@ -497,7 +497,7 @@ module RubyAIAgentsFactory
                 { title: "Message", value: alert[:message], short: false },
                 { title: "Runbook", value: alert[:runbook_url], short: false }
               ],
-              footer: "OpenAI Agents Tracing",
+              footer: "RAAF Tracing",
               ts: alert[:checked_at].to_i
             }]
           }
@@ -542,7 +542,7 @@ module RubyAIAgentsFactory
             #{alert[:metrics].map { |k, v| "- #{k}: #{v}" }.join("\n")}
 
             --
-            OpenAI Agents Tracing Alert System
+            RAAF Tracing Alert System
           BODY
         end
       end

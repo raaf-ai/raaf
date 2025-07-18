@@ -5,7 +5,7 @@ require_relative "interface"
 require_relative "retryable_provider"
 require_relative "../http_client"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     ##
     # Together AI provider implementation

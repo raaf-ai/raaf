@@ -3,12 +3,12 @@
 require "rails"
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
-    # Rails mountable engine for OpenAI Agents tracing
+    # Rails mountable engine for RAAF (Ruby AI Agents Factory) tracing
     #
     # This engine provides a complete web interface for viewing and analyzing
-    # OpenAI agent traces stored in a Rails database. It includes:
+    # RAAF agent traces stored in a Rails database. It includes:
     #
     # - Database models for traces and spans
     # - Web interface for visualization
@@ -19,25 +19,25 @@ module RubyAIAgentsFactory
     # ## Installation
     #
     # 1. Add to your Rails application routes:
-    #    mount RubyAIAgentsFactory::Tracing::Engine => '/tracing'
+    #    mount RAAF::Tracing::Engine => '/tracing'
     #
     # 2. Run the generator:
-    #    rails generate openai_agents:tracing:install
+    #    rails generate raaf:tracing:install
     #
     # 3. Run migrations:
     #    rails db:migrate
     #
     # 4. Configure tracing in an initializer:
-    #    OpenAIAgents.tracer.add_processor(
-    #      RubyAIAgentsFactory::Tracing::ActiveRecordProcessor.new
+    #    RAAF.tracer.add_processor(
+    #      RAAF::Tracing::ActiveRecordProcessor.new
     #    )
     #
     # ## Usage
     #
     # Visit /tracing in your Rails app to view traces and spans.
     class Engine < ::Rails::Engine
-      include RubyAIAgentsFactory::Logger
-      isolate_namespace RubyAIAgentsFactory::Tracing
+      include RAAF::Logger
+      isolate_namespace RAAF::Tracing
 
       # Set the root path for the engine
       config.root = File.expand_path("../../..", __dir__)
@@ -51,45 +51,45 @@ module RubyAIAgentsFactory
       end
 
       # Auto-configuration for tracing processor
-      config.openai_agents_tracing = ActiveSupport::OrderedOptions.new
-      config.openai_agents_tracing.auto_configure = false
-      config.openai_agents_tracing.mount_path = "/tracing"
-      config.openai_agents_tracing.retention_days = 30
-      config.openai_agents_tracing.sampling_rate = 1.0
+      config.raaf_tracing = ActiveSupport::OrderedOptions.new
+      config.raaf_tracing.auto_configure = false
+      config.raaf_tracing.mount_path = "/tracing"
+      config.raaf_tracing.retention_days = 30
+      config.raaf_tracing.sampling_rate = 1.0
 
-      initializer "openai_agents.tracing.inflections", before: :load_config_initializers do
+      initializer "raaf.tracing.inflections", before: :load_config_initializers do
         ActiveSupport::Inflector.inflections(:en) do |inflect|
-          inflect.acronym "OpenAI"
+          inflect.acronym "RAAF"
         end
       end
 
-      initializer "openai_agents.tracing.load_app" do |app|
+      initializer "raaf.tracing.load_app" do |app|
         # Ensure engine's app directories are loaded
         engine_root = File.expand_path("../../..", __dir__)
         app.config.eager_load_paths += ["#{engine_root}/app/controllers", "#{engine_root}/app/models"]
         app.config.autoload_paths += ["#{engine_root}/app/controllers", "#{engine_root}/app/models"]
       end
 
-      initializer "openai_agents.tracing.configure" do |app|
+      initializer "raaf.tracing.configure" do |app|
         # Store config for later access
-        RubyAIAgentsFactory::Tracing.configuration = app.config.openai_agents_tracing
+        RAAF::Tracing.configuration = app.config.raaf_tracing
 
         # Auto-configure processor if enabled
-        if app.config.openai_agents_tracing.auto_configure
+        if app.config.raaf_tracing.auto_configure
           Rails.application.config.after_initialize do
-            processor = RubyAIAgentsFactory::Tracing::ActiveRecordProcessor.new
-            OpenAIAgents.tracer.add_processor(processor)
-            RubyAIAgentsFactory::Logging.info("Auto-configured ActiveRecord processor")
+            processor = RAAF::Tracing::ActiveRecordProcessor.new
+            RAAF.tracer.add_processor(processor)
+            RAAF::Logging.info("Auto-configured ActiveRecord processor")
           rescue StandardError => e
-            RubyAIAgentsFactory::Logging.warn("Failed to auto-configure", error: e.message, error_class: e.class.name)
+            RAAF::Logging.warn("Failed to auto-configure", error: e.message, error_class: e.class.name)
           end
         end
       end
 
-      initializer "openai_agents.tracing.assets" do |app|
+      initializer "raaf.tracing.assets" do |app|
         # Add engine assets to asset pipeline
         if app.config.respond_to?(:assets)
-          app.config.assets.precompile += %w[openai_agents/tracing/application.css openai_agents/tracing/application.js]
+          app.config.assets.precompile += %w[raaf/tracing/application.css raaf/tracing/application.js]
         end
       end
 

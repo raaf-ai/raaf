@@ -3,13 +3,15 @@
 require_relative "../logging"
 require_relative "../errors"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Models
+
     ##
     # Abstract base class for all model provider implementations
     #
     # This class defines the interface that all LLM providers must implement
-    # to work with the OpenAI Agents framework. It provides:
+    # to work with the RAAF framework. It provides:
     # - Standard method signatures for chat and streaming completions
     # - Common error handling for API responses
     # - Tool preparation and validation
@@ -26,19 +28,20 @@ module RubyAIAgentsFactory
     #     def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
     #       # Implementation specific to your API
     #     end
-    #     
+    #
     #     def supported_models
     #       ["my-model-v1", "my-model-v2"]
     #     end
-    #     
+    #
     #     def provider_name
     #       "MyProvider"
     #     end
     #   end
     #
     class ModelInterface
+
       include Logger
-      
+
       ##
       # Initialize a new model provider
       #
@@ -173,42 +176,45 @@ module RubyAIAgentsFactory
             tool_hash = tool.to_h
             # DEBUG: Log the tool definition being sent to OpenAI
             log_debug_tools("Preparing tool for OpenAI API",
-              tool_name: tool_hash.dig(:function, :name),
-              tool_type: tool_hash[:type],
-              has_parameters: !tool_hash.dig(:function, :parameters).nil?,
-              properties_count: tool_hash.dig(:function, :parameters, :properties)&.keys&.length || 0,
-              required_count: tool_hash.dig(:function, :parameters, :required)&.length || 0
-            )
-            
+                            tool_name: tool_hash.dig(:function, :name),
+                            tool_type: tool_hash[:type],
+                            has_parameters: !tool_hash.dig(:function, :parameters).nil?,
+                            properties_count: tool_hash.dig(:function, :parameters, :properties)&.keys&.length || 0,
+                            required_count: tool_hash.dig(:function, :parameters, :required)&.length || 0)
+
             # Enhanced logging for array parameters to debug "items" property
-            if tool_hash.dig(:function, :parameters, :properties)
-              tool_hash.dig(:function, :parameters, :properties).each do |prop_name, prop_def|
-                if prop_def[:type] == "array"
-                  log_debug_tools("🔍 OPENAI API ARRAY PROPERTY DEBUG for #{prop_name}",
-                    full_property_definition: prop_def.inspect,
-                    has_items_property: prop_def.key?(:items),
-                    items_value: prop_def[:items].inspect
-                  )
-                  if prop_def[:items].nil?
-                    log_error("🚨 FOUND THE BUG! Array property '#{prop_name}' has nil items - this will cause OpenAI API error!")
-                  end
-                end
+            tool_hash.dig(:function, :parameters, :properties)&.each do |prop_name, prop_def|
+              next unless prop_def[:type] == "array"
+
+              log_debug_tools("🔍 OPENAI API ARRAY PROPERTY DEBUG for #{prop_name}",
+                              full_property_definition: prop_def.inspect,
+                              has_items_property: prop_def.key?(:items),
+                              items_value: prop_def[:items].inspect)
+              if prop_def[:items].nil?
+                log_error("🚨 FOUND THE BUG! Array property '#{prop_name}' has nil items - this will cause OpenAI API error!")
               end
             end
-            
+
             tool_hash
-          when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
-            tool.to_tool_definition
           else
-            raise ArgumentError, "Invalid tool type: #{tool.class}"
+            # Check if this is a Tools module class when available
+            raise ArgumentError, "Invalid tool type: #{tool.class}" unless defined?(RAAF::Tools)
+
+            if tool.is_a?(RAAF::Tools::WebSearchTool) ||
+               tool.is_a?(RAAF::Tools::HostedFileSearchTool) ||
+               tool.is_a?(RAAF::Tools::HostedComputerTool)
+              tool.to_tool_definition
+            else
+              raise ArgumentError, "Invalid tool type: #{tool.class}"
+            end
+
           end
         end
 
         # DEBUG: Log the final prepared tools
         log_debug_tools("Final tools prepared for OpenAI API",
-          tools_count: prepared.length,
-          tool_names: prepared.map { |t| t.dig(:function, :name) || t[:type] }.compact
-        )
+                        tools_count: prepared.length,
+                        tool_names: prepared.map { |t| t.dig(:function, :name) || t[:type] }.compact)
 
         prepared
       end
@@ -223,7 +229,7 @@ module RubyAIAgentsFactory
       # @param provider [String] Provider name for error messages
       #
       # @raise [AuthenticationError] For 401 errors
-      # @raise [RateLimitError] For 429 errors  
+      # @raise [RateLimitError] For 429 errors
       # @raise [ServerError] For 5xx errors
       # @raise [APIError] For other errors
       #
@@ -239,22 +245,25 @@ module RubyAIAgentsFactory
           raise APIError, "API error from #{provider}: #{response.code} - #{response.body}"
         end
       end
+
     end
 
     ##
     # Raised when API authentication fails
     class AuthenticationError < Error; end
-    
+
     ##
     # Raised when API rate limits are exceeded
     class RateLimitError < Error; end
-    
+
     ##
     # Raised for server-side errors (5xx status codes)
     class ServerError < Error; end
-    
+
     ##
     # Raised for general API errors
     class APIError < Error; end
+
   end
+
 end

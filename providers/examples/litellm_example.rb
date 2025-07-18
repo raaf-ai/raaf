@@ -9,7 +9,7 @@
 # flexibility, and comparing model performance across providers.
 
 require "bundler/setup"
-require "openai_agents"
+require "raaf"
 
 # LiteLLM must be running as a proxy server to handle requests
 # Install: pip install litellm
@@ -31,7 +31,7 @@ puts "=== Example 1: Basic LiteLLM Usage ==="
 
 # Create an agent that will use LiteLLM for model access
 # The agent configuration remains the same regardless of the underlying provider
-litellm_agent = OpenAIAgents::Agent.new(
+litellm_agent = RAAF::Agent.new(
   name: "LiteLLMAssistant",
   instructions: "You are a helpful assistant powered by LiteLLM.",
   
@@ -42,7 +42,7 @@ litellm_agent = OpenAIAgents::Agent.new(
 
 # Create the LiteLLM provider instance
 # This provider communicates with the LiteLLM proxy server
-litellm_provider = OpenAIAgents::Models::LitellmProvider.new(
+litellm_provider = RAAF::Models::LitellmProvider.new(
   model: "gpt-3.5-turbo",
   
   # URL where LiteLLM proxy is running
@@ -52,7 +52,7 @@ litellm_provider = OpenAIAgents::Models::LitellmProvider.new(
 
 # Create runner with the LiteLLM provider
 # The runner manages the conversation flow and API interactions
-runner = OpenAIAgents::Runner.new(
+runner = RAAF::Runner.new(
   agent: litellm_agent,
   provider: litellm_provider
 )
@@ -83,19 +83,19 @@ puts "\n=== Example 2: Multiple Providers via LiteLLM ==="
 # Anthropic models via LiteLLM
 # Model name format: anthropic/model-name
 # LiteLLM translates OpenAI-style requests to Anthropic's API format
-claude_provider = OpenAIAgents::Models::LitellmProvider.new(
+claude_provider = RAAF::Models::LitellmProvider.new(
   model: "anthropic/claude-3-haiku-20240307"
 )
 
 # Create an agent configured for Claude
 # The agent doesn't know about LiteLLM - it just uses the model name
-claude_agent = OpenAIAgents::Agent.new(
+claude_agent = RAAF::Agent.new(
   name: "ClaudeAssistant",
   instructions: "You are Claude, accessed via LiteLLM.",
   model: "anthropic/claude-3-haiku-20240307"
 )
 
-runner = OpenAIAgents::Runner.new(agent: claude_agent, provider: claude_provider)
+runner = RAAF::Runner.new(agent: claude_agent, provider: claude_provider)
 
 # Test Anthropic model access
 # LiteLLM handles API key management and request translation
@@ -110,17 +110,17 @@ end
 # Google Gemini models via LiteLLM
 # Model name format: gemini/model-name
 # Supports both Gemini Pro and Ultra variants
-gemini_provider = OpenAIAgents::Models::LitellmProvider.new(
+gemini_provider = RAAF::Models::LitellmProvider.new(
   model: "gemini/gemini-pro"
 )
 
-gemini_agent = OpenAIAgents::Agent.new(
+gemini_agent = RAAF::Agent.new(
   name: "GeminiAssistant",
   instructions: "You are Gemini, accessed via LiteLLM.",
   model: "gemini/gemini-pro"
 )
 
-runner = OpenAIAgents::Runner.new(agent: gemini_agent, provider: gemini_provider)
+runner = RAAF::Runner.new(agent: gemini_agent, provider: gemini_provider)
 
 # Test Google model access
 # LiteLLM converts between OpenAI and Google AI formats
@@ -145,14 +145,14 @@ puts "\n=== Example 3: LiteLLM Convenience Methods ==="
 
 # Convenience methods create pre-configured providers
 # These shortcuts make code more readable and reduce errors
-gpt4_provider = OpenAIAgents::Models::LiteLLM.provider(:gpt4)
-claude_provider = OpenAIAgents::Models::LiteLLM.provider(:claude3_opus)
-llama_provider = OpenAIAgents::Models::LiteLLM.provider(:llama2_70b)
+gpt4_provider = RAAF::Models::LiteLLM.provider(:gpt4)
+claude_provider = RAAF::Models::LiteLLM.provider(:claude3_opus)
+llama_provider = RAAF::Models::LiteLLM.provider(:llama2_70b)
 
 # Display all available model shortcuts
 # These shortcuts are maintained for popular models across providers
 puts "Available model shortcuts:"
-OpenAIAgents::Models::LiteLLM::MODELS.each do |key, value|
+RAAF::Models::LiteLLM::MODELS.each do |key, value|
   puts "  :#{key} => '#{value}'"
 end
 puts
@@ -176,7 +176,7 @@ end
 
 # Create agent with tool capabilities
 # Not all models support tools - LiteLLM handles compatibility
-tool_agent = OpenAIAgents::Agent.new(
+tool_agent = RAAF::Agent.new(
   name: "WeatherAssistant",
   instructions: "You help with weather queries.",
   model: "gpt-3.5-turbo"  # OpenAI models have full tool support
@@ -187,9 +187,9 @@ tool_agent = OpenAIAgents::Agent.new(
 tool_agent.add_tool(method(:get_weather))
 
 # Create runner with LiteLLM provider
-runner = OpenAIAgents::Runner.new(
+runner = RAAF::Runner.new(
   agent: tool_agent,
-  provider: OpenAIAgents::Models::LitellmProvider.new(model: "gpt-3.5-turbo")
+  provider: RAAF::Models::LitellmProvider.new(model: "gpt-3.5-turbo")
 )
 
 # Test tool calling through LiteLLM
@@ -215,7 +215,7 @@ puts "\n=== Example 5: Multi-Agent System with Different Models ==="
 
 # Research agent using GPT-4 for deep analysis
 # GPT-4 excels at research, reasoning, and complex queries
-research_agent = OpenAIAgents::Agent.new(
+research_agent = RAAF::Agent.new(
   name: "Researcher",
   instructions: "You research topics in depth. For coding questions, handoff to the Coder.",
   
@@ -226,7 +226,7 @@ research_agent = OpenAIAgents::Agent.new(
 
 # Coding agent using Claude for code generation
 # Claude Sonnet is known for strong coding capabilities
-coding_agent = OpenAIAgents::Agent.new(
+coding_agent = RAAF::Agent.new(
   name: "Coder",
   instructions: "You write code. For general questions, handoff to the Researcher.",
   
@@ -242,11 +242,11 @@ coding_agent.add_handoff(research_agent)
 
 # Create runner for the research agent entry point
 # Each agent can use a different provider through LiteLLM
-research_runner = OpenAIAgents::Runner.new(
+research_runner = RAAF::Runner.new(
   agent: research_agent,
   
   # Use the convenience method for cleaner code
-  provider: OpenAIAgents::Models::LiteLLM.provider("openai/gpt-4")
+  provider: RAAF::Models::LiteLLM.provider("openai/gpt-4")
 )
 
 # Test the multi-agent system
@@ -275,19 +275,19 @@ puts "\n=== Example 6: Local Models via Ollama/LiteLLM ==="
 # Configure LiteLLM to use a local Ollama instance
 # Model name format: ollama/model-name
 # Ollama must be running: ollama serve
-local_provider = OpenAIAgents::Models::LitellmProvider.new(
+local_provider = RAAF::Models::LitellmProvider.new(
   model: "ollama/llama2"
 )
 
 # Create agent for local inference
 # The agent configuration is identical to cloud models
-local_agent = OpenAIAgents::Agent.new(
+local_agent = RAAF::Agent.new(
   name: "LocalAssistant",
   instructions: "You are a helpful assistant running locally via Ollama.",
   model: "ollama/llama2"
 )
 
-runner = OpenAIAgents::Runner.new(agent: local_agent, provider: local_provider)
+runner = RAAF::Runner.new(agent: local_agent, provider: local_provider)
 
 # Test local model execution
 # Response times depend on hardware capabilities

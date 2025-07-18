@@ -35,72 +35,82 @@ require "rails/railtie"
 #   require 'ai_agent_dsl/railtie'
 #
 # @example Checking if railtie is loaded
-#   Rails.application.railties.map(&:class).include?(AiAgentDsl::Railtie)
+#   Rails.application.railties.map(&:class).include?(RAAF::DSL::Railtie)
 #
 # @see Rails::Railtie Rails railtie documentation
 # @since 0.1.0
 #
-class AiAgentDsl::Railtie < Rails::Railtie
-  # Set the railtie name for Rails integration
-  # This name is used in Rails configuration and logging
-  railtie_name :ai_agent_dsl
+module RAAF
 
-  # Configure the gem when Rails application is being prepared
-  #
-  # This block runs every time the Rails application is reloaded in development
-  # and once during startup in production. It ensures that the AI agent
-  # configuration is loaded and available throughout the application lifecycle.
-  #
-  # @note This runs after all Rails components are loaded but before
-  #       the application starts serving requests
-  config.to_prepare do
-    # Load AI agent configuration from Rails app if the config file exists
-    # This allows for hot-reloading of configuration in development
-    AiAgentDsl::Config.reload! if Rails.root.join("config", "ai_agents.yml").exist?
-  end
+  module DSL
 
-  # Early initialization of AI Agent DSL configuration
-  #
-  # This initializer runs early in the Rails boot process to set up
-  # the gem's configuration before other components may need it.
-  # It configures Rails-specific paths and enables development logging.
-  #
-  # @param app [Rails::Application] The Rails application instance
-  initializer "ai_agent_dsl.configure" do |_app|
-    # Set Rails-aware configuration path to use Rails.root instead of Dir.pwd
-    # This ensures proper path resolution in all Rails deployment scenarios
-    AiAgentDsl.configure do |config|
-      config.config_file = Rails.root.join("config", "ai_agents.yml").to_s
+    class Railtie < ::Rails::Railtie
+
+      # Set the railtie name for Rails integration
+      # This name is used in Rails configuration and logging
+      railtie_name :ai_agent_dsl
+
+      # Configure the gem when Rails application is being prepared
+      #
+      # This block runs every time the Rails application is reloaded in development
+      # and once during startup in production. It ensures that the AI agent
+      # configuration is loaded and available throughout the application lifecycle.
+      #
+      # @note This runs after all Rails components are loaded but before
+      #       the application starts serving requests
+      config.to_prepare do
+        # Load AI agent configuration from Rails app if the config file exists
+        # This allows for hot-reloading of configuration in development
+        RAAF::DSL::Config.reload! if ::Rails.root.join("config", "ai_agents.yml").exist?
+      end
+
+      # Early initialization of AI Agent DSL configuration
+      #
+      # This initializer runs early in the Rails boot process to set up
+      # the gem's configuration before other components may need it.
+      # It configures Rails-specific paths and enables development logging.
+      #
+      # @param app [Rails::Application] The Rails application instance
+      initializer "ai_agent_dsl.configure" do |_app|
+        # Set Rails-aware configuration path to use Rails.root instead of Dir.pwd
+        # This ensures proper path resolution in all Rails deployment scenarios
+        RAAF::DSL.configure do |config|
+          config.config_file = ::Rails.root.join("config", "ai_agents.yml").to_s
+        end
+
+        # Log gem initialization in development for debugging and verification
+        # Helps developers confirm the gem is properly loaded
+        if ::Rails.respond_to?(:env) && ::Rails.env.development? && ::Rails.respond_to?(:logger) && ::Rails.logger
+          ::Rails.logger.info "[RAAF::DSL] Gem initialized with Rails integration"
+        end
+      end
+
+      # Register Rails generators for AI agent scaffolding
+      #
+      # This block loads and makes available the custom generators provided
+      # by the gem. These generators help developers quickly scaffold new
+      # agents and configuration files using Rails conventions.
+      #
+      # Available generators:
+      # - AgentGenerator: Creates agent classes and their corresponding prompts
+      # - ConfigGenerator: Creates initial configuration files
+      generators do
+        require "ai_agent_dsl/generators/agent_generator"
+        require "ai_agent_dsl/generators/config_generator"
+      end
+
+      # Configure eager loading for production environments
+      #
+      # This ensures that all RAAF::DSL classes are loaded at application
+      # startup in production, which improves performance and helps catch
+      # any loading issues early.
+      #
+      # @note This is particularly important for AI agent classes that may
+      #       be dynamically referenced through configuration
+      config.eager_load_namespaces << RAAF::DSL
+
     end
 
-    # Log gem initialization in development for debugging and verification
-    # Helps developers confirm the gem is properly loaded
-    if Rails.respond_to?(:env) && Rails.env.development? && Rails.respond_to?(:logger) && Rails.logger
-      Rails.logger.info "[AiAgentDsl] Gem initialized with Rails integration"
-    end
   end
 
-  # Register Rails generators for AI agent scaffolding
-  #
-  # This block loads and makes available the custom generators provided
-  # by the gem. These generators help developers quickly scaffold new
-  # agents and configuration files using Rails conventions.
-  #
-  # Available generators:
-  # - AgentGenerator: Creates agent classes and their corresponding prompts
-  # - ConfigGenerator: Creates initial configuration files
-  generators do
-    require "ai_agent_dsl/generators/agent_generator"
-    require "ai_agent_dsl/generators/config_generator"
-  end
-
-  # Configure eager loading for production environments
-  #
-  # This ensures that all AiAgentDsl classes are loaded at application
-  # startup in production, which improves performance and helps catch
-  # any loading issues early.
-  #
-  # @note This is particularly important for AI agent classes that may
-  #       be dynamically referenced through configuration
-  config.eager_load_namespaces << AiAgentDsl
 end

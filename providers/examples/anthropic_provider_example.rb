@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates Anthropic Claude integration with OpenAI Agents Ruby.
+# This example demonstrates Anthropic Claude integration with RAAF (Ruby AI Agents Factory).
 # Anthropic provides powerful Claude models renowned for safety, helpfulness, and honesty.
 # The multi-provider architecture allows seamless switching between AI providers,
 # enabling cost optimization, feature comparison, and provider redundancy.
 # Claude models excel at reasoning, analysis, and following complex instructions.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Anthropic requires an API key for authentication
 # Sign up at https://console.anthropic.com to get your key
@@ -28,7 +28,7 @@ puts
 # Create an Anthropic provider instance
 # This provider translates between OpenAI's interface and Anthropic's API
 # Enables using Claude models with the same code structure as OpenAI
-provider = OpenAIAgents::Models::AnthropicProvider.new
+provider = RAAF::Models::AnthropicProvider.new
 
 # ============================================================================
 # EXAMPLE 1: BASIC CHAT COMPLETION
@@ -117,7 +117,7 @@ end
 
 # Create a Claude-powered research agent
 # Claude excels at analytical and research tasks
-research_agent = OpenAIAgents::Agent.new(
+research_agent = RAAF::Agent.new(
   name: "ClaudeResearcher",
   instructions: "You are a research assistant powered by Claude. Use the available tools to provide thorough, well-researched responses. Always cite your analysis methods.",
   model: "claude-3-sonnet-20240229"  # Balanced model for research tasks
@@ -128,7 +128,7 @@ research_agent.add_tool(method(:analyze_text))
 research_agent.add_tool(method(:research_topic))
 
 # Create runner with Anthropic provider
-runner = OpenAIAgents::Runner.new(
+runner = RAAF::Runner.new(
   agent: research_agent,
   provider: provider
 )
@@ -150,13 +150,13 @@ puts
 puts "4. Demonstrating Claude's safety and reasoning:"
 
 # Create a safety-focused agent
-safety_agent = OpenAIAgents::Agent.new(
+safety_agent = RAAF::Agent.new(
   name: "SafetyExpert",
   instructions: "You are a safety expert. Provide balanced, thoughtful responses about sensitive topics. Always prioritize safety and ethical considerations.",
   model: "claude-3-opus-20240229"  # Most capable model for nuanced responses
 )
 
-safety_runner = OpenAIAgents::Runner.new(
+safety_runner = RAAF::Runner.new(
   agent: safety_agent,
   provider: provider
 )
@@ -198,14 +198,14 @@ puts "\n"
 puts "6. Multi-provider handoff (Claude to OpenAI):"
 
 # Create Claude agent for initial analysis
-claude_agent = OpenAIAgents::Agent.new(
+claude_agent = RAAF::Agent.new(
   name: "ClaudeAnalyst",
   instructions: "You are an analytical agent using Claude. When asked about creative tasks, handoff to CreativeGPT.",
   model: "claude-3-sonnet-20240229"
 )
 
 # Create OpenAI agent for creative tasks
-openai_agent = OpenAIAgents::Agent.new(
+openai_agent = RAAF::Agent.new(
   name: "CreativeGPT",
   instructions: "You are a creative assistant using GPT-4. Generate creative content and stories.",
   model: "gpt-4o"
@@ -215,7 +215,7 @@ openai_agent = OpenAIAgents::Agent.new(
 claude_agent.add_handoff(openai_agent)
 
 # Create runner starting with Claude
-handoff_runner = OpenAIAgents::Runner.new(
+handoff_runner = RAAF::Runner.new(
   agent: claude_agent,
   provider: provider
 )
@@ -237,7 +237,7 @@ puts
 puts "7. Using Claude with detailed system prompts:"
 
 # Claude excels with detailed, structured instructions
-detailed_agent = OpenAIAgents::Agent.new(
+detailed_agent = RAAF::Agent.new(
   name: "DetailedClaudeAgent",
   instructions: """
 You are a Claude-powered assistant with the following characteristics:
@@ -258,7 +258,7 @@ When answering questions:
   model: "claude-3-opus-20240229"
 )
 
-detailed_runner = OpenAIAgents::Runner.new(
+detailed_runner = RAAF::Runner.new(
   agent: detailed_agent,
   provider: provider
 )

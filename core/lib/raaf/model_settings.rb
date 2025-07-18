@@ -1,4 +1,7 @@
-module RubyAIAgentsFactory
+# frozen_string_literal: true
+
+module RAAF
+
   ##
   # ModelSettings - Comprehensive configuration for LLM model parameters
   #
@@ -8,7 +11,7 @@ module RubyAIAgentsFactory
   #
   # == Basic Usage
   #
-  #   settings = RubyAIAgentsFactory::ModelSettings.new(
+  #   settings = RAAF::ModelSettings.new(
   #     temperature: 0.7,
   #     max_tokens: 2000,
   #     top_p: 0.9
@@ -16,7 +19,7 @@ module RubyAIAgentsFactory
   #
   # == Advanced Usage
   #
-  #   settings = RubyAIAgentsFactory::ModelSettings.new(
+  #   settings = RAAF::ModelSettings.new(
   #     temperature: 0.3,
   #     tool_choice: "auto",
   #     parallel_tool_calls: true,
@@ -24,6 +27,7 @@ module RubyAIAgentsFactory
   #     metadata: { user_id: "123", session_id: "abc" }
   #   )
   class ModelSettings
+
     # Core model parameters
     attr_accessor :temperature, :top_p, :frequency_penalty, :presence_penalty
     attr_accessor :max_tokens, :stop, :stream
@@ -234,6 +238,18 @@ module RubyAIAgentsFactory
     end
 
     ##
+    # Create ModelSettings from hash (factory method)
+    #
+    # @param hash [Hash, ModelSettings, nil] settings hash
+    # @return [ModelSettings, nil] model settings or nil if input is nil
+    def self.from_hash(hash)
+      return nil if hash.nil?
+      return hash if hash.is_a?(ModelSettings)
+      
+      new(**hash)
+    end
+
+    ##
     # Validate parameter values
     #
     # @raise [ArgumentError] if parameters are invalid
@@ -277,7 +293,7 @@ module RubyAIAgentsFactory
     def validate_max_tokens
       return unless @max_tokens
 
-      return if @max_tokens.is_a?(Integer) && @max_tokens > 0
+      return if @max_tokens.is_a?(Integer) && @max_tokens.positive?
 
       raise ArgumentError, "max_tokens must be a positive integer"
     end
@@ -358,5 +374,7 @@ module RubyAIAgentsFactory
 
       gemini_params
     end
+
   end
+
 end

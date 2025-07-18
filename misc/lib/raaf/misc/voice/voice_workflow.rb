@@ -4,7 +4,7 @@ require "net/http"
 require "json"
 require "tempfile"
 
-module RubyAIAgentsFactory
+module RAAF
   module Voice
     ##
     # VoiceWorkflow - Complete voice interaction pipeline for agent workflows
@@ -26,7 +26,7 @@ module RubyAIAgentsFactory
     # == Basic Usage
     #
     #   # Create voice workflow
-    #   voice = RubyAIAgentsFactory::Voice::VoiceWorkflow.new(
+    #   voice = RAAF::Voice::VoiceWorkflow.new(
     #     transcription_model: "whisper-1",
     #     tts_model: "tts-1",
     #     voice: "alloy"
@@ -47,7 +47,7 @@ module RubyAIAgentsFactory
     #     session.on_audio { |audio_data| play_audio_chunk(audio_data) }
     #   end
     #
-    # @author OpenAI Agents Ruby Team
+    # @author RAAF (Ruby AI Agents Factory) Team
     # @since 0.1.0
     class VoiceWorkflow
       ##
@@ -70,10 +70,10 @@ module RubyAIAgentsFactory
       # @param api_key [String, nil] OpenAI API key (uses ENV if nil)
       #
       # @example Create basic voice workflow
-      #   voice = RubyAIAgentsFactory::Voice::VoiceWorkflow.new
+      #   voice = RAAF::Voice::VoiceWorkflow.new
       #
       # @example Create customized voice workflow
-      #   voice = RubyAIAgentsFactory::Voice::VoiceWorkflow.new(
+      #   voice = RAAF::Voice::VoiceWorkflow.new(
       #     tts_model: "tts-1-hd",
       #     voice: "nova",
       #     language: "es"
@@ -355,7 +355,7 @@ module RubyAIAgentsFactory
 
       def generate_temp_audio_path
         timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
-        "#{Dir.tmpdir}/openai_agents_#{timestamp}_#{SecureRandom.hex(4)}.mp3"
+        "#{Dir.tmpdir}/raaf_#{timestamp}_#{SecureRandom.hex(4)}.mp3"
       end
 
       def estimate_audio_duration(file_path)

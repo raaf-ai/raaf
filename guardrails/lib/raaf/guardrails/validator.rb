@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     ##
     # Main validator class for guardrails
@@ -9,7 +9,7 @@ module RubyAIAgentsFactory
     # PII detection, prompt injection prevention, and custom rules.
     #
     class Validator
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Array<Object>] Validation providers
       attr_reader :providers
@@ -23,7 +23,7 @@ module RubyAIAgentsFactory
       # @param config [Hash] Configuration options
       #
       def initialize(**config)
-        @config = RubyAIAgentsFactory::Guardrails.config.merge(config)
+        @config = RAAF::Guardrails.config.merge(config)
         @providers = []
         @custom_rules = nil
         @cache = {}
@@ -97,11 +97,11 @@ module RubyAIAgentsFactory
 
           # Update statistics
           response_time = Time.current - start_time
-          RubyAIAgentsFactory::Guardrails.update_stats(response_time, violations.size)
+          RAAF::Guardrails.update_stats(response_time, violations.size)
 
           # Log violations
           violations.each do |violation|
-            RubyAIAgentsFactory::Guardrails.log_violation(violation)
+            RAAF::Guardrails.log_violation(violation)
           end
 
           result
@@ -293,9 +293,9 @@ module RubyAIAgentsFactory
       #
       # @return [Boolean] True if fresh
       def fresh?
-        return true unless RubyAIAgentsFactory::Guardrails.config[:cache_ttl]
+        return true unless RAAF::Guardrails.config[:cache_ttl]
 
-        Time.current - @timestamp < RubyAIAgentsFactory::Guardrails.config[:cache_ttl]
+        Time.current - @timestamp < RAAF::Guardrails.config[:cache_ttl]
       end
 
       ##

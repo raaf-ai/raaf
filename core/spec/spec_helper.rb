@@ -12,12 +12,12 @@ rescue LoadError
 end
 
 # Disable tracing during tests to prevent API calls and console noise
-ENV["OPENAI_AGENTS_DISABLE_TRACING"] = "true"
+ENV["RAAF_DISABLE_TRACING"] = "true"
 
 # Set dummy API key for tests to allow provider initialization
 ENV["OPENAI_API_KEY"] = "test-api-key" unless ENV["OPENAI_API_KEY"]
 
-require "openai_agents"
+require "raaf-core"
 require "rspec/collection_matchers"
 
 RSpec.configure do |config|

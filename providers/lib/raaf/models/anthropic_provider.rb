@@ -5,7 +5,7 @@ require "json"
 require "uri"
 require_relative "interface"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     ##
     # Anthropic Claude model provider

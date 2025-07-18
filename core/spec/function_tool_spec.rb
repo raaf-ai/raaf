@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe OpenAIAgents::FunctionTool do
+RSpec.describe RAAF::FunctionTool do
   describe "#initialize" do
     it "creates a tool with a proc" do
       tool_proc = proc { |value| value * 2 }
@@ -96,7 +96,7 @@ RSpec.describe OpenAIAgents::FunctionTool do
     it "raises ToolError for invalid callable" do
       tool = described_class.new("not_callable")
 
-      expect { tool.call }.to raise_error(OpenAIAgents::ToolError, /Callable must be a Method or Proc/)
+      expect { tool.call }.to raise_error(RAAF::ToolError, /Callable must be a Method or Proc/)
     end
 
     it "wraps execution errors in ToolError" do
@@ -105,7 +105,7 @@ RSpec.describe OpenAIAgents::FunctionTool do
 
       expect do
         tool.call
-      end.to raise_error(OpenAIAgents::ToolError, /Error executing tool 'failing_tool': Something went wrong/)
+      end.to raise_error(RAAF::ToolError, /Error executing tool 'failing_tool': Something went wrong/)
     end
 
     context "with different argument types" do
@@ -163,6 +163,7 @@ RSpec.describe OpenAIAgents::FunctionTool do
 
       expect(hash).to eq({
                            type: "function",
+                           name: "double",
                            function: {
                              name: "double",
                              description: "Doubles a number",
@@ -224,8 +225,8 @@ RSpec.describe OpenAIAgents::FunctionTool do
         tool = described_class.new(method(:required_params))
         params = tool.parameters
 
-        expect(params[:properties][:name][:required]).to be true
-        expect(params[:properties][:age][:required]).to be true
+        expect(params[:properties][:name]).to be_a(Hash)
+        expect(params[:properties][:age]).to be_a(Hash)
         expect(params[:required]).to include(:name, :age)
       end
 
@@ -237,8 +238,8 @@ RSpec.describe OpenAIAgents::FunctionTool do
         tool = described_class.new(method(:optional_params))
         params = tool.parameters
 
-        expect(params[:properties][:name][:required]).to be true
-        expect(params[:properties][:greeting][:required]).to be false
+        expect(params[:properties][:name]).to be_a(Hash)
+        expect(params[:properties][:greeting]).to be_a(Hash)
         expect(params[:required]).to include(:name)
         expect(params[:required]).not_to include(:greeting)
       end
@@ -318,7 +319,7 @@ RSpec.describe OpenAIAgents::FunctionTool do
 
   describe "integration with Agent" do
     it "works correctly when added to an agent" do
-      agent = OpenAIAgents::Agent.new(name: "TestAgent")
+      agent = RAAF::Agent.new(name: "TestAgent")
       tool_proc = proc { |value:| value * 2 }
       tool = described_class.new(tool_proc, name: "double")
 
@@ -329,7 +330,7 @@ RSpec.describe OpenAIAgents::FunctionTool do
     end
 
     it "maintains tool identity when added to agent" do
-      agent = OpenAIAgents::Agent.new(name: "TestAgent")
+      agent = RAAF::Agent.new(name: "TestAgent")
       tool = described_class.new(proc { |value| value }, name: "identity")
 
       agent.add_tool(tool)

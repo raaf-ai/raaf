@@ -7,7 +7,7 @@ require_relative "ollama_provider"
 require_relative "together_provider"
 require_relative "litellm_provider"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     ##
     # MultiProvider - Automatic provider selection and management
@@ -54,10 +54,10 @@ module RubyAIAgentsFactory
     #   provider_name = MultiProvider.get_provider_for_model("claude-3-sonnet")
     #   puts "Best provider for claude-3-sonnet: #{provider_name}"  # => "anthropic"
     #
-    # @author OpenAI Agents Ruby Team
+    # @author RAAF (Ruby AI Agents Factory) Team
     # @since 0.1.0
-    # @see RubyAIAgentsFactory::Models::AnthropicProvider For Anthropic-specific configuration
-    # @see RubyAIAgentsFactory::Models::GroqProvider For Groq-specific configuration
+    # @see RAAF::Models::AnthropicProvider For Anthropic-specific configuration
+    # @see RAAF::Models::GroqProvider For Groq-specific configuration
     class MultiProvider
       ##
       # Registry of all supported AI providers

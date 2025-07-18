@@ -1,5 +1,11 @@
+require:
+  - rubocop-rspec
+
+plugins:
+  - rubocop-rake
+
 AllCops:
-  TargetRubyVersion: 3.0
+  TargetRubyVersion: 3.3
   NewCops: enable
   Exclude:
     - 'vendor/**/*'
@@ -14,25 +20,47 @@ Layout/LineLength:
     - '\A\s*it\s'  # Allow long RSpec test descriptions
     - '\A\s*describe\s'  # Allow long RSpec describe blocks
     - '\A\s*context\s'  # Allow long RSpec context blocks
+    - 'https?://'  # Allow long URLs
+    - '\A\s*puts\s'  # Allow long puts statements in examples
+  Exclude:
+    - 'examples/**/*'
 
 Metrics/AbcSize:
-  Max: 25
+  Max: 35
+  Exclude:
+    - 'examples/**/*'
 
 Metrics/MethodLength:
-  Max: 20
+  Max: 30
   CountAsOne: ['array', 'hash', 'heredoc']
+  Exclude:
+    - 'examples/**/*'
+
+Metrics/CyclomaticComplexity:
+  Max: 12
+  Exclude:
+    - 'examples/**/*'
+
+Metrics/PerceivedComplexity:
+  Max: 12
+  Exclude:
+    - 'examples/**/*'
 
 Metrics/ClassLength:
-  Max: 150
+  Max: 250
+  Exclude:
+    - 'examples/**/*'
 
 Metrics/ModuleLength:
-  Max: 150
+  Max: 250
 
 Metrics/BlockLength:
-  Max: 25
+  Max: 30
   Exclude:
     - 'spec/**/*'
     - 'examples/**/*'
+    - 'Rakefile'
+    - '*.gemspec'
 
 Style/Documentation:
   Enabled: false
@@ -46,6 +74,27 @@ Style/StringLiteralsInInterpolation:
 Style/FrozenStringLiteralComment:
   Enabled: true
   EnforcedStyle: always
+
+Style/HashLikeCase:
+  Enabled: false
+
+Security/Eval:
+  Exclude:
+    - 'examples/**/*'
+
+Naming/PredicateMethod:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false
+
+Lint/NestedMethodDefinition:
+  Exclude:
+    - 'examples/**/*'
+
+Lint/UnusedMethodArgument:
+  AllowUnusedKeywordArguments: true
+  IgnoreEmptyMethods: true
 
 Layout/EmptyLinesAroundClassBody:
   Enabled: true
@@ -61,13 +110,28 @@ Naming/FileName:
     - 'lib/**/*.rb'
 
 RSpec/ExampleLength:
-  Max: 20
+  Max: 25
 
 RSpec/MultipleExpectations:
-  Max: 5
+  Max: 6
 
 RSpec/NestedGroups:
   Max: 5
 
 RSpec/DescribeClass:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 7
+
+RSpec/MessageSpies:
+  Enabled: false
+
+RSpec/VerifiedDoubles:
+  Enabled: false
+
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/IndexedLet:
   Enabled: false

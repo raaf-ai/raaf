@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 ##
 # Complete Features Showcase - PLANNED API DESIGN DOCUMENTATION
@@ -12,14 +12,14 @@ require_relative "../lib/openai_agents"
 # 📋 STATUS: ~10% implemented, 90% planned (750+ lines of planned features)
 #
 # This comprehensive example shows the intended API design for a fully-featured
-# OpenAI Agents Ruby implementation. Most features represent the vision for 
-# the library and show how various components would work together in a 
-# production environment. The showcase serves as both documentation and a 
+# RAAF (Ruby AI Agents Factory) implementation. Most features represent the vision for
+# the library and show how various components would work together in a
+# production environment. The showcase serves as both documentation and a
 # roadmap for future development.
 #
 # This is NOT a working example - it's an implementation specification.
 
-puts "🚀 OpenAI Agents Ruby - Complete Features Showcase"
+puts "🚀 RAAF (Ruby AI Agents Factory) - Complete Features Showcase"
 puts "=" * 70
 
 puts "\n⚠️  WARNING: This shows PLANNED feature design - most features DON'T work yet!"
@@ -51,7 +51,7 @@ puts "-" * 40
 # Create configuration with environment-based settings
 # The environment parameter determines which configuration file to load
 # and which defaults to apply. Common environments: development, staging, production
-config = OpenAIAgents::Configuration.new(environment: "development")
+config = RAAF::Configuration.new(environment: "development")
 
 # Set configuration values programmatically
 # These override any values loaded from configuration files
@@ -99,7 +99,7 @@ puts "-" * 40
 # Create usage tracker instance
 # The tracker aggregates metrics from all agent interactions and API calls
 # Data can be persisted to various backends (Redis, PostgreSQL, etc.)
-tracker = OpenAIAgents::UsageTracking::UsageTracker.new
+tracker = RAAF::UsageTracking::UsageTracker.new
 
 # Set up usage alerts for proactive monitoring
 # Alerts trigger when specific conditions are met, enabling automated responses
@@ -128,8 +128,8 @@ tracker.track_api_call(
   provider: "openai",
   model: "gpt-4",
   tokens_used: { prompt_tokens: 150, completion_tokens: 75, total_tokens: 225 },
-  cost: 0.0135,  # Calculated based on current pricing
-  duration: 2.3,  # Response time in seconds
+  cost: 0.0135, # Calculated based on current pricing
+  duration: 2.3, # Response time in seconds
   metadata: { agent: "Demo", user_id: "user123" }
 )
 
@@ -162,11 +162,11 @@ puts "-" * 40
 # Register a custom extension using the DSL
 # Extensions are registered globally and can be activated on demand
 # The block-based API provides a clean way to define extension metadata
-OpenAIAgents::Extensions.register(:demo_extension) do |ext|
-  ext.type(:tool)  # Extension types: :tool, :provider, :middleware, :guardrail
-  ext.version("1.0.0")  # Semantic versioning for compatibility
+RAAF::Extensions.register(:demo_extension) do |ext|
+  ext.type(:tool) # Extension types: :tool, :provider, :middleware, :guardrail
+  ext.version("1.0.0") # Semantic versioning for compatibility
   ext.description("A demonstration extension")
-  ext.author("OpenAI Agents Ruby Team")
+  ext.author("RAAF (Ruby AI Agents Factory) Team")
 
   ext.setup do |config|
     puts "    🔧 Setting up Demo Extension with config environment: #{config&.environment}"
@@ -180,7 +180,8 @@ end
 # Create a custom extension class
 # Class-based extensions provide more control and can include complex logic
 # They inherit from BaseExtension which provides lifecycle hooks and utilities
-class WeatherExtension < OpenAIAgents::Extensions::BaseExtension
+class WeatherExtension < RAAF::Extensions::BaseExtension
+
   def self.extension_info
     # Extension metadata used for dependency resolution and compatibility checks
     # Dependencies ensure required extensions are loaded in the correct order
@@ -189,7 +190,7 @@ class WeatherExtension < OpenAIAgents::Extensions::BaseExtension
       type: :tool,
       version: "2.0.0",
       description: "Weather data extension",
-      dependencies: []  # List other extensions this depends on
+      dependencies: [] # List other extensions this depends on
     }
   end
 
@@ -201,19 +202,20 @@ class WeatherExtension < OpenAIAgents::Extensions::BaseExtension
   def activate
     puts "    ✅ Weather Extension activated"
   end
+
 end
 
 # Load the extension class
-OpenAIAgents::Extensions.load_extension(WeatherExtension)
+RAAF::Extensions.load_extension(WeatherExtension)
 
 puts "✅ Extensions framework demonstrated:"
-puts "  Registered extensions: #{OpenAIAgents::Extensions.list.length}"
+puts "  Registered extensions: #{RAAF::Extensions.list.length}"
 
 # Activate extensions
-OpenAIAgents::Extensions.activate(:demo_extension, config)
-OpenAIAgents::Extensions.activate(:weather_extension, config)
+RAAF::Extensions.activate(:demo_extension, config)
+RAAF::Extensions.activate(:weather_extension, config)
 
-puts "  Active extensions: #{OpenAIAgents::Extensions.active_extensions.length}"
+puts "  Active extensions: #{RAAF::Extensions.active_extensions.length}"
 
 # =============================================================================
 # 4. Advanced Agent Creation with All Features
@@ -229,7 +231,7 @@ puts "-" * 40
 # Create agents with full configuration
 # Note how configuration values are pulled from the centralized config object
 # This ensures consistency across all agents while allowing overrides
-customer_support = OpenAIAgents::Agent.new(
+customer_support = RAAF::Agent.new(
   name: "CustomerSupport",
   instructions: "You are a helpful customer support agent. You can help with billing, technical issues, " \
                 "and general inquiries.",
@@ -237,14 +239,14 @@ customer_support = OpenAIAgents::Agent.new(
   max_turns: config.agent.max_turns   # Prevents infinite loops
 )
 
-technical_support = OpenAIAgents::Agent.new(
+technical_support = RAAF::Agent.new(
   name: "TechnicalSupport",
   instructions: "You are a technical support specialist. You handle complex technical issues and troubleshooting.",
   model: "gpt-4o", # Python-aligned default model
   max_turns: 20
 )
 
-billing_specialist = OpenAIAgents::Agent.new(
+billing_specialist = RAAF::Agent.new(
   name: "BillingSpecialist",
   instructions: "You are a billing specialist. You handle all billing inquiries, refunds, and payment issues.",
   model: "claude-3-5-sonnet-20241022",
@@ -270,30 +272,30 @@ puts "-" * 40
 # Create advanced tools
 # FileSearchTool provides semantic search across local files
 # It indexes content and can find relevant information even with fuzzy queries
-file_search = OpenAIAgents::Tools::FileSearchTool.new(
-  search_paths: ["."],  # Directories to search
-  file_extensions: [".rb", ".md", ".txt"],  # File types to include
-  max_results: 5  # Limit results for performance
+file_search = RAAF::Tools::FileSearchTool.new(
+  search_paths: ["."], # Directories to search
+  file_extensions: [".rb", ".md", ".txt"], # File types to include
+  max_results: 5 # Limit results for performance
 )
 
 # Create hosted tools (using OpenAI's hosted services)
 # WebSearchTool integrates with web search APIs for real-time information
 # The location context helps provide relevant local results
-web_search = OpenAIAgents::Tools::WebSearchTool.new(
+web_search = RAAF::Tools::WebSearchTool.new(
   user_location: { type: "approximate", city: "San Francisco" },
-  search_context_size: "high"  # More context for better results
+  search_context_size: "high" # More context for better results
 )
 
 # Hosted file search tool (alternative to local file search)
 # This uses OpenAI's infrastructure to search through uploaded files
 # More scalable than local search for large document collections
-hosted_file_search = OpenAIAgents::Tools::HostedFileSearchTool.new(
+hosted_file_search = RAAF::Tools::HostedFileSearchTool.new(
   file_ids: %w[file-abc123 file-def456], # Replace with actual uploaded file IDs
-  ranking_options: { "boost_for_code_snippets" => true }  # Prioritize code in results
+  ranking_options: { "boost_for_code_snippets" => true } # Prioritize code in results
 )
 
 # Hosted computer tool (alternative to local computer control)
-hosted_computer = OpenAIAgents::Tools::HostedComputerTool.new(
+hosted_computer = RAAF::Tools::HostedComputerTool.new(
   display_width_px: 1920,
   display_height_px: 1080
 )
@@ -329,7 +331,7 @@ puts "-" * 40
 
 # Create advanced handoff manager
 # The max_handoffs parameter prevents infinite loops between agents
-handoff_manager = OpenAIAgents::Handoffs::AdvancedHandoff.new(max_handoffs: 3)
+handoff_manager = RAAF::Handoffs::AdvancedHandoff.new(max_handoffs: 3)
 
 # Add agents with capabilities
 handoff_manager.add_agent(
@@ -417,10 +419,10 @@ puts "-" * 40
 
 # Create voice workflow (note: requires OpenAI API key for actual use)
 # Each component can be configured independently for optimal performance
-voice_workflow = OpenAIAgents::Voice::VoiceWorkflow.new(
-  transcription_model: "whisper-1",  # OpenAI's speech recognition model
-  tts_model: "tts-1",  # Text-to-speech model (tts-1 for speed, tts-1-hd for quality)
-  voice: "alloy",  # Voice options: alloy, echo, fable, onyx, nova, shimmer
+voice_workflow = RAAF::Voice::VoiceWorkflow.new(
+  transcription_model: "whisper-1", # OpenAI's speech recognition model
+  tts_model: "tts-1", # Text-to-speech model (tts-1 for speed, tts-1-hd for quality)
+  voice: "alloy", # Voice options: alloy, echo, fable, onyx, nova, shimmer
   api_key: "demo-key-for-testing" # Would use real key in production
 )
 
@@ -428,7 +430,7 @@ puts "✅ Voice workflow system configured:"
 puts "  Transcription model: #{voice_workflow.transcription_model}"
 puts "  TTS model: #{voice_workflow.tts_model}"
 puts "  Voice: #{voice_workflow.voice}"
-puts "  Supported formats: #{OpenAIAgents::Voice::VoiceWorkflow::SUPPORTED_FORMATS.join(", ")}"
+puts "  Supported formats: #{RAAF::Voice::VoiceWorkflow::SUPPORTED_FORMATS.join(", ")}"
 
 # Demonstrate voice workflow structure (without actual API calls)
 puts "  Voice workflow capabilities:"
@@ -444,7 +446,7 @@ puts "\n8. 📈 Enhanced Tracing and Visualization"
 puts "-" * 40
 
 # Create enhanced tracer (now uses ResponsesProvider by default, matching Python)
-tracer = OpenAIAgents.tracer
+tracer = RAAF.tracer
 
 puts "✅ Enhanced tracing configured:"
 
@@ -479,9 +481,9 @@ puts "    Duration: #{summary[:total_duration_ms]}ms"
 puts "    Status: #{summary[:status]}"
 
 # Create visualization
-workflow_viz = OpenAIAgents::Visualization::WorkflowVisualizer.new([
-                                                                     customer_support, technical_support, billing_specialist
-                                                                   ])
+workflow_viz = RAAF::Visualization::WorkflowVisualizer.new([
+                                                             customer_support, technical_support, billing_specialist
+                                                           ])
 
 puts "\n  📊 Workflow visualization:"
 puts workflow_viz.render_ascii
@@ -493,19 +495,19 @@ puts "\n9. 🛡️  Guardrails and Safety Systems"
 puts "-" * 40
 
 # Create comprehensive guardrail system
-guardrails = OpenAIAgents::Guardrails::GuardrailManager.new
+guardrails = RAAF::Guardrails::GuardrailManager.new
 
 # Add content safety
-guardrails.add_guardrail(OpenAIAgents::Guardrails::ContentSafetyGuardrail.new)
+guardrails.add_guardrail(RAAF::Guardrails::ContentSafetyGuardrail.new)
 
 # Add length validation
-guardrails.add_guardrail(OpenAIAgents::Guardrails::LengthGuardrail.new(
+guardrails.add_guardrail(RAAF::Guardrails::LengthGuardrail.new(
                            max_input_length: 5000,
                            max_output_length: 3000
                          ))
 
 # Add rate limiting
-guardrails.add_guardrail(OpenAIAgents::Guardrails::RateLimitGuardrail.new(
+guardrails.add_guardrail(RAAF::Guardrails::RateLimitGuardrail.new(
                            max_requests_per_minute: 30
                          ))
 
@@ -518,7 +520,7 @@ user_schema = {
   required: ["query"]
 }
 
-guardrails.add_guardrail(OpenAIAgents::Guardrails::SchemaGuardrail.new(
+guardrails.add_guardrail(RAAF::Guardrails::SchemaGuardrail.new(
                            input_schema: user_schema
                          ))
 
@@ -530,7 +532,7 @@ test_input = { query: "Help me with my account" }
 begin
   guardrails.validate_input(test_input)
   puts "  ✅ Input validation passed"
-rescue OpenAIAgents::Guardrails::GuardrailError => e
+rescue RAAF::Guardrails::GuardrailError => e
   puts "  ❌ Input validation failed: #{e.message}"
 end
 
@@ -541,7 +543,7 @@ puts "\n10. 📋 Structured Output and Schema Validation"
 puts "-" * 40
 
 # Create sophisticated schema
-customer_response_schema = OpenAIAgents::StructuredOutput::ObjectSchema.build do
+customer_response_schema = RAAF::StructuredOutput::ObjectSchema.build do
   string :response_type, required: true, enum: %w[information action escalation]
   string :message, required: true, min_length: 1, max_length: 1000
   number :confidence_score, required: true, minimum: 0.0, maximum: 1.0
@@ -577,7 +579,7 @@ begin
   puts "  ✅ Schema validation passed"
   puts "  Response type: #{validated_response[:response_type]}"
   puts "  Confidence: #{(validated_response[:confidence_score] * 100).round(1)}%"
-rescue OpenAIAgents::StructuredOutput::ValidationError => e
+rescue RAAF::StructuredOutput::ValidationError => e
   puts "  ❌ Schema validation failed: #{e.message}"
 end
 
@@ -644,7 +646,7 @@ puts "  Handoffs enabled: Advanced routing with capability matching"
 puts "  Tracing active: Enhanced span-based monitoring"
 
 puts "\n  🚀 To start interactive session, run:"
-puts "     repl = OpenAIAgents::REPL.new(agent: customer_support, tracer: tracer)"
+puts "     repl = RAAF::REPL.new(agent: customer_support, tracer: tracer)"
 puts "     repl.start"
 
 # =============================================================================
@@ -653,8 +655,10 @@ puts "     repl.start"
 puts "\n13. 📦 Batch Processing (50% Cost Savings)"
 puts "-" * 40
 
-# Create batch processor
-OpenAIAgents::BatchProcessor.new
+# ❌ PLANNED: Create batch processor
+# RAAF::BatchProcessor is not implemented yet
+puts "⚠️  WARNING: RAAF::BatchProcessor is not implemented yet"
+# RAAF::BatchProcessor.new  # Commented out until implemented
 
 # Prepare sample batch requests
 batch_requests = [
@@ -746,7 +750,7 @@ puts "   📋 REPL Interface - Interactive development environment"
 puts "   📋 Batch Processing - 50% cost savings on bulk operations"
 
 puts "\n🚀 ACTUAL FRAMEWORK STATUS:"
-puts "   📋 ~10% Feature Parity with Python OpenAI Agents (basic functionality works)"
+puts "   📋 ~10% Feature Parity with Python RAAF (basic functionality works)"
 puts "   🚧 Architecture Designed (but not fully implemented)"
 puts "   📚 Comprehensive Design Documentation (this file)"
 puts "   ⚠️  Examples Mix Working and Planned Features"
@@ -768,5 +772,5 @@ puts "   - API design reference for 750+ lines of planned features"
 puts "   - Vision for a fully-featured Ruby agents framework"
 
 puts "\n#{"=" * 70}"
-puts "OpenAI Agents Ruby - Comprehensive Design Documentation! 📋"
+puts "RAAF (Ruby AI Agents Factory) - Comprehensive Design Documentation! 📋"
 puts "=" * 70

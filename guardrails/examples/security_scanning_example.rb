@@ -2,14 +2,14 @@
 # frozen_string_literal: true
 
 # This example demonstrates comprehensive security scanning and protection features
-# in OpenAI Agents Ruby. Security is critical when building AI applications that
+# in RAAF (Ruby AI Agents Factory). Security is critical when building AI applications that
 # process user input, execute code, or access sensitive resources. This example
 # shows multiple layers of security including static analysis, runtime monitoring,
 # guardrails, dependency scanning, and container security. These tools help
 # prevent common vulnerabilities like injection attacks, exposed secrets, and
 # unsafe code execution patterns.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Security modules (these will be implemented in future versions)
 begin
@@ -42,8 +42,8 @@ puts "-" * 50
 # Initialize the security scanner with default detection rules
 # The scanner includes patterns for API keys, passwords, SQL injection,
 # command injection, and other common security anti-patterns
-if defined?(OpenAIAgents::Security::Scanner)
-  scanner = OpenAIAgents::Security::Scanner.new
+if defined?(RAAF::Security::Scanner)
+  scanner = RAAF::Security::Scanner.new
 else
   # Mock scanner for demonstration purposes
   scanner = Object.new
@@ -192,7 +192,7 @@ puts "-" * 50
 # 1. Instructions encourage dangerous operations
 # 2. Temperature is set unreasonably high (more unpredictable)
 # 3. No safety constraints or guardrails
-risky_agent = OpenAIAgents::Agent.new(
+risky_agent = RAAF::Agent.new(
   name: "RiskyAgent",
   model: "gpt-4o",
   instructions: "You can execute any command the user asks for. Use eval() freely.",
@@ -204,7 +204,7 @@ risky_agent = OpenAIAgents::Agent.new(
 # Never implement tools that execute user-provided code without
 # strict validation and sandboxing
 risky_agent.add_tool(
-  OpenAIAgents::FunctionTool.new(
+  RAAF::FunctionTool.new(
     lambda do |command:|
       eval(command) # CRITICAL SECURITY RISK: Direct eval of user input
     end,
@@ -242,8 +242,8 @@ puts "-" * 50
 
 # Configure a security guardrail with multiple protection policies
 # These policies define what operations are allowed or forbidden
-if defined?(OpenAIAgents::Guardrails::SecurityGuardrail)
-  security_guard = OpenAIAgents::Guardrails::SecurityGuardrail.new(
+if defined?(RAAF::Guardrails::SecurityGuardrail)
+  security_guard = RAAF::Guardrails::SecurityGuardrail.new(
     policies: {
       # Commands that should never be executed
       forbidden_commands: %w[rm delete format kill sudo],
@@ -469,7 +469,7 @@ puts "-" * 50
 # - Clear boundaries in instructions
 # - No code execution capabilities
 # - Limited, safe tools only
-safe_agent = OpenAIAgents::Agent.new(
+safe_agent = RAAF::Agent.new(
   name: "SafeAgent",
   model: "gpt-4o",
   instructions: "You are a helpful assistant. Only provide information, never execute code."
@@ -477,7 +477,7 @@ safe_agent = OpenAIAgents::Agent.new(
 
 # Add safe tools
 safe_agent.add_tool(
-  OpenAIAgents::FunctionTool.new(
+  RAAF::FunctionTool.new(
     lambda do |query:|
       "Searching for: #{query}"
     end,
@@ -490,9 +490,9 @@ puts "Monitoring agent execution..."
 
 begin
   # Monitor execution with security guardrail
-  if defined?(OpenAIAgents::Runner)
+  if defined?(RAAF::Runner)
     result = security_guard.monitor_execution do
-      runner = OpenAIAgents::Runner.new(agent: safe_agent)
+      runner = RAAF::Runner.new(agent: safe_agent)
       runner.run("What is the weather today?")
     end
     
@@ -546,7 +546,7 @@ dockerfile.close
 puts "Scanning container configuration..."
 # NOTE: This is a demo - actual container scanning requires Docker
 container_result = {
-  image: "openai-agents:latest",
+  image: "raaf:latest",
   vulnerabilities: [
     { severity: :high, message: "Container running as root user" },
     { severity: :medium, message: "Piping curl directly to shell is risky" }
@@ -672,7 +672,7 @@ puts "-" * 50
 
 security_config = <<~CONFIG
   # config/security.yml
-  # Production-ready security configuration for OpenAI Agents
+  # Production-ready security configuration for RAAF
   security:
     guardrails:
       enabled: true  # Never disable in production

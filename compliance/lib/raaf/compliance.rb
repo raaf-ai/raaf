@@ -6,11 +6,11 @@ require "digest"
 require "fileutils"
 require "logger"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Compliance and audit logging system
   #
-  # This module provides comprehensive compliance and audit capabilities for OpenAI Agents,
+  # This module provides comprehensive compliance and audit capabilities for RAAF,
   # including audit logging, policy management, PII detection, data retention, and
   # regulatory compliance monitoring. It's designed to meet enterprise compliance
   # requirements including GDPR, HIPAA, SOX, and other regulatory frameworks.
@@ -61,7 +61,7 @@ module RubyAIAgentsFactory
   #   monitor.start_monitoring
   #   compliance_status = monitor.check_compliance
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see AuditLogger For audit trail management
   # @see PolicyManager For policy enforcement
@@ -70,7 +70,7 @@ module RubyAIAgentsFactory
     ##
     # Audit logger for compliance tracking
     #
-    # The AuditLogger provides comprehensive audit trail capabilities for OpenAI Agents,
+    # The AuditLogger provides comprehensive audit trail capabilities for RAAF,
     # tracking all agent executions, tool usage, data access, and security events.
     # It supports multiple storage backends, encryption, and configurable retention
     # policies to meet various compliance requirements.
@@ -120,7 +120,7 @@ module RubyAIAgentsFactory
     #     retention_days: 2555
     #   )
     #
-    # @author OpenAI Agents Ruby Team
+    # @author RAAF (Ruby AI Agents Factory) Team
     # @since 0.1.0
     # @see PolicyManager For policy-based audit configuration
     class AuditLogger

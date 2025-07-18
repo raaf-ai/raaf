@@ -3,7 +3,7 @@
 require "spec_helper"
 require "openai_agents/memory/memory"
 
-RSpec.describe OpenAIAgents::Memory::Memory do
+RSpec.describe RAAF::Memory::Memory do
   describe "#initialize" do
     it "creates a memory with required content" do
       memory = described_class.new(content: "Test content")

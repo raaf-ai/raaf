@@ -10,7 +10,7 @@ require_relative "../token_estimator"
 require_relative "../logging"
 require_relative "../streaming_events"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     ##
     # Provider for OpenAI's Responses API (recommended default)
@@ -24,7 +24,7 @@ module RubyAIAgentsFactory
     # - Better streaming support
     #
     # This provider maintains exact structural alignment with the Python
-    # OpenAI Agents SDK for full compatibility.
+    # RAAF SDK for full compatibility.
     #
     # @example Basic usage
     #   provider = ResponsesProvider.new(api_key: ENV['OPENAI_API_KEY'])
@@ -236,7 +236,7 @@ module RubyAIAgentsFactory
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
-        request["User-Agent"] = "Agents/Ruby #{RubyAIAgentsFactory::VERSION}"
+        request["User-Agent"] = "Agents/Ruby #{RAAF::VERSION}"
 
         request.body = body.to_json
 
@@ -311,7 +311,7 @@ module RubyAIAgentsFactory
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
-        request["User-Agent"] = "Agents/Ruby #{RubyAIAgentsFactory::VERSION}"
+        request["User-Agent"] = "Agents/Ruby #{RAAF::VERSION}"
         request["Accept"] = "text/event-stream"
         request["Cache-Control"] = "no-cache"
 
@@ -483,7 +483,7 @@ module RubyAIAgentsFactory
             else
               converted_tools << tool
             end
-          when RubyAIAgentsFactory::FunctionTool
+          when RAAF::FunctionTool
             # Convert FunctionTool to Responses API format
             converted_tools << {
               type: "function",
@@ -492,7 +492,7 @@ module RubyAIAgentsFactory
               parameters: prepare_function_parameters(tool.parameters),
               strict: determine_strict_mode(tool.parameters)
             }
-          when RubyAIAgentsFactory::Tools::WebSearchTool
+          when RAAF::Tools::WebSearchTool
             # Convert to hosted web search tool
             converted_tools << { type: "web_search" }
             includes << "web_search_call.results"

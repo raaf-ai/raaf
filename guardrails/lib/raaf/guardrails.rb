@@ -6,7 +6,7 @@ require_relative "guardrails/input_guardrail"
 require_relative "guardrails/output_guardrail"
 require_relative "guardrails/built_in"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Guardrails provide safety and validation mechanisms for agent conversations
   #
@@ -29,33 +29,33 @@ module RubyAIAgentsFactory
   # - `topic_relevance_guardrail`: Ensures content stays on topic
   #
   # @example Using built-in guardrails
-  #   agent = RubyAIAgentsFactory::Agent.new(name: "Support")
+  #   agent = RAAF::Agent.new(name: "Support")
   #   
   #   # Add input validation
   #   agent.add_input_guardrail(
-  #     RubyAIAgentsFactory::Guardrails.profanity_guardrail
+  #     RAAF::Guardrails.profanity_guardrail
   #   )
   #   
   #   # Add output validation
   #   agent.add_output_guardrail(
-  #     RubyAIAgentsFactory::Guardrails.pii_guardrail(
+  #     RAAF::Guardrails.pii_guardrail(
   #       tripwire: true,
   #       redact: true
   #     )
   #   )
   #
   # @example Creating custom guardrails
-  #   custom_guardrail = RubyAIAgentsFactory::Guardrails.create_input_guardrail(
+  #   custom_guardrail = RAAF::Guardrails.create_input_guardrail(
   #     name: "business_hours",
   #     validate: ->(context, agent, input) {
   #       if Time.now.hour < 9 || Time.now.hour > 17
-  #         RubyAIAgentsFactory::Guardrails::GuardrailResult.new(
+  #         RAAF::Guardrails::GuardrailResult.new(
   #           safe: false,
   #           flagged: true,
   #           explanation: "Support is only available 9 AM - 5 PM"
   #         )
   #       else
-  #         RubyAIAgentsFactory::Guardrails::GuardrailResult.new(safe: true)
+  #         RAAF::Guardrails::GuardrailResult.new(safe: true)
   #       end
   #     }
   #   )

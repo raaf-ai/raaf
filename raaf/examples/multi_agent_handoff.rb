@@ -14,20 +14,20 @@ puts "=== Multi-Agent Handoff Example ==="
 puts
 
 # Create specialized agents
-math_agent = RubyAIAgentsFactory::Agent.new(
+math_agent = RAAF::Agent.new(
   name: "MathExpert",
   instructions: "You are a mathematics expert. Solve math problems step by step.",
   model: "gpt-4o"
 )
 
-weather_agent = RubyAIAgentsFactory::Agent.new(
+weather_agent = RAAF::Agent.new(
   name: "WeatherBot",
   instructions: "You are a weather specialist. Provide weather information.",
   model: "gpt-4o"
 )
 
 # Create a coordinator agent that can hand off to specialists
-coordinator = RubyAIAgentsFactory::Agent.new(
+coordinator = RAAF::Agent.new(
   name: "Coordinator",
   instructions: "You are a coordinator. Route questions to appropriate specialists.",
   model: "gpt-4o",
@@ -41,7 +41,7 @@ puts "  - #{weather_agent.name} (specialist)"
 puts
 
 # Create runner for the coordinator
-runner = RubyAIAgentsFactory::Runner.new(agent: coordinator)
+runner = RAAF::Runner.new(agent: coordinator)
 
 # Test handoff scenarios
 test_scenarios = [

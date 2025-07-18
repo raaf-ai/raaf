@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Utilities for ensuring strict JSON schemas compatible with OpenAI's requirements
   #
@@ -49,11 +50,13 @@ module RubyAIAgentsFactory
   #   }
   #   strict_params = StrictSchema.ensure_strict_json_schema(function_schema[:parameters])
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see https://platform.openai.com/docs/guides/structured-outputs OpenAI Structured Outputs
   module StrictSchema
+
     class << self
+
       ##
       # Ensures the given JSON schema conforms to the strict standard that OpenAI API expects
       #
@@ -283,6 +286,9 @@ module RubyAIAgentsFactory
 
         json_schema
       end
+
     end
+
   end
+
 end

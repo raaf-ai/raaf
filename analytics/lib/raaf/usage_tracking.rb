@@ -4,7 +4,7 @@ require "json"
 require "time"
 require "digest"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # UsageTracking - Comprehensive resource monitoring and analytics system
   #
@@ -26,7 +26,7 @@ module RubyAIAgentsFactory
   # == Basic Usage
   #
   #   # Create usage tracker
-  #   tracker = RubyAIAgentsFactory::UsageTracking::UsageTracker.new
+  #   tracker = RAAF::UsageTracking::UsageTracker.new
   #
   #   # Track API usage
   #   tracker.track_api_call(
@@ -66,14 +66,14 @@ module RubyAIAgentsFactory
   #     usage[:tokens_today] > 1_000_000
   #   end
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   module UsageTracking
     ##
     # UsageTracker - Main usage tracking and analytics engine
     #
     # Central component for collecting, storing, and analyzing usage data across
-    # all OpenAI Agents operations.
+    # all RAAF operations.
     class UsageTracker
       attr_reader :storage, :alerts, :custom_metrics
 
@@ -85,11 +85,11 @@ module RubyAIAgentsFactory
       # @param retention_days [Integer] days to retain usage data (default: 90)
       #
       # @example Create with default settings
-      #   tracker = RubyAIAgentsFactory::UsageTracking::UsageTracker.new
+      #   tracker = RAAF::UsageTracking::UsageTracker.new
       #
       # @example Create with custom storage
-      #   storage = RubyAIAgentsFactory::UsageTracking::DatabaseStorage.new(connection)
-      #   tracker = RubyAIAgentsFactory::UsageTracking::UsageTracker.new(storage: storage)
+      #   storage = RAAF::UsageTracking::DatabaseStorage.new(connection)
+      #   tracker = RAAF::UsageTracking::UsageTracker.new(storage: storage)
       def initialize(storage: nil, enable_real_time: true, retention_days: 90)
         @storage = storage || MemoryStorage.new
         @enable_real_time = enable_real_time

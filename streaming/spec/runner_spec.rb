@@ -4,9 +4,9 @@ require "spec_helper"
 require "async"
 require "openai_agents/async"
 
-RSpec.describe OpenAIAgents::Async::Runner do
+RSpec.describe RAAF::Async::Runner do
   let(:agent) do
-    OpenAIAgents::Agent.new(
+    RAAF::Agent.new(
       name: "AsyncTestAgent",
       instructions: "You are a helpful assistant.",
       model: "gpt-4o"
@@ -36,7 +36,7 @@ RSpec.describe OpenAIAgents::Async::Runner do
     end
 
     it "wraps synchronous providers in AsyncProviderWrapper" do
-      sync_provider = OpenAIAgents::Models::OpenAIProvider.new
+      sync_provider = RAAF::Models::OpenAIProvider.new
       runner = described_class.new(agent: agent, provider: sync_provider)
       
       async_provider = runner.instance_variable_get(:@async_provider)
@@ -56,7 +56,7 @@ RSpec.describe OpenAIAgents::Async::Runner do
     let(:runner) { described_class.new(agent: agent) }
 
     before do
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion).and_return(mock_response)
     end
 
@@ -68,14 +68,14 @@ RSpec.describe OpenAIAgents::Async::Runner do
     it "processes messages asynchronously" do
       Async do
         result = runner.run_async(messages).wait
-        expect(result).to be_a(OpenAIAgents::RunResult)
+        expect(result).to be_a(RAAF::RunResult)
         expect(result.messages.size).to eq(2) # user + assistant
         expect(result.messages.last[:role]).to eq("assistant")
       end
     end
 
     it "handles config parameters" do
-      config = OpenAIAgents::RunConfig.new(max_turns: 5)
+      config = RAAF::RunConfig.new(max_turns: 5)
       
       Async do
         result = runner.run_async(messages, config: config).wait
@@ -96,21 +96,21 @@ RSpec.describe OpenAIAgents::Async::Runner do
     let(:runner) { described_class.new(agent: agent) }
 
     before do
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion).and_return(mock_response)
     end
 
     it "waits for async completion synchronously" do
       result = runner.run(messages)
-      expect(result).to be_a(OpenAIAgents::RunResult)
+      expect(result).to be_a(RAAF::RunResult)
       expect(result.messages.last[:content]).to eq("Hello! How can I help you?")
     end
   end
 
   describe "async tool execution" do
     let(:agent_with_tools) do
-      agent = OpenAIAgents::Agent.new(name: "AsyncToolAgent")
-      agent.add_tool(OpenAIAgents::FunctionTool.new(
+      agent = RAAF::Agent.new(name: "AsyncToolAgent")
+      agent.add_tool(RAAF::FunctionTool.new(
                        proc { |x:| x * 2 },
                        name: "double",
                        description: "Doubles a number"
@@ -159,7 +159,7 @@ RSpec.describe OpenAIAgents::Async::Runner do
     end
 
     before do
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion)
         .and_return(tool_response, final_response)
     end
@@ -179,14 +179,14 @@ RSpec.describe OpenAIAgents::Async::Runner do
 
   describe "async agent handoffs" do
     let(:handoff_agent) do
-      OpenAIAgents::Agent.new(
+      RAAF::Agent.new(
         name: "HandoffAgent",
         instructions: "I handle handoffs"
       )
     end
 
     let(:main_agent) do
-      agent = OpenAIAgents::Agent.new(
+      agent = RAAF::Agent.new(
         name: "MainAgent",
         instructions: "I can hand off to other agents"
       )
@@ -225,7 +225,7 @@ RSpec.describe OpenAIAgents::Async::Runner do
     end
 
     before do
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion)
         .and_return(handoff_response, handoff_final_response)
     end
@@ -244,14 +244,14 @@ RSpec.describe OpenAIAgents::Async::Runner do
     let(:runner) { described_class.new(agent: agent) }
 
     it "handles API errors gracefully" do
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion)
-        .and_raise(OpenAIAgents::APIError, "API failed")
+        .and_raise(RAAF::APIError, "API failed")
 
       Async do
         expect do
           runner.run_async(messages).wait
-        end.to raise_error(OpenAIAgents::APIError, "API failed")
+        end.to raise_error(RAAF::APIError, "API failed")
       end
     end
 
@@ -281,19 +281,19 @@ RSpec.describe OpenAIAgents::Async::Runner do
         ]
       }
 
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion).and_return(loop_response)
 
       Async do
         expect do
           runner.run_async(messages).wait
-        end.to raise_error(OpenAIAgents::MaxTurnsError)
+        end.to raise_error(RAAF::MaxTurnsError)
       end
     end
   end
 
   describe "AsyncProviderWrapper" do
-    let(:sync_provider) { OpenAIAgents::Models::OpenAIProvider.new }
+    let(:sync_provider) { RAAF::Models::OpenAIProvider.new }
     let(:wrapper) { described_class::AsyncProviderWrapper.new(sync_provider) }
 
     it "wraps synchronous providers" do
@@ -319,14 +319,14 @@ RSpec.describe OpenAIAgents::Async::Runner do
   end
 
   describe "tracing support" do
-    let(:tracer) { OpenAIAgents::Tracing::SpanTracer.new }
+    let(:tracer) { RAAF::Tracing::SpanTracer.new }
     let(:runner) { described_class.new(agent: agent, tracer: tracer, disabled_tracing: false) }
 
     before do
       # Mock both sync and async methods to ensure compatibility
-      allow_any_instance_of(OpenAIAgents::Models::ResponsesProvider)
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
         .to receive(:chat_completion).and_return(mock_response)
-      allow_any_instance_of(OpenAIAgents::Async::Runner::AsyncProviderWrapper)
+      allow_any_instance_of(RAAF::Async::Runner::AsyncProviderWrapper)
         .to receive(:async_chat_completion).and_return(
           Async { mock_response }
         )
@@ -334,8 +334,8 @@ RSpec.describe OpenAIAgents::Async::Runner do
 
     it "creates proper span hierarchy for async operations" do
       # Temporarily enable tracing for this test
-      original_env = ENV.fetch("OPENAI_AGENTS_DISABLE_TRACING", nil)
-      ENV["OPENAI_AGENTS_DISABLE_TRACING"] = "false"
+      original_env = ENV.fetch("RAAF_DISABLE_TRACING", nil)
+      ENV["RAAF_DISABLE_TRACING"] = "false"
       
       # Create a new runner with tracing enabled
       test_runner = described_class.new(agent: agent, tracer: tracer, disabled_tracing: false)
@@ -356,7 +356,7 @@ RSpec.describe OpenAIAgents::Async::Runner do
       expect(agent_spans.first.name).to include("AsyncTestAgent")
       
       # Restore environment
-      ENV["OPENAI_AGENTS_DISABLE_TRACING"] = original_env
+      ENV["RAAF_DISABLE_TRACING"] = original_env
     end
   end
 end

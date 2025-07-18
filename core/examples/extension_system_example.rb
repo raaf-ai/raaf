@@ -4,7 +4,7 @@
 # Extension System Example
 #
 # This example demonstrates the comprehensive plugin architecture built into
-# the OpenAI Agents Ruby gem. The extension system provides:
+# the RAAF (Ruby AI Agents Factory) gem. The extension system provides:
 #
 # - Plugin discovery and dynamic loading
 # - Extension lifecycle management
@@ -19,9 +19,8 @@
 # - Plugin marketplace and ecosystem
 # - Enterprise customization and extensions
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 require_relative "../lib/openai_agents/extensions"
-require "set"
 
 # ============================================================================
 # ENVIRONMENT VALIDATION
@@ -56,7 +55,7 @@ puts "\n=== Example 2: Creating and Registering Extensions ==="
 puts "📝 Registering extensions..."
 
 # Register a weather tool extension
-weather_ext = OpenAIAgents::Extensions.register(:weather_tool) do |ext|
+RAAF::Extensions.register(:weather_tool) do |ext|
   ext.type(:tool)
   ext.version("1.0.0")
   ext.description("Provides weather information")
@@ -66,7 +65,7 @@ end
 puts "✅ Registered weather_tool extension"
 
 # Register a custom agent extension
-agent_ext = OpenAIAgents::Extensions.register(:custom_agent) do |ext|
+RAAF::Extensions.register(:custom_agent) do |ext|
   ext.type(:agent)
   ext.version("1.0.0")
   ext.description("A custom agent with enhanced capabilities")
@@ -77,7 +76,7 @@ end
 puts "✅ Registered custom_agent extension"
 
 # Register a monitoring extension
-monitor_ext = OpenAIAgents::Extensions.register(:monitoring) do |ext|
+RAAF::Extensions.register(:monitoring) do |ext|
   ext.type(:processor)
   ext.version("1.0.0")
   ext.description("Monitors agent performance")
@@ -90,17 +89,17 @@ puts "✅ Registered monitoring extension"
 puts "\n=== Example 3: Extension Registry Access ==="
 
 puts "📚 Registered extensions:"
-OpenAIAgents::Extensions.registry.each do |name, extension|
+RAAF::Extensions.registry.each_value do |extension|
   puts "  - #{extension.name} v#{extension.version} (#{extension.type})"
   puts "    Description: #{extension.description}"
   if extension.dependencies && !extension.dependencies.empty?
-    puts "    Dependencies: #{extension.dependencies.join(', ')}"
+    puts "    Dependencies: #{extension.dependencies.join(", ")}"
   end
 end
 
 puts "\n📊 Registry summary:"
-puts "  - Total extensions: #{OpenAIAgents::Extensions.registry.length}"
-puts "  - Active extensions: #{OpenAIAgents::Extensions.active_extensions.length}"
+puts "  - Total extensions: #{RAAF::Extensions.registry.length}"
+puts "  - Active extensions: #{RAAF::Extensions.active_extensions.length}"
 
 # Example 4: Extension Activation and Lifecycle
 puts "\n=== Example 4: Extension Activation and Lifecycle ==="
@@ -110,28 +109,28 @@ puts "🚀 Activating extensions..."
 
 begin
   # Activate weather tool extension
-  OpenAIAgents::Extensions.activate(:weather_tool)
+  RAAF::Extensions.activate(:weather_tool)
   puts "✅ Activated weather_tool"
 
   # Activate monitoring extension
-  OpenAIAgents::Extensions.activate(:monitoring)
+  RAAF::Extensions.activate(:monitoring)
   puts "✅ Activated monitoring"
 
   # Try to activate custom agent (should handle dependency)
-  OpenAIAgents::Extensions.activate(:custom_agent)
+  RAAF::Extensions.activate(:custom_agent)
   puts "✅ Activated custom_agent"
-
-rescue => e
+rescue StandardError => e
   puts "ℹ️  Demo mode: Extension activation simulated (#{e.class.name})"
 end
 
-puts "\n📈 Active extensions: #{OpenAIAgents::Extensions.active_extensions.to_a.join(', ')}"
+puts "\n📈 Active extensions: #{RAAF::Extensions.active_extensions.to_a.join(", ")}"
 
 # Example 5: Creating Custom Extension Class
 puts "\n=== Example 5: Creating Custom Extension Class ==="
 
 # Define a custom extension class
-class WeatherServiceExtension < OpenAIAgents::Extensions::BaseExtension
+class WeatherServiceExtension < RAAF::Extensions::BaseExtension
+
   def self.extension_info
     {
       name: "Weather Service",
@@ -159,16 +158,17 @@ class WeatherServiceExtension < OpenAIAgents::Extensions::BaseExtension
   def get_weather(location)
     "Weather in #{location}: Sunny, 22°C"
   end
+
 end
 
 # Load the extension class
 begin
-  weather_service = OpenAIAgents::Extensions.load_extension(WeatherServiceExtension)
+  weather_service = RAAF::Extensions.load_extension(WeatherServiceExtension)
   puts "✅ Loaded WeatherServiceExtension"
   puts "  Name: #{weather_service.name}"
   puts "  Version: #{weather_service.version}"
   puts "  Type: #{weather_service.type}"
-rescue => e
+rescue StandardError => e
   puts "ℹ️  Demo mode: Extension class loading simulated (#{e.class.name})"
 end
 
@@ -178,7 +178,7 @@ puts "\n=== Example 6: Extension Discovery Simulation ==="
 # Simulate extension discovery from paths
 extension_paths = [
   "./extensions",
-  "~/.openai_agents/extensions",
+  "~/.raaf/extensions",
   "/usr/local/lib/openai_agents/extensions"
 ]
 
@@ -226,12 +226,12 @@ puts "  - React to tool executions"
 puts "  - Monitor conversation flow"
 puts "  - Extend core functionality"
 
-sample_hooks = [
-  "before_agent_run",
-  "after_tool_call",
-  "on_error",
-  "conversation_complete",
-  "extension_loaded"
+sample_hooks = %w[
+  before_agent_run
+  after_tool_call
+  on_error
+  conversation_complete
+  extension_loaded
 ]
 
 puts "\n📌 Available hook points:"
@@ -245,10 +245,10 @@ end
 
 puts "\n=== Configuration ==="
 config_info = {
-  extensions_module: "OpenAIAgents::Extensions",
-  registry_size: OpenAIAgents::Extensions.registry.length,
-  active_extensions: OpenAIAgents::Extensions.active_extensions.length,
-  base_extension_class: "OpenAIAgents::Extensions::BaseExtension",
+  extensions_module: "RAAF::Extensions",
+  registry_size: RAAF::Extensions.registry.length,
+  active_extensions: RAAF::Extensions.active_extensions.length,
+  base_extension_class: "RAAF::Extensions::BaseExtension",
   supported_types: "tool, agent, processor, provider, handler"
 }
 

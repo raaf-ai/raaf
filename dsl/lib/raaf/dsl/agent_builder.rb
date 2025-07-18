@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
+
   module DSL
+
     ##
     # Agent builder for DSL-based agent construction
     #
@@ -9,9 +11,23 @@ module RubyAIAgentsFactory
     # Supports declarative agent definition with tools, configurations, and behaviors.
     #
     class AgentBuilder
-      include RubyAIAgentsFactory::Logging
+
+      include RAAF::Logging
 
       @@count = 0
+
+      ##
+      # Build agent using DSL block
+      #
+      # @param name [String] Optional agent name
+      # @param &block [Block] DSL configuration block
+      # @return [Agent] Configured agent
+      #
+      def self.build(name = nil, &block)
+        builder = new(name)
+        builder.instance_eval(&block) if block_given?
+        builder.build
+      end
 
       # @return [String] Agent name
       attr_reader :agent_name
@@ -150,10 +166,10 @@ module RubyAIAgentsFactory
       def tool(name, **options, &block)
         tool_builder = ToolBuilder.new(name)
         tool_builder.instance_eval(&block) if block_given?
-        
+
         # Merge options
         tool_config = tool_builder.build_config.merge(options)
-        
+
         @tools << {
           name: name,
           config: tool_config,
@@ -369,9 +385,9 @@ module RubyAIAgentsFactory
       #
       def build
         validate_configuration!
-        
+
         # Create agent instance
-        agent = RubyAIAgentsFactory::Agent.new(
+        agent = RAAF::Agent.new(
           name: @agent_name,
           instructions: @config[:instructions],
           model: @config[:model],
@@ -431,28 +447,24 @@ module RubyAIAgentsFactory
 
       def validate_configuration!
         errors = []
-        
+
         errors << "Agent name is required" unless @agent_name
         errors << "Agent instructions are required" unless @config[:instructions]
         errors << "Agent model is required" unless @config[:model]
-        
+
         # Validate tools
         @tools.each do |tool|
-          if tool.is_a?(Hash) && !tool[:name]
-            errors << "Tool name is required"
-          end
+          errors << "Tool name is required" if tool.is_a?(Hash) && !tool[:name]
         end
-        
+
         # Validate temperature
-        if @config[:temperature] && (@config[:temperature] < 0 || @config[:temperature] > 2)
+        if @config[:temperature] && (@config[:temperature].negative? || @config[:temperature] > 2)
           errors << "Temperature must be between 0 and 2"
         end
-        
+
         # Validate max_tokens
-        if @config[:max_tokens] && @config[:max_tokens] < 1
-          errors << "Max tokens must be positive"
-        end
-        
+        errors << "Max tokens must be positive" if @config[:max_tokens] && @config[:max_tokens] < 1
+
         raise DSL::ValidationError, errors.join(", ") if errors.any?
       end
 
@@ -460,7 +472,7 @@ module RubyAIAgentsFactory
         @macros.each do |macro_def|
           macro = MacroProcessor.get_macro(macro_def[:name])
           next unless macro
-          
+
           # Apply macro to agent
           macro.apply(agent, macro_def[:options])
         end
@@ -470,7 +482,7 @@ module RubyAIAgentsFactory
         @templates.each do |template_def|
           template = TemplateEngine.get_template(template_def[:name])
           next unless template
-          
+
           # Apply template to agent
           template.apply(agent, template_def[:variables])
         end
@@ -480,7 +492,7 @@ module RubyAIAgentsFactory
         @tools.each do |tool_def|
           if tool_def.is_a?(Hash) && tool_def[:name]
             # Build tool from definition
-            tool = RubyAIAgentsFactory::FunctionTool.new(
+            tool = RAAF::FunctionTool.new(
               name: tool_def[:name],
               description: tool_def[:config][:description],
               parameters: tool_def[:config][:parameters],
@@ -518,12 +530,14 @@ module RubyAIAgentsFactory
           agent.add_condition(condition_def[:condition], &condition_def[:action])
         end
       end
+
     end
 
     ##
     # If-then-else builder for conditional logic
     #
     class IfThenBuilder
+
       def initialize(agent_builder, condition)
         @agent_builder = agent_builder
         @condition = condition
@@ -543,6 +557,9 @@ module RubyAIAgentsFactory
         @agent_builder.when(@condition, &@then_block)
         @agent_builder.when(->(context) { !@condition.call(context) }, &@else_block) if @else_block
       end
+
     end
+
   end
+
 end

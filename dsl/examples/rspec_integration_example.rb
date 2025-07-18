@@ -12,12 +12,13 @@ require "rspec"
 require "ai_agent_dsl/rspec"
 
 # Example prompt class for a document processing application
-class ReportAnalysisPrompt < AiAgentDsl::Prompts::Base
+class ReportAnalysisPrompt < RAAF::DSL::Prompts::Base
+
   required :report_name, :analysis_type
   optional :urgency, :department
-  required :file_path, path: [:document, :path]
-  optional :file_size, path: [:document, :metadata, :size], default: "unknown"
-  optional :author, path: [:document, :metadata, :author]
+  required :file_path, path: %i[document path]
+  optional :file_size, path: %i[document metadata size], default: "unknown"
+  optional :author, path: %i[document metadata author]
 
   contract_mode :strict
 
@@ -42,18 +43,19 @@ class ReportAnalysisPrompt < AiAgentDsl::Prompts::Base
     prompt += " Focus on #{context[:department]} concerns." if context[:department]
     prompt
   end
+
 end
 
 # Test suite demonstrating all matcher capabilities
 RSpec.describe ReportAnalysisPrompt do
   let(:base_context) do
     {
-      report_name:   "Q4 Financial Report",
+      report_name: "Q4 Financial Report",
       analysis_type: "financial",
-      document:      {
-        path:     "/reports/q4_financial.pdf",
+      document: {
+        path: "/reports/q4_financial.pdf",
         metadata: {
-          size:   "2.5MB",
+          size: "2.5MB",
           author: "Finance Team"
         }
       }
@@ -62,7 +64,7 @@ RSpec.describe ReportAnalysisPrompt do
 
   let(:urgent_context) do
     base_context.merge(
-      urgency:    "high",
+      urgency: "high",
       department: "executive"
     )
   end
@@ -132,7 +134,7 @@ RSpec.describe ReportAnalysisPrompt do
       # Missing required regular variables
       incomplete_context = {
         report_name: "Test Report",
-        document:    { path: "/test.pdf", metadata: {} }
+        document: { path: "/test.pdf", metadata: {} }
         # Missing analysis_type
       }
       expect(described_class).to fail_prompt_validation
@@ -141,7 +143,7 @@ RSpec.describe ReportAnalysisPrompt do
 
       # Missing required context paths
       no_document_context = {
-        report_name:   "Test Report",
+        report_name: "Test Report",
         analysis_type: "basic"
         # Missing document.path
       }
@@ -175,9 +177,9 @@ RSpec.describe ReportAnalysisPrompt do
 
     it "validates default values for missing optional context" do
       minimal_context = {
-        report_name:   "Simple Report",
+        report_name: "Simple Report",
         analysis_type: "basic",
-        document:      { path: "/simple.pdf", metadata: {} }
+        document: { path: "/simple.pdf", metadata: {} }
         # Missing metadata.size and metadata.author
       }
       minimal_prompt = described_class.new(**minimal_context)
@@ -241,9 +243,9 @@ RSpec.describe ReportAnalysisPrompt do
     it "handles edge cases and error conditions" do
       # Test with minimal valid context
       minimal_context = {
-        report_name:   "Basic Report",
+        report_name: "Basic Report",
         analysis_type: "summary",
-        document:      { path: "/basic.pdf", metadata: {} }
+        document: { path: "/basic.pdf", metadata: {} }
       }
 
       expect(described_class).to validate_prompt_successfully.with_context(minimal_context)

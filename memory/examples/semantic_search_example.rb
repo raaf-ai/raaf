@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# This example demonstrates semantic search capabilities in OpenAI Agents Ruby.
+# This example demonstrates semantic search capabilities in RAAF (Ruby AI Agents Factory).
 # Semantic search goes beyond keyword matching to understand the meaning and context
 # of queries and documents. Using vector embeddings, it finds conceptually similar
 # content even when exact words don't match. This is essential for building intelligent
@@ -9,7 +9,7 @@
 # vector databases, embedding generation, document indexing, hybrid search, and
 # integration with AI agents.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # Semantic search modules (these will be implemented in future versions)
 begin
@@ -46,8 +46,8 @@ puts "-" * 50
 # Create vector database with specified dimensionality
 # In production, dimension matches your embedding model (e.g., 1536 for OpenAI)
 # Using small dimension here for demonstration clarity
-if defined?(OpenAIAgents::SemanticSearch::VectorDatabase)
-  vector_db = OpenAIAgents::SemanticSearch::VectorDatabase.new(dimension: 5)
+if defined?(RAAF::SemanticSearch::VectorDatabase)
+  vector_db = RAAF::SemanticSearch::VectorDatabase.new(dimension: 5)
 else
   # Mock implementation for demonstration
   class VectorDatabase
@@ -195,9 +195,9 @@ puts "-" * 50
 
 # Create document indexer combining vector storage and embedding generation
 # The indexer handles the complete pipeline from raw text to searchable vectors
-if defined?(OpenAIAgents::SemanticSearch::DocumentIndexer)
-  indexer = OpenAIAgents::SemanticSearch::DocumentIndexer.new(
-    vector_db: OpenAIAgents::SemanticSearch::VectorDatabase.new(dimension: 5),
+if defined?(RAAF::SemanticSearch::DocumentIndexer)
+  indexer = RAAF::SemanticSearch::DocumentIndexer.new(
+    vector_db: RAAF::SemanticSearch::VectorDatabase.new(dimension: 5),
     embedding_generator: MockEmbeddingGenerator.new
   )
 else
@@ -332,13 +332,13 @@ puts "-" * 50
 
 # Create keyword indexer for traditional text matching
 # Uses techniques like TF-IDF or BM25 for relevance scoring
-if defined?(OpenAIAgents::SemanticSearch::KeywordIndexer)
-  keyword_indexer = OpenAIAgents::SemanticSearch::KeywordIndexer.new
+if defined?(RAAF::SemanticSearch::KeywordIndexer)
+  keyword_indexer = RAAF::SemanticSearch::KeywordIndexer.new
   keyword_indexer.index_documents(documents)
   
   # Combine semantic and keyword search strategies
   # Weights can be adjusted based on use case
-  hybrid_search = OpenAIAgents::SemanticSearch::HybridSearch.new(indexer, keyword_indexer)
+  hybrid_search = RAAF::SemanticSearch::HybridSearch.new(indexer, keyword_indexer)
 else
   # Mock implementation
   class KeywordIndexer
@@ -454,8 +454,8 @@ puts "-" * 50
 
 # Create semantic search tool wrapping the indexer
 # The tool provides a clean interface for agents to search
-if defined?(OpenAIAgents::SemanticSearch::SemanticSearchTool)
-  search_tool = OpenAIAgents::SemanticSearch::SemanticSearchTool.new(indexer)
+if defined?(RAAF::SemanticSearch::SemanticSearchTool)
+  search_tool = RAAF::SemanticSearch::SemanticSearchTool.new(indexer)
 else
   # Mock search tool
   class SemanticSearchTool
@@ -506,7 +506,7 @@ else
 end
 
 # Create agent with search tool
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "ResearchAssistant",
   model: "gpt-4o-mini",
   instructions: "You are a helpful research assistant. Use the semantic search tool to find relevant information."
@@ -537,8 +537,8 @@ puts
 puts "Example 6: Query Expansion"
 puts "-" * 50
 
-if defined?(OpenAIAgents::SemanticSearch::QueryExpander)
-  query_expander = OpenAIAgents::SemanticSearch::QueryExpander.new
+if defined?(RAAF::SemanticSearch::QueryExpander)
+  query_expander = RAAF::SemanticSearch::QueryExpander.new
 else
   # Mock query expander
   class QueryExpander
@@ -612,8 +612,8 @@ puts "Vector database saved to #{db_file}"
 
 # Load vector database from disk
 # Preserves all vectors and metadata
-if defined?(OpenAIAgents::SemanticSearch::VectorDatabase)
-  loaded_db = OpenAIAgents::SemanticSearch::VectorDatabase.load(db_file)
+if defined?(RAAF::SemanticSearch::VectorDatabase)
+  loaded_db = RAAF::SemanticSearch::VectorDatabase.load(db_file)
 else
   loaded_db = VectorDatabase.load(db_file)
 end
@@ -699,7 +699,7 @@ puts "To use real OpenAI embeddings:"
 puts
 puts "```ruby"
 puts "# Create real embedding generator"
-puts "embedding_gen = OpenAIAgents::SemanticSearch::EmbeddingGenerator.new("
+puts "embedding_gen = RAAF::SemanticSearch::EmbeddingGenerator.new("
 puts "  model: 'text-embedding-3-small'  # 1536 dimensions, fast and efficient"
 puts ")"
 puts
@@ -712,7 +712,7 @@ puts "texts = ['Ruby programming', 'Python data science']"
 puts "embeddings = embedding_gen.generate(texts, cache: true)"
 puts
 puts "# Create vector DB with correct dimension"
-puts "vector_db = OpenAIAgents::SemanticSearch::VectorDatabase.new("
+puts "vector_db = RAAF::SemanticSearch::VectorDatabase.new("
 puts "  dimension: 1536,  # Must match embedding model"
 puts "  index_type: :hnsw  # Hierarchical Navigable Small World for fast search"
 puts ")"

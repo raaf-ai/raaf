@@ -4,33 +4,41 @@ require "securerandom"
 require_relative "function_tool"
 require_relative "errors"
 require_relative "lifecycle"
-require_relative "prompts"
-require_relative "guardrails"
-require_relative "handoffs"
 require_relative "agent_output"
 require_relative "tool_use_behavior"
+require_relative "model_settings"
 require_relative "logging"
-require_relative "memory"
+require_relative "prompts"
+require_relative "handoffs"
+require_relative "handoff"
+require_relative "utils"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Agent - The core class representing an AI agent with configurable behavior, tools, and handoffs
   #
-  # An Agent represents a single AI assistant with specific instructions, tools, and the ability
-  # to hand off control to other agents. Agents are the building blocks of multi-agent workflows.
+  # This is the main Agent class that provides Python SDK compatible handoff functionality
+  # while maintaining all the original Agent features. It combines the best of both worlds:
+  # - Full backward compatibility with existing Agent API
+  # - Python SDK compatible handoff system with explicit tool generation
+  # - Automatic tool generation for handoffs
+  # - Context preservation during handoffs
   #
   # == Features
   #
   # * Configurable instructions and model selection
   # * Tool integration for extending capabilities
-  # * Agent handoffs for workflow orchestration
+  # * Python SDK compatible agent handoffs for workflow orchestration
   # * Conversation turn limits for safety
   # * Provider-agnostic model support
+  # * Automatic handoff tool generation
+  # * Full context preservation during handoffs
   #
   # == Basic Usage
   #
   #   # Create a simple agent
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "MyAgent",
   #     instructions: "You are a helpful assistant",
   #     model: "gpt-4"
@@ -50,13 +58,26 @@ module RubyAIAgentsFactory
   #   calculator = proc { |expression| eval(expression) }
   #   agent.add_tool(calculator)
   #
-  # == Agent Handoffs
+  # == Python SDK Compatible Agent Handoffs
+  #
+  #   # Create agents with handoff capabilities
+  #   support_agent = RAAF::Agent.new(name: "Support", instructions: "Handle support issues")
+  #   sales_agent = RAAF::Agent.new(
+  #     name: "Sales", 
+  #     instructions: "Handle sales inquiries",
+  #     handoffs: [support_agent]  # Handoffs specified in constructor
+  #   )
+  #
+  #   # Handoff tools are automatically generated
+  #   # The sales agent now has a "transfer_to_support" tool
+  #
+  # == Dynamic Agent Handoffs (adding handoffs after creation)
   #
   #   # Create multiple agents
-  #   weather_agent = RubyAIAgentsFactory::Agent.new(name: "WeatherBot")
-  #   math_agent = RubyAIAgentsFactory::Agent.new(name: "MathBot")
+  #   weather_agent = RAAF::Agent.new(name: "WeatherBot")
+  #   math_agent = RAAF::Agent.new(name: "MathBot")
   #
-  #   # Set up handoffs
+  #   # Add handoffs dynamically after agent creation
   #   weather_agent.add_handoff(math_agent)
   #   math_agent.add_handoff(weather_agent)
   #
@@ -65,18 +86,20 @@ module RubyAIAgentsFactory
   #
   # == Advanced Configuration
   #
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "AdvancedAgent",
   #     instructions: "You are a specialized assistant",
   #     model: "claude-3-sonnet-20240229",  # Use Anthropic's Claude
   #     max_turns: 20,                      # Allow more conversation turns
   #     tools: [existing_tool],             # Pre-configured tools
-  #     handoffs: [other_agent]             # Pre-configured handoffs
+  #     handoffs: [other_agent],            # Pre-configured handoffs (Python SDK style)
+  #     handoff_description: "Transfer to me for advanced analysis"
   #   )
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF Team
   # @since 0.1.0
   class Agent
+
     include Logger
 
     ##
@@ -109,10 +132,17 @@ module RubyAIAgentsFactory
     # @!attribute [rw] reset_tool_choice
     #   @return [Boolean] whether to reset tool choice after tool calls
     # @!attribute [rw] response_format
-    #   @return [Hash, nil] OpenAI response format for structured output (e.g., JSON schema)
+    #   @return [Hash, nil] RAAF response format for structured output (e.g., JSON schema)
     # @!attribute [rw] tool_choice
     #   @return [String, Hash, nil] tool choice strategy - "auto", "none", "required", or specific tool
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt, :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store
+    # @!attribute [rw] model_settings
+    #   @return [Hash, nil] model-specific settings for fine-tuning behavior (compatible with Python SDK)
+    # @!attribute [rw] context
+    #   @return [Object, nil] dependency injection object for agent run context (compatible with Python SDK)
+    # @!attribute [rw] reset_tool_choice
+    #   @return [Boolean] whether to reset tool_choice to nil after tool calls (default: true, compatible with Python SDK)
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt,
+                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context
 
     ##
     # Creates a new Agent instance
@@ -123,17 +153,21 @@ module RubyAIAgentsFactory
     # @param handoffs [Array<Agent>] agents this agent can hand off to
     # @param model [String] LLM model to use (default: "gpt-4")
     # @param max_turns [Integer] maximum conversation turns (default: 10)
+    # @param model_settings [Hash, nil] model-specific settings for fine-tuning behavior (compatible with Python SDK)
+    # @param context [Object, nil] dependency injection object for agent run context (compatible with Python SDK)
+    # @param reset_tool_choice [Boolean] whether to reset tool choice after tool calls (default: true)
+    # @param tool_use_behavior [Symbol, String, Proc] controls how tools are handled (default: :run_llm_again)
     # @param block [Block] optional configuration block for Ruby-style setup
     #
     # @example Create a basic agent
-    #   agent = RubyAIAgentsFactory::Agent.new(
+    #   agent = RAAF::Agent.new(
     #     name: "Customer Support",
     #     instructions: "Help customers with their questions",
     #     model: "gpt-4"
     #   )
     #
     # @example Create an agent with tools and handoffs
-    #   agent = RubyAIAgentsFactory::Agent.new(
+    #   agent = RAAF::Agent.new(
     #     name: "Sales Agent",
     #     instructions: "Help with sales inquiries",
     #     tools: [search_tool, calculator_tool],
@@ -141,15 +175,34 @@ module RubyAIAgentsFactory
     #     max_turns: 15
     #   )
     #
+    # @example Create an agent with tool choice control
+    #   agent = RAAF::Agent.new(
+    #     name: "Tool Agent",
+    #     instructions: "Use tools efficiently",
+    #     tool_choice: "required",
+    #     reset_tool_choice: false  # Keep tool_choice after tool calls
+    #   )
+    #
+    # @example Create an agent with Python SDK compatible parameters
+    #   agent = RAAF::Agent.new(
+    #     name: "Advanced Agent",
+    #     instructions: "You are a specialized assistant",
+    #     model: "gpt-4o",
+    #     model_settings: { temperature: 0.7, max_tokens: 1000 },
+    #     context: { user_id: "123", session_id: "abc" },
+    #     reset_tool_choice: false,
+    #     tool_use_behavior: :return_direct
+    #   )
+    #
     # @example Create an agent with block-based configuration (Ruby-idiomatic)
-    #   agent = RubyAIAgentsFactory::Agent.new(name: "Assistant") do |config|
+    #   agent = RAAF::Agent.new(name: "Assistant") do |config|
     #     config.instructions = "You are a helpful assistant"
     #     config.model = "gpt-4o"
     #     config.max_turns = 20
     #     config.add_tool(calculator_tool)
     #     config.add_handoff(other_agent)
     #   end
-    def initialize(name:, instructions: nil, **options, &block)
+    def initialize(name:, instructions: nil, **options)
       @name = name
       self.instructions = instructions # Use setter to support dynamic instructions
       @tools = (options[:tools] || []).dup
@@ -164,9 +217,15 @@ module RubyAIAgentsFactory
       @handoff_description = options[:handoff_description]
       @response_format = options[:response_format]
       @tool_choice = options[:tool_choice]
+      @model_settings = ModelSettings.from_hash(options[:model_settings]) if options[:model_settings]
+      @context = options[:context]
 
-      # Memory system integration
-      @memory_store = options[:memory_store] || Memory.default_store || Memory::InMemoryStore.new
+      # Memory system integration (only use if Memory module is available)
+      @memory_store = if options[:memory_store]
+                        options[:memory_store]
+                      elsif defined?(RAAF::Memory)
+                        RAAF::Memory.default_store || RAAF::Memory::InMemoryStore.new
+                      end
 
       # Tool use behavior configuration
       @tool_use_behavior = ToolUseBehavior.from_config(options[:tool_use_behavior] || :run_llm_again)
@@ -174,6 +233,9 @@ module RubyAIAgentsFactory
 
       # Handle output_type configuration
       configure_output_type
+
+      # Auto-generate handoff tools (Python SDK compatibility)
+      generate_handoff_tools if @handoffs.any?
 
       # Apply block-based configuration if provided (Ruby-idiomatic pattern)
       yield(self) if block_given?
@@ -200,7 +262,7 @@ module RubyAIAgentsFactory
     #   agent.add_tool(calculator)
     #
     # @example Add a FunctionTool
-    #   tool = RubyAIAgentsFactory::FunctionTool.new(
+    #   tool = RAAF::FunctionTool.new(
     #     proc { |query| search_database(query) },
     #     name: "search",
     #     description: "Search the database"
@@ -212,11 +274,9 @@ module RubyAIAgentsFactory
         @tools << FunctionTool.new(tool)
       when FunctionTool
         @tools << tool
-      when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
-        @tools << tool
       else
         raise ToolError,
-              "Tool must be a Proc, Method, FunctionTool, or hosted tool (WebSearchTool, HostedFileSearchTool, HostedComputerTool)"
+              "Tool must be a Proc, Method, or FunctionTool"
       end
     end
 
@@ -231,8 +291,8 @@ module RubyAIAgentsFactory
     # @raise [HandoffError] if the parameter is not an Agent or Handoff instance
     #
     # @example Set up agent handoffs
-    #   support_agent = RubyAIAgentsFactory::Agent.new(name: "Support")
-    #   sales_agent = RubyAIAgentsFactory::Agent.new(name: "Sales")
+    #   support_agent = RAAF::Agent.new(name: "Support")
+    #   sales_agent = RAAF::Agent.new(name: "Sales")
     #
     #   # Sales can hand off to support
     #   sales_agent.add_handoff(support_agent)
@@ -241,23 +301,40 @@ module RubyAIAgentsFactory
     #   support_agent.add_handoff(sales_agent)
     #
     # @example Use handoff objects for more control
-    #   handoff = OpenAIAgents.handoff(
+    #   handoff = RAAF.handoff(
     #     support_agent,
     #     tool_description_override: "Transfer to support for technical issues"
     #   )
     #   sales_agent.add_handoff(handoff)
     def add_handoff(handoff)
+      log_debug("🔗 HANDOFF FLOW: Adding handoff to agent", 
+                agent: @name,
+                handoff_type: handoff.class.name)
+      
       unless handoff.is_a?(Agent) || handoff.is_a?(Handoff)
+        log_error("🔗 HANDOFF FLOW: Invalid handoff type", 
+                  agent: @name,
+                  provided_type: handoff.class.name,
+                  expected_types: "Agent or Handoff")
         raise HandoffError, "Handoff must be an Agent or Handoff object"
       end
 
       target_name = handoff.is_a?(Agent) ? handoff.name : handoff.agent_name
-      log_debug_handoff("Adding handoff capability",
+      log_debug_handoff("🔗 HANDOFF FLOW: Adding handoff capability",
                         from_agent: @name,
                         to_agent: target_name,
                         handoff_type: handoff.class.name)
 
       @handoffs << handoff
+      
+      # Auto-generate handoff tool for the new handoff (Python SDK compatibility)
+      tool = create_handoff_tool(handoff)
+      add_tool(tool)
+      
+      log_debug("🔗 HANDOFF FLOW: Handoff added successfully", 
+                agent: @name,
+                target_agent: target_name,
+                total_handoffs: @handoffs.count)
     end
 
     ##
@@ -448,7 +525,7 @@ module RubyAIAgentsFactory
     # @example Handle tool execution errors
     #   begin
     #     result = agent.execute_tool("unknown_tool")
-    #   rescue RubyAIAgentsFactory::ToolError => e
+    #   rescue RAAF::ToolError => e
     #     puts "Tool error: #{e.message}"
     #   end
     def execute_tool(tool_name, **)
@@ -520,7 +597,7 @@ module RubyAIAgentsFactory
     #
     # @example Add a profanity guardrail
     #   agent.add_input_guardrail(
-    #     RubyAIAgentsFactory::Guardrails.profanity_guardrail
+    #     RAAF::Guardrails.profanity_guardrail
     #   )
     def add_input_guardrail(guardrail)
       unless guardrail.is_a?(Guardrails::InputGuardrail)
@@ -537,7 +614,7 @@ module RubyAIAgentsFactory
     #
     # @example Add a length guardrail
     #   agent.add_output_guardrail(
-    #     RubyAIAgentsFactory::Guardrails.length_guardrail(max_length: 1000)
+    #     RAAF::Guardrails.length_guardrail(max_length: 1000)
     #   )
     def add_output_guardrail(guardrail)
       unless guardrail.is_a?(Guardrails::OutputGuardrail)
@@ -749,7 +826,7 @@ module RubyAIAgentsFactory
 
     ##
     # Memory Management Methods
-    # 
+    #
     # These methods provide memory capabilities for the agent, enabling it to store
     # and retrieve information across conversations. The memory system uses the
     # configured memory store (defaults to InMemoryStore).
@@ -766,7 +843,7 @@ module RubyAIAgentsFactory
     #   agent.remember("User prefers Python programming", metadata: { type: "preference" })
     #
     # @example Store context for current conversation
-    #   agent.remember("User is working on web scraping", 
+    #   agent.remember("User is working on web scraping",
     #                  conversation_id: "conv-123",
     #                  metadata: { type: "context" })
     def remember(content, metadata: {}, conversation_id: nil)
@@ -774,7 +851,7 @@ module RubyAIAgentsFactory
 
       # Create a unique key for this memory
       memory_key = "#{@name}_#{SecureRandom.uuid}"
-      
+
       # Enhance metadata with agent context
       enhanced_metadata = metadata.merge(
         agent_name: @name,
@@ -791,7 +868,7 @@ module RubyAIAgentsFactory
 
       # Store in memory store
       @memory_store.store(memory_key, memory)
-      
+
       memory_key
     end
 
@@ -816,11 +893,11 @@ module RubyAIAgentsFactory
       return [] unless @memory_store
 
       @memory_store.search(query, {
-        limit: limit,
-        agent_name: @name,
-        conversation_id: conversation_id,
-        tags: tags
-      })
+                             limit: limit,
+                             agent_name: @name,
+                             conversation_id: conversation_id,
+                             tags: tags
+                           })
     end
 
     ##
@@ -847,7 +924,7 @@ module RubyAIAgentsFactory
     #     puts "Loading previous context..."
     #   end
     def has_memories?
-      memory_count > 0
+      memory_count.positive?
     end
 
     ##
@@ -899,10 +976,10 @@ module RubyAIAgentsFactory
 
       # Search with empty query to get all memories, then sort by recency
       all_memories = @memory_store.search("", {
-        limit: limit * 2, # Get more than needed to filter properly
-        agent_name: @name,
-        conversation_id: conversation_id
-      })
+                                            limit: limit * 2, # Get more than needed to filter properly
+                                            agent_name: @name,
+                                            conversation_id: conversation_id
+                                          })
 
       # Sort by updated_at (most recent first) and limit
       all_memories
@@ -938,6 +1015,25 @@ module RubyAIAgentsFactory
       end
 
       context_parts.join("\n")
+    end
+
+    ##
+    # Get input schema for this agent when used as handoff target
+    #
+    # @return [Hash] JSON schema for handoff input
+    #
+    def get_input_schema
+      {
+        type: "object",
+        properties: {
+          context: {
+            type: "string",
+            description: "Context or reason for handoff"
+          }
+        },
+        required: [],
+        additionalProperties: false
+      }
     end
 
     private
@@ -1003,5 +1099,116 @@ module RubyAIAgentsFactory
     rescue StandardError
       []
     end
+
+    ##
+    # Generate handoff tools automatically (Python SDK compatibility)
+    #
+    def generate_handoff_tools
+      @handoffs.each do |handoff_spec|
+        tool = create_handoff_tool(handoff_spec)
+        add_tool(tool)
+      end
+    end
+
+    ##
+    # Create handoff tool for agent or handoff object
+    #
+    # @param handoff_spec [Agent, Handoff] Handoff specification
+    # @return [FunctionTool] Generated handoff tool
+    #
+    def create_handoff_tool(handoff_spec)
+      case handoff_spec
+      when Agent
+        # Direct agent handoff
+        create_agent_handoff_tool(handoff_spec)
+      when Handoff
+        # Custom handoff with overrides
+        create_custom_handoff_tool(handoff_spec)
+      else
+        raise ArgumentError, "Invalid handoff specification: #{handoff_spec.class}"
+      end
+    end
+
+    ##
+    # Create tool for direct agent handoff
+    #
+    # @param target_agent [Agent] Target agent
+    # @return [FunctionTool] Handoff tool
+    #
+    def create_agent_handoff_tool(target_agent)
+      tool_name = "transfer_to_#{Utils.sanitize_identifier(target_agent.name)}"
+      
+      description = if target_agent.handoff_description
+                      target_agent.handoff_description
+                    else
+                      "Transfer to #{target_agent.name}"
+                    end
+      
+      parameters = target_agent.get_input_schema
+
+      # Create handoff procedure
+      handoff_proc = proc do |**args|
+        # This mimics Python SDK: handoff stops current agent and switches to target
+        {
+          _handoff_requested: true,
+          _target_agent: target_agent,
+          _handoff_data: args,
+          _handoff_reason: args[:context] || "Handoff requested"
+        }.to_json
+      end
+
+      FunctionTool.new(
+        handoff_proc,
+        name: tool_name,
+        description: description,
+        parameters: parameters
+      )
+    end
+
+    ##
+    # Create tool for custom handoff
+    #
+    # @param handoff_spec [Handoff] Handoff specification
+    # @return [FunctionTool] Handoff tool
+    #
+    def create_custom_handoff_tool(handoff_spec)
+      target_agent = handoff_spec.agent
+      tool_name = handoff_spec.tool_name_override || "transfer_to_#{Utils.sanitize_identifier(target_agent.name)}"
+      
+      description = handoff_spec.tool_description_override || 
+                   handoff_spec.description || 
+                   "Transfer to #{target_agent.name}"
+      
+      parameters = handoff_spec.get_input_schema
+
+      # Create handoff procedure with custom logic
+      handoff_proc = proc do |**args|
+        # Apply input filter if provided
+        filtered_args = handoff_spec.input_filter ? handoff_spec.input_filter.call(args) : args
+        
+        # Call on_handoff callback if provided
+        if handoff_spec.on_handoff
+          handoff_spec.on_handoff.call(filtered_args)
+        end
+
+        # Return handoff data
+        {
+          _handoff_requested: true,
+          _target_agent: target_agent,
+          _handoff_data: filtered_args,
+          _handoff_reason: filtered_args[:context] || "Custom handoff requested",
+          _handoff_overrides: handoff_spec.overrides || {}
+        }.to_json
+      end
+
+      FunctionTool.new(
+        handoff_proc,
+        name: tool_name,
+        description: description,
+        parameters: parameters
+      )
+    end
+
   end
+
 end

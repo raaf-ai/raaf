@@ -1,9 +1,9 @@
 require "async"
 require "async/queue"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
-  # Streaming execution engine for OpenAI Agents
+  # Streaming execution engine for RAAF
   #
   # The RunResultStreaming class provides real-time streaming execution of agent
   # conversations with granular event-based feedback. It enables applications to
@@ -88,7 +88,7 @@ module RubyAIAgentsFactory
   #     end
   #   end
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see RunResult For non-streaming execution results
   # @see Async::Queue For the underlying async queue implementation
@@ -571,7 +571,7 @@ module RubyAIAgentsFactory
     end
 
     def build_run_context(messages)
-      RubyAIAgentsFactory::RunContext.new(
+      RAAF::RunContext.new(
         messages: messages,
         run_config: @run_config,
         tracer: @tracer

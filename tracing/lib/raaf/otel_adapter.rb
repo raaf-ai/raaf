@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
-    # OpenTelemetry adapter for OpenAI Agents tracing
+    # OpenTelemetry adapter for RAAF tracing
     # This provides compatibility with OpenTelemetry exporters and conventions
     class OTelAdapter
-      # Maps OpenAI Agents span kinds to OpenTelemetry span kinds
+      # Maps RAAF span kinds to OpenTelemetry span kinds
       SPAN_KIND_MAP = {
         agent: :internal,
         llm: :client,
@@ -14,7 +14,7 @@ module RubyAIAgentsFactory
         internal: :internal
       }.freeze
 
-      # Convert OpenAI Agents span to OpenTelemetry-compatible format
+      # Convert RAAF span to OpenTelemetry-compatible format
       def self.to_otel_span(span)
         {
           trace_id: normalize_trace_id(span.trace_id),
@@ -28,11 +28,11 @@ module RubyAIAgentsFactory
           events: transform_events(span.events),
           status: transform_status(span.status),
           resource: {
-            "service.name" => "openai-agents-ruby",
-            "service.version" => RubyAIAgentsFactory::VERSION,
-            "telemetry.sdk.name" => "openai-agents-ruby",
+            "service.name" => "raaf-ruby",
+            "service.version" => RAAF::VERSION,
+            "telemetry.sdk.name" => "raaf-ruby",
             "telemetry.sdk.language" => "ruby",
-            "telemetry.sdk.version" => RubyAIAgentsFactory::VERSION
+            "telemetry.sdk.version" => RAAF::VERSION
           }
         }
       end
@@ -43,18 +43,18 @@ module RubyAIAgentsFactory
           {
             resource: {
               attributes: [
-                { key: "service.name", value: { string_value: "openai-agents-ruby" } },
-                { key: "service.version", value: { string_value: RubyAIAgentsFactory::VERSION } },
-                { key: "telemetry.sdk.name", value: { string_value: "openai-agents-ruby" } },
+                { key: "service.name", value: { string_value: "raaf-ruby" } },
+                { key: "service.version", value: { string_value: RAAF::VERSION } },
+                { key: "telemetry.sdk.name", value: { string_value: "raaf-ruby" } },
                 { key: "telemetry.sdk.language", value: { string_value: "ruby" } },
-                { key: "telemetry.sdk.version", value: { string_value: RubyAIAgentsFactory::VERSION } }
+                { key: "telemetry.sdk.version", value: { string_value: RAAF::VERSION } }
               ]
             },
             scope_spans: [
               {
                 scope: {
-                  name: "openai-agents",
-                  version: RubyAIAgentsFactory::VERSION
+                  name: "raaf",
+                  version: RAAF::VERSION
                 },
                 spans: trace_spans.map { |span| to_otlp_span(span) }
               }
@@ -190,7 +190,7 @@ module RubyAIAgentsFactory
       end
     end
 
-    # Bridge to use OpenTelemetry gem exporters with OpenAI Agents tracing
+    # Bridge to use OpenTelemetry gem exporters with RAAF tracing
     class OTelBridge
       def self.use_otel_exporter(exporter)
         processor = OTelProcessor.new(exporter)

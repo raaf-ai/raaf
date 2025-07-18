@@ -16,25 +16,26 @@
 #
 # == Compatibility
 #
-# This Ruby implementation maintains structural alignment with the Python OpenAI Agents SDK:
+# This Ruby implementation maintains structural alignment with the Python RAAF SDK:
 # - Identical APIs and endpoints
 # - Compatible tracing formats
 # - Matching response structures
 #
 # @example Check version programmatically
-#   puts "Ruby AI Agents Factory v#{RubyAIAgentsFactory::VERSION}"
+#   puts "Ruby AI Agents Factory v#{RAAF::VERSION}"
 #   # => "Ruby AI Agents Factory v0.1.0"
 #
 # @example Version comparison
 #   require 'gem'
-#   current = Gem::Version.new(RubyAIAgentsFactory::VERSION)
+#   current = Gem::Version.new(RAAF::VERSION)
 #   minimum = Gem::Version.new("0.1.0")
 #   puts "Compatible!" if current >= minimum
 #
 # @author Ruby AI Agents Factory Team
 # @since 0.1.0
 # @see https://github.com/raaf-ai/ruby-ai-agents-factory Repository and changelog
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Current version of the Ruby AI Agents Factory gem
   #
@@ -44,15 +45,16 @@ module RubyAIAgentsFactory
   # @return [String] the version string in semantic versioning format (MAJOR.MINOR.PATCH)
   #
   # @example Access version
-  #   RubyAIAgentsFactory::VERSION
+  #   RAAF::VERSION
   #   # => "0.1.0"
   #
   # @example Use in logging
-  #   logger.info("Starting Ruby AI Agents Factory v#{RubyAIAgentsFactory::VERSION}")
+  #   logger.info("Starting Ruby AI Agents Factory v#{RAAF::VERSION}")
   #
   # @example Version-dependent features
-  #   if Gem::Version.new(RubyAIAgentsFactory::VERSION) >= Gem::Version.new("0.2.0")
+  #   if Gem::Version.new(RAAF::VERSION) >= Gem::Version.new("0.2.0")
   #     # Use new feature available in 0.2.0+
   #   end
   VERSION = "0.1.0"
+
 end

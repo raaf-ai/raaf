@@ -2,28 +2,28 @@
 # frozen_string_literal: true
 
 # This example demonstrates how messages flow between agents and language models
-# in OpenAI Agents Ruby. Understanding message flow is crucial for debugging,
+# in RAAF (Ruby AI Agents Factory). Understanding message flow is crucial for debugging,
 # optimizing performance, and building complex conversational systems. The library
 # supports two API modes: the modern Responses API (default) and the legacy Chat
 # Completions API. Each has different message formats and flow characteristics.
 # This example visualizes both approaches and explains their trade-offs.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-core"
 
 # Enable debug output to visualize the complete message flow
 # This flag shows the raw API requests and responses for learning
 # In production, set this to false to reduce log verbosity
-ENV["OPENAI_AGENTS_DEBUG_CONVERSATION"] = "true"
+ENV["RAAF_DEBUG_CONVERSATION"] = "true"
 
 # Create a simple agent with minimal configuration
 # The agent's behavior is defined by instructions and available tools
-agent = OpenAIAgents::Agent.new(
+agent = RAAF::Agent.new(
   name: "Assistant",
-  
+
   # Instructions shape the agent's personality and behavior
   # Brief instructions help reduce token usage and improve response time
   instructions: "You are a helpful assistant. Keep your responses brief.",
-  
+
   # Model selection affects capabilities and cost
   # gpt-4o provides high quality with reasonable speed
   model: "gpt-4o"
@@ -45,7 +45,7 @@ agent.add_tool(method(:get_current_time))
 # Create a runner with default ResponsesProvider
 # The runner orchestrates the conversation flow between user, agent, and LLM
 # ResponsesProvider uses the modern Responses API for efficiency
-runner = OpenAIAgents::Runner.new(agent: agent)
+runner = RAAF::Runner.new(agent: agent)
 
 puts "=== Message Flow Example ==="
 puts "This example shows how messages are passed between the agent and LLM\n\n"
@@ -78,11 +78,13 @@ puts "\nFinal Response: #{result.messages.last[:content]}\n\n"
 puts "2. Using Chat Completions API (Legacy):"
 puts "-" * 50
 
-# Create a runner with explicit OpenAIProvider for legacy API
+# Create a runner with explicit OpenAIProvider for legacy API comparison
+# ⚠️  DEPRECATED: OpenAIProvider is deprecated, use default ResponsesProvider instead
 # This provider uses the traditional /v1/chat/completions endpoint
-legacy_runner = OpenAIAgents::Runner.new(
+puts "⚠️  Using deprecated OpenAIProvider for comparison purposes"
+legacy_runner = RAAF::Runner.new(
   agent: agent,
-  provider: OpenAIAgents::Models::OpenAIProvider.new  # Forces legacy API
+  provider: RAAF::Models::OpenAIProvider.new # DEPRECATED - for comparison only
 )
 
 # Run the same query to compare message handling
@@ -98,9 +100,9 @@ puts "\nFinal Response: #{result.messages.last[:content]}\n\n"
 
 puts "=== Message Flow Explanation ==="
 puts <<~EXPLANATION
-  
+
   The Ruby implementation supports two API modes:
-  
+
   1. **Responses API (Default - matches Python)**:
      - Uses POST /v1/responses endpoint
      - Messages are converted to "items" format:
@@ -110,7 +112,7 @@ puts <<~EXPLANATION
        * Tool results → { type: "function_call_output", call_id: "...", output: "..." }
      - Maintains conversation continuity with previous_response_id
      - Better for multi-turn conversations with tools
-  
+
   2. **Chat Completions API (Legacy)**:
      - Uses POST /v1/chat/completions endpoint
      - Traditional message format:
@@ -120,13 +122,13 @@ puts <<~EXPLANATION
        * { role: "tool", tool_call_id: "...", content: "..." }
      - Each request sends full conversation history
      - More familiar but less efficient for long conversations
-  
+
   The flow in both cases:
   1. Runner prepares messages/items based on the provider
   2. Provider makes HTTP call to appropriate OpenAI endpoint
   3. Response is processed (tool calls executed if needed)
   4. Conversation continues until no more tool calls or max turns reached
-  
+
 EXPLANATION
 
 # ============================================================================

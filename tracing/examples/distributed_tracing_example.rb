@@ -4,7 +4,7 @@
 # Distributed Tracing Example
 #
 # This example demonstrates comprehensive distributed tracing across multiple
-# services and applications using the OpenAI Agents Ruby gem. Features include:
+# services and applications using the RAAF (Ruby AI Agents Factory) gem. Features include:
 #
 # - Cross-service trace correlation with trace IDs
 # - Baggage propagation for contextual data
@@ -15,7 +15,7 @@
 # - Replay functionality for debugging
 # - OpenTelemetry compatibility
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf-tracing"
 
 puts "=== Distributed Tracing Example ==="
 puts "Demonstrates cross-service tracing and correlation"
@@ -24,7 +24,7 @@ puts "-" * 60
 # Example 1: Distributed Tracer Setup
 puts "\n=== Example 1: Distributed Tracer Configuration ==="
 
-distributed_tracer = OpenAIAgents::Tracing::DistributedTracer.new(
+distributed_tracer = RAAF::Tracing::DistributedTracer.new(
   service_name: "ai-agents-main",
   service_version: "1.0.0",
   environment: "production",

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 ##
-# OpenAI Agents Lifecycle Management
+# RAAF Lifecycle Management
 #
 # This module provides comprehensive lifecycle hooks for monitoring and controlling
 # agent execution, tool usage, handoffs, and error handling. The lifecycle system
@@ -10,7 +10,7 @@
 # == Hook Types
 #
 # * **RunHooks**: Global hooks that receive events for all agents
-# * **AgentHooks**: Agent-specific hooks that only receive events for one agent  
+# * **AgentHooks**: Agent-specific hooks that only receive events for one agent
 # * **CompositeRunHooks**: Combines multiple hooks for complex scenarios
 # * **AsyncHooks**: Async-compatible versions for async execution environments
 #
@@ -23,7 +23,7 @@
 # - Error handling and recovery
 #
 # @example Basic run-level hooks
-#   class MyRunHooks < RubyAIAgentsFactory::RunHooks
+#   class MyRunHooks < RAAF::RunHooks
 #     def on_agent_start(context, agent)
 #       puts "Agent #{agent.name} starting"
 #     end
@@ -33,12 +33,12 @@
 #     end
 #   end
 #
-#   runner = RubyAIAgentsFactory::Runner.new(agent: agent)
-#   config = RubyAIAgentsFactory::RunConfig.new(hooks: MyRunHooks.new)
+#   runner = RAAF::Runner.new(agent: agent)
+#   config = RAAF::RunConfig.new(hooks: MyRunHooks.new)
 #   runner.run(messages, config: config)
 #
 # @example Agent-specific hooks
-#   class CustomerServiceHooks < RubyAIAgentsFactory::AgentHooks
+#   class CustomerServiceHooks < RAAF::AgentHooks
 #     def on_start(context, agent)
 #       # Log customer service session start
 #       context.metadata[:session_start] = Time.now
@@ -51,7 +51,7 @@
 #     end
 #   end
 #
-#   agent = RubyAIAgentsFactory::Agent.new(
+#   agent = RAAF::Agent.new(
 #     name: "CustomerService",
 #     hooks: CustomerServiceHooks.new
 #   )
@@ -61,16 +61,17 @@
 #   metrics_hooks = MetricsHooks.new
 #   audit_hooks = AuditHooks.new
 #
-#   composite = RubyAIAgentsFactory::CompositeRunHooks.new([logging_hooks, metrics_hooks])
+#   composite = RAAF::CompositeRunHooks.new([logging_hooks, metrics_hooks])
 #   composite.add_hook(audit_hooks)
 #
-#   config = RubyAIAgentsFactory::RunConfig.new(hooks: composite)
+#   config = RAAF::RunConfig.new(hooks: composite)
 #
-# @author OpenAI Agents Ruby Team
+# @author RAAF (Ruby AI Agents Factory) Team
 # @since 0.1.0
-# @see RubyAIAgentsFactory::RunContext For context object passed to hooks
-# @see RubyAIAgentsFactory::Agent For agent-level hook configuration
-module RubyAIAgentsFactory
+# @see RAAF::RunContext For context object passed to hooks
+# @see RAAF::Agent For agent-level hook configuration
+module RAAF
+
   ##
   # Base class for run-level lifecycle hooks
   #
@@ -82,24 +83,24 @@ module RubyAIAgentsFactory
   # behavior. All methods have default empty implementations.
   #
   # @example Custom logging hooks
-  #   class LoggingRunHooks < RubyAIAgentsFactory::RunHooks
+  #   class LoggingRunHooks < RAAF::RunHooks
   #     def on_agent_start(context, agent)
   #       Rails.logger.info("Agent #{agent.name} started", run_id: context.run_id)
   #     end
   #
   #     def on_tool_start(context, agent, tool, arguments)
-  #       Rails.logger.info("Tool #{tool.name} invoked", 
+  #       Rails.logger.info("Tool #{tool.name} invoked",
   #                        agent: agent.name, arguments: arguments)
   #     end
   #
   #     def on_error(context, agent, error)
-  #       Rails.logger.error("Agent error", 
+  #       Rails.logger.error("Agent error",
   #                         agent: agent.name, error: error.message)
   #     end
   #   end
   #
   # @example Performance monitoring hooks
-  #   class PerformanceHooks < RubyAIAgentsFactory::RunHooks
+  #   class PerformanceHooks < RAAF::RunHooks
   #     def on_agent_start(context, agent)
   #       context.metadata[:start_time] = Time.now
   #     end
@@ -110,6 +111,7 @@ module RubyAIAgentsFactory
   #     end
   #   end
   class RunHooks
+
     ##
     # Called before an agent is invoked. Called each time the current agent changes.
     #
@@ -230,11 +232,11 @@ module RubyAIAgentsFactory
     #   def on_error(context, agent, error)
     #     # Log error
     #     Rails.logger.error("Agent error", agent: agent.name, error: error.message)
-    #     
+    #
     #     # Implement retry logic
     #     context.metadata[:error_count] ||= 0
     #     context.metadata[:error_count] += 1
-    #     
+    #
     #     if context.metadata[:error_count] < 3
     #       context.metadata[:should_retry] = true
     #     end
@@ -242,6 +244,7 @@ module RubyAIAgentsFactory
     def on_error(context, agent, error)
       # Override in subclass
     end
+
   end
 
   ##
@@ -254,7 +257,7 @@ module RubyAIAgentsFactory
   # Set this on agent.hooks to receive events for that specific agent.
   #
   # @example Agent-specific logging
-  #   class CustomerServiceHooks < RubyAIAgentsFactory::AgentHooks
+  #   class CustomerServiceHooks < RAAF::AgentHooks
   #     def on_start(context, agent)
   #       puts \"Customer service session started\"
   #       context.metadata[:session_id] = SecureRandom.uuid
@@ -265,13 +268,13 @@ module RubyAIAgentsFactory
   #     end
   #   end
   #
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: \"CustomerService\",
   #     hooks: CustomerServiceHooks.new
   #   )
   #
   # @example Agent-specific tool validation
-  #   class SecureAgentHooks < RubyAIAgentsFactory::AgentHooks
+  #   class SecureAgentHooks < RAAF::AgentHooks
   #     ALLOWED_TOOLS = %w[search_docs send_email].freeze
   #
   #     def on_tool_start(context, agent, tool, arguments)
@@ -281,6 +284,7 @@ module RubyAIAgentsFactory
   #     end
   #   end
   class AgentHooks
+
     # Called before this agent is invoked
     # @param context [RunContext] The current run context
     # @param agent [Agent] This agent
@@ -329,6 +333,7 @@ module RubyAIAgentsFactory
     def on_error(context, agent, error)
       # Override in subclass
     end
+
   end
 
   ##
@@ -347,22 +352,24 @@ module RubyAIAgentsFactory
   #   metrics_hooks = MetricsHooks.new
   #   audit_hooks = AuditHooks.new
   #
-  #   composite = RubyAIAgentsFactory::CompositeRunHooks.new([logging_hooks, metrics_hooks])
+  #   composite = RAAF::CompositeRunHooks.new([logging_hooks, metrics_hooks])
   #   composite.add_hook(audit_hooks)
   #
-  #   config = RubyAIAgentsFactory::RunConfig.new(hooks: composite)
+  #   config = RAAF::RunConfig.new(hooks: composite)
   #   runner.run(messages, config: config)
   #
   # @example Dynamic hook management
-  #   composite = RubyAIAgentsFactory::CompositeRunHooks.new
+  #   composite = RAAF::CompositeRunHooks.new
   #   composite.add_hook(BasicLoggingHooks.new)
-  #   
+  #
   #   if Rails.env.production?
   #     composite.add_hook(ProductionMetricsHooks.new)
   #     composite.add_hook(AlertingHooks.new)
   #   end
   class CompositeRunHooks < RunHooks
+
     def initialize(hooks = [])
+      super()
       @hooks = hooks
     end
 
@@ -393,6 +400,7 @@ module RubyAIAgentsFactory
     def on_error(context, agent, error)
       @hooks.each { |hook| hook.on_error(context, agent, error) }
     end
+
   end
 
   ##
@@ -407,7 +415,7 @@ module RubyAIAgentsFactory
   # - Async methods (on_agent_start_async, etc.) for async execution
   #
   # @example Async hook implementation
-  #   class AsyncLoggingHooks < RubyAIAgentsFactory::AsyncHooks::RunHooks
+  #   class AsyncLoggingHooks < RAAF::AsyncHooks::RunHooks
   #     def on_agent_start_async(context, agent)
   #       # Async logging to external service
   #       LoggingService.log_async({
@@ -427,7 +435,7 @@ module RubyAIAgentsFactory
   #   end
   #
   # @example Mixed sync/async usage
-  #   class HybridHooks < RubyAIAgentsFactory::AsyncHooks::RunHooks
+  #   class HybridHooks < RAAF::AsyncHooks::RunHooks
   #     def on_agent_start(context, agent)
   #       # Immediate sync logging
   #       puts "Agent #{agent.name} starting"
@@ -439,7 +447,9 @@ module RubyAIAgentsFactory
   #     end
   #   end
   module AsyncHooks
-    class RunHooks < RubyAIAgentsFactory::RunHooks
+
+    class RunHooks < RAAF::RunHooks
+
       # Async versions - override these in async subclasses
       def on_agent_start_async(context, agent)
         on_agent_start(context, agent)
@@ -464,9 +474,11 @@ module RubyAIAgentsFactory
       def on_error_async(context, agent, error)
         on_error(context, agent, error)
       end
+
     end
 
-    class AgentHooks < RubyAIAgentsFactory::AgentHooks
+    class AgentHooks < RAAF::AgentHooks
+
       # Async versions - override these in async subclasses
       def on_start_async(context, agent)
         on_start(context, agent)
@@ -491,6 +503,9 @@ module RubyAIAgentsFactory
       def on_error_async(context, agent, error)
         on_error(context, agent, error)
       end
+
     end
+
   end
+
 end

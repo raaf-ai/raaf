@@ -4,7 +4,7 @@ require_relative "lib/raaf/version"
 
 Gem::Specification.new do |spec|
   spec.name = "raaf-core"
-  spec.version = RubyAIAgentsFactory::VERSION
+  spec.version = RAAF::VERSION
   spec.summary = "RAAF Core - Essential agent runtime with default OpenAI provider"
   spec.description = "Core components of Ruby AI Agents Factory (RAAF) including agent runtime, " \
                      "execution engine, and default OpenAI provider support. This is the foundation " \
@@ -41,6 +41,12 @@ Gem::Specification.new do |spec|
 
   # base64 was moved to a bundled gem in Ruby 3.4+
   spec.add_dependency "base64", "~> 0.1"
+
+  # Async for concurrent operations
+  spec.add_dependency "async", "~> 2.0"
+
+  # Tiktoken for accurate token counting
+  spec.add_dependency "tiktoken_ruby", "~> 0.0.9"
 
   # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.0"

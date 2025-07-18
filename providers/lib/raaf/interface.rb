@@ -3,13 +3,13 @@
 require_relative "../logging"
 require_relative "../errors"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     ##
     # Abstract base class for all model provider implementations
     #
     # This class defines the interface that all LLM providers must implement
-    # to work with the OpenAI Agents framework. It provides:
+    # to work with the RAAF framework. It provides:
     # - Standard method signatures for chat and streaming completions
     # - Common error handling for API responses
     # - Tool preparation and validation
@@ -197,7 +197,7 @@ module RubyAIAgentsFactory
             end
             
             tool_hash
-          when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
+          when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
             tool.to_tool_definition
           else
             raise ArgumentError, "Invalid tool type: #{tool.class}"

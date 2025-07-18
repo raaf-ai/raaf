@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# NOTE FOR CLAUDE: This file is DEPRECATED and should NOT be modified except for critical bug fixes.
+# NOTE: FOR CLAUDE: This file is DEPRECATED and should NOT be modified except for critical bug fixes.
 # DO NOT update this file for new features or improvements. Use ResponsesProvider instead.
 # This provider is maintained only for backwards compatibility and streaming support.
 
@@ -8,12 +8,15 @@ require_relative "interface"
 require_relative "responses_provider"
 require_relative "../http_client"
 
-module RubyAIAgentsFactory
+module RAAF
+
   module Models
+
     # @deprecated Use ResponsesProvider instead. This provider uses the legacy Chat Completions API
     # and is maintained only for backwards compatibility and streaming support.
     # ResponsesProvider is the recommended default provider with better features and usage tracking.
     class OpenAIProvider < ModelInterface
+
       SUPPORTED_MODELS = %w[
         gpt-4.1 gpt-4.1-mini gpt-4.1-nano
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4 gpt-4-32k
@@ -93,6 +96,9 @@ module RubyAIAgentsFactory
         standard_completion(messages: messages, model: model, tools: tools, stream: true, **)
       end
 
+      # Alias for compatibility with API strategies
+      alias complete chat_completion
+
       private
 
       def prepare_tools_for_responses_api(tools)
@@ -118,7 +124,7 @@ module RubyAIAgentsFactory
                 parameters: tool.parameters
               }
             }
-          when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
+          when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
             tool.to_tool_definition
           else
             raise ArgumentError, "Invalid tool type: #{tool.class}"
@@ -142,25 +148,23 @@ module RubyAIAgentsFactory
           # Debug log the final parameters being sent to OpenAI
           if parameters[:tools]
             log_debug_tools("📤 FINAL PARAMETERS SENT TO OPENAI API",
-              tools_count: parameters[:tools].length,
-              tools_json: parameters[:tools].to_json
-            )
-            
+                            tools_count: parameters[:tools].length,
+                            tools_json: parameters[:tools].to_json)
+
             # Check each tool for array parameters
             parameters[:tools].each do |tool|
-              if tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
-                tool[:function][:parameters][:properties].each do |prop_name, prop_def|
-                  if prop_def[:type] == "array"
-                    log_debug_tools("🔍 FINAL ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
-                      has_items: prop_def.key?(:items),
-                      items_value: prop_def[:items].inspect
-                    )
-                  end
-                end
+              next unless tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
+
+              tool[:function][:parameters][:properties].each do |prop_name, prop_def|
+                next unless prop_def[:type] == "array"
+
+                log_debug_tools("🔍 FINAL ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
+                                has_items: prop_def.key?(:items),
+                                items_value: prop_def[:items].inspect)
               end
             end
           end
-          
+
           @client.chat.completions.create(**parameters)
         rescue HTTPClient::Error => e
           handle_openai_error(e)
@@ -172,7 +176,7 @@ module RubyAIAgentsFactory
 
         tools.any? do |tool|
           case tool
-          when RubyAIAgentsFactory::Tools::WebSearchTool, RubyAIAgentsFactory::Tools::HostedFileSearchTool, RubyAIAgentsFactory::Tools::HostedComputerTool
+          when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
             true
           when Hash
             %w[web_search file_search computer].include?(tool[:type])
@@ -304,6 +308,9 @@ module RubyAIAgentsFactory
           raise APIError, "API error from OpenAI: #{error.message}"
         end
       end
+
     end
+
   end
+
 end

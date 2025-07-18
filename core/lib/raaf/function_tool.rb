@@ -3,7 +3,8 @@
 require_relative "errors"
 require_relative "logging"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # FunctionTool wraps Ruby methods and procs to make them available as tools for AI agents
   #
@@ -20,7 +21,7 @@ module RubyAIAgentsFactory
   #   def get_weather(city:, unit: "celsius")
   #     "Weather in #{city}: 22°#{unit[0].upcase}"
   #   end
-  #   
+  #
   #   tool = FunctionTool.new(method(:get_weather))
   #   result = tool.call(city: "Paris")  # => "Weather in Paris: 22°C"
   #
@@ -46,8 +47,9 @@ module RubyAIAgentsFactory
   #   )
   #
   class FunctionTool
+
     include Logger
-    
+
     # @!attribute [r] name
     #   @return [String] The tool's name used for identification
     # @!attribute [r] description
@@ -100,25 +102,22 @@ module RubyAIAgentsFactory
 
       # Debug logging for parameter handling
       log_debug_tools("FunctionTool.new called",
-        tool_name: @name,
-        parameters_provided: !parameters.nil?,
-        parameters_value: parameters&.inspect
-      )
+                      tool_name: @name,
+                      parameters_provided: !parameters.nil?,
+                      parameters_value: parameters&.inspect)
 
       # IMPORTANT: Only extract parameters if not explicitly provided
       # This ensures we use the DSL-defined parameters when available
       @parameters = if parameters.nil?
                       extracted = extract_parameters(callable)
                       log_debug_tools("Extracted parameters",
-                        tool_name: @name,
-                        extracted_parameters: extracted.inspect
-                      )
+                                      tool_name: @name,
+                                      extracted_parameters: extracted.inspect)
                       extracted
                     else
                       log_debug_tools("Using provided parameters",
-                        tool_name: @name,
-                        provided_parameters: parameters.inspect
-                      )
+                                      tool_name: @name,
+                                      provided_parameters: parameters.inspect)
                       parameters
                     end
       @is_enabled = is_enabled # Can be a Proc, boolean, or nil
@@ -141,7 +140,7 @@ module RubyAIAgentsFactory
     # @example Error handling
     #   begin
     #     result = tool.call(invalid_param: "value")
-    #   rescue RubyAIAgentsFactory::ToolError => e
+    #   rescue RAAF::ToolError => e
     #     puts "Tool failed: #{e.message}"
     #   end
     #
@@ -179,7 +178,7 @@ module RubyAIAgentsFactory
         false
       when Proc
         begin
-          if @is_enabled.arity == 0
+          if @is_enabled.arity.zero?
             @is_enabled.call
           else
             @is_enabled.call(context)
@@ -229,8 +228,10 @@ module RubyAIAgentsFactory
         # rubocop:disable Style/RedundantCondition
         if tool.is_a?(Hash)
           true # Simple hash tools are always enabled
-        else
+        elsif tool.respond_to?(:enabled?)
           tool.enabled?(context)
+        else
+          true # Tools without enabled? method are always enabled
         end
         # rubocop:enable Style/RedundantCondition
       end
@@ -275,12 +276,11 @@ module RubyAIAgentsFactory
 
       # Debug logging for to_h output
       log_debug_tools("FunctionTool.to_h generated",
-        tool_name: @name,
-        result_size: result.to_s.length,
-        has_parameters: !result.dig(:function, :parameters).nil?,
-        properties_count: result.dig(:function, :parameters, :properties)&.keys&.length || 0,
-        required_count: result.dig(:function, :parameters, :required)&.length || 0
-      )
+                      tool_name: @name,
+                      result_size: result.to_s.length,
+                      has_parameters: !result.dig(:function, :parameters).nil?,
+                      properties_count: result.dig(:function, :parameters, :properties)&.keys&.length || 0,
+                      required_count: result.dig(:function, :parameters, :required)&.length || 0)
 
       result
     end
@@ -328,7 +328,7 @@ module RubyAIAgentsFactory
     #   def example(required_param:, optional_param: "default")
     #     # ...
     #   end
-    #   
+    #
     #   # Extracts to:
     #   # {
     #   #   type: "object",
@@ -363,5 +363,7 @@ module RubyAIAgentsFactory
         additionalProperties: false
       }
     end
+
   end
+
 end

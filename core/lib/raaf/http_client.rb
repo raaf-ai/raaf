@@ -4,13 +4,14 @@ require "net/http"
 require "json"
 require "uri"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # HTTPClient - Local HTTP client implementation for OpenAI API calls
   #
   # This module provides a minimal, focused HTTP client implementation that replaces
   # the dependency on the openai-ruby gem. It handles only the necessary functionality
-  # for OpenAI Agents while maintaining compatibility with the expected API.
+  # for RAAF while maintaining compatibility with the expected API.
   #
   # == Features
   #
@@ -24,7 +25,7 @@ module RubyAIAgentsFactory
   # == Usage Patterns
   #
   # The client maintains API compatibility with the openai-ruby gem while
-  # providing only the features needed by OpenAI Agents.
+  # providing only the features needed by RAAF.
   #
   # @example Basic client usage
   #   client = HTTPClient::Client.new(api_key: "your-api-key")
@@ -49,10 +50,11 @@ module RubyAIAgentsFactory
   #     open_timeout: 60
   #   )
   #
-  # @author OpenAI Agents Ruby Team
+  # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see Client For the main API client implementation
   class HTTPClient
+
     ##
     # OpenAI API Client
     #
@@ -79,6 +81,7 @@ module RubyAIAgentsFactory
     #     open_timeout: 30
     #   )
     class Client
+
       attr_reader :api_key, :base_url
 
       def initialize(api_key:, base_url: "https://api.openai.com/v1", **options)
@@ -188,12 +191,14 @@ module RubyAIAgentsFactory
           raise APIError, "HTTP #{response.code}: #{error_message}"
         end
       end
+
     end
 
     ##
     # Chat resource for handling chat completions
     #
     class ChatResource
+
       def initialize(client)
         @client = client
       end
@@ -201,12 +206,14 @@ module RubyAIAgentsFactory
       def completions
         @completions ||= CompletionsResource.new(@client)
       end
+
     end
 
     ##
     # Completions resource for handling completions API
     #
     class CompletionsResource
+
       def initialize(client)
         @client = client
       end
@@ -221,6 +228,7 @@ module RubyAIAgentsFactory
                              body: stream_parameters,
                              stream: true, &)
       end
+
     end
 
     # Error classes that match the OpenAI gem structure
@@ -239,5 +247,7 @@ module RubyAIAgentsFactory
     class GatewayTimeoutError < APIError; end
     class APIConnectionError < APIError; end
     class APITimeoutError < APIError; end
+
   end
+
 end

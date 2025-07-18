@@ -4,7 +4,7 @@ require "json"
 require "digest"
 require "openssl"
 
-module RubyAIAgentsFactory
+module RAAF
   module Compliance
     ##
     # Comprehensive audit trail for regulatory compliance
@@ -14,7 +14,7 @@ module RubyAIAgentsFactory
     # capabilities for regulatory compliance requirements.
     #
     class AuditTrail
-      include RubyAIAgentsFactory::Logging
+      include RAAF::Logging
 
       # @return [Symbol] Storage backend
       attr_reader :storage_backend

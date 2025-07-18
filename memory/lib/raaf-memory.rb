@@ -5,7 +5,7 @@ require_relative "raaf/memory"
 require_relative "raaf/vector_store"
 require_relative "raaf/semantic_search"
 
-module RubyAIAgentsFactory
+module RAAF
   ##
   # Memory and vector storage for Ruby AI Agents Factory
   #
@@ -25,10 +25,10 @@ module RubyAIAgentsFactory
   #   require 'raaf-memory'
   #   
   #   # Create memory store
-  #   store = RubyAIAgentsFactory::Memory.create_store(:file, base_dir: "./memory")
+  #   store = RAAF::Memory.create_store(:file, base_dir: "./memory")
   #   
   #   # Use with agent
-  #   agent = RubyAIAgentsFactory::Agent.new(
+  #   agent = RAAF::Agent.new(
   #     name: "Assistant",
   #     memory_store: store
   #   )
@@ -37,7 +37,7 @@ module RubyAIAgentsFactory
   #   require 'raaf-memory'
   #   
   #   # Create vector store
-  #   vector_store = RubyAIAgentsFactory::VectorStore.new(
+  #   vector_store = RAAF::VectorStore.new(
   #     name: "knowledge_base",
   #     dimensions: 1536
   #   )
@@ -58,13 +58,13 @@ module RubyAIAgentsFactory
   #   require 'raaf-memory'
   #   
   #   # Create semantic search database
-  #   db = RubyAIAgentsFactory::SemanticSearch::VectorDatabase.new(
+  #   db = RAAF::SemanticSearch::VectorDatabase.new(
   #     dimension: 1536,
   #     index_type: :hnsw
   #   )
   #   
   #   # Index documents
-  #   indexer = RubyAIAgentsFactory::SemanticSearch::DocumentIndexer.new(
+  #   indexer = RAAF::SemanticSearch::DocumentIndexer.new(
   #     vector_db: db
   #   )
   #   
@@ -87,12 +87,12 @@ module RubyAIAgentsFactory
   #   require 'pg'
   #   
   #   # Create PostgreSQL adapter
-  #   adapter = RubyAIAgentsFactory::Adapters::PgVectorAdapter.new(
+  #   adapter = RAAF::Adapters::PgVectorAdapter.new(
   #     connection_string: "postgres://user:pass@localhost/db"
   #   )
   #   
   #   # Create vector store with PostgreSQL backend
-  #   vector_store = RubyAIAgentsFactory::VectorStore.new(
+  #   vector_store = RAAF::VectorStore.new(
   #     name: "production_knowledge",
   #     adapter: adapter,
   #     dimensions: 1536
@@ -101,8 +101,8 @@ module RubyAIAgentsFactory
   # @since 1.0.0
   module Memory
     # Re-export main classes for convenience
-    VectorStore = RubyAIAgentsFactory::VectorStore
-    SemanticSearch = RubyAIAgentsFactory::SemanticSearch
+    VectorStore = RAAF::VectorStore
+    SemanticSearch = RAAF::SemanticSearch
 
     ##
     # Configure memory settings
@@ -115,7 +115,7 @@ module RubyAIAgentsFactory
     # @option options [Integer] :cache_ttl (3600) Cache TTL in seconds
     #
     # @example Configure memory defaults
-    #   RubyAIAgentsFactory::Memory.configure do |config|
+    #   RAAF::Memory.configure do |config|
     #     config.default_store_type = :file
     #     config.default_base_dir = "/var/lib/agent_memory"
     #     config.default_dimensions = 1536

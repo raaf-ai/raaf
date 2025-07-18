@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class Dashboard < Phlex::HTML
       include Phlex::Rails::Helpers::LinkTo
@@ -32,7 +32,7 @@ module RubyAIAgentsFactory
         Flex(justify: :between, align: :center) do
           Container do
             Typography("Dashboard", variant: :heading, level: 1, class: "text-3xl font-bold text-gray-900")
-            Typography("Monitor your OpenAI Agents performance and activity", variant: :muted)
+            Typography("Monitor your Ruby AI Agents Factory performance and activity", variant: :muted)
           end
 
           Flex(align: :center, gap: 3) do

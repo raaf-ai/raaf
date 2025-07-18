@@ -3,12 +3,13 @@
 require "json"
 require "time"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Base result class for all agent operations
   #
   # Provides a standardized way to represent operation results throughout
-  # the OpenAI Agents system, including success/failure status, data payload,
+  # the RAAF system, including success/failure status, data payload,
   # error information, and metadata.
   #
   # @example Creating a successful result
@@ -26,18 +27,19 @@ module RubyAIAgentsFactory
   #   result.to_json  # => JSON string
   #
   class Result
+
     # @return [Boolean] Whether the operation was successful
     attr_reader :success
-    
+
     # @return [Object, nil] The result data payload
     attr_reader :data
-    
+
     # @return [String, Exception, nil] Error information if operation failed
     attr_reader :error
-    
+
     # @return [Hash] Additional metadata about the operation
     attr_reader :metadata
-    
+
     # @return [Time] When the result was created
     attr_reader :timestamp
 
@@ -130,6 +132,7 @@ module RubyAIAgentsFactory
     def self.failure(error, metadata: {})
       new(success: false, error: error, metadata: metadata)
     end
+
   end
 
   ##
@@ -155,18 +158,19 @@ module RubyAIAgentsFactory
   #   result.assistant_messages  # => messages from assistant
   #
   class AgentResult < Result
+
     # @return [String] Name of the agent that produced this result
     attr_reader :agent_name
-    
+
     # @return [Array<Hash>] Complete conversation message history
     attr_reader :messages
-    
+
     # @return [Integer] Number of conversation turns executed
     attr_reader :turns
-    
+
     # @return [Array<Hash>] Record of agent handoffs that occurred
     attr_reader :handoffs
-    
+
     # @return [Array<String>] List of tools that were called
     attr_reader :tool_calls
 
@@ -275,6 +279,7 @@ module RubyAIAgentsFactory
     def self.failure(agent_name:, error:, **)
       new(success: false, agent_name: agent_name, error: error, **)
     end
+
   end
 
   ##
@@ -299,12 +304,13 @@ module RubyAIAgentsFactory
   #   )
   #
   class ToolResult < Result
+
     # @return [String] Name of the tool that was executed
     attr_reader :tool_name
-    
+
     # @return [Hash] Arguments that were passed to the tool
     attr_reader :input_args
-    
+
     # @return [Float, nil] Execution time in seconds
     attr_reader :execution_time
 
@@ -350,6 +356,7 @@ module RubyAIAgentsFactory
     def self.failure(tool_name:, error:, **)
       new(success: false, tool_name: tool_name, error: error, **)
     end
+
   end
 
   ##
@@ -370,9 +377,10 @@ module RubyAIAgentsFactory
   #   result.chunk_count # => 2
   #
   class StreamingResult < Result
+
     # @return [Array<Hash>] Array of content chunks with timestamps
     attr_reader :chunks
-    
+
     # @return [Boolean] Whether the stream is complete
     attr_reader :complete
 
@@ -444,6 +452,7 @@ module RubyAIAgentsFactory
                     chunk_count: chunk_count
                   })
     end
+
   end
 
   ##
@@ -462,6 +471,7 @@ module RubyAIAgentsFactory
   #   )
   #
   class HandoffResult < Result
+
     attr_reader :from_agent, :to_agent, :reason, :handoff_data
 
     def initialize(success:, from_agent:, to_agent:, reason: nil, handoff_data: {}, **)
@@ -488,6 +498,7 @@ module RubyAIAgentsFactory
     def self.failure(from_agent:, to_agent:, error:, **)
       new(success: false, from_agent: from_agent, to_agent: to_agent, error: error, **)
     end
+
   end
 
   ##
@@ -513,6 +524,7 @@ module RubyAIAgentsFactory
   #   result.violation_messages # => ["must be positive", "is required"]
   #
   class ValidationResult < Result
+
     attr_reader :schema, :violations
 
     def initialize(success:, schema: nil, violations: [], **)
@@ -573,6 +585,7 @@ module RubyAIAgentsFactory
     def self.invalid(violations:, schema: nil, **)
       new(success: false, violations: violations, schema: schema, **)
     end
+
   end
 
   ##
@@ -598,6 +611,7 @@ module RubyAIAgentsFactory
   #   batch.success? # => false (has failures)
   #
   class BatchResult < Result
+
     attr_reader :results, :total_count, :success_count, :failure_count
 
     def initialize(results: [])
@@ -682,13 +696,14 @@ module RubyAIAgentsFactory
                     success_rate: success_rate
                   })
     end
+
   end
 
   ##
   # Run result class that matches Python implementation
   #
   # Represents the complete result of an agent conversation run,
-  # compatible with the Python OpenAI Agents SDK. Contains the
+  # compatible with the Python RAAF SDK. Contains the
   # full conversation history, agent information, and usage statistics.
   #
   # @example Creating a run result
@@ -705,6 +720,7 @@ module RubyAIAgentsFactory
   #   result.to_input_list          # => Messages for next run
   #
   class RunResult < Result
+
     attr_reader :messages, :last_agent, :turns, :final_output, :last_response_id, :usage
 
     def initialize(success: true, messages: [], last_agent: nil, turns: 0, last_response_id: nil, usage: nil, **)
@@ -782,6 +798,7 @@ module RubyAIAgentsFactory
       last_message = assistant_messages.last
       last_message[:content] || ""
     end
+
   end
 
   ##
@@ -795,7 +812,7 @@ module RubyAIAgentsFactory
   #   builder = ResultBuilder.new
   #   builder.add_metadata(:user_id, "123")
   #          .add_metadata(:operation, "search")
-  #   
+  #
   #   result = builder.build_success("Search completed")
   #   # Result includes duration_ms and metadata
   #
@@ -807,6 +824,7 @@ module RubyAIAgentsFactory
   #   )
   #
   class ResultBuilder
+
     def initialize
       @metadata = {}
       @start_time = Time.now.utc
@@ -890,5 +908,7 @@ module RubyAIAgentsFactory
         **
       )
     end
+
   end
+
 end

@@ -2,11 +2,11 @@
 
 require_relative "../logging"
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     class CostManager
-      include RubyAIAgentsFactory::Tracing
-      include RubyAIAgentsFactory::Logger
+      include RAAF::Tracing
+      include RAAF::Logger
 
       # Advanced cost management with multi-tenant allocation, budgeting, and optimization
 

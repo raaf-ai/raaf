@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module RubyAIAgentsFactory
+module RAAF
   module Tracing
     # rubocop:disable Metrics/ClassLength
     class AnomalyDetector

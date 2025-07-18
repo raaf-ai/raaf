@@ -2,7 +2,8 @@
 
 require "tiktoken_ruby"
 
-module RubyAIAgentsFactory
+module RAAF
+
   ##
   # Manages conversation context size to stay within model token limits
   #
@@ -12,7 +13,7 @@ module RubyAIAgentsFactory
   #
   # @example Basic usage
   #   manager = ContextManager.new(model: "gpt-4o", max_tokens: 8000)
-  #   
+  #
   #   # Messages that might exceed token limit
   #   long_conversation = [
   #     { role: "system", content: "You are a helpful assistant" },
@@ -20,7 +21,7 @@ module RubyAIAgentsFactory
   #     # ... many more messages ...
   #     { role: "user", content: "Latest question" }
   #   ]
-  #   
+  #
   #   # Returns optimized conversation within token limits
   #   managed = manager.manage_context(long_conversation)
   #
@@ -37,12 +38,13 @@ module RubyAIAgentsFactory
   #   message_tokens = manager.count_message_tokens(message)
   #
   class ContextManager
+
     # @return [Integer] Maximum tokens allowed for conversation
     attr_reader :max_tokens
-    
+
     # @return [Boolean] Whether to preserve system messages
     attr_reader :preserve_system
-    
+
     # @return [Integer] Number of recent messages to always preserve
     attr_reader :preserve_recent
 
@@ -143,14 +145,12 @@ module RubyAIAgentsFactory
       case model
       when /gpt-4o/, /gpt-4-turbo/
         120_000 # Leave some buffer from 128k limit
-      when /gpt-4/
-        7_500 # Leave buffer from 8k limit
       when /gpt-3.5-turbo-16k/
         15_000
       when /gpt-3.5/
         3_500
       else
-        7_500 # Conservative default
+        7_500 # Conservative default (includes gpt-4 and unknown models)
       end
     end
 
@@ -246,5 +246,7 @@ module RubyAIAgentsFactory
         tokens
       end
     end
+
   end
+
 end

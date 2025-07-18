@@ -7,7 +7,7 @@
 # important for long responses, complex reasoning, or when using tools that
 # may take time to execute.
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # ============================================================================
 # STREAMING SETUP AND CONFIGURATION
@@ -85,7 +85,7 @@ end
 # Create agent optimized for streaming responses.
 # The model choice affects streaming quality - gpt-4o provides excellent
 # streaming performance with natural response chunking.
-streaming_agent = OpenAIAgents::Agent.new(
+streaming_agent = RAAF::Agent.new(
   # Clear name for identification in streaming logs
   name: "StreamingAssistant",
   
@@ -114,7 +114,7 @@ puts "\n=== Basic Streaming Response ==="
 puts "-" * 40
 
 # Create runner for streaming
-runner = OpenAIAgents::Runner.new(agent: streaming_agent)
+runner = RAAF::Runner.new(agent: streaming_agent)
 
 begin
   puts "User: Tell me about the benefits of streaming AI responses"
@@ -144,7 +144,7 @@ begin
   puts "   Total characters streamed: #{response_buffer.length}"
   puts "   Final turns: #{result&.turns || "N/A"}"
   
-rescue OpenAIAgents::Error => e
+rescue RAAF::Error => e
   puts "\n✗ Streaming failed: #{e.message}"
   puts "\n=== Demo Mode (Simulated Streaming) ==="
   demo_response = "Streaming AI responses provides several key benefits:\n\n" \
@@ -205,7 +205,7 @@ begin
   puts "   Response parts: #{response_parts.length}"
   puts "   Tool calls made: #{tool_calls_made.length}"
   
-rescue OpenAIAgents::Error => e
+rescue RAAF::Error => e
   puts "\n✗ Streaming with tools failed: #{e.message}"
   puts "\n=== Demo Mode (Tool Execution) ==="
   
@@ -273,7 +273,7 @@ begin
     puts "Perceived responsiveness: #{first_chunk_delay < non_streaming_total ? "Better" : "Similar"}"
   end
   
-rescue OpenAIAgents::Error => e
+rescue RAAF::Error => e
   puts "✗ Performance test failed: #{e.message}"
   puts "\n=== Demo Mode (Performance Simulation) ==="
   puts "✅ Streaming results:"

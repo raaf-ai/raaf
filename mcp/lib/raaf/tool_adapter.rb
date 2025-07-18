@@ -3,12 +3,12 @@
 require_relative "../function_tool"
 require_relative "client"
 
-module RubyAIAgentsFactory
+module RAAF
   module MCP
     # Adapter to use MCP tools as OpenAI Agent tools
     #
     # This adapter wraps MCP tools to make them compatible with
-    # the OpenAI Agents tool interface.
+    # the RAAF tool interface.
     #
     # @example Basic usage
     #   client = MCPClient.new

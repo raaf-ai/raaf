@@ -2,7 +2,7 @@
 
 require_relative "base"
 
-module RubyAIAgentsFactory
+module RAAF
   module Guardrails
     ##
     # Output guardrails validate agent responses before returning to users

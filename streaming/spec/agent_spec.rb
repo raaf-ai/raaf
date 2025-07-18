@@ -4,22 +4,22 @@ require "spec_helper"
 require "async"
 require "openai_agents/async"
 
-RSpec.describe OpenAIAgents::Async::Agent do
+RSpec.describe RAAF::Async::Agent do
   let(:agent) { described_class.new(name: "AsyncAgent") }
 
   describe "#initialize" do
     it "inherits from base Agent class" do
-      expect(agent).to be_a(OpenAIAgents::Agent)
+      expect(agent).to be_a(RAAF::Agent)
     end
 
     it "includes Async::Base module" do
-      expect(agent.class.ancestors).to include(OpenAIAgents::Async::Base)
+      expect(agent.class.ancestors).to include(RAAF::Async::Base)
     end
   end
 
   describe "#execute_tool_async" do
     let(:sync_tool) do
-      OpenAIAgents::FunctionTool.new(
+      RAAF::FunctionTool.new(
         proc { |value:| value * 2 },
         name: "double",
         description: "Doubles a number"
@@ -27,7 +27,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
     end
 
     let(:async_tool) do
-      OpenAIAgents::Async::AsyncFunctionTool.new(
+      RAAF::Async::AsyncFunctionTool.new(
         proc { |value:| value * 3 },
         name: "triple",
         async: true
@@ -56,11 +56,11 @@ RSpec.describe OpenAIAgents::Async::Agent do
     it "raises error for non-existent tools" do
       expect do
         agent.execute_tool_async("nonexistent")
-      end.to raise_error(OpenAIAgents::ToolError, /Tool 'nonexistent' not found/)
+      end.to raise_error(RAAF::ToolError, /Tool 'nonexistent' not found/)
     end
 
     it "handles tool execution errors" do
-      failing_tool = OpenAIAgents::FunctionTool.new(
+      failing_tool = RAAF::FunctionTool.new(
         proc { raise StandardError, "Tool failed" },
         name: "failing_tool"
       )
@@ -69,21 +69,21 @@ RSpec.describe OpenAIAgents::Async::Agent do
       Async do
         expect do
           agent.execute_tool_async("failing_tool").wait
-        end.to raise_error(OpenAIAgents::ToolError, /Tool failed/)
+        end.to raise_error(RAAF::ToolError, /Tool failed/)
       end
     end
   end
 
   describe "#execute_tools_async" do
     let(:double_tool) do
-      OpenAIAgents::FunctionTool.new(
+      RAAF::FunctionTool.new(
         proc { |value:| value * 2 },
         name: "double"
       )
     end
 
     let(:add_tool) do
-      OpenAIAgents::FunctionTool.new(
+      RAAF::FunctionTool.new(
         proc { |a:, b:| a + b },
         name: "add"
       )
@@ -112,7 +112,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
     end
 
     it "handles errors in individual tools" do
-      failing_tool = OpenAIAgents::FunctionTool.new(
+      failing_tool = RAAF::FunctionTool.new(
         proc { raise StandardError, "Tool failed" },
         name: "failing_tool"
       )
@@ -150,7 +150,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
       agent.add_tool(tool_proc)
 
       added_tool = agent.tools.first
-      expect(added_tool).to be_a(OpenAIAgents::Async::AsyncFunctionTool)
+      expect(added_tool).to be_a(RAAF::Async::AsyncFunctionTool)
     end
 
     it "wraps methods in AsyncFunctionTool" do
@@ -160,11 +160,11 @@ RSpec.describe OpenAIAgents::Async::Agent do
 
       agent.add_tool(method(:test_method))
       added_tool = agent.tools.first
-      expect(added_tool).to be_a(OpenAIAgents::Async::AsyncFunctionTool)
+      expect(added_tool).to be_a(RAAF::Async::AsyncFunctionTool)
     end
 
     it "preserves existing FunctionTool objects" do
-      existing_tool = OpenAIAgents::FunctionTool.new(proc { |x:| x })
+      existing_tool = RAAF::FunctionTool.new(proc { |x:| x })
       agent.add_tool(existing_tool)
 
       expect(agent.tools.first).to eq(existing_tool)
@@ -173,11 +173,11 @@ RSpec.describe OpenAIAgents::Async::Agent do
 
   describe "AsyncFunctionTool" do
     let(:sync_function) { proc { |value:| value * 2 } }
-    let(:async_tool) { OpenAIAgents::Async::AsyncFunctionTool.new(sync_function) }
+    let(:async_tool) { RAAF::Async::AsyncFunctionTool.new(sync_function) }
 
     describe "#initialize" do
       it "inherits from FunctionTool" do
-        expect(async_tool).to be_a(OpenAIAgents::FunctionTool)
+        expect(async_tool).to be_a(RAAF::FunctionTool)
       end
 
       it "auto-detects async functions" do
@@ -185,7 +185,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
       end
 
       it "accepts explicit async flag" do
-        explicit_async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
+        explicit_async_tool = RAAF::Async::AsyncFunctionTool.new(
           sync_function, 
           async: true
         )
@@ -203,7 +203,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
 
       it "calls async functions directly when marked as async" do
         async_function = proc { |value:| value * 3 }
-        async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
+        async_tool = RAAF::Async::AsyncFunctionTool.new(
           async_function, 
           async: true
         )
@@ -223,7 +223,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
 
       it "uses async execution when in async context and tool is async" do
         async_function = proc { |value:| value * 3 }
-        async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
+        async_tool = RAAF::Async::AsyncFunctionTool.new(
           async_function,
           async: true
         )
@@ -240,7 +240,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
     describe "#to_h" do
       it "includes async flag in hash representation when async" do
         async_function = proc { |value:| value * 2 }
-        async_tool = OpenAIAgents::Async::AsyncFunctionTool.new(
+        async_tool = RAAF::Async::AsyncFunctionTool.new(
           async_function,
           async: true
         )
@@ -290,11 +290,11 @@ RSpec.describe OpenAIAgents::Async::Agent do
     it "handles tool not found errors properly" do
       expect do
         agent.execute_tool_async("nonexistent_tool")
-      end.to raise_error(OpenAIAgents::ToolError, /Tool 'nonexistent_tool' not found/)
+      end.to raise_error(RAAF::ToolError, /Tool 'nonexistent_tool' not found/)
     end
 
     it "propagates tool execution errors" do
-      failing_tool = OpenAIAgents::FunctionTool.new(
+      failing_tool = RAAF::FunctionTool.new(
         proc { raise ArgumentError, "Invalid argument" },
         name: "failing_tool"
       )
@@ -303,7 +303,7 @@ RSpec.describe OpenAIAgents::Async::Agent do
       Async do
         expect do
           agent.execute_tool_async("failing_tool").wait
-        end.to raise_error(OpenAIAgents::ToolError, /Invalid argument/)
+        end.to raise_error(RAAF::ToolError, /Invalid argument/)
       end
     end
   end

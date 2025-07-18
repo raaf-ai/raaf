@@ -4,7 +4,7 @@
 # Interactive REPL (Read-Eval-Print Loop) Example
 # 
 # This example demonstrates the comprehensive interactive development environment
-# built into the OpenAI Agents Ruby gem. The REPL provides a powerful shell
+# built into the RAAF (Ruby AI Agents Factory) gem. The REPL provides a powerful shell
 # for agent development, debugging, and testing with features like:
 #
 # - Interactive agent management (create, switch, list agents)
@@ -22,7 +22,7 @@
 # - Quick testing of agent behaviors
 # - Live demonstration of capabilities
 
-require_relative "../lib/openai_agents"
+require_relative "../lib/raaf"
 
 # ============================================================================
 # ENVIRONMENT VALIDATION
@@ -50,32 +50,32 @@ puts "-" * 60
 puts "\n=== Example 1: REPL Creation and Configuration ==="
 
 # Create a REPL instance with supported configuration
-repl = OpenAIAgents::REPL.new(
+repl = RAAF::REPL.new(
   debug: true                          # Enable debug output
 )
 
 puts "✅ REPL configured with:"
 puts "  - Debug mode: enabled"
-puts "  - Available commands: #{OpenAIAgents::REPL::COMMANDS.length}"
+puts "  - Available commands: #{RAAF::REPL::COMMANDS.length}"
 puts "  - Default tools: weather, time, calculator"
 
 # Example 2: Agent Management in REPL
 puts "\n=== Example 2: Agent Management ==="
 
 # Create agents and add them to REPL
-assistant_agent = OpenAIAgents::Agent.new(
+assistant_agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful programming assistant.",
   model: "gpt-4o"
 )
 
-researcher_agent = OpenAIAgents::Agent.new(
+researcher_agent = RAAF::Agent.new(
   name: "Researcher", 
   instructions: "You are a research specialist focused on gathering information.",
   model: "gpt-4o"
 )
 
-code_agent = OpenAIAgents::Agent.new(
+code_agent = RAAF::Agent.new(
   name: "CodeReviewer",
   instructions: "You are a code review expert focused on best practices.",
   model: "gpt-4o"
@@ -252,7 +252,7 @@ puts "  - Agent switches: 0"
 puts "\n=== Example 7: Advanced REPL Commands ==="
 
 # Show available commands
-puts "🎯 Available REPL commands (#{OpenAIAgents::REPL::COMMANDS.length} total):"
+puts "🎯 Available REPL commands (#{RAAF::REPL::COMMANDS.length} total):"
 
 command_categories = {
   "Agent Management" => %w[create_agent switch_agent list_agents current_agent],
@@ -281,7 +281,7 @@ example_commands = [
 ]
 
 example_commands.each_with_index do |cmd, i|
-  puts "  #{i+1}. openai-agents> #{cmd}"
+  puts "  #{i+1}. raaf> #{cmd}"
   puts "      ✅ Command executed successfully"
 end
 
@@ -314,9 +314,9 @@ puts "✅ Use breakpoints to understand execution flow"
 
 puts "\n=== Starting Interactive Session ==="
 puts "To start the REPL interactively, run:"
-puts "  ruby -e \"require_relative 'lib/openai_agents'; OpenAIAgents::REPL.new.start\""
+puts "  ruby -e \"require_relative 'lib/openai_agents'; RAAF::REPL.new.start\""
 puts
 puts "Or use in your application:"
-puts "  repl = OpenAIAgents::REPL.new"
+puts "  repl = RAAF::REPL.new"
 puts "  repl.create_agent('Assistant', 'You are helpful', 'gpt-4o')"
 puts "  repl.start  # Starts interactive session"

@@ -6,7 +6,7 @@ require "uri"
 require_relative "interface"
 require_relative "../errors"
 
-module RubyAIAgentsFactory
+module RAAF
   module Models
     ##
     # LiteLLM provider enables using any model via LiteLLM proxy

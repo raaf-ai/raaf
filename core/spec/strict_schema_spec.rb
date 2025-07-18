@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe OpenAIAgents::StrictSchema do
+RSpec.describe RAAF::StrictSchema do
   describe ".ensure_strict_json_schema" do
     context "with object schema" do
       it "makes all properties required" do
@@ -106,7 +106,7 @@ RSpec.describe OpenAIAgents::StrictSchema do
         result = described_class.ensure_strict_json_schema(schema)
 
         expect(result["required"]).to contain_exactly("items")
-        
+
         array_items = result["properties"]["items"]["items"]
         expect(array_items["required"]).to contain_exactly("id", "value")
         expect(array_items["additionalProperties"]).to be false
