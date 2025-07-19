@@ -38,6 +38,8 @@ RAAF's provider-agnostic architecture represents a fundamental shift from vendor
 
 The provider abstraction layer normalizes different AI APIs into a consistent interface while preserving provider-specific capabilities. This design maintains the flexibility to leverage unique provider features while ensuring portability across different AI services.
 
+**Critical Provider Portability Warning**: While RAAF provides technical portability across providers, operational portability requires careful consideration. Different language models exhibit vastly different behaviors, reasoning patterns, and response styles even with identical prompts and configurations. What works perfectly with GPT-4 might fail completely with Claude or produce unexpected results with open-source models. The abstraction layer handles API differences, but it cannot normalize model behavior differences. **ALWAYS** thoroughly test your complete agent setup after changing providers, including edge cases, error handling, and multi-turn conversations. Consider maintaining provider-specific test suites and be prepared to adjust prompts, temperature settings, and tool configurations for each provider.
+
 ### Strategic Risks of Provider Lock-In
 
 The AI provider ecosystem evolves rapidly, with frequent changes in model availability, pricing structures, and competitive landscape. Applications tightly coupled to specific providers face several strategic risks:

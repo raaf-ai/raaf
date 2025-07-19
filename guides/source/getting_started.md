@@ -679,6 +679,8 @@ RAAF's provider abstraction means you can:
 
 This flexibility isn't theoretical—it's practical insurance against vendor lock-in and changing market conditions.
 
+**Important Note on Provider Switching**: While RAAF makes it technically easy to switch providers, each AI model behaves differently. The same prompt that works perfectly with one provider might produce completely different results with another. **ALWAYS** test your entire application thoroughly after switching providers, as you may need to adjust prompts, parameters, and even your agent's logic to accommodate the new model's behavior patterns.
+
 ```ruby
 # Gemfile
 gem 'raaf-core'

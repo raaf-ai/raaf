@@ -76,14 +76,14 @@ An agent in RAAF represents a behavioral template for AI assistants—a specific
 
 Traditional AI systems often conflate the definition of behavior (what the AI should do) with the execution of that behavior (tracking a specific conversation). RAAF separates these concerns:
 
-- **Agent Template**: Defines consistent behavior patterns, available tools, and interaction rules
+- **Agent**: Defines consistent behavior patterns, available tools, and interaction rules (stateless by design)
 - **Runner Instance**: Manages specific conversation state and coordinates template execution
 
-This separation enables one agent template to power thousands of concurrent conversations while maintaining complete isolation between them.
+This separation enables one agent to power thousands of concurrent conversations while maintaining complete isolation between them.
 
 ### Benefits of Stateless Design
 
-**Concurrent Execution**: Multiple conversations can use the same agent template simultaneously without interference or resource conflicts.
+**Concurrent Execution**: Multiple conversations can use the same agent simultaneously without interference or resource conflicts.
 
 **Predictable Testing**: Each test execution starts with a clean behavioral template, eliminating test failures caused by residual state from previous executions.
 
@@ -91,11 +91,11 @@ This separation enables one agent template to power thousands of concurrent conv
 
 **Flexible Composition**: Agents can be combined with different tools, memory configurations, and providers without concern for internal state conflicts.
 
-**Horizontal Scaling**: Agent templates can be distributed across multiple servers since they contain no conversation-specific state.
+**Horizontal Scaling**: Agents can be distributed across multiple servers since they contain no conversation-specific state.
 
 ### Architectural Implications
 
-This stateless design has profound implications for system architecture. It enables microservice deployment patterns, simplifies load balancing, and eliminates the complex state synchronization typically required in distributed AI systems. The agent template becomes a pure functional specification that can be cached, replicated, and executed anywhere without coordination overhead.
+This stateless design has profound implications for system architecture. It enables microservice deployment patterns, simplifies load balancing, and eliminates the complex state synchronization typically required in distributed AI systems. The agent becomes a pure functional specification that can be cached, replicated, and executed anywhere without coordination overhead.
 
 ### Understanding Statelessness
 
@@ -115,11 +115,11 @@ The stateless nature of agents means they contain no conversation-specific infor
 
 ### Practical Implications
 
-This architectural choice enables practical benefits at scale. A single agent template can serve thousands of concurrent users without resource conflicts or cross-contamination. Customer service departments can use one agent definition across all representatives, ensuring consistent behavior while maintaining conversation isolation.
+This architectural choice enables practical benefits at scale. A single agent can serve thousands of concurrent users without resource conflicts or cross-contamination. Customer service departments can use one agent definition across all representatives, ensuring consistent behavior while maintaining conversation isolation.
 
-The stateless design also simplifies deployment and maintenance. Agent templates can be updated and deployed independently of running conversations, enabling continuous improvement without service interruption.
+The stateless design also simplifies deployment and maintenance. Agents can be updated and deployed independently of running conversations, enabling continuous improvement without service interruption.
 
-### Agent Template Creation
+### Agent Creation
 
 Creating an agent involves defining three fundamental components: identity, behavior, and capabilities.
 
@@ -133,7 +133,7 @@ agent = RAAF::Agent.new(
 
 ### Essential Agent Components
 
-**Identity (Name)**: Provides a unique identifier for the agent template, crucial for multi-agent scenarios, tracing, and debugging. The name serves as a reference point for handoffs, monitoring, and system coordination.
+**Identity (Name)**: Provides a unique identifier for the agent, crucial for multi-agent scenarios, tracing, and debugging. The name serves as a reference point for handoffs, monitoring, and system coordination.
 
 **Behavior (Instructions)**: Defines the agent's personality, expertise domain, and interaction patterns. Instructions shape how the agent interprets queries, formats responses, and handles various scenarios. Well-crafted instructions create consistent, predictable behavior across different contexts.
 
@@ -141,7 +141,7 @@ agent = RAAF::Agent.new(
 
 ### Template Instantiation Philosophy
 
-The agent template serves as a behavioral specification that can be instantiated multiple times through different runners. Each instantiation maintains the same behavioral patterns while operating on different conversation contexts. This design enables:
+The agent serves as a behavioral specification that can be instantiated multiple times through different runners. Each instantiation maintains the same behavioral patterns while operating on different conversation contexts. This design enables:
 
 - **Consistent Behavior**: All instances follow the same behavioral template
 - **Independent Execution**: Each instance operates without affecting others
@@ -150,7 +150,13 @@ The agent template serves as a behavioral specification that can be instantiated
 
 ### Design Considerations
 
-Agent templates should be designed with reusability in mind. Instructions should be general enough to handle various scenarios within the domain while specific enough to provide consistent behavior. The template becomes a behavioral contract that defines how the AI assistant will operate across different contexts.
+Agents should be designed with reusability in mind. Instructions should be general enough to handle various scenarios within the domain while specific enough to provide consistent behavior. The agent becomes a behavioral contract that defines how the AI assistant will operate across different contexts.
+
+**Designing for Reusability**: A well-designed agent can serve multiple use cases without modification. Consider a customer service agent - rather than creating separate agents for order inquiries, shipping questions, and return requests, design one agent with comprehensive instructions that covers all customer service scenarios. This approach reduces maintenance overhead and ensures consistent customer experience across different interaction types.
+
+The key to reusable agent design lies in abstracting the core purpose while allowing flexibility in execution. Instructions should define the agent's expertise domain and behavioral guidelines without hardcoding specific responses or workflows. Tools provide the specific capabilities, context variables supply the runtime data, and the model selection determines the sophistication level - but the agent itself remains a stable, reusable component.
+
+This reusability extends across different deployment contexts. The same agent definition can power a web chat interface, a mobile app, an API endpoint, or even voice interactions. By keeping agents stateless and context-agnostic, you create building blocks that compose into larger systems without modification.
 
 ### Core Agent Properties
 
