@@ -35,7 +35,7 @@ Why Ruby for AI agents? While Python dominates the AI/ML landscape, Ruby brings 
 - **Mature ecosystem**: Rails, gems, and robust libraries provide a solid foundation for production systems
 - **Developer happiness**: Ruby's design philosophy aligns well with the iterative nature of AI development
 
-RAA F chose Ruby not just for preference, but because building AI agents is fundamentally about communication and composition—areas where Ruby excels. The framework leverages Ruby's strengths while abstracting away the complexity of AI model integration.
+RAAF chose Ruby not just for preference, but because building AI agents is fundamentally about communication and composition—areas where Ruby excels. The framework leverages Ruby's strengths while abstracting away the complexity of AI model integration.
 
 - [Official Ruby Programming Language website](https://www.ruby-lang.org/en/documentation/)
 - [List of Free Programming Books](https://github.com/EbookFoundation/free-programming-books/blob/main/books/free-programming-books-langs.md#ruby)

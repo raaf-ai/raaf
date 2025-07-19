@@ -40,7 +40,7 @@ RAAF is built on several key principles that address these real-world challenges
 
 Remember when you first learned Rails? You didn't need to understand every component on day one. RAAF works the same way.
 
-We've seen too many AI frameworks that force you to adopt their entire ecosystem from the start. That's backwards. You should be able to start with a simple agent and add capabilities as your needs grow. That's why RAAF uses a mono-repo structure with independent gems:
+We've seen too many AI frameworks that force you to adopt their entire ecosystem from the start. That's backwards. You should be able to start with a simple agent and add capabilities as your needs grow. That's why RAAF provides a coherent set of loosely coupled gems:
 
 ```ruby
 # Minimal setup

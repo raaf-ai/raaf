@@ -343,11 +343,11 @@ agent = RAAF::Agent.new(
 # System prompts (Anthropic excels at following system instructions)
 agent = RAAF::Agent.new(
   model: "claude-3-5-sonnet-20241022",
-  instructions: """
+  instructions: <<~HEREDOC
     You are Claude, an AI assistant created by Anthropic.
     You are helpful, harmless, and honest.
     Think step by step and be very careful about accuracy.
-  """
+  HEREDOC
 )
 ```
 
@@ -1014,7 +1014,7 @@ end
 # Use system prompts effectively
 agent = RAAF::Agent.new(
   model: "claude-3-5-sonnet-20241022",
-  instructions: """
+  instructions: <<~HEREDOC
     You are an expert assistant.
     
     Guidelines:
@@ -1022,7 +1022,7 @@ agent = RAAF::Agent.new(
     - Think step by step
     - Be precise and accurate
     - Ask clarifying questions when needed
-  """
+  HEREDOC
 )
 
 # Leverage large context windows

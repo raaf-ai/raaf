@@ -393,65 +393,9 @@ end
 Testing Patterns
 ---------------
 
-### Unit Testing Agents
+### Testing Best Practices
 
-Test agents with mock providers:
-
-```ruby
-RSpec.describe CustomerServiceAgent do
-  let(:mock_provider) { instance_double(RAAF::Providers::OpenAI) }
-  let(:agent) { described_class.new(provider: mock_provider) }
-  
-  describe "#lookup_order" do
-    it "returns order information" do
-      order_data = { id: "12345", status: "shipped" }
-      
-      allow(mock_provider).to receive(:generate_response).and_return(
-        double(content: "Your order #12345 is shipped", usage: double(total_tokens: 50))
-      )
-      
-      result = agent.lookup_order("12345")
-      
-      expect(result).to include("shipped")
-      expect(mock_provider).to have_received(:generate_response)
-    end
-  end
-  
-  describe "#process_return" do
-    it "handles return requests" do
-      allow(mock_provider).to receive(:generate_response).and_return(
-        double(content: "Return initiated", usage: double(total_tokens: 30))
-      )
-      
-      result = agent.process_return(order_id: "12345", reason: "defective")
-      
-      expect(result).to include("Return initiated")
-    end
-  end
-end
-```
-
-### Integration Testing
-
-Test complete workflows:
-
-```ruby
-RSpec.describe "Order Processing Workflow" do
-  let(:orchestrator) { OrderProcessingOrchestrator.new }
-  
-  it "processes orders end-to-end" do
-    VCR.use_cassette("order_processing") do
-      order_data = {
-        customer_id: 123,
-        items: [{ sku: "ABC123", quantity: 2 }],
-        shipping_address: valid_address
-      }
-      
-      result = orchestrator.process_order(order_data)
-      
-      expect(result).to be_success
-      expect(result.order_id).to be_present
-      expect(result.tracking_number).to be_present
+For comprehensive testing strategies including unit testing, integration testing, and workflow testing patterns, see the **[Testing Guide](testing_guide.html)**.
     end
   end
 end

@@ -196,7 +196,7 @@ agent = RAAF::Agent.new(
 # After: Specific and effective
 agent = RAAF::Agent.new(
   name: "CustomerServicePro",
-  instructions: """
+  instructions: <<~INSTRUCTIONS
     You are a senior customer service representative for TechCorp.
     
     Your personality:
@@ -224,7 +224,7 @@ agent = RAAF::Agent.new(
     - Blame the customer
     - Say "that's not possible" (say "let me find a solution" instead)
     - End without offering next steps
-  """,
+  INSTRUCTIONS,
   model: "gpt-4o"
 )
 ```
@@ -1610,7 +1610,7 @@ The key to successful structured outputs is starting simple and adding complexit
 
 ### Complex Schemas
 
-#### When Simple Schemas Aren't Enough: The Multi-System Integration Challenge
+#### Complex Schema Patterns
 
 An e-commerce platform needed to integrate with 12 different systems: payment processors, inventory management, shipping carriers, tax calculators, and fraud detection. Each system expected different data formats.
 
@@ -2094,7 +2094,7 @@ The key to complex schemas is building them incrementally, testing at each stage
 
 ### Schema Validation
 
-#### The Night Everything Broke: Why Validation Matters
+#### Schema Validation Importance
 
 It was 2 AM on Black Friday. Our AI agent was processing thousands of orders per minute. Everything was working perfectly—until it wasn't.
 
@@ -2756,7 +2756,7 @@ groq_agent = RAAF::Agent.new(
 )
 ```
 
-Context Management: The Memory That Spans Conversations
+Context Management
 -------------------------------------------------------
 
 Context is the connective tissue of AI conversations. Without proper context management, your AI agent suffers from digital amnesia—forgetting everything between interactions, losing track of user preferences, and restarting complex workflows from scratch.
@@ -3977,7 +3977,7 @@ agent = RAAF::Agent.new(
 ```ruby
 agent = RAAF::Agent.new(
   name: "RefundProcessor",
-  instructions: """
+  instructions: <<~INSTRUCTIONS
     You process refund requests following these rules:
     
     ALWAYS:
@@ -3994,7 +3994,7 @@ agent = RAAF::Agent.new(
     - Make exceptions to the 30-day policy
     
     For edge cases, escalate to human review.
-  """
+  INSTRUCTIONS
 )
 ```
 
@@ -4002,7 +4002,7 @@ agent = RAAF::Agent.new(
 # Good: Focused agent with clear purpose
 customer_service_agent = RAAF::Agent.new(
   name: "CustomerService",
-  instructions: """
+  instructions: <<~INSTRUCTIONS
     You help customers with:
 
     - Order status inquiries
@@ -4010,7 +4010,7 @@ customer_service_agent = RAAF::Agent.new(
     - Product questions
     
     Always be polite and helpful. Escalate complex issues to human agents.
-  """,
+  INSTRUCTIONS,
   model: "gpt-4o"
 )
 
@@ -4020,7 +4020,7 @@ customer_service_agent.add_tool(method(:check_account_status))
 customer_service_agent.add_tool(method(:escalate_to_human))
 ```
 
-### Tool Design: The Interface Between AI and Reality
+### Tool Design Patterns
 
 #### Tool Safety Considerations
 
@@ -4382,7 +4382,7 @@ class ContextOptimizer
 end
 ```
 
-### Testing Strategies: Because "It Works on My Machine" Isn't Good Enough
+### Testing Strategies
 
 #### The Testing Pyramid for AI Systems
 

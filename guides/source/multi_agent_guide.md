@@ -147,7 +147,7 @@ require 'raaf'
 # Research agent - gathers and analyzes information
 research_agent = RAAF::Agent.new(
   name: "Researcher",
-  instructions: """
+  instructions: <<~INSTRUCTIONS,
     You are a research specialist who gathers comprehensive information on topics.
     Your role is to:
 
@@ -156,14 +156,14 @@ research_agent = RAAF::Agent.new(
     - Provide well-structured research summaries
     
     When your research is complete, hand off to the Writer for content creation.
-  """,
+  INSTRUCTIONS
   model: "gpt-4o"
 )
 
 # Writing agent - creates content based on research
 writer_agent = RAAF::Agent.new(
   name: "Writer",
-  instructions: """
+  instructions: <<~INSTRUCTIONS,
     You are a content writer who creates engaging, well-structured content.
     Your role is to:
 
@@ -172,14 +172,14 @@ writer_agent = RAAF::Agent.new(
     - Maintain consistent tone and style
     
     When content is complete, hand off to the Editor for review.
-  """,
+  INSTRUCTIONS
   model: "gpt-4o"
 )
 
 # Editor agent - reviews and refines content
 editor_agent = RAAF::Agent.new(
   name: "Editor",
-  instructions: """
+  instructions: <<~INSTRUCTIONS,
     You are an editor who reviews and refines content for publication.
     Your role is to:
 
@@ -188,7 +188,7 @@ editor_agent = RAAF::Agent.new(
     - Optimize for target audience
     
     Provide final polished content ready for publication.
-  """,
+  INSTRUCTIONS
   model: "gpt-4o"
 )
 ```
@@ -317,7 +317,7 @@ Effective handoff patterns require clear role separation and defined responsibil
 2. **Specialist Agents**: Handle specific issues (optimized for accuracy)
 3. **Escalation Paths**: Clear criteria for human intervention
 
-### The Three Types of Handoffs That Actually Work
+### Handoff Patterns
 
 **1. Conditional Handoffs**: "If X, then hand to Agent Y"
 **2. Parallel Processing**: "Everyone work on your part simultaneously"
@@ -332,11 +332,11 @@ class CustomerServiceAgent < RAAF::Agent
   def initialize
     super(
       name: "CustomerService",
-      instructions: """
+      instructions: <<~INSTRUCTIONS,
         Handle customer inquiries. For complex technical issues, 
         hand off to TechnicalSupport. For billing issues, 
         hand off to BillingAgent.
-      """,
+      INSTRUCTIONS
       model: "gpt-4o"
     )
     
@@ -465,7 +465,7 @@ class ProjectManagementSystem
     # Supervisor agent coordinates the project
     @project_manager = RAAF::Agent.new(
       name: "ProjectManager",
-      instructions: """
+      instructions: <<~INSTRUCTIONS,
         You coordinate software development projects.
         Break down tasks and delegate to appropriate team members:
 
@@ -474,7 +474,7 @@ class ProjectManagementSystem
         - Code implementation → Developer
         - Quality assurance → QAEngineer
         - Documentation → TechnicalWriter
-      """,
+      INSTRUCTIONS
       model: "gpt-4o"
     )
     
@@ -510,10 +510,10 @@ class ProjectManagementSystem
   def create_business_analyst
     RAAF::Agent.new(
       name: "BusinessAnalyst",
-      instructions: """
+      instructions: <<~INSTRUCTIONS,
         Analyze business requirements and create detailed specifications.
         When analysis is complete, hand back to ProjectManager.
-      """,
+      INSTRUCTIONS
       model: "gpt-4o"
     )
   end
@@ -521,10 +521,10 @@ class ProjectManagementSystem
   def create_tech_lead
     RAAF::Agent.new(
       name: "TechLead",
-      instructions: """
+      instructions: <<~INSTRUCTIONS,
         Design system architecture and technical approach.
         When design is complete, hand back to ProjectManager.
-      """,
+      INSTRUCTIONS
       model: "gpt-4o"
     )
   end
@@ -548,7 +548,7 @@ end
 Context Management in Multi-Agent Systems
 -----------------------------------------
 
-### The $2M Context Loss That Almost Killed Our Company
+### Context Preservation Strategies
 
 Picture this: A Fortune 500 client using our AI system for a complex M&A deal. Seven specialized agents working together—legal, financial, risk assessment, due diligence, compliance, negotiation, and documentation.
 
@@ -735,10 +735,10 @@ class ContentCreationPipeline
   def create_outline_creator
     agent = RAAF::Agent.new(
       name: "OutlineCreator",
-      instructions: """
+      instructions: <<~INSTRUCTIONS,
         Create detailed content outlines based on research.
         Use research_findings from context to structure content.
-      """,
+      INSTRUCTIONS
       model: "gpt-4o"
     )
     
@@ -760,10 +760,10 @@ class ContentCreationPipeline
   def create_content_writer
     agent = RAAF::Agent.new(
       name: "ContentWriter",
-      instructions: """
+      instructions: <<~INSTRUCTIONS,
         Write engaging content following the outline.
         Use content_outline and research_findings from context.
-      """,
+      INSTRUCTIONS
       model: "gpt-4o"
     )
     
@@ -973,7 +973,7 @@ end
 Performance Optimization
 ------------------------
 
-### The Black Friday That Almost Broke Us (But Didn't)
+### Scaling Multi-Agent Systems
 
 Black Friday 2023. We expected 10x normal traffic. We got 50x.
 
@@ -1000,7 +1000,7 @@ After implementing agent pools, the results were:
 - **Cost multiplication**: 10x scale = 10x API costs
 - **Quality degradation**: Rushed agents make more mistakes
 
-### The Four Patterns That Scale
+### Scalable Architecture Patterns
 
 1. **Agent Pools**: Like connection pools, but for AI
 2. **Smart Routing**: Send simple tasks to fast/cheap agents

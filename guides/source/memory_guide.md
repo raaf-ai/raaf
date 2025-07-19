@@ -747,10 +747,10 @@ rag_memory.index_document(
 # Agent with RAG capabilities
 rag_agent = RAAF::Agent.new(
   name: "RAGAgent",
-  instructions: """
+  instructions: <<~INSTRUCTIONS
     You are a technical assistant with access to relevant documentation.
     Use the provided context to answer questions accurately.
-  """
+  INSTRUCTIONS
 )
 
 # Tool for RAG retrieval
