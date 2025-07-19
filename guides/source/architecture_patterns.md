@@ -1517,5 +1517,5 @@ For implementing these architectural patterns:
 * **[Performance Guide](performance_guide.html)** - Performance patterns and optimization
 * **[RAAF Core Guide](core_guide.html)** - Foundation patterns and concepts
 * **[Best Practices](best_practices.html)** - Implementation guidelines
-* **[Deployment Guide](deployment_guide.html)** - Production deployment patterns
+* **[Configuration Reference](configuration_reference.html)** - Production configuration patterns
 * **[Security Guide](guardrails_guide.html)** - Security architecture patterns

@@ -1115,7 +1115,7 @@ Now that you understand RAAF tracing, here's your journey:
 
 * **[Performance Guide](performance_guide.html)** - Turn trace data into 10x performance improvements
 * **[Cost Management](cost_guide.html)** - Build AI systems that don't bankrupt you
-* **[Deployment Guide](deployment_guide.html)** - Production monitoring that actually works 
+* **[Configuration Reference](configuration_reference.html)** - Production monitoring configuration
 * **[RAAF Rails Guide](rails_guide.html)** - Beautiful dashboards your CEO will love
 * **[Troubleshooting](troubleshooting.html)** - Debug AI problems like a detective
 

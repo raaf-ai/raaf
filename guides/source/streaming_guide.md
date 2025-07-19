@@ -1416,4 +1416,4 @@ For more advanced topics:
 * **[RAAF Rails Integration](rails_guide.html)** - Rails-specific streaming patterns
 * **[Performance Guide](performance_guide.html)** - Advanced optimization techniques
 * **[RAAF Tracing Guide](tracing_guide.html)** - Monitoring streaming performance
-* **[Deployment Guide](deployment_guide.html)** - Production streaming deployment
+* **[Configuration Reference](configuration_reference.html)** - Streaming configuration options

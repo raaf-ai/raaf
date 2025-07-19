@@ -1663,6 +1663,6 @@ Next Steps
 For more advanced topics:
 
 * **[RAAF Tracing Guide](tracing_guide.html)** - Advanced monitoring and observability
-* **[Deployment Guide](deployment_guide.html)** - Production deployment strategies
+* **[Configuration Reference](configuration_reference.html)** - Production configuration strategies
 * **[Cost Management Guide](cost_guide.html)** - Advanced cost optimization
 * **[Troubleshooting Guide](troubleshooting.html)** - Performance troubleshooting

@@ -12,7 +12,7 @@ After reading this guide, you will know:
 * Performance optimization techniques
 * Error handling and monitoring strategies
 * Testing patterns for AI systems
-* Deployment and operational excellence practices
+* Operational excellence practices
 
 --------------------------------------------------------------------------------
 
@@ -233,80 +233,16 @@ class OptimizedProvider
 end
 ```
 
-### Caching Strategies
+### Caching and Performance
 
-Implement intelligent caching:
+For comprehensive caching strategies and performance optimization techniques, see:
+* **[Performance Guide](performance_guide.html)** - Caching patterns, connection pooling, and optimization
 
-```ruby
-class CachedAgent
-  def initialize
-    @cache = ActiveSupport::Cache::RedisStore.new
-    @cache_ttl = 1.hour
-  end
-  
-  def process_request(input)
-    cache_key = generate_cache_key(input)
-    
-    cached_response = @cache.read(cache_key)
-    return cached_response if cached_response
-    
-    response = generate_response(input)
-    @cache.write(cache_key, response, expires_in: @cache_ttl)
-    response
-  end
-  
-  private
-  
-  def generate_cache_key(input)
-    # Hash input for consistent keys
-    Digest::SHA256.hexdigest([
-      input,
-      @agent.name,
-      @agent.model,
-      @agent.instructions
-    ].join(":"))
-  end
-end
-```
+### Memory and Resource Management
 
-### Memory Management
-
-Optimize memory usage for long-running agents:
-
-```ruby
-class MemoryOptimizedAgent
-  def initialize
-    super
-    
-    # Configure memory with pruning
-    self.memory = RAAF::Memory::Manager.new(
-      backend: RAAF::Memory::RedisBackend.new,
-      max_entries: 1000,
-      pruning_strategy: :fifo,
-      compression: :gzip
-    )
-  end
-  
-  def process_conversation(messages)
-    # Prune old messages if needed
-    prune_old_messages if memory.size > 800
-    
-    # Process with current context
-    result = run(messages.last)
-    
-    # Clean up temporary data
-    cleanup_temporary_data
-    
-    result
-  end
-  
-  private
-  
-  def prune_old_messages
-    memory.prune(keep_count: 500)
-  end
-  
-  def cleanup_temporary_data
+For comprehensive memory management and resource optimization, see:
+* **[Memory Guide](memory_guide.html)** - Memory backends, pruning strategies, and compression
+* **[Performance Guide](performance_guide.html)** - Resource optimization and garbage collection
     # Remove temporary files, clear caches, etc.
     GC.start if rand < 0.1 # Occasional garbage collection
   end
@@ -521,146 +457,18 @@ RSpec.describe "Order Processing Workflow" do
 end
 ```
 
-### Performance Testing
+### Performance Testing and Monitoring
 
-Test system performance:
+For comprehensive performance testing and monitoring guidance, see:
+* **[Performance Guide](performance_guide.html)** - Performance testing, profiling, and monitoring
+* **[Testing Guide](testing_guide.html)** - Load testing and performance benchmarks
 
-```ruby
-RSpec.describe "Agent Performance" do
-  let(:agent) { CustomerServiceAgent.new }
-  
-  it "handles concurrent requests" do
-    threads = []
-    results = []
-    
-    10.times do
-      threads << Thread.new do
-        result = agent.process_request("Help with order status")
-        results << result
-      end
-    end
-    
-    threads.each(&:join)
-    
-    expect(results.size).to eq(10)
-    expect(results.all?(&:success?)).to be true
-  end
-  
-  it "maintains response times under load" do
-    response_times = []
-    
-    100.times do
-      start_time = Time.current
-      agent.process_request("Quick question")
-      response_times << (Time.current - start_time)
-    end
-    
-    average_time = response_times.sum / response_times.size
-    expect(average_time).to be < 2.0 # seconds
-  end
-end
-```
+Operations and Configuration
+---------------------------
 
-Deployment and Operations
-------------------------
-
-### Configuration Management
-
-Use environment-based configuration:
-
-```ruby
-# config/agents.yml
-development:
-  customer_service:
-    model: "gpt-3.5-turbo"
-    max_tokens: 500
-    temperature: 0.7
-  
-production:
-  customer_service:
-    model: "gpt-4o"
-    max_tokens: 1000
-    temperature: 0.5
-    guardrails:
-
-      - pii_detector
-      - security_guardrail
-```
-
-```ruby
-class ConfigurableAgent
-  def initialize
-    config = Rails.application.config.agents[:customer_service]
-    
-    super(
-      name: "CustomerService",
-      model: config[:model],
-      instructions: load_instructions,
-      max_tokens: config[:max_tokens],
-      temperature: config[:temperature]
-    )
-    
-    setup_guardrails(config[:guardrails])
-  end
-  
-  private
-  
-  def setup_guardrails(guardrail_names)
-    return unless guardrail_names
-    
-    guardrails = guardrail_names.map do |name|
-      "RAAF::Guardrails::#{name.camelize}".constantize.new
-    end
-    
-    self.guardrails = RAAF::ParallelGuardrails.new(guardrails)
-  end
-end
-```
-
-### Health Checks
-
-Implement comprehensive health checks:
-
-```ruby
-class HealthChecker
-  def self.check_all
-    {
-      database: check_database,
-      redis: check_redis,
-      providers: check_providers,
-      agents: check_agents
-    }
-  end
-  
-  def self.check_providers
-    providers = {
-      openai: check_openai,
-      anthropic: check_anthropic
-    }
-    
-    {
-      status: providers.values.all? { |p| p[:status] == :healthy } ? :healthy : :degraded,
-      details: providers
-    }
-  end
-  
-  def self.check_agents
-    agent = CustomerServiceAgent.new
-    
-    start_time = Time.current
-    result = agent.process_request("Health check")
-    duration = Time.current - start_time
-    
-    {
-      status: result.success? ? :healthy : :unhealthy,
-      response_time: duration,
-      last_checked: Time.current
-    }
-  rescue => e
-    {
-      status: :unhealthy,
-      error: e.message,
-      last_checked: Time.current
+For comprehensive operational guidance, see:
+* **[Configuration Reference](configuration_reference.html)** - Environment-based configuration and settings
+* **[Monitoring Guide](tracing_guide.html)** - Health checks and observability
     }
   end
 end

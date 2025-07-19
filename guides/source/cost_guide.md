@@ -1488,4 +1488,4 @@ For comprehensive cost management:
 * **[Performance Guide](performance_guide.html)** - Optimize for both cost and performance
 * **[RAAF Tracing Guide](tracing_guide.html)** - Monitor cost and usage metrics
 * **[Troubleshooting Guide](troubleshooting.html)** - Resolve cost-related issues
-* **[Deployment Guide](deployment_guide.html)** - Production cost optimization
+* **[Configuration Reference](configuration_reference.html)** - Production configuration for cost optimization

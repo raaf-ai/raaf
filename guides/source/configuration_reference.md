@@ -881,5 +881,5 @@ For related configuration topics:
 * **[RAAF Core Guide](core_guide.html)** - Basic agent and runner configuration
 * **[Performance Guide](performance_guide.html)** - Performance-related configuration
 * **[Security Guide](guardrails_guide.html)** - Security configuration options
-* **[Deployment Guide](deployment_guide.html)** - Production configuration patterns
+* **[Best Practices](best_practices.html)** - Configuration best practices
 * **[Troubleshooting Guide](troubleshooting.html)** - Configuration problem resolution

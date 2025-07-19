@@ -1085,48 +1085,11 @@ class HighThroughputProcessor
 end
 ```
 
-### Caching and Memoization
+### Performance and Caching
 
-```ruby
-class CachedMultiAgentSystem
-  def initialize
-    @cache = ActiveSupport::Cache::MemoryStore.new
-    @agents = create_agents
-  end
-  
-  def process_with_caching(request)
-    cache_key = generate_cache_key(request)
-    
-    # Check if we have a cached result
-    cached_result = @cache.read(cache_key)
-    return cached_result if cached_result
-    
-    # Process with agents
-    result = execute_agent_workflow(request)
-    
-    # Cache successful results
-    if result[:success]
-      @cache.write(cache_key, result, expires_in: 1.hour)
-    end
-    
-    result
-  end
-  
-  private
-  
-  def generate_cache_key(request)
-    # Create deterministic cache key
-    content_hash = Digest::MD5.hexdigest(request.to_json)
-    "multi_agent_#{content_hash}"
-  end
-  
-  def execute_agent_workflow(request)
-    # Implement your multi-agent workflow
-    runner = RAAF::Runner.new(
-      agent: @agents[:coordinator],
-      agents: @agents.values
-    )
-    
+For multi-agent system optimization, see:
+* **[Performance Guide](performance_guide.html)** - Caching strategies, connection pooling, and optimization
+* **[Cost Management Guide](cost_guide.html)** - Managing costs in multi-agent workflows
     runner.run(request[:message])
   end
 end
@@ -1452,37 +1415,11 @@ RSpec.describe 'Complete Content Creation Workflow' do
 end
 ```
 
-### Performance Testing
+### Testing Multi-Agent Systems
 
-```ruby
-RSpec.describe 'Multi-Agent Performance' do
-  let(:workflow) { HighThroughputProcessor.new(pool_size: 5) }
-  
-  it 'processes multiple tasks efficiently' do
-    tasks = 50.times.map do |i|
-      {
-        id: i,
-        type: 'text_processing',
-        content: "Process this text content #{i}"
-      }
-    end
-    
-    start_time = Time.now
-    results = workflow.process_batch(tasks)
-    end_time = Time.now
-    
-    expect(results.count).to eq(50)
-    expect(results.all? { |r| r[:result].success? }).to be true
-    
-    # Performance assertions
-    total_time = end_time - start_time
-    expect(total_time).to be < 30.seconds  # Should complete within 30 seconds
-    
-    average_time_per_task = total_time / 50
-    expect(average_time_per_task).to be < 1.second  # Average under 1 second per task
-  end
-end
-```
+For comprehensive testing guidance including performance testing, see:
+* **[Testing Guide](testing_guide.html)** - Testing patterns for multi-agent systems
+* **[Performance Guide](performance_guide.html)** - Performance testing and benchmarking
 
 Best Practices
 --------------

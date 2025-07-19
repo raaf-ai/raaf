@@ -664,18 +664,9 @@ async_memory.save_async(session_id, messages) do |result|
 end
 ```
 
-### Caching
+### Performance Optimization
 
-Cache frequently accessed memories:
-
-```ruby
-cached_memory = RAAF::Memory::CachedMemoryManager.new(
-  store: store,
-  cache: ActiveSupport::Cache::MemoryStore.new(size: 50.megabytes),
-  cache_ttl: 1.hour,
-  cache_strategy: :lru
-)
-```
+For memory caching and optimization strategies, see the **[Performance Guide](performance_guide.html)**.
 
 ### Batch Operations
 
@@ -991,4 +982,4 @@ Now that you understand RAAF memory management:
 * **[Performance Guide](performance_guide.html)** - Optimize memory operations
 * **[Multi-Agent Guide](multi_agent_guide.html)** - Memory in multi-agent systems
 * **[RAAF Testing Guide](testing_guide.html)** - Test memory configurations
-* **[Deployment Guide](deployment_guide.html)** - Production memory strategies
+* **[Configuration Reference](configuration_reference.html)** - Production memory configuration

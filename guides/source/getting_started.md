@@ -722,7 +722,7 @@ agent = RAAF::Agent.new(
 Building for Production
 -----------------------
 
-For production deployments, create a comprehensive setup:
+For production environments, create a comprehensive setup:
 
 **Production readiness:** The gap between a demo and a production AI system is enormous. Production systems need security, compliance, monitoring, error handling, and scalability considerations that demos can ignore.
 
@@ -844,9 +844,10 @@ Congratulations! You now have a solid foundation in RAAF. Here's what to explore
 * **[Streaming & Async](streaming_guide.html)** - Real-time and background processing
 * **[Testing](testing_guide.html)** - Test your AI agents effectively
 
-### Deployment
+### Configuration and Monitoring
 
-* **[Production Deployment](deployment_guide.html)** - Deploy agents to production
+* **[Configuration Reference](configuration_reference.html)** - Production configuration patterns
+* **[Monitoring Guide](tracing_guide.html)** - Observability and monitoring
 * **[Performance Tuning](performance_guide.html)** - Optimize for scale
 * **[Monitoring Setup](monitoring_setup.html)** - Production monitoring configuration
 

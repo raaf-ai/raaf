@@ -1247,7 +1247,7 @@ Next Steps
 Now that you understand RAAF testing:
 
 * **[Performance Guide](performance_guide.html)** - Performance testing strategies
-* **[Deployment Guide](deployment_guide.html)** - CI/CD integration for AI agents
+* **[Configuration Reference](configuration_reference.html)** - Test environment configuration
 * **[Monitoring Guide](tracing_guide.html)** - Production monitoring and testing
 * **[Multi-Agent Guide](multi_agent_guide.html)** - Testing complex workflows
 * **[RAAF Core Guide](core_guide.html)** - Understanding components for better testing

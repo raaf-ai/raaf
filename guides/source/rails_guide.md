@@ -18,7 +18,7 @@ After reading this guide, you will know:
 * Patterns for controller integration and middleware
 * Real-time monitoring with ActionCable and WebSockets
 * Database integration for agent memory and tracing
-* Deployment considerations for Rails + RAAF applications
+* Configuration and monitoring for Rails + RAAF applications
 
 --------------------------------------------------------------------------------
 
@@ -705,8 +705,8 @@ RSpec.describe AgentService, type: :agent do
 end
 ```
 
-Deployment Considerations
--------------------------
+Configuration and Environment
+----------------------------
 
 ### Environment Variables
 
@@ -720,73 +720,8 @@ RAAF_LOG_LEVEL=info
 RAAF_DEFAULT_MODEL=gpt-4o
 ```
 
-### Docker Configuration
-
-```dockerfile
-# Dockerfile
-FROM ruby:3.1
-
-# Install system dependencies for RAAF
-RUN apt-get update && apt-get install -y \
-  python3 \
-  python3-pip \
-  && pip3 install spacy \
-  && python3 -m spacy download en_core_web_sm
-
-WORKDIR /app
-
-COPY Gemfile* ./
-RUN bundle install
-
-COPY . .
-
-EXPOSE 3000
-CMD ["rails", "server", "-b", "0.0.0.0"]
-```
-
-### Kubernetes Deployment
-
-```yaml
-# k8s/raaf-rails-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: raaf-rails-app
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: raaf-rails
-  template:
-    metadata:
-      labels:
-        app: raaf-rails
-    spec:
-      containers:
-
-      - name: app
-        image: your-registry/raaf-rails:latest
-        ports:
-
-        - containerPort: 3000
-        env:
-
-        - name: OPENAI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: raaf-secrets
-              key: openai-api-key
-
-        - name: RAAF_DASHBOARD_ENABLED
-          value: "true"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-```
+For comprehensive configuration options, see:
+* **[Configuration Reference](configuration_reference.html)** - All available settings and environment variables
 
 Performance Monitoring
 ----------------------
@@ -922,13 +857,12 @@ Best Practices
 4. **Error Handling** - Always handle agent failures gracefully
 5. **Testing** - Mock agents in tests for faster, reliable testing
 
-### Performance Optimization
+### Performance and Cost Optimization
 
-1. **Connection Pooling** - Reuse HTTP connections to AI providers
-2. **Caching** - Cache frequent agent responses when appropriate
-3. **Background Processing** - Use jobs for non-real-time interactions
-4. **Model Selection** - Choose appropriate models for different use cases
-5. **Token Management** - Monitor and control token usage
+For comprehensive guidance on optimizing RAAF applications:
+
+* **[Performance Guide](performance_guide.html)** - Connection pooling, caching strategies, and response optimization
+* **[Cost Management Guide](cost_guide.html)** - Token management, model selection, and budget controls
 
 ### Monitoring and Observability
 
@@ -946,4 +880,4 @@ For more advanced topics:
 * **[RAAF Streaming Guide](streaming_guide.html)** - Real-time streaming responses
 * **[RAAF Tracing Guide](tracing_guide.html)** - Advanced monitoring and observability
 * **[Performance Guide](performance_guide.html)** - Optimization techniques
-* **[Deployment Guide](deployment_guide.html)** - Production deployment strategies
+* **[Configuration Reference](configuration_reference.html)** - Production configuration patterns
