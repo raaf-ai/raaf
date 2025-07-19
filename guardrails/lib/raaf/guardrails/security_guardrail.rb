@@ -1,426 +1,207 @@
 # frozen_string_literal: true
 
-require_relative "../security"
-require_relative "base"
+require_relative 'base'
 
 module RAAF
   module Guardrails
-    # Security guardrail to protect against various threats
+    # Detects and blocks security threats including prompt injection,
+    # jailbreak attempts, and malicious patterns
     class SecurityGuardrail < Base
-      attr_reader :scanner, :policies
+      # Common prompt injection patterns
+      INJECTION_PATTERNS = [
+        # Direct instruction override attempts
+        /ignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions?|prompts?|directives?)/i,
+        /disregard\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions?|prompts?)/i,
+        /forget\s+(?:everything|all)\s+(?:you've\s+been\s+told|above|before)/i,
+        /override\s+(?:your\s+)?(?:instructions?|programming|directives?)/i,
+        
+        # Role manipulation attempts
+        /you\s+are\s+now\s+(?:a\s+)?(?:different|new|another)\s+(?:ai|assistant|bot|model)/i,
+        /pretend\s+(?:to\s+be|you're|you\s+are)\s+(?:a\s+)?(?:different|evil|malicious)/i,
+        /act\s+as\s+(?:if\s+you\s+were|though\s+you're|a)\s+(?:different|unrestricted)/i,
+        /from\s+now\s+on\s+you\s+(?:are|will\s+be|must\s+act)/i,
+        
+        # System prompt extraction
+        /(?:show|reveal|display|tell)\s+(?:me\s+)?your\s+(?:system\s+)?(?:prompt|instructions|directives)/i,
+        /what\s+(?:are\s+)?your\s+(?:original\s+)?(?:instructions?|prompts?|directives?)/i,
+        /repeat\s+(?:your\s+)?(?:system\s+)?(?:prompt|instructions)/i,
+        
+        # Jailbreak attempts
+        /(?:dan|do\s+anything\s+now)/i,
+        /jailbreak/i,
+        /developer\s+mode/i,
+        /unlock\s+(?:your\s+)?(?:full\s+)?(?:potential|capabilities)/i
+      ].freeze
 
-      def initialize(policies: nil, **options)
-        super(**options)
-        @scanner = Security::Scanner.new(options[:scanner_config] || {})
-        @policies = load_policies(policies)
-        @violation_cache = {}
-        @scan_cache = {}
+      # Encoded content patterns (base64, hex, etc.)
+      ENCODED_PATTERNS = {
+        base64: /^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/,
+        hex: /^[0-9a-fA-F]+$/,
+        unicode_escape: /\\u[0-9a-fA-F]{4}/
+      }.freeze
+
+      # Malicious URL patterns
+      MALICIOUS_URL_PATTERNS = [
+        /bit\.ly|tinyurl|short\.link/i,  # URL shorteners often used maliciously
+        /\.(exe|dll|bat|cmd|scr|vbs|js|jar|zip|rar)$/i,  # Executable extensions
+        /javascript:|data:|vbscript:/i  # Script protocols
+      ].freeze
+
+      attr_reader :sensitivity, :detection_types, :custom_patterns
+
+      def initialize(action: :block, sensitivity: :high, detection_types: nil, 
+                     custom_patterns: [], **options)
+        super(action: action, **options)
+        @sensitivity = sensitivity
+        @detection_types = detection_types || default_detection_types
+        @custom_patterns = custom_patterns
+        @sensitivity_threshold = sensitivity_thresholds[@sensitivity]
       end
 
-      def check(content, context = {})
+      protected
+
+      def perform_check(content, context)
         violations = []
-
-        # Check content for security issues
-        content_violations = check_content_security(content)
-        violations.concat(content_violations)
-
-        # Check context (agent, tools, etc.)
-        if context[:agent]
-          agent_violations = check_agent_security(context[:agent])
-          violations.concat(agent_violations)
+        
+        # Check for prompt injection
+        if @detection_types.include?(:prompt_injection)
+          violations.concat(detect_prompt_injection(content))
         end
-
-        # Check for policy violations
-        policy_violations = check_policies(content, context)
-        violations.concat(policy_violations)
-
-        # Cache results
-        cache_key = generate_cache_key(content, context)
-        @violation_cache[cache_key] = violations
-
-        {
-          allowed: violations.empty?,
-          violations: violations,
-          risk_level: assess_risk_level(violations),
-          recommendations: generate_recommendations(violations)
-        }
-      end
-
-      def filter(content, context = {})
-        result = check(content, context)
-
-        if result[:allowed]
-          content
-        else
-          # Sanitize content based on violations
-          sanitize_content(content, result[:violations])
+        
+        # Check for encoded malicious content
+        if @detection_types.include?(:encoded_content)
+          violations.concat(detect_encoded_content(content))
         end
-      end
-
-      # Scan an agent for security issues
-      def scan_agent(agent)
-        cache_key = "agent_#{agent.name}_#{agent.object_id}"
-        cached_result = @scan_cache[cache_key]
-
-        return cached_result if cached_result && cache_fresh?(cached_result)
-
-        result = @scanner.scan_agent(agent)
-        result[:timestamp] = Time.now
-        @scan_cache[cache_key] = result
-
-        result
-      end
-
-      # Scan code for security issues
-      def scan_code(code, language = :ruby)
-        temp_file = create_temp_file(code, language)
-
-        begin
-          @scanner.scan(temp_file.path, type: :static_analysis)
-        ensure
-          temp_file.unlink
+        
+        # Check for malicious URLs
+        if @detection_types.include?(:malicious_urls)
+          violations.concat(detect_malicious_urls(content))
         end
-      end
-
-      # Check if a tool is safe to use
-      def safe_tool?(tool, context = {})
-        violations = []
-
-        # Check tool permissions
-        if defined?(tool.required_permissions)
-          tool.required_permissions.each do |permission|
-            next if allowed_permission?(permission, context)
-
-            violations << {
-              type: :permission,
-              message: "Tool requires unauthorized permission: #{permission}"
-            }
-          end
-        end
-
-        # Check tool implementation
-        if tool.respond_to?(:source_location)
-          file, = tool.source_location
-          if file && File.exist?(file)
-            scan_result = @scanner.scan(file)
-            violations.concat(scan_result[:issues]) if scan_result[:issues]
-          end
-        end
-
-        violations.empty?
-      end
-
-      # Monitor runtime security
-      def monitor_execution(&block)
-        runtime_scanner = Security::RuntimeScanner.new(@config)
-
-        # Start monitoring
-        monitor_thread = Thread.new { runtime_scanner.scan(block) }
-
-        # Execute block
-        result = yield
-
-        # Get monitoring results
-        security_results = monitor_thread.value
-
-        # Check for violations
-        if security_results[:risk_assessment] == :high
-          raise SecurityViolationError, "High risk behavior detected during execution"
-        end
-
-        result
+        
+        # Check custom patterns
+        violations.concat(check_custom_patterns(content))
+        
+        # Calculate overall threat score
+        threat_score = calculate_threat_score(violations)
+        
+        return safe_result if violations.empty? || threat_score < @sensitivity_threshold
+        
+        violation_result(violations)
       end
 
       private
 
-      def load_policies(policies)
-        default_policies.merge(policies || {})
+      def default_detection_types
+        [:prompt_injection, :encoded_content, :malicious_urls]
       end
 
-      def default_policies
+      def sensitivity_thresholds
         {
-          # Content policies
-          max_prompt_length: 10_000,
-          forbidden_patterns: [
-            /\bpassword\s*[:=]\s*["'][^"']+["']/i,
-            /\bapi[_-]?key\s*[:=]\s*["'][^"']+["']/i,
-            /-----BEGIN.*PRIVATE KEY-----/
-          ],
-
-          # Execution policies
-          allowed_commands: %w[ls cat echo pwd date whoami],
-          forbidden_commands: %w[rm sudo chmod chown curl wget nc ssh],
-          max_execution_time: 30,
-
-          # Network policies
-          allowed_domains: [],
-          forbidden_domains: ["localhost", "127.0.0.1", "0.0.0.0"],
-
-          # Resource policies
-          max_memory_mb: 1024,
-          max_cpu_percent: 80,
-          max_file_size_mb: 100
+          low: 0.7,
+          medium: 0.5,
+          high: 0.3,
+          paranoid: 0.1
         }
       end
 
-      def check_content_security(content)
+      def detect_prompt_injection(content)
         violations = []
-
-        # Check length
-        if content.length > @policies[:max_prompt_length]
-          violations << {
-            type: :length,
-            severity: :medium,
-            message: "Content exceeds maximum allowed length"
-          }
-        end
-
-        # Check for forbidden patterns
-        @policies[:forbidden_patterns].each do |pattern|
-          next unless content.match?(pattern)
-
-          violations << {
-            type: :pattern,
-            severity: :high,
-            message: "Forbidden pattern detected in content",
-            pattern: pattern.source
-          }
-        end
-
-        # Check for injection attempts
-        if injection_attempt?(content)
-          violations << {
-            type: :injection,
-            severity: :critical,
-            message: "Potential injection attack detected"
-          }
-        end
-
-        violations
-      end
-
-      def check_agent_security(agent)
-        violations = []
-
-        # Scan agent
-        scan_result = scan_agent(agent)
-
-        if %i[high critical].include?(scan_result[:risk_level])
-          violations << {
-            type: :agent_risk,
-            severity: scan_result[:risk_level],
-            message: "Agent has security vulnerabilities",
-            details: scan_result[:recommendations]
-          }
-        end
-
-        # Check tools
-        agent.tools.each do |tool|
-          next if safe_tool?(tool)
-
-          violations << {
-            type: :unsafe_tool,
-            severity: :high,
-            message: "Unsafe tool detected: #{tool.name}"
-          }
-        end
-
-        violations
-      end
-
-      def check_policies(content, context)
-        violations = []
-
-        # Check command execution
-        if context[:command]
-          command_parts = context[:command].split(/\s+/)
-          base_command = command_parts.first
-
-          if @policies[:forbidden_commands].include?(base_command)
+        
+        INJECTION_PATTERNS.each do |pattern|
+          if content.match?(pattern)
             violations << {
-              type: :forbidden_command,
+              type: :prompt_injection,
+              pattern: pattern.source,
               severity: :high,
-              message: "Forbidden command: #{base_command}"
-            }
-          elsif !@policies[:allowed_commands].include?(base_command)
-            violations << {
-              type: :unauthorized_command,
-              severity: :medium,
-              message: "Unauthorized command: #{base_command}"
+              description: 'Potential prompt injection attempt detected'
             }
           end
         end
-
-        # Check network access
-        if context[:url]
-          domain = extract_domain(context[:url])
-
-          if @policies[:forbidden_domains].include?(domain)
-            violations << {
-              type: :forbidden_domain,
-              severity: :high,
-              message: "Access to forbidden domain: #{domain}"
-            }
-          elsif !@policies[:allowed_domains].empty? && !@policies[:allowed_domains].include?(domain)
-            violations << {
-              type: :unauthorized_domain,
-              severity: :medium,
-              message: "Unauthorized domain access: #{domain}"
-            }
-          end
-        end
-
+        
         violations
       end
 
-      def injection_attempt?(content)
-        injection_patterns = [
-          # Prompt injection patterns
-          /ignore.*previous.*instructions/i,
-          /disregard.*above/i,
-          /new.*instructions.*:/i,
-          /system.*prompt.*:/i,
-
-          # Command injection patterns
-          /;\s*rm\s+-rf/,
-          /&&\s*curl.*\|.*sh/,
-          /`[^`]*rm[^`]*`/,
-
-          # SQL injection patterns
-          /'\s*OR\s*'1'\s*=\s*'1/i,
-          /;\s*DROP\s+TABLE/i,
-          /UNION\s+SELECT/i
-        ]
-
-        injection_patterns.any? { |pattern| content.match?(pattern) }
-      end
-
-      def allowed_permission?(permission, context)
-        # Check if permission is allowed based on context
-        case permission
-        when :file_read
-          context[:allow_file_access]
-        when :file_write
-          context[:allow_file_write]
-        when :network
-          context[:allow_network]
-        when :system
-          context[:allow_system_commands]
-        else
-          false
-        end
-      end
-
-      def sanitize_content(content, violations)
-        sanitized = content.dup
-
-        violations.each do |violation|
-          case violation[:type]
-          when :pattern
-            # Redact sensitive patterns
-            pattern = begin
-              Regexp.new(violation[:pattern])
-            rescue StandardError
-              next
+      def detect_encoded_content(content)
+        violations = []
+        
+        # Check for suspiciously long base64/hex strings
+        words = content.split(/\s+/)
+        words.each do |word|
+          next if word.length < 20  # Skip short strings
+          
+          ENCODED_PATTERNS.each do |encoding_type, pattern|
+            if word.match?(pattern)
+              violations << {
+                type: :encoded_content,
+                encoding: encoding_type,
+                severity: :medium,
+                description: "Suspicious #{encoding_type} encoded content detected"
+              }
             end
-            sanitized.gsub!(pattern) { |match| "[REDACTED:#{match.length}]" }
-          when :length
-            # Truncate content
-            max_length = @policies[:max_prompt_length]
-            sanitized = sanitized[0...max_length] + "...[TRUNCATED]"
-          when :injection
-            # Remove injection attempts
-            sanitized = remove_injection_attempts(sanitized)
           end
         end
-
-        sanitized
+        
+        violations
       end
 
-      def remove_injection_attempts(content)
-        # Remove common injection patterns
-        content
-          .gsub(/ignore.*previous.*instructions/i, "[REMOVED]")
-          .gsub(/disregard.*above/i, "[REMOVED]")
-          .gsub(/new.*instructions.*:/i, "[REMOVED]")
-          .gsub(/system.*prompt.*:/i, "[REMOVED]")
-      end
-
-      def assess_risk_level(violations)
-        return :minimal if violations.empty?
-
-        severities = violations.map { |v| v[:severity] }
-
-        if severities.include?(:critical)
-          :critical
-        elsif severities.include?(:high)
-          :high
-        elsif severities.include?(:medium)
-          :medium
-        else
-          :low
-        end
-      end
-
-      def generate_recommendations(violations)
-        recommendations = []
-
-        violation_types = violations.map { |v| v[:type] }.uniq
-
-        violation_types.each do |type|
-          case type
-          when :pattern
-            recommendations << "Remove or mask sensitive information from content"
-          when :injection
-            recommendations << "Review content for potential injection attacks"
-          when :forbidden_command
-            recommendations << "Use only authorized commands"
-          when :agent_risk
-            recommendations << "Review and fix agent security vulnerabilities"
-          when :unsafe_tool
-            recommendations << "Replace unsafe tools with secure alternatives"
+      def detect_malicious_urls(content)
+        violations = []
+        
+        # Simple URL extraction
+        url_pattern = /https?:\/\/[^\s]+/i
+        urls = content.scan(url_pattern)
+        
+        urls.each do |url|
+          MALICIOUS_URL_PATTERNS.each do |pattern|
+            if url.match?(pattern)
+              violations << {
+                type: :malicious_url,
+                url: url,
+                severity: :high,
+                description: 'Potentially malicious URL detected'
+              }
+            end
           end
         end
-
-        recommendations
+        
+        violations
       end
 
-      def generate_cache_key(content, context)
-        data = {
-          content_hash: Digest::SHA256.hexdigest(content),
-          context_keys: context.keys.sort
+      def check_custom_patterns(content)
+        violations = []
+        
+        @custom_patterns.each do |pattern_config|
+          pattern = pattern_config[:pattern] || pattern_config
+          if content.match?(pattern)
+            violations << {
+              type: :custom_pattern,
+              pattern: pattern.source,
+              severity: pattern_config[:severity] || :medium,
+              description: pattern_config[:description] || 'Custom security pattern matched'
+            }
+          end
+        end
+        
+        violations
+      end
+
+      def calculate_threat_score(violations)
+        return 0.0 if violations.empty?
+        
+        severity_weights = {
+          low: 0.2,
+          medium: 0.5,
+          high: 0.8,
+          critical: 1.0
         }
-        Digest::SHA256.hexdigest(data.to_json)
+        
+        total_score = violations.sum do |violation|
+          severity_weights[violation[:severity]] || 0.5
+        end
+        
+        # Normalize by number of violations (average severity)
+        total_score / violations.size
       end
-
-      def cache_fresh?(cached_result)
-        return false unless cached_result[:timestamp]
-
-        Time.now - cached_result[:timestamp] < 3600 # 1 hour
-      end
-
-      def create_temp_file(code, language)
-        extension = case language
-                    when :ruby then ".rb"
-                    when :python then ".py"
-                    when :javascript then ".js"
-                    else ".txt"
-                    end
-
-        temp_file = Tempfile.new(["code", extension])
-        temp_file.write(code)
-        temp_file.close
-        temp_file
-      end
-
-      def extract_domain(url)
-        uri = URI.parse(url)
-        uri.host || url
-      rescue URI::InvalidURIError
-        url
-      end
-
-      class SecurityViolationError < StandardError; end
     end
   end
 end

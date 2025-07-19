@@ -7,1013 +7,797 @@ This guide covers enterprise compliance frameworks available in RAAF, including 
 
 After reading this guide, you will know:
 
-* How to implement GDPR compliance for AI systems
-* HIPAA compliance patterns for healthcare AI applications
-* SOC2 compliance implementation and monitoring
-* Automated audit trail generation
-* Policy enforcement strategies
-* Data governance and privacy controls
-* Compliance reporting and documentation
+* Why compliance matters for AI systems and unique challenges they face
+* How compliance requirements translate into technical implementations
+* How to implement GDPR, HIPAA, and SOC2 compliance
+* How compliance guardrails connect to your application's reality
+* Strategies for automated compliance monitoring and reporting
+* Best practices for maintaining compliance in production
 
 --------------------------------------------------------------------------------
 
-Introduction to RAAF Compliance
--------------------------------
+Why AI Compliance is Different
+------------------------------
 
-RAAF Compliance provides enterprise-grade compliance frameworks that help organizations meet regulatory requirements when deploying AI systems. The compliance module offers:
+Traditional software compliance focuses on data storage, access controls, and audit trails. AI systems introduce entirely new compliance challenges because they actively process, interpret, and generate content based on patterns they've learned. This fundamental difference creates unique risks.
 
-* **Automated audit trails** for all AI interactions
-* **Policy enforcement** at runtime
-* **Data governance** controls
-* **Privacy protection** mechanisms
-* **Compliance reporting** and documentation
-* **Multi-framework support** (GDPR, HIPAA, SOC2, and more)
+Consider a traditional database system versus an AI agent:
+- A database stores and retrieves data exactly as entered
+- An AI agent interprets data, makes inferences, and generates new content
 
-### Installation
+This means your AI system might:
+- **Inadvertently reveal** protected information through inference
+- **Generate biased outputs** that violate anti-discrimination laws
+- **Create liability** through incorrect or harmful advice
+- **Process data** in ways that violate purpose limitation principles
 
-Add the compliance gem to your Gemfile:
+Compliance for AI isn't just about protecting data—it's about controlling behavior, ensuring fairness, and maintaining accountability for decisions made by systems that learn and adapt.
+
+Understanding Compliance in Your Application Context
+--------------------------------------------------
+
+Compliance requirements don't exist in a vacuum—they directly shape how your application can function. Let's explore how abstract regulations translate into concrete technical decisions.
+
+### The Business Reality
+
+Every compliance requirement represents a real business risk:
+- **GDPR violations** can result in fines up to 4% of global annual revenue
+- **HIPAA breaches** can cost millions in penalties and lawsuits
+- **SOC2 non-compliance** can block enterprise sales and partnerships
+
+But beyond penalties, compliance failures destroy trust. When an AI system mishandles personal data or generates inappropriate content, users lose confidence not just in your system, but in AI technology generally.
+
+### The Technical Translation
+
+Compliance requirements become technical constraints that shape your architecture:
+
+**Data Minimization (GDPR)** → Your AI can only process data necessary for its stated purpose
+- Technical impact: Must filter inputs before processing
+- User experience: May need to explain why certain data can't be processed
+
+**Purpose Limitation (GDPR)** → Data collected for one purpose can't be used for another
+- Technical impact: Separate models/contexts for different purposes
+- User experience: Users may need to re-consent for new features
+
+**Minimum Necessary (HIPAA)** → Only access the minimum health information needed
+- Technical impact: Granular access controls and data filtering
+- User experience: Some queries may be blocked despite being helpful
+
+These aren't just checkboxes—they fundamentally alter how your AI system operates.
+
+GDPR Compliance Deep Dive
+-------------------------
+
+The General Data Protection Regulation affects any system processing EU citizens' data. For AI systems, GDPR introduces specific challenges around transparency, fairness, and control.
+
+### Core GDPR Principles for AI
+
+**Lawfulness, Fairness, and Transparency**
+Your AI must have a legal basis for processing data (consent, contract, legitimate interest, etc.) and must process it fairly and transparently. For AI, transparency is particularly challenging—how do you explain a neural network's decision?
+
+In practice, this means:
+- Documenting your AI's training data and methodology
+- Providing clear explanations of how the AI uses personal data
+- Ensuring AI decisions don't discriminate against protected groups
+
+**Purpose Limitation**
+Data collected for customer service can't suddenly be used for marketing analysis. This seemingly simple principle has profound implications for AI systems that learn from all interactions.
+
+Technical implementation requires:
+- Separate data pools for different purposes
+- Clear boundaries between AI agents serving different functions
+- Consent management that tracks purpose-specific permissions
+
+**Data Minimization**
+Only process data that's necessary. But what's "necessary" for an AI that might find unexpected patterns? This principle requires careful thought about what data truly improves your AI's performance versus what's merely interesting.
+
+### Implementing GDPR Compliance
+
+GDPR compliance isn't just about adding guardrails—it's about designing your entire system with privacy in mind.
+
+**Basic GDPR Configuration Example:**
 
 ```ruby
-gem 'raaf-compliance'
-```
-
-Then bundle install:
-
-```bash
-bundle install
-```
-
-GDPR Compliance
---------------
-
-### Overview
-
-The General Data Protection Regulation (GDPR) requires organizations to protect personal data and privacy of EU citizens. RAAF's GDPR compliance module provides:
-
-* **Data minimization** controls
-* **Consent management** 
-* **Right to erasure** (right to be forgotten)
-* **Data portability** support
-* **Privacy by design** patterns
-
-### Basic GDPR Setup
-
-```ruby
-require 'raaf/compliance/gdpr'
-
-# Configure GDPR compliance
-gdpr_config = RAAF::Compliance::GDPR::Config.new(
-  data_retention_period: 2.years,
-  consent_required: true,
-  anonymization_enabled: true,
-  audit_trail_enabled: true
+# Configure GDPR guardrail with data minimization
+gdpr_guardrail = RAAF::Guardrails::GDPRCompliance.new(
+  action: :redact,                    # Redact PII by default
+  data_retention_days: 90,            # Auto-flag old data
+  purpose_limitation: true,           # Enforce purpose checks
+  consent_required: true,             # Require explicit consent
+  logger: compliance_logger           # Detailed audit logging
 )
 
-# Create GDPR-compliant agent
+# Add to your agent
 agent = RAAF::Agent.new(
   name: "CustomerService",
-  instructions: "Help customers with inquiries while respecting privacy",
-  model: "gpt-4o"
+  instructions: "Help customers while respecting privacy"
+)
+agent.add_input_guardrail(gdpr_guardrail)
+agent.add_output_guardrail(gdpr_guardrail)
+```
+
+**Advanced Configuration with Context:**
+
+```ruby
+# Context-aware GDPR configuration
+gdpr_guardrail = RAAF::Guardrails::GDPRCompliance.new(
+  action: ->(violation) {
+    # Dynamic actions based on violation severity
+    case violation[:severity]
+    when :critical then :block
+    when :high then :redact
+    else :flag
+    end
+  },
+  custom_patterns: {
+    # Add company-specific identifiers
+    employee_id: /EMP\d{6}/,
+    customer_id: /CUST-[A-Z]{2}-\d{8}/
+  }
 )
 
-# Add GDPR compliance
-compliance_manager = RAAF::Compliance::GDPR::Manager.new(gdpr_config)
-agent.add_compliance(compliance_manager)
+# Run with purpose context
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run(
+  "Process order for john@email.com",
+  context: { 
+    purpose: :order_processing,
+    consent_id: "CONS-2024-001",
+    user_region: :eu
+  }
+)
 ```
 
-### Data Processing Consent
+**Consent Management**
+Consent isn't just a yes/no checkbox. GDPR requires:
+- Granular consent for different processing purposes
+- Easy withdrawal of consent
+- Clear records of what users consented to and when
+- Re-consent when processing purposes change
 
-Implement consent management for data processing:
+**Right to Erasure (Right to be Forgotten)**
+Users can request deletion of their personal data. For AI systems, this creates challenges:
+- How do you "forget" training data already incorporated into model weights?
+- How do you remove data from conversation histories used for context?
+- How do you maintain system functionality while honoring deletion requests?
 
-```ruby
-class ConsentManager
-  def initialize
-    @consent_store = RAAF::Compliance::GDPR::ConsentStore.new
-  end
-  
-  def request_consent(user_id, purpose, data_types)
-    consent_request = RAAF::Compliance::GDPR::ConsentRequest.new(
-      user_id: user_id,
-      purpose: purpose,
-      data_types: data_types,
-      retention_period: 2.years,
-      processing_lawful_basis: "consent"
-    )
-    
-    @consent_store.create_request(consent_request)
-  end
-  
-  def grant_consent(consent_id, user_consent)
-    consent = @consent_store.find(consent_id)
-    
-    if user_consent
-      consent.grant!
-      Rails.logger.info("Consent granted for #{consent.user_id}")
-    else
-      consent.deny!
-      Rails.logger.info("Consent denied for #{consent.user_id}")
-    end
-    
-    consent
-  end
-  
-  def check_consent(user_id, purpose)
-    @consent_store.has_valid_consent?(user_id, purpose)
-  end
-end
-```
+The solution requires careful architecture:
+- Separate user-identifiable data from anonymous training data
+- Design systems that can function with partial data deletion
+- Maintain deletion logs for compliance proof
 
-### Data Minimization
+**Data Portability**
+Users have the right to receive their data in a machine-readable format. For AI systems:
+- Export conversation histories
+- Include inferences and derived data
+- Provide context that makes the data useful
+- Format data for import into other systems
 
-Implement data minimization principles:
+### GDPR and Your Application
 
-```ruby
-class DataMinimizationGuardrail < RAAF::Guardrails::Base
-  def initialize
-    @gdpr_config = RAAF::Compliance::GDPR::Config.current
-  end
-  
-  def process_input(input)
-    # Extract only necessary data
-    minimized_data = extract_necessary_data(input)
-    
-    # Log data processing
-    audit_log = RAAF::Compliance::GDPR::AuditLog.new(
-      action: "data_processing",
-      data_types: identify_data_types(minimized_data),
-      purpose: "customer_service",
-      timestamp: Time.current
-    )
-    
-    audit_log.save
-    
-    success(minimized_data)
-  end
-  
-  private
-  
-  def extract_necessary_data(input)
-    # Remove unnecessary personal data
-    sanitized = input.dup
-    
-    # Remove credit card numbers (keep only last 4 digits)
-    sanitized.gsub!(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?(\d{4})\b/, "****-****-****-\\1")
-    
-    # Remove full addresses (keep only city)
-    sanitized.gsub!(/\d+\s+[\w\s]+(?:street|st|avenue|ave|road|rd|drive|dr)\s*,?\s*([\w\s]+),?\s*\w{2}\s*\d{5}/, "\\1")
-    
-    sanitized
-  end
-  
-  def identify_data_types(data)
-    types = []
-    
-    types << "name" if data.match?(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/)
-    types << "email" if data.match?(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/)
-    types << "phone" if data.match?(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/)
-    types << "address" if data.match?(/\d+\s+[\w\s]+(?:street|st|avenue|ave|road|rd|drive|dr)/i)
-    
-    types
-  end
-end
-```
+Let's see how GDPR requirements manifest in real applications:
 
-### Right to Erasure
+**Customer Service AI**
+- Must explain why it's asking for personal information
+- Can't use support conversations for product development without consent
+- Must delete customer data upon request, including from conversation memory
+- Needs to track which staff members accessed which conversations
 
-Implement the right to be forgotten:
+**Healthcare Assistant**
+- Requires explicit consent for health data processing
+- Must separate general health information from personal health records
+- Cannot share data between different healthcare providers without consent
+- Needs to provide clear data processing notifications
+
+**Financial Advisor Bot**
+- Must have legitimate interest or consent for financial data processing
+- Cannot use transaction data for marketing without separate consent
+- Must be able to export all financial insights generated
+- Needs to maintain audit trails of all advice given
+
+HIPAA Compliance Deep Dive
+--------------------------
+
+The Health Insurance Portability and Accountability Act governs protected health information (PHI) in the United States. For AI systems in healthcare, HIPAA creates strict requirements around security, access, and audit trails.
+
+### Understanding PHI in AI Context
+
+PHI isn't just medical records—it's any information that could identify a patient combined with health information. For AI systems, this creates broad implications:
+
+**Direct Identifiers**: Names, addresses, dates, phone numbers, email addresses, SSNs, medical record numbers, etc.
+
+**Indirect Identifiers**: Information that could identify someone when combined:
+- Rare diseases in small geographic areas
+- Specific treatment combinations
+- Behavioral patterns in health data
+
+AI systems can inadvertently create PHI by:
+- Combining non-PHI data in ways that identify individuals
+- Generating text that includes identifying information
+- Learning patterns that could re-identify anonymized data
+
+### HIPAA's Core Requirements
+
+**Privacy Rule**
+Controls how PHI can be used and disclosed. For AI:
+- Can only process PHI for treatment, payment, or operations (TPO)
+- Other uses require specific authorization
+- Must provide minimum necessary information
+- Patients have rights to access and amend their data
+
+**Security Rule**
+Requires administrative, physical, and technical safeguards:
+- Access controls with unique user identification
+- Encryption for data at rest and in transit
+- Audit logs of all PHI access
+- Regular risk assessments
+
+**Breach Notification Rule**
+Requires notification when unsecured PHI is compromised:
+- Patients must be notified within 60 days
+- Media notification for large breaches
+- HHS notification requirements
+- Documentation of breach response
+
+### Implementing HIPAA Compliance
+
+HIPAA compliance shapes every aspect of your healthcare AI system:
+
+**Basic HIPAA Configuration Example:**
 
 ```ruby
-class RightToErasureHandler
-  def initialize
-    @data_store = RAAF::Compliance::GDPR::DataStore.new
-    @audit_logger = RAAF::Compliance::GDPR::AuditLogger.new
-  end
-  
-  def process_erasure_request(user_id, request_reason)
-    # Verify user identity
-    unless verify_user_identity(user_id)
-      return { success: false, error: "Identity verification failed" }
-    end
-    
-    # Check if erasure is legally required
-    unless erasure_required?(user_id, request_reason)
-      return { success: false, error: "Erasure not legally required" }
-    end
-    
-    # Perform erasure
-    erasure_result = perform_erasure(user_id)
-    
-    # Log erasure action
-    @audit_logger.log_erasure(
-      user_id: user_id,
-      reason: request_reason,
-      result: erasure_result,
-      timestamp: Time.current
-    )
-    
-    erasure_result
-  end
-  
-  private
-  
-  def perform_erasure(user_id)
-    begin
-      # Erase from conversation history
-      @data_store.delete_user_conversations(user_id)
-      
-      # Erase from memory store
-      @data_store.delete_user_memory(user_id)
-      
-      # Erase from audit logs (anonymize)
-      @data_store.anonymize_audit_logs(user_id)
-      
-      # Erase from analytics
-      @data_store.delete_user_analytics(user_id)
-      
-      { success: true, message: "User data successfully erased" }
-    rescue => e
-      Rails.logger.error("Erasure failed for user #{user_id}: #{e.message}")
-      { success: false, error: "Erasure failed" }
-    end
-  end
-  
-  def erasure_required?(user_id, reason)
-    valid_reasons = [
-      "consent_withdrawn",
-      "data_no_longer_necessary",
-      "unlawful_processing",
-      "user_request"
-    ]
-    
-    valid_reasons.include?(reason)
-  end
-end
-```
-
-HIPAA Compliance
----------------
-
-### Overview
-
-The Health Insurance Portability and Accountability Act (HIPAA) requires healthcare organizations to protect sensitive patient health information. RAAF's HIPAA compliance module provides:
-
-* **PHI protection** (Protected Health Information)
-* **Access controls** and audit trails
-* **Encryption** for data at rest and in transit
-* **Business Associate Agreements** (BAA) compliance
-* **Breach detection** and notification
-
-### HIPAA Setup
-
-```ruby
-require 'raaf/compliance/hipaa'
-
-# Configure HIPAA compliance
-hipaa_config = RAAF::Compliance::HIPAA::Config.new(
-  phi_detection_enabled: true,
-  encryption_required: true,
-  audit_trail_enabled: true,
-  access_control_enabled: true,
-  breach_detection_enabled: true
+# Configure HIPAA guardrail with PHI protection
+hipaa_guardrail = RAAF::Guardrails::HIPAACompliance.new(
+  action: :block,                     # Block PHI by default
+  covered_entity: true,               # Operating as covered entity
+  business_associate: false,          # Not a BA agreement
+  minimum_necessary: true,            # Enforce minimum necessary
+  audit_required: true,               # Full audit logging
+  logger: hipaa_audit_logger
 )
 
-# Create HIPAA-compliant agent
-agent = RAAF::Agent.new(
+# Healthcare agent with HIPAA protection
+healthcare_agent = RAAF::Agent.new(
+  name: "MedicalAssistant",
+  instructions: "Provide medical information while protecting PHI"
+)
+healthcare_agent.add_input_guardrail(hipaa_guardrail)
+healthcare_agent.add_output_guardrail(hipaa_guardrail)
+```
+
+**Role-Based Access Configuration:**
+
+```ruby
+# Configure based on healthcare role
+def create_hipaa_guardrail(user_role)
+  RAAF::Guardrails::HIPAACompliance.new(
+    action: :redact,
+    safeguards: {
+      administrative: [:access_management, :workforce_training],
+      technical: [:access_control, :audit_controls],
+      physical: [:workstation_security]
+    },
+    # Custom PHI patterns for your organization
+    custom_patterns: {
+      mrn: /MRN-\d{10}/,                    # Your MRN format
+      provider_id: /PROV-[A-Z]{2}-\d{6}/,   # Provider IDs
+      facility_code: /FAC-\d{4}/            # Facility codes
+    }
+  )
+end
+
+# Run with healthcare context
+runner = RAAF::Runner.new(agent: healthcare_agent)
+result = runner.run(
+  "Patient John Doe, MRN-1234567890, diagnosed with hypertension",
+  context: {
+    purpose: :treatment,              # TPO purpose
+    role: :physician,                 # User role
+    user_authenticated: true,         # Auth status
+    user_authorized: true,            # Authorization
+    encrypted: true,                  # Transmission security
+    patient_authorization: false      # No extra auth needed for TPO
+  }
+)
+```
+
+**Access Control Architecture**
+Not everyone can access everything. HIPAA requires:
+- Role-based access control (doctors vs. nurses vs. administrators)
+- Minimum necessary access for each role
+- Regular access reviews and updates
+- Immediate termination of access when roles change
+
+**Audit Trail Requirements**
+Every access to PHI must be logged:
+- Who accessed what data
+- When they accessed it
+- What they did with it
+- Why they accessed it (if required)
+
+These logs must be:
+- Tamper-proof
+- Retained for six years
+- Regularly reviewed for anomalies
+- Available for compliance audits
+
+**Encryption Standards**
+HIPAA requires "reasonable and appropriate" security measures:
+- AES-256 encryption for data at rest
+- TLS 1.2+ for data in transit
+- Key management procedures
+- Encrypted backups
+
+### HIPAA and Your Healthcare AI
+
+**Clinical Decision Support**
+An AI that helps doctors diagnose conditions must:
+- Log every recommendation made
+- Track which data influenced each decision
+- Maintain audit trails of doctor interactions
+- Ensure recommendations don't expose other patients' data
+
+**Patient Engagement Chatbot**
+An AI that interacts with patients must:
+- Verify patient identity before discussing PHI
+- Limit responses to minimum necessary information
+- Log all interactions for audit purposes
+- Provide secure channels for PHI transmission
+
+**Medical Research Assistant**
+An AI that helps with research must:
+- De-identify data before processing
+- Prevent re-identification through analysis
+- Track all data uses for research purposes
+- Maintain separation between research and clinical data
+
+SOC2 Compliance Deep Dive
+-------------------------
+
+Service Organization Control 2 (SOC2) is a framework for managing customer data based on five trust service criteria. Unlike GDPR and HIPAA, SOC2 is not a law but an auditing standard that many enterprises require from their vendors.
+
+### The Five Trust Service Criteria
+
+**Security**
+The foundation of SOC2—protecting information and systems from unauthorized access:
+- Firewalls and intrusion detection
+- Anti-malware and vulnerability management
+- Logical and physical access controls
+- Security incident response procedures
+
+**Availability**
+Systems must be available for operation and use as agreed:
+- Uptime commitments (typically 99.9%+)
+- Disaster recovery procedures
+- Performance monitoring
+- Capacity planning
+
+**Processing Integrity**
+System processing must be complete, accurate, timely, and authorized:
+- Data validation controls
+- Error handling procedures
+- Processing monitoring
+- Quality assurance processes
+
+**Confidentiality**
+Information designated as confidential must be protected:
+- Data classification procedures
+- Encryption requirements
+- Access restrictions
+- Confidentiality agreements
+
+**Privacy**
+Personal information must be collected, used, retained, and disclosed in conformity with privacy notice:
+- Privacy policy alignment
+- Consent management
+- Data retention limits
+- Third-party data sharing controls
+
+### SOC2 for AI Systems
+
+AI systems present unique challenges for SOC2 compliance:
+
+**Model Security**
+- Protecting AI models from theft or tampering
+- Preventing model inversion attacks
+- Securing training data
+- Controlling model access
+
+**Processing Integrity for AI**
+- Ensuring consistent model outputs
+- Validating AI decisions
+- Monitoring for model drift
+- Maintaining decision audit trails
+
+**Availability Challenges**
+- Managing API rate limits
+- Handling model updates without downtime
+- Scaling for demand spikes
+- Failover procedures for AI services
+
+### Implementing SOC2 Compliance
+
+SOC2 requires comprehensive organizational controls:
+
+**Basic SOC2 Configuration Example:**
+
+```ruby
+# Configure SOC2 guardrail with trust criteria
+soc2_guardrail = RAAF::Guardrails::SOC2Compliance.new(
+  # Trust Service Criteria
+  security: true,                    # Enable security controls
+  availability: true,                # Monitor availability
+  processing_integrity: true,        # Validate processing
+  confidentiality: true,             # Protect confidential data
+  privacy: true,                     # Privacy controls
+  
+  # Monitoring configuration
+  monitor_uptime: true,
+  uptime_threshold: 0.999,           # 99.9% availability
+  audit_frequency: :continuous,      # Real-time auditing
+  logger: soc2_audit_logger
+)
+
+# Enterprise agent with SOC2 compliance
+enterprise_agent = RAAF::Agent.new(
+  name: "EnterpriseAssistant",
+  instructions: "Provide business assistance with SOC2 compliance"
+)
+enterprise_agent.add_input_guardrail(soc2_guardrail)
+enterprise_agent.add_output_guardrail(soc2_guardrail)
+```
+
+**Multi-Criteria Configuration:**
+
+```ruby
+# Advanced SOC2 configuration with all criteria
+soc2_guardrail = RAAF::Guardrails::SOC2Compliance.new(
+  # Security configurations
+  security_controls: {
+    firewall: :enabled,
+    intrusion_detection: :active,
+    access_controls: :role_based,
+    encryption: :aes_256
+  },
+  
+  # Availability configurations
+  availability_controls: {
+    redundancy: :active_active,
+    backup_frequency: :hourly,
+    recovery_time_objective: 4,      # 4 hours RTO
+    recovery_point_objective: 1      # 1 hour RPO
+  },
+  
+  # Processing integrity
+  integrity_controls: {
+    validation_rules: :strict,
+    error_handling: :comprehensive,
+    change_control: :approved_only
+  },
+  
+  # Custom monitoring
+  custom_monitors: [
+    { metric: :response_time, threshold: 200, unit: :ms },
+    { metric: :error_rate, threshold: 0.001, unit: :percentage },
+    { metric: :data_accuracy, threshold: 0.999, unit: :percentage }
+  ]
+)
+
+# Context-aware execution
+runner = RAAF::Runner.new(agent: enterprise_agent)
+result = runner.run(
+  "Process financial report for Q4",
+  context: {
+    data_classification: :confidential,
+    processing_type: :financial_reporting,
+    change_approved: true,
+    change_id: "CHG-2024-001",
+    user_authorized: true,
+    environment: :production
+  }
+)
+```
+
+**Change Management**
+Every change to your AI system must be:
+- Documented and approved
+- Tested before deployment
+- Rolled back if issues arise
+- Reviewed for security impact
+
+**Incident Response**
+When things go wrong:
+- Defined escalation procedures
+- Clear communication plans
+- Root cause analysis
+- Preventive measure implementation
+
+**Vendor Management**
+For AI systems using third-party services:
+- Vendor security assessments
+- Service level agreements
+- Data processing agreements
+- Regular vendor reviews
+
+**Continuous Monitoring**
+SOC2 requires ongoing monitoring:
+- Security event logging
+- Performance metrics tracking
+- Compliance dashboard maintenance
+- Regular control testing
+
+How Compliance Guardrails Connect to Reality
+-------------------------------------------
+
+Compliance guardrails aren't abstract controls—they're the technical implementation of legal requirements that directly impact your users' experience and your business operations.
+
+### The User Experience Impact
+
+**Consent Fatigue**
+GDPR requires explicit consent, but users get tired of consent requests:
+- Design progressive consent flows
+- Bundle related permissions
+- Explain value clearly
+- Remember consent decisions
+
+**Access Restrictions**
+HIPAA's minimum necessary principle can frustrate users:
+- Explain why certain data isn't accessible
+- Provide alternative paths to information
+- Design graceful degradation
+- Offer escalation procedures
+
+**Performance Trade-offs**
+Compliance checks add latency:
+- Use parallel processing where possible
+- Cache compliance decisions
+- Pre-compute common scenarios
+- Optimize critical paths
+
+### The Business Operations Impact
+
+**Development Velocity**
+Compliance requirements slow feature development:
+- Build compliance into your SDLC
+- Create reusable compliance components
+- Automate compliance testing
+- Train developers on requirements
+
+**Customer Acquisition**
+Compliance can be a competitive advantage:
+- Use compliance certifications in sales
+- Demonstrate superior data protection
+- Show transparent practices
+- Build trust through compliance
+
+**Operational Overhead**
+Compliance requires ongoing effort:
+- Regular audit preparation
+- Continuous monitoring
+- Incident response readiness
+- Documentation maintenance
+
+### Making Compliance Invisible
+
+The best compliance is invisible to users while still protecting them:
+
+**Smart Defaults**
+- Configure systems for maximum privacy by default
+- Only collect necessary data automatically
+- Make secure choices the easy choices
+- Guide users toward compliant behaviors
+
+**Contextual Explanations**
+- Explain compliance requirements when relevant
+- Use plain language, not legal jargon
+- Connect requirements to user benefits
+- Provide detailed information on demand
+
+**Graceful Degradation**
+- Design systems that work with partial data
+- Provide alternative features when full access isn't possible
+- Maintain functionality during compliance checks
+- Offer clear upgrade paths
+
+Combining Multiple Compliance Frameworks
+---------------------------------------
+
+Real-world applications often need to comply with multiple frameworks simultaneously. Here's how to configure guardrails for multi-framework compliance:
+
+**Healthcare Platform with GDPR and HIPAA:**
+
+```ruby
+# Create compliance guardrails
+gdpr_guardrail = RAAF::Guardrails::GDPRCompliance.new(
+  action: :redact,
+  consent_required: true,
+  data_retention_days: 365  # GDPR allows longer for medical
+)
+
+hipaa_guardrail = RAAF::Guardrails::HIPAACompliance.new(
+  action: :block,
+  covered_entity: true,
+  minimum_necessary: true
+)
+
+# Combine guardrails in parallel for performance
+compliance_guardrails = RAAF::Guardrails::ParallelGuardrails.new(
+  [gdpr_guardrail, hipaa_guardrail],
+  max_parallel: 2,
+  timeout: 5
+)
+
+# Configure healthcare agent
+healthcare_agent = RAAF::Agent.new(
   name: "HealthcareAssistant",
-  instructions: "Provide healthcare information while protecting patient privacy",
-  model: "gpt-4o"
+  instructions: "Assist with healthcare while protecting patient privacy"
 )
-
-# Add HIPAA compliance
-compliance_manager = RAAF::Compliance::HIPAA::Manager.new(hipaa_config)
-agent.add_compliance(compliance_manager)
+healthcare_agent.add_input_guardrail(compliance_guardrails)
+healthcare_agent.add_output_guardrail(compliance_guardrails)
 ```
 
-### PHI Detection and Protection
-
-Implement PHI detection and redaction:
+**Enterprise Platform with SOC2, GDPR, and Custom Policies:**
 
 ```ruby
-class PHIDetectionGuardrail < RAAF::Guardrails::Base
-  def initialize
-    @phi_patterns = load_phi_patterns
-    @encryption_service = RAAF::Compliance::HIPAA::EncryptionService.new
+# Layer compliance requirements
+def create_enterprise_guardrails(user_region, user_role)
+  guardrails = []
+  
+  # Always apply SOC2
+  guardrails << RAAF::Guardrails::SOC2Compliance.new(
+    security: true,
+    availability: true,
+    processing_integrity: true
+  )
+  
+  # Apply GDPR for EU users
+  if [:eu, :uk].include?(user_region)
+    guardrails << RAAF::Guardrails::GDPRCompliance.new(
+      action: :redact,
+      consent_required: true
+    )
   end
   
-  def process_input(input)
-    # Detect PHI in input
-    phi_detected = detect_phi(input)
+  # Add role-based guardrails
+  case user_role
+  when :external_user
+    guardrails << RAAF::Guardrails::PIIDetector.new(action: :block)
+    guardrails << RAAF::Guardrails::SecurityGuardrail.new(
+      sensitivity: :paranoid
+    )
+  when :employee
+    guardrails << RAAF::Guardrails::PIIDetector.new(action: :flag)
+  when :admin
+    # Admins get logging only
+    guardrails << RAAF::Guardrails::AuditLogger.new
+  end
+  
+  # Return parallel executor for performance
+  RAAF::Guardrails::ParallelGuardrails.new(guardrails)
+end
+
+# Use in application
+agent = RAAF::Agent.new(name: "EnterpriseBot")
+user_guardrails = create_enterprise_guardrails(:eu, :external_user)
+agent.add_input_guardrail(user_guardrails)
+```
+
+**Dynamic Compliance Based on Content:**
+
+```ruby
+# Intelligent guardrail selection
+class DynamicComplianceGuardrail < RAAF::Guardrails::Base
+  def initialize
+    @gdpr = RAAF::Guardrails::GDPRCompliance.new
+    @hipaa = RAAF::Guardrails::HIPAACompliance.new
+    @soc2 = RAAF::Guardrails::SOC2Compliance.new
+  end
+  
+  def check_input(content, context)
+    # Detect content type and apply appropriate guardrails
+    guardrails_to_apply = [@soc2]  # Always apply SOC2
     
-    if phi_detected.any?
-      # Log PHI access
-      log_phi_access(phi_detected)
-      
-      # Redact or encrypt PHI
-      processed_input = redact_phi(input, phi_detected)
-      
-      return success(processed_input)
+    # Check for health information
+    if content.match?(/\b(patient|diagnosis|treatment|medical)\b/i)
+      guardrails_to_apply << @hipaa
     end
     
-    success(input)
+    # Check for EU personal data
+    if content.match?(/\b(GDPR|EU|European)\b/i) || 
+       context[:user_region] == :eu
+      guardrails_to_apply << @gdpr
+    end
+    
+    # Apply all relevant guardrails
+    results = guardrails_to_apply.map { |g| g.check_input(content, context) }
+    
+    # Combine results (most restrictive wins)
+    combine_results(results)
   end
   
   private
   
-  def detect_phi(text)
-    detected_phi = []
+  def combine_results(results)
+    # If any guardrail blocks, block
+    return results.find(&:blocked?) if results.any?(&:blocked?)
     
-    @phi_patterns.each do |pattern_name, pattern|
-      matches = text.scan(pattern)
-      if matches.any?
-        detected_phi << {
-          type: pattern_name,
-          matches: matches,
-          positions: find_match_positions(text, pattern)
-        }
-      end
+    # Combine all modifications
+    final_content = content
+    results.each do |result|
+      final_content = result.modified_content if result.modified?
     end
     
-    detected_phi
-  end
-  
-  def load_phi_patterns
-    {
-      ssn: /\b\d{3}-\d{2}-\d{4}\b/,
-      medical_record_number: /\bMRN[:\s]+\d{6,10}\b/i,
-      date_of_birth: /\b(?:DOB|Date of Birth)[:\s]+\d{1,2}\/\d{1,2}\/\d{4}\b/i,
-      health_plan_id: /\b(?:Health Plan|Insurance|Policy)[:\s#]+\d{8,15}\b/i,
-      device_identifier: /\b(?:Device|Implant)\s+ID[:\s]+[\w\d-]{8,20}\b/i,
-      biometric_identifier: /\b(?:Fingerprint|Biometric)[:\s]+[A-F0-9]{16,32}\b/i
-    }
-  end
-  
-  def redact_phi(text, phi_detected)
-    redacted_text = text.dup
-    
-    phi_detected.each do |phi|
-      phi[:matches].each do |match|
-        redacted_text.gsub!(match, "[REDACTED_#{phi[:type].upcase}]")
-      end
-    end
-    
-    redacted_text
-  end
-  
-  def log_phi_access(phi_detected)
-    RAAF::Compliance::HIPAA::AuditLogger.log(
-      event: "phi_access",
-      phi_types: phi_detected.map { |p| p[:type] },
-      timestamp: Time.current,
-      user_id: current_user_id,
-      session_id: current_session_id
+    GuardrailResult.new(
+      safe: true,
+      modified_content: final_content,
+      metadata: { applied_frameworks: results.map(&:framework) }
     )
   end
 end
 ```
 
-### Access Control and Authorization
+Building a Compliance Culture
+-----------------------------
 
-Implement role-based access control:
+Technical compliance measures only work within a compliance-conscious organization:
 
-```ruby
-class HIPAAAccessControl
-  def initialize
-    @role_permissions = load_role_permissions
-    @audit_logger = RAAF::Compliance::HIPAA::AuditLogger.new
-  end
-  
-  def authorize_access(user_id, requested_action, resource_type)
-    user_role = get_user_role(user_id)
-    
-    unless authorized?(user_role, requested_action, resource_type)
-      @audit_logger.log_access_denied(
-        user_id: user_id,
-        role: user_role,
-        action: requested_action,
-        resource: resource_type,
-        timestamp: Time.current
-      )
-      
-      return { authorized: false, error: "Access denied" }
-    end
-    
-    @audit_logger.log_access_granted(
-      user_id: user_id,
-      role: user_role,
-      action: requested_action,
-      resource: resource_type,
-      timestamp: Time.current
-    )
-    
-    { authorized: true }
-  end
-  
-  private
-  
-  def load_role_permissions
-    {
-      physician: {
-        patient_data: [:read, :write, :update],
-        treatment_plans: [:read, :write, :update, :delete],
-        prescriptions: [:read, :write, :update]
-      },
-      nurse: {
-        patient_data: [:read, :update],
-        treatment_plans: [:read, :update],
-        prescriptions: [:read]
-      },
-      admin: {
-        patient_data: [:read],
-        treatment_plans: [:read],
-        prescriptions: [:read],
-        audit_logs: [:read]
-      }
-    }
-  end
-  
-  def authorized?(role, action, resource)
-    permissions = @role_permissions[role.to_sym]
-    return false unless permissions
-    
-    resource_permissions = permissions[resource.to_sym]
-    return false unless resource_permissions
-    
-    resource_permissions.include?(action.to_sym)
-  end
-end
-```
+### Training and Awareness
 
-### Breach Detection
+**Developer Training**
+- Regular compliance workshops
+- Code review checklists
+- Compliance champions program
+- Scenario-based training
 
-Implement automated breach detection:
+**User Education**
+- Clear privacy notices
+- In-app compliance explanations
+- Regular communication updates
+- Transparency reports
 
-```ruby
-class HIPAABreachDetector
-  def initialize
-    @breach_patterns = load_breach_patterns
-    @notification_service = RAAF::Compliance::HIPAA::NotificationService.new
-  end
-  
-  def monitor_activity(activity_log)
-    potential_breaches = detect_breaches(activity_log)
-    
-    potential_breaches.each do |breach|
-      handle_potential_breach(breach)
-    end
-  end
-  
-  private
-  
-  def detect_breaches(activity_log)
-    breaches = []
-    
-    # Detect unusual access patterns
-    unusual_access = detect_unusual_access(activity_log)
-    breaches.concat(unusual_access)
-    
-    # Detect unauthorized access attempts
-    unauthorized_access = detect_unauthorized_access(activity_log)
-    breaches.concat(unauthorized_access)
-    
-    # Detect data exfiltration
-    data_exfiltration = detect_data_exfiltration(activity_log)
-    breaches.concat(data_exfiltration)
-    
-    breaches
-  end
-  
-  def detect_unusual_access(activity_log)
-    breaches = []
-    
-    # Group activities by user
-    user_activities = activity_log.group_by { |log| log[:user_id] }
-    
-    user_activities.each do |user_id, activities|
-      # Check for access outside normal hours
-      after_hours_access = activities.select do |activity|
-        hour = activity[:timestamp].hour
-        hour < 7 || hour > 18 # Outside 7 AM - 6 PM
-      end
-      
-      if after_hours_access.size > 5
-        breaches << {
-          type: "unusual_access_pattern",
-          user_id: user_id,
-          description: "Excessive after-hours access",
-          activities: after_hours_access,
-          severity: "medium"
-        }
-      end
-      
-      # Check for rapid sequential access
-      if activities.size > 50 && activities.last[:timestamp] - activities.first[:timestamp] < 1.hour
-        breaches << {
-          type: "rapid_access_pattern",
-          user_id: user_id,
-          description: "Rapid sequential access to patient data",
-          activities: activities,
-          severity: "high"
-        }
-      end
-    end
-    
-    breaches
-  end
-  
-  def handle_potential_breach(breach)
-    # Log the breach
-    RAAF::Compliance::HIPAA::BreachLog.create(
-      type: breach[:type],
-      user_id: breach[:user_id],
-      description: breach[:description],
-      severity: breach[:severity],
-      detected_at: Time.current,
-      status: "investigating"
-    )
-    
-    # Notify security team
-    @notification_service.notify_security_team(breach)
-    
-    # If high severity, immediate action
-    if breach[:severity] == "high"
-      @notification_service.notify_compliance_officer(breach)
-      
-      # Temporarily suspend user access
-      suspend_user_access(breach[:user_id])
-    end
-  end
-end
-```
+### Continuous Improvement
 
-SOC2 Compliance
---------------
+**Compliance Metrics**
+Track and improve:
+- Consent rates
+- Data minimization effectiveness
+- Audit trail completeness
+- Incident response times
 
-### Overview
+**Regular Reviews**
+- Quarterly compliance assessments
+- Annual third-party audits
+- Continuous control monitoring
+- Stakeholder feedback sessions
 
-SOC2 (Service Organization Control 2) is a framework for managing customer data based on five trust service criteria. RAAF's SOC2 compliance module provides:
+### Incident Preparedness
 
-* **Security** controls and monitoring
-* **Availability** monitoring and alerting
-* **Processing integrity** validation
-* **Confidentiality** protection
-* **Privacy** controls
+**Response Procedures**
+- Clear escalation paths
+- Pre-drafted communications
+- Legal counsel engagement
+- Regulatory notification processes
 
-### SOC2 Setup
+**Learning from Incidents**
+- Blameless post-mortems
+- Root cause analysis
+- Control improvements
+- Knowledge sharing
 
-```ruby
-require 'raaf/compliance/soc2'
+Next Steps
+----------
 
-# Configure SOC2 compliance
-soc2_config = RAAF::Compliance::SOC2::Config.new(
-  trust_service_criteria: [:security, :availability, :processing_integrity, :confidentiality, :privacy],
-  continuous_monitoring: true,
-  incident_response_enabled: true,
-  change_management_enabled: true
-)
+Compliance is an ongoing journey, not a destination. As regulations evolve and your AI system grows, your compliance posture must adapt. Focus on:
 
-# Create SOC2-compliant agent
-agent = RAAF::Agent.new(
-  name: "BusinessAgent",
-  instructions: "Provide business services with SOC2 compliance",
-  model: "gpt-4o"
-)
+1. **Building compliance into your architecture** rather than bolting it on
+2. **Automating compliance checks** to reduce human error
+3. **Creating a culture of privacy and security** throughout your organization
+4. **Staying informed** about regulatory changes and best practices
 
-# Add SOC2 compliance
-compliance_manager = RAAF::Compliance::SOC2::Manager.new(soc2_config)
-agent.add_compliance(compliance_manager)
-```
+Remember: compliance isn't about checking boxes—it's about building trust with your users and creating sustainable, responsible AI systems that can thrive in a regulated world.
 
-### Security Controls
-
-Implement SOC2 security controls:
-
-```ruby
-class SOC2SecurityControls
-  def initialize
-    @security_monitor = RAAF::Compliance::SOC2::SecurityMonitor.new
-    @access_control = RAAF::Compliance::SOC2::AccessControl.new
-    @encryption_service = RAAF::Compliance::SOC2::EncryptionService.new
-  end
-  
-  def enforce_security_controls(request)
-    # Authentication
-    auth_result = authenticate_user(request)
-    return auth_result unless auth_result[:success]
-    
-    # Authorization
-    authz_result = authorize_access(request)
-    return authz_result unless authz_result[:success]
-    
-    # Encrypt sensitive data
-    encrypted_data = @encryption_service.encrypt(request[:data])
-    
-    # Monitor security events
-    @security_monitor.log_access(
-      user_id: request[:user_id],
-      action: request[:action],
-      resource: request[:resource],
-      timestamp: Time.current
-    )
-    
-    { success: true, data: encrypted_data }
-  end
-  
-  private
-  
-  def authenticate_user(request)
-    # Multi-factor authentication
-    mfa_result = verify_mfa(request[:user_id], request[:mfa_token])
-    return { success: false, error: "MFA verification failed" } unless mfa_result
-    
-    # Session validation
-    session_valid = validate_session(request[:session_id])
-    return { success: false, error: "Invalid session" } unless session_valid
-    
-    { success: true }
-  end
-  
-  def authorize_access(request)
-    @access_control.authorize(
-      user_id: request[:user_id],
-      action: request[:action],
-      resource: request[:resource]
-    )
-  end
-end
-```
-
-### Availability Monitoring
-
-Implement availability monitoring:
-
-```ruby
-class SOC2AvailabilityMonitor
-  def initialize
-    @alert_service = RAAF::Compliance::SOC2::AlertService.new
-    @metrics_collector = RAAF::Compliance::SOC2::MetricsCollector.new
-  end
-  
-  def monitor_availability
-    Thread.new do
-      loop do
-        check_system_health
-        sleep(30) # Check every 30 seconds
-      end
-    end
-  end
-  
-  private
-  
-  def check_system_health
-    health_checks = {
-      database: check_database_health,
-      redis: check_redis_health,
-      ai_providers: check_ai_providers_health,
-      application: check_application_health
-    }
-    
-    overall_health = health_checks.values.all? { |status| status[:healthy] }
-    
-    # Record metrics
-    @metrics_collector.record_availability(
-      overall_health: overall_health,
-      component_health: health_checks,
-      timestamp: Time.current
-    )
-    
-    # Alert if unhealthy
-    unless overall_health
-      @alert_service.send_availability_alert(health_checks)
-    end
-    
-    # Calculate uptime
-    calculate_uptime(overall_health)
-  end
-  
-  def check_database_health
-    start_time = Time.current
-    
-    begin
-      ActiveRecord::Base.connection.execute("SELECT 1")
-      response_time = Time.current - start_time
-      
-      {
-        healthy: response_time < 1.0,
-        response_time: response_time,
-        status: "operational"
-      }
-    rescue => e
-      {
-        healthy: false,
-        error: e.message,
-        status: "error"
-      }
-    end
-  end
-  
-  def calculate_uptime(current_health)
-    uptime_calculator = RAAF::Compliance::SOC2::UptimeCalculator.new
-    
-    uptime_calculator.record_status(
-      healthy: current_health,
-      timestamp: Time.current
-    )
-    
-    current_uptime = uptime_calculator.calculate_uptime(period: 30.days)
-    
-    # SOC2 requires 99.9% uptime
-    if current_uptime < 0.999
-      @alert_service.send_uptime_alert(current_uptime)
-    end
-  end
-end
-```
-
-### Change Management
-
-Implement change management controls:
-
-```ruby
-class SOC2ChangeManagement
-  def initialize
-    @change_log = RAAF::Compliance::SOC2::ChangeLog.new
-    @approval_service = RAAF::Compliance::SOC2::ApprovalService.new
-  end
-  
-  def process_change_request(change_request)
-    # Validate change request
-    validation_result = validate_change_request(change_request)
-    return validation_result unless validation_result[:valid]
-    
-    # Require approval for high-risk changes
-    if high_risk_change?(change_request)
-      approval_result = @approval_service.request_approval(change_request)
-      return approval_result unless approval_result[:approved]
-    end
-    
-    # Log change
-    @change_log.log_change(
-      id: SecureRandom.uuid,
-      type: change_request[:type],
-      description: change_request[:description],
-      requested_by: change_request[:user_id],
-      approved_by: change_request[:approved_by],
-      scheduled_at: change_request[:scheduled_at],
-      status: "approved"
-    )
-    
-    { success: true, change_id: change_request[:id] }
-  end
-  
-  def implement_change(change_id)
-    change = @change_log.find(change_id)
-    
-    begin
-      # Create rollback point
-      rollback_point = create_rollback_point(change)
-      
-      # Implement change
-      implementation_result = execute_change(change)
-      
-      # Verify change
-      verification_result = verify_change(change)
-      
-      if verification_result[:success]
-        @change_log.update_status(change_id, "completed")
-        { success: true, message: "Change implemented successfully" }
-      else
-        # Rollback on failure
-        rollback_result = rollback_change(rollback_point)
-        @change_log.update_status(change_id, "failed")
-        { success: false, error: "Change failed, rolled back" }
-      end
-    rescue => e
-      @change_log.update_status(change_id, "failed")
-      { success: false, error: e.message }
-    end
-  end
-  
-  private
-  
-  def high_risk_change?(change_request)
-    high_risk_types = [
-      "security_configuration",
-      "access_control_modification",
-      "data_processing_change",
-      "encryption_key_rotation"
-    ]
-    
-    high_risk_types.include?(change_request[:type])
-  end
-end
-```
-
-Compliance Reporting
--------------------
-
-### Automated Compliance Reports
-
-Generate compliance reports automatically:
-
-```ruby
-class ComplianceReporter
-  def initialize
-    @gdpr_reporter = RAAF::Compliance::GDPR::Reporter.new
-    @hipaa_reporter = RAAF::Compliance::HIPAA::Reporter.new
-    @soc2_reporter = RAAF::Compliance::SOC2::Reporter.new
-  end
-  
-  def generate_compliance_report(framework, period)
-    case framework
-    when :gdpr
-      @gdpr_reporter.generate_report(period)
-    when :hipaa
-      @hipaa_reporter.generate_report(period)
-    when :soc2
-      @soc2_reporter.generate_report(period)
-    when :all
-      {
-        gdpr: @gdpr_reporter.generate_report(period),
-        hipaa: @hipaa_reporter.generate_report(period),
-        soc2: @soc2_reporter.generate_report(period)
-      }
-    end
-  end
-  
-  def schedule_automated_reports
-    # Daily operational reports
-    Cron.new("0 6 * * *") do
-      daily_report = generate_compliance_report(:all, 1.day)
-      send_to_compliance_team(daily_report)
-    end
-    
-    # Weekly summary reports
-    Cron.new("0 8 * * 1") do
-      weekly_report = generate_compliance_report(:all, 1.week)
-      send_to_management(weekly_report)
-    end
-    
-    # Monthly audit reports
-    Cron.new("0 9 1 * *") do
-      monthly_report = generate_compliance_report(:all, 1.month)
-      send_to_auditors(monthly_report)
-    end
-  end
-end
-```
-
-### Audit Trail Management
-
-Implement comprehensive audit trails:
-
-```ruby
-class AuditTrailManager
-  def initialize
-    @audit_store = RAAF::Compliance::AuditStore.new
-    @encryption_service = RAAF::Compliance::EncryptionService.new
-  end
-  
-  def log_event(event_type, details)
-    audit_entry = {
-      id: SecureRandom.uuid,
-      event_type: event_type,
-      timestamp: Time.current,
-      user_id: details[:user_id],
-      session_id: details[:session_id],
-      action: details[:action],
-      resource: details[:resource],
-      result: details[:result],
-      ip_address: details[:ip_address],
-      user_agent: details[:user_agent],
-      encrypted_details: @encryption_service.encrypt(details.to_json)
-    }
-    
-    @audit_store.store(audit_entry)
-    
-    # Real-time compliance monitoring
-    check_compliance_violations(audit_entry)
-  end
-  
-  def query_audit_trail(filters = {})
-    results = @audit_store.query(filters)
-    
-    # Decrypt details if authorized
-    if authorized_for_audit_access?
-      results.each do |entry|
-        entry[:details] = JSON.parse(
-          @encryption_service.decrypt(entry[:encrypted_details])
-        )
-      end
-    end
-    
-    results
-  end
-  
-  private
-  
-  def check_compliance_violations(audit_entry)
-    # Check for unusual patterns
-    if unusual_activity?(audit_entry)
-      alert_compliance_team(audit_entry)
-    end
-    
-    # Check for policy violations
-    if policy_violation?(audit_entry)
-      alert_security_team(audit_entry)
-    end
-  end
-end
-```
-
-Integration with RAAF Agents
----------------------------
-
-### Complete Compliance Integration
-
-Here's how to integrate all compliance frameworks with your RAAF agents:
-
-```ruby
-class EnterpriseComplianceAgent
-  def initialize
-    # Create base agent
-    @agent = RAAF::Agent.new(
-      name: "ComplianceAgent",
-      instructions: "Provide services while maintaining full compliance",
-      model: "gpt-4o"
-    )
-    
-    # Add compliance managers
-    setup_compliance_frameworks
-    
-    # Add compliance-aware guardrails
-    setup_compliance_guardrails
-    
-    # Configure audit trail
-    setup_audit_trail
-  end
-  
-  def process_request(input, user_context)
-    # Check compliance requirements
-    compliance_check = check_compliance_requirements(user_context)
-    return compliance_check unless compliance_check[:compliant]
-    
-    # Process with full compliance
-    result = @agent.run(input)
-    
-    # Log for audit trail
-    log_compliance_event(input, result, user_context)
-    
-    result
-  end
-  
-  private
-  
-  def setup_compliance_frameworks
-    # GDPR compliance
-    @gdpr_manager = RAAF::Compliance::GDPR::Manager.new(
-      data_retention_period: 2.years,
-      consent_required: true,
-      anonymization_enabled: true
-    )
-    
-    # HIPAA compliance
-    @hipaa_manager = RAAF::Compliance::HIPAA::Manager.new(
-      phi_detection_enabled: true,
-      encryption_required: true,
-      access_control_enabled: true
-    )
-    
-    # SOC2 compliance
-    @soc2_manager = RAAF::Compliance::SOC2::Manager.new(
-      trust_service_criteria: [:security, :availability, :processing_integrity],
-      continuous_monitoring: true
-    )
-    
-    # Add all to agent
-    @agent.add_compliance(@gdpr_manager)
-    @agent.add_compliance(@hipaa_manager)
-    @agent.add_compliance(@soc2_manager)
-  end
-  
-  def setup_compliance_guardrails
-    guardrails = [
-      RAAF::Compliance::GDPR::DataMinimizationGuardrail.new,
-      RAAF::Compliance::HIPAA::PHIDetectionGuardrail.new,
-      RAAF::Compliance::SOC2::SecurityGuardrail.new
-    ]
-    
-    @agent.guardrails = RAAF::ParallelGuardrails.new(guardrails)
-  end
-  
-  def setup_audit_trail
-    @audit_trail = RAAF::Compliance::AuditTrailManager.new
-    
-    # Log all agent interactions
-    @agent.on_interaction do |interaction|
-      @audit_trail.log_event("agent_interaction", interaction)
-    end
-  end
-end
-```
-
-This comprehensive compliance guide provides the foundation for building enterprise-grade AI systems that meet regulatory requirements while maintaining functionality and performance.
+For technical implementation details, see:
+* **[Guardrails Guide](guardrails_guide.html)** - Technical implementation of compliance controls
+* **[Security Guide](security_guide.html)** - Security best practices
+* **[Testing Guide](testing_guide.html)** - Compliance testing strategies
+* **[Monitoring Guide](monitoring_guide.html)** - Compliance monitoring and alerting
