@@ -193,6 +193,87 @@ editor_agent = RAAF::Agent.new(
 )
 ```
 
+### Using Prompts with Multi-Agent Systems
+
+For complex multi-agent workflows, managing prompts becomes crucial. RAAF's prompt system helps maintain consistency and reusability across agents:
+
+```ruby
+# Define reusable prompt templates
+class ResearchAgentPrompt < RAAF::DSL::Prompts::Base
+  requires :domain, :research_depth
+  optional :sources, default: ["web", "academic"]
+  
+  def system
+    <<~SYSTEM
+      You are a research specialist in #{@domain}.
+      Research depth: #{@research_depth}
+      Available sources: #{@sources.join(", ")}
+      
+      When research is complete, hand off to the Writer with:
+      - Research summary
+      - Key findings
+      - Source citations
+    SYSTEM
+  end
+end
+
+class WriterAgentPrompt < RAAF::DSL::Prompts::Base
+  requires :content_type, :target_audience
+  optional :tone, default: "professional"
+  
+  def system
+    <<~SYSTEM
+      You are a content writer creating #{@content_type} for #{@target_audience}.
+      Writing tone: #{@tone}
+      
+      Transform research into compelling content.
+      When complete, hand off to Editor for review.
+    SYSTEM
+  end
+end
+
+# Create agents with prompt templates
+research_agent = RAAF::DSL::AgentBuilder.build do
+  name "Researcher"
+  prompt ResearchAgentPrompt
+  model "gpt-4o"
+  
+  use_web_search
+  use_file_search
+end
+
+writer_agent = RAAF::DSL::AgentBuilder.build do
+  name "Writer"
+  prompt WriterAgentPrompt
+  model "gpt-4o"
+end
+
+# Run with dynamic context
+runner = RAAF::Runner.new(
+  agent: research_agent,
+  agents: [research_agent, writer_agent, editor_agent]
+)
+
+result = runner.run("Research and write about quantum computing") do
+  # Context for research agent
+  context_variable :domain, "quantum physics"
+  context_variable :research_depth, "comprehensive"
+  
+  # Context for writer agent
+  context_variable :content_type, "blog post"
+  context_variable :target_audience, "tech professionals"
+  context_variable :tone, "engaging yet technical"
+end
+```
+
+Using prompt templates provides several benefits in multi-agent systems:
+- **Consistency**: Ensure all agents in a workflow use consistent terminology
+- **Reusability**: Share prompt patterns across similar agent types
+- **Testability**: Test prompt logic independently of agent execution
+- **Version Control**: Track changes to agent behavior over time
+
+For more details on prompt management, see the [Prompting Guide](prompting.md).
+
 ### Setting Up Handoffs
 
 ```ruby

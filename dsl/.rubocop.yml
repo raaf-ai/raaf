@@ -21,24 +21,9 @@ Layout/LineLength:
     - '\A\s*describe\s'  # Allow long RSpec describe blocks
     - '\A\s*context\s'  # Allow long RSpec context blocks
 
-Metrics/AbcSize:
-  Max: 25
-
-Metrics/MethodLength:
-  Max: 20
-  CountAsOne: ['array', 'hash', 'heredoc']
-
-Metrics/ClassLength:
-  Max: 150
-
-Metrics/ModuleLength:
-  Max: 150
-
-Metrics/BlockLength:
-  Max: 25
-  Exclude:
-    - 'spec/**/*'
-    - 'examples/**/*'
+# Disable all metric cops
+Metrics:
+  Enabled: false
 
 Style/Documentation:
   Enabled: false

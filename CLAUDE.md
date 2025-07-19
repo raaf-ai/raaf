@@ -139,6 +139,37 @@ end
 result = agent.run("Search for Ruby news")
 ```
 
+### Prompt Management (PREFERRED: Ruby Prompts)
+
+RAAF DSL provides a flexible prompt resolution system. **Always prefer Ruby prompt classes over Markdown files** for better type safety, testability, and IDE support:
+
+```ruby
+# PREFERRED: Ruby prompt class with validation
+class ResearchPrompt < RAAF::DSL::Prompts::Base
+  requires :topic, :depth
+  optional :language, default: "English"
+  
+  def system
+    "You are a research assistant specializing in #{@topic}."
+  end
+  
+  def user
+    "Provide #{@depth} analysis in #{@language}."
+  end
+end
+
+# Use in agent
+agent = RAAF::DSL::AgentBuilder.build do
+  name "Researcher"
+  prompt ResearchPrompt  # Type-safe, testable
+  model "gpt-4o"
+end
+
+# Alternative formats (less preferred):
+# prompt "research.md"      # Simple markdown
+# prompt "analysis.md.erb"  # ERB template
+```
+
 ## Environment Variables
 
 ```bash

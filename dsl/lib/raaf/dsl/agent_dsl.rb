@@ -1124,7 +1124,6 @@ module RAAF
         handoff_agent_class.new(context: merged_context, processing_params: merged_params)
       end
 
-
       def convert_to_openai_agent(dsl_agent_instance)
         if dsl_agent_instance.respond_to?(:create_agent_with_context)
           openai_agent = dsl_agent_instance.create_agent_with_context(

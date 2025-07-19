@@ -1,6 +1,15 @@
 # RAAF DSL - Claude Code Guide
 
-This gem provides a Ruby DSL for building agents with a more declarative syntax, plus comprehensive debugging tools.
+This gem provides a Ruby DSL for building agents with a more declarative syntax, comprehensive debugging tools, and a flexible prompt resolution system.
+
+## Important: Prompt Format Preference
+
+**PREFER RUBY PROMPTS**: When creating prompts for RAAF agents, prefer using Ruby Phlex-style prompt classes over Markdown files. Ruby prompts provide:
+- Type safety and validation
+- IDE support and autocomplete
+- Testability with RSpec
+- Dynamic behavior with Ruby logic
+- Better integration with the DSL
 
 ## Quick Start
 
@@ -30,6 +39,7 @@ end
 - **AgentBuilder** - DSL for defining agents
 - **ToolBuilder** - DSL for creating tools
 - **ContextVariables** - Dynamic context management
+- **Prompt Resolution** - Flexible prompt loading system
 - **WebSearch** - Built-in web search tool
 - **DebugUtils** - Enhanced debugging capabilities
 
@@ -76,6 +86,61 @@ end
 
 agent.add_tool(calculator)
 ```
+
+## Prompt Resolution System
+
+The DSL includes a powerful prompt resolution framework:
+
+```ruby
+# Configure prompt resolution
+RAAF::DSL.configure_prompts do |config|
+  config.add_path "prompts"        # Add search paths
+  config.add_path "app/prompts"    # Rails-style paths
+  
+  # File resolver handles .md and .md.erb automatically
+  config.enable_resolver :file, priority: 100
+  config.enable_resolver :phlex, priority: 50
+end
+
+# PREFERRED: Ruby prompt classes (Phlex-style)
+class ResearchPrompt < RAAF::DSL::Prompts::Base
+  requires :topic, :depth
+  optional :language, default: "English"
+  
+  def system
+    <<~SYSTEM
+      You are a research assistant specializing in #{@topic}.
+      Provide #{@depth} analysis in #{@language}.
+    SYSTEM
+  end
+  
+  def user
+    "Research the latest developments in #{@topic}."
+  end
+end
+
+# Use prompts in agents
+agent = RAAF::DSL::AgentBuilder.build do
+  name "Researcher"
+  prompt ResearchPrompt  # Preferred: Ruby class
+  # prompt "research.md"  # Alternative: Markdown file
+  # prompt "analysis.md.erb"  # Alternative: ERB template
+end
+```
+
+### Prompt Formats Supported
+
+1. **Ruby Classes (PREFERRED)** - Type-safe, testable, dynamic
+2. **Markdown Files** - Simple with `{{variable}}` interpolation
+3. **ERB Templates** - Full Ruby logic with helper methods
+
+### Why Prefer Ruby Prompts?
+
+- **Validation**: Required/optional variables with contracts
+- **Testing**: Easy to test with RSpec
+- **IDE Support**: Autocomplete and refactoring
+- **Dynamic**: Can use Ruby logic and conditionals
+- **Reusable**: Inherit from base classes
 
 ## Context Variables
 

@@ -88,6 +88,10 @@ module RAAF
     autoload :DebugUtils, "raaf/dsl/debug_utils"
     autoload :HashUtils, "raaf/dsl/hash_utils"
     autoload :Logging, "raaf/dsl/logging"
+    autoload :Prompt, "raaf/dsl/prompts"
+    autoload :PromptConfiguration, "raaf/dsl/prompt_configuration"
+    autoload :PromptResolver, "raaf/dsl/prompt_resolver"
+    autoload :PromptResolverRegistry, "raaf/dsl/prompt_resolver"
     autoload :Railtie, "raaf/dsl/railtie"
     autoload :SchemaBuilder, "raaf/dsl/agent_dsl"
     autoload :SwarmDebugger, "raaf/dsl/swarm_debugger"
@@ -132,6 +136,23 @@ module RAAF
     module Prompts
 
       autoload :Base, "raaf/dsl/prompts/base"
+
+    end
+
+    # Prompt resolvers for different formats
+    #
+    # This module contains resolvers that handle different prompt formats
+    # including Phlex-style classes, Markdown files, and ERB templates.
+    #
+    # @example Using prompt resolution
+    #   prompt = RAAF::DSL::Prompt.resolve("customer_service.md")
+    #   prompt = RAAF::DSL::Prompt.resolve(MyPromptClass)
+    #   prompt = RAAF::DSL::Prompt.resolve("template.md.erb", name: "John")
+    #
+    module PromptResolvers
+
+      autoload :PhlexResolver, "raaf/dsl/prompt_resolvers/phlex_resolver"
+      autoload :FileResolver, "raaf/dsl/prompt_resolvers/file_resolver"
 
     end
 
@@ -280,6 +301,33 @@ module RAAF
     # @return [Configuration] The current configuration object
     def self.configuration
       @configuration ||= Configuration.new
+    end
+
+    # Configure prompt resolution
+    #
+    # @example
+    #   RAAF::DSL.configure_prompts do |config|
+    #     config.add_path "app/prompts"
+    #     config.enable_resolver :erb, priority: 100
+    #     config.disable_resolver :phlex
+    #   end
+    #
+    def self.configure_prompts(&block)
+      PromptConfiguration.configure(&block)
+    end
+
+    # Get the prompt configuration
+    #
+    # @return [PromptConfiguration] The current prompt configuration
+    def self.prompt_configuration
+      @prompt_configuration ||= PromptConfiguration.new
+    end
+
+    # Get the prompt resolver registry
+    #
+    # @return [PromptResolverRegistry] The prompt resolver registry
+    def self.prompt_resolvers
+      @prompt_resolvers ||= PromptResolverRegistry.new
     end
 
     # Configuration object for the gem

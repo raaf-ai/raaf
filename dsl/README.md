@@ -753,6 +753,87 @@ end
 
 ### 📝 Advanced Prompt Engineering
 
+#### Flexible Prompt Resolution System
+
+RAAF DSL includes a powerful prompt resolution framework that supports multiple formats:
+
+```ruby
+# Configure prompt resolution
+RAAF::DSL.configure_prompts do |config|
+  config.add_path "prompts"           # Search in prompts/ directory
+  config.add_path "app/prompts"       # Rails-style paths
+  
+  config.enable_resolver :file, priority: 100    # Handles .md, .md.erb
+  config.enable_resolver :phlex, priority: 50    # Ruby prompt classes
+end
+
+# Use prompts in multiple ways
+agent = MyAgent.new(
+  # From Phlex-style Ruby class
+  prompt: CustomerServicePrompt,
+  
+  # From Markdown file with {{variable}} interpolation
+  prompt: "customer_service.md",
+  
+  # From ERB template with full Ruby capabilities
+  prompt: "analysis.md.erb",
+  
+  # Pass context for variable substitution
+  context: { company_name: "ACME Corp", tone: "friendly" }
+)
+```
+
+#### Supported Prompt Formats
+
+1. **Ruby Prompt Classes** (Phlex-style)
+   ```ruby
+   class ResearchPrompt < RAAF::DSL::Prompts::Base
+     requires :topic, :depth
+     
+     def system
+       "You are a research assistant specializing in #{@topic}."
+     end
+   end
+   ```
+
+2. **Markdown Files** with frontmatter and interpolation
+   ```markdown
+   ---
+   id: customer-service
+   version: 1.0
+   ---
+   # System
+   You are a {{tone}} customer service agent for {{company_name}}.
+   
+   # User
+   Help the customer with their {{issue_type}} issue.
+   ```
+
+3. **ERB Templates** with Ruby logic and helpers
+   ```erb
+   ---
+   id: analysis-report
+   ---
+   # System
+   You analyze <%= data_type %> data.
+   
+   Skills:
+   <%= list(skills) %>
+   
+   # User
+   Analyze this data:
+   <%= code_block(data, "json") %>
+   ```
+
+#### Prompt Resolution Features
+
+- **Automatic format detection** based on file extension
+- **Variable interpolation** for Markdown files
+- **Full ERB processing** with helper methods
+- **YAML frontmatter** for metadata
+- **Section markers** for system/user messages
+- **Extensible architecture** for custom resolvers
+
 Sophisticated prompt management with contracts and validation:
 
 ```ruby

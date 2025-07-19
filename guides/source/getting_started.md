@@ -371,6 +371,42 @@ result = runner.run("What time is it and can you look up customer 67890?")
 puts result.messages.last[:content]
 ```
 
+### Using Prompts
+
+RAAF provides a flexible prompt management system. The recommended approach is to use Ruby prompt classes for better type safety and testability:
+
+```ruby
+# Define a prompt class
+class CustomerServicePrompt < RAAF::DSL::Prompts::Base
+  requires :company_name
+  optional :tone, default: "professional"
+  
+  def system
+    "You are a customer service agent for #{@company_name}. Be #{@tone} and helpful."
+  end
+  
+  def user
+    "Please help the customer with their inquiry."
+  end
+end
+
+# Use with DSL
+agent = RAAF::DSL::AgentBuilder.build do
+  name "SupportAgent"
+  prompt CustomerServicePrompt
+  model "gpt-4o"
+end
+
+# Run with context
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("I need help with my order") do
+  context_variable :company_name, "ACME Corp"
+  context_variable :tone, "friendly"
+end
+```
+
+For simple cases, you can also use file-based prompts. See the [Prompting Guide](prompting.md) for comprehensive documentation.
+
 Adding Memory
 -------------
 

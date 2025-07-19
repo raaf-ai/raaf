@@ -10,8 +10,11 @@ After reading this guide, you will know:
 * How to use the declarative agent builder DSL
 * Built-in tool presets and shortcuts  
 * Advanced DSL patterns and configurations
+* Prompt management with Ruby classes and templates
 * Testing agents built with the DSL
 * Best practices for DSL-based agent design
+
+NOTE: For comprehensive prompt management documentation, see the [Prompting Guide](prompting.md).
 
 --------------------------------------------------------------------------------
 
@@ -206,6 +209,59 @@ This pattern is particularly valuable for complex deployments where agents might
 **Security and context:** Context variables can contain sensitive information like API keys, user tokens, and access credentials. The DSL provides mechanisms to mark context variables as sensitive, ensuring they're not logged or exposed in debugging output.
 
 When designing context structures, separate public context (safe to log) from private context (contains secrets). This separation makes security reviews easier and reduces the risk of accidental exposure.
+```
+
+### Prompt Management
+
+The DSL includes a sophisticated prompt management system that supports multiple formats. For comprehensive documentation, see the [Prompting Guide](prompting.md).
+
+```ruby
+# PREFERRED: Ruby prompt classes with validation
+class CustomerServicePrompt < RAAF::DSL::Prompts::Base
+  requires :company_name, :issue_type
+  optional :tone, default: "professional"
+  
+  def system
+    "You are a customer service agent for #{@company_name}. Be #{@tone}."
+  end
+  
+  def user
+    "Customer has a #{@issue_type} issue."
+  end
+end
+
+agent = RAAF::DSL::AgentBuilder.build do
+  name "SupportAgent"
+  prompt CustomerServicePrompt  # Type-safe, testable
+  model "gpt-4o"
+end
+
+# Alternative: File-based prompts
+agent = RAAF::DSL::AgentBuilder.build do
+  name "ResearchAgent"
+  prompt "research.md"      # Markdown with {{variables}}
+  # prompt "analysis.md.erb" # ERB template with Ruby logic
+  model "gpt-4o"
+end
+```
+
+**Why Ruby prompts are preferred:** Ruby prompt classes provide type safety, validation, IDE support, and testability. They can be versioned, documented, and tested like any other Ruby code. File-based prompts are simpler but lack these benefits.
+
+**Prompt resolution:** The DSL automatically resolves prompts from multiple sources:
+1. Ruby classes (highest priority)
+2. File system (`.md`, `.md.erb` files)
+3. Custom resolvers (database, API, etc.)
+
+Configure prompt resolution:
+
+```ruby
+RAAF::DSL.configure_prompts do |config|
+  config.add_path "prompts"
+  config.add_path "app/prompts"
+  
+  config.enable_resolver :file, priority: 100
+  config.enable_resolver :phlex, priority: 50
+end
 ```
 
 Tool Definition DSL
