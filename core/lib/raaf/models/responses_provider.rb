@@ -8,6 +8,7 @@ require_relative "interface"
 require_relative "../token_estimator"
 require_relative "../logging"
 
+
 # Optional streaming support - only load if available
 begin
   require "raaf-streaming"
@@ -265,39 +266,45 @@ module RAAF
       # @api private
       #
       def call_responses_api(body)
-        uri = URI("#{@api_base}/responses")
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true
+        # Wrap the API call with retry logic if available
+        api_call = lambda do
+          uri = URI("#{@api_base}/responses")
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = true
 
-        request = Net::HTTP::Post.new(uri)
-        request["Authorization"] = "Bearer #{@api_key}"
-        request["Content-Type"] = "application/json"
-        request["User-Agent"] = "Agents/Ruby #{RAAF::VERSION}"
+          request = Net::HTTP::Post.new(uri)
+          request["Authorization"] = "Bearer #{@api_key}"
+          request["Content-Type"] = "application/json"
+          request["User-Agent"] = "Agents/Ruby #{RAAF::VERSION}"
 
-        request.body = body.to_json
+          request.body = body.to_json
 
-        # DEBUG: Log the actual request body being sent to OpenAI
-        if body[:tools]
-          log_debug_tools("📤 ACTUAL REQUEST BODY SENT TO OPENAI RESPONSES API",
-                          tools_count: body[:tools].length,
-                          request_body_json: body.to_json)
+          # DEBUG: Log the actual request body being sent to OpenAI
+          if body[:tools]
+            log_debug_tools("📤 ACTUAL REQUEST BODY SENT TO OPENAI RESPONSES API",
+                            tools_count: body[:tools].length,
+                            request_body_json: body.to_json)
 
-          # Check each tool for array parameters in the actual request
-          body[:tools].each do |tool|
-            next unless tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
+            # Check each tool for array parameters in the actual request
+            body[:tools].each do |tool|
+              next unless tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
 
-            tool[:function][:parameters][:properties].each do |prop_name, prop_def|
-              next unless prop_def[:type] == "array"
+              tool[:function][:parameters][:properties].each do |prop_name, prop_def|
+                next unless prop_def[:type] == "array"
 
-              log_debug_tools("🔍 ACTUAL REQUEST ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
-                              has_items: prop_def.key?(:items),
-                              items_value: prop_def[:items].inspect,
-                              items_nil: prop_def[:items].nil?)
+                log_debug_tools("🔍 ACTUAL REQUEST ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
+                                has_items: prop_def.key?(:items),
+                                items_value: prop_def[:items].inspect,
+                                items_nil: prop_def[:items].nil?)
+              end
             end
           end
-        end
 
-        response = http.request(request)
+          http.request(request)
+        end
+        
+        # Use retry logic from ModelInterface
+        response = with_retry("responses_completion", &api_call)
 
         unless response.code.start_with?("2")
           log_error("OpenAI Responses API Error",
