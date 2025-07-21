@@ -1143,15 +1143,19 @@ module RAAF
       
       parameters = target_agent.get_input_schema
 
+      # Store the target agent reference in a closure
+      stored_target_agent = target_agent
+      
       # Create handoff procedure
       handoff_proc = proc do |**args|
-        # This mimics Python SDK: handoff stops current agent and switches to target
+        # Return a special handoff result that the runner can recognize
+        # We'll return a hash (not JSON string) with a special marker
         {
-          _handoff_requested: true,
-          _target_agent: target_agent,
-          _handoff_data: args,
-          _handoff_reason: args[:context] || "Handoff requested"
-        }.to_json
+          __raaf_handoff__: true,
+          target_agent: stored_target_agent,
+          handoff_data: args,
+          handoff_reason: args[:context] || "Handoff requested"
+        }
       end
 
       FunctionTool.new(
@@ -1178,24 +1182,29 @@ module RAAF
       
       parameters = handoff_spec.get_input_schema
 
+      # Store the target agent and spec references in a closure
+      stored_target_agent = target_agent
+      stored_handoff_spec = handoff_spec
+      
       # Create handoff procedure with custom logic
       handoff_proc = proc do |**args|
         # Apply input filter if provided
-        filtered_args = handoff_spec.input_filter ? handoff_spec.input_filter.call(args) : args
+        filtered_args = stored_handoff_spec.input_filter ? stored_handoff_spec.input_filter.call(args) : args
         
         # Call on_handoff callback if provided
-        if handoff_spec.on_handoff
-          handoff_spec.on_handoff.call(filtered_args)
+        if stored_handoff_spec.on_handoff
+          stored_handoff_spec.on_handoff.call(filtered_args)
         end
 
-        # Return handoff data
+        # Return handoff data with stored agent reference
         {
-          _handoff_requested: true,
-          _target_agent: target_agent,
-          _handoff_data: filtered_args,
-          _handoff_reason: filtered_args[:context] || "Custom handoff requested",
-          _handoff_overrides: handoff_spec.overrides || {}
-        }.to_json
+          __raaf_handoff__: true,
+          target_agent: stored_target_agent,
+          handoff_data: filtered_args,
+          handoff_reason: filtered_args[:context] || "Custom handoff requested",
+          handoff_overrides: stored_handoff_spec.overrides || {},
+          handoff_spec: stored_handoff_spec
+        }
       end
 
       FunctionTool.new(

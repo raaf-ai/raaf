@@ -201,9 +201,16 @@ module RAAF
     #
     def run(starting_agent, input = nil, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, 
             context: nil, max_turns: nil, session: nil, previous_response_id: nil, **)
-      # New Python SDK mode: run(starting_agent, input, ...)
-      agent = starting_agent
-      messages = normalize_messages(input)
+      # Detect usage pattern to maintain backward compatibility
+      if starting_agent.is_a?(String) && input.nil?
+        # Legacy pattern: run("message") - use instance agent
+        agent = @agent
+        messages = normalize_messages(starting_agent)
+      else
+        # New Python SDK pattern: run(agent, "message")
+        agent = starting_agent
+        messages = normalize_messages(input)
+      end
 
       # Create config if not provided
       if config.nil?
@@ -596,12 +603,14 @@ module RAAF
     protected
 
     ##
-    # Get all tools available to an agent, including handoff tools
+    # Get all tools available to an agent, including tools from chained handoffs
     #
-    # Collects all tools from the agent, including auto-generated handoff tools.
-    # Handoff tools are automatically created when handoffs are added to agents.
+    # Collects all tools from the agent and recursively traverses the handoff chain
+    # to collect tools from all connected agents. Includes circular reference detection
+    # to prevent infinite loops in complex handoff networks.
     #
     # @param agent [Agent] The agent to get tools for
+    # @param visited_agents [Set<String>] Set of already visited agent names (for circular detection)
     # @return [Array<Hash>, nil] Array of tool definitions or nil if no tools
     #
     # @example Tool definition format
@@ -615,11 +624,19 @@ module RAAF
     #     }
     #   }
     #
-    def get_all_tools_for_api(agent)
+    def get_all_tools_for_api(agent, visited_agents = Set.new)
       log_debug("🔧 HANDOFF FLOW: Starting tool collection for agent", agent: agent.name)
+      
+      # Circular reference detection
+      if visited_agents.include?(agent.name)
+        log_debug("🔧 HANDOFF FLOW: Circular reference detected, skipping", agent: agent.name)
+        return []
+      end
+      
+      visited_agents = visited_agents.dup.add(agent.name)
       all_tools = []
 
-      # Add regular tools
+      # Add regular tools from current agent
       if agent.tools?
         regular_tools_count = agent.tools.count
         all_tools.concat(agent.tools)
@@ -631,16 +648,79 @@ module RAAF
         log_debug("🔧 HANDOFF FLOW: No regular tools found", agent: agent.name)
       end
 
-      # Note: Handoff tools are now auto-generated when handoffs are added to agents
-      # via Agent#add_handoff, so they're already included in agent.tools above
+      # Recursively collect tools from handoff targets
+      if agent.handoffs?
+        handoff_agents = collect_handoff_agents(agent)
+        handoff_agents.each do |target_agent|
+          next if visited_agents.include?(target_agent.name)
+          
+          log_debug("🔧 HANDOFF FLOW: Collecting tools from handoff target", 
+                    from_agent: agent.name, 
+                    target_agent: target_agent.name)
+          
+          target_tools = get_all_tools_for_api(target_agent, visited_agents)
+          if target_tools&.any?
+            # Filter out duplicate tools by name to avoid conflicts
+            new_tools = target_tools.reject do |tool|
+              tool_name = tool.respond_to?(:name) ? tool.name : (tool[:name] || tool["name"])
+              all_tools.any? do |existing|
+                existing_name = existing.respond_to?(:name) ? existing.name : (existing[:name] || existing["name"])
+                existing_name == tool_name
+              end
+            end
+            
+            if new_tools.any?
+              all_tools.concat(new_tools)
+              log_debug("🔧 HANDOFF FLOW: Added tools from handoff target", 
+                        from_agent: agent.name,
+                        target_agent: target_agent.name,
+                        added_tools: new_tools.size,
+                        tool_names: new_tools.map { |t| t.respond_to?(:name) ? t.name : (t[:name] || t["name"]) }.join(", "))
+            end
+          end
+        end
+      end
 
       final_tools_count = all_tools.count
       log_debug("🔧 HANDOFF FLOW: Tool collection complete", 
                 agent: agent.name, 
                 final_tools_count: final_tools_count,
+                visited_agents: visited_agents.to_a.join(", "),
                 returning_nil: all_tools.empty?)
 
       all_tools.empty? ? nil : all_tools
+    end
+    
+    ##
+    # Collect all Agent objects from handoffs
+    #
+    # Extracts Agent objects from the handoffs array, resolving them from the
+    # agents registry when handoffs are specified as Handoff objects.
+    #
+    # @param agent [Agent] The agent whose handoffs to collect from
+    # @return [Array<Agent>] Array of Agent objects that can be handed off to
+    #
+    def collect_handoff_agents(agent)
+      handoff_agents = []
+      
+      agent.instance_variable_get(:@handoffs).each do |handoff|
+        case handoff
+        when Agent
+          handoff_agents << handoff
+        when Handoff
+          # Look up the target agent from the agents registry
+          target_agent = @agents&.find { |a| a.name == handoff.agent_name }
+          if target_agent
+            handoff_agents << target_agent
+          else
+            log_debug("🔧 HANDOFF FLOW: Target agent not found in registry", 
+                      target_name: handoff.agent_name,
+                      available_agents: @agents&.map(&:name)&.join(", ") || "none")
+          end
+        end
+      end
+      
+      handoff_agents
     end
 
     ##
@@ -835,42 +915,45 @@ module RAAF
         return "Error: Invalid tool arguments"
       end
 
-      # Check if this is a handoff tool (starts with "transfer_to_")
-      if tool_name.start_with?("transfer_to_")
-        log_debug("⚡ HANDOFF FLOW: Detected handoff tool call", 
-                  agent: agent.name,
-                  tool_name: tool_name)
-        return process_handoff_tool_call_for_responses_api(tool_call_item, agent)
-      end
-
       # Find the tool
       tool = agent.tools.find { |t| t.respond_to?(:name) && t.name == tool_name }
-      log_debug("⚡ HANDOFF FLOW: Regular tool lookup", 
+      log_debug("⚡ HANDOFF FLOW: Tool lookup", 
                 agent: agent.name,
                 tool_name: tool_name,
-                tool_found: !tool.nil?)
+                tool_found: !tool.nil?,
+                is_handoff: tool_name.start_with?("transfer_to_"))
 
       return "Error: Tool '#{tool_name}' not found" if tool.nil?
 
       # Execute the tool
       begin
-        log_debug("⚡ HANDOFF FLOW: Executing regular tool", 
+        log_debug("⚡ HANDOFF FLOW: Executing tool", 
                   agent: agent.name,
                   tool_name: tool_name)
         
-        if @tracer && !@disabled_tracing
+        result = if @tracer && !@disabled_tracing
           @tracer.tool_span(tool_name) do |tool_span|
             tool_span.set_attribute("function.name", tool_name)
             tool_span.set_attribute("function.input", arguments)
 
-            result = tool.call(**arguments.transform_keys(&:to_sym))
+            res = tool.call(**arguments.transform_keys(&:to_sym))
 
-            tool_span.set_attribute("function.output", result.to_s)
-            result
+            tool_span.set_attribute("function.output", res.to_s)
+            res
           end
         else
           tool.call(**arguments.transform_keys(&:to_sym))
         end
+
+        # Check if this is a handoff tool by examining the result
+        if result.is_a?(Hash) && result[:__raaf_handoff__]
+          log_debug("⚡ HANDOFF FLOW: Detected handoff in tool result", 
+                    agent: agent.name,
+                    tool_name: tool_name)
+          return process_handoff_from_tool_result(result, agent, tool_name)
+        end
+
+        result
       rescue StandardError => e
         log_error("⚡ HANDOFF FLOW: Tool execution failed", 
                   agent: agent.name,
@@ -880,7 +963,28 @@ module RAAF
       end
     end
 
-    # Process handoff tool calls for Responses API
+    # Process handoff from tool result using stored agent reference
+    def process_handoff_from_tool_result(handoff_result, agent, tool_name)
+      target_agent = handoff_result[:target_agent]
+      
+      unless target_agent
+        log_error("Handoff tool result missing target agent",
+                  from_agent: agent.name,
+                  tool_name: tool_name)
+        return "Error: Handoff tool result missing target agent"
+      end
+
+      # The target_agent is the actual Agent object stored by the tool
+      log_debug_handoff("Agent handoff tool executed successfully in Responses API",
+                        from_agent: agent.name,
+                        to_agent: target_agent.name,
+                        tool_name: tool_name)
+
+      # Return the handoff result that the runner expects
+      { assistant: target_agent.name }
+    end
+
+    # Process handoff tool calls for Responses API (DEPRECATED - keeping for compatibility)
     def process_handoff_tool_call_for_responses_api(tool_call_item, agent)
       tool_name = tool_call_item[:name] || tool_call_item["name"]
       arguments_str = tool_call_item[:arguments] || tool_call_item["arguments"] || "{}"
