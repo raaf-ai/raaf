@@ -1137,11 +1137,9 @@ module RAAF
     def create_agent_handoff_tool(target_agent)
       tool_name = "transfer_to_#{Utils.sanitize_identifier(target_agent.name)}"
       
-      description = if target_agent.handoff_description
-                      target_agent.handoff_description
-                    else
-                      "Transfer to #{target_agent.name}"
-                    end
+      # Use the better description format from Handoff class
+      description = "Handoff to the #{target_agent.name} agent to handle the request."
+      description += " #{target_agent.handoff_description}" if target_agent.handoff_description
       
       parameters = target_agent.get_input_schema
 

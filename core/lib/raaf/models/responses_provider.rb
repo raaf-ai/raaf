@@ -297,7 +297,6 @@ module RAAF
           end
         end
 
-        require "byebug"; debugger
         response = http.request(request)
 
         unless response.code.start_with?("2")

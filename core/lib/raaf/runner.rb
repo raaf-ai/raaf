@@ -598,9 +598,8 @@ module RAAF
     ##
     # Get all tools available to an agent, including handoff tools
     #
-    # This method combines regular tools with handoff agents converted to tools.
-    # Handoff agents are automatically converted to tool definitions that the
-    # LLM can call to transfer control to another agent.
+    # Collects all tools from the agent, including auto-generated handoff tools.
+    # Handoff tools are automatically created when handoffs are added to agents.
     #
     # @param agent [Agent] The agent to get tools for
     # @return [Array<Hash>, nil] Array of tool definitions or nil if no tools
@@ -632,54 +631,8 @@ module RAAF
         log_debug("🔧 HANDOFF FLOW: No regular tools found", agent: agent.name)
       end
 
-      # Add handoff tools
-      if agent.handoffs.any?
-        log_debug("🔧 HANDOFF FLOW: Processing handoffs", 
-                  agent: agent.name, 
-                  handoffs_count: agent.handoffs.count,
-                  handoff_targets: agent.handoffs.map { |h| h.is_a?(Agent) ? h.name : h.agent_name }.join(", "))
-        
-        agent.handoffs.each do |handoff|
-          if handoff.is_a?(Agent)
-            # Convert Agent to handoff tool
-            tool_name = Handoff.default_tool_name(handoff)
-            tool_description = Handoff.default_tool_description(handoff)
-
-            handoff_tool = {
-              type: "function",
-              name: tool_name,
-              function: {
-                name: tool_name,
-                description: tool_description,
-                parameters: {
-                  type: "object",
-                  properties: {},
-                  required: []
-                }
-              }
-            }
-            all_tools << handoff_tool
-
-            log_debug_handoff("🔧 HANDOFF FLOW: Added Agent-based handoff tool",
-                              agent: agent.name,
-                              handoff_tool: tool_name,
-                              target_agent: handoff.name,
-                              tool_description: tool_description)
-          else
-            # Already a Handoff object, use its tool definition
-            handoff_tool_def = handoff.to_tool_definition
-            all_tools << handoff_tool_def
-
-            log_debug_handoff("🔧 HANDOFF FLOW: Added Handoff object tool",
-                              agent: agent.name,
-                              handoff_tool: handoff.tool_name,
-                              target_agent: handoff.agent_name,
-                              tool_definition: handoff_tool_def)
-          end
-        end
-      else
-        log_debug("🔧 HANDOFF FLOW: No handoffs found", agent: agent.name)
-      end
+      # Note: Handoff tools are now auto-generated when handoffs are added to agents
+      # via Agent#add_handoff, so they're already included in agent.tools above
 
       final_tools_count = all_tools.count
       log_debug("🔧 HANDOFF FLOW: Tool collection complete", 
