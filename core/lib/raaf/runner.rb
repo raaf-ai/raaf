@@ -1583,41 +1583,26 @@ module RAAF
     # and conversation continuity. The DSL should be a pure configuration layer.
 
     ##
-    # Create default provider with retry capabilities
+    # Create default provider with built-in retry capabilities
     #
-    # @return [Object] Provider instance with retry wrapper
+    # @return [ResponsesProvider] Provider instance with built-in retries
     #
     def create_default_provider
-      base_provider = Models::ResponsesProvider.new
+      # ResponsesProvider now has built-in retry functionality via ModelInterface
+      provider = Models::ResponsesProvider.new
       
-      # Check if retryable provider is available (requires raaf-providers gem)
-      if defined?(Models::RetryableProviderWrapper)
-        # Configure retry settings from environment variables
-        retry_config = {
+      # Configure retry settings from environment variables if provided
+      if ENV['RAAF_PROVIDER_RETRY_ATTEMPTS'] || ENV['RAAF_PROVIDER_RETRY_BASE_DELAY']
+        provider.configure_retry(
           max_attempts: (ENV['RAAF_PROVIDER_RETRY_ATTEMPTS'] || 3).to_i,
           base_delay: (ENV['RAAF_PROVIDER_RETRY_BASE_DELAY'] || 1.0).to_f,
           max_delay: (ENV['RAAF_PROVIDER_RETRY_MAX_DELAY'] || 30.0).to_f,
           multiplier: (ENV['RAAF_PROVIDER_RETRY_MULTIPLIER'] || 2.0).to_f,
           jitter: (ENV['RAAF_PROVIDER_RETRY_JITTER'] || 0.1).to_f
-        }
-        
-        # Add logger if debug logging is enabled
-        if log_level == :debug
-          retry_config[:logger] = Logger.new($stdout).tap do |logger|
-            logger.level = Logger::DEBUG
-            logger.formatter = proc do |severity, datetime, progname, msg|
-              "[#{datetime}] #{severity}: #{msg}\n"
-            end
-          end
-        end
-        
-        Models::RetryableProviderWrapper.new(base_provider, **retry_config)
-      else
-        # Fall back to basic provider if retry wrapper not available
-        log_info("RetryableProviderWrapper not available - using basic ResponsesProvider",
-                 suggestion: "Install raaf-providers gem for retry functionality")
-        base_provider
+        )
       end
+      
+      provider
     end
 
     # REMOVED: Custom context extraction and injection
