@@ -255,11 +255,7 @@ module RAAF
     #   Utils.sanitize_identifier("Special Characters & Spaces")
     #   # => "special_characters_spaces"
     def sanitize_identifier(str)
-      str.to_s
-        .downcase
-        .gsub(/[^a-z0-9]+/, "_")
-        .gsub(/^_+|_+$/, "")
-        .gsub(/_+/, "_")
+      Utils.snake_case(str)
     end
 
     ##

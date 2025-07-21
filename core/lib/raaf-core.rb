@@ -11,10 +11,17 @@ require_relative "raaf/models/interface"
 require_relative "raaf/models/responses_provider"
 require_relative "raaf/models/openai_provider"
 require_relative "raaf/result"
-require_relative "raaf/prompts"
 require_relative "raaf/handoffs"
 require_relative "raaf/advanced_handoff"
 require_relative "raaf/agent"
+
+# Try to load retry provider functionality if available
+begin
+  require 'raaf-providers'
+rescue LoadError
+  # raaf-providers gem not available - will use basic provider without retry
+end
+
 require_relative "raaf/runner"
 
 ##

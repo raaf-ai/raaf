@@ -98,7 +98,7 @@ module RAAF
     def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil,
                    context_manager: nil, context_config: nil, memory_manager: nil)
       @agent = agent
-      @provider = provider || Models::ResponsesProvider.new
+      @provider = provider || create_default_provider
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @stop_checker = stop_checker
@@ -201,16 +201,9 @@ module RAAF
     #
     def run(starting_agent, input = nil, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil, 
             context: nil, max_turns: nil, session: nil, previous_response_id: nil, **)
-      # Handle backward compatibility: if starting_agent is a string/array, treat as legacy call
-      if starting_agent.is_a?(String) || starting_agent.is_a?(Array)
-        # Legacy mode: run(messages, ...)
-        messages = normalize_messages(starting_agent)
-        agent = @agent
-      else
-        # New Python SDK mode: run(starting_agent, input, ...)
-        agent = starting_agent
-        messages = normalize_messages(input)
-      end
+      # New Python SDK mode: run(starting_agent, input, ...)
+      agent = starting_agent
+      messages = normalize_messages(input)
 
       # Create config if not provided
       if config.nil?
@@ -289,9 +282,8 @@ module RAAF
     #
     # This method wraps the regular run method in an Async block for
     # concurrent execution. Useful when running multiple agents in parallel.
-    # Supports both legacy and Python SDK compatible signatures.
     #
-    # @param starting_agent [Agent, String, Array<Hash>] The agent (new) or messages (legacy)
+    # @param starting_agent [Agent, String, Array<Hash>] The agent (new)
     # @param input [String, Array<Hash>, nil] The input messages (new signature)
     # @param stream [Boolean] Whether to stream responses
     # @param config [RunConfig, nil] Configuration for the run
@@ -303,18 +295,12 @@ module RAAF
     #   task1 = runner.run_async(agent1, "Analyze this data")
     #   task2 = runner.run_async(agent2, "Generate a report")
     #
-    # @example Legacy signature
+    # @example  signature
     #   task1 = runner.run_async("Analyze this data")
     #
     def run_async(starting_agent, input = nil, stream: false, config: nil, **kwargs)
       Async do
-        if input.nil?
-          # Legacy signature: run_async(messages, ...)
-          run(starting_agent, stream: stream, config: config, **kwargs)
-        else
-          # New signature: run_async(starting_agent, input, ...)
-          run(starting_agent, input, stream: stream, config: config, **kwargs)
-        end
+        run(starting_agent, input, stream: stream, config: config, **kwargs)
       end
     end
 
@@ -1590,13 +1576,95 @@ module RAAF
                 turns: state[:turns],
                 messages_count: final_messages.size)
 
+      # Extract structured tool results from generated_items
+      tool_results = extract_tool_results(generated_items)
+
       RunResult.new(
         messages: final_messages,
         last_agent: state[:current_agent],
         turns: state[:turns],
         usage: state[:accumulated_usage],
+        tool_results: tool_results,
         metadata: { responses: model_responses }
       )
+    end
+
+    ##
+    # Extract structured tool results from generated items
+    #
+    # @param generated_items [Array<Items::Base>] Array of generated items from the conversation
+    # @return [Array<Hash>] Array of structured tool results with agent and output data
+    #
+    def extract_tool_results(generated_items)
+      tool_results = []
+      
+      generated_items.each do |item|
+        next unless item.is_a?(Items::ToolCallOutputItem)
+        
+        # Extract structured data from tool outputs
+        output_data = item.output
+        
+        # Parse JSON if output is a string
+        if output_data.is_a?(String)
+          begin
+            parsed_output = JSON.parse(output_data)
+            output_data = parsed_output if parsed_output.is_a?(Hash) || parsed_output.is_a?(Array)
+          rescue JSON::ParserError
+            # Keep as string if not valid JSON
+          end
+        end
+        
+        tool_results << {
+          agent: item.agent&.name || "unknown",
+          call_id: item.raw_item[:call_id] || item.raw_item["call_id"],
+          output: output_data,
+          timestamp: item.raw_item[:timestamp] || Time.now.utc.iso8601
+        }
+      end
+      
+      tool_results
+    end
+
+    # REMOVED: Custom context extraction and injection
+    # The OpenAI agents framework handles context natively through structured outputs
+    # and conversation continuity. The DSL should be a pure configuration layer.
+
+    ##
+    # Create default provider with retry capabilities
+    #
+    # @return [Object] Provider instance with retry wrapper
+    #
+    def create_default_provider
+      base_provider = Models::ResponsesProvider.new
+      
+      # Check if retryable provider is available (requires raaf-providers gem)
+      if defined?(Models::RetryableProviderWrapper)
+        # Configure retry settings from environment variables
+        retry_config = {
+          max_attempts: (ENV['RAAF_PROVIDER_RETRY_ATTEMPTS'] || 3).to_i,
+          base_delay: (ENV['RAAF_PROVIDER_RETRY_BASE_DELAY'] || 1.0).to_f,
+          max_delay: (ENV['RAAF_PROVIDER_RETRY_MAX_DELAY'] || 30.0).to_f,
+          multiplier: (ENV['RAAF_PROVIDER_RETRY_MULTIPLIER'] || 2.0).to_f,
+          jitter: (ENV['RAAF_PROVIDER_RETRY_JITTER'] || 0.1).to_f
+        }
+        
+        # Add logger if debug logging is enabled
+        if log_level == :debug
+          retry_config[:logger] = Logger.new($stdout).tap do |logger|
+            logger.level = Logger::DEBUG
+            logger.formatter = proc do |severity, datetime, progname, msg|
+              "[#{datetime}] #{severity}: #{msg}\n"
+            end
+          end
+        end
+        
+        Models::RetryableProviderWrapper.new(base_provider, **retry_config)
+      else
+        # Fall back to basic provider if retry wrapper not available
+        log_info("RetryableProviderWrapper not available - using basic ResponsesProvider",
+                 suggestion: "Install raaf-providers gem for retry functionality")
+        base_provider
+      end
     end
 
     # REMOVED: Custom context extraction and injection

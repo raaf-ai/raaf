@@ -91,6 +91,15 @@ module RAAF
       end
 
       ##
+      # Check if this provider supports function calling
+      #
+      # @return [Boolean] Always true for Responses API
+      #
+      def supports_function_calling?
+        true
+      end
+
+      ##
       # Execute a completion using the Responses API
       #
       # This is the main entry point for the Responses API provider.
@@ -288,6 +297,7 @@ module RAAF
           end
         end
 
+        require "byebug"; debugger
         response = http.request(request)
 
         unless response.code.start_with?("2")

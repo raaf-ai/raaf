@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "handoff_context"
+
 module RAAF
   ##
   # Handoff specification class (matches Python SDK exactly)
@@ -132,4 +134,5 @@ module RAAF
       input_type: input_type
     )
   end
+
 end
