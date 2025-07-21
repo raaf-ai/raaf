@@ -69,23 +69,17 @@ if available_providers.include?(:groq)
   puts "Response: #{response.dig("choices", 0, "message", "content")}"
 end
 
-# Example 2: Ollama for local models
-puts "\n2. Local model with Ollama:"
-begin
-  ollama = RAAF::Models::OllamaProvider.new
-  puts "Available local models: #{ollama.list_models.map { |m| m[:name] }.join(", ")}"
-
-  # Try to use a local model
-  if ollama.supported_models.any?
-    response = ollama.chat_completion(
-      messages: [{ role: "user", content: "Say hello in one sentence." }],
-      model: ollama.supported_models.first
-    )
-    puts "Local model response: #{response.dig("choices", 0, "message", "content")}"
-  end
-rescue RAAF::Models::ConnectionError => e
-  puts "Ollama not running: #{e.message}"
-  puts "To use local models, install and run Ollama: https://ollama.ai"
+# Example 2: Together for open-source models
+puts "\n2. Open-source models with Together:"
+if ENV["TOGETHER_API_KEY"]
+  together = RAAF::Models::TogetherProvider.new
+  response = together.chat_completion(
+    messages: [{ role: "user", content: "Say hello in one sentence." }],
+    model: "meta-llama/Llama-2-7b-chat-hf"
+  )
+  puts "Together response: #{response.dig("choices", 0, "message", "content")}"
+else
+  puts "Set TOGETHER_API_KEY to use Together models"
 end
 
 # Example 3: Multi-provider agents
@@ -135,7 +129,7 @@ test_message = [{
 provider_times = {}
 
 available_providers.each do |provider_name|
-  next if provider_name == :ollama # Skip local for speed test
+  # All providers support tool calling now
 
   provider = case provider_name
              when :openai
@@ -262,4 +256,3 @@ puts "- ANTHROPIC_API_KEY for Claude models"
 puts "- COHERE_API_KEY for Command models"
 puts "- GROQ_API_KEY for fast open-source models"
 puts "- TOGETHER_API_KEY for diverse open-source models"
-puts "- Run Ollama locally for offline models"

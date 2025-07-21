@@ -1,6 +1,6 @@
 # RAAF Providers - Claude Code Guide
 
-This gem provides multiple AI provider integrations for RAAF agents, supporting OpenAI, Anthropic, Cohere, Groq, Ollama, and more.
+This gem provides multiple AI provider integrations for RAAF agents, supporting OpenAI, Anthropic, Cohere, Groq, Together, and more.
 
 ## Quick Start
 
@@ -74,18 +74,6 @@ end
 runner = RAAF::Runner.new(agent: agent, provider: groq_provider)
 ```
 
-### Ollama Provider (Local)
-```ruby
-ollama_provider = RAAF::Models::OllamaProvider.new do |config|
-  config.base_url = "http://localhost:11434"
-  config.model = "llama2"
-  config.temperature = 0.7
-  config.timeout = 60
-end
-
-runner = RAAF::Runner.new(agent: agent, provider: ollama_provider)
-```
-
 ### Together AI Provider
 ```ruby
 together_provider = RAAF::Models::TogetherProvider.new do |config|
@@ -119,8 +107,7 @@ class MultiProviderAgent
     @providers = {
       reasoning: RAAF::Models::AnthropicProvider.new(model: "claude-3-sonnet"),
       coding: RAAF::Models::OpenAIProvider.new(model: "gpt-4"),
-      speed: RAAF::Models::GroqProvider.new(model: "mixtral-8x7b"),
-      local: RAAF::Models::OllamaProvider.new(model: "llama2")
+      speed: RAAF::Models::GroqProvider.new(model: "mixtral-8x7b")
     }
   end
   
@@ -230,11 +217,6 @@ providers_config = {
     timeout: 90,
     max_retries: 3,
     temperature: 0.5
-  },
-  local: {
-    timeout: 120,
-    max_retries: 1,
-    temperature: 0.8
   }
 }
 ```

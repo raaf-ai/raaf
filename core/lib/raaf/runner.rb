@@ -550,20 +550,7 @@ module RAAF
       # Implementation defined elsewhere in the file
     end
 
-    ##
-    # Detect agent handoff requests in message content
-    #
-    # This method analyzes message content to identify handoff patterns
-    # that indicate the current agent wants to transfer control to another agent.
-    #
-    # @api private Used by RunExecutor classes
-    # @param content [String] The message content to analyze
-    # @param agent [Agent] The current agent instance
-    # @return [String, nil] Target agent name if handoff detected, nil otherwise
-    #
-    def detect_handoff_in_content(content, agent)
-      # Implementation defined elsewhere in the file
-    end
+    # Text-based handoffs have been removed - only tool-based handoffs are supported
 
     ##
     # Find a handoff agent by name
@@ -763,22 +750,7 @@ module RAAF
                              content.to_s
                            end
 
-            # Only check for text-based handoffs if provider doesn't support function calling
-            if text_content && !text_content.empty? && !@provider.supports_function_calling?
-              handoff_target = detect_handoff_in_content(text_content, agent)
-              if handoff_target
-                handoff_results << {
-                  tool_name: "json_handoff",
-                  handoff_target: handoff_target,
-                  handoff_data: { assistant: handoff_target }
-                }
-
-                log_debug_handoff("JSON handoff detected in Responses API text output",
-                                  from_agent: agent.name,
-                                  to_agent: handoff_target,
-                                  source: "text content")
-              end
-            end
+            # Text-based handoffs have been removed - only tool-based handoffs are supported
           end
 
         when "function_call"
@@ -1924,16 +1896,10 @@ module RAAF
         end
       end
 
-      # NOTE: Text-based handoff detection now implemented through unified detection system
-
-      # Unified handoff detection system - only check text-based handoffs if provider doesn't support function calling
-      if !result[:handoff] && message["content"] && !@provider.supports_function_calling?
-        handoff_target = detect_handoff_in_content(message["content"], agent)
-        if handoff_target
-          # Extract agent name for compatibility with old API
-          result[:handoff] = normalize_agent_name(handoff_target)
-          result[:done] = false
-        end
+      # Text-based handoffs have been removed - only tool-based handoffs are supported
+      
+      if !result[:handoff]
+        # No handoff detected
       else
         # No tool calls - agent returned text response only
         log_debug("🤖 AGENT RESPONSE: Agent returned text response only", 
@@ -2527,192 +2493,11 @@ module RAAF
       agent_part.capitalize
     end
 
-    ##
-    # Detect handoff requests in response content
-    #
-    # This unified method detects handoff requests in agent responses using
-    # multiple strategies:
-    # 1. JSON-based handoffs (e.g., {"handoff_to": "BillingAgent"})
-    # 2. Text-based handoffs (e.g., "I'll transfer you to Support")
-    #
-    # @param content [String] The response content to analyze
-    # @param agent [Agent] The current agent (for available handoffs)
-    #
-    # @return [String, nil] The validated target agent name or nil
-    #
-    # @example JSON handoff
-    #   content = '{"handoff_to": "BillingAgent", "reason": "payment issue"}'
-    #   detect_handoff_in_content(content, agent)  # => "BillingAgent"
-    #
-    # @example Text handoff
-    #   content = "I'll transfer you to the Support team for this issue."
-    #   detect_handoff_in_content(content, agent)  # => "Support"
-    #
-    def detect_handoff_in_content(content, agent)
-      return nil unless content && !content.empty?
+    # Text-based handoffs have been removed - only tool-based handoffs are supported
 
-      # Strategy 1: JSON-based handoff detection
-      handoff_target = detect_json_handoff(content, agent)
-      return handoff_target if handoff_target
+    # Text-based handoffs have been removed - only tool-based handoffs are supported
 
-      # Strategy 2: Text-based handoff detection
-      handoff_target = detect_text_handoff(content, agent)
-      return handoff_target if handoff_target
-
-      # No handoff detected
-      nil
-    end
-
-    # Detect JSON-based handoffs in response content
-    def detect_json_handoff(content, agent)
-      begin
-        # Try to parse the content as JSON
-        parsed_content = JSON.parse(content)
-      rescue JSON::ParserError
-        # If parsing the entire content fails, try to extract JSON from the content
-        json_match = content.match(/\{[^}]*\}/)
-        if json_match
-          begin
-            parsed_content = JSON.parse(json_match[0])
-          rescue JSON::ParserError
-            return nil
-          end
-        else
-          return nil
-        end
-      end
-
-      # Check for handoff_to field (multiple possible formats)
-      if parsed_content.is_a?(Hash)
-          # Check various field names for handoff target
-          handoff_target = parsed_content["handoff_to"] ||
-                           parsed_content[:handoff_to] ||
-                           parsed_content["transfer_to"] ||
-                           parsed_content[:transfer_to] ||
-                           parsed_content["next_agent"] ||
-                           parsed_content[:next_agent]
-
-          if handoff_target
-            # Validate the handoff target against available targets
-            available_targets = get_available_handoff_targets(agent)
-            validated_target = validate_handoff_target(handoff_target, available_targets)
-
-            if validated_target
-              log_debug_handoff("JSON handoff detected in agent response",
-                                from_agent: agent.name,
-                                to_agent: validated_target,
-                                source: "JSON response content",
-                                detection_method: "json_field")
-
-              # Return the actual agent object, not just the name
-              return find_handoff_agent(validated_target, agent)
-            end
-          end
-
-          # Check for nested handoff structures
-          if parsed_content["handoff"] && parsed_content["handoff"]["to"]
-            handoff_target = parsed_content["handoff"]["to"]
-
-            # Validate the handoff target against available targets
-            available_targets = get_available_handoff_targets(agent)
-            validated_target = validate_handoff_target(handoff_target, available_targets)
-
-            if validated_target
-              log_debug_handoff("JSON handoff detected in nested structure",
-                                from_agent: agent.name,
-                                to_agent: validated_target,
-                                source: "JSON response content",
-                                detection_method: "json_nested")
-
-              return find_handoff_agent(validated_target, agent)
-            end
-          end
-        end
-      
-      nil
-    end
-
-    # Detect text-based handoffs in response content
-    def detect_text_handoff(content, agent)
-      # Get available handoff targets for validation
-      available_targets = get_available_handoff_targets(agent)
-      return nil if available_targets.empty?
-
-      # Pattern 1: Direct handoff statements
-      # "I'll transfer you to the SupportAgent"
-      # "Transferring to CustomerService"
-      # "Let me hand this off to TechnicalSupport"
-      transfer_patterns = [
-        /(?:transfer|handoff|hand\s*off|delegate|switch|redirect)(?:ing|ring)?\s+(?:you\s+)?to\s+(?:the\s+)?(\w+)/i,
-        /(?:I'll|I\s+will|Let\s+me)\s+(?:transfer|handoff|hand\s*off|delegate|switch|redirect)\s+(?:you\s+)?(?:to\s+)?(?:the\s+)?(\w+)/i,
-        /(?:routing|directing|forwarding)\s+(?:you\s+)?to\s+(?:the\s+)?(\w+)/i
-      ]
-
-      transfer_patterns.each do |pattern|
-        match = content.match(pattern)
-        next unless match
-
-        potential_target = match[1]
-        # Validate against available targets
-        validated_target = validate_handoff_target(potential_target, available_targets)
-        next unless validated_target
-
-        log_debug_handoff("Text handoff detected in agent response",
-                          from_agent: agent.name,
-                          to_agent: validated_target,
-                          source: "text response content",
-                          detection_method: "text_pattern",
-                          pattern: pattern.inspect,
-                          matched_text: match[0])
-
-        return find_handoff_agent(validated_target, agent)
-      end
-
-      # Pattern 2: Specific agent mentions
-      # "Please contact CustomerService for billing issues"
-      # "You should speak with TechnicalSupport about this"
-      mention_patterns = [
-        /(?:contact|speak\s+with|talk\s+to|reach\s+out\s+to|connect\s+with)\s+(?:the\s+)?(\w+)/i,
-        /(?:please|you\s+should|you\s+need\s+to|you\s+can)\s+(?:contact|speak\s+with|talk\s+to|reach\s+out\s+to|connect\s+with)\s+(?:the\s+)?(\w+)/i
-      ]
-
-      mention_patterns.each do |pattern|
-        match = content.match(pattern)
-        next unless match
-
-        potential_target = match[1]
-        validated_target = validate_handoff_target(potential_target, available_targets)
-        next unless validated_target
-
-        log_debug_handoff("Text handoff detected via agent mention",
-                          from_agent: agent.name,
-                          to_agent: validated_target,
-                          source: "text response content",
-                          detection_method: "text_mention",
-                          pattern: pattern.inspect,
-                          matched_text: match[0])
-
-        return find_handoff_agent(validated_target, agent)
-      end
-
-      # Pattern 3: Explicit agent name references
-      # Check if any available target is explicitly mentioned as a standalone word
-      available_targets.each do |target|
-        # Case-insensitive word boundary matching
-        next unless content.match(/\b#{Regexp.escape(target)}\b/i)
-
-        log_debug_handoff("Text handoff detected via explicit agent name",
-                          from_agent: agent.name,
-                          to_agent: target,
-                          source: "text response content",
-                          detection_method: "text_explicit",
-                          matched_agent: target)
-
-        return find_handoff_agent(target, agent)
-      end
-
-      nil
-    end
+    # Text-based handoffs have been removed - only tool-based handoffs are supported
 
     # Get available handoff targets for an agent
     def get_available_handoff_targets(agent)

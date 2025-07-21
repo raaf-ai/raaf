@@ -150,265 +150,266 @@ RSpec.describe "OpenAIAgents Handoff System" do
     source_agent.add_handoff(customer_service)
   end
 
-  describe "Unified Handoff Detection System" do
-    let(:runner) { RAAF::Runner.new(agent: source_agent) }
+  # Text-based handoff detection has been removed - only tool-based handoffs are supported
+  # describe "Unified Handoff Detection System" do
+  #   let(:runner) { RAAF::Runner.new(agent: source_agent) }
+  #
+  #   describe "#detect_handoff_in_content" do
+  #     it "detects JSON handoffs" do
+  #       content = '{"response": "I can help with that", "handoff_to": "TargetAgent"}'
+  #       result = runner.send(:detect_handoff_in_content, content, source_agent)
+  #       expect(result).to eq("TargetAgent")
+  #     end
+  #
+  #     it "detects text handoffs" do
+  #       content = "I'll transfer you to the SupportAgent for further assistance."
+  #       result = runner.send(:detect_handoff_in_content, content, source_agent)
+  #       expect(result).to eq("SupportAgent")
+  #     end
+  #
+  #     it "returns nil when no handoff is detected" do
+  #       content = "I can help you with that directly."
+  #       result = runner.send(:detect_handoff_in_content, content, source_agent)
+  #       expect(result).to be_nil
+  #     end
+  #   end
 
-    describe "#detect_handoff_in_content" do
-      it "detects JSON handoffs" do
-        content = '{"response": "I can help with that", "handoff_to": "TargetAgent"}'
-        result = runner.send(:detect_handoff_in_content, content, source_agent)
-        expect(result).to eq("TargetAgent")
-      end
-
-      it "detects text handoffs" do
-        content = "I'll transfer you to the SupportAgent for further assistance."
-        result = runner.send(:detect_handoff_in_content, content, source_agent)
-        expect(result).to eq("SupportAgent")
-      end
-
-      it "returns nil when no handoff is detected" do
-        content = "I can help you with that directly."
-        result = runner.send(:detect_handoff_in_content, content, source_agent)
-        expect(result).to be_nil
-      end
-    end
-
-    describe "#detect_json_handoff" do
-      context "with handoff_to field" do
-        it "detects string key format" do
-          content = '{"handoff_to": "TargetAgent"}'
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to eq("TargetAgent")
-        end
-
-        it "detects symbol key format" do
-          content = '{"handoff_to": "SupportAgent"}'
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to eq("SupportAgent")
-        end
-      end
-
-      context "with alternative field names" do
-        it "detects transfer_to field" do
-          content = '{"transfer_to": "CustomerService"}'
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to eq("CustomerService")
-        end
-
-        it "detects next_agent field" do
-          content = '{"next_agent": "TargetAgent"}'
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to eq("TargetAgent")
-        end
-      end
-
-      context "with nested handoff structures" do
-        it "detects nested handoff.to field" do
-          content = '{"handoff": {"to": "SupportAgent", "reason": "Complex issue"}}'
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to eq("SupportAgent")
-        end
-      end
-
-      context "with invalid JSON" do
-        it "returns nil for malformed JSON" do
-          content = '{"handoff_to": "TargetAgent"' # missing closing brace
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to be_nil
-        end
-
-        it "returns nil for non-JSON content" do
-          content = "This is just plain text"
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to be_nil
-        end
-      end
-
-      context "with mixed content" do
-        it "detects handoff in JSON with other fields" do
-          content = '{"response": "I understand your concern", "handoff_to": "CustomerService", "confidence": 0.95}'
-          result = runner.send(:detect_json_handoff, content, source_agent)
-          expect(result).to eq("CustomerService")
-        end
-      end
-    end
-
-    describe "#detect_text_handoff" do
-      context "with direct transfer patterns" do
-        it "detects 'transfer to' pattern" do
-          content = "I'll transfer you to the SupportAgent for assistance."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("SupportAgent")
-        end
-
-        it "detects 'transferring to' pattern" do
-          content = "Transferring to CustomerService now."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("CustomerService")
-        end
-
-        it "detects 'hand off to' pattern" do
-          content = "Let me hand this off to TargetAgent."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("TargetAgent")
-        end
-
-        it "detects 'delegate to' pattern" do
-          content = "I'll delegate this to SupportAgent."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("SupportAgent")
-        end
-
-        it "detects 'routing to' pattern" do
-          content = "Routing you to the CustomerService team."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("CustomerService")
-        end
-      end
-
-      context "with mention patterns" do
-        it "detects 'contact agent' pattern" do
-          content = "Please contact CustomerService for billing issues."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("CustomerService")
-        end
-
-        it "detects 'speak with agent' pattern" do
-          content = "You should speak with SupportAgent about this."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("SupportAgent")
-        end
-
-        it "detects 'talk to agent' pattern" do
-          content = "You need to talk to TargetAgent for more details."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("TargetAgent")
-        end
-      end
-
-      context "with explicit agent name references" do
-        it "detects standalone agent names" do
-          content = "For this issue, you need TargetAgent assistance."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("TargetAgent")
-        end
-
-        it "detects agent names with word boundaries" do
-          content = "The SupportAgent team can help with technical issues."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("SupportAgent")
-        end
-      end
-
-      context "with case insensitive matching" do
-        it "detects lowercase agent names" do
-          content = "Please contact customerservice for help."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("CustomerService")
-        end
-
-        it "detects mixed case patterns" do
-          content = "I'll TRANSFER you to the supportagent."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("SupportAgent")
-        end
-      end
-
-      context "with no available targets" do
-        let(:isolated_agent) { RAAF::Agent.new(name: "IsolatedAgent", instructions: "No handoffs") }
-        let(:isolated_runner) { RAAF::Runner.new(agent: isolated_agent) }
-
-        it "returns nil when no handoff targets are available" do
-          content = "I'll transfer you to SupportAgent."
-          result = isolated_runner.send(:detect_text_handoff, content, isolated_agent)
-          expect(result).to be_nil
-        end
-      end
-
-      context "with invalid agent names" do
-        it "returns nil for non-existent agents" do
-          content = "I'll transfer you to NonExistentAgent."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to be_nil
-        end
-
-        it "returns nil for partial matches that don't validate" do
-          content = "I'll transfer you to Target."
-          result = runner.send(:detect_text_handoff, content, source_agent)
-          expect(result).to eq("TargetAgent") # Should fuzzy match
-        end
-      end
-    end
-
-    describe "#validate_handoff_target" do
-      let(:available_targets) { %w[TargetAgent SupportAgent CustomerService] }
-
-      it "validates exact matches" do
-        result = runner.send(:validate_handoff_target, "TargetAgent", available_targets)
-        expect(result).to eq("TargetAgent")
-      end
-
-      it "validates case-insensitive matches" do
-        result = runner.send(:validate_handoff_target, "targetagent", available_targets)
-        expect(result).to eq("TargetAgent")
-      end
-
-      it "validates substring matches" do
-        result = runner.send(:validate_handoff_target, "Target", available_targets)
-        expect(result).to eq("TargetAgent")
-      end
-
-      it "validates contains matches" do
-        result = runner.send(:validate_handoff_target, "CustomerServiceTeam", available_targets)
-        expect(result).to eq("CustomerService")
-      end
-
-      it "returns nil for no matches" do
-        result = runner.send(:validate_handoff_target, "NonExistent", available_targets)
-        expect(result).to be_nil
-      end
-
-      it "returns nil for empty input" do
-        result = runner.send(:validate_handoff_target, "", available_targets)
-        expect(result).to be_nil
-      end
-
-      it "returns nil for nil input" do
-        result = runner.send(:validate_handoff_target, nil, available_targets)
-        expect(result).to be_nil
-      end
-    end
-
-    describe "#get_available_handoff_targets" do
-      it "returns agent names for Agent handoffs" do
-        targets = runner.send(:get_available_handoff_targets, source_agent)
-        expect(targets).to contain_exactly("TargetAgent", "SupportAgent", "CustomerService")
-      end
-
-      it "returns empty array for agents without handoffs" do
-        no_handoff_agent = RAAF::Agent.new(name: "NoHandoffAgent", instructions: "No handoffs")
-        targets = runner.send(:get_available_handoff_targets, no_handoff_agent)
-        expect(targets).to eq([])
-      end
-
-      it "handles mixed handoff types" do
-        # Test with both Agent objects and Handoff objects
-        custom_agent = RAAF::Agent.new(name: "CustomAgent", instructions: "Custom agent")
-        handoff_obj = RAAF::Handoff.new(
-          custom_agent,
-          tool_name_override: "transfer_to_custom",
-          tool_description_override: "Custom handoff"
-        )
-
-        mixed_agent = RAAF::Agent.new(name: "MixedAgent", instructions: "Mixed handoffs")
-        mixed_agent.add_handoff(target_agent)
-        mixed_agent.handoffs << handoff_obj
-
-        targets = runner.send(:get_available_handoff_targets, mixed_agent)
-        expect(targets).to contain_exactly("TargetAgent", "CustomAgent")
-      end
-    end
-  end
+  #     describe "#detect_json_handoff" do
+  #       context "with handoff_to field" do
+  #         it "detects string key format" do
+  #           content = '{"handoff_to": "TargetAgent"}'
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to eq("TargetAgent")
+  #         end
+  # 
+  #         it "detects symbol key format" do
+  #           content = '{"handoff_to": "SupportAgent"}'
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to eq("SupportAgent")
+  #         end
+  #       end
+  # 
+  #       context "with alternative field names" do
+  #         it "detects transfer_to field" do
+  #           content = '{"transfer_to": "CustomerService"}'
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to eq("CustomerService")
+  #         end
+  # 
+  #         it "detects next_agent field" do
+  #           content = '{"next_agent": "TargetAgent"}'
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to eq("TargetAgent")
+  #         end
+  #       end
+  # 
+  #       context "with nested handoff structures" do
+  #         it "detects nested handoff.to field" do
+  #           content = '{"handoff": {"to": "SupportAgent", "reason": "Complex issue"}}'
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to eq("SupportAgent")
+  #         end
+  #       end
+  # 
+  #       context "with invalid JSON" do
+  #         it "returns nil for malformed JSON" do
+  #           content = '{"handoff_to": "TargetAgent"' # missing closing brace
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to be_nil
+  #         end
+  # 
+  #         it "returns nil for non-JSON content" do
+  #           content = "This is just plain text"
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to be_nil
+  #         end
+  #       end
+  # 
+  #       context "with mixed content" do
+  #         it "detects handoff in JSON with other fields" do
+  #           content = '{"response": "I understand your concern", "handoff_to": "CustomerService", "confidence": 0.95}'
+  #           result = runner.send(:detect_json_handoff, content, source_agent)
+  #           expect(result).to eq("CustomerService")
+  #         end
+  #       end
+  #     end
+  # 
+  #     describe "#detect_text_handoff" do
+  #       context "with direct transfer patterns" do
+  #         it "detects 'transfer to' pattern" do
+  #           content = "I'll transfer you to the SupportAgent for assistance."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("SupportAgent")
+  #         end
+  # 
+  #         it "detects 'transferring to' pattern" do
+  #           content = "Transferring to CustomerService now."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("CustomerService")
+  #         end
+  # 
+  #         it "detects 'hand off to' pattern" do
+  #           content = "Let me hand this off to TargetAgent."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("TargetAgent")
+  #         end
+  # 
+  #         it "detects 'delegate to' pattern" do
+  #           content = "I'll delegate this to SupportAgent."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("SupportAgent")
+  #         end
+  # 
+  #         it "detects 'routing to' pattern" do
+  #           content = "Routing you to the CustomerService team."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("CustomerService")
+  #         end
+  #       end
+  # 
+  #       context "with mention patterns" do
+  #         it "detects 'contact agent' pattern" do
+  #           content = "Please contact CustomerService for billing issues."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("CustomerService")
+  #         end
+  # 
+  #         it "detects 'speak with agent' pattern" do
+  #           content = "You should speak with SupportAgent about this."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("SupportAgent")
+  #         end
+  # 
+  #         it "detects 'talk to agent' pattern" do
+  #           content = "You need to talk to TargetAgent for more details."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("TargetAgent")
+  #         end
+  #       end
+  # 
+  #       context "with explicit agent name references" do
+  #         it "detects standalone agent names" do
+  #           content = "For this issue, you need TargetAgent assistance."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("TargetAgent")
+  #         end
+  # 
+  #         it "detects agent names with word boundaries" do
+  #           content = "The SupportAgent team can help with technical issues."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("SupportAgent")
+  #         end
+  #       end
+  # 
+  #       context "with case insensitive matching" do
+  #         it "detects lowercase agent names" do
+  #           content = "Please contact customerservice for help."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("CustomerService")
+  #         end
+  # 
+  #         it "detects mixed case patterns" do
+  #           content = "I'll TRANSFER you to the supportagent."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("SupportAgent")
+  #         end
+  #       end
+  # 
+  #       context "with no available targets" do
+  #         let(:isolated_agent) { RAAF::Agent.new(name: "IsolatedAgent", instructions: "No handoffs") }
+  #         let(:isolated_runner) { RAAF::Runner.new(agent: isolated_agent) }
+  # 
+  #         it "returns nil when no handoff targets are available" do
+  #           content = "I'll transfer you to SupportAgent."
+  #           result = isolated_runner.send(:detect_text_handoff, content, isolated_agent)
+  #           expect(result).to be_nil
+  #         end
+  #       end
+  # 
+  #       context "with invalid agent names" do
+  #         it "returns nil for non-existent agents" do
+  #           content = "I'll transfer you to NonExistentAgent."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to be_nil
+  #         end
+  # 
+  #         it "returns nil for partial matches that don't validate" do
+  #           content = "I'll transfer you to Target."
+  #           result = runner.send(:detect_text_handoff, content, source_agent)
+  #           expect(result).to eq("TargetAgent") # Should fuzzy match
+  #         end
+  #       end
+  #     end
+  # 
+  #     describe "#validate_handoff_target" do
+  #       let(:available_targets) { %w[TargetAgent SupportAgent CustomerService] }
+  # 
+  #       it "validates exact matches" do
+  #         result = runner.send(:validate_handoff_target, "TargetAgent", available_targets)
+  #         expect(result).to eq("TargetAgent")
+  #       end
+  # 
+  #       it "validates case-insensitive matches" do
+  #         result = runner.send(:validate_handoff_target, "targetagent", available_targets)
+  #         expect(result).to eq("TargetAgent")
+  #       end
+  # 
+  #       it "validates substring matches" do
+  #         result = runner.send(:validate_handoff_target, "Target", available_targets)
+  #         expect(result).to eq("TargetAgent")
+  #       end
+  # 
+  #       it "validates contains matches" do
+  #         result = runner.send(:validate_handoff_target, "CustomerServiceTeam", available_targets)
+  #         expect(result).to eq("CustomerService")
+  #       end
+  # 
+  #       it "returns nil for no matches" do
+  #         result = runner.send(:validate_handoff_target, "NonExistent", available_targets)
+  #         expect(result).to be_nil
+  #       end
+  # 
+  #       it "returns nil for empty input" do
+  #         result = runner.send(:validate_handoff_target, "", available_targets)
+  #         expect(result).to be_nil
+  #       end
+  # 
+  #       it "returns nil for nil input" do
+  #         result = runner.send(:validate_handoff_target, nil, available_targets)
+  #         expect(result).to be_nil
+  #       end
+  #     end
+  # 
+  #     describe "#get_available_handoff_targets" do
+  #       it "returns agent names for Agent handoffs" do
+  #         targets = runner.send(:get_available_handoff_targets, source_agent)
+  #         expect(targets).to contain_exactly("TargetAgent", "SupportAgent", "CustomerService")
+  #       end
+  # 
+  #       it "returns empty array for agents without handoffs" do
+  #         no_handoff_agent = RAAF::Agent.new(name: "NoHandoffAgent", instructions: "No handoffs")
+  #         targets = runner.send(:get_available_handoff_targets, no_handoff_agent)
+  #         expect(targets).to eq([])
+  #       end
+  # 
+  #       it "handles mixed handoff types" do
+  #         # Test with both Agent objects and Handoff objects
+  #         custom_agent = RAAF::Agent.new(name: "CustomAgent", instructions: "Custom agent")
+  #         handoff_obj = RAAF::Handoff.new(
+  #           custom_agent,
+  #           tool_name_override: "transfer_to_custom",
+  #           tool_description_override: "Custom handoff"
+  #         )
+  # 
+  #         mixed_agent = RAAF::Agent.new(name: "MixedAgent", instructions: "Mixed handoffs")
+  #         mixed_agent.add_handoff(target_agent)
+  #         mixed_agent.handoffs << handoff_obj
+  # 
+  #         targets = runner.send(:get_available_handoff_targets, mixed_agent)
+  #         expect(targets).to contain_exactly("TargetAgent", "CustomAgent")
+  #       end
+  #     end
+  #   end
 
   describe "Tool-based Handoffs" do
     let(:runner) { RAAF::Runner.new(agent: source_agent) }
@@ -527,50 +528,50 @@ RSpec.describe "OpenAIAgents Handoff System" do
 
   describe "Integration with process_response" do
     let(:runner) { RAAF::Runner.new(agent: source_agent) }
-
-    describe "handoff priority" do
-      it "prioritizes tool-based handoffs over content-based handoffs" do
-        message = {
-          "content" => '{"handoff_to": "SupportAgent"}',
-          "tool_calls" => [
-            {
-              "id" => "call_123",
-              "function" => {
-                "name" => "transfer_to_targetagent",
-                "arguments" => "{}"
-              }
-            }
-          ]
-        }
-
-        # Mock the tool processing to return a handoff
-        allow(runner).to receive(:process_tool_calls).and_return("TargetAgent")
-
-        result = runner.send(:process_response, { "choices" => [{ "message" => message }] }, source_agent, [])
-
-        expect(result[:handoff]).to eq("TargetAgent") # Tool-based handoff wins
-      end
-
-      it "falls back to content-based handoffs when no tool handoffs" do
-        message = {
-          "content" => '{"handoff_to": "SupportAgent"}'
-        }
-
-        result = runner.send(:process_response, { "choices" => [{ "message" => message }] }, source_agent, [])
-
-        expect(result[:handoff]).to eq("SupportAgent")
-      end
-
-      it "processes text-based handoffs when JSON parsing fails" do
-        message = {
-          "content" => "I'll transfer you to the SupportAgent for assistance."
-        }
-
-        result = runner.send(:process_response, { "choices" => [{ "message" => message }] }, source_agent, [])
-
-        expect(result[:handoff]).to eq("SupportAgent")
-      end
-    end
+      # 
+      #     describe "handoff priority" do
+      #       it "prioritizes tool-based handoffs over content-based handoffs" do
+      #         message = {
+      #           "content" => '{"handoff_to": "SupportAgent"}',
+      #           "tool_calls" => [
+      #             {
+      #               "id" => "call_123",
+      #               "function" => {
+      #                 "name" => "transfer_to_targetagent",
+      #                 "arguments" => "{}"
+      #               }
+      #             }
+      #           ]
+      #         }
+      # 
+      #         # Mock the tool processing to return a handoff
+      #         allow(runner).to receive(:process_tool_calls).and_return("TargetAgent")
+      # 
+      #         result = runner.send(:process_response, { "choices" => [{ "message" => message }] }, source_agent, [])
+      # 
+      #         expect(result[:handoff]).to eq("TargetAgent") # Tool-based handoff wins
+      #       end
+      # 
+      #       it "falls back to content-based handoffs when no tool handoffs" do
+      #         message = {
+      #           "content" => '{"handoff_to": "SupportAgent"}'
+      #         }
+      # 
+      #         result = runner.send(:process_response, { "choices" => [{ "message" => message }] }, source_agent, [])
+      # 
+      #         expect(result[:handoff]).to eq("SupportAgent")
+      #       end
+      # 
+      #       it "processes text-based handoffs when JSON parsing fails" do
+      #         message = {
+      #           "content" => "I'll transfer you to the SupportAgent for assistance."
+      #         }
+      # 
+      #         result = runner.send(:process_response, { "choices" => [{ "message" => message }] }, source_agent, [])
+      # 
+      #         expect(result[:handoff]).to eq("SupportAgent")
+      #       end
+      #     end
 
     describe "multiple handoff detection" do
       it "handles multiple tool-based handoffs correctly" do
@@ -607,29 +608,29 @@ RSpec.describe "OpenAIAgents Handoff System" do
 
     describe "#process_responses_api_output" do
       it "processes JSON handoffs in message output" do
-        response = {
-          "output" => [
-            {
-              "type" => "message",
-              "role" => "assistant",
-              "content" => [
-                {
-                  "type" => "text",
-                  "text" => '{"response": "I understand", "handoff_to": "SupportAgent"}'
-                }
-              ]
-            }
-          ]
-        }
-
-        generated_items = []
-        runner.send(:process_responses_api_output, response, source_agent, generated_items)
-
-        # The handoff should not be detected here since we removed that logic
-        # It should be detected in the unified detection system
-        expect(generated_items.size).to eq(1)
-        expect(generated_items.first).to be_a(RAAF::Items::MessageOutputItem)
-      end
+      #         response = {
+      #           "output" => [
+      #             {
+      #               "type" => "message",
+      #               "role" => "assistant",
+      #               "content" => [
+      #                 {
+      #                   "type" => "text",
+      #                   "text" => '{"response": "I understand", "handoff_to": "SupportAgent"}'
+      #                 }
+      #               ]
+      #             }
+      #           ]
+      #         }
+      # 
+      #         generated_items = []
+      #         runner.send(:process_responses_api_output, response, source_agent, generated_items)
+      # 
+      #         # The handoff should not be detected here since we removed that logic
+      #         # It should be detected in the unified detection system
+      #         expect(generated_items.size).to eq(1)
+      #         expect(generated_items.first).to be_a(RAAF::Items::MessageOutputItem)
+      #       end
 
       it "processes tool-based handoffs in function calls" do
         response = {
@@ -708,109 +709,109 @@ RSpec.describe "OpenAIAgents Handoff System" do
     end
 
     context "JSON-based handoffs" do
-      it "handles structured JSON handoffs correctly" do
-        response = {
-          "output" => [
-            {
-              "type" => "message",
-              "role" => "assistant",
-              "content" => [
-                {
-                  "type" => "output_text",
-                  "text" => '{"response": "I understand your request", "handoff_to": "SupportAgent"}'
-                }
-              ]
-            }
-          ],
-          "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
-        }
-
-        allow(responses_provider).to receive(:responses_completion).and_return(response)
-        allow(responses_provider).to receive(:complete).and_return(response)
-        
-        result = runner.run([{ role: "user", content: "Help me with support" }])
-        
-        expect(result.last_agent.name).to eq("SupportAgent")
-        expect(result.messages.size).to be >= 1
-      end
-
-      it "handles malformed JSON gracefully" do
-        response = {
-          "output" => [
-            {
-              "type" => "message",
-              "role" => "assistant",
-              "content" => [
-                {
-                  "type" => "text",
-                  "text" => '{"response": "I understand", "handoff_to": "SupportAgent"'  # Missing closing brace
-                }
-              ]
-            }
-          ],
-          "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
-        }
-
-        allow(responses_provider).to receive(:responses_completion).and_return(response)
-        allow(responses_provider).to receive(:complete).and_return(response)
-        
-        result = runner.run([{ role: "user", content: "Help me" }])
-        
-        # Should not crash and should stay with original agent
-        expect(result.last_agent.name).to eq("SourceAgent")
-      end
-    end
-
-    context "Text-based handoffs" do
-      it "detects natural language handoff instructions" do
-        response = {
-          "output" => [
-            {
-              "type" => "message",
-              "role" => "assistant",
-              "content" => [
-                {
-                  "type" => "text",
-                  "text" => "I need to transfer you to our SupportAgent for specialized assistance."
-                }
-              ]
-            }
-          ],
-          "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
-        }
-
-        allow(responses_provider).to receive(:responses_completion).and_return(response)
-        allow(responses_provider).to receive(:complete).and_return(response)
-        
-        result = runner.run([{ role: "user", content: "Need help" }])
-        
-        expect(result.last_agent.name).to eq("SupportAgent")
-      end
-
-      it "detects transfer_to patterns" do
-        response = {
-          "output" => [
-            {
-              "type" => "message",
-              "role" => "assistant",
-              "content" => [
-                {
-                  "type" => "text",
-                  "text" => "Let me transfer_to_targetagent for you."
-                }
-              ]
-            }
-          ],
-          "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
-        }
-
-        allow(responses_provider).to receive(:responses_completion).and_return(response)
-        allow(responses_provider).to receive(:complete).and_return(response)
-        
-        result = runner.run([{ role: "user", content: "Transfer me" }])
-        
-        expect(result.last_agent.name).to eq("TargetAgent")
-      end
+    #       it "handles structured JSON handoffs correctly" do
+    #         response = {
+    #           "output" => [
+    #             {
+    #               "type" => "message",
+    #               "role" => "assistant",
+    #               "content" => [
+    #                 {
+    #                   "type" => "output_text",
+    #                   "text" => '{"response": "I understand your request", "handoff_to": "SupportAgent"}'
+    #                 }
+    #               ]
+    #             }
+    #           ],
+    #           "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
+    #         }
+    # 
+    #         allow(responses_provider).to receive(:responses_completion).and_return(response)
+    #         allow(responses_provider).to receive(:complete).and_return(response)
+    #         
+    #         result = runner.run([{ role: "user", content: "Help me with support" }])
+    #         
+    #         expect(result.last_agent.name).to eq("SupportAgent")
+    #         expect(result.messages.size).to be >= 1
+    #       end
+    # 
+    #       it "handles malformed JSON gracefully" do
+    #         response = {
+    #           "output" => [
+    #             {
+    #               "type" => "message",
+    #               "role" => "assistant",
+    #               "content" => [
+    #                 {
+    #                   "type" => "text",
+    #                   "text" => '{"response": "I understand", "handoff_to": "SupportAgent"'  # Missing closing brace
+    #                 }
+    #               ]
+    #             }
+    #           ],
+    #           "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
+    #         }
+    # 
+    #         allow(responses_provider).to receive(:responses_completion).and_return(response)
+    #         allow(responses_provider).to receive(:complete).and_return(response)
+    #         
+    #         result = runner.run([{ role: "user", content: "Help me" }])
+    #         
+    #         # Should not crash and should stay with original agent
+    #         expect(result.last_agent.name).to eq("SourceAgent")
+    #       end
+    #     end
+    # 
+    #     context "Text-based handoffs" do
+    #       it "detects natural language handoff instructions" do
+    #         response = {
+    #           "output" => [
+    #             {
+    #               "type" => "message",
+    #               "role" => "assistant",
+    #               "content" => [
+    #                 {
+    #                   "type" => "text",
+    #                   "text" => "I need to transfer you to our SupportAgent for specialized assistance."
+    #                 }
+    #               ]
+    #             }
+    #           ],
+    #           "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
+    #         }
+    # 
+    #         allow(responses_provider).to receive(:responses_completion).and_return(response)
+    #         allow(responses_provider).to receive(:complete).and_return(response)
+    #         
+    #         result = runner.run([{ role: "user", content: "Need help" }])
+    #         
+    #         expect(result.last_agent.name).to eq("SupportAgent")
+    #       end
+    # 
+    #       it "detects transfer_to patterns" do
+    #         response = {
+    #           "output" => [
+    #             {
+    #               "type" => "message",
+    #               "role" => "assistant",
+    #               "content" => [
+    #                 {
+    #                   "type" => "text",
+    #                   "text" => "Let me transfer_to_targetagent for you."
+    #                 }
+    #               ]
+    #             }
+    #           ],
+    #           "usage" => { "input_tokens" => 10, "output_tokens" => 15 }
+    #         }
+    # 
+    #         allow(responses_provider).to receive(:responses_completion).and_return(response)
+    #         allow(responses_provider).to receive(:complete).and_return(response)
+    #         
+    #         result = runner.run([{ role: "user", content: "Transfer me" }])
+    #         
+    #         expect(result.last_agent.name).to eq("TargetAgent")
+    #       end
     end
 
     context "Tool-based handoffs" do
@@ -1101,49 +1102,49 @@ RSpec.describe "OpenAIAgents Handoff System" do
   end
 
   describe "Handoff Priority and Detection" do
-    let(:test_runner) { RAAF::Runner.new(agent: source_agent) }
-    
-    before do
-      source_agent.add_handoff(target_agent)
-      source_agent.add_handoff(support_agent)
-    end
-
-    it "prioritizes JSON handoffs over text handoffs" do
-      message = {
-        role: "assistant",
-        content: '{"response": "Help needed", "handoff_to": "SupportAgent"} Please transfer to TargetAgent.'
-      }
-      
-      result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
-      
-      expect(result).not_to be_nil
-      expect(result.name).to eq("SupportAgent")  # JSON takes priority
-    end
-
-    it "detects handoff patterns in text when no JSON present" do
-      message = {
-        role: "assistant",
-        content: "I need to transfer you to our TargetAgent for specialized help."
-      }
-      
-      result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
-      
-      expect(result).not_to be_nil
-      expect(result.name).to eq("TargetAgent")
-    end
-
-    it "returns no handoff when no patterns detected" do
-      message = {
-        role: "assistant",
-        content: "I can help you with that request directly."
-      }
-      
-      result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
-      
-      expect(result[:handoff_occurred]).to be false
-      expect(result[:target_agent]).to be_nil
-    end
-  end
+  #     let(:test_runner) { RAAF::Runner.new(agent: source_agent) }
+  #     
+  #     before do
+  #       source_agent.add_handoff(target_agent)
+  #       source_agent.add_handoff(support_agent)
+  #     end
+  # 
+  #     it "prioritizes JSON handoffs over text handoffs" do
+  #       message = {
+  #         role: "assistant",
+  #         content: '{"response": "Help needed", "handoff_to": "SupportAgent"} Please transfer to TargetAgent.'
+  #       }
+  #       
+  #       result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
+  #       
+  #       expect(result).not_to be_nil
+  #       expect(result.name).to eq("SupportAgent")  # JSON takes priority
+  #     end
+  # 
+  #     it "detects handoff patterns in text when no JSON present" do
+  #       message = {
+  #         role: "assistant",
+  #         content: "I need to transfer you to our TargetAgent for specialized help."
+  #       }
+  #       
+  #       result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
+  #       
+  #       expect(result).not_to be_nil
+  #       expect(result.name).to eq("TargetAgent")
+  #     end
+  # 
+  #     it "returns no handoff when no patterns detected" do
+  #       message = {
+  #         role: "assistant",
+  #         content: "I can help you with that request directly."
+  #       }
+  #       
+  #       result = test_runner.send(:detect_handoff_in_content, message[:content], source_agent)
+  #       
+  #       expect(result[:handoff_occurred]).to be false
+  #       expect(result[:target_agent]).to be_nil
+  #     end
+  #   end
 
   describe "Assistant Content Extraction" do
     let(:test_runner) { RAAF::Runner.new(agent: source_agent) }

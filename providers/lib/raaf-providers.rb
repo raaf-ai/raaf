@@ -4,7 +4,6 @@ require "raaf-core"
 require_relative "raaf/models/anthropic_provider"
 require_relative "raaf/models/cohere_provider"
 require_relative "raaf/models/groq_provider"
-require_relative "raaf/models/ollama_provider"
 require_relative "raaf/models/together_provider"
 require_relative "raaf/models/multi_provider"
 require_relative "raaf/models/retryable_provider"
@@ -15,14 +14,13 @@ require_relative "raaf/models/litellm_provider"
 #
 # This gem extends RAAF Core with support for additional LLM providers
 # beyond the default OpenAI providers. It includes integrations for
-# Anthropic, Cohere, Groq, Ollama, Together, and more.
+# Anthropic, Cohere, Groq, Together, and more.
 #
 # == Supported Providers
 #
 # * Anthropic (Claude) - Advanced reasoning and safety
 # * Cohere - Enterprise-focused language models
 # * Groq - High-performance inference
-# * Ollama - Local model hosting
 # * Together - Open-source model hosting
 # * LiteLLM - Universal LLM proxy
 # * Multi-provider - Load balancing and failover

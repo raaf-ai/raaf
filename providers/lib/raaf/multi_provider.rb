@@ -3,7 +3,6 @@
 require_relative "anthropic_provider"
 require_relative "cohere_provider"
 require_relative "groq_provider"
-require_relative "ollama_provider"
 require_relative "together_provider"
 require_relative "litellm_provider"
 
@@ -23,7 +22,6 @@ module RAAF
     # * **Cohere**: Command models (command-r, command-r-plus, etc.)
     # * **Groq**: Fast inference for Llama, Mixtral, Gemma models
     # * **Together AI**: Open-source models (Meta-Llama, Mistral, etc.)
-    # * **Ollama**: Local models (CodeLlama, Phi, Orca, Vicuna, etc.)
     # * **LiteLLM**: Unified interface for OpenAI and other providers
     #
     # == Automatic Provider Selection
@@ -48,7 +46,7 @@ module RAAF
     #
     # @example List supported providers
     #   puts "Available providers: #{MultiProvider.supported_providers}"
-    #   # => ["anthropic", "gemini", "cohere", "groq", "ollama", "together", "litellm"]
+    #   # => ["anthropic", "gemini", "cohere", "groq", "together", "litellm"]
     #
     # @example Provider detection for model
     #   provider_name = MultiProvider.get_provider_for_model("claude-3-sonnet")
@@ -77,7 +75,6 @@ module RAAF
           "gemini" => GeminiProvider,
           "cohere" => CohereProvider,
           "groq" => GroqProvider,
-          "ollama" => OllamaProvider,
           "together" => TogetherProvider,
           "litellm" => LitellmProvider
         }
@@ -149,12 +146,10 @@ module RAAF
         when /^command-/
           "cohere"
         when /^llama/, /^mixtral/, /^gemma/
-          # Could be Groq, Together, or Ollama - default to Groq for speed
+          # Could be Groq or Together - default to Groq for speed
           "groq"
-        when /^meta-llama/, /^mistralai/, /^NousResearch/, /^togethercomputer/
+        when /^meta-llama/, /^mistralai/, /^NousResearch/, /^togethercomputer/, /^codellama/, /^phi/, /^orca/, /^vicuna/
           "together"
-        when /^codellama/, /^phi/, /^orca/, /^vicuna/
-          "ollama"
         else
           # Default to a modern provider instead of deprecated OpenAI
           "groq"

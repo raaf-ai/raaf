@@ -18,6 +18,10 @@ result = runner.run("Hello!")
 puts result.messages.last[:content]
 ```
 
+## Provider Requirements
+
+**All providers used with RAAF must support tool/function calling.** Providers that don't support tool calling (like Ollama) have been removed to ensure consistent handoff behavior across all deployments.
+
 ## Architecture Overview
 
 RAAF is organized as a **mono-repo** with focused gems:
@@ -65,6 +69,9 @@ result = runner.run("What's the weather in Tokyo?")
 ```
 
 ### Multi-Agent Handoff
+
+**Important**: RAAF uses tool-based handoffs exclusively. Handoffs are implemented as function calls (tools) that the LLM must explicitly invoke. Text-based or JSON-based handoff detection in message content is not supported.
+
 ```ruby
 # Define specialized agents
 research_agent = RAAF::Agent.new(
@@ -80,6 +87,9 @@ writer_agent = RAAF::Agent.new(
 )
 
 # Enable handoffs between agents
+# This automatically creates transfer_to_<agent_name> tools
+research_agent.add_handoff(writer_agent)
+
 runner = RAAF::Runner.new(
   agent: research_agent,
   agents: [research_agent, writer_agent]
@@ -87,6 +97,8 @@ runner = RAAF::Runner.new(
 
 result = runner.run("Research and write about Ruby programming")
 ```
+
+When you add a handoff target, RAAF automatically creates a tool like `transfer_to_writer` that the agent can call to transfer control. The LLM must explicitly call this tool - simply mentioning a transfer in text will not trigger a handoff.
 
 ### Flexible Agent Identification
 
