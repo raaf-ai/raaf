@@ -2,39 +2,35 @@
 
 require_relative "../logging"
 require_relative "../errors"
-require_relative "handoff_fallback_system"
+# Handoff fallback system removed - only tool-based handoffs supported
+# require_relative "handoff_fallback_system"
 
 module RAAF
 
   module Models
 
     ##
-    # Universal Provider Adapter for Handoff Support
+    # Universal Provider Adapter for Tool-based Handoff Support
     #
     # This adapter wraps any provider to ensure universal handoff support
-    # regardless of the underlying API format (Chat Completions, Responses, custom).
-    # It provides a consistent interface for the Runner while handling the
-    # complexities of different provider implementations.
+    # for providers that support function/tool calling. It provides a consistent 
+    # interface for the Runner while handling the complexities of different 
+    # provider implementations.
     #
     # The adapter automatically detects provider capabilities and routes requests
-    # to the appropriate API methods while ensuring consistent handoff support
-    # across all provider types. For providers without function calling support,
-    # it enables content-based handoff detection as a fallback mechanism.
+    # to the appropriate API methods. Only tool-based handoffs are supported.
     #
     # == Features
     #
     # * **Automatic Capability Detection**: Detects what APIs the provider supports
     # * **Universal API Translation**: Converts between different API formats
-    # * **Handoff Fallback System**: Enables handoffs for non-function-calling LLMs
-    # * **Performance Monitoring**: Tracks handoff detection statistics
+    # * **Tool-based Handoff Support**: Enables handoffs via function calls
     # * **Backward Compatibility**: Works with all existing providers
     #
     # == Supported Provider Types
     #
-    # * **Full Function Calling**: OpenAI, Claude, Gemini (99% handoff success)
-    # * **Limited Function Calling**: Some fine-tuned models (95% handoff success)
-    # * **No Function Calling**: LLaMA, Mistral base, Falcon (85% handoff success)
-    # * **Legacy Providers**: Any text-generation model (80% handoff success)
+    # * **Full Function Calling**: OpenAI, Claude, Gemini (full handoff support)
+    # * **No Function Calling**: Providers without tool support (no handoffs)
     #
     # == Usage Patterns
     #
@@ -42,12 +38,7 @@ module RAAF
     #   provider = SomeThirdPartyProvider.new
     #   adapter = ProviderAdapter.new(provider)
     #   runner = RAAF::Runner.new(agent: agent, provider: adapter)
-    #   # Handoffs work automatically regardless of provider capabilities
-    #
-    # @example With explicit agent configuration for better fallback
-    #   available_agents = ["Support", "Billing", "Technical"]
-    #   adapter = ProviderAdapter.new(provider, available_agents)
-    #   runner = RAAF::Runner.new(agent: agent, provider: adapter)
+    #   # Tool-based handoffs work if provider supports function calling
     #
     # @example Checking provider capabilities
     #   adapter = ProviderAdapter.new(provider)
@@ -83,7 +74,8 @@ module RAAF
       def initialize(provider, available_agents = [])
         @provider = provider
         @capabilities = detect_capabilities
-        @fallback_system = HandoffFallbackSystem.new(available_agents)
+        # Handoff fallback system removed - only tool-based handoffs supported
+        # @fallback_system = HandoffFallbackSystem.new(available_agents)
         log_debug("🔧 PROVIDER ADAPTER: Initialized with capabilities",
                   provider: provider.provider_name,
                   capabilities: @capabilities,
@@ -298,7 +290,8 @@ module RAAF
       # @return [void]
       #
       def update_available_agents(available_agents)
-        @fallback_system = HandoffFallbackSystem.new(available_agents)
+        # Handoff fallback system removed - only tool-based handoffs supported
+        # @fallback_system = HandoffFallbackSystem.new(available_agents)
         log_debug("🔧 PROVIDER ADAPTER: Updated available agents for fallback",
                   provider: @provider.provider_name,
                   agents: available_agents.join(", "))
@@ -338,78 +331,39 @@ module RAAF
       # @return [String] Enhanced instructions (or original if function calling supported)
       #
       def get_enhanced_system_instructions(base_instructions, available_agents)
-        return base_instructions if @capabilities[:function_calling]
-
-        # For non-function-calling providers, add handoff instructions
-        handoff_instructions = @fallback_system.generate_handoff_instructions(available_agents)
-
-        log_debug("🔧 PROVIDER ADAPTER: Adding handoff instructions for non-function-calling provider",
-                  provider: @provider.provider_name,
-                  available_agents: available_agents.size)
-
-        "#{base_instructions}\n\n#{handoff_instructions}"
+        # Content-based handoff instructions have been removed
+        # Only tool-based handoffs are supported
+        base_instructions
       end
 
       ##
-      # Detect handoff in response content (for non-function-calling providers)
+      # Detect handoff in response content (DEPRECATED)
       #
-      # For providers without function calling support, this method analyzes
-      # response content to detect handoff requests using pattern matching.
+      # Content-based handoff detection has been removed from RAAF.
+      # Only tool-based handoffs are supported.
       #
-      # @example Detect JSON handoff
-      #   adapter = ProviderAdapter.new(llama_provider, ["Support", "Billing"])
-      #
-      #   content = 'I can help with that. {"handoff_to": "Support"}'
-      #   target = adapter.detect_content_based_handoff(content)
-      #   puts target # "Support"
-      #
-      # @example Detect structured handoff
-      #   content = 'Let me transfer you. [HANDOFF:Billing]'
-      #   target = adapter.detect_content_based_handoff(content)
-      #   puts target # "Billing"
-      #
-      # @example With function-calling provider (not applicable)
-      #   adapter = ProviderAdapter.new(openai_provider)
-      #
-      #   target = adapter.detect_content_based_handoff(content)
-      #   puts target # nil (not applicable for function-calling providers)
-      #
-      # @param content [String] Response content to analyze
-      # @return [String, nil] Target agent name if handoff detected, nil otherwise
+      # @param content [String] Response content to analyze  
+      # @return [String, nil] Always returns nil
+      # @deprecated Content-based handoffs are no longer supported
       #
       def detect_content_based_handoff(content)
-        return nil if @capabilities[:function_calling] # Only for non-function-calling providers
-
-        @fallback_system.detect_handoff_in_content(content)
+        # Content-based handoff detection has been removed
+        # Only tool-based handoffs are supported
+        nil
       end
 
       ##
-      # Get handoff detection statistics
+      # Get handoff detection statistics (DEPRECATED)
       #
-      # Returns statistics about handoff detection performance from the
-      # fallback system. Useful for monitoring and optimization.
+      # Returns empty statistics since content-based handoff detection
+      # has been removed. Only tool-based handoffs are supported.
       #
-      # @example Get detection statistics
-      #   adapter = ProviderAdapter.new(llama_provider, ["Support", "Billing"])
-      #
-      #   # Use detection a few times
-      #   adapter.detect_content_based_handoff('{"handoff_to": "Support"}')
-      #   adapter.detect_content_based_handoff('No handoff here')
-      #   adapter.detect_content_based_handoff('[HANDOFF:Billing]')
-      #
-      #   stats = adapter.get_handoff_stats
-      #   puts "Success rate: #{stats[:success_rate]}" # "66.67%"
-      #   puts "Total attempts: #{stats[:total_attempts]}" # 3
-      #   puts "Successful detections: #{stats[:successful_detections]}" # 2
-      #
-      # @return [Hash] Statistics from fallback system with keys:
-      #   - :total_attempts - Total detection attempts
-      #   - :successful_detections - Number of successful detections
-      #   - :success_rate - Success rate as percentage string
-      #   - :available_agents - List of available agent names
+      # @return [Hash] Empty statistics hash
+      # @deprecated Content-based handoff detection is no longer supported
       #
       def get_handoff_stats
-        @fallback_system.get_detection_stats
+        # Handoff fallback system removed - only tool-based handoffs supported
+        { successful_detections: 0, total_attempts: 0, success_rate: "N/A" }
       end
 
       ##

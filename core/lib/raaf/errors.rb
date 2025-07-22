@@ -144,4 +144,17 @@ module RAAF
   #   raise ModelBehaviorError, "Model output violates content policy"
   class ModelBehaviorError < Error; end
 
+  ##
+  # Raised when provider operations fail
+  #
+  # This exception is raised when provider initialization fails, unsupported
+  # operations are requested, or provider-specific errors occur.
+  #
+  # @example Provider doesn't support required API
+  #   raise ProviderError, "Provider doesn't support any known completion API"
+  #
+  # @example Provider configuration error
+  #   raise ProviderError, "Provider initialization failed: #{error}"
+  class ProviderError < Error; end
+
 end

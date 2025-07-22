@@ -307,12 +307,9 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     context "with non-function calling provider" do
       subject { described_class.new(non_function_calling_provider, available_agents) }
 
-      it "adds handoff instructions" do
+      it "no longer adds handoff instructions (deprecated)" do
         result = subject.get_enhanced_system_instructions(base_instructions, available_agents)
-        expect(result).to include(base_instructions)
-        expect(result).to include("Handoff Instructions")
-        expect(result).to include("SupportAgent")
-        expect(result).to include("BillingAgent")
+        expect(result).to eq(base_instructions)
       end
     end
   end
@@ -330,22 +327,22 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     context "with non-function calling provider" do
       subject { described_class.new(non_function_calling_provider, available_agents) }
 
-      it "detects JSON handoff format" do
+      it "no longer detects JSON handoff format (deprecated)" do
         content = 'I need to transfer you. {"handoff_to": "SupportAgent"}'
         result = subject.detect_content_based_handoff(content)
-        expect(result).to eq("SupportAgent")
+        expect(result).to be_nil
       end
 
-      it "detects structured handoff format" do
+      it "no longer detects structured handoff format (deprecated)" do
         content = "Let me transfer you. [HANDOFF:BillingAgent]"
         result = subject.detect_content_based_handoff(content)
-        expect(result).to eq("BillingAgent")
+        expect(result).to be_nil
       end
 
-      it "detects natural language handoff" do
+      it "no longer detects natural language handoff (deprecated)" do
         content = "Transfer to TechnicalAgent for help."
         result = subject.detect_content_based_handoff(content)
-        expect(result).to eq("TechnicalAgent")
+        expect(result).to be_nil
       end
 
       it "returns nil for no handoff" do
