@@ -227,7 +227,7 @@ module RAAF
         body[:parallel_tool_calls] = parallel_tool_calls unless parallel_tool_calls.nil?
         body[:temperature] = temperature if temperature
         body[:top_p] = top_p if top_p
-        body[:max_tokens] = max_tokens if max_tokens
+        body[:max_output_tokens] = max_tokens if max_tokens  # OpenAI Responses API uses max_output_tokens
         body[:stream] = stream if stream
 
         # Handle response format
@@ -604,9 +604,13 @@ module RAAF
           params[:additionalProperties] = false unless params.key?(:additionalProperties)
 
           # For strict mode, all properties must be in required array
-          if params[:additionalProperties] == false
+          # Only set required if it was explicitly provided or already set to strict mode
+          if params[:additionalProperties] == false && params.key?(:required)
             all_properties = params[:properties].keys.map(&:to_s)
             params[:required] = all_properties unless params[:required] == all_properties
+          elsif !params.key?(:required)
+            # If no required field was specified, keep it empty
+            params[:required] = []
           end
         end
 

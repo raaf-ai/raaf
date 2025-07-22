@@ -377,32 +377,22 @@ class EnterpriseCustomerService
   end
 
   def setup_handoffs
-    manager = RAAF::Handoffs::AdvancedHandoff.new
+    # Set up tool-based handoffs between agents
+    @agents[:general].add_handoff(@agents[:technical])  # Creates transfer_to_technical tool
+    @agents[:general].add_handoff(@agents[:billing])    # Creates transfer_to_billing tool
     
-    # Define capabilities
-    manager.add_agent(@agents[:general], capabilities: [
-      :general_inquiry, :product_info, :order_status, :basic_troubleshooting
-    ])
+    # Technical can hand back to general or escalate to billing
+    @agents[:technical].add_handoff(@agents[:general])
+    @agents[:technical].add_handoff(@agents[:billing])
     
-    manager.add_agent(@agents[:technical], capabilities: [
-      :technical_support, :api_issues, :integration_help, :advanced_troubleshooting
-    ])
+    # Billing can hand back to general or technical as needed
+    @agents[:billing].add_handoff(@agents[:general])
+    @agents[:billing].add_handoff(@agents[:technical])
     
-    manager.add_agent(@agents[:billing], capabilities: [
-      :billing_inquiry, :payment_issues, :refunds, :account_management
-    ])
-    
-    manager.add_agent(@agents[:manager], capabilities: [
-      :escalation, :complaints, :refund_approval, :policy_exception
-    ])
-    
-    # Set up handoff relationships
-    @agents[:general].add_handoff(@agents[:technical])
-    @agents[:general].add_handoff(@agents[:billing])
+    # Allow escalation to manager from any agent
+    @agents[:general].add_handoff(@agents[:manager])
     @agents[:technical].add_handoff(@agents[:manager])
     @agents[:billing].add_handoff(@agents[:manager])
-    
-    manager
   end
 
   def process_customer_request(request, customer_id, session_id)

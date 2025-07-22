@@ -123,7 +123,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         )
 
         expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-          .with(body: hash_including("temperature", "max_tokens", "top_p"))
+          .with(body: hash_including("temperature", "max_output_tokens", "top_p"))
       end
     end
   end
@@ -580,7 +580,18 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         }
 
         result = provider.send(:convert_response_format, json_schema)
-        expect(result).to eq(json_schema)
+        
+        # The method converts to the format expected by the Responses API
+        expected = {
+          format: {
+            type: "json_schema",
+            name: "response_format",
+            schema: { type: "object", properties: {} },
+            strict: nil
+          }
+        }
+        
+        expect(result).to eq(expected)
       end
     end
   end

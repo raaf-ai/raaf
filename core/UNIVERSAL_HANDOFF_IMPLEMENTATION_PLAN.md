@@ -1,243 +1,209 @@
-# Universal Handoff Support Implementation Plan
+# Tool-Based Handoff System
 
-## 🎯 Objective
-Enable handoff support for ALL current and future providers through a clean, backward-compatible interface that automatically adapts to different provider capabilities.
+## 🎯 Overview
+RAAF uses an exclusive tool-based handoff system where agents transfer control through explicit function/tool calls. This document describes the current implementation and requirements.
 
-## 📋 Current State Analysis
+## 📋 System Requirements
 
-### ✅ Working Providers
-- **ResponsesProvider**: Uses `/v1/responses` endpoint, full handoff support
-- **OpenAIProvider**: Delegates to `/v1/responses` endpoint, full handoff support
+### Provider Requirements
+- **Function Calling Support**: All providers MUST support function/tool calling
+- **Tool Execution**: Providers must be able to execute registered tools
+- **Response Format**: Must support tool_calls in responses
 
-### ❌ Broken Providers
-- **Third-party providers**: Only implement `chat_completion()`, but Runner calls `responses_completion()`
-- **Future providers**: Will likely implement standard interface, not Responses API
+### Unsupported Providers
+Providers without function calling support cannot participate in handoffs:
+- Base language models without tool support
+- Legacy chat-only providers
+- Text completion models
 
-### 🔧 Root Cause
-Runner architecture assumes all providers support `responses_completion()` method, but the ModelInterface only defines `chat_completion()`.
+## 🛠 Implementation Details
 
-## 🛠 Solution Architecture
+### How Handoffs Work
 
-### 1. **Provider Adapter Pattern**
-- **File**: `lib/raaf/models/provider_adapter.rb`
-- **Purpose**: Wraps any provider to provide universal handoff support
-- **Benefits**: 
-  - Zero changes to existing providers
-  - Automatic capability detection
-  - Consistent handoff experience
-
-### 2. **Enhanced Model Interface**
-- **File**: `lib/raaf/models/enhanced_interface.rb`
-- **Purpose**: Provides default `responses_completion()` implementation
-- **Benefits**: 
-  - New providers inherit handoff support automatically
-  - Backward compatible with existing interface
-  - Reduces boilerplate for provider authors
-
-### 3. **Capability Detection System**
-- **File**: `lib/raaf/models/capability_detector.rb`
-- **Purpose**: Automatically detects provider capabilities
-- **Benefits**: 
-  - Intelligent provider routing
-  - Clear capability reporting
-  - Debugging assistance
-
-## 🚀 Implementation Phases
-
-### Phase 1: Core Infrastructure (Immediate)
-1. **Add new files to raaf-core**:
+1. **Tool Registration**
    ```ruby
-   # In lib/raaf-core.rb
-   require_relative "raaf/models/provider_adapter"
-   require_relative "raaf/models/enhanced_interface"
-   require_relative "raaf/models/capability_detector"
-   ```
-
-2. **Update Runner to use ProviderAdapter**:
-   ```ruby
-   # In lib/raaf/runner.rb - initialize method
-   def initialize(agent:, provider: nil, ...)
-     @agent = agent
-     base_provider = provider || Models::ResponsesProvider.new
-     @provider = Models::ProviderAdapter.new(base_provider)
-     # ... rest of initialization
-   end
-   ```
-
-### Phase 2: Backward Compatibility (Week 1)
-1. **Ensure existing code continues to work**:
-   - All current examples continue to work
-   - No breaking changes to public API
-   - Deprecation warnings for unsupported usage
-
-2. **Add capability detection to Runner**:
-   ```ruby
-   # In Runner initialization
-   detector = Models::CapabilityDetector.new(@provider)
-   capabilities = detector.detect_capabilities
+   # When you add a handoff
+   agent.add_handoff(target_agent)
    
-   unless capabilities[:handoffs]
-     warn "Provider #{@provider.provider_name} has limited handoff support"
-   end
+   # RAAF automatically creates a tool
+   # Name: transfer_to_<agent_name>
+   # Description: Transfer the conversation to <agent_name>
    ```
 
-### Phase 3: Enhanced Provider Support (Week 2)
-1. **Update ModelInterface documentation**:
-   - Add examples showing handoff support
-   - Recommend extending EnhancedModelInterface
-   - Document capability detection
+2. **Tool Invocation**
+   The LLM must explicitly call the handoff tool:
+   ```json
+   {
+     "tool_calls": [{
+       "function": {
+         "name": "transfer_to_support",
+         "arguments": "{}"
+       }
+     }]
+   }
+   ```
 
-2. **Create provider migration guide**:
-   - How to add handoff support to existing providers
-   - Best practices for new provider implementations
-   - Troubleshooting guide
+3. **Handoff Execution**
+   - Runner detects the tool call
+   - Validates the target agent exists
+   - Transfers control to the target agent
+   - Preserves conversation context
 
-### Phase 4: Ecosystem Integration (Week 3)
-1. **Update all built-in providers**:
-   - OpenAIProvider: Add explicit handoff support documentation
-   - ResponsesProvider: Document as reference implementation
-   - Create example third-party provider
+### Key Components
 
-2. **Add comprehensive tests**:
-   - Test adapter with various provider types
-   - Test capability detection accuracy
-   - Test handoff flows across different providers
+#### HandoffTool (`lib/raaf/handoff_tool.rb`)
+- Creates transfer tools for agents
+- Handles tool execution
+- Manages handoff data
 
-## 📖 Usage Examples
+#### HandoffContext (`lib/raaf/handoff_context.rb`)
+- Tracks handoff state
+- Prevents circular handoffs
+- Manages context transfer
 
-### For End Users (No Changes Required)
+#### Agent (`lib/raaf/agent.rb`)
+- `add_handoff` method creates handoff tools
+- `generate_handoff_tools` creates all transfer tools
+- Maintains handoff registry
+
+## 🚀 Usage Examples
+
+### Basic Handoff Setup
 ```ruby
-# Current code continues to work exactly the same
-agent = RAAF::Agent.new(name: "Assistant", instructions: "Help users")
-runner = RAAF::Runner.new(agent: agent)
-result = runner.run("Hello")
+# Create agents
+support_agent = RAAF::Agent.new(
+  name: "SupportAgent",
+  instructions: "Handle customer support requests"
+)
+
+billing_agent = RAAF::Agent.new(
+  name: "BillingAgent", 
+  instructions: "Handle billing inquiries"
+)
+
+# Enable handoffs
+support_agent.add_handoff(billing_agent)
+billing_agent.add_handoff(support_agent)
+
+# Run with multiple agents
+runner = RAAF::Runner.new(
+  agent: support_agent,
+  agents: [support_agent, billing_agent]
+)
 ```
 
-### For Provider Authors (New Providers)
+### Prompt Engineering for Handoffs
 ```ruby
-# Option 1: Extend EnhancedModelInterface (Recommended)
-class MyProvider < RAAF::Models::EnhancedModelInterface
-  def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
-    # Your implementation here
-    # Handoff support is automatically available!
-  end
-  
-  def supported_models
-    ["my-model-v1", "my-model-v2"]
-  end
-  
-  def provider_name
-    "MyProvider"
-  end
+agent = RAAF::Agent.new(
+  name: "Receptionist",
+  instructions: <<~INST
+    You are a receptionist. Direct users to the appropriate department:
+    - Technical issues → transfer_to_tech_support
+    - Billing questions → transfer_to_billing
+    - General inquiries → handle yourself
+    
+    Use the transfer tools when appropriate.
+  INST
+)
+```
+
+## 📊 Provider Compatibility
+
+### ✅ Compatible Providers
+- OpenAI (GPT-4, GPT-3.5-turbo)
+- Anthropic (Claude 3 family)
+- Google (Gemini Pro)
+- Groq (with function calling models)
+- Together AI (with function calling models)
+- Any provider implementing function calling
+
+### ❌ Incompatible Providers
+- Base models without instruction tuning
+- Providers without tool/function support
+- Legacy chat completion only providers
+
+## 🔍 Debugging Handoffs
+
+### Common Issues
+
+1. **Handoff Not Triggering**
+   - Verify provider supports function calling
+   - Check handoff tool is registered
+   - Ensure LLM is calling the tool (not just mentioning it)
+
+2. **Target Agent Not Found**
+   - Verify target agent is in the agents array
+   - Check agent names match exactly
+   - Ensure handoff was properly registered
+
+3. **Circular Handoffs**
+   - HandoffContext prevents infinite loops
+   - Check agent instructions for logic errors
+
+### Debug Logging
+```bash
+# Enable detailed handoff logging
+export RAAF_LOG_LEVEL=debug
+export RAAF_DEBUG_CATEGORIES=handoff,tools,api
+```
+
+### Checking Tool Registration
+```ruby
+# List all tools including handoffs
+agent.tools.each do |tool|
+  puts "Tool: #{tool.name}"
 end
 
-# Option 2: Use ProviderAdapter (For existing providers)
-existing_provider = SomeExistingProvider.new
-adapter = RAAF::Models::ProviderAdapter.new(existing_provider)
-runner = RAAF::Runner.new(agent: agent, provider: adapter)
+# Check specific handoff exists
+agent.tools.any? { |t| t.name == "transfer_to_billing" }
 ```
 
-### For Framework Users (Advanced)
+## 📝 Best Practices
+
+1. **Clear Instructions**: Tell agents when to handoff
+2. **Tool Names**: Use descriptive agent names for clear tool names
+3. **Validation**: Always validate handoff targets exist
+4. **Context**: Use HandoffContext for state management
+5. **Testing**: Test handoff flows with your specific provider
+
+## ⚠️ Important Notes
+
+- **No Content Parsing**: The system will NOT parse message content for handoff patterns
+- **Explicit Tools Only**: Handoffs must be explicit tool calls
+- **Provider Requirement**: Function calling is mandatory
+- **No Fallback**: There is no fallback for providers without tool support
+
+## 🔄 Migration from Content-Based Handoffs
+
+If you were using the old content-based system:
+
+### ❌ Old Pattern (Removed)
 ```ruby
-# Check provider capabilities
-detector = RAAF::Models::CapabilityDetector.new(provider)
-report = detector.generate_report
-
-puts "Provider: #{report[:provider]}"
-puts "Handoff Support: #{report[:handoff_support]}"
-puts "Optimal Usage: #{report[:optimal_usage]}"
+# These patterns NO LONGER WORK:
+"Transfer to SupportAgent"
+'{"handoff_to": "SupportAgent"}'
+"[HANDOFF:SupportAgent]"
 ```
 
-## 🔒 Backward Compatibility Guarantees
+### ✅ New Pattern (Tool-Based)
+```ruby
+# Agent must call the tool:
+{
+  "tool_calls": [{
+    "function": {
+      "name": "transfer_to_support",
+      "arguments": "{}"
+    }
+  }]
+}
+```
 
-### ✅ Will Continue Working
-- All existing code using ResponsesProvider (default)
-- All existing code using OpenAIProvider
-- All current examples and documentation
-- All existing handoff patterns
+## 🎯 Future Considerations
 
-### ⚠️ Will Show Deprecation Warnings
-- Direct instantiation of providers without adapter (if they don't support handoffs)
-- Using providers that don't implement required methods
+The tool-based handoff system provides:
+- **Reliability**: Explicit tool calls are unambiguous
+- **Consistency**: Same pattern across all providers
+- **Simplicity**: No complex parsing or pattern matching
+- **Compatibility**: Works with standard function calling
 
-### ❌ Will Break (Intentionally)
-- Nothing - full backward compatibility maintained
-
-## 📊 Testing Strategy
-
-### Unit Tests
-- Test ProviderAdapter with mock providers
-- Test capability detection accuracy
-- Test response format conversion
-
-### Integration Tests
-- Test handoff flows with different provider types
-- Test adapter with real third-party providers
-- Test error handling and edge cases
-
-### Compatibility Tests
-- Run all existing examples with new system
-- Test with different provider configurations
-- Verify no performance regression
-
-## 🚦 Success Metrics
-
-### Immediate (Phase 1)
-- [ ] All existing code works without changes
-- [ ] Third-party providers can be wrapped with adapter
-- [ ] Handoff detection works across all provider types
-
-### Short-term (Phase 2-3)
-- [ ] New providers can inherit handoff support easily
-- [ ] Capability detection provides accurate reports
-- [ ] Documentation is comprehensive and clear
-
-### Long-term (Phase 4+)
-- [ ] Ecosystem adoption of enhanced interface
-- [ ] Reduced support tickets about handoff issues
-- [ ] Faster provider development cycle
-
-## 🔄 Migration Path
-
-### For Existing Third-Party Providers
-1. **Immediate**: Use ProviderAdapter wrapper
-2. **Recommended**: Extend EnhancedModelInterface
-3. **Future**: Follow new provider guidelines
-
-### For New Providers
-1. **Recommended**: Extend EnhancedModelInterface
-2. **Alternative**: Implement `responses_completion()` directly
-3. **Fallback**: Use ProviderAdapter wrapper
-
-## 📝 Documentation Updates
-
-### New Documentation
-- Universal handoff support guide
-- Provider capability detection reference
-- Migration guide for existing providers
-
-### Updated Documentation
-- Provider development guide
-- Handoff troubleshooting guide
-- API reference for new interfaces
-
-## 🎉 Expected Outcomes
-
-### For End Users
-- Handoffs work with any provider
-- Better error messages when handoffs fail
-- Consistent experience across providers
-
-### For Provider Authors
-- Clear path to handoff support
-- Automatic capability detection
-- Reduced implementation complexity
-
-### For Framework Maintainers
-- Unified handoff architecture
-- Easier to add new provider types
-- Better testing and debugging tools
-
----
-
-**Next Steps**: Begin with Phase 1 implementation, focusing on core infrastructure while maintaining full backward compatibility.
+This is the permanent handoff architecture for RAAF.

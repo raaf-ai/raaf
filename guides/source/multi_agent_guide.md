@@ -274,12 +274,14 @@ Using prompt templates provides several benefits in multi-agent systems:
 
 For more details on prompt management, see the [Prompting Guide](prompting.md).
 
-### Setting Up Handoffs
+### Setting Up Tool-Based Handoffs
+
+RAAF uses tool-based handoffs where agents must explicitly call transfer functions:
 
 ```ruby
 # Define the workflow: Research → Write → Edit
-research_agent.add_handoff(writer_agent)
-writer_agent.add_handoff(editor_agent)
+research_agent.add_handoff(writer_agent)    # Creates transfer_to_writer_agent tool
+writer_agent.add_handoff(editor_agent)      # Creates transfer_to_editor_agent tool
 
 # Create runner with all agents
 runner = RAAF::Runner.new(
@@ -290,10 +292,12 @@ runner = RAAF::Runner.new(
 # Execute the workflow
 result = runner.run("Create an article about sustainable energy technologies")
 
-# The system will automatically:
-# 1. Research sustainable energy technologies
-# 2. Hand off to writer to create article
-# 3. Hand off to editor for final review
+# The system works through explicit tool calls:
+# 1. Research agent completes research
+# 2. Research agent calls transfer_to_writer_agent tool
+# 3. Writer agent creates article
+# 4. Writer agent calls transfer_to_editor_agent tool
+# 5. Editor agent performs final review
 ```
 
 Advanced Handoff Patterns
@@ -325,50 +329,41 @@ Effective handoff patterns require clear role separation and defined responsibil
 
 Let's see how each one saves the day...
 
-### Conditional Handoffs
+### Tool-Based Handoffs
+
+RAAF uses explicit tool-based handoffs. Agents must call specific transfer tools:
 
 ```ruby
-class CustomerServiceAgent < RAAF::Agent
-  def initialize
-    super(
-      name: "CustomerService",
-      instructions: <<~INSTRUCTIONS,
-        Handle customer inquiries. For complex technical issues, 
-        hand off to TechnicalSupport. For billing issues, 
-        hand off to BillingAgent.
-      INSTRUCTIONS
-      model: "gpt-4o"
-    )
+# Create customer service agent with clear handoff instructions
+customer_service = RAAF::Agent.new(
+  name: "CustomerService",
+  instructions: <<~INSTRUCTIONS,
+    Handle customer inquiries professionally. 
     
-    # Add conditional handoff logic
-    add_handoff_condition do |context, messages|
-      last_message = messages.last[:content].downcase
-      
-      if last_message.include?('technical') || last_message.include?('bug')
-        { agent: :technical_support, reason: 'Technical issue detected' }
-      elsif last_message.include?('billing') || last_message.include?('payment')
-        { agent: :billing_agent, reason: 'Billing inquiry detected' }
-      else
-        nil  # No handoff needed
-      end
-    end
-  end
-end
+    For technical issues, bugs, or system problems: call transfer_to_technical_support
+    For billing questions, payments, or account issues: call transfer_to_billing_agent
+    
+    You MUST use the transfer tools - simply mentioning transfers won't work.
+  INSTRUCTIONS
+  model: "gpt-4o"
+)
 
-# Create specialized support agents
+# Create specialized agents
 technical_support = RAAF::Agent.new(
-  name: "TechnicalSupport",
-  instructions: "Resolve technical issues and software problems",
+  name: "TechnicalSupport", 
+  instructions: "Handle technical issues and troubleshooting.",
   model: "gpt-4o"
 )
 
 billing_agent = RAAF::Agent.new(
-  name: "BillingAgent", 
-  instructions: "Handle billing inquiries and payment issues",
+  name: "BillingAgent",
+  instructions: "Handle billing and payment inquiries.",
   model: "gpt-4o"
 )
 
-customer_service = CustomerServiceAgent.new
+# Set up handoff capabilities (creates transfer tools)
+customer_service.add_handoff(technical_support)  # Creates transfer_to_technical_support
+customer_service.add_handoff(billing_agent)      # Creates transfer_to_billing_agent
 
 runner = RAAF::Runner.new(
   agent: customer_service,

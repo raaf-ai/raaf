@@ -467,13 +467,15 @@ order_agent = RAAF::Agent.new(
 
 ## Multi-Agent Workflows
 
-### Basic Handoffs
+### Tool-Based Handoffs
+
+RAAF uses tool-based handoffs where agents must explicitly call transfer functions:
 
 ```ruby
 # Create specialized agents
 support_agent = RAAF::Agent.new(
   name: "CustomerSupport",
-  instructions: "Handle general inquiries. Escalate technical issues to TechnicalSupport.",
+  instructions: "Handle general inquiries. For technical issues, call transfer_to_technical_support.",
   model: "gpt-4"
 )
 
@@ -483,34 +485,17 @@ tech_agent = RAAF::Agent.new(
   model: "gpt-4"
 )
 
-# Set up handoff capability
+# Set up handoff capability (creates transfer_to_technical_support tool)
 support_agent.add_handoff(tech_agent)
 
-# Agent will automatically handoff when appropriate
-runner = RAAF::Runner.new(agent: support_agent)
-result = runner.run("My API is returning 500 errors")
-```
-
-### Advanced Handoff System
-
-```ruby
-# Create handoff manager
-handoff_manager = RAAF::Handoffs::AdvancedHandoff.new
-
-# Define agent capabilities
-handoff_manager.add_agent(support_agent, capabilities: [:general_support, :billing])
-handoff_manager.add_agent(tech_agent, capabilities: [:technical_support, :debugging])
-
-# Context-aware handoff
-result = handoff_manager.execute_handoff(
-  from_agent: support_agent,
-  context: { 
-    topic: "technical_issue", 
-    user_sentiment: "frustrated",
-    complexity: "high"
-  },
-  reason: "Customer needs technical assistance"
+# Run with multiple agents
+runner = RAAF::Runner.new(
+  agent: support_agent,
+  agents: [support_agent, tech_agent]
 )
+
+result = runner.run("My API is returning 500 errors")
+# Agent will call transfer_to_technical_support tool when appropriate
 ```
 
 ## Enterprise Features
@@ -684,9 +669,9 @@ gemini_agent = RAAF::Agent.new(
 - Handle errors gracefully
 
 ### Multi-Agent Systems
-- Design clear handoff criteria
-- Avoid circular handoffs
-- Monitor agent interactions
+- Design clear handoff criteria using tool-based transfers
+- Avoid circular handoffs with proper agent instructions
+- Monitor agent interactions and tool calls
 
 ### Production Considerations
 - Implement comprehensive guardrails

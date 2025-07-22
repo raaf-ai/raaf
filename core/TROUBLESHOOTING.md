@@ -315,23 +315,36 @@ agent = RAAF::Agent.new(
 
 **Problem**: Agent handoffs aren't triggered.
 
+**IMPORTANT**: RAAF uses tool-based handoffs exclusively. Handoffs must be explicit tool calls, not text mentions.
+
 **Debugging**:
 ```ruby
-# Check handoff configuration
-puts "Handoffs: #{agent.handoffs.map(&:name)}"
+# Check handoff tools are registered
+puts "Tools: #{agent.tools.map(&:name)}"
+# Should include transfer_to_* tools
 
-# Verify handoff conditions in instructions
-puts agent.instructions
+# Check provider supports function calling
+puts "Function calling: #{provider.supports_function_calling?}"
+# Must return true
+
+# Enable debug logging
+ENV['RAAF_LOG_LEVEL'] = 'debug'
+ENV['RAAF_DEBUG_CATEGORIES'] = 'handoff,tools,api'
 ```
 
 **Solutions**:
 ```ruby
-# Clear handoff instructions
+# Ensure provider supports function calling
+provider = RAAF::Models::ResponsesProvider.new  # ✅ Supports tools
+# provider = SomeBasicChatProvider.new          # ❌ Won't work
+
+# Clear handoff instructions with tool references
 support_agent = RAAF::Agent.new(
   name: "CustomerSupport",
   instructions: "You handle general customer inquiries. 
-                 If a customer has a technical issue, billing question, 
-                 or complex problem, transfer them to TechnicalSupport using handoff.",
+                 For technical issues, call transfer_to_technical_support.
+                 For billing questions, call transfer_to_billing.
+                 You MUST use the transfer tools, not just mention transfers.",
   model: "gpt-4"
 )
 
@@ -341,11 +354,23 @@ tech_agent = RAAF::Agent.new(
   model: "gpt-4"
 )
 
-support_agent.add_handoff(tech_agent)
+support_agent.add_handoff(tech_agent)  # Creates transfer_to_technical_support tool
 
-# Test with explicit handoff request
+# Run with multiple agents
+runner = RAAF::Runner.new(
+  agent: support_agent,
+  agents: [support_agent, tech_agent]
+)
+
+# Test - the LLM must call the tool, not just mention it
 result = runner.run("I'm having technical issues with the API")
 ```
+
+**Common Issues**:
+- **Provider doesn't support function calling**: Use ResponsesProvider or compatible provider
+- **Tool not called**: LLM must explicitly invoke transfer_to_* function
+- **Target agent not found**: Ensure target agent is in the agents array
+- **Text-based patterns**: `"Transfer to X"` in text will NOT work
 
 ## Tool Integration Issues
 

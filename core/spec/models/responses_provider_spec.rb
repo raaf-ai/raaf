@@ -167,9 +167,16 @@ RSpec.describe RAAF::Models::ResponsesProvider do
         input = provider.send(:convert_messages_to_input, messages)
 
         expect(input).to be_an(Array)
-        expect(input.first[:type]).to eq("function_call")
-        expect(input.first[:name]).to eq("get_weather")
-        expect(input.first[:call_id]).to eq("call_123")
+        
+        # When assistant message has both content and tool_calls,
+        # content is added first as a message, then the function_call
+        expect(input.length).to eq(2)
+        expect(input[0][:type]).to eq("message")
+        expect(input[0][:text]).to eq("I'll help you with that")
+        
+        expect(input[1][:type]).to eq("function_call")
+        expect(input[1][:name]).to eq("get_weather")
+        expect(input[1][:call_id]).to eq("call_123")
       end
 
       it "converts tool result messages" do

@@ -1,38 +1,38 @@
-# LLM Compatibility Matrix for Universal Handoff Support
+# LLM Compatibility Matrix
 
 ## 🎯 Overview
-This matrix shows how different types of LLMs work with the RAAF universal handoff system, including the enhanced fallback mechanisms for non-function-calling models.
+This matrix shows LLM compatibility with RAAF's tool-based handoff system. **IMPORTANT**: RAAF now exclusively uses tool-based handoffs through function calling. All providers must support function/tool calling for handoffs to work.
 
 ## 📊 Compatibility Matrix
 
-| LLM Type | Function Calling | Handoff Support | Detection Method | Implementation |
-|----------|------------------|------------------|------------------|----------------|
-| **OpenAI GPT-4/3.5** | ✅ Full | ✅ Full | Tool-based | Native |
-| **Anthropic Claude 3** | ✅ Full | ✅ Full | Tool-based | Native |
-| **Google Gemini** | ✅ Full | ✅ Full | Tool-based | Native |
-| **Cohere Command R+** | ✅ Full | ✅ Full | Tool-based | Native |
-| **Mistral Large** | ✅ Full | ✅ Full | Tool-based | Native |
-| **LLaMA 2/3 Base** | ❌ None | ✅ Content-based | Content parsing | Fallback |
-| **Mistral 7B Base** | ❌ None | ✅ Content-based | Content parsing | Fallback |
-| **Falcon** | ❌ None | ✅ Content-based | Content parsing | Fallback |
-| **CodeLlama** | ❌ None | ✅ Content-based | Content parsing | Fallback |
-| **Vicuna** | ❌ None | ✅ Content-based | Content parsing | Fallback |
-| **Alpaca** | ❌ None | ✅ Content-based | Content parsing | Fallback |
-| **LLaMA 3.1 Instruct** | ⚠️ Limited | ✅ Hybrid | Tool + Content | Adaptive |
-| **Mistral 7B Instruct** | ⚠️ Limited | ✅ Hybrid | Tool + Content | Adaptive |
-| **AI21 Jurassic** | ❌ None | ✅ Content-based | Content parsing | Fallback |
-| **Cohere Command (old)** | ⚠️ Limited | ✅ Hybrid | Tool + Content | Adaptive |
+| LLM Type | Function Calling | Handoff Support | Implementation |
+|----------|------------------|------------------|----------------|
+| **OpenAI GPT-4/3.5** | ✅ Full | ✅ Full | Native tool calling |
+| **Anthropic Claude 3** | ✅ Full | ✅ Full | Native tool calling |
+| **Google Gemini** | ✅ Full | ✅ Full | Native tool calling |
+| **Cohere Command R+** | ✅ Full | ✅ Full | Native tool calling |
+| **Mistral Large** | ✅ Full | ✅ Full | Native tool calling |
+| **Groq (Llama/Mixtral)** | ✅ Full | ✅ Full | Native tool calling |
+| **Together AI** | ✅ Full | ✅ Full | Native tool calling |
+| **LiteLLM (OpenAI-compatible)** | ✅ Full | ✅ Full | Native tool calling |
+| **LLaMA 2/3 Base** | ❌ None | ❌ None | Not supported |
+| **Mistral 7B Base** | ❌ None | ❌ None | Not supported |
+| **Falcon** | ❌ None | ❌ None | Not supported |
+| **CodeLlama Base** | ❌ None | ❌ None | Not supported |
+| **Vicuna** | ❌ None | ❌ None | Not supported |
+| **Alpaca** | ❌ None | ❌ None | Not supported |
 
 ## 🔧 Implementation Details
 
-### ✅ **Full Function Calling Support**
-- **LLMs**: OpenAI GPT-4/3.5, Claude 3, Gemini, Command R+, Mistral Large
-- **Handoff Method**: Standard tool calling with `transfer_to_*` functions
-- **Detection**: Native function call detection
-- **Reliability**: 99%+ success rate
-- **Implementation**: Direct integration with existing RAAF architecture
+### ✅ **Full Function Calling Support Required**
+RAAF requires providers that support function/tool calling. Handoffs are implemented as explicit tool calls that the LLM must invoke.
 
-**Example Response:**
+**How it works:**
+1. When you add a handoff target: `agent.add_handoff(target_agent)`
+2. RAAF automatically creates a tool: `transfer_to_<agent_name>`
+3. The LLM must explicitly call this tool to trigger a handoff
+
+**Example Tool Call:**
 ```json
 {
   "tool_calls": [{
@@ -44,194 +44,76 @@ This matrix shows how different types of LLMs work with the RAAF universal hando
 }
 ```
 
-### ⚠️ **Limited Function Calling Support**
-- **LLMs**: LLaMA 3.1 Instruct, Mistral 7B Instruct, older Cohere models
-- **Handoff Method**: Hybrid approach (tools when possible, content fallback)
-- **Detection**: Tool calling with content-based backup
-- **Reliability**: 85-95% success rate
-- **Implementation**: ProviderAdapter with intelligent routing
+### ❌ **Providers Without Function Calling**
+Providers that don't support function calling cannot be used with RAAF's handoff system. This includes:
+- Base models without instruction tuning
+- Legacy providers without tool support
+- Text-only completion models
 
-**Example Response (Tool attempt):**
-```json
-{
-  "tool_calls": [{
-    "function": {
-      "name": "transfer_to_support",
-      "arguments": "{}"
-    }
-  }]
-}
-```
+**Important**: Simply mentioning a transfer in the response text will NOT trigger a handoff. The LLM must make an explicit tool call.
 
-**Example Response (Content fallback):**
-```text
-I'll transfer you to our support team.
+## 🚀 Supported Providers
 
-[HANDOFF:SupportAgent]
-```
+RAAF has been tested with the following providers that support function calling:
 
-### 🔄 **Content-Based Handoff Support**
-- **LLMs**: LLaMA 2/3 Base, Mistral 7B Base, Falcon, CodeLlama, Vicuna, Alpaca
-- **Handoff Method**: Content parsing with multiple pattern detection
-- **Detection**: Advanced regex and JSON parsing
-- **Reliability**: 80-90% success rate with proper prompting
-- **Implementation**: HandoffFallbackSystem with enhanced instructions
+### Native Integration
+- **OpenAI**: GPT-4, GPT-3.5-turbo (via ResponsesProvider)
+- **Anthropic**: Claude 3 family (via AnthropicProvider)
+- **Google**: Gemini Pro (via appropriate provider)
+- **Groq**: Fast inference with Llama/Mixtral models
+- **Together AI**: Various open models with function calling
+- **Cohere**: Command R+ with native tool support
 
-**Supported Patterns:**
-```text
-# JSON Format (Preferred)
-{"handoff_to": "AgentName"}
+### Via LiteLLM
+Any provider supported by LiteLLM that offers function calling can be used with RAAF.
 
-# Structured Format
-[HANDOFF:AgentName]
-[TRANSFER:AgentName]
+## 📋 Migration Guide
 
-# Natural Language
-Transfer to AgentName
-Handoff to AgentName
-```
+If you were using content-based handoffs:
 
-## 📋 Detection Patterns
-
-### 🎯 **Pattern Priority (Most to Least Reliable)**
-
-1. **JSON Patterns** (95% accuracy)
-   - `{"handoff_to": "AgentName"}`
-   - `{"transfer_to": "AgentName"}`
-   - `{"assistant": "AgentName"}`
-
-2. **Structured Patterns** (90% accuracy)
-   - `[HANDOFF:AgentName]`
-   - `[TRANSFER:AgentName]`
-   - `[AGENT:AgentName]`
-
-3. **Natural Language Patterns** (85% accuracy)
-   - `Transfer to AgentName`
-   - `Handoff to AgentName`
-   - `Switching to AgentName`
-
-4. **Code-Style Patterns** (80% accuracy)
-   - `handoff("AgentName")`
-   - `transfer("AgentName")`
-
-## 🚀 Implementation Strategy
-
-### **Phase 1: Provider Detection**
+### Old Pattern (No Longer Supported)
 ```ruby
-# Automatic capability detection
-detector = CapabilityDetector.new(provider)
-capabilities = detector.detect_capabilities
-
-if capabilities[:function_calling]
-  # Use standard tool-based handoffs
-  use_tool_based_handoffs
-elsif capabilities[:chat_completion]
-  # Use content-based fallback
-  use_content_based_handoffs
-else
-  # Provider not compatible
-  raise_compatibility_error
-end
+# This will NOT work anymore:
+"I'll transfer you to billing. {"handoff_to": "BillingAgent"}"
 ```
 
-### **Phase 2: Adaptive Prompting**
+### New Pattern (Tool-Based Only)
 ```ruby
-# Enhanced system instructions for non-function-calling LLMs
-adapter = ProviderAdapter.new(provider, available_agents)
-enhanced_instructions = adapter.get_enhanced_system_instructions(
-  base_instructions, 
-  available_agents
-)
+# Agent must explicitly call the tool:
+agent.add_handoff(billing_agent)
+# This creates a transfer_to_billing tool that the LLM must invoke
 ```
 
-### **Phase 3: Multi-Pattern Detection**
-```ruby
-# Robust handoff detection
-fallback_system = HandoffFallbackSystem.new(available_agents)
-detected_agent = fallback_system.detect_handoff_in_content(response_content)
-```
+## 🔍 Debugging Handoffs
 
-## 📊 Performance Metrics
+If handoffs aren't working:
 
-### **Success Rates by LLM Type**
+1. **Verify provider supports function calling**
+   ```ruby
+   provider.supports_function_calling? # Should return true
+   ```
 
-| LLM Category | Function Calling | Content Detection | Overall Success |
-|--------------|------------------|-------------------|-----------------|
-| **Major Commercial** | 99% | N/A | 99% |
-| **Advanced Open Source** | 95% | 90% | 95% |
-| **Base Open Source** | N/A | 85% | 85% |
-| **Legacy Models** | N/A | 80% | 80% |
+2. **Check handoff tools are registered**
+   ```ruby
+   agent.tools.map(&:name) # Should include transfer_to_* tools
+   ```
 
-### **Detection Method Comparison**
+3. **Enable debug logging**
+   ```bash
+   export RAAF_LOG_LEVEL=debug
+   export RAAF_DEBUG_CATEGORIES=handoff,tools
+   ```
 
-| Method | Accuracy | Latency | Reliability | Use Cases |
-|--------|----------|---------|-------------|-----------|
-| **Tool-based** | 99% | Low | Very High | Modern LLMs |
-| **JSON parsing** | 95% | Low | High | Structured responses |
-| **Structured tags** | 90% | Low | High | Guided responses |
-| **Natural language** | 85% | Medium | Medium | Fallback cases |
+## 📝 Best Practices
 
-## 🔧 Configuration Examples
+1. **Always verify provider compatibility** before using handoffs
+2. **Use explicit handoff instructions** in your agent prompts
+3. **Test handoff flows** with your specific provider
+4. **Monitor tool call logs** to ensure handoffs are triggered correctly
 
-### **For Function-Calling LLMs**
-```ruby
-# Standard configuration (no changes needed)
-runner = RAAF::Runner.new(agent: agent)
-result = runner.run("Hello")
-```
+## ⚠️ Important Notes
 
-### **For Non-Function-Calling LLMs**
-```ruby
-# Enhanced configuration with fallback
-provider = NonFunctionCallingLLM.new
-adapter = ProviderAdapter.new(provider, ["Support", "Billing", "Technical"])
-runner = RAAF::Runner.new(agent: agent, provider: adapter)
-result = runner.run("I need billing help")
-```
-
-### **For Hybrid LLMs**
-```ruby
-# Automatic detection and adaptation
-provider = LimitedFunctionCallingLLM.new
-adapter = ProviderAdapter.new(provider, available_agents)
-runner = RAAF::Runner.new(agent: agent, provider: adapter)
-# Adapter automatically chooses best method
-result = runner.run("Transfer me to support")
-```
-
-## 🎯 Best Practices
-
-### **For LLM Providers**
-1. **Implement function calling** if possible for best handoff experience
-2. **Use consistent response formats** for content-based detection
-3. **Support JSON output** for structured handoff responses
-4. **Test with HandoffFallbackSystem** to ensure compatibility
-
-### **For Application Developers**
-1. **Use ProviderAdapter** for automatic compatibility
-2. **Provide clear agent lists** for better detection
-3. **Monitor handoff success rates** using built-in statistics
-4. **Test with multiple LLM types** to ensure robustness
-
-### **For Framework Maintainers**
-1. **Keep patterns updated** as LLMs evolve
-2. **Add new detection methods** for emerging formats
-3. **Maintain backward compatibility** with existing patterns
-4. **Provide clear migration paths** for new LLM types
-
-## 🔮 Future Considerations
-
-### **Emerging LLM Types**
-- **Multimodal LLMs**: May need visual handoff patterns
-- **Specialized Models**: Domain-specific handoff vocabularies
-- **Federated LLMs**: Cross-provider handoff coordination
-- **Edge LLMs**: Resource-constrained handoff mechanisms
-
-### **Evolution Path**
-1. **Short-term**: Improve content-based detection accuracy
-2. **Medium-term**: Add support for new LLM architectures
-3. **Long-term**: Develop universal handoff protocols
-
----
-
-**🎉 Result**: Universal handoff support across ALL LLM types, from cutting-edge function-calling models to basic text-generation models, ensuring no user is left behind regardless of their LLM choice.
+- **Content-based handoff detection has been completely removed**
+- **All handoffs must be explicit tool calls**
+- **Providers without function calling cannot participate in handoffs**
+- **The system will not parse message content for handoff patterns**
