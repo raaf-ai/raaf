@@ -182,7 +182,9 @@ RSpec.describe RAAF::Execution::ResponsesApiStrategy do
       double("RunResult",
              messages: messages + [{ role: "assistant", content: "Hi there!" }],
              usage: { total_tokens: 25 },
-             last_agent: agent)
+             last_agent: agent,
+             turns: 1,
+             tool_results: [])
     end
 
     before do
@@ -205,7 +207,9 @@ RSpec.describe RAAF::Execution::ResponsesApiStrategy do
                              conversation: messages + [{ role: "assistant", content: "Hi there!" }],
                              usage: { total_tokens: 25 },
                              final_result: true,
-                             last_agent: agent
+                             last_agent: agent,
+                             turns: 1,
+                             tool_results: []
                            })
     end
 

@@ -615,7 +615,7 @@ RSpec.describe "Structured Output Integration" do
               expect(kwargs[:response_format][:type]).to eq("json_schema")
               expect(kwargs[:response_format][:json_schema][:name]).to eq("user_info")
               expect(kwargs[:response_format][:json_schema][:strict]).to be true
-              {}
+              { output: [], usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 } }
             end
 
           runner.run(messages)
