@@ -116,12 +116,15 @@ RSpec.describe RAAF::Models::CapabilityDetector do
       end
 
       it "caches results on subsequent calls" do
-        expect(full_featured_provider).to receive(:supported_models).once
+        # Mock the capability tests to verify caching
+        expect(subject).to receive(:test_responses_api).once.and_call_original
 
-        subject.detect_capabilities
-        capabilities = subject.detect_capabilities
+        first_result = subject.detect_capabilities
+        second_result = subject.detect_capabilities
 
-        expect(capabilities[:responses_api]).to be true
+        expect(first_result[:responses_api]).to be true
+        expect(second_result[:responses_api]).to be true
+        expect(first_result).to eq(second_result)
       end
     end
 
@@ -197,12 +200,10 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         expect(capabilities).to have(5).items
 
         first_capability = capabilities.first
-        expect(first_capability).to include(
-          name: be_a(String),
-          description: be_a(String),
-          supported: be_in([true, false]),
-          priority: be_in(%i[high medium low])
-        )
+        expect(first_capability[:name]).to be_a(String)
+        expect(first_capability[:description]).to be_a(String)
+        expect([true, false]).to include(first_capability[:supported])
+        expect([:high, :medium, :low]).to include(first_capability[:priority])
       end
 
       it "provides positive recommendations" do

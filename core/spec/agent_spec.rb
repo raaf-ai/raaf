@@ -39,7 +39,7 @@ RSpec.describe RAAF::Agent do
         handoffs: [other_agent]
       )
 
-      expect(agent.tools.size).to eq(1)
+      expect(agent.tools.size).to eq(2)  # 1 provided tool + 1 auto-generated handoff tool
       expect(agent.handoffs.size).to eq(1)
       expect(agent.handoffs.first).to eq(other_agent)
     end
@@ -399,7 +399,7 @@ RSpec.describe RAAF::Agent do
 
       hash = agent.to_h
 
-      expect(hash[:tools].size).to eq(1)
+      expect(hash[:tools].size).to eq(2)  # 1 manual tool + 1 auto-generated handoff tool
       expect(hash[:tools].first).to be_a(Hash)
       expect(hash[:handoffs]).to eq(["OtherAgent"])
     end

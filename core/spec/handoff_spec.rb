@@ -607,48 +607,22 @@ RSpec.describe "OpenAIAgents Handoff System" do
     end
 
     describe "#process_responses_api_output" do
-      it "processes JSON handoffs in message output" do
-        #         response = {
-        #           "output" => [
-        #             {
-        #               "type" => "message",
-        #               "role" => "assistant",
-        #               "content" => [
-        #                 {
-        #                   "type" => "text",
-        #                   "text" => '{"response": "I understand", "handoff_to": "SupportAgent"}'
-        #                 }
-        #               ]
-        #             }
-        #           ]
-        #         }
-        #
-        #         generated_items = []
-        #         runner.send(:process_responses_api_output, response, source_agent, generated_items)
-        #
-        #         # The handoff should not be detected here since we removed that logic
-        #         # It should be detected in the unified detection system
-        #         expect(generated_items.size).to eq(1)
-        #         expect(generated_items.first).to be_a(RAAF::Items::MessageOutputItem)
-        #       end
+      it "processes tool-based handoffs in function calls" do
+        response = {
+          "output" => [
+            {
+              "type" => "function_call",
+              "name" => "transfer_to_targetagent",
+              "arguments" => "{}",
+              "call_id" => "call_123"
+            }
+          ]
+        }
 
-        it "processes tool-based handoffs in function calls" do
-          response = {
-            "output" => [
-              {
-                "type" => "function_call",
-                "name" => "transfer_to_targetagent",
-                "arguments" => "{}",
-                "call_id" => "call_123"
-              }
-            ]
-          }
+        generated_items = []
+        result = runner.send(:process_responses_api_output, response, source_agent, generated_items)
 
-          generated_items = []
-          result = runner.send(:process_responses_api_output, response, source_agent, generated_items)
-
-          expect(result[:handoff]).to include(assistant: "TargetAgent")
-        end
+        expect(result[:handoff]).to include(assistant: "TargetAgent")
       end
     end
 

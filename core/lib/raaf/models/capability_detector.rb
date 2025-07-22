@@ -108,6 +108,9 @@ module RAAF
       # @return [Hash] Capabilities hash with boolean values for each capability
       #
       def detect_capabilities
+        # Return cached results if already detected
+        return @capabilities unless @capabilities.empty?
+
         log_debug("🔍 CAPABILITY DETECTOR: Starting capability detection",
                   provider: @provider.provider_name)
 
@@ -209,31 +212,53 @@ module RAAF
       ##
       # Test Chat Completions API support
       #
-      # Checks if provider implements the chat_completion method.
+      # Checks if provider actually implements the chat_completion method
+      # (not just inheriting the abstract method from ModelInterface).
       # This is the fallback API when Responses API isn't available.
       #
-      # @return [Boolean] True if chat_completion method exists
+      # @return [Boolean] True if chat_completion method is actually implemented
       #
       def test_chat_completion
-        @provider.respond_to?(:chat_completion)
+        return false unless @provider.respond_to?(:chat_completion)
+
+        # Check if the method is actually implemented by the provider class
+        # (not just inherited from the abstract ModelInterface)
+        method = @provider.method(:chat_completion)
+        method.owner != RAAF::Models::ModelInterface
+      rescue StandardError => e
+        log_debug("🔍 CAPABILITY DETECTOR: Chat completion test failed",
+                  provider: @provider.provider_name,
+                  error: e.message)
+        false
       end
 
       ##
       # Test streaming support
       #
-      # Checks if provider implements the stream_completion method.
+      # Checks if provider actually implements the stream_completion method
+      # (not just inheriting the abstract method from ModelInterface).
       # This enables real-time response streaming.
       #
-      # @return [Boolean] True if stream_completion method exists
+      # @return [Boolean] True if stream_completion method is actually implemented
       #
       def test_streaming
-        @provider.respond_to?(:stream_completion)
+        return false unless @provider.respond_to?(:stream_completion)
+
+        # Check if the method is actually implemented by the provider class
+        # (not just inherited from the abstract ModelInterface)
+        method = @provider.method(:stream_completion)
+        method.owner != RAAF::Models::ModelInterface
+      rescue StandardError => e
+        log_debug("🔍 CAPABILITY DETECTOR: Streaming test failed",
+                  provider: @provider.provider_name,
+                  error: e.message)
+        false
       end
 
       ##
       # Test function calling support
       #
-      # Checks if provider's chat_completion method accepts a tools parameter.
+      # Checks if provider actually implements chat_completion with tools support.
       # This is required for handoff functionality to work properly.
       #
       # @example Function calling test
@@ -247,14 +272,25 @@ module RAAF
       # @return [Boolean] True if tools parameter is supported
       #
       def test_function_calling
-        return false unless @provider.respond_to?(:chat_completion)
+        # First check if chat_completion is actually implemented
+        return false unless test_chat_completion
 
-        # Check if chat_completion method accepts tools parameter
+        # Try to safely introspect the method parameters
         method = @provider.method(:chat_completion)
         params = method.parameters
 
         # Look for tools parameter (either required or optional)
-        params.any? { |_param_type, param_name| param_name == :tools }
+        has_tools_param = params.any? { |_param_type, param_name| param_name == :tools }
+        return false unless has_tools_param
+
+        # Additional safety check: try to call the method with minimal args to see if it works
+        # This catches providers that have the right signature but fail during execution
+        @provider.chat_completion(
+          messages: [{ role: "user", content: "test" }],
+          model: "test-model",
+          tools: []
+        )
+        true
       rescue StandardError => e
         log_debug("🔍 CAPABILITY DETECTOR: Function calling test failed",
                   provider: @provider.provider_name,
