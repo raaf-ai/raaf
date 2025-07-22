@@ -3,7 +3,6 @@
 require_relative "logging"
 require_relative "conversation_manager"
 require_relative "tool_executor"
-require_relative "handoff_detector"
 require_relative "api_strategies"
 require_relative "error_handler"
 require_relative "turn_executor"
@@ -42,7 +41,6 @@ module RAAF
     #   services = ExecutorFactory.create_service_bundle(...)
     #   services[:conversation_manager] # Manages conversation flow
     #   services[:tool_executor]        # Handles tool execution
-    #   services[:handoff_detector]     # Detects agent handoffs
     #   services[:api_strategy]         # API calling strategy
     #   services[:error_handler]        # Error handling and recovery
     #   services[:turn_executor]        # Coordinates single turns
@@ -70,17 +68,15 @@ module RAAF
         # Create core services
         conversation_manager = ConversationManager.new(config)
         tool_executor = ToolExecutor.new(agent, runner)
-        handoff_detector = HandoffDetector.new(agent, runner)
         api_strategy = ApiStrategyFactory.create(provider, config)
         error_handler = ErrorHandler.new
 
         # Create turn executor that coordinates other services
-        turn_executor = TurnExecutor.new(tool_executor, handoff_detector, api_strategy)
+        turn_executor = TurnExecutor.new(tool_executor, api_strategy)
 
         {
           conversation_manager: conversation_manager,
           tool_executor: tool_executor,
-          handoff_detector: handoff_detector,
           api_strategy: api_strategy,
           error_handler: error_handler,
           turn_executor: turn_executor

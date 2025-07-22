@@ -21,12 +21,10 @@ module RAAF
       # Initialize turn executor
       #
       # @param tool_executor [ToolExecutor] Tool execution service
-      # @param handoff_detector [HandoffDetector] Handoff detection service
       # @param api_strategy [BaseApiStrategy] API call strategy
       #
-      def initialize(tool_executor, handoff_detector, api_strategy)
+      def initialize(tool_executor, api_strategy)
         @tool_executor = tool_executor
-        @handoff_detector = handoff_detector
         @api_strategy = api_strategy
       end
 
@@ -38,8 +36,7 @@ module RAAF
       # 2. Execute guardrails via runner
       # 3. Execute API call via strategy
       # 4. Handle tool calls via ToolExecutor
-      # 5. Check for handoffs via HandoffDetector
-      # 6. Run post-turn hooks via executor
+      # 5. Run post-turn hooks via executor
       #
       # @param turn_data [Hash] Turn data from ConversationManager
       # @param executor [RunExecutor] The executor for hook callbacks
@@ -95,17 +92,9 @@ module RAAF
           end
         end
 
-        # Check for handoff
-        handoff_result = @handoff_detector.check_for_handoff(message, current_agent)
-
-        # Check tool calls for handoff patterns
-        if @tool_executor.tool_calls?(message)
-          tool_handoff_result = @handoff_detector.check_tool_calls_for_handoff(
-            message["tool_calls"] || message[:tool_calls],
-            current_agent
-          )
-          handoff_result = tool_handoff_result if tool_handoff_result[:handoff_occurred]
-        end
+        # Handoffs are now handled through tool calls only
+        # No separate handoff detection needed
+        handoff_result = { handoff_occurred: false }
 
         # Determine if execution should continue
         should_continue = @tool_executor.should_continue?(message)
@@ -113,7 +102,6 @@ module RAAF
         turn_result = {
           message: message,
           usage: usage,
-          handoff_result: handoff_result,
           should_continue: should_continue
         }
 

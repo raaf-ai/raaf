@@ -22,7 +22,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
       expect(service_bundle).to be_a(Hash)
       expect(service_bundle).to have_key(:conversation_manager)
       expect(service_bundle).to have_key(:tool_executor)
-      expect(service_bundle).to have_key(:handoff_detector)
       expect(service_bundle).to have_key(:api_strategy)
       expect(service_bundle).to have_key(:error_handler)
       expect(service_bundle).to have_key(:turn_executor)
@@ -39,11 +38,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
       expect(service_bundle[:tool_executor].instance_variable_get(:@runner)).to eq(runner)
     end
 
-    it "creates HandoffDetector with agent and runner" do
-      expect(service_bundle[:handoff_detector]).to be_a(RAAF::Execution::HandoffDetector)
-      expect(service_bundle[:handoff_detector].instance_variable_get(:@agent)).to eq(agent)
-      expect(service_bundle[:handoff_detector].instance_variable_get(:@runner)).to eq(runner)
-    end
 
     it "creates ErrorHandler with default settings" do
       expect(service_bundle[:error_handler]).to be_a(RAAF::Execution::ErrorHandler)
@@ -62,7 +56,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
       # TurnExecutor should be created with the other services
       turn_executor = service_bundle[:turn_executor]
       expect(turn_executor.instance_variable_get(:@tool_executor)).to eq(service_bundle[:tool_executor])
-      expect(turn_executor.instance_variable_get(:@handoff_detector)).to eq(service_bundle[:handoff_detector])
       expect(turn_executor.instance_variable_get(:@api_strategy)).to eq(service_bundle[:api_strategy])
     end
 
@@ -150,10 +143,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
         expect(tool_executor.instance_variable_get(:@agent)).to eq(agent)
         expect(tool_executor.instance_variable_get(:@runner)).to eq(runner)
 
-        # HandoffDetector needs agent and runner
-        handoff_detector = bundle[:handoff_detector]
-        expect(handoff_detector.instance_variable_get(:@agent)).to eq(agent)
-        expect(handoff_detector.instance_variable_get(:@runner)).to eq(runner)
 
         # ApiStrategy needs provider and config
         api_strategy = bundle[:api_strategy]
@@ -163,7 +152,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
         # TurnExecutor needs other services
         turn_executor = bundle[:turn_executor]
         expect(turn_executor.instance_variable_get(:@tool_executor)).to eq(tool_executor)
-        expect(turn_executor.instance_variable_get(:@handoff_detector)).to eq(handoff_detector)
         expect(turn_executor.instance_variable_get(:@api_strategy)).to eq(api_strategy)
       end
 
@@ -174,7 +162,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
         # Each bundle should have independent service instances
         expect(bundle1[:conversation_manager]).not_to be(bundle2[:conversation_manager])
         expect(bundle1[:tool_executor]).not_to be(bundle2[:tool_executor])
-        expect(bundle1[:handoff_detector]).not_to be(bundle2[:handoff_detector])
         expect(bundle1[:error_handler]).not_to be(bundle2[:error_handler])
         expect(bundle1[:api_strategy]).not_to be(bundle2[:api_strategy])
         expect(bundle1[:turn_executor]).not_to be(bundle2[:turn_executor])
@@ -339,7 +326,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
       # Verify executor has access to all required services
       expect(executor.services[:conversation_manager]).to respond_to(:execute_conversation)
       expect(executor.services[:tool_executor]).to respond_to(:execute_tool_calls)
-      expect(executor.services[:handoff_detector]).to respond_to(:check_for_handoff)
       expect(executor.services[:error_handler]).to respond_to(:with_error_handling)
       expect(executor.services[:api_strategy]).to respond_to(:execute)
     end

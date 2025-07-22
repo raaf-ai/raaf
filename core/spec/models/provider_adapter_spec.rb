@@ -147,18 +147,11 @@ RSpec.describe RAAF::Models::ProviderAdapter do
         expect(subject.capabilities[:responses_api]).to be false
       end
 
-      it "initializes fallback system" do
-        expect(subject.get_handoff_stats).to include(:available_agents)
-        expect(subject.get_handoff_stats[:available_agents]).to eq(available_agents)
-      end
     end
 
     context "without available agents" do
       subject { described_class.new(function_calling_provider) }
 
-      it "initializes with empty agent list" do
-        expect(subject.get_handoff_stats[:available_agents]).to eq([])
-      end
     end
   end
 
@@ -280,17 +273,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     end
   end
 
-  describe "#update_available_agents" do
-    subject { described_class.new(non_function_calling_provider, ["Agent1"]) }
-
-    it "updates the fallback system with new agents" do
-      new_agents = %w[Agent2 Agent3]
-      subject.update_available_agents(new_agents)
-
-      stats = subject.get_handoff_stats
-      expect(stats[:available_agents]).to eq(new_agents)
-    end
-  end
 
   describe "#get_enhanced_system_instructions" do
     let(:base_instructions) { "You are a helpful assistant." }
@@ -314,50 +296,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     end
   end
 
-  describe "#detect_content_based_handoff" do
-    context "with function calling provider" do
-      subject { described_class.new(function_calling_provider) }
-
-      it "returns nil (not applicable)" do
-        result = subject.detect_content_based_handoff('{"handoff_to": "SupportAgent"}')
-        expect(result).to be_nil
-      end
-    end
-
-    context "with non-function calling provider" do
-      subject { described_class.new(non_function_calling_provider, available_agents) }
-
-      it "no longer detects JSON handoff format (deprecated)" do
-        content = 'I need to transfer you. {"handoff_to": "SupportAgent"}'
-        result = subject.detect_content_based_handoff(content)
-        expect(result).to be_nil
-      end
-
-      it "no longer detects structured handoff format (deprecated)" do
-        content = "Let me transfer you. [HANDOFF:BillingAgent]"
-        result = subject.detect_content_based_handoff(content)
-        expect(result).to be_nil
-      end
-
-      it "no longer detects natural language handoff (deprecated)" do
-        content = "Transfer to TechnicalAgent for help."
-        result = subject.detect_content_based_handoff(content)
-        expect(result).to be_nil
-      end
-
-      it "returns nil for no handoff" do
-        content = "This is just a regular response."
-        result = subject.detect_content_based_handoff(content)
-        expect(result).to be_nil
-      end
-
-      it "returns nil for unrecognized agent" do
-        content = '{"handoff_to": "UnknownAgent"}'
-        result = subject.detect_content_based_handoff(content)
-        expect(result).to be_nil
-      end
-    end
-  end
 
   describe "delegation methods" do
     subject { described_class.new(function_calling_provider) }
@@ -400,15 +338,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     end
   end
 
-  describe "#get_handoff_stats" do
-    subject { described_class.new(non_function_calling_provider, available_agents) }
-
-    it "returns statistics from fallback system" do
-      stats = subject.get_handoff_stats
-      expect(stats).to include(:total_attempts, :successful_detections, :success_rate, :available_agents)
-      expect(stats[:available_agents]).to eq(available_agents)
-    end
-  end
 
   describe "error handling" do
     subject { described_class.new(error_provider) }

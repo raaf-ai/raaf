@@ -34,7 +34,6 @@ RSpec.describe RAAF::RunExecutor do
       expect(executor.services).to be_a(Hash)
       expect(executor.services).to have_key(:conversation_manager)
       expect(executor.services).to have_key(:tool_executor)
-      expect(executor.services).to have_key(:handoff_detector)
       expect(executor.services).to have_key(:error_handler)
       expect(executor.services).to have_key(:api_strategy)
       expect(executor.services).to have_key(:turn_executor)

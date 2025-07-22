@@ -338,40 +338,6 @@ module RAAF
         base_instructions
       end
 
-      ##
-      # Detect handoff in response content (DEPRECATED)
-      #
-      # Content-based handoff detection has been removed from RAAF.
-      # Only tool-based handoffs are supported.
-      #
-      # @param content [String] Response content to analyze
-      # @return [String, nil] Always returns nil
-      # @deprecated Content-based handoffs are no longer supported
-      #
-      def detect_content_based_handoff(_content)
-        # Content-based handoff detection has been removed
-        # Only tool-based handoffs are supported
-        nil
-      end
-
-      ##
-      # Get handoff detection statistics (DEPRECATED)
-      #
-      # Returns empty statistics since content-based handoff detection
-      # has been removed. Only tool-based handoffs are supported.
-      #
-      # @return [Hash] Empty statistics hash
-      # @deprecated Content-based handoff detection is no longer supported
-      #
-      def get_handoff_stats
-        # Handoff fallback system removed - only tool-based handoffs supported
-        {
-          successful_detections: 0,
-          total_attempts: 0,
-          success_rate: "N/A",
-          available_agents: @available_agents.dup
-        }
-      end
 
       ##
       # Get provider capabilities
