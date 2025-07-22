@@ -245,7 +245,7 @@ module RAAF
     def self.from_hash(hash)
       return nil if hash.nil?
       return hash if hash.is_a?(ModelSettings)
-      
+
       new(**hash)
     end
 
@@ -276,9 +276,7 @@ module RAAF
       [@frequency_penalty, @presence_penalty].each do |penalty|
         next unless penalty
 
-        unless penalty.is_a?(Numeric) && penalty >= -2.0 && penalty <= 2.0
-          raise ArgumentError, "penalties must be between -2.0 and 2.0"
-        end
+        raise ArgumentError, "penalties must be between -2.0 and 2.0" unless penalty.is_a?(Numeric) && penalty >= -2.0 && penalty <= 2.0
       end
     end
 

@@ -4,8 +4,9 @@ require "spec_helper"
 require_relative "../../lib/raaf/models/handoff_fallback_system"
 
 RSpec.describe RAAF::Models::HandoffFallbackSystem do
-  let(:available_agents) { ["SupportAgent", "BillingAgent", "TechnicalAgent", "SpecialistAgent"] }
   subject { described_class.new(available_agents) }
+
+  let(:available_agents) { %w[SupportAgent BillingAgent TechnicalAgent SpecialistAgent] }
 
   describe "#initialize" do
     it "initializes with available agents" do
@@ -31,7 +32,7 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
   describe "#generate_handoff_instructions" do
     it "generates instructions with agent list" do
       instructions = subject.generate_handoff_instructions(available_agents)
-      
+
       expect(instructions).to include("Handoff Instructions")
       expect(instructions).to include("multi-agent system")
       expect(instructions).to include("SupportAgent")
@@ -42,7 +43,7 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
 
     it "includes all available agents" do
       instructions = subject.generate_handoff_instructions(available_agents)
-      
+
       available_agents.each do |agent|
         expect(instructions).to include(agent)
       end
@@ -207,21 +208,21 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
 
     context "statistics tracking" do
       it "increments attempt counter" do
-        expect {
+        expect do
           subject.detect_handoff_in_content("test content")
-        }.to change { subject.get_detection_stats[:total_attempts] }.by(1)
+        end.to change { subject.get_detection_stats[:total_attempts] }.by(1)
       end
 
       it "increments success counter on detection" do
-        expect {
+        expect do
           subject.detect_handoff_in_content('{"handoff_to": "SupportAgent"}')
-        }.to change { subject.get_detection_stats[:successful_detections] }.by(1)
+        end.to change { subject.get_detection_stats[:successful_detections] }.by(1)
       end
 
       it "does not increment success counter on failure" do
-        expect {
+        expect do
           subject.detect_handoff_in_content("no handoff here")
-        }.not_to change { subject.get_detection_stats[:successful_detections] }
+        end.not_to(change { subject.get_detection_stats[:successful_detections] })
       end
     end
   end
@@ -322,9 +323,9 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
     end
 
     it "resets all statistics" do
-      expect {
+      expect do
         subject.reset_stats
-      }.to change { subject.get_detection_stats[:total_attempts] }.to(0)
+      end.to change { subject.get_detection_stats[:total_attempts] }.to(0)
     end
 
     it "preserves available agents" do
@@ -374,9 +375,9 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
 
     it "provides detailed test results" do
       results = subject.test_detection(test_cases)
-      
+
       expect(results[:details]).to have(5).items
-      
+
       first_result = results[:details].first
       expect(first_result).to include(
         content: be_a(String),
@@ -389,13 +390,13 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
     it "truncates long content in details" do
       long_content = "x" * 200
       long_test_cases = [{
-        content: long_content + '{"handoff_to": "SupportAgent"}',
+        content: "#{long_content}{\"handoff_to\": \"SupportAgent\"}",
         expected_agent: "SupportAgent"
       }]
 
       results = subject.test_detection(long_test_cases)
       detail_content = results[:details].first[:content]
-      
+
       expect(detail_content.length).to be <= 103 # 100 chars + "..."
       expect(detail_content).to end_with("...")
     end
@@ -403,7 +404,7 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
     context "with empty test cases" do
       it "handles empty test suite" do
         results = subject.test_detection([])
-        
+
         expect(results).to include(
           total_tests: 0,
           passed: 0,
@@ -419,7 +420,7 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
       # Content with both JSON and natural language patterns
       content = 'Transfer to BillingAgent. {"handoff_to": "SupportAgent"}'
       result = subject.detect_handoff_in_content(content)
-      
+
       # Should detect the more reliable JSON pattern
       expect(result).to eq("SupportAgent")
     end
@@ -427,9 +428,9 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
     it "handles multiple potential agents" do
       content = "Transfer from SupportAgent to BillingAgent"
       result = subject.detect_handoff_in_content(content)
-      
+
       # Should detect the first valid pattern
-      expect(["SupportAgent", "BillingAgent"]).to include(result)
+      expect(%w[SupportAgent BillingAgent]).to include(result)
     end
   end
 
@@ -437,7 +438,7 @@ RSpec.describe RAAF::Models::HandoffFallbackSystem do
     it "handles malformed JSON gracefully" do
       content = '{"handoff_to": SupportAgent}' # Missing quotes
       result = subject.detect_handoff_in_content(content)
-      
+
       # Should still detect via other patterns if agent name appears
       expect(result).to eq("SupportAgent")
     end

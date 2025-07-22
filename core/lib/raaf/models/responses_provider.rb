@@ -8,7 +8,6 @@ require_relative "interface"
 require_relative "../token_estimator"
 require_relative "../logging"
 
-
 # Optional streaming support - only load if available
 begin
   require "raaf-streaming"
@@ -223,20 +222,20 @@ module RAAF
                  tools_count: converted_tools[:tools]&.length || 0,
                  previous_response_id: previous_response_id,
                  stream: stream)
-        
+
         # DETAILED INPUT DEBUGGING - Check for duplicates in the actual API request
         all_input_ids = list_input.map { |item| item[:id] || item["id"] }.compact
         duplicate_input_ids = all_input_ids.group_by(&:itself).select { |_, v| v.size > 1 }.keys
-        
-        log_debug("📤 RESPONSES_PROVIDER: Final API request input composition", 
+
+        log_debug("📤 RESPONSES_PROVIDER: Final API request input composition",
                   category: "api_request",
                   total_items: list_input.length,
                   item_ids: all_input_ids,
                   duplicate_ids: duplicate_input_ids,
                   has_duplicates: duplicate_input_ids.any?)
-        
+
         if duplicate_input_ids.any?
-          log_error("🚨 RESPONSES_PROVIDER: DUPLICATES DETECTED IN API REQUEST!", 
+          log_error("🚨 RESPONSES_PROVIDER: DUPLICATES DETECTED IN API REQUEST!",
                     category: "api_request",
                     duplicate_ids: duplicate_input_ids,
                     full_input_dump: list_input.map.with_index { |item, i| "#{i}: #{item.inspect}" })
@@ -302,7 +301,7 @@ module RAAF
 
           http.request(request)
         end
-        
+
         # Use retry logic from ModelInterface
         response = with_retry("responses_completion", &api_call)
 
@@ -535,7 +534,7 @@ module RAAF
             # Handle DSL tools that respond to tool_definition or tool_configuration
             if tool.respond_to?(:tool_definition)
               tool_def = tool.tool_definition
-              if tool_def[:type] == "web_search" || tool_def[:type] == "tavily_search"
+              if %w[web_search tavily_search].include?(tool_def[:type])
                 converted_tools << { type: "web_search" }
                 includes << "web_search_call.results"
               else
@@ -555,7 +554,8 @@ module RAAF
             elsif tool.respond_to?(:to_tool_definition)
               converted_tools << tool.to_tool_definition
             else
-              raise ArgumentError, "Unknown tool type: #{tool.class}. Tool must respond to :tool_definition or :to_tool_definition"
+              raise ArgumentError,
+                    "Unknown tool type: #{tool.class}. Tool must respond to :tool_definition or :to_tool_definition"
             end
 
           end
@@ -594,13 +594,15 @@ module RAAF
 
       def convert_tool_choice(tool_choice)
         case tool_choice
-        when "auto", "required", "none"
+        when "auto", "required", "none", Hash
+          # Standard tool choice strings and properly formatted Hashes
           tool_choice
         when String
           # Assume it's a specific tool name
           { type: "function", name: tool_choice }
-        when Hash
-          tool_choice
+        else
+          # Default to auto for unrecognized types
+          "auto"
         end
       end
 

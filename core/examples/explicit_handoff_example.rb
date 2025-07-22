@@ -16,7 +16,7 @@ handoff_context = RAAF::HandoffContext.new(current_agent: "SearchAgent")
 search_agent = RAAF::Agent.new(
   name: "SearchAgent",
   instructions: <<~INSTRUCTIONS,
-    You are a SearchAgent. When you complete your research, 
+    You are a SearchAgent. When you complete your research,#{" "}
     call the handoff_to_companydiscoveryagent function with your findings.
   INSTRUCTIONS
   model: "gpt-4o"
@@ -85,7 +85,7 @@ agents = {
 }
 
 # Create orchestrator
-orchestrator = RAAF::AgentOrchestrator.new(agents: agents)
+RAAF::AgentOrchestrator.new(agents: agents)
 
 puts "✅ Created orchestrator with #{agents.size} agents"
 
@@ -113,7 +113,7 @@ success = handoff_context.set_handoff(
     ],
     market_insights: {
       trends: ["digital payments", "crypto adoption"],
-      key_players: ["PayPal", "Stripe", "Square"],
+      key_players: %w[PayPal Stripe Square],
       market_size: "$100B",
       growth_rate: "15% annually"
     }

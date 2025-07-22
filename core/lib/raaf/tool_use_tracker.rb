@@ -40,7 +40,7 @@ module RAAF
 
       @agent_to_tools[agent] ||= []
       @agent_to_tools[agent].concat(tool_names)
-      
+
       # Remove duplicates while preserving order
       @agent_to_tools[agent].uniq!
     end
@@ -52,11 +52,11 @@ module RAAF
     # @return [Boolean] true if agent has used tools, false otherwise
     #
     # @example Checking tool usage
-    #   if tracker.has_used_tools?(agent)
+    #   if tracker.used_tools?(agent)
     #     puts "Agent has used tools"
     #   end
     #
-    def has_used_tools?(agent)
+    def used_tools?(agent)
       tools = @agent_to_tools[agent]
       !tools.nil? && !tools.empty?
     end
@@ -77,7 +77,7 @@ module RAAF
     # @return [Array<Agent>] Agents that have used at least one tool
     #
     def agents_with_tool_usage
-      @agent_to_tools.keys.select { |agent| has_used_tools?(agent) }
+      @agent_to_tools.keys.select { |agent| used_tools?(agent) }
     end
 
     ##
@@ -138,7 +138,7 @@ module RAAF
     #
     def inspect
       "#<ToolUseTracker agents=#{@agent_to_tools.size} " \
-      "total_tools=#{total_tool_usage_count}>"
+        "total_tools=#{total_tool_usage_count}>"
     end
 
   end

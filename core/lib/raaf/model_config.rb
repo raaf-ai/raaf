@@ -100,7 +100,8 @@ module RAAF
       #
       def to_model_params
         # Define parameters that should be included in model calls
-        model_params = %i[temperature max_tokens top_p stop frequency_penalty presence_penalty user stream parallel_tool_calls]
+        model_params = %i[temperature max_tokens top_p stop frequency_penalty presence_penalty user stream
+                          parallel_tool_calls]
 
         # Use Ruby's send method for dynamic parameter mapping
         params = model_params.each_with_object({}) do |param, hash|

@@ -68,7 +68,7 @@ module RAAF
       #
       # @return [Boolean] true if hooks are present
       #
-      def has_hooks?
+      def hooks?
         !hooks.nil?
       end
 
@@ -77,7 +77,7 @@ module RAAF
       #
       # @return [Boolean] true if input guardrails are present
       #
-      def has_input_guardrails?
+      def input_guardrails?
         input_guardrails && !input_guardrails.empty?
       end
 
@@ -86,7 +86,7 @@ module RAAF
       #
       # @return [Boolean] true if output guardrails are present
       #
-      def has_output_guardrails?
+      def output_guardrails?
         output_guardrails && !output_guardrails.empty?
       end
 

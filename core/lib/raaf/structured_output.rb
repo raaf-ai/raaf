@@ -178,9 +178,7 @@ module RAAF
         if required_fields.is_a?(Array)
           required_fields.each do |field|
             field_key = field.to_s
-            unless data.key?(field) || data.key?(field_key)
-              raise ValidationError, "Missing required field '#{field}' at #{path}"
-            end
+            raise ValidationError, "Missing required field '#{field}' at #{path}" unless data.key?(field) || data.key?(field_key)
           end
         end
 
@@ -201,9 +199,7 @@ module RAAF
 
         allowed_keys = (schema[:properties]&.keys || []).map(&:to_s)
         data.each_key do |key|
-          unless allowed_keys.include?(key.to_s)
-            raise ValidationError, "Additional property '#{key}' not allowed at #{path}"
-          end
+          raise ValidationError, "Additional property '#{key}' not allowed at #{path}" unless allowed_keys.include?(key.to_s)
         end
       end
 
@@ -211,13 +207,9 @@ module RAAF
         raise ValidationError, "Expected array at #{path}, got #{data.class}" unless data.is_a?(Array)
 
         # Check array length constraints
-        if schema[:minItems] && data.length < schema[:minItems]
-          raise ValidationError, "Array at #{path} has fewer than #{schema[:minItems]} items"
-        end
+        raise ValidationError, "Array at #{path} has fewer than #{schema[:minItems]} items" if schema[:minItems] && data.length < schema[:minItems]
 
-        if schema[:maxItems] && data.length > schema[:maxItems]
-          raise ValidationError, "Array at #{path} has more than #{schema[:maxItems]} items"
-        end
+        raise ValidationError, "Array at #{path} has more than #{schema[:maxItems]} items" if schema[:maxItems] && data.length > schema[:maxItems]
 
         # Validate array items
         return unless schema[:items]
@@ -231,20 +223,14 @@ module RAAF
         raise ValidationError, "Expected string at #{path}, got #{data.class}" unless data.is_a?(String)
 
         # Check string length constraints
-        if schema[:minLength] && data.length < schema[:minLength]
-          raise ValidationError, "String at #{path} is shorter than #{schema[:minLength]} characters"
-        end
+        raise ValidationError, "String at #{path} is shorter than #{schema[:minLength]} characters" if schema[:minLength] && data.length < schema[:minLength]
 
-        if schema[:maxLength] && data.length > schema[:maxLength]
-          raise ValidationError, "String at #{path} is longer than #{schema[:maxLength]} characters"
-        end
+        raise ValidationError, "String at #{path} is longer than #{schema[:maxLength]} characters" if schema[:maxLength] && data.length > schema[:maxLength]
 
         # Check pattern
         if schema[:pattern]
           pattern = Regexp.new(schema[:pattern])
-          unless data.match?(pattern)
-            raise ValidationError, "String at #{path} doesn't match pattern #{schema[:pattern]}"
-          end
+          raise ValidationError, "String at #{path} doesn't match pattern #{schema[:pattern]}" unless data.match?(pattern)
         end
 
         # Check enum values
@@ -257,22 +243,14 @@ module RAAF
         raise ValidationError, "Expected number at #{path}, got #{data.class}" unless data.is_a?(Numeric)
 
         # For integer type, check if it's actually an integer
-        if schema[:type] == "integer" && !data.is_a?(Integer)
-          raise ValidationError, "Expected integer at #{path}, got #{data.class}"
-        end
+        raise ValidationError, "Expected integer at #{path}, got #{data.class}" if schema[:type] == "integer" && !data.is_a?(Integer)
 
         # Check numeric constraints
-        if schema[:minimum] && data < schema[:minimum]
-          raise ValidationError, "Number at #{path} is less than minimum #{schema[:minimum]}"
-        end
+        raise ValidationError, "Number at #{path} is less than minimum #{schema[:minimum]}" if schema[:minimum] && data < schema[:minimum]
 
-        if schema[:maximum] && data > schema[:maximum]
-          raise ValidationError, "Number at #{path} is greater than maximum #{schema[:maximum]}"
-        end
+        raise ValidationError, "Number at #{path} is greater than maximum #{schema[:maximum]}" if schema[:maximum] && data > schema[:maximum]
 
-        if schema[:exclusiveMinimum] && data <= schema[:exclusiveMinimum]
-          raise ValidationError, "Number at #{path} is not greater than #{schema[:exclusiveMinimum]}"
-        end
+        raise ValidationError, "Number at #{path} is not greater than #{schema[:exclusiveMinimum]}" if schema[:exclusiveMinimum] && data <= schema[:exclusiveMinimum]
 
         return unless schema[:exclusiveMaximum] && data >= schema[:exclusiveMaximum]
 

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
+
   ##
   # Creates handoff tools for agents to transfer execution
   #
@@ -8,6 +9,7 @@ module RAAF
   # hand off execution to other agents with structured data contracts.
   #
   class HandoffTool
+
     attr_reader :name, :target_agent, :description, :parameters, :handoff_context
 
     def initialize(name:, target_agent:, description:, parameters:, handoff_context:)
@@ -27,27 +29,31 @@ module RAAF
     # @return [FunctionTool] OpenAI function tool for handoff
     #
     def self.create_handoff_tool(target_agent:, handoff_context:, data_contract: {})
-      tool_name = "handoff_to_#{target_agent.downcase.gsub(/[^a-z0-9_]/, '_')}"
-      
+      tool_name = "handoff_to_#{target_agent.downcase.gsub(/[^a-z0-9_]/, "_")}"
+
       description = "Transfer execution to #{target_agent} with structured data"
-      
+
       # Default parameters if none provided
-      parameters = data_contract.any? ? data_contract : {
-        type: "object",
-        properties: {
-          data: {
-            type: "object",
-            description: "Data to pass to the target agent",
-            additionalProperties: true
-          },
-          reason: {
-            type: "string",
-            description: "Reason for the handoff"
-          }
-        },
-        required: ["data"],
-        additionalProperties: false
-      }
+      parameters = if data_contract.any?
+                     data_contract
+                   else
+                     {
+                       type: "object",
+                       properties: {
+                         data: {
+                           type: "object",
+                           description: "Data to pass to the target agent",
+                           additionalProperties: true
+                         },
+                         reason: {
+                           type: "string",
+                           description: "Reason for the handoff"
+                         }
+                       },
+                       required: ["data"],
+                       additionalProperties: false
+                     }
+                   end
 
       handoff_proc = proc do |**args|
         execute_handoff(target_agent, handoff_context, args)
@@ -113,7 +119,7 @@ module RAAF
                 },
                 priority: { type: "integer", description: "Strategy priority (1-10)" }
               },
-              required: ["name", "queries"],
+              required: %w[name queries],
               additionalProperties: false
             }
           },
@@ -161,7 +167,7 @@ module RAAF
                 location: { type: "string", description: "Company location" },
                 relevance_score: { type: "number", description: "Relevance score 0-1" }
               },
-              required: ["name", "industry"],
+              required: %w[name industry],
               additionalProperties: false
             }
           },
@@ -177,11 +183,11 @@ module RAAF
           },
           workflow_status: {
             type: "string",
-            enum: ["completed", "partial", "failed"],
+            enum: %w[completed partial failed],
             description: "Status of the workflow"
           }
         },
-        required: ["discovered_companies", "workflow_status"],
+        required: %w[discovered_companies workflow_status],
         additionalProperties: false
       }
     end
@@ -194,27 +200,31 @@ module RAAF
     # @return [FunctionTool] OpenAI function tool for completion
     #
     def self.create_completion_tool(handoff_context:, data_contract: {})
-      parameters = data_contract.any? ? data_contract : {
-        type: "object",
-        properties: {
-          status: {
-            type: "string",
-            enum: ["completed", "failed"],
-            description: "Workflow completion status"
-          },
-          results: {
-            type: "object",
-            description: "Final results",
-            additionalProperties: true
-          },
-          summary: {
-            type: "string",
-            description: "Summary of work completed"
-          }
-        },
-        required: ["status"],
-        additionalProperties: false
-      }
+      parameters = if data_contract.any?
+                     data_contract
+                   else
+                     {
+                       type: "object",
+                       properties: {
+                         status: {
+                           type: "string",
+                           enum: %w[completed failed],
+                           description: "Workflow completion status"
+                         },
+                         results: {
+                           type: "object",
+                           description: "Final results",
+                           additionalProperties: true
+                         },
+                         summary: {
+                           type: "string",
+                           description: "Summary of work completed"
+                         }
+                       },
+                       required: ["status"],
+                       additionalProperties: false
+                     }
+                   end
 
       completion_proc = proc do |**args|
         # Mark workflow as completed
@@ -236,5 +246,7 @@ module RAAF
         parameters: parameters
       )
     end
+
   end
+
 end

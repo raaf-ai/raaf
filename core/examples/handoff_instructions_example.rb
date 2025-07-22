@@ -40,7 +40,7 @@ support_agent = RAAF::Agent.new(
 )
 
 billing_agent = RAAF::Agent.new(
-  name: "BillingAgent", 
+  name: "BillingAgent",
   instructions: RAAF.prompt_with_handoff_instructions(
     "You are a billing specialist. Handle payment and subscription issues."
   )
@@ -80,7 +80,7 @@ basic_agent.add_handoff(support_agent)
 # Simulate the automatic handoff instructions behavior
 puts "When an agent with handoffs is used in a Runner, the system automatically adds"
 puts "handoff instructions to the agent's instructions if they're not already present."
-puts 
+puts
 puts "BasicAgent original instructions:"
 puts "  \"#{basic_agent.instructions}\""
 puts

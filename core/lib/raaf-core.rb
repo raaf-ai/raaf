@@ -17,7 +17,7 @@ require_relative "raaf/agent"
 
 # Try to load retry provider functionality if available
 begin
-  require 'raaf-providers'
+  require "raaf-providers"
 rescue LoadError
   # raaf-providers gem not available - will use basic provider without retry
 end

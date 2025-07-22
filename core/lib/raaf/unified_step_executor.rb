@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "step_processor"
-require_relative "step_result" 
+require_relative "step_result"
 require_relative "logging"
 
 module RAAF
@@ -46,13 +46,12 @@ module RAAF
     # @param pre_step_items [Array<Hash>] Items before this step
     # @return [StepResult] Complete step result
     #
-    def execute_step(model_response:, agent:, context_wrapper:, config:, 
-                    original_input: "", pre_step_items: [])
-      
+    def execute_step(model_response:, agent:, context_wrapper:, config:,
+                     original_input: "", pre_step_items: [])
       log_debug("🚀 STEP: Starting step execution", agent: agent.name)
 
       begin
-        # Use StepProcessor for atomic step processing  
+        # Use StepProcessor for atomic step processing
         step_result = @step_processor.execute_step(
           original_input: original_input,
           pre_step_items: pre_step_items,
@@ -66,21 +65,18 @@ module RAAF
         # Reset tool choice if needed
         @step_processor.maybe_reset_tool_choice(agent)
 
-        log_debug("✅ STEP: Step execution completed", 
+        log_debug("✅ STEP: Step execution completed",
                   next_step: step_result.next_step.class.name,
                   items_generated: step_result.new_step_items.size)
 
         step_result
+      rescue StandardError => e
+        log_exception(e, message: "❌ STEP: Step execution failed", agent: agent.name)
 
-      rescue => error
-        log_exception(error, message: "❌ STEP: Step execution failed", agent: agent.name)
-        
         # Create error step result
-        error_step_result = create_error_step_result(
-          original_input, model_response, pre_step_items, error
+        create_error_step_result(
+          original_input, model_response, pre_step_items, e
         )
-
-        error_step_result
       end
     end
 
@@ -110,7 +106,7 @@ module RAAF
     def create_error_step_result(original_input, model_response, pre_step_items, error)
       error_item = {
         type: "message",
-        role: "assistant", 
+        role: "assistant",
         content: "Error processing step: #{error.message}",
         agent: "system"
       }

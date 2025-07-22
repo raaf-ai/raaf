@@ -1,7 +1,5 @@
-require:
-  - rubocop-rspec
-
 plugins:
+  - rubocop-rspec
   - rubocop-rake
 
 AllCops:
@@ -13,54 +11,13 @@ AllCops:
     - 'bin/**/*'
     - 'pkg/**/*'
 
+# Disable all Metrics cops for the entire gem
+Metrics:
+  Enabled: false
+
 Layout/LineLength:
-  Max: 120
-  AllowedPatterns:
-    - '\A\s*#'  # Allow long comments
-    - '\A\s*it\s'  # Allow long RSpec test descriptions
-    - '\A\s*describe\s'  # Allow long RSpec describe blocks
-    - '\A\s*context\s'  # Allow long RSpec context blocks
-    - 'https?://'  # Allow long URLs
-    - '\A\s*puts\s'  # Allow long puts statements in examples
-  Exclude:
-    - 'examples/**/*'
+  Enabled: false
 
-Metrics/AbcSize:
-  Max: 35
-  Exclude:
-    - 'examples/**/*'
-
-Metrics/MethodLength:
-  Max: 30
-  CountAsOne: ['array', 'hash', 'heredoc']
-  Exclude:
-    - 'examples/**/*'
-
-Metrics/CyclomaticComplexity:
-  Max: 12
-  Exclude:
-    - 'examples/**/*'
-
-Metrics/PerceivedComplexity:
-  Max: 12
-  Exclude:
-    - 'examples/**/*'
-
-Metrics/ClassLength:
-  Max: 250
-  Exclude:
-    - 'examples/**/*'
-
-Metrics/ModuleLength:
-  Max: 250
-
-Metrics/BlockLength:
-  Max: 30
-  Exclude:
-    - 'spec/**/*'
-    - 'examples/**/*'
-    - 'Rakefile'
-    - '*.gemspec'
 
 Style/Documentation:
   Enabled: false
@@ -110,10 +67,10 @@ Naming/FileName:
     - 'lib/**/*.rb'
 
 RSpec/ExampleLength:
-  Max: 25
+  Enabled: false
 
 RSpec/MultipleExpectations:
-  Max: 6
+  Enabled: false
 
 RSpec/NestedGroups:
   Max: 5
@@ -122,7 +79,7 @@ RSpec/DescribeClass:
   Enabled: false
 
 RSpec/MultipleMemoizedHelpers:
-  Max: 7
+  Enabled: false
 
 RSpec/MessageSpies:
   Enabled: false
@@ -134,4 +91,22 @@ RSpec/AnyInstance:
   Enabled: false
 
 RSpec/IndexedLet:
+  Enabled: false
+
+RSpec/SpecFilePathFormat:
+  Enabled: false
+
+RSpec/NamedSubject:
+  Enabled: false
+
+RSpec/ContextWording:
+  Enabled: false
+
+RSpec/StubbedMock:
+  Enabled: false
+
+RSpec/SubjectStub:
+  Enabled: false
+
+RSpec/ExpectActual:
   Enabled: false

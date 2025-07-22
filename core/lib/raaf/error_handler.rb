@@ -55,24 +55,22 @@ module RAAF
         handle_max_turns_error(e, context)
       rescue ExecutionStoppedError => e
         handle_stopped_execution_error(e, context)
-      rescue StandardError => e
-        # Check if this is a guardrails error when guardrails gem is loaded
-        raise unless defined?(Guardrails)
-
-        case e
-        when Guardrails::InputGuardrailTripwireTriggered
-          handle_guardrail_error(e, context, :input)
-        when Guardrails::OutputGuardrailTripwireTriggered
-          handle_guardrail_error(e, context, :output)
-        else
-          raise # Re-raise if not a guardrails error
-        end
-
-      # Re-raise if guardrails not available
       rescue JSON::ParserError => e
         handle_parsing_error(e, context)
       rescue StandardError => e
-        handle_general_error(e, context)
+        # Check if this is a guardrails error when guardrails gem is loaded
+        if defined?(Guardrails)
+          case e
+          when Guardrails::InputGuardrailTripwireTriggered
+            handle_guardrail_error(e, context, :input)
+          when Guardrails::OutputGuardrailTripwireTriggered
+            handle_guardrail_error(e, context, :output)
+          else
+            handle_general_error(e, context)
+          end
+        else
+          handle_general_error(e, context)
+        end
       ensure
         @retry_count = 0 # Reset retry count after successful execution
       end
@@ -209,9 +207,7 @@ module RAAF
         log_error("JSON parsing failed", **context, message: error.message)
 
         case strategy
-        when RecoveryStrategy::FAIL_FAST
-          raise error
-        when RecoveryStrategy::LOG_AND_CONTINUE
+        when RecoveryStrategy::LOG_AND_CONTINUE, RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :parsing_failed, message: "Failed to parse response", handled: true }
         when RecoveryStrategy::RETRY_ONCE
           if @retry_count < @max_retries
@@ -223,6 +219,7 @@ module RAAF
             { error: :parsing_failed, message: "Failed to parse after retries", handled: true }
           end
         else
+          # FAIL_FAST and unknown strategies
           raise error
         end
       end
@@ -295,13 +292,21 @@ module RAAF
                   **context, error_class: error.class.name, message: error.message)
 
         case strategy
-        when RecoveryStrategy::FAIL_FAST
-          raise error
         when RecoveryStrategy::LOG_AND_CONTINUE
           { error: :general_error, message: error.message, handled: true }
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :general_error, message: "An unexpected error occurred", handled: true }
+        when RecoveryStrategy::RETRY_ONCE
+          if @retry_count < @max_retries
+            @retry_count += 1
+            log_info("Retrying after general error", attempt: @retry_count)
+            raise error
+          else
+            log_error("Max retries exceeded for general error")
+            { error: :general_error, message: "Failed after retries", handled: true }
+          end
         else
+          # FAIL_FAST and unknown strategies
           raise error
         end
       end

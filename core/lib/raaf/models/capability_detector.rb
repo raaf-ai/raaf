@@ -3,7 +3,9 @@
 require_relative "../logging"
 
 module RAAF
+
   module Models
+
     ##
     # Provider Capability Detection System
     #
@@ -36,6 +38,7 @@ module RAAF
     # @since 0.2.0
     #
     class CapabilityDetector
+
       include Logger
 
       ##
@@ -137,7 +140,7 @@ module RAAF
       #   report = detector.generate_report
       #   puts "Provider: #{report[:provider]}"
       #   puts "Handoff support: #{report[:handoff_support]}"
-      #   
+      #
       #   report[:recommendations].each do |rec|
       #     puts "#{rec[:type].upcase}: #{rec[:message]}"
       #   end
@@ -249,10 +252,10 @@ module RAAF
         # Check if chat_completion method accepts tools parameter
         method = @provider.method(:chat_completion)
         params = method.parameters
-        
+
         # Look for tools parameter (either required or optional)
-        params.any? { |param_type, param_name| param_name == :tools }
-      rescue => e
+        params.any? { |_param_type, param_name| param_name == :tools }
+      rescue StandardError => e
         log_debug("🔍 CAPABILITY DETECTOR: Function calling test failed",
                   provider: @provider.provider_name,
                   error: e.message)
@@ -329,12 +332,12 @@ module RAAF
           }
         end
 
-        if @capabilities[:streaming]
-          @recommendations << {
-            type: :info,
-            message: "Provider supports streaming. Great for real-time applications."
-          }
-        end
+        return unless @capabilities[:streaming]
+
+        @recommendations << {
+          type: :info,
+          message: "Provider supports streaming. Great for real-time applications."
+        }
       end
 
       ##
@@ -346,10 +349,10 @@ module RAAF
       # @example Usage patterns
       #   # For provider with responses_api + function_calling:
       #   # "Native Responses API - No adapter needed"
-      #   
+      #
       #   # For provider with chat_completion + function_calling:
       #   # "Chat Completions with ProviderAdapter - Full handoff support"
-      #   
+      #
       #   # For provider with only chat_completion:
       #   # "Chat Completions only - Limited handoff support"
       #
@@ -366,6 +369,9 @@ module RAAF
           "Not compatible - Implement required methods"
         end
       end
+
     end
+
   end
+
 end

@@ -8,27 +8,29 @@ RSpec.describe RAAF::Models::ProviderAdapter do
   # Mock providers for testing
   let(:function_calling_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         {
           "choices" => [{
             "message" => {
               "role" => "assistant",
               "content" => "Test response",
-              "tool_calls" => tools&.any? ? [{
-                "id" => "call_123",
-                "type" => "function",
-                "function" => {
-                  "name" => "transfer_to_support",
-                  "arguments" => "{}"
-                }
-              }] : nil
+              "tool_calls" => if tools&.any?
+                                [{
+                                  "id" => "call_123",
+                                  "type" => "function",
+                                  "function" => {
+                                    "name" => "transfer_to_support",
+                                    "arguments" => "{}"
+                                  }
+                                }]
+                              end
             }
           }],
           "usage" => { "prompt_tokens" => 10, "completion_tokens" => 5, "total_tokens" => 15 }
         }
       end
 
-      def responses_completion(messages:, model:, tools: nil, **kwargs)
+      def responses_completion(messages:, model:, tools: nil, **_kwargs)
         {
           output: [{
             type: "message",
@@ -51,8 +53,8 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
   let(:non_function_calling_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, stream: false, **kwargs)
-        # Note: No tools parameter
+      def chat_completion(messages:, model:, stream: false, **_kwargs)
+        # NOTE: No tools parameter
         {
           "choices" => [{
             "message" => {
@@ -76,7 +78,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
   let(:limited_function_calling_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         # Accepts tools but doesn't always use them correctly
         if tools && rand < 0.5
           {
@@ -119,7 +121,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     end.new
   end
 
-  let(:available_agents) { ["SupportAgent", "BillingAgent", "TechnicalAgent"] }
+  let(:available_agents) { %w[SupportAgent BillingAgent TechnicalAgent] }
 
   describe "#initialize" do
     context "with function calling provider" do
@@ -169,7 +171,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
       it "uses responses_completion when available" do
         expect(function_calling_provider).to receive(:responses_completion).and_call_original
-        
+
         result = subject.universal_completion(
           messages: test_messages,
           model: test_model,
@@ -181,11 +183,11 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
       it "passes tools correctly" do
         test_tools = [{ type: "function", name: "test_tool" }]
-        
+
         expect(function_calling_provider).to receive(:responses_completion)
           .with(hash_including(tools: test_tools))
           .and_call_original
-        
+
         subject.universal_completion(
           messages: test_messages,
           model: test_model,
@@ -199,7 +201,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
       it "uses chat_completion when responses_completion not available" do
         expect(non_function_calling_provider).to receive(:chat_completion).and_call_original
-        
+
         result = subject.universal_completion(
           messages: test_messages,
           model: test_model
@@ -220,6 +222,8 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     end
 
     context "with provider that supports neither API" do
+      subject { described_class.new(incompatible_provider) }
+
       let(:incompatible_provider) do
         Class.new(RAAF::Models::ModelInterface) do
           def supported_models
@@ -232,15 +236,13 @@ RSpec.describe RAAF::Models::ProviderAdapter do
         end.new
       end
 
-      subject { described_class.new(incompatible_provider) }
-
       it "raises appropriate error" do
-        expect {
+        expect do
           subject.universal_completion(
             messages: test_messages,
             model: test_model
           )
-        }.to raise_error(RAAF::ProviderError, /doesn't support any known completion API/)
+        end.to raise_error(RAAF::ProviderError, /doesn't support any known completion API/)
       end
     end
   end
@@ -263,14 +265,14 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     end
 
     context "with incompatible provider" do
+      subject { described_class.new(incompatible_provider) }
+
       let(:incompatible_provider) do
         Class.new(RAAF::Models::ModelInterface) do
-          def supported_models; []; end
-          def provider_name; "Incompatible"; end
+          def supported_models = []
+          def provider_name = "Incompatible"
         end.new
       end
-
-      subject { described_class.new(incompatible_provider) }
 
       it "returns false" do
         expect(subject.supports_handoffs?).to be false
@@ -282,9 +284,9 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     subject { described_class.new(non_function_calling_provider, ["Agent1"]) }
 
     it "updates the fallback system with new agents" do
-      new_agents = ["Agent2", "Agent3"]
+      new_agents = %w[Agent2 Agent3]
       subject.update_available_agents(new_agents)
-      
+
       stats = subject.get_handoff_stats
       expect(stats[:available_agents]).to eq(new_agents)
     end
@@ -365,23 +367,23 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
     it "delegates responses_completion" do
       expect(subject.responses_completion(
-        messages: [{ role: "user", content: "test" }],
-        model: "test-model"
-      )).to be_a(Hash)
+               messages: [{ role: "user", content: "test" }],
+               model: "test-model"
+             )).to be_a(Hash)
     end
 
     it "delegates chat_completion" do
       expect(subject.chat_completion(
-        messages: [{ role: "user", content: "test" }],
-        model: "test-model"
-      )).to be_a(Hash)
+               messages: [{ role: "user", content: "test" }],
+               model: "test-model"
+             )).to be_a(Hash)
     end
 
     it "delegates stream_completion" do
       expect(subject.stream_completion(
-        messages: [{ role: "user", content: "test" }],
-        model: "test-model"
-      )).to be_a(Hash)
+               messages: [{ role: "user", content: "test" }],
+               model: "test-model"
+             )).to be_a(Hash)
     end
   end
 
@@ -412,26 +414,26 @@ RSpec.describe RAAF::Models::ProviderAdapter do
   end
 
   describe "error handling" do
+    subject { described_class.new(error_provider) }
+
     let(:error_provider) do
       Class.new(RAAF::Models::ModelInterface) do
-        def chat_completion(messages:, model:, **kwargs)
+        def chat_completion(messages:, model:, **_kwargs)
           raise StandardError, "Provider error"
         end
 
-        def supported_models; ["error-model"]; end
-        def provider_name; "ErrorProvider"; end
+        def supported_models = ["error-model"]
+        def provider_name = "ErrorProvider"
       end.new
     end
 
-    subject { described_class.new(error_provider) }
-
     it "propagates provider errors" do
-      expect {
+      expect do
         subject.universal_completion(
           messages: [{ role: "user", content: "test" }],
           model: "test-model"
         )
-      }.to raise_error(StandardError, "Provider error")
+      end.to raise_error(StandardError, "Provider error")
     end
   end
 end

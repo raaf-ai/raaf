@@ -227,7 +227,7 @@ module RAAF
       context[:error_backtrace] = exception.backtrace.join("\n") if exception.backtrace
       context[:error_cause] = exception.cause.message if exception.cause
       context[:error_cause_class] = exception.cause.class.name if exception.cause
-      
+
       error_message = message || exception.message
       RAAF::Logging.error(error_message, **context)
     end
@@ -419,7 +419,7 @@ module RAAF
         context[:error_backtrace] = exception.backtrace.join("\n") if exception.backtrace
         context[:error_cause] = exception.cause.message if exception.cause
         context[:error_cause_class] = exception.cause.class.name if exception.cause
-        
+
         error_message = message || exception.message
         error(error_message, **context)
       end

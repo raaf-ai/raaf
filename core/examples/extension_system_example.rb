@@ -92,9 +92,7 @@ puts "📚 Registered extensions:"
 RAAF::Extensions.registry.each_value do |extension|
   puts "  - #{extension.name} v#{extension.version} (#{extension.type})"
   puts "    Description: #{extension.description}"
-  if extension.dependencies && !extension.dependencies.empty?
-    puts "    Dependencies: #{extension.dependencies.join(", ")}"
-  end
+  puts "    Dependencies: #{extension.dependencies.join(", ")}" if extension.dependencies && !extension.dependencies.empty?
 end
 
 puts "\n📊 Registry summary:"

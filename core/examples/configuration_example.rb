@@ -302,9 +302,7 @@ class OpenAIAgentsConfig
     @validation_errors = []
 
     # Required API keys for production
-    if production? && (openai_api_key.nil? || openai_api_key.empty?)
-      @validation_errors << "OpenAI API key is required in production"
-    end
+    @validation_errors << "OpenAI API key is required in production" if production? && (openai_api_key.nil? || openai_api_key.empty?)
 
     # Validate timeout values
     @validation_errors << "Request timeout must be positive" if request_timeout <= 0
@@ -507,16 +505,16 @@ def configure_providers(config)
   # OpenAI Provider (primary) - DEPRECATED, use default ResponsesProvider instead
   if config.openai_api_key
     puts "⚠️  DEPRECATED: Using OpenAIProvider for demonstration purposes"
-    openai_provider = RAAF::Models::OpenAIProvider.new(  # DEPRECATED
+    openai_provider = RAAF::Models::OpenAIProvider.new( # DEPRECATED
       api_key: config.openai_api_key,
       api_base: config.openai_api_base
     )
 
-    # ❌ PLANNED: Create retryable wrapper based on configuration  
+    # ❌ PLANNED: Create retryable wrapper based on configuration
     # The following code shows intended API but RetryableProvider doesn't exist yet
     puts "⚠️  WARNING: RetryableProvider is not implemented yet"
     puts "⚠️  Using basic OpenAI provider without retry logic for now"
-    
+
     # PLANNED API (commented out until RetryableProvider is implemented):
     # retryable_class = Class.new(RAAF::Models::ResponsesProvider) do  # Use ResponsesProvider
     #   include RAAF::Models::RetryableProvider  # This doesn't exist yet
@@ -541,7 +539,7 @@ def configure_providers(config)
     #   end
     # end
 
-    providers[:openai] = openai_provider  # Use basic provider for now
+    providers[:openai] = openai_provider # Use basic provider for now
 
     puts "✅ OpenAI provider configured (basic version without retry logic)"
   end

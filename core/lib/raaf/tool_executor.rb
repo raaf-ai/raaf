@@ -53,7 +53,7 @@ module RAAF
       # @param message [Hash] Assistant message to check
       # @return [Boolean] true if message has tool calls
       #
-      def has_tool_calls?(message)
+      def tool_calls?(message)
         message["tool_calls"] || message[:tool_calls]
       end
 
@@ -65,7 +65,7 @@ module RAAF
       #
       def should_continue?(message)
         # Continue if there are tool calls
-        return true if has_tool_calls?(message)
+        return true if tool_calls?(message)
 
         # Stop if no content
         return false unless message[:content]

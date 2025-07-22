@@ -55,9 +55,7 @@ end
 def calculate_safe(expression)
   # Simple arithmetic evaluator - safer than eval
   # This is a basic implementation for demo purposes
-  unless expression =~ %r{^\s*(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)\s*$}
-    raise StandardError, "Complex expressions not supported"
-  end
+  raise StandardError, "Complex expressions not supported" unless expression =~ %r{^\s*(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)\s*$}
 
   left = Regexp.last_match(1).to_f
   operator = Regexp.last_match(2)

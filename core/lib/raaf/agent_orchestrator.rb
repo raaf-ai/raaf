@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
+
   ##
   # Orchestrates multi-agent workflows with explicit handoff control
   #
@@ -8,6 +9,7 @@ module RAAF
   # explicit orchestration, providing clear control flow and error handling.
   #
   class AgentOrchestrator
+
     include Logger
 
     attr_reader :handoff_context, :agents, :provider
@@ -31,10 +33,10 @@ module RAAF
       @handoff_context.instance_variable_set(:@current_agent, first_agent)
 
       log_info("Starting workflow", {
-        starting_agent: first_agent,
-        total_agents: @agents.size,
-        message: initial_message
-      })
+                 starting_agent: first_agent,
+                 total_agents: @agents.size,
+                 message: initial_message
+               })
 
       results = []
       current_message = initial_message
@@ -42,7 +44,7 @@ module RAAF
       # Execute workflow steps
       loop do
         current_agent_name = @handoff_context.current_agent
-        
+
         # Get current agent
         agent_config = @agents[current_agent_name]
         unless agent_config
@@ -79,7 +81,7 @@ module RAAF
         # Check for handoff request
         if handoff_requested?(agent_result)
           handoff_result = execute_handoff(agent_result)
-          
+
           if handoff_result[:success] == false
             return WorkflowResult.new(
               success: false,
@@ -126,10 +128,10 @@ module RAAF
       handoff_tools = agent_config[:handoff_tools] || []
 
       log_info("Running agent", {
-        agent: agent_name,
-        message_length: message.length,
-        handoff_tools: handoff_tools.map { |t| t[:target_agent] }
-      })
+                 agent: agent_name,
+                 message_length: message.length,
+                 handoff_tools: handoff_tools.map { |t| t[:target_agent] }
+               })
 
       # Create agent instance
       agent = agent_class.new(
@@ -179,16 +181,16 @@ module RAAF
     #
     def extract_agent_result(result, agent_name)
       last_message = result.messages.last
-      
+
       # Check for tool calls in the last message
       tool_calls = last_message[:tool_calls] || []
-      
+
       handoff_requested = false
       workflow_completed = false
-      
+
       tool_calls.each do |tool_call|
         function_name = tool_call.dig("function", "name")
-        
+
         if function_name&.start_with?("handoff_to_")
           handoff_requested = true
         elsif function_name == "complete_workflow"
@@ -234,7 +236,7 @@ module RAAF
     # @param agent_result [Hash] Current agent result
     # @return [Hash] Handoff result
     #
-    def execute_handoff(agent_result)
+    def execute_handoff(_agent_result)
       unless @handoff_context.handoff_pending?
         return {
           success: false,
@@ -256,12 +258,14 @@ module RAAF
 
       handoff_result
     end
+
   end
 
   ##
   # Result of a complete workflow execution
   #
   class WorkflowResult
+
     attr_reader :success, :error, :results, :final_agent, :handoff_context
 
     def initialize(success:, results:, error: nil, final_agent: nil, handoff_context: nil)
@@ -288,14 +292,14 @@ module RAAF
     #
     def total_usage
       usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
-      
+
       @results.each do |result|
         agent_usage = result[:usage] || {}
         usage[:input_tokens] += agent_usage[:input_tokens] || 0
         usage[:output_tokens] += agent_usage[:output_tokens] || 0
         usage[:total_tokens] += agent_usage[:total_tokens] || 0
       end
-      
+
       usage
     end
 
@@ -323,5 +327,7 @@ module RAAF
         final_results: final_results
       }
     end
+
   end
+
 end

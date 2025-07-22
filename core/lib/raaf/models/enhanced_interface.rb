@@ -3,7 +3,9 @@
 require_relative "interface"
 
 module RAAF
+
   module Models
+
     ##
     # Enhanced Model Interface with Universal Handoff Support
     #
@@ -73,18 +75,19 @@ module RAAF
       #
       # @return [Hash] Response in Responses API format with :output, :usage, :model, :id
       #
-      def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil, **kwargs)
+      def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil,
+                               **)
         log_debug("🔧 ENHANCED INTERFACE: Converting chat_completion to responses_completion",
                   provider: provider_name,
                   has_tools: !tools.nil?,
                   tools_count: tools&.size || 0)
 
         # Convert input items back to messages if needed
-        actual_messages = if input && input.any?
-          convert_input_to_messages(input, messages)
-        else
-          messages
-        end
+        actual_messages = if input&.any?
+                            convert_input_to_messages(input, messages)
+                          else
+                            messages
+                          end
 
         # Call the provider's chat_completion method
         response = chat_completion(
@@ -92,7 +95,7 @@ module RAAF
           model: model,
           tools: tools,
           stream: stream,
-          **kwargs
+          **
         )
 
         # Convert response to Responses API format
@@ -184,7 +187,7 @@ module RAAF
       #     { type: "function_call_output", call_id: "call_123", output: "Success" }
       #   ]
       #   messages = convert_input_to_messages(input, base_messages)
-      #   # Returns: [...base_messages, { role: "user", content: "Hello" }, 
+      #   # Returns: [...base_messages, { role: "user", content: "Hello" },
       #   #           { role: "tool", tool_call_id: "call_123", content: "Success" }]
       #
       # @param input [Array<Hash>] Input items from Responses API
@@ -237,7 +240,7 @@ module RAAF
       #     "usage" => { "total_tokens" => 25 },
       #     "model" => "gpt-4"
       #   }
-      #   
+      #
       #   responses_format = convert_chat_to_responses_format(chat_response)
       #   # Returns: {
       #   #   output: [
@@ -292,6 +295,9 @@ module RAAF
           id: response["id"] || response[:id] || SecureRandom.uuid
         }
       end
+
     end
+
   end
+
 end

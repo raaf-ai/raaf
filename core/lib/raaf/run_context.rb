@@ -240,7 +240,7 @@ module RAAF
   # @example Type-safe context usage
   #   # For basic context
   #   wrapper = RunContextWrapper.new(context)
-  #   
+  #
   #   # For typed context (Python SDK compatibility)
   #   typed_wrapper = TypedRunContextWrapper.new(context, UserSession)
   #   typed_wrapper.typed_context = UserSession.new(user_id: 123)
@@ -371,7 +371,7 @@ module RAAF
   # @example Basic typed context usage
   #   class UserSession
   #     attr_accessor :user_id, :session_id, :preferences
-  #     
+  #
   #     def initialize(user_id:, session_id: nil, preferences: {})
   #       @user_id = user_id
   #       @session_id = session_id
@@ -382,7 +382,7 @@ module RAAF
   #   # Create typed wrapper
   #   typed_wrapper = TypedRunContextWrapper.new(context, UserSession)
   #   typed_wrapper.typed_context = UserSession.new(user_id: 123)
-  #   
+  #
   #   # Access typed context with type safety
   #   session = typed_wrapper.typed_context  # Returns UserSession instance
   #   puts session.user_id  # => 123
@@ -390,16 +390,16 @@ module RAAF
   # @example Advanced typed context with validation
   #   class APIContext
   #     attr_accessor :api_key, :rate_limit, :retry_count
-  #     
+  #
   #     def initialize(api_key:, rate_limit: 100, retry_count: 3)
   #       @api_key = api_key
   #       @rate_limit = rate_limit
   #       @retry_count = retry_count
   #       validate!
   #     end
-  #     
+  #
   #     private
-  #     
+  #
   #     def validate!
   #       raise ArgumentError, "API key is required" if @api_key.nil? || @api_key.empty?
   #       raise ArgumentError, "Rate limit must be positive" if @rate_limit <= 0
@@ -433,9 +433,7 @@ module RAAF
     #
     # @return [Object, nil] The typed context object
     #
-    def typed_context
-      @typed_context
-    end
+    attr_reader :typed_context
 
     ##
     # Set the typed context with type validation
@@ -449,9 +447,7 @@ module RAAF
         return
       end
 
-      if @type_class && !value.is_a?(@type_class)
-        raise TypeError, "Expected #{@type_class.name}, got #{value.class.name}"
-      end
+      raise TypeError, "Expected #{@type_class.name}, got #{value.class.name}" if @type_class && !value.is_a?(@type_class)
 
       @typed_context = value
     end
@@ -473,6 +469,7 @@ module RAAF
     #
     def typed_context!
       raise "Typed context not set" if @typed_context.nil?
+
       @typed_context
     end
 
@@ -500,9 +497,7 @@ module RAAF
       else
         # Try to set attributes individually
         updates.each do |key, value|
-          if @typed_context.respond_to?("#{key}=")
-            @typed_context.send("#{key}=", value)
-          end
+          @typed_context.send("#{key}=", value) if @typed_context.respond_to?("#{key}=")
         end
       end
 
@@ -525,7 +520,7 @@ module RAAF
         # Try to extract instance variables
         hash = {}
         @typed_context.instance_variables.each do |var|
-          key = var.to_s.sub('@', '').to_sym
+          key = var.to_s.sub("@", "").to_sym
           hash[key] = @typed_context.instance_variable_get(var)
         end
         hash

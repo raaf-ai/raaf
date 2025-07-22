@@ -3,6 +3,7 @@
 require_relative "handoff_context"
 
 module RAAF
+
   ##
   # Handoff specification class (matches Python SDK exactly)
   #
@@ -10,11 +11,12 @@ module RAAF
   # to an agent's handoffs parameter, matching the Python SDK API.
   #
   class Handoff
-    attr_reader :agent, :overrides, :input_filter, :description
-    attr_reader :tool_name_override, :tool_description_override, :on_handoff, :input_type
 
-    def initialize(agent, overrides: {}, input_filter: nil, description: nil, 
-                   tool_name_override: nil, tool_description_override: nil, 
+    attr_reader :agent, :overrides, :input_filter, :description, :tool_name_override, :tool_description_override,
+                :on_handoff, :input_type
+
+    def initialize(agent, overrides: {}, input_filter: nil, description: nil,
+                   tool_name_override: nil, tool_description_override: nil,
                    on_handoff: nil, input_type: nil)
       @agent = agent
       @overrides = overrides
@@ -78,7 +80,7 @@ module RAAF
     #
     def create_agent_instance(base_config = {})
       config = base_config.merge(@overrides)
-      
+
       if @agent.is_a?(Class)
         @agent.new(**config)
       else
@@ -88,6 +90,7 @@ module RAAF
         end
       end
     end
+
   end
 
   ##
@@ -121,12 +124,12 @@ module RAAF
   #   )
   #
   def self.handoff(agent, overrides: {}, input_filter: nil, description: nil,
-                   tool_name_override: nil, tool_description_override: nil, 
+                   tool_name_override: nil, tool_description_override: nil,
                    on_handoff: nil, input_type: nil)
     Handoff.new(
-      agent, 
-      overrides: overrides, 
-      input_filter: input_filter, 
+      agent,
+      overrides: overrides,
+      input_filter: input_filter,
       description: description,
       tool_name_override: tool_name_override,
       tool_description_override: tool_description_override,

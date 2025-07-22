@@ -9,8 +9,8 @@ module RAAF
   # - Hash key conversion (symbol/string keys)
   # - String case conversion (snake_case)
   # - OpenAI API preparation utilities
-  # 
-  # The gem follows Ruby conventions of using symbols internally while respecting 
+  #
+  # The gem follows Ruby conventions of using symbols internally while respecting
   # API requirements for string keys.
   #
   # == Key Conversion Strategy
@@ -230,12 +230,12 @@ module RAAF
     #   # => "already_snake_case"
     def snake_case(str)
       str.to_s
-        .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')  # Handle acronyms like "XMLParser" -> "XML_Parser"
-        .gsub(/([a-z\d])([A-Z])/, '\1_\2')      # Handle camelCase like "companyDiscovery" -> "company_Discovery"
-        .downcase                               # Convert to lowercase
-        .gsub(/[^a-z0-9]+/, "_")               # Replace non-alphanumeric with underscores
-        .gsub(/^_+|_+$/, "")                   # Remove leading/trailing underscores
-        .gsub(/_+/, "_")                       # Collapse multiple underscores
+         .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')  # Handle acronyms like "XMLParser" -> "XML_Parser"
+         .gsub(/([a-z\d])([A-Z])/, '\1_\2')      # Handle camelCase like "companyDiscovery" -> "company_Discovery"
+         .downcase                               # Convert to lowercase
+         .gsub(/[^a-z0-9]+/, "_")               # Replace non-alphanumeric with underscores
+         .gsub(/^_+|_+$/, "")                   # Remove leading/trailing underscores
+         .gsub(/_+/, "_")                       # Collapse multiple underscores
     end
 
     ##
@@ -338,7 +338,7 @@ module RAAF
     #   Utils.normalize_whitespace("Too   many    spaces")
     #   # => "Too many spaces"
     def normalize_whitespace(text)
-      text.to_s.gsub(/\s+/, ' ').strip
+      text.to_s.gsub(/\s+/, " ").strip
     end
 
   end

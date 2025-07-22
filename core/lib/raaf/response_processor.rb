@@ -19,7 +19,7 @@ module RAAF
   # Mirrors Python's process_model_response functionality with Ruby patterns.
   #
   class ResponseProcessor
-    
+
     include Logger
 
     ##
@@ -36,7 +36,7 @@ module RAAF
     # @return [ProcessedResponse] Categorized response elements
     #
     def process_model_response(response:, agent:, all_tools:, handoffs:)
-      log_debug("🔄 RESPONSE_PROCESSOR: Processing model response", 
+      log_debug("🔄 RESPONSE_PROCESSOR: Processing model response",
                 agent: agent.name, tools_count: all_tools.size, handoffs_count: handoffs.size)
 
       items = []
@@ -73,7 +73,7 @@ module RAAF
       end
 
       log_debug("✅ RESPONSE_PROCESSOR: Processed response",
-                items: items.size, handoffs: run_handoffs.size, 
+                items: items.size, handoffs: run_handoffs.size,
                 functions: functions.size, tools_used: tools_used)
 
       ProcessedResponse.new(
@@ -101,12 +101,10 @@ module RAAF
         # Traditional Chat Completions format
         message = response[:choices].first[:message]
         items = [message]
-        
+
         # Add tool calls as separate items if present
-        if message[:tool_calls]
-          items.concat(message[:tool_calls])
-        end
-        
+        items.concat(message[:tool_calls]) if message[:tool_calls]
+
         items
       elsif response[:output]
         # Responses API format
@@ -120,14 +118,13 @@ module RAAF
     ##
     # Process a single response item and categorize it
     #
-    def process_response_item(item:, agent:, items:, run_handoffs:, functions:, 
-                            computer_actions:, local_shell_calls:, tools_used:,
-                            handoff_map:, function_map:, computer_tool:, local_shell_tool:)
-      
+    def process_response_item(item:, agent:, items:, run_handoffs:, functions:,
+                              computer_actions:, local_shell_calls:, tools_used:,
+                              handoff_map:, function_map:, computer_tool:, local_shell_tool:)
       case item[:type] || infer_item_type(item)
       when "message", nil
         items << create_message_item(item, agent)
-        
+
       when "function", "tool_call", "function_call"
         process_tool_call(
           item: item,
@@ -139,7 +136,7 @@ module RAAF
           handoff_map: handoff_map,
           function_map: function_map
         )
-        
+
       when "computer_use"
         process_computer_action(
           item: item,
@@ -149,7 +146,7 @@ module RAAF
           tools_used: tools_used,
           computer_tool: computer_tool
         )
-        
+
       when "local_shell"
         process_local_shell_call(
           item: item,
@@ -159,26 +156,26 @@ module RAAF
           tools_used: tools_used,
           local_shell_tool: local_shell_tool
         )
-        
+
       when "file_search"
         items << create_tool_call_item(item, agent)
         tools_used << "file_search"
-        
+
       when "web_search"
         items << create_tool_call_item(item, agent)
         tools_used << "web_search"
-        
+
       else
         log_warn("Unknown response item type", type: item[:type], item_keys: item.keys)
-        items << create_message_item(item, agent)  # Treat unknown items as messages
+        items << create_message_item(item, agent) # Treat unknown items as messages
       end
     end
 
     ##
     # Process a function/tool call
     #
-    def process_tool_call(item:, agent:, items:, run_handoffs:, functions:, 
-                         tools_used:, handoff_map:, function_map:)
+    def process_tool_call(item:, agent:, items:, run_handoffs:, functions:,
+                          tools_used:, handoff_map:, function_map:)
       tool_name = item[:name] || item.dig(:function, :name)
       return unless tool_name
 
@@ -208,8 +205,8 @@ module RAAF
     ##
     # Process a computer action
     #
-    def process_computer_action(item:, agent:, items:, computer_actions:, 
-                              tools_used:, computer_tool:)
+    def process_computer_action(item:, agent:, items:, computer_actions:,
+                                tools_used:, computer_tool:)
       unless computer_tool
         error = Errors::ModelBehaviorError.new("Computer tool not available for agent #{agent.name}", agent: agent)
         log_exception(error, message: "Computer tool not available", agent: agent.name)
@@ -227,8 +224,8 @@ module RAAF
     ##
     # Process a local shell call
     #
-    def process_local_shell_call(item:, agent:, items:, local_shell_calls:, 
-                               tools_used:, local_shell_tool:)
+    def process_local_shell_call(item:, agent:, items:, local_shell_calls:,
+                                 tools_used:, local_shell_tool:)
       unless local_shell_tool
         error = Errors::ModelBehaviorError.new("Local shell tool not available for agent #{agent.name}", agent: agent)
         log_exception(error, message: "Local shell tool not available", agent: agent.name)
@@ -294,8 +291,6 @@ module RAAF
         "computer_use"
       elsif item[:command]
         "local_shell"
-      else
-        nil
       end
     end
 
@@ -331,7 +326,7 @@ module RAAF
     #
     def create_handoff_call_item(item, agent)
       raw_item = {
-        type: "function_call", 
+        type: "function_call",
         id: item[:id] || item[:call_id] || SecureRandom.uuid,
         name: item[:name] || item.dig(:function, :name),
         arguments: item[:arguments] || item.dig(:function, :arguments) || "{}",
@@ -347,9 +342,10 @@ module RAAF
       str.to_s
          .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
          .gsub(/([a-z\d])([A-Z])/, '\1_\2')
-         .gsub(/\s+/, '_')
+         .gsub(/\s+/, "_")
          .downcase
     end
+
   end
 
 end

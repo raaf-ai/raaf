@@ -170,9 +170,7 @@ class FlexibleOutputSchema < RAAF::AgentOutputSchemaBase
             "Missing required 'status' field"
     end
 
-    unless %w[success error pending].include?(data["status"])
-      raise RAAF::ModelBehaviorError, "Invalid status: #{data["status"]}"
-    end
+    raise RAAF::ModelBehaviorError, "Invalid status: #{data["status"]}" unless %w[success error pending].include?(data["status"])
 
     data
   rescue JSON::ParserError => e

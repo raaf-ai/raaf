@@ -35,10 +35,10 @@ module RAAF
       # @return [Hash] Result with :handoff_occurred and optionally :new_agent
       #
       def check_for_handoff(message, current_agent)
-        log_debug("🔄 HANDOFF FLOW: Checking message for handoff", 
+        log_debug("🔄 HANDOFF FLOW: Checking message for handoff",
                   current_agent: current_agent.name,
                   has_content: !message[:content].nil?)
-        
+
         # Check if the message indicates a handoff is needed
         unless message[:content]
           log_debug("🔄 HANDOFF FLOW: No content found in message", current_agent: current_agent.name)
@@ -47,12 +47,12 @@ module RAAF
 
         # Delegate to runner's handoff detection
         handoff_target = @runner.detect_handoff_in_content(message[:content], current_agent)
-        log_debug("🔄 HANDOFF FLOW: Handoff detection result", 
+        log_debug("🔄 HANDOFF FLOW: Handoff detection result",
                   current_agent: current_agent.name,
                   handoff_target: handoff_target)
 
         if handoff_target
-          log_debug("🔄 HANDOFF FLOW: Processing handoff request", 
+          log_debug("🔄 HANDOFF FLOW: Processing handoff request",
                     current_agent: current_agent.name,
                     target: handoff_target)
           process_handoff_request(handoff_target, current_agent)
@@ -73,24 +73,24 @@ module RAAF
       # @return [Hash] Result with :handoff_occurred and optionally :new_agent
       #
       def check_tool_calls_for_handoff(tool_calls, current_agent)
-        log_debug("🔄 HANDOFF FLOW: Checking tool calls for handoff", 
+        log_debug("🔄 HANDOFF FLOW: Checking tool calls for handoff",
                   current_agent: current_agent.name,
                   tool_calls_count: tool_calls.count,
                   tool_names: tool_calls.map { |tc| tc.dig("function", "name") || tc[:function][:name] }.join(", "))
-        
-        handoff_tool_call = tool_calls.find { |tc| is_handoff_tool?(tc) }
+
+        handoff_tool_call = tool_calls.find { |tc| handoff_tool?(tc) }
 
         if handoff_tool_call
           tool_name = handoff_tool_call.dig("function", "name") || handoff_tool_call[:function][:name]
-          log_debug("🔄 HANDOFF FLOW: Found handoff tool call", 
+          log_debug("🔄 HANDOFF FLOW: Found handoff tool call",
                     current_agent: current_agent.name,
                     handoff_tool: tool_name)
-          
+
           target_agent_name = extract_handoff_target(handoff_tool_call)
-          log_debug("🔄 HANDOFF FLOW: Extracted handoff target", 
+          log_debug("🔄 HANDOFF FLOW: Extracted handoff target",
                     current_agent: current_agent.name,
                     target_agent: target_agent_name)
-          
+
           process_handoff_request(target_agent_name, current_agent)
         else
           log_debug("🔄 HANDOFF FLOW: No handoff tool calls found", current_agent: current_agent.name)
@@ -123,13 +123,13 @@ module RAAF
       # @private
       #
       def process_handoff_request(target_agent_name, current_agent)
-        log_debug("🔄 HANDOFF FLOW: Processing handoff request", 
+        log_debug("🔄 HANDOFF FLOW: Processing handoff request",
                   current_agent: current_agent.name,
                   target_agent: target_agent_name)
-        
+
         # Find the target agent
         target_agent = @runner.find_handoff_agent(target_agent_name, current_agent)
-        log_debug("🔄 HANDOFF FLOW: Target agent lookup result", 
+        log_debug("🔄 HANDOFF FLOW: Target agent lookup result",
                   current_agent: current_agent.name,
                   target_agent: target_agent_name,
                   found: !target_agent.nil?)
@@ -142,7 +142,8 @@ module RAAF
             target_name: target_agent_name
           }
         else
-          log_warn("🔄 HANDOFF FLOW: Handoff target not found", target: target_agent_name, current_agent: current_agent.name)
+          log_warn("🔄 HANDOFF FLOW: Handoff target not found", target: target_agent_name,
+                                                               current_agent: current_agent.name)
           { handoff_occurred: false, error: "Target agent '#{target_agent_name}' not found" }
         end
       end
@@ -157,7 +158,7 @@ module RAAF
       # @return [Boolean] true if this is a handoff tool call
       # @private
       #
-      def is_handoff_tool?(tool_call)
+      def handoff_tool?(tool_call)
         function_name = tool_call.dig("function", "name") || tool_call[:function][:name]
 
         # Check for common handoff tool patterns

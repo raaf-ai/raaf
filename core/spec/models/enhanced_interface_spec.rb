@@ -6,20 +6,22 @@ require_relative "../../lib/raaf/models/enhanced_interface"
 RSpec.describe RAAF::Models::EnhancedModelInterface do
   let(:test_provider_class) do
     Class.new(described_class) do
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         {
           "choices" => [{
             "message" => {
               "role" => "assistant",
               "content" => "Test response from chat completion",
-              "tool_calls" => tools&.any? ? [{
-                "id" => "call_123",
-                "type" => "function",
-                "function" => {
-                  "name" => "transfer_to_support",
-                  "arguments" => "{}"
-                }
-              }] : nil
+              "tool_calls" => if tools&.any?
+                                [{
+                                  "id" => "call_123",
+                                  "type" => "function",
+                                  "function" => {
+                                    "name" => "transfer_to_support",
+                                    "arguments" => "{}"
+                                  }
+                                }]
+                              end
             }
           }],
           "usage" => {
@@ -83,10 +85,10 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
         )
 
         expect(result[:usage]).to eq({
-          "prompt_tokens" => 20,
-          "completion_tokens" => 10,
-          "total_tokens" => 30
-        })
+                                       "prompt_tokens" => 20,
+                                       "completion_tokens" => 10,
+                                       "total_tokens" => 30
+                                     })
       end
 
       it "preserves model information" do
@@ -117,7 +119,7 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
         )
 
         expect(result[:output]).to have(2).items
-        
+
         # First item should be the text message
         expect(result[:output][0]).to include(
           type: "message",
@@ -136,7 +138,7 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
       it "handles multiple tool calls" do
         # Modify provider to return multiple tool calls
         multi_tool_provider = Class.new(described_class) do
-          def chat_completion(messages:, model:, tools: nil, **kwargs)
+          def chat_completion(messages:, model:, tools: nil, **_kwargs)
             {
               "choices" => [{
                 "message" => {
@@ -150,7 +152,7 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
                     },
                     {
                       "id" => "call_2",
-                      "type" => "function", 
+                      "type" => "function",
                       "function" => { "name" => "tool_2", "arguments" => "{}" }
                     }
                   ]
@@ -160,8 +162,8 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
             }
           end
 
-          def supported_models; ["multi-tool-model"]; end
-          def provider_name; "MultiToolProvider"; end
+          def supported_models = ["multi-tool-model"]
+          def provider_name = "MultiToolProvider"
         end.new
 
         result = multi_tool_provider.responses_completion(
@@ -171,7 +173,7 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
         )
 
         expect(result[:output]).to have(3).items # 1 message + 2 function calls
-        
+
         function_calls = result[:output].select { |item| item[:type] == "function_call" }
         expect(function_calls).to have(2).items
         expect(function_calls[0][:name]).to eq("tool_1")
@@ -199,17 +201,17 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
         expect(test_provider).to receive(:chat_completion) do |args|
           messages = args[:messages]
           expect(messages).to have(3).items
-          
+
           # Original messages
           expect(messages[0]).to eq({ role: "user", content: "Hello, I need help" })
-          
+
           # Converted from input items
           expect(messages[1]).to eq({ role: "user", content: "Follow-up question" })
           expect(messages[2]).to eq({
-            role: "tool",
-            tool_call_id: "call_456",
-            content: "Tool execution result"
-          })
+                                      role: "tool",
+                                      tool_call_id: "call_456",
+                                      content: "Tool execution result"
+                                    })
 
           # Return standard response
           {
@@ -263,29 +265,29 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
     context "error handling" do
       let(:error_provider) do
         Class.new(described_class) do
-          def chat_completion(messages:, model:, **kwargs)
+          def chat_completion(messages:, model:, **_kwargs)
             raise StandardError, "Provider error"
           end
 
-          def supported_models; ["error-model"]; end
-          def provider_name; "ErrorProvider"; end
+          def supported_models = ["error-model"]
+          def provider_name = "ErrorProvider"
         end.new
       end
 
       it "propagates errors from chat_completion" do
-        expect {
+        expect do
           error_provider.responses_completion(
             messages: test_messages,
             model: "error-model"
           )
-        }.to raise_error(StandardError, "Provider error")
+        end.to raise_error(StandardError, "Provider error")
       end
     end
 
     context "with edge cases" do
       let(:edge_case_provider) do
         Class.new(described_class) do
-          def chat_completion(messages:, model:, **kwargs)
+          def chat_completion(messages:, model:, **_kwargs)
             {
               "choices" => [{
                 "message" => {
@@ -298,8 +300,8 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
             }
           end
 
-          def supported_models; ["edge-case-model"]; end
-          def provider_name; "EdgeCaseProvider"; end
+          def supported_models = ["edge-case-model"]
+          def provider_name = "EdgeCaseProvider"
         end.new
       end
 
@@ -341,13 +343,13 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
     context "with provider without function calling" do
       let(:no_function_provider) do
         Class.new(described_class) do
-          def chat_completion(messages:, model:, **kwargs)
-            # Note: No tools parameter
+          def chat_completion(messages:, model:, **_kwargs)
+            # NOTE: No tools parameter
             { "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }] }
           end
 
-          def supported_models; ["no-function-model"]; end
-          def provider_name; "NoFunctionProvider"; end
+          def supported_models = ["no-function-model"]
+          def provider_name = "NoFunctionProvider"
         end.new
       end
 
@@ -365,12 +367,12 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
     context "with provider without tools parameter" do
       let(:no_tools_provider) do
         Class.new(described_class) do
-          def chat_completion(messages:, model:, **kwargs)
+          def chat_completion(messages:, model:, **_kwargs)
             { "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }] }
           end
 
-          def supported_models; ["no-tools-model"]; end
-          def provider_name; "NoToolsProvider"; end
+          def supported_models = ["no-tools-model"]
+          def provider_name = "NoToolsProvider"
         end.new
       end
 
@@ -396,16 +398,16 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
     context "with provider implementing streaming" do
       let(:streaming_provider) do
         Class.new(described_class) do
-          def chat_completion(messages:, model:, tools: nil, **kwargs)
+          def chat_completion(messages:, model:, tools: nil, **_kwargs)
             { "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }] }
           end
 
-          def stream_completion(messages:, model:, tools: nil, **kwargs)
+          def stream_completion(messages:, model:, tools: nil, **_kwargs)
             { "streaming" => true }
           end
 
-          def supported_models; ["streaming-model"]; end
-          def provider_name; "StreamingProvider"; end
+          def supported_models = ["streaming-model"]
+          def provider_name = "StreamingProvider"
         end.new
       end
 
@@ -471,7 +473,7 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
 
         # Should have both message and function call
         expect(result[:output]).to have(2).items
-        
+
         function_call = result[:output].find { |item| item[:type] == "function_call" }
         expect(function_call[:name]).to eq("transfer_to_support")
       end

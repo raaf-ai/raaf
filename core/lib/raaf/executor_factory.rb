@@ -64,7 +64,8 @@ module RAAF
       # @return [Hash] Service bundle with all dependencies
       #
       def self.create_service_bundle(runner:, provider:, agent:, config:)
-        log_debug_general("Creating service bundle", provider: provider.class.name, agent: agent.name)
+        agent_name = agent.respond_to?(:name) ? agent.name : agent.class.name
+        log_debug_general("Creating service bundle", provider: provider.class.name, agent: agent_name)
 
         # Create core services
         conversation_manager = ConversationManager.new(config)

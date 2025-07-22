@@ -116,7 +116,7 @@ module RAAF
     #     pre_handoff_items: [user_profile, order_history],
     #     new_items: [analysis, recommendations]
     #   )
-    #   
+    #
     #   # Get everything together
     #   full_context = data.all_items
     #   # => [user_profile, order_history, analysis, recommendations]
@@ -512,7 +512,7 @@ module RAAF
       #     on_handoff: ->(context, input) {
       #       # Validate customer_id is present
       #       raise "Missing customer_id" unless input[:customer_id]
-      #       
+      #
       #       # Load customer context
       #       customer = Customer.find(input[:customer_id])
       #       context.add_customer_data(customer)
@@ -732,13 +732,13 @@ module RAAF
       #     type: "object",
       #     properties: {
       #       customer_id: { type: "string", pattern: "^[A-Z0-9]+$" },
-      #       issue_type: { 
-      #         type: "string", 
-      #         enum: ["billing", "technical", "account"] 
+      #       issue_type: {
+      #         type: "string",
+      #         enum: ["billing", "technical", "account"]
       #       },
-      #       priority: { 
-      #         type: "string", 
-      #         enum: ["low", "medium", "high", "urgent"] 
+      #       priority: {
+      #         type: "string",
+      #         enum: ["low", "medium", "high", "urgent"]
       #       }
       #     },
       #     required: ["customer_id", "issue_type"]
@@ -861,7 +861,7 @@ module RAAF
   # @example Use convenience method
   #   # Instead of:
   #   handoff = RAAF::Handoffs.handoff(support_agent)
-  #   
+  #
   #   # You can use:
   #   handoff = RAAF.handoff(support_agent)
   #
@@ -908,15 +908,15 @@ module RAAF
   # @example With detailed instructions
   #   custom_instructions = <<~INSTRUCTIONS
   #     You are a technical support agent specializing in API integration issues.
-  #     
+  #
   #     Your responsibilities:
   #     - Diagnose API connectivity problems
   #     - Provide code examples for common integration patterns
   #     - Escalate complex issues to senior engineers when needed
-  #     
+  #
   #     Always be clear and provide actionable solutions.
   #   INSTRUCTIONS
-  #   
+  #
   #   agent = RAAF::Agent.new(
   #     name: "TechSupport",
   #     instructions: RAAF.prompt_with_handoff_instructions(custom_instructions),
@@ -927,7 +927,7 @@ module RAAF
   # @see RECOMMENDED_PROMPT_PREFIX
   def self.prompt_with_handoff_instructions(prompt)
     return RECOMMENDED_PROMPT_PREFIX if prompt.nil? || prompt.empty?
-    
+
     "#{RECOMMENDED_PROMPT_PREFIX}\n\n#{prompt}"
   end
 

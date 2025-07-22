@@ -239,9 +239,7 @@ module RAAF
         if type == "object"
           json_schema["additionalProperties"] = false unless json_schema.key?("additionalProperties")
 
-          if json_schema["additionalProperties"] == true
-            raise ArgumentError, "additionalProperties should not be set to true for strict schemas"
-          end
+          raise ArgumentError, "additionalProperties should not be set to true for strict schemas" if json_schema["additionalProperties"] == true
 
           # All properties must be required in strict mode (like Python implementation)
           properties = json_schema["properties"]

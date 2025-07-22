@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
+
   ##
   # Manages handoff state and data transfer between agents
   #
@@ -8,6 +9,7 @@ module RAAF
   # the implicit hook-based system with direct function calling approach.
   #
   class HandoffContext
+
     attr_reader :current_agent, :target_agent, :handoff_data, :shared_context, :handoff_timestamp
 
     def initialize(current_agent: nil)
@@ -31,14 +33,14 @@ module RAAF
       @handoff_data = data.dup
       @handoff_timestamp = Time.current
       @shared_context.merge!(data)
-      
+
       log_info("Handoff prepared", {
-        from: @current_agent,
-        to: @target_agent,
-        reason: reason,
-        data_keys: data.keys
-      })
-      
+                 from: @current_agent,
+                 to: @target_agent,
+                 reason: reason,
+                 data_keys: data.keys
+               })
+
       true
     end
 
@@ -48,19 +50,17 @@ module RAAF
     # @return [Hash] Handoff result with success status
     #
     def execute_handoff
-      unless @target_agent
-        return { success: false, error: "No target agent set" }
-      end
+      return { success: false, error: "No target agent set" } unless @target_agent
 
       previous_agent = @current_agent
       @current_agent = @target_agent
       @target_agent = nil
 
       log_info("Handoff executed", {
-        from: previous_agent,
-        to: @current_agent,
-        timestamp: @handoff_timestamp
-      })
+                 from: previous_agent,
+                 to: @current_agent,
+                 timestamp: @handoff_timestamp
+               })
 
       {
         success: true,
@@ -109,11 +109,11 @@ module RAAF
 
       message = "HANDOFF RECEIVED FROM #{@current_agent.upcase}\n"
       message += "TIMESTAMP: #{@handoff_timestamp}\n\n"
-      
+
       @handoff_data.each do |key, value|
         message += "#{key.to_s.upcase}: #{format_handoff_value(value)}\n"
       end
-      
+
       message
     end
 
@@ -137,5 +137,7 @@ module RAAF
         puts "[HandoffContext] #{message}: #{data}"
       end
     end
+
   end
+
 end

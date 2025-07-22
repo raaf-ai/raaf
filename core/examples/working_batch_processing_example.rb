@@ -511,9 +511,7 @@ class AdvancedBatchProcessor
       errors << "Request #{index}: missing messages" unless request[:messages]
 
       # Validate token limits
-      if request[:max_tokens] && request[:max_tokens] > 4096
-        errors << "Request #{index}: max_tokens exceeds limit (4096)"
-      end
+      errors << "Request #{index}: max_tokens exceeds limit (4096)" if request[:max_tokens] && request[:max_tokens] > 4096
 
       # Validate message format
       errors << "Request #{index}: messages must be an array" if request[:messages] && !request[:messages].is_a?(Array)

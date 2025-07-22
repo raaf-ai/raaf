@@ -247,7 +247,7 @@ regular_support.add_handoff(vip_handoff)
 
 runner = RAAF::Runner.new(agent: regular_support)
 
-# Test conditional handoff 
+# Test conditional handoff
 puts "Testing conditional VIP handoff..."
 result = runner.run("I need help with my premium account features")
 puts "Response: #{result.messages.last[:content]}"

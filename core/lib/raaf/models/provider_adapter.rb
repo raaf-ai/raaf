@@ -5,7 +5,9 @@ require_relative "../errors"
 require_relative "handoff_fallback_system"
 
 module RAAF
+
   module Models
+
     ##
     # Universal Provider Adapter for Handoff Support
     #
@@ -63,6 +65,7 @@ module RAAF
     # @since 0.2.0
     #
     class ProviderAdapter
+
       include Logger
 
       ##
@@ -81,7 +84,7 @@ module RAAF
         @provider = provider
         @capabilities = detect_capabilities
         @fallback_system = HandoffFallbackSystem.new(available_agents)
-        log_debug("🔧 PROVIDER ADAPTER: Initialized with capabilities", 
+        log_debug("🔧 PROVIDER ADAPTER: Initialized with capabilities",
                   provider: provider.provider_name,
                   capabilities: @capabilities,
                   fallback_enabled: !@capabilities[:function_calling])
@@ -95,7 +98,7 @@ module RAAF
       #
       # @example Basic usage with handoff tools
       #   adapter = ProviderAdapter.new(provider, ["Support", "Billing"])
-      #   
+      #
       #   response = adapter.universal_completion(
       #     messages: [{ role: "user", content: "I need billing help" }],
       #     model: "gpt-4",
@@ -109,19 +112,19 @@ module RAAF
       #       }
       #     }]
       #   )
-      #   
+      #
       #   # Response format is standardized regardless of provider
       #   puts response[:output] # Array of response items
       #   puts response[:usage] # Token usage information
       #
       # @example With non-function-calling provider
       #   adapter = ProviderAdapter.new(llama_provider, ["Support"])
-      #   
+      #
       #   response = adapter.universal_completion(
       #     messages: [{ role: "user", content: "Help me" }],
       #     model: "llama-2-7b"
       #   )
-      #   
+      #
       #   # Content-based handoff detection works automatically
       #   if response[:output].first[:content].include?('{"handoff_to": "Support"}')
       #     puts "Handoff detected!"
@@ -135,26 +138,26 @@ module RAAF
       #
       # @return [Hash] Standardized response format with :output, :usage, :model keys
       #
-      def universal_completion(messages:, model:, tools: nil, stream: false, **kwargs)
-        log_debug("🔧 PROVIDER ADAPTER: Universal completion requested", 
+      def universal_completion(messages:, model:, tools: nil, stream: false, **)
+        log_debug("🔧 PROVIDER ADAPTER: Universal completion requested",
                   provider: @provider.provider_name,
                   has_tools: !tools.nil?,
                   tools_count: tools&.size || 0,
                   stream: stream)
 
         # Log the outgoing request details
-        log_provider_request(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
+        log_provider_request(messages: messages, model: model, tools: tools, stream: stream, **)
 
         # Route to appropriate API based on capabilities
         response = nil
         if @capabilities[:responses_api]
           log_debug("🔧 PROVIDER ADAPTER: Using Responses API path")
           response = @provider.responses_completion(
-            messages: messages, 
-            model: model, 
+            messages: messages,
+            model: model,
             tools: tools,
             stream: stream,
-            **kwargs
+            **
           )
           normalized_response = normalize_responses_api_response(response)
         elsif @capabilities[:chat_completion]
@@ -164,7 +167,7 @@ module RAAF
             model: model,
             tools: tools,
             stream: stream,
-            **kwargs
+            **
           )
           normalized_response = normalize_chat_completion_response(response)
         else
@@ -173,7 +176,7 @@ module RAAF
 
         # Log the incoming response details
         log_provider_response(response, normalized_response)
-        
+
         normalized_response
       end
 
@@ -183,13 +186,13 @@ module RAAF
       #
       # @example Responses API compatibility
       #   adapter = ProviderAdapter.new(provider)
-      #   
+      #
       #   # This call works regardless of provider's native API
       #   response = adapter.responses_completion(
       #     messages: [{ role: "user", content: "Hello" }],
       #     model: "gpt-4"
       #   )
-      #   
+      #
       #   # Always returns Responses API format
       #   puts response[:output] # Array format
       #
@@ -199,8 +202,8 @@ module RAAF
       # @param **kwargs [Hash] Additional parameters
       # @return [Hash] Response in Responses API format
       #
-      def responses_completion(messages:, model:, tools: nil, **kwargs)
-        universal_completion(messages: messages, model: model, tools: tools, **kwargs)
+      def responses_completion(messages:, model:, tools: nil, **)
+        universal_completion(messages: messages, model: model, tools: tools, **)
       end
 
       ##
@@ -209,14 +212,14 @@ module RAAF
       #
       # @example Chat Completions API compatibility
       #   adapter = ProviderAdapter.new(provider)
-      #   
+      #
       #   # This call works with any provider
       #   response = adapter.chat_completion(
       #     messages: [{ role: "user", content: "Hello" }],
       #     model: "gpt-4",
       #     tools: handoff_tools
       #   )
-      #   
+      #
       #   # Returns normalized format for consistent processing
       #   puts response[:output] # Standardized output
       #
@@ -227,8 +230,8 @@ module RAAF
       # @param **kwargs [Hash] Additional parameters
       # @return [Hash] Normalized response format
       #
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
-        universal_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **)
+        universal_completion(messages: messages, model: model, tools: tools, stream: stream, **)
       end
 
       ##
@@ -236,12 +239,12 @@ module RAAF
       #
       # @example Streaming compatibility
       #   adapter = ProviderAdapter.new(provider)
-      #   
+      #
       #   response = adapter.stream_completion(
       #     messages: [{ role: "user", content: "Hello" }],
       #     model: "gpt-4"
       #   )
-      #   
+      #
       #   # Streaming is handled by underlying provider
       #   puts response[:streaming] # true if supported
       #
@@ -251,8 +254,8 @@ module RAAF
       # @param **kwargs [Hash] Additional parameters
       # @return [Hash] Streaming response
       #
-      def stream_completion(messages:, model:, tools: nil, **kwargs)
-        universal_completion(messages: messages, model: model, tools: tools, stream: true, **kwargs)
+      def stream_completion(messages:, model:, tools: nil, **)
+        universal_completion(messages: messages, model: model, tools: tools, stream: true, **)
       end
 
       ##
@@ -261,7 +264,7 @@ module RAAF
       #
       # @example Check handoff support
       #   adapter = ProviderAdapter.new(provider, ["Support", "Billing"])
-      #   
+      #
       #   if adapter.supports_handoffs?
       #     puts "Handoffs are supported!"
       #     # Either native function calling or content-based fallback
@@ -283,10 +286,10 @@ module RAAF
       #
       # @example Update available agents
       #   adapter = ProviderAdapter.new(provider, ["Support"])
-      #   
+      #
       #   # Add new agents
       #   adapter.update_available_agents(["Support", "Billing", "Technical"])
-      #   
+      #
       #   # Fallback system now knows about all three agents
       #   stats = adapter.get_handoff_stats
       #   puts stats[:available_agents] # ["Support", "Billing", "Technical"]
@@ -309,10 +312,10 @@ module RAAF
       #
       # @example Enhanced instructions for non-function-calling provider
       #   adapter = ProviderAdapter.new(llama_provider, ["Support", "Billing"])
-      #   
+      #
       #   base_instructions = "You are a helpful assistant."
       #   enhanced = adapter.get_enhanced_system_instructions(base_instructions, ["Support", "Billing"])
-      #   
+      #
       #   puts enhanced
       #   # Output includes:
       #   # "You are a helpful assistant."
@@ -326,7 +329,7 @@ module RAAF
       #
       # @example With function-calling provider (no enhancement)
       #   adapter = ProviderAdapter.new(openai_provider)
-      #   
+      #
       #   enhanced = adapter.get_enhanced_system_instructions(base_instructions, ["Support"])
       #   puts enhanced == base_instructions # true (no enhancement needed)
       #
@@ -339,7 +342,7 @@ module RAAF
 
         # For non-function-calling providers, add handoff instructions
         handoff_instructions = @fallback_system.generate_handoff_instructions(available_agents)
-        
+
         log_debug("🔧 PROVIDER ADAPTER: Adding handoff instructions for non-function-calling provider",
                   provider: @provider.provider_name,
                   available_agents: available_agents.size)
@@ -355,7 +358,7 @@ module RAAF
       #
       # @example Detect JSON handoff
       #   adapter = ProviderAdapter.new(llama_provider, ["Support", "Billing"])
-      #   
+      #
       #   content = 'I can help with that. {"handoff_to": "Support"}'
       #   target = adapter.detect_content_based_handoff(content)
       #   puts target # "Support"
@@ -367,7 +370,7 @@ module RAAF
       #
       # @example With function-calling provider (not applicable)
       #   adapter = ProviderAdapter.new(openai_provider)
-      #   
+      #
       #   target = adapter.detect_content_based_handoff(content)
       #   puts target # nil (not applicable for function-calling providers)
       #
@@ -376,7 +379,7 @@ module RAAF
       #
       def detect_content_based_handoff(content)
         return nil if @capabilities[:function_calling] # Only for non-function-calling providers
-        
+
         @fallback_system.detect_handoff_in_content(content)
       end
 
@@ -388,12 +391,12 @@ module RAAF
       #
       # @example Get detection statistics
       #   adapter = ProviderAdapter.new(llama_provider, ["Support", "Billing"])
-      #   
+      #
       #   # Use detection a few times
       #   adapter.detect_content_based_handoff('{"handoff_to": "Support"}')
       #   adapter.detect_content_based_handoff('No handoff here')
       #   adapter.detect_content_based_handoff('[HANDOFF:Billing]')
-      #   
+      #
       #   stats = adapter.get_handoff_stats
       #   puts "Success rate: #{stats[:success_rate]}" # "66.67%"
       #   puts "Total attempts: #{stats[:total_attempts]}" # 3
@@ -417,7 +420,7 @@ module RAAF
       #
       # @example Get capabilities
       #   adapter = ProviderAdapter.new(provider)
-      #   
+      #
       #   caps = adapter.capabilities
       #   puts "Responses API: #{caps[:responses_api]}"
       #   puts "Chat Completion: #{caps[:chat_completion]}"
@@ -439,11 +442,11 @@ module RAAF
       #
       # @example Method delegation
       #   adapter = ProviderAdapter.new(provider)
-      #   
+      #
       #   # These calls are delegated to the underlying provider
       #   models = adapter.supported_models
       #   name = adapter.provider_name
-      #   
+      #
       #   # Provider-specific methods also work
       #   if adapter.respond_to?(:custom_method)
       #     result = adapter.custom_method
@@ -455,9 +458,9 @@ module RAAF
       # @param block [Proc] Block to pass to method
       # @return [Object] Result from underlying provider method
       #
-      def method_missing(method, *args, **kwargs, &block)
+      def method_missing(method, ...)
         if @provider.respond_to?(method)
-          @provider.send(method, *args, **kwargs, &block)
+          @provider.send(method, ...)
         else
           super
         end
@@ -488,22 +491,22 @@ module RAAF
                       tools_count: tools&.size || 0)
 
         # Log message details
-        if messages && messages.any?
+        if messages&.any?
           log_debug_api("📤 PROVIDER REQUEST: Message details",
                         messages: inspect_messages(messages, "REQUEST"))
         end
 
         # Log tool details if provided
-        if tools && tools.any?
+        if tools&.any?
           log_debug_api("📤 PROVIDER REQUEST: Tool details",
                         tools: inspect_tools(tools, "REQUEST"))
         end
 
         # Log additional parameters
-        if kwargs.any?
-          log_debug_api("📤 PROVIDER REQUEST: Additional parameters",
-                        parameters: inspect_parameters(kwargs, "REQUEST"))
-        end
+        return unless kwargs.any?
+
+        log_debug_api("📤 PROVIDER REQUEST: Additional parameters",
+                      parameters: inspect_parameters(kwargs, "REQUEST"))
       end
 
       ##
@@ -537,10 +540,10 @@ module RAAF
         end
 
         # Log usage information
-        if normalized_response&.dig(:usage)
-          log_debug_api("📥 PROVIDER RESPONSE: Usage details",
-                        usage: inspect_usage(normalized_response[:usage]))
-        end
+        return unless normalized_response&.dig(:usage)
+
+        log_debug_api("📥 PROVIDER RESPONSE: Usage details",
+                      usage: inspect_usage(normalized_response[:usage]))
       end
 
       ##
@@ -550,7 +553,7 @@ module RAAF
       # @param context [String] Context for logging (REQUEST/RESPONSE)
       # @return [Array<Hash>] Formatted messages for logging
       #
-      def inspect_messages(messages, context = "")
+      def inspect_messages(messages, _context = "")
         return [] unless messages.is_a?(Array)
 
         messages.map.with_index do |message, index|
@@ -573,7 +576,7 @@ module RAAF
       # @param context [String] Context for logging (REQUEST/RESPONSE)
       # @return [Array<Hash>] Formatted tools for logging
       #
-      def inspect_tools(tools, context = "")
+      def inspect_tools(tools, _context = "")
         return [] unless tools.is_a?(Array)
 
         tools.map.with_index do |tool, index|
@@ -595,7 +598,7 @@ module RAAF
       # @param context [String] Context for logging (REQUEST/RESPONSE)
       # @return [Hash] Formatted parameters for logging
       #
-      def inspect_parameters(params, context = "")
+      def inspect_parameters(params, _context = "")
         return {} unless params.is_a?(Hash)
 
         params.transform_values do |value|
@@ -605,7 +608,7 @@ module RAAF
           when Array
             "[Array with #{value.size} items]"
           when Hash
-            "[Hash with #{value.size} keys: #{value.keys.join(', ')}]"
+            "[Hash with #{value.size} keys: #{value.keys.join(", ")}]"
           else
             value
           end
@@ -690,6 +693,7 @@ module RAAF
         return "string" if content.is_a?(String)
         return "array" if content.is_a?(Array)
         return "hash" if content.is_a?(Hash)
+
         content.class.to_s.downcase
       end
 
@@ -703,6 +707,7 @@ module RAAF
         content = item[:content] || item["content"]
         return 0 if content.nil?
         return content.size if content.respond_to?(:size)
+
         content.to_s.length
       end
 
@@ -716,7 +721,7 @@ module RAAF
         content = item[:content] || item["content"]
         return "[nil]" if content.nil?
         return "[empty]" if content.respond_to?(:empty?) && content.empty?
-        
+
         preview = content.to_s
         preview.length > 100 ? "#{preview[0..97]}..." : preview
       end
@@ -728,9 +733,10 @@ module RAAF
       # @return [Integer] Properties count
       #
       def get_properties_count(tool)
-        properties = tool.dig(:function, :parameters, :properties) || 
-                    tool.dig("function", "parameters", "properties")
+        properties = tool.dig(:function, :parameters, :properties) ||
+                     tool.dig("function", "parameters", "properties")
         return 0 unless properties.is_a?(Hash)
+
         properties.size
       end
 
@@ -745,6 +751,7 @@ module RAAF
         return "chat_completions" if response.key?(:choices) || response.key?("choices")
         return "streaming" if response.key?(:streaming) || response.key?("streaming")
         return "error" if response.key?(:error) || response.key?("error")
+
         "unknown"
       end
 
@@ -756,12 +763,12 @@ module RAAF
       #
       def inspect_raw_response_details(response)
         details = {}
-        
+
         # Chat Completions format
         if response.key?("choices") || response.key?(:choices)
           choices = response["choices"] || response[:choices]
           details[:choices_count] = choices&.size || 0
-          
+
           if choices&.any?
             first_choice = choices[0]
             message = first_choice["message"] || first_choice[:message]
@@ -780,10 +787,8 @@ module RAAF
         if response.key?("output") || response.key?(:output)
           output = response["output"] || response[:output]
           details[:output_count] = output&.size || 0
-          
-          if output&.any?
-            details[:output_types] = output.map { |item| item[:type] || item["type"] }.compact
-          end
+
+          details[:output_types] = output.map { |item| item[:type] || item["type"] }.compact if output&.any?
         end
 
         # Usage information
@@ -803,21 +808,19 @@ module RAAF
       #
       def inspect_normalized_response_details(response)
         details = {}
-        
+
         # Output array (always present in normalized format)
         if response[:output]
           details[:output_count] = response[:output].size
           details[:output_types] = response[:output].map { |item| item[:type] }.compact
-          
+
           # Count different types
           type_counts = response[:output].group_by { |item| item[:type] }.transform_values(&:size)
           details[:output_type_counts] = type_counts
         end
 
         # Usage information
-        if response[:usage]
-          details[:usage_keys] = response[:usage].keys.map(&:to_s)
-        end
+        details[:usage_keys] = response[:usage].keys.map(&:to_s) if response[:usage]
 
         # Model information
         details[:model] = response[:model] if response[:model]
@@ -841,7 +844,7 @@ module RAAF
       #   #   function_calling: true,
       #   #   handoffs: true
       #   # }
-      #   
+      #
       #   # For a basic text-only provider:
       #   # {
       #   #   responses_api: false,
@@ -855,26 +858,26 @@ module RAAF
       #
       def detect_capabilities
         capabilities = {}
-        
+
         # Check for Responses API support
         capabilities[:responses_api] = @provider.respond_to?(:responses_completion)
-        
+
         # Check for Chat Completion API support
         capabilities[:chat_completion] = @provider.respond_to?(:chat_completion)
-        
+
         # Check for streaming support
         capabilities[:streaming] = @provider.respond_to?(:stream_completion)
-        
+
         # Check for function calling support (required for handoffs)
         capabilities[:function_calling] = check_function_calling_support
-        
+
         # Handoff support is available if function calling is supported
         capabilities[:handoffs] = capabilities[:function_calling]
-        
+
         log_debug("🔧 PROVIDER ADAPTER: Detected capabilities",
                   provider: @provider.provider_name,
                   capabilities: capabilities)
-        
+
         capabilities
       end
 
@@ -888,7 +891,7 @@ module RAAF
       #   # For a provider with function calling:
       #   # Makes test call with empty tools array
       #   # Returns true if no ArgumentError about tools parameter
-      #   
+      #
       #   # For a provider without function calling:
       #   # Makes test call with empty tools array
       #   # Returns false if ArgumentError mentions tools parameter
@@ -897,31 +900,30 @@ module RAAF
       #
       def check_function_calling_support
         # Try to call with empty tools to see if it's supported
-        begin
-          test_messages = [{ role: "user", content: "test" }]
-          
-          if @provider.respond_to?(:chat_completion)
-            # Try with empty tools array - if it doesn't error, it supports function calling
-            @provider.chat_completion(
-              messages: test_messages,
-              model: @provider.supported_models.first,
-              tools: [],
-              stream: false
-            )
-            true
-          else
-            false
-          end
-        rescue ArgumentError => e
-          # If tools parameter is not accepted, function calling is not supported
-          !e.message.include?("tools")
-        rescue => e
-          # Other errors (like auth) don't tell us about function calling support
-          log_debug("🔧 PROVIDER ADAPTER: Function calling check failed with error", 
-                    provider: @provider.provider_name,
-                    error: e.message)
+
+        test_messages = [{ role: "user", content: "test" }]
+
+        if @provider.respond_to?(:chat_completion)
+          # Try with empty tools array - if it doesn't error, it supports function calling
+          @provider.chat_completion(
+            messages: test_messages,
+            model: @provider.supported_models.first,
+            tools: [],
+            stream: false
+          )
+          true
+        else
           false
         end
+      rescue ArgumentError => e
+        # If tools parameter is not accepted, function calling is not supported
+        !e.message.include?("tools")
+      rescue StandardError => e
+        # Other errors (like auth) don't tell us about function calling support
+        log_debug("🔧 PROVIDER ADAPTER: Function calling check failed with error",
+                  provider: @provider.provider_name,
+                  error: e.message)
+        false
       end
 
       ##
@@ -938,7 +940,7 @@ module RAAF
       #     usage: { total_tokens: 25 },
       #     model: "gpt-4"
       #   }
-      #   
+      #
       #   normalized = normalize_responses_api_response(response)
       #   puts normalized == response # true
       #
@@ -975,7 +977,7 @@ module RAAF
       #     "usage" => { "total_tokens" => 25 },
       #     "model" => "gpt-4"
       #   }
-      #   
+      #
       #   responses_format = normalize_chat_completion_response(chat_response)
       #   puts responses_format
       #   # {
@@ -992,10 +994,10 @@ module RAAF
       #
       def normalize_chat_completion_response(response)
         log_debug_api("🔄 PROVIDER ADAPTER: Normalizing Chat Completions response to Responses API format")
-        
+
         # Convert Chat Completions format to Responses API format
         # This enables handoff detection to work consistently
-        
+
         choice = response.dig("choices", 0) || response.dig(:choices, 0)
         unless choice
           log_debug_api("⚠️  PROVIDER ADAPTER: No choices found in Chat Completions response")
@@ -1010,7 +1012,7 @@ module RAAF
 
         # Convert to Responses API format
         output = []
-        
+
         # Add text content if present
         if message["content"] || message[:content]
           content = message["content"] || message[:content]
@@ -1048,14 +1050,17 @@ module RAAF
           model: response["model"] || response[:model],
           id: response["id"] || response[:id]
         }
-        
+
         log_debug_api("🔄 PROVIDER ADAPTER: Completed normalization",
                       output_items: output.size,
                       has_usage: !normalized[:usage].nil?,
                       model: normalized[:model])
-        
+
         normalized
       end
+
     end
+
   end
+
 end

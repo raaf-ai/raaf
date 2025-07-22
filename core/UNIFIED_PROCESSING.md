@@ -35,8 +35,8 @@ processed = ProcessedResponse.new(
   tools_used: ["get_weather", "transfer_to_agent"]
 )
 
-processed.has_handoffs?              # true/false
-processed.has_tools_or_actions_to_run? # true/false
+processed.handoffs_detected?      # true/false
+processed.tools_or_actions_to_run? # true/false
 processed.primary_handoff            # First handoff or nil
 ```
 
@@ -71,7 +71,7 @@ step_result = processor.execute_step(
 ```ruby
 tracker = ToolUseTracker.new
 tracker.add_tool_use(agent, ["get_weather", "send_email"])
-tracker.has_used_tools?(agent)  # true/false
+tracker.used_tools?(agent)  # true/false
 tracker.tools_used_by(agent)    # ["get_weather", "send_email"]
 ```
 

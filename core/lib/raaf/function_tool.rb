@@ -225,15 +225,11 @@ module RAAF
     def self.enabled_tools(tools, context = nil)
       tools.select do |tool|
         # Handle simple hash tools (like web_search) that don't have enabled? method
-        # rubocop:disable Style/RedundantCondition
-        if tool.is_a?(Hash)
-          true # Simple hash tools are always enabled
-        elsif tool.respond_to?(:enabled?)
+        if tool.respond_to?(:enabled?)
           tool.enabled?(context)
         else
-          true # Tools without enabled? method are always enabled
+          true # Simple hash tools and tools without enabled? method are always enabled
         end
-        # rubocop:enable Style/RedundantCondition
       end
     end
 
@@ -294,9 +290,7 @@ module RAAF
     # @return [String] The extracted or generated name
     #
     def extract_name(callable)
-      if callable.is_a?(Method)
-        callable.name.to_s
-      elsif callable.respond_to?(:name) && callable.name
+      if callable.respond_to?(:name) && callable.name
         callable.name.to_s
       else
         "anonymous_function"

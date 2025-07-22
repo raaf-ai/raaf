@@ -78,7 +78,7 @@ module RAAF
         runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)
 
         # Handle tool calls if present
-        if @tool_executor.has_tool_calls?(message)
+        if @tool_executor.tool_calls?(message)
           @tool_executor.execute_tool_calls(
             message["tool_calls"] || message[:tool_calls],
             conversation,
@@ -99,7 +99,7 @@ module RAAF
         handoff_result = @handoff_detector.check_for_handoff(message, current_agent)
 
         # Check tool calls for handoff patterns
-        if @tool_executor.has_tool_calls?(message)
+        if @tool_executor.tool_calls?(message)
           tool_handoff_result = @handoff_detector.check_tool_calls_for_handoff(
             message["tool_calls"] || message[:tool_calls],
             current_agent

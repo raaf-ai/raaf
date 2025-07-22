@@ -23,10 +23,10 @@ module RAAF
   #
   StepResult = Data.define(
     :original_input,      # String | Array<Hash> - The input before run() was called
-    :model_response,      # Hash - The model response for the current step  
+    :model_response,      # Hash - The model response for the current step
     :pre_step_items,      # Array<Hash> - Items generated before current step
     :new_step_items,      # Array<Hash> - Items generated during current step
-    :next_step           # NextStep* - The next action to take
+    :next_step # NextStep* - The next action to take
   ) do
     ##
     # Get all items generated during the agent run
@@ -69,6 +69,7 @@ module RAAF
     # @return [Object, nil] The final output or nil if not final
     def final_output
       return nil unless final_output?
+
       next_step.output
     end
 
@@ -78,6 +79,7 @@ module RAAF
     # @return [Agent, nil] The target agent or nil if not handoff
     def handoff_agent
       return nil unless handoff_occurred?
+
       next_step.new_agent
     end
   end
@@ -85,7 +87,7 @@ module RAAF
   ##
   # Next step: Continue with another turn
   #
-  NextStepRunAgain = Data.define() do
+  NextStepRunAgain = Data.define do
     def to_s
       "NextStepRunAgain"
     end

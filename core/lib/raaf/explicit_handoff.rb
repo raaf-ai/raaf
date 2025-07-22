@@ -4,6 +4,7 @@ require_relative "handoff_context"
 require_relative "handoff_tool"
 
 module RAAF
+
   ##
   # Explicit handoff system that replaces hook-based handoffs
   #
@@ -11,6 +12,7 @@ module RAAF
   # direct function calling instead of conversation parsing and hooks.
   #
   module ExplicitHandoff
+
     ##
     # Add explicit handoff tools to an agent
     #
@@ -53,9 +55,7 @@ module RAAF
       )
 
       # Add web search tool
-      if defined?(RAAF::Tools::WebSearchTool)
-        agent.add_tool(RAAF::Tools::WebSearchTool.new)
-      end
+      agent.add_tool(RAAF::Tools::WebSearchTool.new) if defined?(RAAF::Tools::WebSearchTool)
 
       # Add handoff tool for company discovery
       handoff_tool = HandoffTool.create_handoff_tool(
@@ -82,9 +82,7 @@ module RAAF
       )
 
       # Add web search tool
-      if defined?(RAAF::Tools::WebSearchTool)
-        agent.add_tool(RAAF::Tools::WebSearchTool.new)
-      end
+      agent.add_tool(RAAF::Tools::WebSearchTool.new) if defined?(RAAF::Tools::WebSearchTool)
 
       # Add completion tool
       completion_tool = HandoffTool.create_completion_tool(
@@ -103,7 +101,7 @@ module RAAF
     # @return [WorkflowResult] Complete workflow result
     #
     def self.run_explicit_handoff_workflow(message)
-      handoff_context = HandoffContext.new(current_agent: "SearchAgent")
+      HandoffContext.new(current_agent: "SearchAgent")
 
       # Define agents
       agents = {
@@ -138,8 +136,6 @@ module RAAF
       orchestrator.run_workflow(message, starting_agent: "SearchAgent")
     end
 
-    private
-
     ##
     # Build instructions for search agent
     #
@@ -148,24 +144,24 @@ module RAAF
     def self.build_search_instructions
       <<~INSTRUCTIONS.strip
         You are a SearchAgent specializing in market research and search strategy development.
-        
+
         Your role is to:
         1. Analyze the user's request to understand their research needs
         2. Conduct initial market research using web search
         3. Develop comprehensive search strategies for company discovery
         4. Gather market insights and trends
         5. Transfer execution to CompanyDiscoveryAgent with your findings
-        
+
         IMPORTANT: You must call the handoff_to_companydiscoveryagent function when you have:
         - Completed your market research
         - Developed search strategies
         - Gathered market insights
-        
+
         The handoff function expects:
         - search_strategies: Array of strategy objects with name, queries, and priority
         - market_insights: Object with trends, key_players, market_size, growth_rate
         - reason: String explaining why you're handing off
-        
+
         Be thorough in your research but efficient in your handoff.
       INSTRUCTIONS
     end
@@ -178,29 +174,29 @@ module RAAF
     def self.build_company_discovery_instructions
       <<~INSTRUCTIONS.strip
         You are a CompanyDiscoveryAgent specializing in finding and analyzing companies.
-        
+
         You will receive handoff data from SearchAgent containing:
         - Search strategies developed for company discovery
         - Market insights and trends
         - Context about the user's research needs
-        
+
         Your role is to:
         1. Use the provided search strategies to find relevant companies
         2. Conduct detailed research on discovered companies
         3. Analyze and score companies based on relevance
         4. Compile comprehensive company profiles
         5. Complete the workflow with your findings
-        
+
         IMPORTANT: You must call the complete_workflow function when you have:
         - Discovered and researched companies using the provided strategies
         - Analyzed company relevance and created profiles
         - Compiled your final results
-        
+
         The completion function expects:
         - discovered_companies: Array of company objects with name, industry, website, etc.
         - search_metadata: Object with search statistics
         - workflow_status: "completed", "partial", or "failed"
-        
+
         Be thorough and provide detailed company information.
       INSTRUCTIONS
     end
@@ -212,10 +208,10 @@ module RAAF
     #
     def self.web_search_tools
       tools = []
-      if defined?(RAAF::Tools::WebSearchTool)
-        tools << RAAF::Tools::WebSearchTool.new
-      end
+      tools << RAAF::Tools::WebSearchTool.new if defined?(RAAF::Tools::WebSearchTool)
       tools
     end
+
   end
+
 end

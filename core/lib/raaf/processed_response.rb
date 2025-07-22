@@ -25,7 +25,7 @@ module RAAF
     :new_items,           # Array<Hash> - Message and tool call items from response
     :handoffs,            # Array<ToolRunHandoff> - Handoffs to execute
     :functions,           # Array<ToolRunFunction> - Function tools to execute
-    :computer_actions,    # Array<ToolRunComputerAction> - Computer actions to execute  
+    :computer_actions,    # Array<ToolRunComputerAction> - Computer actions to execute
     :local_shell_calls,   # Array<ToolRunLocalShellCall> - Local shell calls to execute
     :tools_used           # Array<String> - Names of all tools used
   ) do
@@ -36,7 +36,7 @@ module RAAF
     # Hosted tools have already run, so there's nothing to do for them.
     #
     # @return [Boolean] true if tools need processing
-    def has_tools_or_actions_to_run?
+    def tools_or_actions_to_run?
       handoffs.any? || functions.any? || computer_actions.any? || local_shell_calls.any?
     end
 
@@ -44,7 +44,7 @@ module RAAF
     # Check if any tools were used in this response
     #
     # @return [Boolean] true if tools were used
-    def has_tool_usage?
+    def tool_usage?
       tools_used.any?
     end
 
@@ -52,7 +52,7 @@ module RAAF
     # Check if any handoffs were detected
     #
     # @return [Boolean] true if handoffs occurred
-    def has_handoffs?
+    def handoffs_detected?
       handoffs.any?
     end
 
@@ -71,8 +71,8 @@ module RAAF
     # Get rejected handoffs (all but first if multiple)
     #
     # @return [Array<ToolRunHandoff>] Handoffs to reject
-    def rejected_handoffs  
-      handoffs[1..-1] || []
+    def rejected_handoffs
+      handoffs[1..] || []
     end
   end
 
@@ -93,7 +93,7 @@ module RAAF
   end
 
   ##
-  # Data structure for function tool execution  
+  # Data structure for function tool execution
   #
   ToolRunFunction = Data.define(:tool_call, :function_tool) do
     def to_s
@@ -126,7 +126,7 @@ module RAAF
     def success?
       !output.nil?
     end
-    
+
     def to_s
       "FunctionToolResult(#{tool.name}: #{output&.class&.name})"
     end

@@ -19,28 +19,31 @@ puts "=" * 60
 
 # Example 1: Third-party provider that only implements chat_completion
 class ThirdPartyProvider < RAAF::Models::ModelInterface
-  def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+
+  def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
     # Simulate a third-party provider that supports function calling
     # but doesn't know about the Responses API
-    
+
     puts "🔷 ThirdPartyProvider: Received chat_completion request"
     puts "   Messages: #{messages.size}"
     puts "   Tools: #{tools&.size || 0}"
-    
+
     # Simulate response with tool call (for handoff)
     {
       "choices" => [{
         "message" => {
           "role" => "assistant",
           "content" => "I need to transfer you to a specialist.",
-          "tool_calls" => tools&.any? ? [{
-            "id" => "call_123",
-            "type" => "function",
-            "function" => {
-              "name" => "transfer_to_specialist",
-              "arguments" => "{}"
-            }
-          }] : nil
+          "tool_calls" => if tools&.any?
+                            [{
+                              "id" => "call_123",
+                              "type" => "function",
+                              "function" => {
+                                "name" => "transfer_to_specialist",
+                                "arguments" => "{}"
+                              }
+                            }]
+                          end
         }
       }],
       "usage" => {
@@ -50,37 +53,41 @@ class ThirdPartyProvider < RAAF::Models::ModelInterface
       }
     }
   end
-  
+
   def supported_models
     ["third-party-model-v1"]
   end
-  
+
   def provider_name
     "ThirdPartyProvider"
   end
+
 end
 
 # Example 2: Enhanced provider that inherits handoff support
 class EnhancedProvider < RAAF::Models::EnhancedModelInterface
-  def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+
+  def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
     puts "🔶 EnhancedProvider: Received chat_completion request"
     puts "   Messages: #{messages.size}"
     puts "   Tools: #{tools&.size || 0}"
-    
+
     # This provider automatically gets handoff support!
     {
       "choices" => [{
         "message" => {
-          "role" => "assistant", 
+          "role" => "assistant",
           "content" => "Let me help you with that.",
-          "tool_calls" => tools&.any? ? [{
-            "id" => "call_456",
-            "type" => "function",
-            "function" => {
-              "name" => "transfer_to_billing",
-              "arguments" => "{}"
-            }
-          }] : nil
+          "tool_calls" => if tools&.any?
+                            [{
+                              "id" => "call_456",
+                              "type" => "function",
+                              "function" => {
+                                "name" => "transfer_to_billing",
+                                "arguments" => "{}"
+                              }
+                            }]
+                          end
         }
       }],
       "usage" => {
@@ -90,22 +97,24 @@ class EnhancedProvider < RAAF::Models::EnhancedModelInterface
       }
     }
   end
-  
+
   def supported_models
     ["enhanced-model-v1"]
   end
-  
+
   def provider_name
     "EnhancedProvider"
   end
+
 end
 
 # Example 3: Legacy provider that doesn't support function calling
 class LegacyProvider < RAAF::Models::ModelInterface
-  def chat_completion(messages:, model:, stream: false, **kwargs)
-    # Note: No tools parameter - doesn't support function calling
+
+  def chat_completion(messages:, model:, stream: false, **_kwargs)
+    # NOTE: No tools parameter - doesn't support function calling
     puts "🔸 LegacyProvider: Received chat_completion request (no tools support)"
-    
+
     {
       "choices" => [{
         "message" => {
@@ -120,14 +129,15 @@ class LegacyProvider < RAAF::Models::ModelInterface
       }
     }
   end
-  
+
   def supported_models
     ["legacy-model-v1"]
   end
-  
+
   def provider_name
     "LegacyProvider"
   end
+
 end
 
 # Demonstrate capability detection
@@ -141,30 +151,30 @@ providers = [
 
 providers.each do |provider|
   puts "\n--- #{provider.provider_name} ---"
-  
+
   detector = RAAF::Models::CapabilityDetector.new(provider)
   report = detector.generate_report
-  
+
   puts "Handoff Support: #{report[:handoff_support]}"
   puts "Optimal Usage: #{report[:optimal_usage]}"
-  
+
   report[:capabilities].each do |capability|
     status = capability[:supported] ? "✅" : "❌"
     priority = capability[:priority] == :high ? "🔴" : "🟡"
     puts "  #{status} #{priority} #{capability[:name]}: #{capability[:description]}"
   end
-  
-  if report[:recommendations].any?
-    puts "\nRecommendations:"
-    report[:recommendations].each do |rec|
-      icon = case rec[:type]
-             when :success then "✅"
-             when :warning then "⚠️"
-             when :critical then "🚨"
-             else "ℹ️"
-             end
-      puts "  #{icon} #{rec[:message]}"
-    end
+
+  next unless report[:recommendations].any?
+
+  puts "\nRecommendations:"
+  report[:recommendations].each do |rec|
+    icon = case rec[:type]
+           when :success then "✅"
+           when :warning then "⚠️"
+           when :critical then "🚨"
+           else "ℹ️"
+           end
+    puts "  #{icon} #{rec[:message]}"
   end
 end
 
@@ -200,39 +210,38 @@ test_providers = [
 
 test_providers.each do |provider_info|
   puts "\n--- Testing #{provider_info[:name]} ---"
-  
+
   begin
     # Wrap provider with adapter for universal handoff support
     adapter = RAAF::Models::ProviderAdapter.new(provider_info[:provider])
-    
+
     # Create runner with adapted provider
     runner = RAAF::Runner.new(
       agent: main_agent,
       provider: adapter,
       agents: [main_agent, specialist_agent, billing_agent]
     )
-    
+
     # Test the handoff flow
     puts "Testing handoff capability..."
-    
+
     # Check if handoffs are supported
     if adapter.supports_handoffs?
       puts "✅ Handoffs supported! Tools available: #{runner.send(:get_all_tools_for_api, main_agent)&.size || 0}"
-      
+
       # Simulate a conversation that would trigger handoff
       # (In real usage, this would be determined by the AI model)
       puts "🔄 Handoff tools registered and ready for use"
-      
+
     else
       puts "❌ Handoffs not supported - limited functionality"
     end
-    
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error: #{e.message}"
   end
 end
 
-puts "\n" + "=" * 60
+puts "\n#{"=" * 60}"
 puts "SUMMARY"
 puts "=" * 60
 puts "✅ ThirdPartyProvider: Works with ProviderAdapter"

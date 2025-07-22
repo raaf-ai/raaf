@@ -20,7 +20,7 @@ spanish_agent = RAAF::Agent.new(
 )
 
 english_agent = RAAF::Agent.new(
-  name: "English agent", 
+  name: "English agent",
   instructions: "You only speak English",
   handoff_description: "Use this agent for English language requests"
 )
@@ -29,7 +29,7 @@ english_agent = RAAF::Agent.new(
 triage_agent = RAAF::Agent.new(
   name: "Triage agent",
   instructions: "Handoff to the appropriate agent based on the language of the request.",
-  handoffs: [spanish_agent, english_agent]  # Direct agents, auto-generates tools
+  handoffs: [spanish_agent, english_agent] # Direct agents, auto-generates tools
 )
 
 puts "✅ Created triage agent with handoffs to Spanish and English agents"
@@ -52,12 +52,12 @@ refund_agent = RAAF::Agent.new(
 )
 
 # Create triage agent with custom handoffs
-customer_service_agent = RAAF::Agent.new(
+RAAF::Agent.new(
   name: "Customer service",
   instructions: "Route customer inquiries to appropriate specialists",
   handoffs: [
-    billing_agent,  # Simple handoff
-    RAAF.handoff(    # Custom handoff with overrides
+    billing_agent, # Simple handoff
+    RAAF.handoff( # Custom handoff with overrides
       refund_agent,
       overrides: { model: "gpt-4", temperature: 0.3 },
       tool_name_override: "escalate_to_refunds",
@@ -81,7 +81,7 @@ support_agent = RAAF::Agent.new(
 )
 
 # Agent with input filter
-filtered_agent = RAAF::Agent.new(
+RAAF::Agent.new(
   name: "Filtered agent",
   instructions: "Route requests with data filtering",
   handoffs: [
@@ -105,13 +105,15 @@ puts "✅ Created agent with input filtering for sensitive data"
 puts "\n4. Execution Flow Simulation"
 
 class SimulatedInput
+
   def initialize(data)
     @data = data
   end
 
-  def to_json
+  def to_json(*_args)
     @data.to_json
   end
+
 end
 
 # Simulate what happens when LLM calls handoff tool
@@ -120,7 +122,7 @@ puts "\nSimulating LLM calling transfer_to_spanish_agent:"
 # This is what the auto-generated tool does
 handoff_proc = proc do |**args|
   puts "  📞 Tool called with args: #{args}"
-  
+
   # Tool returns handoff request (matches Python SDK)
   result = {
     _handoff_requested: true,
@@ -128,10 +130,10 @@ handoff_proc = proc do |**args|
     _handoff_data: args,
     _handoff_reason: args[:context] || "Language-based handoff"
   }
-  
+
   puts "  ✅ Handoff requested to: #{spanish_agent.name}"
   puts "  📋 Handoff data: #{args}"
-  
+
   result.to_json
 end
 
@@ -143,7 +145,7 @@ puts "  📤 Tool response: #{handoff_result}"
 puts "\n5. Runner with Automatic Handoff Detection"
 
 # Create a runner that handles handoffs automatically
-runner = RAAF::Runner.new(agent: triage_agent)
+RAAF::Runner.new(agent: triage_agent)
 
 puts "✅ Created runner with automatic handoff detection"
 puts "   Runner will:"
@@ -182,7 +184,7 @@ test_agents = [
 
 puts "Generated tool names (matches Python SDK conversion):"
 test_agents.each do |agent|
-  tool_name = "transfer_to_#{agent.name.downcase.gsub(/[^a-z0-9_]/, '_')}"
+  tool_name = "transfer_to_#{agent.name.downcase.gsub(/[^a-z0-9_]/, "_")}"
   puts "  #{agent.name} → #{tool_name}"
 end
 

@@ -4,17 +4,17 @@
 # Example demonstrating provider-independent message logging
 # This shows how to enable detailed logging of messages sent to and received from LLM endpoints
 
-require_relative '../lib/raaf'
+require_relative "../lib/raaf"
 
 puts "=== RAAF Message Logging Example ==="
 puts
 
 # Enable API debug logging to see all message details
-ENV['RAAF_DEBUG_CATEGORIES'] = 'api'
-ENV['RAAF_LOG_LEVEL'] = 'debug'
+ENV["RAAF_DEBUG_CATEGORIES"] = "api"
+ENV["RAAF_LOG_LEVEL"] = "debug"
 
-puts "Debug categories enabled: #{ENV['RAAF_DEBUG_CATEGORIES']}"
-puts "Log level: #{ENV['RAAF_LOG_LEVEL']}"
+puts "Debug categories enabled: #{ENV.fetch("RAAF_DEBUG_CATEGORIES", nil)}"
+puts "Log level: #{ENV.fetch("RAAF_LOG_LEVEL", nil)}"
 puts
 
 # Create a support agent
@@ -26,7 +26,7 @@ support_agent = RAAF::Agent.new(
 
 # Create a billing agent for handoffs
 billing_agent = RAAF::Agent.new(
-  name: "BillingAgent", 
+  name: "BillingAgent",
   instructions: "You are a billing specialist. Help users with billing questions and payment issues.",
   model: "gpt-4o"
 )
@@ -44,7 +44,7 @@ puts
 begin
   result = runner.run("Hello, can you help me with my account?")
   puts "Agent Response: #{result.messages.last[:content]}"
-rescue => e
+rescue StandardError => e
   puts "Error: #{e.message}"
 end
 
@@ -56,7 +56,7 @@ puts
 begin
   result = runner.run("I need help with my billing statement")
   puts "Agent Response: #{result.messages.last[:content]}"
-rescue => e
+rescue StandardError => e
   puts "Error: #{e.message}"
 end
 

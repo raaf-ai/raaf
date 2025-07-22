@@ -101,16 +101,16 @@ module RAAF
     # @return [RunResult] The final result
     #
     def execute_with_conversation_manager(messages)
-      services[:conversation_manager].execute_conversation(messages, agent, self) do |turn_data|
+      final_state = services[:conversation_manager].execute_conversation(messages, agent, self) do |turn_data|
         services[:turn_executor].execute_turn(turn_data, self, runner)
-      end.then do |final_state|
-        create_result(
-          final_state[:conversation],
-          final_state[:usage],
-          final_state[:context_wrapper],
-          agent
-        )
       end
+
+      create_result(
+        final_state[:conversation],
+        final_state[:usage],
+        final_state[:context_wrapper],
+        agent
+      )
     end
 
     ##
@@ -204,28 +204,26 @@ module RAAF
     # @return [RunResult] The execution result
     #
     def execute(messages)
-      begin
-        require "raaf-tracing"
-        current_trace = Tracing::Context.current_trace
+      require "raaf-tracing"
+      current_trace = Tracing::Context.current_trace
 
-        if current_trace&.active?
-          # We're inside an existing trace, just run normally
-          super
-        else
-          # Create a new trace for this run
-          workflow_name = config.workflow_name || "Agent workflow"
+      if current_trace&.active?
+        # We're inside an existing trace, just run normally
+        super
+      else
+        # Create a new trace for this run
+        workflow_name = config.workflow_name || "Agent workflow"
 
-          Tracing.trace(workflow_name,
-                        trace_id: config.trace_id,
-                        group_id: config.group_id,
-                        metadata: config.metadata) do |_trace|
-            super(messages)
-          end
+        Tracing.trace(workflow_name,
+                      trace_id: config.trace_id,
+                      group_id: config.group_id,
+                      metadata: config.metadata) do |_trace|
+          super(messages)
         end
-      rescue LoadError
-        # Tracing gem not available, execute without tracing
-        super(messages)
       end
+    rescue LoadError
+      # Tracing gem not available, execute without tracing
+      super
     end
 
     protected

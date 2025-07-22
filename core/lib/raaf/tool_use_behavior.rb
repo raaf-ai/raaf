@@ -322,8 +322,6 @@ module RAAF
       # Parse string/symbol behaviors
       def from_config(config)
         case config
-        when "run_llm_again", :run_llm_again
-          run_llm_again
         when "stop_on_first_tool", :stop_on_first_tool
           stop_on_first_tool
         when Base
@@ -331,7 +329,8 @@ module RAAF
         when Proc
           custom_function(&config)
         else
-          run_llm_again # Default
+          # Default for "run_llm_again", :run_llm_again, and unknown values
+          run_llm_again
         end
       end
 

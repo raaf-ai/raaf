@@ -62,7 +62,7 @@ module RAAF
   #   # Create agents with handoff capabilities
   #   support_agent = RAAF::Agent.new(name: "Support", instructions: "Handle support issues")
   #   sales_agent = RAAF::Agent.new(
-  #     name: "Sales", 
+  #     name: "Sales",
   #     instructions: "Handle sales inquiries",
   #     handoffs: [support_agent]  # Handoffs specified in constructor
   #   )
@@ -141,7 +141,7 @@ module RAAF
     # @!attribute [rw] reset_tool_choice
     #   @return [Boolean] whether to reset tool_choice to nil after tool calls (default: true, compatible with Python SDK)
     attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt,
-                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context
+                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff
 
     ##
     # Creates a new Agent instance
@@ -218,6 +218,7 @@ module RAAF
       @tool_choice = options[:tool_choice]
       @model_settings = ModelSettings.from_hash(options[:model_settings]) if options[:model_settings]
       @context = options[:context]
+      @on_handoff = options[:on_handoff]
 
       # Memory system integration (only use if Memory module is available)
       @memory_store = if options[:memory_store]
@@ -306,12 +307,12 @@ module RAAF
     #   )
     #   sales_agent.add_handoff(handoff)
     def add_handoff(handoff)
-      log_debug("🔗 HANDOFF FLOW: Adding handoff to agent", 
+      log_debug("🔗 HANDOFF FLOW: Adding handoff to agent",
                 agent: @name,
                 handoff_type: handoff.class.name)
-      
+
       unless handoff.is_a?(Agent) || handoff.is_a?(Handoff)
-        log_error("🔗 HANDOFF FLOW: Invalid handoff type", 
+        log_error("🔗 HANDOFF FLOW: Invalid handoff type",
                   agent: @name,
                   provided_type: handoff.class.name,
                   expected_types: "Agent or Handoff")
@@ -325,12 +326,12 @@ module RAAF
                         handoff_type: handoff.class.name)
 
       @handoffs << handoff
-      
+
       # Auto-generate handoff tool for the new handoff (Python SDK compatibility)
       tool = create_handoff_tool(handoff)
       add_tool(tool)
-      
-      log_debug("🔗 HANDOFF FLOW: Handoff added successfully", 
+
+      log_debug("🔗 HANDOFF FLOW: Handoff added successfully",
                 agent: @name,
                 target_agent: target_name,
                 total_handoffs: @handoffs.count)
@@ -441,15 +442,6 @@ module RAAF
     #   end
     def tools?(context = nil)
       enabled_tools(context).any?
-    end
-
-    ##
-    # Alias for tools? - more explicit naming
-    #
-    # @param context [RunContextWrapper, nil] current run context for dynamic tool filtering
-    # @return [Boolean] true if the agent has enabled tools, false otherwise
-    def has_tools?(context = nil)
-      tools?(context)
     end
 
     ##
@@ -599,9 +591,7 @@ module RAAF
     #     RAAF::Guardrails.profanity_guardrail
     #   )
     def add_input_guardrail(guardrail)
-      unless guardrail.is_a?(Guardrails::InputGuardrail)
-        raise ArgumentError, "Expected InputGuardrail, got #{guardrail.class}"
-      end
+      raise ArgumentError, "Expected InputGuardrail, got #{guardrail.class}" unless guardrail.is_a?(Guardrails::InputGuardrail)
 
       @input_guardrails << guardrail
     end
@@ -616,9 +606,7 @@ module RAAF
     #     RAAF::Guardrails.length_guardrail(max_length: 1000)
     #   )
     def add_output_guardrail(guardrail)
-      unless guardrail.is_a?(Guardrails::OutputGuardrail)
-        raise ArgumentError, "Expected OutputGuardrail, got #{guardrail.class}"
-      end
+      raise ArgumentError, "Expected OutputGuardrail, got #{guardrail.class}" unless guardrail.is_a?(Guardrails::OutputGuardrail)
 
       @output_guardrails << guardrail
     end
@@ -740,7 +728,8 @@ module RAAF
         tool_use_behavior: @tool_use_behavior,
         reset_tool_choice: @reset_tool_choice,
         response_format: @response_format,
-        memory_store: @memory_store # Share memory store reference (not deep copied)
+        memory_store: @memory_store, # Share memory store reference (not deep copied)
+        on_handoff: @on_handoff
       }
 
       # Merge with overrides
@@ -919,10 +908,10 @@ module RAAF
     # @return [Boolean] true if agent has memories, false otherwise
     #
     # @example Conditional logic based on memory
-    #   if agent.has_memories?
+    #   if agent.memories?
     #     puts "Loading previous context..."
     #   end
-    def has_memories?
+    def memories?
       memory_count.positive?
     end
 
@@ -1136,16 +1125,16 @@ module RAAF
     #
     def create_agent_handoff_tool(target_agent)
       tool_name = "transfer_to_#{Utils.sanitize_identifier(target_agent.name)}"
-      
+
       # Use the better description format from Handoff class
       description = "Handoff to the #{target_agent.name} agent to handle the request."
       description += " #{target_agent.handoff_description}" if target_agent.handoff_description
-      
+
       parameters = target_agent.get_input_schema
 
       # Store the target agent reference in a closure
       stored_target_agent = target_agent
-      
+
       # Create handoff procedure
       handoff_proc = proc do |**args|
         # Return a special handoff result that the runner can recognize
@@ -1175,26 +1164,24 @@ module RAAF
     def create_custom_handoff_tool(handoff_spec)
       target_agent = handoff_spec.agent
       tool_name = handoff_spec.tool_name_override || "transfer_to_#{Utils.sanitize_identifier(target_agent.name)}"
-      
-      description = handoff_spec.tool_description_override || 
-                   handoff_spec.description || 
-                   "Transfer to #{target_agent.name}"
-      
+
+      description = handoff_spec.tool_description_override ||
+                    handoff_spec.description ||
+                    "Transfer to #{target_agent.name}"
+
       parameters = handoff_spec.get_input_schema
 
       # Store the target agent and spec references in a closure
       stored_target_agent = target_agent
       stored_handoff_spec = handoff_spec
-      
+
       # Create handoff procedure with custom logic
       handoff_proc = proc do |**args|
         # Apply input filter if provided
         filtered_args = stored_handoff_spec.input_filter ? stored_handoff_spec.input_filter.call(args) : args
-        
+
         # Call on_handoff callback if provided
-        if stored_handoff_spec.on_handoff
-          stored_handoff_spec.on_handoff.call(filtered_args)
-        end
+        stored_handoff_spec.on_handoff&.call(filtered_args)
 
         # Return handoff data with stored agent reference
         {

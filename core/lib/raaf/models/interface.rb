@@ -44,7 +44,7 @@ module RAAF
     class ModelInterface
 
       include Logger
-      include RetryableProvider  # ALL providers get retries by default
+      include RetryableProvider # ALL providers get retries by default
 
       ##
       # Initialize a new model provider
@@ -194,9 +194,7 @@ module RAAF
                               full_property_definition: prop_def.inspect,
                               has_items_property: prop_def.key?(:items),
                               items_value: prop_def[:items].inspect)
-              if prop_def[:items].nil?
-                log_error("🚨 FOUND THE BUG! Array property '#{prop_name}' has nil items - this will cause OpenAI API error!")
-              end
+              log_error("🚨 FOUND THE BUG! Array property '#{prop_name}' has nil items - this will cause OpenAI API error!") if prop_def[:items].nil?
             end
 
             tool_hash

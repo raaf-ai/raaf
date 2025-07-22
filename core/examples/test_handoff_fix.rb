@@ -16,7 +16,7 @@ support_agent = RAAF::Agent.new(
 )
 
 billing_agent = RAAF::Agent.new(
-  name: "BillingAgent", 
+  name: "BillingAgent",
   instructions: "You handle billing and payment questions. Be precise with numbers.",
   model: "gpt-4o-mini"
 )
@@ -40,13 +40,13 @@ puts "Initial agent: TriageAgent"
 puts "Final agent: #{result1.last_agent.name}"
 puts "Response: #{result1.messages.last[:content]}"
 
-puts "\n" + "="*60
+puts "\n#{"=" * 60}"
 
-puts "\n2. Testing billing issue (should handoff to BillingAgent):" 
+puts "\n2. Testing billing issue (should handoff to BillingAgent):"
 result2 = runner.run("I was charged twice for my subscription")
 puts "Initial agent: TriageAgent"
 puts "Final agent: #{result2.last_agent.name}"
 puts "Response: #{result2.messages.last[:content]}"
 
-puts "\n" + "="*60
+puts "\n#{"=" * 60}"
 puts "\nHandoff fixes are working!" if result1.last_agent.name == "SupportAgent" && result2.last_agent.name == "BillingAgent"

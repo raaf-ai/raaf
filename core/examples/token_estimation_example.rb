@@ -169,7 +169,7 @@ puts
 puts "1. OpenAI Provider (Chat Completions API - DEPRECATED, with usage data):"
 puts "⚠️  DEPRECATED: OpenAIProvider is deprecated, showing for comparison only"
 begin
-  openai_provider = RAAF::Models::OpenAIProvider.new  # DEPRECATED
+  openai_provider = RAAF::Models::OpenAIProvider.new # DEPRECATED
   openai_runner = RAAF::Runner.new(agent: usage_agent, provider: openai_provider)
 
   # Estimate tokens before API call
@@ -446,13 +446,9 @@ class ProductionUsageTracker
     daily_limit_cost = 50.0
 
     # Daily limits
-    if @daily_usage["#{date}_tokens"] > daily_limit_tokens
-      puts "   ⚠️  Daily token limit exceeded: #{@daily_usage["#{date}_tokens"]}"
-    end
+    puts "   ⚠️  Daily token limit exceeded: #{@daily_usage["#{date}_tokens"]}" if @daily_usage["#{date}_tokens"] > daily_limit_tokens
 
-    if @cost_tracking[date] > daily_limit_cost
-      puts "   ⚠️  Daily cost limit exceeded: $#{@cost_tracking[date].round(2)}"
-    end
+    puts "   ⚠️  Daily cost limit exceeded: $#{@cost_tracking[date].round(2)}" if @cost_tracking[date] > daily_limit_cost
 
     # User limits
     return unless @user_usage[user_id]["tokens"] > user_limit_tokens

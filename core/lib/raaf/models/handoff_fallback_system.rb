@@ -3,7 +3,9 @@
 require_relative "../logging"
 
 module RAAF
+
   module Models
+
     ##
     # Handoff Fallback System for Non-Function-Calling LLMs
     #
@@ -15,22 +17,22 @@ module RAAF
     #
     # @example Basic usage
     #   fallback = HandoffFallbackSystem.new(["Support", "Billing", "Technical"])
-    #   
+    #
     #   # Generate instructions for system prompt
     #   instructions = fallback.generate_handoff_instructions(["Support", "Billing"])
-    #   
+    #
     #   # Detect handoff in response content
     #   target = fallback.detect_handoff_in_content('I need to transfer you. {"handoff_to": "Support"}')
     #   puts "Handoff to: #{target}" # "Support"
     #
     # @example With statistics tracking
     #   fallback = HandoffFallbackSystem.new(["Support", "Billing"])
-    #   
+    #
     #   # Use detection multiple times
     #   fallback.detect_handoff_in_content('Transfer to Support')
     #   fallback.detect_handoff_in_content('No handoff here')
     #   fallback.detect_handoff_in_content('[HANDOFF:Billing]')
-    #   
+    #
     #   # Get performance statistics
     #   stats = fallback.get_detection_stats
     #   puts "Success rate: #{stats[:success_rate]}" # "66.67%"
@@ -38,13 +40,13 @@ module RAAF
     #
     # @example Testing detection patterns
     #   fallback = HandoffFallbackSystem.new(["Support", "Billing"])
-    #   
+    #
     #   test_cases = [
     #     { content: '{"handoff_to": "Support"}', expected_agent: "Support" },
     #     { content: 'Transfer to Billing', expected_agent: "Billing" },
     #     { content: 'No handoff here', expected_agent: nil }
     #   ]
-    #   
+    #
     #   results = fallback.test_detection(test_cases)
     #   puts "Test success rate: #{results[:success_rate]}"
     #
@@ -52,6 +54,7 @@ module RAAF
     # @since 0.2.0
     #
     class HandoffFallbackSystem
+
       include Logger
 
       # Handoff detection patterns for content-based parsing
@@ -60,18 +63,18 @@ module RAAF
         /"handoff_to":\s*"([^"]+)"/i,
         /"transfer_to":\s*"([^"]+)"/i,
         /"assistant":\s*"([^"]+)"/i,
-        
+
         # Structured text patterns
         /\[HANDOFF:([^\]]+)\]/i,
         /\[TRANSFER:([^\]]+)\]/i,
         /\[AGENT:([^\]]+)\]/i,
-        
+
         # Natural language patterns
         /transfer(?:ring)?\s+(?:to|you)\s+(?:to\s+)?([a-zA-Z_][a-zA-Z0-9_]*(?:\s*agent)?)/i,
         /handoff?\s+to\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*agent)?)/i,
         /switching\s+to\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*agent)?)/i,
         /forwarding\s+to\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*agent)?)/i,
-        
+
         # Code-style patterns
         /handoff\(["']([^"']+)["']\)/i,
         /transfer\(["']([^"']+)["']\)/i,
@@ -95,7 +98,7 @@ module RAAF
         - Transfer to AgentName
 
         ## Available Agents:
-        %{available_agents}
+        %<available_agents>s
 
         ## Important:
         - Only handoff when necessary
@@ -142,8 +145,8 @@ module RAAF
       #
       def generate_handoff_instructions(available_agents)
         agents_list = available_agents.map { |name| "- #{name}" }.join("\n")
-        
-        HANDOFF_INSTRUCTIONS % { available_agents: agents_list }
+
+        format(HANDOFF_INSTRUCTIONS, available_agents: agents_list)
       end
 
       ##
@@ -180,7 +183,7 @@ module RAAF
         return nil unless content.is_a?(String) && !content.empty?
 
         @detection_stats[:attempts] += 1
-        
+
         log_debug("🔍 HANDOFF FALLBACK: Analyzing content for handoff patterns",
                   content_length: content.length,
                   available_agents: @available_agents.join(", "))
@@ -191,24 +194,24 @@ module RAAF
           next unless match
 
           candidate_agent = match[1].strip
-          
+
           # Clean up agent name (remove "agent" suffix, normalize case)
           candidate_agent = normalize_agent_name(candidate_agent)
-          
+
           # Validate against available agents
           if @available_agents.any? { |agent| agent.downcase == candidate_agent.downcase }
             actual_agent = @available_agents.find { |agent| agent.downcase == candidate_agent.downcase }
-            
+
             @detection_stats[:successes] += 1
             @detection_stats[:patterns_matched][index] += 1
-            
+
             log_debug("🔍 HANDOFF FALLBACK: Handoff detected",
                       pattern_index: index,
                       pattern: pattern.inspect,
                       raw_match: match[1],
                       normalized_agent: candidate_agent,
                       actual_agent: actual_agent)
-            
+
             return actual_agent
           else
             log_debug("🔍 HANDOFF FALLBACK: Agent name not found in available agents",
@@ -231,7 +234,7 @@ module RAAF
       #   fallback = HandoffFallbackSystem.new(["Support"])
       #   content = '{"handoff_to": "Support"}'
       #   context = { conversation_id: "123", user_id: "456" }
-      #   
+      #
       #   result = fallback.detect_handoff_with_context(content, context)
       #   puts result[:handoff_detected] # true
       #   puts result[:target_agent] # "Support"
@@ -256,7 +259,7 @@ module RAAF
       #
       def detect_handoff_with_context(content, context = {})
         target_agent = detect_handoff_in_content(content)
-        
+
         result = {
           handoff_detected: !target_agent.nil?,
           target_agent: target_agent,
@@ -301,10 +304,10 @@ module RAAF
       #
       def generate_handoff_response(target_agent, message = nil)
         base_message = message || "Transferring to #{target_agent}"
-        
+
         # Primary format (JSON)
         json_handoff = JSON.generate({ handoff_to: target_agent })
-        
+
         # Alternative formats
         formats = [
           "#{base_message}\n\n#{json_handoff}",
@@ -324,11 +327,11 @@ module RAAF
       #
       # @example Get statistics after multiple detections
       #   fallback = HandoffFallbackSystem.new(["Support", "Billing"])
-      #   
+      #
       #   fallback.detect_handoff_in_content('{"handoff_to": "Support"}')
       #   fallback.detect_handoff_in_content('No handoff here')
       #   fallback.detect_handoff_in_content('[HANDOFF:Billing]')
-      #   
+      #
       #   stats = fallback.get_detection_stats
       #   puts "Total attempts: #{stats[:total_attempts]}" # 3
       #   puts "Successful detections: #{stats[:successful_detections]}" # 2
@@ -343,8 +346,11 @@ module RAAF
       #   - :available_agents - List of available agent names
       #
       def get_detection_stats
-        success_rate = @detection_stats[:attempts] > 0 ? 
-                      (@detection_stats[:successes].to_f / @detection_stats[:attempts] * 100).round(2) : 0.0
+        success_rate = if @detection_stats[:attempts].positive?
+                         (@detection_stats[:successes].to_f / @detection_stats[:attempts] * 100).round(2)
+                       else
+                         0.0
+                       end
 
         {
           total_attempts: @detection_stats[:attempts],
@@ -363,11 +369,11 @@ module RAAF
       #
       # @example Reset statistics
       #   fallback = HandoffFallbackSystem.new(["Support"])
-      #   
+      #
       #   # Use detection multiple times
       #   fallback.detect_handoff_in_content('{"handoff_to": "Support"}')
       #   puts fallback.get_detection_stats[:total_attempts] # 1
-      #   
+      #
       #   # Reset and verify
       #   fallback.reset_stats
       #   puts fallback.get_detection_stats[:total_attempts] # 0
@@ -391,7 +397,7 @@ module RAAF
       #
       # @example Test detection patterns
       #   fallback = HandoffFallbackSystem.new(["Support", "Billing"])
-      #   
+      #
       #   test_cases = [
       #     { content: '{"handoff_to": "Support"}', expected_agent: "Support" },
       #     { content: '[HANDOFF:Billing]', expected_agent: "Billing" },
@@ -399,13 +405,13 @@ module RAAF
       #     { content: 'No handoff here', expected_agent: nil },
       #     { content: '{"handoff_to": "Unknown"}', expected_agent: nil }
       #   ]
-      #   
+      #
       #   results = fallback.test_detection(test_cases)
       #   puts "Total tests: #{results[:total_tests]}" # 5
       #   puts "Passed: #{results[:passed]}" # 4
       #   puts "Failed: #{results[:failed]}" # 1
       #   puts "Success rate: #{results[:success_rate]}" # "80.0%"
-      #   
+      #
       #   # Examine individual test results
       #   results[:details].each do |detail|
       #     puts "Content: #{detail[:content]}"
@@ -435,13 +441,13 @@ module RAAF
         test_cases.each do |test_case|
           content = test_case[:content]
           expected = test_case[:expected_agent]
-          
+
           detected = detect_handoff_in_content(content)
           passed = detected == expected
-          
+
           results[:passed] += 1 if passed
           results[:failed] += 1 unless passed
-          
+
           results[:details] << {
             content: content[0..100] + (content.length > 100 ? "..." : ""),
             expected: expected,
@@ -464,10 +470,10 @@ module RAAF
       #
       # @example Normalize agent names
       #   fallback = HandoffFallbackSystem.new(["Support"])
-      #   
+      #
       #   normalized = fallback.send(:normalize_agent_name, "Support Agent")
       #   puts normalized # "Support"
-      #   
+      #
       #   normalized = fallback.send(:normalize_agent_name, "billing agent")
       #   puts normalized # "billing"
       #
@@ -475,7 +481,7 @@ module RAAF
       # @return [String] Normalized agent name
       #
       def normalize_agent_name(name)
-        name.gsub(/\s*agent\s*$/i, '').strip
+        name.gsub(/\s*agent\s*$/i, "").strip
       end
 
       ##
@@ -486,15 +492,15 @@ module RAAF
       #
       # @example Calculate confidence scores
       #   fallback = HandoffFallbackSystem.new(["Support"])
-      #   
+      #
       #   # High confidence for JSON format
       #   conf1 = fallback.send(:calculate_confidence, '{"handoff_to": "Support"}', "Support")
       #   puts conf1 # ~0.8 (high confidence)
-      #   
+      #
       #   # Medium confidence for structured format
       #   conf2 = fallback.send(:calculate_confidence, '[HANDOFF:Support]', "Support")
       #   puts conf2 # ~0.7 (medium confidence)
-      #   
+      #
       #   # Lower confidence for natural language
       #   conf3 = fallback.send(:calculate_confidence, 'Transfer to Support', "Support")
       #   puts conf3 # ~0.5 (lower confidence)
@@ -506,21 +512,24 @@ module RAAF
       def calculate_confidence(content, target_agent)
         # Base confidence
         confidence = 0.5
-        
+
         # Boost for JSON format
         confidence += 0.3 if content.include?('{"handoff_to"') || content.include?('{"transfer_to"')
-        
+
         # Boost for structured format
-        confidence += 0.2 if content.include?('[HANDOFF:') || content.include?('[TRANSFER:')
-        
+        confidence += 0.2 if content.include?("[HANDOFF:") || content.include?("[TRANSFER:")
+
         # Boost for exact agent name match
         confidence += 0.2 if content.include?(target_agent)
-        
+
         # Reduce for ambiguous content
         confidence -= 0.1 if content.scan(/transfer|handoff|agent/i).size > 3
-        
+
         [confidence, 1.0].min
       end
+
     end
+
   end
+
 end

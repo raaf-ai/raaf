@@ -3,7 +3,7 @@
 require "async"
 require_relative "step_result"
 require_relative "processed_response"
-require_relative "response_processor"  
+require_relative "response_processor"
 require_relative "tool_use_tracker"
 require_relative "logging"
 require_relative "step_errors"
@@ -64,15 +64,14 @@ module RAAF
     # @param config [RunConfig] Current run configuration
     # @return [StepResult] Complete step result with next action
     #
-    def execute_step(original_input:, pre_step_items:, model_response:, 
-                    agent:, context_wrapper:, runner:, config:)
-      
+    def execute_step(original_input:, pre_step_items:, model_response:,
+                     agent:, context_wrapper:, runner:, config:)
       log_debug("🔄 STEP_PROCESSOR: Executing step", agent: agent.name)
 
       # 1. Process model response atomically
       processed_response = process_model_response(model_response, agent)
 
-      # 2. Execute tools and side effects  
+      # 2. Execute tools and side effects
       new_step_items, next_step = execute_tools_and_side_effects(
         agent: agent,
         original_input: original_input,
@@ -92,7 +91,7 @@ module RAAF
         next_step: next_step
       )
 
-      log_debug("✅ STEP_PROCESSOR: Step completed", 
+      log_debug("✅ STEP_PROCESSOR: Step completed",
                 next_step: next_step.class.name, items: new_step_items.size)
 
       step_result
@@ -107,10 +106,10 @@ module RAAF
     # @return [void]
     #
     def maybe_reset_tool_choice(agent)
-      if agent.reset_tool_choice && @tool_use_tracker.has_used_tools?(agent)
-        log_debug("🔄 STEP_PROCESSOR: Resetting tool choice", agent: agent.name)
-        agent.tool_choice = nil
-      end
+      return unless agent.reset_tool_choice && @tool_use_tracker.used_tools?(agent)
+
+      log_debug("🔄 STEP_PROCESSOR: Resetting tool choice", agent: agent.name)
+      agent.tool_choice = nil
     end
 
     private
@@ -139,9 +138,8 @@ module RAAF
     # 3. Check for final output
     # 4. Determine next step
     #
-    def execute_tools_and_side_effects(agent:, original_input:, pre_step_items:, 
-                                     processed_response:, context_wrapper:, runner:, config:)
-
+    def execute_tools_and_side_effects(agent:, original_input:, pre_step_items:,
+                                       processed_response:, context_wrapper:, runner:, config:)
       new_step_items = processed_response.new_items.dup
 
       # Track tool usage
@@ -156,9 +154,7 @@ module RAAF
 
         # Check for final output from tools
         final_output = check_for_final_output_from_tools(tool_results, agent, context_wrapper, config)
-        if final_output
-          return [new_step_items, NextStepFinalOutput.new(final_output)]
-        end
+        return [new_step_items, NextStepFinalOutput.new(final_output)] if final_output
       end
 
       # Execute computer actions sequentially if any
@@ -169,7 +165,7 @@ module RAAF
         new_step_items.concat(computer_results)
       end
 
-      # Execute local shell calls sequentially if any  
+      # Execute local shell calls sequentially if any
       if processed_response.local_shell_calls.any?
         shell_results = execute_local_shell_calls(
           processed_response.local_shell_calls, agent, context_wrapper, runner, config
@@ -178,7 +174,7 @@ module RAAF
       end
 
       # Handle handoffs (take precedence over continuing)
-      if processed_response.has_handoffs?
+      if processed_response.handoffs_detected?
         return execute_handoffs(
           original_input: original_input,
           pre_step_items: pre_step_items,
@@ -193,9 +189,7 @@ module RAAF
 
       # Check for final output from message content
       final_output = check_for_final_output_from_message(new_step_items, processed_response, agent)
-      if final_output
-        return [new_step_items, NextStepFinalOutput.new(final_output)]
-      end
+      return [new_step_items, NextStepFinalOutput.new(final_output)] if final_output
 
       # Continue conversation
       [new_step_items, NextStepRunAgain.new]
@@ -222,7 +216,7 @@ module RAAF
     ##
     # Execute a single function tool
     #
-    def execute_single_function_tool(func_run, agent, context_wrapper, runner, config)
+    def execute_single_function_tool(func_run, agent, context_wrapper, runner, _config)
       tool = func_run.function_tool
       tool_call = func_run.tool_call
       arguments = parse_tool_arguments(tool_call)
@@ -243,21 +237,20 @@ module RAAF
 
         # Create function tool result
         run_item = create_tool_output_item(tool_call, result, agent)
-        
+
         FunctionToolResult.new(
           tool: tool,
           output: result,
           run_item: run_item
         )
+      rescue StandardError => e
+        log_exception(e, message: "Tool execution failed", tool: tool.name, agent: agent.name)
+        runner.call_hook(:on_tool_error, context_wrapper, agent, tool, e) if runner.respond_to?(:call_hook)
 
-      rescue => error
-        log_exception(error, message: "Tool execution failed", tool: tool.name, agent: agent.name)
-        runner.call_hook(:on_tool_error, context_wrapper, agent, tool, error) if runner.respond_to?(:call_hook)
-        
         # Create error result
-        error_message = "Error: #{error.message}"
+        error_message = "Error: #{e.message}"
         run_item = create_tool_output_item(tool_call, error_message, agent)
-        
+
         FunctionToolResult.new(
           tool: tool,
           output: error_message,
@@ -289,7 +282,7 @@ module RAAF
       log_debug("🖥️  STEP_PROCESSOR: Executing shell calls", count: shell_calls.size)
 
       shell_calls.map do |shell_run|
-        # Shell calls must be sequential  
+        # Shell calls must be sequential
         execute_single_shell_call(shell_run, agent, context_wrapper, runner, config)
       end
     end
@@ -297,7 +290,7 @@ module RAAF
     ##
     # Execute computer action (placeholder - implement based on your computer tool)
     #
-    def execute_single_computer_action(action_run, agent, context_wrapper, runner, config)
+    def execute_single_computer_action(_action_run, agent, _context_wrapper, _runner, _config)
       # This would integrate with your computer tool implementation
       # For now, return a placeholder result
       {
@@ -310,11 +303,11 @@ module RAAF
     ##
     # Execute shell call (placeholder - implement based on your shell tool)
     #
-    def execute_single_shell_call(shell_run, agent, context_wrapper, runner, config)
+    def execute_single_shell_call(_shell_run, agent, _context_wrapper, _runner, _config)
       # This would integrate with your shell tool implementation
       # For now, return a placeholder result
       {
-        type: "tool_output", 
+        type: "tool_output",
         content: "Shell command executed",
         agent: agent.name
       }
@@ -323,19 +316,18 @@ module RAAF
     ##
     # Execute handoffs with proper input filtering
     #
-    def execute_handoffs(original_input:, pre_step_items:, new_step_items:, 
-                        processed_response:, agent:, context_wrapper:, runner:, config:)
-      
+    def execute_handoffs(original_input:, pre_step_items:, new_step_items:,
+                         processed_response:, agent:, context_wrapper:, runner:, config:)
       primary_handoff = processed_response.primary_handoff
       rejected_handoffs = processed_response.rejected_handoffs
 
-      log_debug("🔄 STEP_PROCESSOR: Executing handoff", 
+      log_debug("🔄 STEP_PROCESSOR: Executing handoff",
                 from: agent.name, to: get_handoff_agent_name(primary_handoff.handoff))
 
       # Add rejection messages for multiple handoffs
       rejected_handoffs.each do |rejected_handoff|
         new_step_items << create_tool_output_item(
-          rejected_handoff.tool_call, 
+          rejected_handoff.tool_call,
           "Multiple handoffs detected, ignoring this one.",
           agent
         )
@@ -358,7 +350,7 @@ module RAAF
     ##
     # Check if tool results indicate final output
     #
-    def check_for_final_output_from_tools(tool_results, agent, context_wrapper, config)
+    def check_for_final_output_from_tools(tool_results, agent, context_wrapper, _config)
       return nil if tool_results.empty?
 
       case agent.tool_use_behavior
@@ -383,14 +375,14 @@ module RAAF
     ##
     # Check if message content indicates final output
     #
-    def check_for_final_output_from_message(new_step_items, processed_response, agent)
+    def check_for_final_output_from_message(new_step_items, processed_response, _agent)
       # Only consider final output if no tools were executed
-      return nil if processed_response.has_tools_or_actions_to_run?
+      return nil if processed_response.tools_or_actions_to_run?
 
       # Find the last message item
       message_items = new_step_items.select { |item| item.raw_item[:type] == "message" }
       last_message = message_items.last
-      
+
       return nil unless last_message
 
       content = last_message.raw_item[:content]
@@ -404,7 +396,7 @@ module RAAF
     #
     def parse_tool_arguments(tool_call)
       arguments_json = tool_call[:arguments] || tool_call.dig(:function, :arguments) || "{}"
-      
+
       begin
         JSON.parse(arguments_json, symbolize_names: true)
       rescue JSON::ParserError => e
@@ -423,24 +415,24 @@ module RAAF
         content: result.to_s,
         agent: agent.name
       }
-      Items::ToolCallOutputItem.new(agent: agent, raw_item: raw_item)
+      Items::ToolCallOutputItem.new(agent: agent, raw_item: raw_item, output: result)
     end
 
     ##
     # Create handoff output item
     #
-    def create_handoff_output_item(tool_call, transfer_message, from_agent, to_agent)
+    def create_handoff_output_item(tool_call, transfer_message, from_agent, _to_agent)
       # Create function_call_output for OpenAI API compliance
       # Use call_id field if available, otherwise fall back to id
       call_id = tool_call[:call_id] || tool_call[:id] || tool_call.dig(:function, :id)
-      
+
       # Debug the tool call structure
-      log_debug("🔧 STEP_PROCESSOR: Creating handoff output", 
+      log_debug("🔧 STEP_PROCESSOR: Creating handoff output",
                 tool_call_keys: tool_call.keys,
                 call_id: call_id,
                 tool_call_id: tool_call[:id],
                 function_id: tool_call.dig(:function, :id))
-      
+
       raw_item = {
         type: "function_call_output",
         call_id: call_id,
@@ -479,7 +471,7 @@ module RAAF
     ##
     # Get transfer message from handoff (handles both Agent and Handoff objects)
     #
-    def get_transfer_message(handoff_target, target_agent)
+    def get_transfer_message(_handoff_target, target_agent)
       # Return JSON format like Python implementation
       { assistant: target_agent.name }.to_json
     end

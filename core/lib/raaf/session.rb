@@ -15,7 +15,7 @@ module RAAF
   #   session = RAAF::Session.new
   #   session.add_message(role: "user", content: "Hello!")
   #   session.add_message(role: "assistant", content: "Hi there!")
-  #   
+  #
   #   # Access conversation history
   #   puts session.messages
   #
@@ -46,7 +46,7 @@ module RAAF
       @metadata = metadata.dup
       @created_at = Time.now
       @updated_at = Time.now
-      
+
       log_debug("Session created", session_id: @id)
     end
 
@@ -67,13 +67,13 @@ module RAAF
         timestamp: Time.now.to_f,
         metadata: metadata
       }
-      
+
       message[:tool_call_id] = tool_call_id if tool_call_id
       message[:tool_calls] = tool_calls if tool_calls
-      
+
       @messages << message
       @updated_at = Time.now
-      
+
       log_debug("Message added to session", session_id: @id, role: role, content_length: content.length)
       message
     end
@@ -184,8 +184,8 @@ module RAAF
     #
     # @return [String] session data as JSON
     #
-    def to_json(*args)
-      to_h.to_json(*args)
+    def to_json(*)
+      to_h.to_json(*)
     end
 
     ##
@@ -212,7 +212,7 @@ module RAAF
     # @return [Session] new session instance
     #
     def self.from_json(json)
-      require 'json'
+      require "json"
       hash = JSON.parse(json, symbolize_names: true)
       from_hash(hash)
     end
@@ -311,7 +311,7 @@ module RAAF
     #
     def exists?(session_id)
       @mutex.synchronize do
-        @sessions.has_key?(session_id)
+        @sessions.key?(session_id)
       end
     end
 
@@ -393,10 +393,10 @@ module RAAF
     def initialize(directory: "./sessions")
       @directory = File.expand_path(directory)
       @mutex = Mutex.new
-      
+
       # Create directory if it doesn't exist
-      FileUtils.mkdir_p(@directory) unless Dir.exist?(@directory)
-      
+      FileUtils.mkdir_p(@directory)
+
       log_debug("FileSessionStore initialized", directory: @directory)
     end
 
@@ -423,7 +423,7 @@ module RAAF
     def retrieve(session_id)
       @mutex.synchronize do
         filename = session_filename(session_id)
-        
+
         if File.exist?(filename)
           json_data = File.read(filename)
           session = Session.from_json(json_data)
@@ -434,7 +434,7 @@ module RAAF
           nil
         end
       end
-    rescue => e
+    rescue StandardError => e
       log_error("Error retrieving session", session_id: session_id, error: e.message)
       nil
     end
@@ -448,12 +448,12 @@ module RAAF
     def delete(session_id)
       @mutex.synchronize do
         filename = session_filename(session_id)
-        
+
         if File.exist?(filename)
           # Read session before deleting
           json_data = File.read(filename)
           session = Session.from_json(json_data)
-          
+
           # Delete the file
           File.delete(filename)
           log_debug("Session deleted from file", session_id: session_id, filename: filename)
@@ -463,7 +463,7 @@ module RAAF
           nil
         end
       end
-    rescue => e
+    rescue StandardError => e
       log_error("Error deleting session", session_id: session_id, error: e.message)
       nil
     end
@@ -520,12 +520,12 @@ module RAAF
     def stats
       session_ids = list_sessions
       total_messages = 0
-      
+
       session_ids.each do |session_id|
         session = retrieve(session_id)
         total_messages += session.message_count if session
       end
-      
+
       {
         total_sessions: session_ids.size,
         session_ids: session_ids,

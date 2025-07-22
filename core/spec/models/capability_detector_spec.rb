@@ -8,21 +8,21 @@ RSpec.describe RAAF::Models::CapabilityDetector do
   # Mock providers for testing different capability combinations
   let(:full_featured_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         {
           "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }],
           "usage" => { "total_tokens" => 10 }
         }
       end
 
-      def responses_completion(messages:, model:, tools: nil, **kwargs)
+      def responses_completion(messages:, model:, tools: nil, **_kwargs)
         {
           output: [{ type: "message", role: "assistant", content: "Response" }],
           usage: { total_tokens: 10 }
         }
       end
 
-      def stream_completion(messages:, model:, tools: nil, **kwargs)
+      def stream_completion(messages:, model:, tools: nil, **_kwargs)
         { streaming: true }
       end
 
@@ -38,7 +38,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
   let(:basic_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, tools: nil, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, **_kwargs)
         {
           "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }],
           "usage" => { "total_tokens" => 10 }
@@ -57,8 +57,8 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
   let(:no_function_calling_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, **kwargs)
-        # Note: No tools parameter
+      def chat_completion(messages:, model:, **_kwargs)
+        # NOTE: No tools parameter
         {
           "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }],
           "usage" => { "total_tokens" => 10 }
@@ -117,10 +117,10 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
       it "caches results on subsequent calls" do
         expect(full_featured_provider).to receive(:supported_models).once
-        
+
         subject.detect_capabilities
         capabilities = subject.detect_capabilities
-        
+
         expect(capabilities[:responses_api]).to be true
       end
     end
@@ -192,22 +192,22 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
       it "includes detailed capability descriptions" do
         report = subject.generate_report
-        
+
         capabilities = report[:capabilities]
         expect(capabilities).to have(5).items
-        
+
         first_capability = capabilities.first
         expect(first_capability).to include(
           name: be_a(String),
           description: be_a(String),
           supported: be_in([true, false]),
-          priority: be_in([:high, :medium, :low])
+          priority: be_in(%i[high medium low])
         )
       end
 
       it "provides positive recommendations" do
         report = subject.generate_report
-        
+
         recommendations = report[:recommendations]
         success_recommendations = recommendations.select { |r| r[:type] == :success }
         expect(success_recommendations).not_to be_empty
@@ -224,7 +224,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
       it "provides appropriate recommendations" do
         report = subject.generate_report
-        
+
         expect(report[:handoff_support]).to eq("Full")
         expect(report[:optimal_usage]).to eq("Chat Completions with ProviderAdapter - Full handoff support")
       end
@@ -235,14 +235,14 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
       it "identifies limited handoff support" do
         report = subject.generate_report
-        
+
         expect(report[:handoff_support]).to eq("Limited")
         expect(report[:optimal_usage]).to eq("Chat Completions only - Limited handoff support")
       end
 
       it "provides warning recommendations" do
         report = subject.generate_report
-        
+
         warnings = report[:recommendations].select { |r| r[:type] == :warning }
         expect(warnings).not_to be_empty
         expect(warnings.first[:message]).to include("function calling")
@@ -254,14 +254,14 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
       it "identifies incompatibility" do
         report = subject.generate_report
-        
+
         expect(report[:handoff_support]).to eq("Limited")
         expect(report[:optimal_usage]).to eq("Not compatible - Implement required methods")
       end
 
       it "provides critical recommendations" do
         report = subject.generate_report
-        
+
         critical = report[:recommendations].select { |r| r[:type] == :critical }
         expect(critical).not_to be_empty
         expect(critical.first[:message]).to include("completion API")
@@ -288,13 +288,13 @@ RSpec.describe RAAF::Models::CapabilityDetector do
 
     it "caches detection results" do
       subject = described_class.new(basic_provider)
-      
+
       # First call should detect capabilities
       expect(subject).to receive(:detect_capabilities).once.and_call_original
-      
+
       result1 = subject.supports_handoffs?
       result2 = subject.supports_handoffs?
-      
+
       expect(result1).to eq(result2)
     end
   end
@@ -358,9 +358,11 @@ RSpec.describe RAAF::Models::CapabilityDetector do
   end
 
   describe "error handling" do
+    subject { described_class.new(error_provider) }
+
     let(:error_provider) do
       Class.new(RAAF::Models::ModelInterface) do
-        def chat_completion(messages:, model:, tools: nil, **kwargs)
+        def chat_completion(messages:, model:, tools: nil, **_kwargs)
           raise StandardError, "Provider error"
         end
 
@@ -374,11 +376,9 @@ RSpec.describe RAAF::Models::CapabilityDetector do
       end.new
     end
 
-    subject { described_class.new(error_provider) }
-
     it "handles provider errors gracefully during function calling test" do
       expect { subject.detect_capabilities }.not_to raise_error
-      
+
       capabilities = subject.detect_capabilities
       expect(capabilities[:function_calling]).to be false
     end
@@ -388,7 +388,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         "🔍 CAPABILITY DETECTOR: Function calling test failed",
         hash_including(:error)
       )
-      
+
       subject.send(:test_function_calling)
     end
   end
@@ -409,12 +409,12 @@ RSpec.describe RAAF::Models::CapabilityDetector do
           },
           {
             provider: no_function_calling_provider,
-            expected_types: [:warning, :info],
+            expected_types: %i[warning info],
             description: "provider without function calling"
           },
           {
             provider: minimal_provider,
-            expected_types: [:critical, :info],
+            expected_types: %i[critical info],
             description: "minimal provider"
           }
         ]
@@ -424,12 +424,12 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         providers_and_expected_recommendations.each do |test_case|
           detector = described_class.new(test_case[:provider])
           report = detector.generate_report
-          
+
           recommendation_types = report[:recommendations].map { |r| r[:type] }
-          
+
           test_case[:expected_types].each do |expected_type|
             expect(recommendation_types).to include(expected_type),
-              "Expected #{expected_type} recommendation for #{test_case[:description]}"
+                                            "Expected #{expected_type} recommendation for #{test_case[:description]}"
           end
         end
       end
@@ -440,32 +440,32 @@ RSpec.describe RAAF::Models::CapabilityDetector do
     context "real-world provider simulation" do
       let(:openai_like_provider) do
         Class.new(RAAF::Models::ModelInterface) do
-          def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+          def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
             { "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }] }
           end
 
-          def responses_completion(messages:, model:, tools: nil, **kwargs)
+          def responses_completion(messages:, model:, tools: nil, **_kwargs)
             { output: [{ type: "message", content: "Response" }] }
           end
 
-          def stream_completion(messages:, model:, tools: nil, **kwargs)
+          def stream_completion(messages:, model:, tools: nil, **_kwargs)
             { streaming: true }
           end
 
-          def supported_models; ["gpt-4"]; end
-          def provider_name; "OpenAI-like"; end
+          def supported_models = ["gpt-4"]
+          def provider_name = "OpenAI-like"
         end.new
       end
 
       let(:llama_like_provider) do
         Class.new(RAAF::Models::ModelInterface) do
-          def chat_completion(messages:, model:, **kwargs)
+          def chat_completion(messages:, model:, **_kwargs)
             # No tools parameter, no streaming, no responses API
             { "choices" => [{ "message" => { "role" => "assistant", "content" => "Response" } }] }
           end
 
-          def supported_models; ["llama-2-7b"]; end
-          def provider_name; "LLaMA-like"; end
+          def supported_models = ["llama-2-7b"]
+          def provider_name = "LLaMA-like"
         end.new
       end
 

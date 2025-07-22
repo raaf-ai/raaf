@@ -723,7 +723,8 @@ module RAAF
 
     attr_reader :messages, :last_agent, :turns, :final_output, :last_response_id, :usage, :tool_results
 
-    def initialize(success: true, messages: [], last_agent: nil, turns: 0, last_response_id: nil, usage: nil, tool_results: [], **)
+    def initialize(success: true, messages: [], last_agent: nil, turns: 0, last_response_id: nil, usage: nil,
+                   tool_results: [], **)
       @messages = messages.dup
       @last_agent = last_agent
       @turns = turns
@@ -784,11 +785,13 @@ module RAAF
     end
 
     def self.success(messages: [], last_agent: nil, turns: 0, usage: nil, tool_results: [], **)
-      new(success: true, messages: messages, last_agent: last_agent, turns: turns, usage: usage, tool_results: tool_results, **)
+      new(success: true, messages: messages, last_agent: last_agent, turns: turns, usage: usage,
+          tool_results: tool_results, **)
     end
 
     def self.failure(error:, messages: [], last_agent: nil, turns: 0, usage: nil, tool_results: [], **)
-      new(success: false, error: error, messages: messages, last_agent: last_agent, turns: turns, usage: usage, tool_results: tool_results, **)
+      new(success: false, error: error, messages: messages, last_agent: last_agent, turns: turns, usage: usage,
+          tool_results: tool_results, **)
     end
 
     private

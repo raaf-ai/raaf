@@ -363,13 +363,11 @@ module RAAF
             }]
           when Array
             # Check if it's already in input item format or needs conversion
-            if input.first && input.first["type"]
-              # Already in input item format
-              input.dup
-            elsif input.first && input.first["role"]
+            if input.first && input.first["role"]
               # Convert from message format to input items
               convert_messages_to_input_items(input)
             else
+              # Already in input item format or empty array
               input.dup
             end
           else
@@ -500,7 +498,7 @@ module RAAF
         # @param message [Hash] Message to check
         # @return [Boolean] True if message has tool calls
         #
-        def has_tool_calls?(message)
+        def tool_calls?(message)
           return false unless message.is_a?(Hash)
 
           tool_calls = message["tool_calls"] || message[:tool_calls]

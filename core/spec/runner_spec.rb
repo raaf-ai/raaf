@@ -9,11 +9,7 @@ RSpec.describe RAAF::Runner do
   describe "#initialize" do
     it "creates a runner with an agent" do
       expect(runner.agent).to eq(agent)
-      # When tracing is disabled, tracer may be nil
-      if ENV["RAAF_DISABLE_TRACING"] == "true"
-      else
-        # When tracing gem is not available, tracer will be nil
-      end
+      # When tracing is disabled or gem is not available, tracer will be nil
       expect(runner.tracer).to be_nil
     end
 
@@ -543,13 +539,13 @@ RSpec.describe RAAF::Runner do
   # =============================================================================
   # CONSOLIDATED CONTENT EXTRACTION TESTS
   # =============================================================================
-  
+
   describe "Assistant Content Extraction" do
     let(:extraction_agent) { RAAF::Agent.new(name: "TestAgent", instructions: "Test agent") }
-    let(:extraction_runner) { RAAF::Runner.new(agent: extraction_agent) }
+    let(:extraction_runner) { described_class.new(agent: extraction_agent) }
 
     describe "final message construction" do
-      it "should extract assistant content from Responses API format" do
+      it "extracts assistant content from Responses API format" do
         # Mock the responses provider to return a realistic response
         mock_response = {
           "id" => "response_123",
@@ -586,7 +582,7 @@ RSpec.describe RAAF::Runner do
         expect(result.messages.last[:content]).not_to be_empty
       end
 
-      it "should handle multiple output_text items" do
+      it "handles multiple output_text items" do
         mock_response = {
           "id" => "response_456",
           "output" => [
@@ -622,7 +618,7 @@ RSpec.describe RAAF::Runner do
         expect(result.messages.last[:content]).to eq("First part. Second part.")
       end
 
-      it "should prevent empty assistant messages" do
+      it "prevents empty assistant messages" do
         mock_response = {
           "id" => "response_789",
           "output" => [
@@ -784,68 +780,68 @@ RSpec.describe RAAF::Runner do
   # =============================================================================
   # NORMALIZE_AGENT_NAME UTILITY METHOD TESTS
   # =============================================================================
-  
+
   describe "normalize_agent_name utility method" do
     let(:test_agent) { RAAF::Agent.new(name: "TestAgent", instructions: "Test agent") }
-    
+
     it "converts Agent objects to their name strings" do
       result = runner.send(:normalize_agent_name, test_agent)
       expect(result).to eq("TestAgent")
       expect(result).to be_a(String)
     end
-    
+
     it "passes through string names unchanged" do
       result = runner.send(:normalize_agent_name, "SupportAgent")
       expect(result).to eq("SupportAgent")
       expect(result).to be_a(String)
     end
-    
+
     it "handles nil input gracefully" do
       result = runner.send(:normalize_agent_name, nil)
       expect(result).to be_nil
     end
-    
+
     it "converts non-Agent objects to strings" do
       result = runner.send(:normalize_agent_name, 123)
       expect(result).to eq("123")
       expect(result).to be_a(String)
     end
-    
+
     it "handles empty strings correctly" do
       result = runner.send(:normalize_agent_name, "")
       expect(result).to eq("")
       expect(result).to be_a(String)
     end
-    
+
     it "works with objects that respond to :name" do
       # Create a mock object that responds to :name
       mock_object = double("MockAgent", name: "MockedAgent")
       result = runner.send(:normalize_agent_name, mock_object)
       expect(result).to eq("MockedAgent")
     end
-    
+
     it "handles symbols by converting to strings" do
       result = runner.send(:normalize_agent_name, :symbol_agent)
       expect(result).to eq("symbol_agent")
       expect(result).to be_a(String)
     end
-    
+
     it "handles edge case with whitespace in names" do
       agent_with_spaces = RAAF::Agent.new(name: "  Agent With Spaces  ")
       result = runner.send(:normalize_agent_name, agent_with_spaces)
       expect(result).to eq("  Agent With Spaces  ")
       expect(result).to be_a(String)
     end
-    
+
     context "with different Agent objects" do
       it "works with agents having different names" do
         agent1 = RAAF::Agent.new(name: "Agent1")
         agent2 = RAAF::Agent.new(name: "Agent2")
-        
+
         expect(runner.send(:normalize_agent_name, agent1)).to eq("Agent1")
         expect(runner.send(:normalize_agent_name, agent2)).to eq("Agent2")
       end
-      
+
       it "works with agents having complex names" do
         complex_agent = RAAF::Agent.new(name: "ComplexAgent_With-Special.Characters")
         result = runner.send(:normalize_agent_name, complex_agent)
@@ -857,43 +853,42 @@ RSpec.describe RAAF::Runner do
   # =============================================================================
   # INTEGRATION TESTS FOR NORMALIZE_AGENT_NAME IN HANDOFF SCENARIOS
   # =============================================================================
-  
+
   describe "normalize_agent_name integration with handoff methods" do
     let(:source_agent) { RAAF::Agent.new(name: "SourceAgent") }
     let(:target_agent) { RAAF::Agent.new(name: "TargetAgent") }
-    
+
     before do
       source_agent.add_handoff(target_agent)
     end
-    
+
     it "find_handoff_agent works with Agent objects" do
       result = runner.send(:find_handoff_agent, target_agent, source_agent)
       expect(result).to eq(target_agent)
     end
-    
+
     it "find_handoff_agent works with string names" do
       result = runner.send(:find_handoff_agent, "TargetAgent", source_agent)
       expect(result).to eq(target_agent)
     end
-    
+
     it "find_handoff_agent returns nil for non-existent agents" do
       result = runner.send(:find_handoff_agent, "NonExistentAgent", source_agent)
       expect(result).to be_nil
     end
-    
+
     it "find_handoff_agent handles nil input" do
       result = runner.send(:find_handoff_agent, nil, source_agent)
       expect(result).to be_nil
     end
-    
+
     it "provides consistent results regardless of input type" do
       # Both should return the same agent object
       result_with_agent = runner.send(:find_handoff_agent, target_agent, source_agent)
       result_with_string = runner.send(:find_handoff_agent, "TargetAgent", source_agent)
-      
+
       expect(result_with_agent).to eq(result_with_string)
       expect(result_with_agent).to eq(target_agent)
     end
   end
-
 end

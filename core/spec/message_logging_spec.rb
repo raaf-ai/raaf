@@ -7,20 +7,22 @@ require_relative "../lib/raaf/models/interface"
 RSpec.describe "Message Logging" do
   let(:test_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         {
           "choices" => [{
             "message" => {
               "role" => "assistant",
               "content" => "Test response from provider",
-              "tool_calls" => tools&.any? ? [{
-                "id" => "call_123",
-                "type" => "function",
-                "function" => {
-                  "name" => "test_function",
-                  "arguments" => "{\"param\": \"value\"}"
-                }
-              }] : nil
+              "tool_calls" => if tools&.any?
+                                [{
+                                  "id" => "call_123",
+                                  "type" => "function",
+                                  "function" => {
+                                    "name" => "test_function",
+                                    "arguments" => "{\"param\": \"value\"}"
+                                  }
+                                }]
+                              end
             }
           }],
           "usage" => {
@@ -112,7 +114,7 @@ RSpec.describe "Message Logging" do
         message_log = message_logs.first
         expect(message_log[:context][:messages]).to be_an(Array)
         expect(message_log[:context][:messages].size).to eq(2)
-        
+
         # Check message structure
         first_message = message_log[:context][:messages][0]
         expect(first_message[:role]).to eq("system")
@@ -134,7 +136,7 @@ RSpec.describe "Message Logging" do
         tool_log = tool_logs.first
         expect(tool_log[:context][:tools]).to be_an(Array)
         expect(tool_log[:context][:tools].size).to eq(1)
-        
+
         # Check tool structure
         first_tool = tool_log[:context][:tools][0]
         expect(first_tool[:name]).to eq("test_function")
@@ -199,9 +201,9 @@ RSpec.describe "Message Logging" do
         expect(normalized_log[:context][:normalized_response][:output_count]).to eq(2) # message + function_call
         expect(normalized_log[:context][:normalized_response][:output_types]).to include("message", "function_call")
         expect(normalized_log[:context][:normalized_response][:output_type_counts]).to eq({
-          "message" => 1,
-          "function_call" => 1
-        })
+                                                                                            "message" => 1,
+                                                                                            "function_call" => 1
+                                                                                          })
       end
 
       it "logs output details" do
@@ -218,13 +220,13 @@ RSpec.describe "Message Logging" do
         output_log = output_logs.first
         expect(output_log[:context][:output]).to be_an(Array)
         expect(output_log[:context][:output].size).to eq(2)
-        
+
         # Check message output
         message_output = output_log[:context][:output][0]
         expect(message_output[:type]).to eq("message")
         expect(message_output[:role]).to eq("assistant")
         expect(message_output[:content_length]).to eq("Test response from provider".length)
-        
+
         # Check function call output
         function_output = output_log[:context][:output][1]
         expect(function_output[:type]).to eq("function_call")
@@ -248,7 +250,7 @@ RSpec.describe "Message Logging" do
           prompt_tokens: 10,
           completion_tokens: 15,
           total_tokens: 25,
-          all_keys: ["prompt_tokens", "completion_tokens", "total_tokens"]
+          all_keys: %w[prompt_tokens completion_tokens total_tokens]
         )
       end
 
@@ -319,7 +321,7 @@ RSpec.describe "Message Logging" do
     it "properly determines content types" do
       messages = [
         { role: "user", content: "string content" },
-        { role: "user", content: ["array", "content"] },
+        { role: "user", content: %w[array content] },
         { role: "user", content: { type: "hash" } },
         { role: "user", content: nil },
         { role: "user", content: "" }
@@ -327,7 +329,7 @@ RSpec.describe "Message Logging" do
 
       # Use send to access private method for testing
       result = adapter_with_inspection.send(:inspect_messages, messages)
-      
+
       expect(result[0][:content_type]).to eq("string")
       expect(result[1][:content_type]).to eq("array")
       expect(result[2][:content_type]).to eq("hash")
@@ -340,7 +342,7 @@ RSpec.describe "Message Logging" do
       message = { role: "user", content: long_content }
 
       result = adapter_with_inspection.send(:inspect_messages, [message])
-      
+
       expect(result[0][:content_length]).to eq(150)
       expect(result[0][:content_preview]).to end_with("...")
       expect(result[0][:content_preview].length).to eq(101) # 100 chars + "..." (but actual length is 101)
@@ -365,7 +367,7 @@ RSpec.describe "Message Logging" do
       }
 
       result = adapter_with_inspection.send(:inspect_tools, [tool_with_properties])
-      
+
       expect(result[0][:properties_count]).to eq(3)
       expect(result[0][:name]).to eq("test_tool")
       expect(result[0][:description]).to eq("Test tool")

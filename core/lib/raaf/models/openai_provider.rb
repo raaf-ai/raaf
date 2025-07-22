@@ -171,7 +171,7 @@ module RAAF
         end
       end
 
-      def has_hosted_tools?(tools)
+      def hosted_tools?(tools)
         return false unless tools.respond_to?(:any?)
 
         tools.any? do |tool|
@@ -258,13 +258,9 @@ module RAAF
 
           accumulated_tool_calls[index]["id"] += tool_call["id"] if tool_call["id"]
 
-          if tool_call.dig("function", "name")
-            accumulated_tool_calls[index]["function"]["name"] += tool_call["function"]["name"]
-          end
+          accumulated_tool_calls[index]["function"]["name"] += tool_call["function"]["name"] if tool_call.dig("function", "name")
 
-          if tool_call.dig("function", "arguments")
-            accumulated_tool_calls[index]["function"]["arguments"] += tool_call["function"]["arguments"]
-          end
+          accumulated_tool_calls[index]["function"]["arguments"] += tool_call["function"]["arguments"] if tool_call.dig("function", "arguments")
 
           next unless block_given?
 

@@ -184,13 +184,9 @@ module RAAF
         validated = validate_against_type(parsed)
 
         if @is_wrapped
-          unless validated.is_a?(Hash)
-            raise ModelBehaviorError, "Expected a Hash, got #{validated.class} for JSON: #{json_str}"
-          end
+          raise ModelBehaviorError, "Expected a Hash, got #{validated.class} for JSON: #{json_str}" unless validated.is_a?(Hash)
 
-          unless validated.key?(WRAPPER_DICT_KEY)
-            raise ModelBehaviorError, "Could not find key '#{WRAPPER_DICT_KEY}' in JSON: #{json_str}"
-          end
+          raise ModelBehaviorError, "Could not find key '#{WRAPPER_DICT_KEY}' in JSON: #{json_str}" unless validated.key?(WRAPPER_DICT_KEY)
 
           return validated[WRAPPER_DICT_KEY]
         end
