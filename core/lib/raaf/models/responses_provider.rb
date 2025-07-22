@@ -82,6 +82,24 @@ module RAAF
       end
 
       ##
+      # Get supported models for this provider
+      #
+      # @return [Array<String>] List of supported model names
+      #
+      def supported_models
+        SUPPORTED_MODELS
+      end
+
+      ##
+      # Get the provider name
+      #
+      # @return [String] Provider name
+      #
+      def provider_name
+        "OpenAI"
+      end
+
+      ##
       # Check if this provider supports prompt parameter
       #
       # @return [Boolean] Always true for Responses API
@@ -181,7 +199,7 @@ module RAAF
       def validate_model(model)
         return if SUPPORTED_MODELS.include?(model)
 
-        warn "Model #{model} is not in the list of supported models: #{SUPPORTED_MODELS.join(", ")}"
+        raise ArgumentError, "Model #{model} is not supported. Supported models: #{SUPPORTED_MODELS.join(', ')}"
       end
 
       # Matches Python's _fetch_response
