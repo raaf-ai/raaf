@@ -208,7 +208,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
 
         expect {
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::APIError, /Rate limit exceeded/)
+        }.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
       end
 
       it "handles 500 Internal Server errors" do
@@ -224,7 +224,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
 
         expect {
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::APIError, /Internal server error/)
+        }.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
       end
 
       it "handles non-JSON error responses" do
@@ -233,7 +233,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
 
         expect {
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::APIError)
+        }.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
       end
     end
 
@@ -320,6 +320,11 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         web_search_tool = double("WebSearchTool")
         allow(web_search_tool).to receive(:class).and_return(Object) # Simulate class check
         allow(web_search_tool).to receive(:to_s).and_return("WebSearchTool")
+        allow(web_search_tool).to receive(:respond_to?).with(:tool_definition).and_return(false)
+        allow(web_search_tool).to receive(:respond_to?).with(:to_tool_definition).and_return(true)
+        allow(web_search_tool).to receive(:to_tool_definition).and_return({
+          type: "web_search"
+        })
 
         # Simulate web search tool detection
         tools = [web_search_tool]
@@ -463,11 +468,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
 
         input = provider.send(:convert_messages_to_input, messages)
 
-        expect(input.length).to eq(4) # user + assistant + tool_call + tool_result + assistant
+        expect(input.length).to eq(5) # user + assistant content + tool_call + tool_result + final assistant
         expect(input[0][:type]).to eq("user_text")
         expect(input[1][:type]).to eq("message")
         expect(input[2][:type]).to eq("function_call")
         expect(input[3][:type]).to eq("function_call_output")
+        expect(input[4][:type]).to eq("message")
       end
     end
 

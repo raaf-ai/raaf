@@ -430,6 +430,22 @@ module RAAF
     end
 
     ##
+    # Content-based handoff detection (disabled - RAAF uses tool-based handoffs only)
+    #
+    # RAAF uses tool-based handoffs exclusively. Handoffs are implemented as function calls (tools)
+    # that the LLM must explicitly invoke. Text-based or JSON-based handoff detection in message
+    # content is not supported.
+    #
+    # @param content [String] Message content to analyze
+    # @param current_agent [Agent] Current agent instance
+    # @return [nil] Always returns nil as content-based handoffs are not supported
+    #
+    def detect_handoff_in_content(content, current_agent = nil)
+      log_debug("Content-based handoff detection disabled - RAAF uses tool-based handoffs only")
+      nil
+    end
+
+    ##
     # Execute input guardrails to validate and filter user input
     #
     # This method runs all configured input guardrails (both run-level
@@ -1364,6 +1380,11 @@ module RAAF
           **model_params
         )
 
+        # Validate response structure for Responses API
+        unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
+          raise StandardError, "Invalid response structure: missing 'output' field"
+        end
+
         # Log the response details
         log_debug_api("📥 RUNNER: Received API response",
                       provider: @provider.class.name,
@@ -1540,6 +1561,7 @@ module RAAF
           # Set previous_response_id for next iteration
           previous_response_id = response[:id] || response["id"]
           state[:turns] += 1
+          log_debug("🔢 TURNS: Incremented turns for tool call continuation", turns: state[:turns], done: process_result[:done])
 
           # Check if max turns exceeded after incrementing
           raise MaxTurnsError, "Maximum turns (#{state[:max_turns]}) exceeded" if state[:turns] >= state[:max_turns]
@@ -1548,7 +1570,16 @@ module RAAF
         end
 
         # No tool calls or done - conversation is complete
+        log_debug("🔢 TURNS: Breaking loop - conversation complete", turns: state[:turns], done: process_result[:done])
         break
+      end
+
+      # Increment turns for the final turn if we processed any responses
+      if model_responses.any?
+        state[:turns] += 1
+        log_debug("🔢 TURNS: Incremented turns for final response", turns: state[:turns], responses: model_responses.size)
+      else
+        log_debug("🔢 TURNS: No responses to count", turns: state[:turns])
       end
 
       # Call agent end hook

@@ -235,7 +235,7 @@ module RAAF
           success: true,
           workflow_completed: true,
           status: args[:status],
-          timestamp: Time.current.iso8601
+          timestamp: Time.now.iso8601
         }.to_json
       end
 
@@ -245,6 +245,102 @@ module RAAF
         description: "Mark the workflow as completed with final results",
         parameters: parameters
       )
+    end
+
+    # Alias for backward compatibility
+    def self.discovery_data_contract
+      company_discovery_contract
+    end
+
+    ##
+    # Create structured data contract for workflow handoffs
+    #
+    # @return [Hash] JSON schema for workflow handoff
+    #
+    def self.workflow_handoff_contract
+      {
+        type: "object",
+        properties: {
+          workflow_step: {
+            type: "string",
+            description: "Current workflow step"
+          },
+          workflow_data: {
+            type: "object",
+            description: "Data from current workflow step",
+            additionalProperties: true
+          },
+          next_steps: {
+            type: "array",
+            items: { type: "string" },
+            description: "Remaining workflow steps"
+          }
+        },
+        required: ["workflow_step", "workflow_data"],
+        additionalProperties: false
+      }
+    end
+
+    ##
+    # Create structured data contract for user handoffs
+    #
+    # @return [Hash] JSON schema for user handoff
+    #
+    def self.user_handoff_contract
+      {
+        type: "object",
+        properties: {
+          user_id: {
+            type: "string",
+            description: "User identifier"
+          },
+          user_context: {
+            type: "object",
+            description: "User context information",
+            additionalProperties: true
+          },
+          reason: {
+            type: "string",
+            description: "Reason for user handoff"
+          }
+        },
+        required: ["user_id", "reason"],
+        additionalProperties: false
+      }
+    end
+
+    ##
+    # Create structured data contract for task handoffs
+    #
+    # @return [Hash] JSON schema for task handoff
+    #
+    def self.task_handoff_contract
+      {
+        type: "object",
+        properties: {
+          task_id: {
+            type: "string",
+            description: "Task identifier"
+          },
+          task_type: {
+            type: "string",
+            description: "Type of task"
+          },
+          task_data: {
+            type: "object",
+            description: "Task-specific data",
+            additionalProperties: true
+          },
+          priority: {
+            type: "integer",
+            minimum: 1,
+            maximum: 10,
+            description: "Task priority"
+          }
+        },
+        required: ["task_id", "task_type"],
+        additionalProperties: false
+      }
     end
 
   end

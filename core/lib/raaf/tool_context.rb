@@ -93,6 +93,9 @@ module RAAF
   # @see ContextualTool For context-aware tool execution
   # @see ContextManager For multi-session context management
   class ToolContext
+    # Class-level shared memory for all contexts
+    @@global_shared_memory = {}
+    @@global_shared_memory_mutex = Mutex.new
 
     # @return [String] unique identifier for this context instance
     attr_reader :id
@@ -102,6 +105,12 @@ module RAAF
 
     # @return [Hash] metadata associated with this context
     attr_reader :metadata
+    
+    # @return [ToolContext, nil] parent context if any
+    attr_reader :parent
+    
+    # @return [Array<ToolContext>] child contexts
+    attr_reader :children
 
     ##
     # Initialize a new tool context
@@ -119,7 +128,7 @@ module RAAF
     #     metadata: { "environment" => "production" },
     #     track_executions: true
     #   )
-    def initialize(initial_data: {}, metadata: {}, track_executions: true)
+    def initialize(initial_data: {}, metadata: {}, track_executions: true, parent: nil)
       @id = SecureRandom.uuid
       @created_at = Time.now
       @metadata = metadata
@@ -128,11 +137,24 @@ module RAAF
       @execution_history = []
       @shared_memory = {}
       @locks = {}
+      @parent = parent
+      @children = []
+      
+      # Register with parent if present
+      @parent.instance_variable_get(:@children) << self if @parent
     end
 
     # Get a value from context
     def get(key, default = nil)
-      @data.fetch(key.to_s, default)
+      # First check own data
+      if @data.key?(key.to_s)
+        @data[key.to_s]
+      elsif @parent
+        # Fall back to parent
+        @parent.get(key, default)
+      else
+        default
+      end
     end
 
     # Set a value in context
@@ -168,7 +190,33 @@ module RAAF
     end
 
     # Track a tool execution
-    def track_execution(tool_name, input, output, duration, error: nil)
+    def track_execution(tool_name, input, output = nil, duration = nil, error: nil, &block)
+      # Support block-based API for automatic timing and result capture
+      if block_given?
+        start_time = Time.now
+        result = nil
+        error_caught = nil
+        
+        begin
+          result = block.call
+        rescue => e
+          error_caught = e
+          raise
+        ensure
+          duration = Time.now - start_time
+          track_execution_internal(tool_name, input, result, duration, error: error_caught)
+        end
+        
+        return result
+      else
+        # Direct API call
+        track_execution_internal(tool_name, input, output, duration, error: error)
+      end
+    end
+    
+    private
+    
+    def track_execution_internal(tool_name, input, output, duration, error: nil)
       return unless @track_executions
 
       execution = {
@@ -188,6 +236,8 @@ module RAAF
       # Limit history size to prevent memory issues
       @execution_history.shift if @execution_history.size > 1000
     end
+    
+    public
 
     # Get execution history
     def execution_history(tool_name: nil, limit: nil)
@@ -242,15 +292,21 @@ module RAAF
 
     # Shared memory between tools
     def shared_get(key, default = nil)
-      @shared_memory.fetch(key.to_s, default)
+      @@global_shared_memory_mutex.synchronize do
+        @@global_shared_memory.fetch(key.to_s, default)
+      end
     end
 
     def shared_set(key, value)
-      @shared_memory[key.to_s] = value
+      @@global_shared_memory_mutex.synchronize do
+        @@global_shared_memory[key.to_s] = value
+      end
     end
 
     def shared_delete(key)
-      @shared_memory.delete(key.to_s)
+      @@global_shared_memory_mutex.synchronize do
+        @@global_shared_memory.delete(key.to_s)
+      end
     end
 
     # Thread-safe operations with locking
@@ -261,11 +317,11 @@ module RAAF
 
     # Create a child context
     def create_child(additional_data: {})
-      child_data = @data.merge(additional_data)
       ToolContext.new(
-        initial_data: child_data,
+        initial_data: additional_data,
         metadata: @metadata.merge(parent_id: @id),
-        track_executions: @track_executions
+        track_executions: @track_executions,
+        parent: self
       )
     end
 
@@ -279,6 +335,43 @@ module RAAF
         shared_memory: @shared_memory,
         execution_history: @execution_history
       }
+    end
+    
+    # Export context as JSON string
+    def to_json(*args)
+      export.to_json(*args)
+    end
+    
+    # Import data from hash
+    def from_hash(data, replace: false)
+      if replace
+        @data.clear
+      end
+      @data.merge!(data.transform_keys(&:to_s))
+    end
+    
+    # Get most used tools
+    def most_used_tools(limit: nil)
+      tool_counts = @execution_history.group_by { |e| e[:tool_name] }
+                                      .transform_values(&:size)
+                                      .sort_by { |_, count| -count }
+                                      .map(&:first)
+      
+      limit ? tool_counts.first(limit) : tool_counts
+    end
+    
+    # Calculate average execution time per tool
+    def average_execution_time
+      tool_times = {}
+      
+      @execution_history.select { |e| e[:success] }.group_by { |e| e[:tool_name] }.each do |tool, executions|
+        durations = executions.map { |e| e[:duration] }.compact
+        next if durations.empty?
+        
+        tool_times[tool] = durations.sum / durations.size.to_f
+      end
+      
+      tool_times
     end
 
     # Import context from export

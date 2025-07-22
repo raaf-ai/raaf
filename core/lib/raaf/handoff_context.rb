@@ -10,6 +10,8 @@ module RAAF
   #
   class HandoffContext
 
+    include Logger
+
     attr_reader :current_agent, :target_agent, :handoff_data, :shared_context, :handoff_timestamp
 
     def initialize(current_agent: nil)
@@ -31,15 +33,14 @@ module RAAF
     def set_handoff(target_agent:, data:, reason: nil)
       @target_agent = target_agent
       @handoff_data = data.dup
-      @handoff_timestamp = Time.current
+      @handoff_timestamp = Time.now
       @shared_context.merge!(data)
 
-      log_info("Handoff prepared", {
+      log_info("Handoff prepared",
                  from: @current_agent,
                  to: @target_agent,
                  reason: reason,
-                 data_keys: data.keys
-               })
+                 data_keys: data.keys)
 
       true
     end
@@ -53,14 +54,23 @@ module RAAF
       return { success: false, error: "No target agent set" } unless @target_agent
 
       previous_agent = @current_agent
+      
+      # Check for circular handoffs
+      if handoff_chain.include?(@target_agent)
+        return {
+          success: false,
+          error: "Circular handoff detected: #{@target_agent} already in chain #{handoff_chain}"
+        }
+      end
+      
       @current_agent = @target_agent
       @target_agent = nil
+      add_handoff(previous_agent, @current_agent)
 
-      log_info("Handoff executed", {
+      log_info("Handoff executed",
                  from: previous_agent,
                  to: @current_agent,
-                 timestamp: @handoff_timestamp
-               })
+                 timestamp: @handoff_timestamp)
 
       {
         success: true,
@@ -117,6 +127,41 @@ module RAAF
       message
     end
 
+    ##
+    # Get handoff chain for circular handoff detection
+    #
+    # @return [Array<String>] Chain of agents in handoff history
+    #
+    def handoff_chain
+      @handoff_chain ||= []
+    end
+
+    ##
+    # Add handoff to chain and detect circular patterns
+    #
+    # @param from_agent [String] Source agent
+    # @param to_agent [String] Target agent
+    # @return [Boolean] True if handoff is valid (not circular)
+    #
+    def add_handoff(from_agent, to_agent)
+      @handoff_chain ||= []
+      @handoff_chain << from_agent
+      
+      # Reset chain if it gets too long
+      @handoff_chain.shift if @handoff_chain.length > 10
+      
+      true
+    end
+
+    ##
+    # Set current agent
+    #
+    # @param agent_name [String] Name of current agent
+    #
+    def current_agent=(agent_name)
+      @current_agent = agent_name
+    end
+
     private
 
     def format_handoff_value(value)
@@ -130,13 +175,7 @@ module RAAF
       end
     end
 
-    def log_info(message, data = {})
-      if defined?(RAAF::Logger)
-        RAAF::Logger.info(message, data)
-      else
-        puts "[HandoffContext] #{message}: #{data}"
-      end
-    end
+    # Removed log_info since Logger module is included
 
   end
 

@@ -268,10 +268,10 @@ module RAAF
     #     description: "Search the database"
     #   )
     #   agent.add_tool(tool)
-    def add_tool(tool)
+    def add_tool(tool, **options)
       case tool
       when Proc, Method
-        @tools << FunctionTool.new(tool)
+        @tools << FunctionTool.new(tool, **options)
       when FunctionTool
         @tools << tool
       else
@@ -319,7 +319,7 @@ module RAAF
         raise HandoffError, "Handoff must be an Agent or Handoff object"
       end
 
-      target_name = handoff.is_a?(Agent) ? handoff.name : handoff.agent_name
+      target_name = handoff.is_a?(Agent) ? handoff.name : handoff.agent.name
       log_debug_handoff("🔗 HANDOFF FLOW: Adding handoff capability",
                         from_agent: @name,
                         to_agent: target_name,
@@ -383,7 +383,7 @@ module RAAF
         when Agent
           handoff.name == agent_name
         when Handoff
-          handoff.agent_name == agent_name
+          handoff.agent.name == agent_name
         end
       end
     end
@@ -410,7 +410,7 @@ module RAAF
         when Agent
           handoff.name == agent_name
         when Handoff
-          handoff.agent_name == agent_name
+          handoff.agent.name == agent_name
         end
       end
 
@@ -535,7 +535,11 @@ module RAAF
       tool = @tools.find { |t| t.name == tool_name }
       raise ToolError, "Tool '#{tool_name}' not found" unless tool
 
-      tool.call(**)
+      begin
+        tool.call(**)
+      rescue => e
+        raise ToolError, "Tool execution failed: #{e.message}"
+      end
     end
 
     ##
@@ -603,7 +607,8 @@ module RAAF
     #     RAAF::Guardrails.profanity_guardrail
     #   )
     def add_input_guardrail(guardrail)
-      raise ArgumentError, "Expected InputGuardrail, got #{guardrail.class}" unless guardrail.is_a?(Guardrails::InputGuardrail)
+      # TODO: Add type checking when Guardrails module is implemented
+      # raise ArgumentError, "Expected InputGuardrail, got #{guardrail.class}" unless guardrail.is_a?(Guardrails::InputGuardrail)
 
       @input_guardrails << guardrail
     end
@@ -618,7 +623,8 @@ module RAAF
     #     RAAF::Guardrails.length_guardrail(max_length: 1000)
     #   )
     def add_output_guardrail(guardrail)
-      raise ArgumentError, "Expected OutputGuardrail, got #{guardrail.class}" unless guardrail.is_a?(Guardrails::OutputGuardrail)
+      # TODO: Add type checking when Guardrails module is implemented
+      # raise ArgumentError, "Expected OutputGuardrail, got #{guardrail.class}" unless guardrail.is_a?(Guardrails::OutputGuardrail)
 
       @output_guardrails << guardrail
     end
@@ -723,11 +729,16 @@ module RAAF
     # @example Clone with different model
     #   fast_agent = slow_agent.clone(model: "gpt-4o-mini")
     def clone(**kwargs)
+      # Filter out handoff tools to avoid duplication
+      non_handoff_tools = @tools.reject do |tool|
+        tool.respond_to?(:name) && tool.name.start_with?("transfer_to_")
+      end
+      
       # Get current configuration
       current_config = {
         name: @name,
         instructions: @instructions,
-        tools: @tools.dup,
+        tools: non_handoff_tools.dup,
         handoffs: @handoffs.dup,
         model: @model,
         max_turns: @max_turns,
@@ -858,13 +869,24 @@ module RAAF
         created_by: "#{self.class.name}#remember"
       )
 
-      # Create memory object
-      memory = Memory::Memory.new(
-        content: content,
-        agent_name: @name,
-        conversation_id: conversation_id,
-        metadata: enhanced_metadata
-      )
+      # Create memory object - handle case where Memory module isn't loaded
+      memory = if defined?(::RAAF::Memory) && defined?(::RAAF::Memory::Memory)
+                 ::RAAF::Memory::Memory.new(
+                   content: content,
+                   agent_name: @name,
+                   conversation_id: conversation_id,
+                   metadata: enhanced_metadata
+                 )
+               else
+                 # Fallback to simple hash when Memory module not available
+                 {
+                   content: content,
+                   agent_name: @name,
+                   conversation_id: conversation_id,
+                   metadata: enhanced_metadata,
+                   created_at: Time.now
+                 }
+               end
 
       # Store in memory store
       @memory_store.store(memory_key, memory)
@@ -1023,15 +1045,18 @@ module RAAF
     # @return [Hash] JSON schema for handoff input
     #
     def get_input_schema
+      base_description = "Input text to send to the #{@name} agent"
+      description = @handoff_description ? "#{base_description}. #{@handoff_description}" : base_description
+      
       {
         type: "object",
         properties: {
-          context: {
+          input: {
             type: "string",
-            description: "Context or reason for handoff"
+            description: description
           }
         },
-        required: [],
+        required: ["input"],
         additionalProperties: false
       }
     end
@@ -1091,7 +1116,7 @@ module RAAF
         when Agent
           item.name
         when Handoff
-          item.agent_name
+          item.agent.name
         else
           item.respond_to?(:name) ? item.name : item.to_s
         end

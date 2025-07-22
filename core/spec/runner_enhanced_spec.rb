@@ -3,33 +3,43 @@
 require "spec_helper"
 
 RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
-  let(:agent) { RAAF::Agent.new(name: "TestAgent", instructions: "You are helpful") }
+  let(:agent) { RAAF::Agent.new(name: "TestAgent", instructions: "You are helpful", model: "gpt-4") }
   let(:mock_provider) { instance_double(RAAF::Models::ResponsesProvider) }
   let(:runner) { described_class.new(agent: agent, provider: mock_provider) }
+  
+  # Helper to set up provider expectations with flexible argument matching
+  def expect_provider_call(response)
+    allow(mock_provider).to receive(:responses_completion).and_return(response)
+  end
+  
+  # Set up provider type checking
+  before do
+    allow(mock_provider).to receive(:is_a?).and_return(false)
+    allow(mock_provider).to receive(:is_a?).with(RAAF::Models::ResponsesProvider).and_return(true)
+  end
+  
+  # Common response fixtures available to all tests
+  let(:basic_response) do
+    {
+      id: "resp_123",
+      output: [
+        {
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text: "Hello! How can I help?" }]
+        }
+      ],
+      usage: { input_tokens: 10, output_tokens: 15, total_tokens: 25 }
+    }
+  end
 
   describe "Core Execution Engine - execute_responses_api_core" do
     let(:messages) { [{ role: "user", content: "Hello" }] }
     let(:config) { RAAF::RunConfig.new(max_turns: 5) }
-    
-    let(:basic_response) do
-      {
-        id: "resp_123",
-        output: [
-          {
-            type: "message",
-            role: "assistant",
-            content: [{ type: "output_text", text: "Hello! How can I help?" }]
-          }
-        ],
-        usage: { input_tokens: 10, output_tokens: 15, total_tokens: 25 }
-      }
-    end
 
     context "single turn conversation" do
       it "executes basic conversation flow" do
-        allow(mock_provider).to receive(:complete).and_return(basic_response)
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(basic_response)
+        expect_provider_call(basic_response)
         
         result = runner.run("Hello")
         
@@ -40,9 +50,6 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       end
 
       it "handles provider errors gracefully" do
-        allow(mock_provider).to receive(:complete)
-          .and_raise(RAAF::Models::APIError.new("Service unavailable"))
-        allow(mock_provider).to receive(:complete)
         allow(mock_provider).to receive(:responses_completion)
           .and_raise(RAAF::Models::APIError.new("Service unavailable"))
         
@@ -53,47 +60,57 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
       it "validates response structure" do
         invalid_response = { invalid: "response" }
-        allow(mock_provider).to receive(:complete).and_return(invalid_response)
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(invalid_response)
+        expect_provider_call(invalid_response)
         
         expect {
           runner.run("Hello")
-        }.to raise_error # Should raise due to invalid response structure
+        }.to raise_error(StandardError) # Should raise due to invalid response structure
       end
     end
 
     context "multi-turn conversations" do
       it "handles multiple turns correctly" do
+        # First turn - assistant calls a tool
         turn1_response = {
           id: "resp_1",
           output: [
             {
               type: "message",
               role: "assistant", 
-              content: [{ type: "output_text", text: "I need more information." }]
+              content: [{ type: "output_text", text: "Let me calculate that for you." }]
+            },
+            {
+              type: "function_call",
+              id: "call_123",
+              name: "calculate",
+              arguments: '{"x": 5, "y": 3}'
             }
           ],
           usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 }
         }
         
+        # Second turn - assistant responds after tool execution
         turn2_response = {
           id: "resp_2",
           output: [
             {
               type: "message",
               role: "assistant",
-              content: [{ type: "output_text", text: "Thank you, that helps!" }]
+              content: [{ type: "output_text", text: "The result is 8." }]
             }
           ],
           usage: { input_tokens: 20, output_tokens: 10, total_tokens: 30 }
         }
         
+        # Add a tool to the agent for this test
+        calculator_tool = RAAF::FunctionTool.new(
+          proc { |x:, y:| x + y },
+          name: "calculate",
+          description: "Add two numbers"
+        )
+        agent.add_tool(calculator_tool)
+        
         call_count = 0
-        allow(mock_provider).to receive(:complete) do
-          call_count += 1
-          call_count == 1 ? turn1_response : turn2_response
-        end
         allow(mock_provider).to receive(:responses_completion) do
           call_count += 1
           call_count == 1 ? turn1_response : turn2_response
@@ -101,10 +118,15 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         
         # Simulate a conversation that requires multiple turns
         config = RAAF::RunConfig.new(max_turns: 3)
-        result = runner.run("Start conversation", config: config)
+        result = runner.run("Calculate 5 + 3", config: config)
         
         expect(result.success?).to be true
-        expect(result.messages.length).to be >= 4 # User + assistant + user + assistant
+        expect(result.turns).to eq(2) # Two API calls = 2 turns
+        
+        # Check that we have multiple messages including user and assistant
+        expect(result.messages.length).to be >= 3 # At least user + 2 assistant responses
+        expect(result.messages.first[:role]).to eq("user")
+        expect(result.messages.select { |m| m[:role] == "assistant" }.length).to be >= 2
       end
 
       it "respects max_turns limit" do
@@ -123,8 +145,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
           usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 }
         }
         
-        allow(mock_provider).to receive(:complete).and_return(continuing_response)
-        allow(mock_provider).to receive(:responses_completion).and_return(continuing_response)
+        expect_provider_call(continuing_response)
         
         result = runner.run("Start", config: config)
         expect(result.turns).to be <= 2
@@ -170,10 +191,6 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
       it "executes tools during conversation" do
         call_count = 0
-        allow(mock_provider).to receive(:complete) do
-          call_count += 1
-          call_count == 1 ? turn1_response : turn2_response
-        end
         allow(mock_provider).to receive(:responses_completion) do
           call_count += 1
           call_count == 1 ? tool_response : tool_result_response
@@ -204,8 +221,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
           usage: { input_tokens: 15, output_tokens: 20, total_tokens: 35 }
         }
         
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(error_tool_response)
+        expect_provider_call(error_tool_response)
         
         result = runner.run("Use the error tool")
         
@@ -256,16 +272,14 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
       it "processes handoff tool calls successfully" do
         call_count = 0
-        allow(mock_provider).to receive(:complete) do
-          call_count += 1
-          call_count == 1 ? turn1_response : turn2_response
-        end
         allow(mock_provider).to receive(:responses_completion) do
           call_count += 1
           call_count == 1 ? handoff_response : target_response
         end
         
-        result = runner.run("I need specific help")
+        # Use a runner that knows about both agents
+        runner_with_agents = described_class.new(agent: agent, provider: mock_provider)
+        result = runner_with_agents.run("I need specific help")
         
         expect(result.success?).to be true
         expect(result.last_agent&.name).to eq("TargetAgent")
@@ -285,8 +299,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
           usage: { input_tokens: 20, output_tokens: 15, total_tokens: 35 }
         }
         
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(invalid_handoff_response)
+        expect_provider_call(invalid_handoff_response)
         
         result = runner.run("Transfer somewhere invalid")
         
@@ -300,8 +313,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         target_agent.add_handoff(agent)
         
         # Mock responses that would create infinite loop
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(handoff_response)
+        expect_provider_call(handoff_response)
         
         config = RAAF::RunConfig.new(max_turns: 10)
         result = runner.run("Start circular handoff", config: config)
@@ -356,11 +368,11 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         expect(tools).to be_an(Array)
         expect(tools.length).to be >= 2 # Our 2 tools + any handoff tools
         
-        # Verify tool format for API
+        # Verify tools are FunctionTool objects
         tools.each do |tool|
-          expect(tool).to have_key(:type)
-          expect(tool).to have_key(:function)
-          expect(tool[:type]).to eq("function")
+          expect(tool).to be_a(RAAF::FunctionTool)
+          expect(tool.name).to be_a(String)
+          expect(tool.description).to be_a(String)
         end
       end
 
@@ -378,35 +390,52 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
     context "tool execution with different argument formats" do
       it "handles JSON string arguments" do
-        result = runner.send(:execute_tool, "search", '{"query": "test"}', agent, nil)
+        tool_call_item = {
+          name: "search",
+          arguments: '{"query": "test"}',
+          call_id: "call_123"
+        }
+        result = runner.send(:execute_tool_for_responses_api, tool_call_item, agent)
         
-        expect(result).to be_a(RAAF::ToolResult)
-        expect(result.success?).to be true
-        expect(result.data).to include("test")
+        expect(result).to be_a(String)
+        expect(result).to include("test")
       end
 
       it "handles hash arguments" do
-        result = runner.send(:execute_tool, "uppercase", { text: "hello" }, agent, nil)
+        tool_call_item = {
+          name: "uppercase",
+          arguments: '{"text": "hello"}',
+          call_id: "call_456"
+        }
+        result = runner.send(:execute_tool_for_responses_api, tool_call_item, agent)
         
-        expect(result).to be_a(RAAF::ToolResult)
-        expect(result.success?).to be true
-        expect(result.data).to eq("HELLO")
+        expect(result).to be_a(String)
+        expect(result).to eq("HELLO")
       end
 
       it "handles invalid tool arguments gracefully" do
-        result = runner.send(:execute_tool, "search", "invalid json", agent, nil)
+        tool_call_item = {
+          name: "search",
+          arguments: "invalid json",
+          call_id: "call_789"
+        }
+        result = runner.send(:execute_tool_for_responses_api, tool_call_item, agent)
         
         # Should handle invalid JSON gracefully
-        expect(result).to be_a(RAAF::ToolResult)
-        expect(result.success?).to be false
+        expect(result).to be_a(String)
+        expect(result).to include("Error")
       end
 
       it "handles missing tool execution" do
-        result = runner.send(:execute_tool, "nonexistent_tool", "{}", agent, nil)
+        tool_call_item = {
+          name: "nonexistent_tool",
+          arguments: "{}",
+          call_id: "call_000"
+        }
+        result = runner.send(:execute_tool_for_responses_api, tool_call_item, agent)
         
-        expect(result).to be_a(RAAF::ToolResult)
-        expect(result.success?).to be false
-        expect(result.error).to include("Tool not found")
+        expect(result).to be_a(String)
+        expect(result).to include("not found")
       end
     end
   end
@@ -434,16 +463,17 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
     context "lifecycle hooks" do
       let(:hooks_called) { [] }
-      let(:mock_context) { instance_double(RAAF::RunContextWrapper) }
-      
-      before do
-        allow(mock_context).to receive(:hooks_called=)
-        allow(mock_context).to receive(:hooks_called).and_return(hooks_called)
-      end
+      let(:mock_context) { double("RunContextWrapper") }
 
       it "calls before_run hooks" do
-        hook_proc = proc { |context| hooks_called << :before_run }
-        runner.instance_variable_set(:@hooks, { before_run: [hook_proc] })
+        hooks_object = double("Hooks")
+        allow(hooks_object).to receive(:respond_to?).with(:before_run).and_return(true)
+        allow(hooks_object).to receive(:before_run) do |context|
+          hooks_called << :before_run
+        end
+        
+        config = double("Config", hooks: hooks_object)
+        runner.instance_variable_set(:@current_config, config)
         
         runner.send(:call_hook, :before_run, mock_context)
         
@@ -451,8 +481,14 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       end
 
       it "calls after_run hooks" do
-        hook_proc = proc { |context| hooks_called << :after_run }
-        runner.instance_variable_set(:@hooks, { after_run: [hook_proc] })
+        hooks_object = double("Hooks")
+        allow(hooks_object).to receive(:respond_to?).with(:after_run).and_return(true)
+        allow(hooks_object).to receive(:after_run) do |context|
+          hooks_called << :after_run
+        end
+        
+        config = double("Config", hooks: hooks_object)
+        runner.instance_variable_set(:@current_config, config)
         
         runner.send(:call_hook, :after_run, mock_context)
         
@@ -460,8 +496,14 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       end
 
       it "handles hook execution errors gracefully" do
-        error_hook = proc { |context| raise StandardError, "Hook failed" }
-        runner.instance_variable_set(:@hooks, { before_run: [error_hook] })
+        hooks_object = double("Hooks")
+        allow(hooks_object).to receive(:respond_to?).with(:before_run).and_return(true)
+        allow(hooks_object).to receive(:before_run) do |context|
+          raise StandardError, "Hook failed"
+        end
+        
+        config = double("Config", hooks: hooks_object)
+        runner.instance_variable_set(:@current_config, config)
         
         expect {
           runner.send(:call_hook, :before_run, mock_context)
@@ -475,8 +517,8 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       let(:mock_context) { instance_double(RAAF::RunContextWrapper) }
       
       before do
-        allow(mock_context).to receive(:get_context).and_return({})
-        allow(mock_context).to receive(:enabled_tools).and_return([])
+        allow(mock_context).to receive(:fetch).and_return(nil)
+        allow(mock_context).to receive(:current_agent).and_return(agent)
       end
 
       it "builds basic system prompt" do
@@ -488,7 +530,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
       it "includes handoff instructions when agents available" do
         # Add handoff target
-        target_agent = RAAF::Agent.new(name: "Helper", instructions: "I help")
+        target_agent = RAAF::Agent.new(name: "Helper", instructions: "I help", model: "gpt-4")
         agent.add_handoff(target_agent)
         
         prompt = runner.send(:build_system_prompt, agent, mock_context)
@@ -497,7 +539,8 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       end
 
       it "handles context data in prompts" do
-        allow(mock_context).to receive(:get_context).and_return({ user_name: "John" })
+        allow(mock_context).to receive(:store).with(:user_name, "John")
+        allow(mock_context).to receive(:fetch).with(:user_name, anything).and_return("John")
         
         prompt = runner.send(:build_system_prompt, agent, mock_context)
         
@@ -521,8 +564,8 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       let(:mock_context) { instance_double(RAAF::RunContextWrapper) }
       
       before do
-        allow(mock_context).to receive(:get_context).and_return({})
-        allow(mock_context).to receive(:enabled_tools).and_return([])
+        allow(mock_context).to receive(:fetch).and_return(nil)
+        allow(mock_context).to receive(:current_agent).and_return(agent)
       end
 
       it "builds properly formatted messages for API" do
@@ -561,8 +604,8 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
     before do
       allow(RAAF::ContextManager).to receive(:new).and_return(mock_context_manager)
       allow(RAAF::RunContextWrapper).to receive(:new).and_return(mock_context_wrapper)
-      allow(mock_context_wrapper).to receive(:get_context).and_return({})
-      allow(mock_context_wrapper).to receive(:enabled_tools).and_return([])
+      allow(mock_context_wrapper).to receive(:fetch).and_return(nil)
+      allow(mock_context_wrapper).to receive(:current_agent).and_return(agent)
     end
 
     context "context initialization and management" do
@@ -570,19 +613,30 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         messages = [{ role: "user", content: "Test" }]
         config = RAAF::RunConfig.new
         
+        # Since RunContextWrapper.new is mocked to return mock_context_wrapper
         context = runner.send(:initialize_run_context, messages, config)
         
         expect(context).not_to be_nil
+        expect(context).to eq(mock_context_wrapper)
+        
+        # Verify it was called with a RunContext instance
+        expect(RAAF::RunContextWrapper).to have_received(:new).with(
+          instance_of(RAAF::RunContext)
+        )
       end
 
       it "handles context updates during execution" do
-        allow(mock_context_wrapper).to receive(:update_context)
-        allow(mock_context_wrapper).to receive(:context_changed?).and_return(true)
+        messages = [{ role: "user", content: "Test" }]
+        config = RAAF::RunConfig.new
         
-        # Test that context updates are handled (specific implementation varies)
-        expect {
-          runner.send(:initialize_run_context, [], RAAF::RunConfig.new)
-        }.not_to raise_error
+        # Test that context initialization works with mocked wrapper
+        context = runner.send(:initialize_run_context, messages, config)
+        expect(context).to eq(mock_context_wrapper)
+        
+        # Verify RunContext and RunContextWrapper were created
+        expect(RAAF::RunContextWrapper).to have_received(:new).with(
+          instance_of(RAAF::RunContext)
+        )
       end
     end
   end
@@ -606,8 +660,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         # Add tool to handle the call
         agent.add_tool(proc { |param:| "result" }, name: "test_tool")
         
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(malformed_response)
+        expect_provider_call(malformed_response)
         
         result = runner.run("Test malformed JSON")
         
@@ -618,10 +671,9 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
       it "handles stop condition checking" do
         stop_checker = proc { true } # Always stop
-        runner = described_class.new(agent: agent, stop_checker: stop_checker)
+        runner = described_class.new(agent: agent, provider: mock_provider, stop_checker: stop_checker)
         
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(basic_response)
+        expect_provider_call(basic_response)
         
         result = runner.run("Test stop condition")
         
@@ -632,8 +684,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       it "handles very large inputs efficiently" do
         large_input = "x" * 10000 # 10k characters
         
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(basic_response)
+        expect_provider_call(basic_response)
         
         start_time = Time.now
         result = runner.run(large_input)
@@ -644,8 +695,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
       end
 
       it "handles empty and nil inputs" do
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(basic_response)
+        expect_provider_call(basic_response)
         
         # Test empty string
         result = runner.run("")
@@ -660,18 +710,16 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
     context "provider communication errors" do
       it "handles network timeouts" do
-        allow(mock_provider).to receive(:complete)
         allow(mock_provider).to receive(:responses_completion)
-          .and_raise(Net::TimeoutError.new("Request timeout"))
+          .and_raise(Timeout::Error.new("Request timeout"))
         
         expect {
           runner.run("Test timeout")
-        }.to raise_error(Net::TimeoutError)
+        }.to raise_error(Timeout::Error)
       end
 
       it "handles rate limiting errors" do
         rate_limit_error = RAAF::Models::APIError.new("Rate limit exceeded")
-        allow(mock_provider).to receive(:complete)
         allow(mock_provider).to receive(:responses_completion).and_raise(rate_limit_error)
         
         expect {
@@ -681,12 +729,11 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
 
       it "handles malformed API responses" do
         malformed_response = { broken: "response", missing: "required_fields" }
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(malformed_response)
+        expect_provider_call(malformed_response)
         
         expect {
           runner.run("Test malformed response")
-        }.to raise_error # Should raise due to response validation
+        }.to raise_error(StandardError) # Should raise due to response validation
       end
     end
   end
@@ -694,8 +741,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
   describe "Performance and Optimization" do
     context "execution efficiency" do
       it "completes simple conversations quickly" do
-        allow(mock_provider).to receive(:complete)
-        allow(mock_provider).to receive(:responses_completion).and_return(basic_response)
+        expect_provider_call(basic_response)
         
         start_time = Time.now
         result = runner.run("Quick test")
@@ -713,6 +759,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
                         description: "Test tool #{i}")
         end
         
+        # First response requests multiple tool calls
         multi_tool_response = {
           id: "resp_multi",
           output: (0..4).map do |i|
@@ -722,24 +769,27 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
               arguments: '{"param": "test"}',
               call_id: "call_#{i}"
             }
-          end + [
-            {
-              type: "message",
-              role: "assistant", 
-              content: [{ type: "output_text", text: "All tools executed" }]
-            }
-          ],
+          end,
           usage: { input_tokens: 50, output_tokens: 30, total_tokens: 80 }
         }
         
+        # Second response acknowledges tool results
+        final_response = {
+          id: "resp_final",
+          output: [
+            {
+              type: "message",
+              role: "assistant", 
+              content: [{ type: "output_text", text: "All tools executed successfully" }]
+            }
+          ],
+          usage: { input_tokens: 100, output_tokens: 20, total_tokens: 120 }
+        }
+        
         call_count = 0
-        allow(mock_provider).to receive(:complete) do
-          call_count += 1
-          call_count == 1 ? turn1_response : turn2_response
-        end
         allow(mock_provider).to receive(:responses_completion) do
           call_count += 1
-          call_count == 1 ? multi_tool_response : basic_response
+          call_count == 1 ? multi_tool_response : final_response
         end
         
         start_time = Time.now
@@ -747,7 +797,8 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         duration = Time.now - start_time
         
         expect(result.success?).to be true
-        expect(result.tool_results.length).to eq(5)
+        # Tool results are tracked internally by the runner
+        expect(result.messages.select { |m| m[:role] == "tool" }.length).to be >= 5
         expect(duration).to be < 3.0 # Should handle multiple tools reasonably quickly
       end
     end

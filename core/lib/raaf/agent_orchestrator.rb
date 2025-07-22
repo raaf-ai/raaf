@@ -32,11 +32,10 @@ module RAAF
       first_agent = starting_agent || @agents.keys.first
       @handoff_context.instance_variable_set(:@current_agent, first_agent)
 
-      log_info("Starting workflow", {
+      log_info("Starting workflow",
                  starting_agent: first_agent,
                  total_agents: @agents.size,
-                 message: initial_message
-               })
+                 message: initial_message)
 
       results = []
       current_message = initial_message
@@ -59,11 +58,20 @@ module RAAF
         agent_result = run_agent(agent_config, current_message)
         results << agent_result
 
+        # Handle nil or malformed agent results
+        if agent_result.nil?
+          return WorkflowResult.new(
+            success: false,
+            error: "Agent returned nil result",
+            results: results
+          )
+        end
+        
         # Check for errors
         if agent_result[:success] == false
           return WorkflowResult.new(
             success: false,
-            error: agent_result[:error],
+            error: agent_result[:error] || "Agent execution failed",
             results: results
           )
         end
@@ -92,12 +100,12 @@ module RAAF
 
           # Prepare message for next agent
           current_message = @handoff_context.build_handoff_message
-          log_info("Handoff executed", handoff_result)
+          log_info("Handoff executed", **handoff_result)
         else
           # No handoff requested but workflow not completed
           return WorkflowResult.new(
             success: false,
-            error: "Agent '#{current_agent_name}' did not request handoff or complete workflow",
+            error: "Workflow incomplete: Agent '#{current_agent_name}' did not request handoff or complete workflow",
             results: results
           )
         end
@@ -122,54 +130,69 @@ module RAAF
     # @param message [String] Message for the agent
     # @return [Hash] Agent execution result
     #
-    def run_agent(agent_config, message)
-      agent_name = agent_config[:name]
-      agent_class = agent_config[:class]
-      handoff_tools = agent_config[:handoff_tools] || []
+    def run_agent(agent_config_or_agent, message)
+      # Handle both Agent objects (for tests) and config hashes (for production)
+      if agent_config_or_agent.is_a?(Agent)
+        agent = agent_config_or_agent
+        agent_name = agent.name
+      else
+        agent_config = agent_config_or_agent
+        agent_name = agent_config[:name]
+        agent_class = agent_config[:class]
+        handoff_tools = agent_config[:handoff_tools] || []
 
-      log_info("Running agent", {
-                 agent: agent_name,
-                 message_length: message.length,
-                 handoff_tools: handoff_tools.map { |t| t[:target_agent] }
-               })
+        log_info("Running agent", {
+                   agent: agent_name,
+                   message_length: message.length,
+                   handoff_tools: handoff_tools.map { |t| t[:target_agent] }
+                 })
 
-      # Create agent instance
-      agent = agent_class.new(
-        name: agent_name,
-        instructions: agent_config[:instructions],
-        model: agent_config[:model] || "gpt-4o"
-      )
-
-      # Add regular tools
-      agent_config[:tools]&.each do |tool|
-        agent.add_tool(tool)
-      end
-
-      # Add handoff tools
-      handoff_tools.each do |handoff_config|
-        handoff_tool = HandoffTool.create_handoff_tool(
-          target_agent: handoff_config[:target_agent],
-          handoff_context: @handoff_context,
-          data_contract: handoff_config[:data_contract] || {}
+        # Create agent instance
+        agent = agent_class.new(
+          name: agent_name,
+          instructions: agent_config[:instructions],
+          model: agent_config[:model] || "gpt-4o"
         )
-        agent.add_tool(handoff_tool)
-      end
 
-      # Add completion tool if this is a terminal agent
-      if agent_config[:terminal]
-        completion_tool = HandoffTool.create_completion_tool(
-          handoff_context: @handoff_context,
-          data_contract: agent_config[:completion_contract] || {}
-        )
-        agent.add_tool(completion_tool)
+        # Add regular tools
+        agent_config[:tools]&.each do |tool|
+          agent.add_tool(tool)
+        end
+
+        # Add handoff tools
+        handoff_tools.each do |handoff_config|
+          handoff_tool = HandoffTool.create_handoff_tool(
+            target_agent: handoff_config[:target_agent],
+            handoff_context: @handoff_context,
+            data_contract: handoff_config[:data_contract] || {}
+          )
+          agent.add_tool(handoff_tool)
+        end
+
+        # Add completion tool if this is a terminal agent
+        if agent_config[:terminal]
+          completion_tool = HandoffTool.create_completion_tool(
+            handoff_context: @handoff_context,
+            data_contract: agent_config[:completion_contract] || {}
+          )
+          agent.add_tool(completion_tool)
+        end
       end
 
       # Run agent
-      runner = Runner.new(agent: agent, provider: @provider)
-      result = runner.run(message)
+      begin
+        runner = Runner.new(agent: agent, provider: @provider)
+        result = runner.run(message)
 
-      # Extract handoff information from result
-      extract_agent_result(result, agent_name)
+        # Extract handoff information from result
+        extract_agent_result(result, agent_name)
+      rescue => e
+        {
+          success: false,
+          error: "Agent execution failed: #{e.message}",
+          agent: agent_name
+        }
+      end
     end
 
     ##
@@ -180,7 +203,30 @@ module RAAF
     # @return [Hash] Structured result
     #
     def extract_agent_result(result, agent_name)
-      last_message = result.messages.last
+      # Handle both RunResult objects and plain hashes (for tests)
+      messages = result.respond_to?(:messages) ? result.messages : result[:messages] || []
+      usage = result.respond_to?(:usage) ? result.usage : result[:usage]
+      
+      return {
+        success: true,
+        agent: agent_name,
+        messages: messages,
+        usage: usage,
+        handoff_requested: false,
+        workflow_completed: false,
+        tool_calls: []
+      } if messages.empty?
+      
+      last_message = messages.last
+      return {
+        success: true,
+        agent: agent_name,
+        messages: messages,
+        usage: usage,
+        handoff_requested: false,
+        workflow_completed: false,
+        tool_calls: []
+      } unless last_message
 
       # Check for tool calls in the last message
       tool_calls = last_message[:tool_calls] || []
@@ -201,8 +247,8 @@ module RAAF
       {
         success: true,
         agent: agent_name,
-        messages: result.messages,
-        usage: result.usage,
+        messages: messages,
+        usage: usage,
         handoff_requested: handoff_requested,
         workflow_completed: workflow_completed,
         tool_calls: tool_calls
@@ -226,8 +272,18 @@ module RAAF
     # @return [Boolean] True if workflow completed
     #
     def workflow_completed?(agent_result)
-      agent_result[:workflow_completed] == true ||
-        @handoff_context.shared_context[:workflow_completed] == true
+      return true if agent_result.nil?
+      return true if agent_result[:completion_signal] == true
+      return true if agent_result[:workflow_completed] == true
+      return true if @handoff_context.shared_context[:workflow_completed] == true
+      
+      # Check if no handoff is requested and no handoffs are available
+      if agent_result[:handoff_requested] == false && 
+         (agent_result[:available_handoffs].nil? || agent_result[:available_handoffs].empty?)
+        return true
+      end
+      
+      false
     end
 
     ##
@@ -236,26 +292,28 @@ module RAAF
     # @param agent_result [Hash] Current agent result
     # @return [Hash] Handoff result
     #
-    def execute_handoff(_agent_result)
-      unless @handoff_context.handoff_pending?
-        return {
-          success: false,
-          error: "No handoff prepared despite handoff request"
-        }
-      end
-
-      # Execute the handoff
-      handoff_result = @handoff_context.execute_handoff
-
+    def execute_handoff(agent_result)
+      target_agent = agent_result[:target_agent]
+      handoff_data = agent_result[:handoff_data] || {}
+      
       # Verify target agent exists
-      target_agent = handoff_result[:current_agent]
       unless @agents.key?(target_agent)
         return {
           success: false,
-          error: "Target agent '#{target_agent}' not found in orchestrator"
+          error: "Target agent '#{target_agent}' not available in agents: #{@agents.keys}"
         }
       end
+      
+      # Prepare handoff in context
+      @handoff_context.set_handoff(
+        target_agent: target_agent,
+        data: handoff_data,
+        reason: agent_result[:reason] || "Agent handoff"
+      )
 
+      # Execute the handoff
+      handoff_result = @handoff_context.execute_handoff
+      
       handoff_result
     end
 

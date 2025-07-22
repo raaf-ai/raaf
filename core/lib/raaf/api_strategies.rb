@@ -291,7 +291,9 @@ module RAAF
           conversation: result.messages,
           usage: result.usage,
           final_result: true,
-          last_agent: result.last_agent
+          last_agent: result.last_agent,
+          turns: result.turns,
+          tool_results: result.tool_results
         }
       end
 

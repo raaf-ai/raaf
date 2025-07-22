@@ -127,7 +127,14 @@ module RAAF
       if result[:final_result]
         # Responses API returns complete result
         final_agent = result[:last_agent] || agent
-        create_result(result[:conversation], result[:usage], nil, final_agent)
+        create_result(
+          result[:conversation], 
+          result[:usage], 
+          nil, 
+          final_agent,
+          turns: result[:turns],
+          tool_results: result[:tool_results]
+        )
       else
         # Should not happen with ResponsesApiStrategy, but handle gracefully
         create_result(messages, {}, nil, agent)
@@ -148,16 +155,19 @@ module RAAF
     # @param context_wrapper [RunContextWrapper, nil] Execution context
     # @return [RunResult] The execution result
     #
-    def create_result(conversation, usage, context_wrapper, final_agent = nil)
+    def create_result(conversation, usage, context_wrapper, final_agent = nil, turns: nil, tool_results: nil)
       effective_agent = final_agent || agent
       log_debug("🏁 RUN_EXECUTOR: Creating RunResult",
                 last_agent: effective_agent.name,
-                turn_count: conversation.size)
+                turn_count: conversation.size,
+                turns: turns)
       RunResult.new(
         messages: conversation,
         last_agent: effective_agent,
         usage: usage,
-        metadata: context_wrapper&.context&.metadata || {}
+        metadata: context_wrapper&.context&.metadata || {},
+        turns: turns,
+        tool_results: tool_results
       )
     end
 

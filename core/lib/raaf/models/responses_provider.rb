@@ -227,7 +227,7 @@ module RAAF
         body[:parallel_tool_calls] = parallel_tool_calls unless parallel_tool_calls.nil?
         body[:temperature] = temperature if temperature
         body[:top_p] = top_p if top_p
-        body[:max_output_tokens] = max_tokens if max_tokens
+        body[:max_tokens] = max_tokens if max_tokens
         body[:stream] = stream if stream
 
         # Handle response format
@@ -479,13 +479,21 @@ module RAAF
           when "assistant"
             # Assistant messages become output items in the input
             if msg[:tool_calls]
+              # Handle assistant message with both content and tool calls
+              if content && !content.empty?
+                input_items << { type: "message", text: content }
+              end
               # Handle tool calls
               msg[:tool_calls].each do |tool_call|
                 input_items << convert_tool_call_to_input(tool_call)
               end
             else
               # Regular text message
-              input_items << { type: "text", text: content }
+              input_items << { 
+                type: "message", 
+                role: "assistant", 
+                content: [{ type: "text", text: content }] 
+              }
             end
           when "tool"
             # Tool results become function call outputs
@@ -504,10 +512,14 @@ module RAAF
       end
 
       def convert_tool_call_to_input(tool_call)
+        arguments = tool_call.dig("function", "arguments") || tool_call.dig(:function, :arguments)
+        # Parse JSON arguments if they're a string
+        parsed_arguments = arguments.is_a?(String) ? JSON.parse(arguments) : arguments
+        
         {
           type: "function_call",
           name: tool_call.dig("function", "name") || tool_call.dig(:function, :name),
-          arguments: tool_call.dig("function", "arguments") || tool_call.dig(:function, :arguments),
+          arguments: parsed_arguments,
           call_id: tool_call["id"] || tool_call[:id]
         }
       end
@@ -544,11 +556,14 @@ module RAAF
               parameters: prepare_function_parameters(tool.parameters),
               strict: determine_strict_mode(tool.parameters)
             }
-          when RAAF::Tools::WebSearchTool
-            # Convert to hosted web search tool
-            converted_tools << { type: "web_search" }
-            includes << "web_search_call.results"
           else
+            # Check for WebSearchTool if it's defined
+            if defined?(RAAF::Tools::WebSearchTool) && tool.is_a?(RAAF::Tools::WebSearchTool)
+              converted_tools << { type: "web_search" }
+              includes << "web_search_call.results"
+              next
+            end
+            
             # Handle DSL tools that respond to tool_definition or tool_configuration
             if tool.respond_to?(:tool_definition)
               tool_def = tool.tool_definition
@@ -557,16 +572,13 @@ module RAAF
                 includes << "web_search_call.results"
               else
                 # Convert DSL tool to function format
+                function_def = tool_def[:function] || {}
                 converted_tools << {
                   type: "function",
-                  name: begin
-                    tool.tool_name
-                  rescue NotImplementedError
-                    tool_def[:type] || "unknown_tool"
-                  end,
-                  description: tool_def[:description] || "AI tool",
-                  parameters: prepare_function_parameters(tool_def[:parameters] || {}),
-                  strict: determine_strict_mode(tool_def[:parameters] || {})
+                  name: function_def[:name] || tool_def[:name] || (tool.respond_to?(:tool_name) ? tool.tool_name : "unknown_tool"),
+                  description: function_def[:description] || tool_def[:description] || "AI tool",
+                  parameters: prepare_function_parameters(function_def[:parameters] || tool_def[:parameters] || {}),
+                  strict: determine_strict_mode(function_def[:parameters] || tool_def[:parameters] || {})
                 }
               end
             elsif tool.respond_to?(:to_tool_definition)

@@ -389,7 +389,7 @@ module RAAF
       end
 
       def tool_call(tool_name, **context)
-        debug("Tool called", tool: tool_name, **context)
+        info("Tool called", tool: tool_name, **context)
       end
 
       def handoff(from_agent, to_agent, **context)
@@ -397,7 +397,7 @@ module RAAF
       end
 
       def api_call(method, url, duration: nil, **context)
-        debug("API call", method: method, url: url, duration_ms: duration, **context)
+        info("API call", method: method, url: url, duration_ms: duration, **context)
       end
 
       def api_error(error, **context)
@@ -524,7 +524,8 @@ module RAAF
     # Configuration class
     class Configuration
 
-      attr_accessor :log_level, :log_format, :log_output, :log_file, :debug_categories
+      attr_accessor :log_level, :log_format, :log_output, :log_file
+      attr_reader :debug_categories
 
       def initialize
         @log_level = ENV.fetch("RAAF_LOG_LEVEL", "info").to_sym
@@ -538,6 +539,17 @@ module RAAF
         @debug_categories = parse_debug_categories(debug_env)
       end
 
+      def debug_categories=(value)
+        case value
+        when Array
+          @debug_categories = value
+        when Symbol, String
+          @debug_categories = [value.to_sym]
+        else
+          @debug_categories = [:all]
+        end
+      end
+
       def debug_enabled?(category)
         return true if @debug_categories.include?(:all)
         return false if @debug_categories.include?(:none)
@@ -548,6 +560,7 @@ module RAAF
       private
 
       def parse_debug_categories(env_value)
+        return [] if env_value.nil? || env_value.empty?
         return [:all] if env_value.downcase == "all"
         return [:none] if env_value.downcase == "none"
 
