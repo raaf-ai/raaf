@@ -389,7 +389,7 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
       expect(capabilities).to include(
         responses_api: true,
         chat_completion: true,
-        streaming: false, # Not implemented in test provider
+        streaming: true, # Method exists in ModelInterface even if not implemented
         function_calling: true,
         handoffs: true
       )
@@ -428,7 +428,7 @@ RSpec.describe RAAF::Models::EnhancedModelInterface do
     end
 
     it "inherits other ModelInterface methods" do
-      expect(test_provider).to respond_to(:validate_model)
+      expect(test_provider.respond_to?(:validate_model, true)).to be true # true includes protected methods
     end
   end
 

@@ -203,7 +203,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         expect(first_capability[:name]).to be_a(String)
         expect(first_capability[:description]).to be_a(String)
         expect([true, false]).to include(first_capability[:supported])
-        expect([:high, :medium, :low]).to include(first_capability[:priority])
+        expect(%i[high medium low]).to include(first_capability[:priority])
       end
 
       it "provides positive recommendations" do

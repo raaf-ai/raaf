@@ -90,24 +90,34 @@ RSpec.describe RAAF::Runner do
 
     it "raises MaxTurnsError when max turns exceeded" do
       agent.max_turns = 1
-      tool_call_response = {
-        id: "resp_123",
-        output: [
-          {
-            type: "function_call",
-            call_id: "call_1",
-            name: "unknown_tool",
-            arguments: "{}"
-          }
-        ],
-        usage: {
-          input_tokens: 10,
-          output_tokens: 5,
-          total_tokens: 15
-        }
-      }
 
-      allow(runner.instance_variable_get(:@provider)).to receive(:responses_completion).and_return(tool_call_response)
+      # First, add a simple tool to the agent that will be called successfully
+      def dummy_tool
+        "Tool executed"
+      end
+      agent.add_tool(method(:dummy_tool))
+
+      # Create responses that will keep the conversation going
+      call_count = 0
+      allow(runner.instance_variable_get(:@provider)).to receive(:responses_completion) do
+        call_count += 1
+        {
+          id: "resp_#{call_count}",
+          output: [
+            {
+              type: "function_call",
+              call_id: "call_#{call_count}",
+              name: "dummy_tool",
+              arguments: "{}"
+            }
+          ],
+          usage: {
+            input_tokens: 10,
+            output_tokens: 5,
+            total_tokens: 15
+          }
+        }
+      end
 
       expect { runner.run(messages) }.to raise_error(RAAF::MaxTurnsError)
     end
@@ -279,7 +289,6 @@ RSpec.describe RAAF::Runner do
       expect(result.messages.last[:content]).to include("The result is 10")
     end
   end
-
 
   describe "streaming support" do
     let(:messages) { [{ role: "user", content: "Hello" }] }

@@ -192,6 +192,11 @@ module RAAF
       final_output = check_for_final_output_from_message(new_step_items, processed_response, agent)
       return [new_step_items, NextStepFinalOutput.new(final_output)] if final_output
 
+      # If there are no items at all, treat this as an empty final output
+      if new_step_items.empty?
+        return [new_step_items, NextStepFinalOutput.new("")]
+      end
+
       # Continue conversation
       [new_step_items, NextStepRunAgain.new]
     end

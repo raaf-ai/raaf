@@ -612,7 +612,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
           "output" => [
             {
               "type" => "function_call",
-              "name" => "transfer_to_targetagent",
+              "name" => "transfer_to_target_agent",
               "arguments" => "{}",
               "call_id" => "call_123"
             }
@@ -631,7 +631,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
     # =============================================================================
 
     describe "End-to-End Handoff Scenarios" do
-      let(:responses_provider) { instance_double(RAAF::Models::ResponsesProvider) }
+      let(:responses_provider) { RAAF::Models::ResponsesProvider.new }
       let(:runner) { RAAF::Runner.new(agent: source_agent, provider: responses_provider) }
 
       before do
@@ -688,7 +688,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
             "output" => [
               {
                 "type" => "function_call",
-                "name" => "transfer_to_supportagent",
+                "name" => "transfer_to_support_agent",
                 "arguments" => '{"reason": "User needs specialized support"}',
                 "call_id" => "call_123"
               }
@@ -718,7 +718,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
               },
               {
                 "type" => "function_call",
-                "name" => "transfer_to_supportagent",
+                "name" => "transfer_to_support_agent",
                 "arguments" => '{"reason": "Tool-based handoff"}',
                 "call_id" => "call_456"
               }
@@ -773,7 +773,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
     describe "Context Preservation During Handoffs" do
       let(:search_agent) { RAAF::Agent.new(name: "SearchStrategyAgent", instructions: "You find market research strategies") }
       let(:discovery_agent) { RAAF::Agent.new(name: "CompanyDiscoveryAgent", instructions: "You discover companies") }
-      let(:responses_provider) { instance_double(RAAF::Models::ResponsesProvider, responses_completion: nil, complete: nil) }
+      let(:responses_provider) { RAAF::Models::ResponsesProvider.new }
       let(:runner) { RAAF::Runner.new(agent: search_agent, provider: responses_provider) }
 
       before do
@@ -796,7 +796,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
             },
             {
               "type" => "function_call",
-              "name" => "transfer_to_companydiscoveryagent",
+              "name" => "transfer_to_company_discovery_agent",
               "arguments" => '{"strategy": "competitive analysis"}',
               "call_id" => "call_search_123"
             }
@@ -842,7 +842,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
           "output" => [
             {
               "type" => "function_call",
-              "name" => "transfer_to_companydiscoveryagent",
+              "name" => "transfer_to_company_discovery_agent",
               "arguments" => '{"context": "market research"}',
               "call_id" => "call_function_123"
             }
@@ -875,9 +875,16 @@ RSpec.describe "OpenAIAgents Handoff System" do
 
         expect(result.last_agent.name).to eq("CompanyDiscoveryAgent")
 
-        # Should have function call output in conversation
-        function_outputs = result.messages.select { |msg| msg[:role] == "tool" }
-        expect(function_outputs).not_to be_empty
+        # Handoffs should not generate tool response messages - they are control transfers
+        # The test should verify that the handoff worked (agent changed) and messages are present
+        expect(result.messages.size).to be >= 2
+
+        # Should have assistant messages from the target agent
+        assistant_messages = result.messages.select { |msg| msg[:role] == "assistant" }
+        expect(assistant_messages).not_to be_empty
+
+        # Verify the content comes from CompanyDiscoveryAgent
+        expect(assistant_messages.last[:content]).to include("CompanyDiscoveryAgent")
       end
     end
 
@@ -894,7 +901,7 @@ RSpec.describe "OpenAIAgents Handoff System" do
       it "handles multi-step handoff chains" do
         runner = RAAF::Runner.new(agent: researcher)
 
-        # Mock API responses for the entire handoff chain
+        # Mock API responses for the entire handoff chain using function calls
         mock_responses = [
           # First response from researcher with handoff to analyst
           {
@@ -906,9 +913,15 @@ RSpec.describe "OpenAIAgents Handoff System" do
                 content: [
                   {
                     type: "output_text",
-                    text: "I've researched AI trends. Let me transfer to AnalystAgent for analysis."
+                    text: "I've researched AI trends. Let me transfer to the analyst for analysis."
                   }
                 ]
+              },
+              {
+                type: "function_call",
+                name: "transfer_to_analyst_agent",
+                arguments: '{"context": "Research on AI trends completed"}',
+                call_id: "call_analyst"
               }
             ],
             usage: { input_tokens: 20, output_tokens: 15, total_tokens: 35 }
@@ -923,9 +936,15 @@ RSpec.describe "OpenAIAgents Handoff System" do
                 content: [
                   {
                     type: "output_text",
-                    text: "Analysis complete. Transferring to SummarizerAgent for final summary."
+                    text: "Analysis complete. Transferring to the summarizer for final summary."
                   }
                 ]
+              },
+              {
+                type: "function_call",
+                name: "transfer_to_summarizer_agent",
+                arguments: '{"context": "Analysis of AI trends completed"}',
+                call_id: "call_summarizer"
               }
             ],
             usage: { input_tokens: 25, output_tokens: 12, total_tokens: 37 }
@@ -950,10 +969,13 @@ RSpec.describe "OpenAIAgents Handoff System" do
         ]
 
         call_count = 0
-        allow_any_instance_of(RAAF::Models::ResponsesProvider).to receive(:responses_completion) do
+        provider_mock = proc do
           call_count += 1
           mock_responses[call_count - 1] || mock_responses.last
         end
+
+        allow_any_instance_of(RAAF::Models::ResponsesProvider).to receive(:responses_completion, &provider_mock)
+        allow_any_instance_of(RAAF::Models::ResponsesProvider).to receive(:complete, &provider_mock)
 
         result = runner.run([
                               { role: "user", content: "Please research AI trends, analyze the findings, and provide a summary" }

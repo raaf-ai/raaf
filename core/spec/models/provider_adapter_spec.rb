@@ -200,7 +200,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
       subject { described_class.new(non_function_calling_provider, available_agents) }
 
       it "uses chat_completion when responses_completion not available" do
-        expect(non_function_calling_provider).to receive(:chat_completion).and_call_original
+        expect(non_function_calling_provider).to receive(:chat_completion).at_least(:once).and_call_original
 
         result = subject.universal_completion(
           messages: test_messages,

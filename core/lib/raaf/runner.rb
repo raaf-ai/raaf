@@ -742,16 +742,16 @@ module RAAF
                     tool_result: tool_result.inspect)
 
           # Check if tool_result is a handoff
-          if tool_result.is_a?(Hash) && tool_result.key?(:assistant)
+          if tool_result.is_a?(Hash) && tool_result.key?(:handoff)
             handoff_results << {
               tool_name: item[:name] || item["name"],
-              handoff_target: tool_result[:assistant],
-              handoff_data: tool_result
+              handoff_target: tool_result[:handoff],
+              handoff_data: { assistant: tool_result[:handoff] } # Convert to expected format
             }
 
             log_debug_handoff("Handoff detected from tool execution in Responses API",
                               from_agent: agent.name,
-                              to_agent: tool_result[:assistant],
+                              to_agent: tool_result[:handoff],
                               tool_name: item[:name] || item["name"])
           end
 
@@ -847,13 +847,31 @@ module RAAF
         return "Error: Invalid tool arguments"
       end
 
+      # Check if this is a handoff tool (starts with "transfer_to_")
+      if tool_name.start_with?("transfer_to_")
+        log_debug("⚡ HANDOFF FLOW: Processing handoff tool for Responses API",
+                  agent: agent.name,
+                  tool_name: tool_name)
+        
+        # Create a tool call structure compatible with process_handoff_tool_call
+        tool_call = {
+          "id" => tool_call_item[:call_id] || tool_call_item["call_id"],
+          "function" => {
+            "name" => tool_name,
+            "arguments" => arguments_str
+          }
+        }
+        
+        return process_handoff_tool_call(tool_call, agent, nil)
+      end
+
       # Find the tool
       tool = agent.tools.find { |t| t.respond_to?(:name) && t.name == tool_name }
       log_debug("⚡ HANDOFF FLOW: Tool lookup",
                 agent: agent.name,
                 tool_name: tool_name,
                 tool_found: !tool.nil?,
-                is_handoff: tool_name.start_with?("transfer_to_"))
+                is_handoff: false)
 
       return "Error: Tool '#{tool_name}' not found" if tool.nil?
 
@@ -1558,9 +1576,9 @@ module RAAF
             content.each do |content_item|
               next unless content_item.is_a?(Hash)
 
-              # Only extract text from output_text items (matches items.rb logic)
+              # Extract text from both output_text and text items (matches items.rb logic)
               content_type = content_item[:type] || content_item["type"]
-              if content_type == "output_text"
+              if %w[output_text text].include?(content_type)
                 text = content_item[:text] || content_item["text"]
                 assistant_content += text if text
               end
@@ -1708,9 +1726,9 @@ module RAAF
             content.each do |content_item|
               next unless content_item.is_a?(Hash)
 
-              # Only extract text from output_text items (matches items.rb logic)
+              # Extract text from both output_text and text items (matches items.rb logic)
               content_type = content_item[:type] || content_item["type"]
-              if content_type == "output_text"
+              if %w[output_text text].include?(content_type)
                 text = content_item[:text] || content_item["text"]
                 assistant_content += text if text
               end

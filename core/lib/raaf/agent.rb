@@ -499,6 +499,18 @@ module RAAF
     end
 
     ##
+    # Get enabled tools for current context
+    #
+    # This method provides the interface expected by the Runner class
+    # and delegates to enabled_tools for consistency.
+    #
+    # @param context [RunContextWrapper, nil] current run context
+    # @return [Array<FunctionTool>] enabled tools only (always returns array)
+    def tools(context = nil)
+      enabled_tools(context)
+    end
+
+    ##
     # Executes a specific tool by name
     #
     # This method allows direct execution of agent tools, useful for testing

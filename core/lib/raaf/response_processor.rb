@@ -5,6 +5,7 @@ require_relative "processed_response"
 require_relative "logging"
 require_relative "step_errors"
 require_relative "items"
+require_relative "utils"
 
 module RAAF
 
@@ -37,7 +38,8 @@ module RAAF
     #
     def process_model_response(response:, agent:, all_tools:, handoffs:)
       log_debug("🔄 RESPONSE_PROCESSOR: Processing model response",
-                agent: agent.name, tools_count: all_tools.size, handoffs_count: handoffs.size)
+                agent: agent.name, tools_count: all_tools.size, handoffs_count: handoffs.size,
+                response_keys: response.keys, response_output: response[:output] || response["output"])
 
       items = []
       run_handoffs = []
@@ -97,22 +99,25 @@ module RAAF
     # @return [Array<Hash>] Normalized response items
     #
     def extract_response_items(response)
-      if response[:choices]&.first&.dig(:message)
-        # Traditional Chat Completions format
-        message = response[:choices].first[:message]
-        items = [message]
+      items = if response[:choices]&.first&.dig(:message)
+                # Traditional Chat Completions format
+                message = response[:choices].first[:message]
+                items = [message]
 
-        # Add tool calls as separate items if present
-        items.concat(message[:tool_calls]) if message[:tool_calls]
+                # Add tool calls as separate items if present
+                items.concat(message[:tool_calls]) if message[:tool_calls]
 
-        items
-      elsif response[:output]
-        # Responses API format
-        response[:output]
-      else
-        # Direct message format
-        [response]
-      end
+                items
+              elsif response[:output] || response["output"]
+                # Responses API format (handle both symbol and string keys)
+                response[:output] || response["output"]
+              else
+                # Direct message format
+                [response]
+              end
+      
+      # Convert all items to use symbol keys for consistency
+      items.map { |item| Utils.deep_symbolize_keys(item) }
     end
 
     ##
@@ -121,7 +126,9 @@ module RAAF
     def process_response_item(item:, agent:, items:, run_handoffs:, functions:,
                               computer_actions:, local_shell_calls:, tools_used:,
                               handoff_map:, function_map:, computer_tool:, local_shell_tool:)
-      case item[:type] || infer_item_type(item)
+      detected_type = item[:type] || infer_item_type(item)
+      
+      case detected_type
       when "message", nil
         items << create_message_item(item, agent)
 
@@ -244,17 +251,19 @@ module RAAF
     # Build lookup map for handoffs by tool name
     #
     def build_handoff_map(handoffs)
-      handoffs.to_h do |handoff|
+      result = handoffs.to_h do |handoff|
         tool_name = case handoff
                     when Agent
                       # For Agent objects, generate the default tool name
-                      "transfer_to_#{snake_case(handoff.name)}"
+                      "transfer_to_#{Utils.snake_case(handoff.name)}"
                     else
                       # For Handoff objects, use the tool_name attribute
                       handoff.tool_name
                     end
         [tool_name, handoff]
       end
+      
+      result
     end
 
     ##
@@ -335,16 +344,6 @@ module RAAF
       Items::HandoffCallItem.new(agent: agent, raw_item: raw_item)
     end
 
-    ##
-    # Convert string to snake_case
-    #
-    def snake_case(str)
-      str.to_s
-         .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
-         .gsub(/([a-z\d])([A-Z])/, '\1_\2')
-         .gsub(/\s+/, "_")
-         .downcase
-    end
 
   end
 

@@ -73,6 +73,7 @@ module RAAF
       # @param available_agents [Array<String>] Agent names for handoff fallback
       def initialize(provider, available_agents = [])
         @provider = provider
+        @available_agents = available_agents.dup
         @capabilities = detect_capabilities
         # Handoff fallback system removed - only tool-based handoffs supported
         # @fallback_system = HandoffFallbackSystem.new(available_agents)
@@ -290,6 +291,7 @@ module RAAF
       # @return [void]
       #
       def update_available_agents(available_agents)
+        @available_agents = available_agents.dup
         # Handoff fallback system removed - only tool-based handoffs supported
         # @fallback_system = HandoffFallbackSystem.new(available_agents)
         log_debug("🔧 PROVIDER ADAPTER: Updated available agents for fallback",
@@ -363,7 +365,12 @@ module RAAF
       #
       def get_handoff_stats
         # Handoff fallback system removed - only tool-based handoffs supported
-        { successful_detections: 0, total_attempts: 0, success_rate: "N/A" }
+        { 
+          successful_detections: 0, 
+          total_attempts: 0, 
+          success_rate: "N/A",
+          available_agents: @available_agents.dup
+        }
       end
 
       ##
@@ -816,8 +823,8 @@ module RAAF
         # Check for Responses API support
         capabilities[:responses_api] = @provider.respond_to?(:responses_completion)
 
-        # Check for Chat Completion API support
-        capabilities[:chat_completion] = @provider.respond_to?(:chat_completion)
+        # Check for Chat Completion API support (must be actually implemented)
+        capabilities[:chat_completion] = check_chat_completion_support
 
         # Check for streaming support
         capabilities[:streaming] = @provider.respond_to?(:stream_completion)
@@ -852,26 +859,67 @@ module RAAF
       #
       # @return [Boolean] True if function calling is supported
       #
-      def check_function_calling_support
-        # Try to call with empty tools to see if it's supported
+      def check_chat_completion_support
+        return false unless @provider.respond_to?(:chat_completion)
 
+        # Test if the method is actually implemented
         test_messages = [{ role: "user", content: "test" }]
+        test_model = if @provider.respond_to?(:supported_models)
+                       @provider.supported_models.first
+                     else
+                       "test-model"
+                     end
+        
+        @provider.chat_completion(
+          messages: test_messages,
+          model: test_model,
+          stream: false
+        )
+        true
+      rescue NotImplementedError
+        # Provider doesn't actually implement chat_completion
+        false
+      rescue StandardError => e
+        # Other errors suggest the method is implemented but failed for other reasons
+        log_debug("🔧 PROVIDER ADAPTER: Chat completion check failed with error",
+                  provider: @provider.provider_name,
+                  error: e.message)
+        true # Method exists and is implemented, just failed
+      end
 
-        if @provider.respond_to?(:chat_completion)
-          # Try with empty tools array - if it doesn't error, it supports function calling
-          @provider.chat_completion(
-            messages: test_messages,
-            model: @provider.supported_models.first,
-            tools: [],
-            stream: false
-          )
-          true
-        else
-          false
+      def check_function_calling_support
+        return false unless @provider.respond_to?(:chat_completion)
+
+        # Check if the method signature accepts tools parameter
+        method = @provider.method(:chat_completion)
+        method_parameters = method.parameters
+        
+        # Check if there's a keyword parameter named 'tools'
+        has_tools_param = method_parameters.any? do |type, name|
+          (type == :key || type == :keyreq) && name == :tools
         end
-      rescue ArgumentError => e
-        # If tools parameter is not accepted, function calling is not supported
-        !e.message.include?("tools")
+        
+        return false unless has_tools_param
+
+        # Test with a simple call to ensure the method works
+        test_messages = [{ role: "user", content: "test" }]
+        test_model = if @provider.respond_to?(:supported_models)
+                       @provider.supported_models.first
+                     else
+                       "test-model"
+                     end
+        
+        # Try with empty tools array
+        @provider.chat_completion(
+          messages: test_messages,
+          model: test_model,
+          tools: [],
+          stream: false
+        )
+        true
+      rescue NotImplementedError
+        # Provider doesn't implement chat_completion, so no function calling support
+        false
       rescue StandardError => e
         # Other errors (like auth) don't tell us about function calling support
         log_debug("🔧 PROVIDER ADAPTER: Function calling check failed with error",
