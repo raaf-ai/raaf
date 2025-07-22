@@ -186,6 +186,38 @@ module RAAF
     end
 
     ##
+    # Represents the output of a function call (alias for ToolCallOutputItem)
+    #
+    # FunctionCallOutputItem is used specifically for function_call_output items
+    # in the OpenAI Responses API, matching the Python SDK structure.
+    #
+    class FunctionCallOutputItem < RunItemBase
+
+      # @!attribute [r] output
+      #   @return [Object] The function call output
+      attr_reader :output
+
+      ##
+      # Initialize a function call output item
+      #
+      # @param agent [Agent] The agent processing this item
+      # @param raw_item [Hash] The raw API data
+      # @param output [Object] The function call result (optional)
+      #
+      def initialize(agent:, raw_item:, output: nil)
+        super(agent: agent, raw_item: raw_item)
+        @output = output || raw_item[:output] || raw_item["output"]
+      end
+
+      ##
+      # @return [String] The item type identifier
+      def type
+        "function_call_output_item"
+      end
+
+    end
+
+    ##
     # Represents a reasoning item
     #
     # ReasoningItem captures the model's internal reasoning process,

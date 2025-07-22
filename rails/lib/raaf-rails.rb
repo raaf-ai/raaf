@@ -2,7 +2,7 @@
 
 require_relative "raaf/rails/version"
 require_relative "raaf/rails/engine"
-require_relative "raaf/rails/websocket_handler"
+# require_relative "raaf/rails/websocket_handler" # Disabled - requires websocket-rails
 # require_relative "raaf/rails/configuration"
 # require_relative "raaf/rails/authenticator"
 # require_relative "raaf/rails/middleware"
@@ -259,9 +259,9 @@ module RAAF
             end
           end
 
-          if config[:enable_websockets]
-            mount RAAF::Rails::WebsocketHandler, at: config[:websocket_path]
-          end
+          # if config[:enable_websockets]
+          #   mount RAAF::Rails::WebsocketHandler, at: config[:websocket_path]
+          # end
         end
       end
 

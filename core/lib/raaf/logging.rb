@@ -87,22 +87,26 @@ module RAAF
     end
 
     ##
-    # Log an error message
+    # Log an error message with automatic stack trace
     #
     # @param message [String] The message to log
     # @param context [Hash] Additional structured data to include
     #
     def log_error(message, **context)
+      # Automatically capture stack trace for error logging
+      context[:stack_trace] = caller(1).join("\n") unless context.key?(:stack_trace)
       RAAF::Logging.error(message, **context)
     end
 
     ##
-    # Log a fatal error message
+    # Log a fatal error message with automatic stack trace
     #
     # @param message [String] The message to log
     # @param context [Hash] Additional structured data to include
     #
     def log_fatal(message, **context)
+      # Automatically capture stack trace for fatal logging
+      context[:stack_trace] = caller(1).join("\n") unless context.key?(:stack_trace)
       RAAF::Logging.fatal(message, **context)
     end
 
@@ -209,6 +213,23 @@ module RAAF
 
     def log_api_error(error, **context)
       RAAF::Logging.api_error(error, **context)
+    end
+
+    ##
+    # Log an exception with full details including stack trace
+    #
+    # @param exception [Exception] The exception to log
+    # @param message [String] Optional custom message (defaults to exception message)
+    # @param context [Hash] Additional structured data to include
+    #
+    def log_exception(exception, message: nil, **context)
+      context[:error_class] = exception.class.name
+      context[:error_backtrace] = exception.backtrace.join("\n") if exception.backtrace
+      context[:error_cause] = exception.cause.message if exception.cause
+      context[:error_cause_class] = exception.cause.class.name if exception.cause
+      
+      error_message = message || exception.message
+      RAAF::Logging.error(error_message, **context)
     end
 
   end
@@ -333,24 +354,28 @@ module RAAF
       end
 
       ##
-      # Log an error message
+      # Log an error message with automatic stack trace
       #
       # @param message [String] The message to log
       # @param context [Hash] Additional structured data
       # @return [void]
       #
       def error(message, **context)
+        # Automatically capture stack trace for error logging
+        context[:stack_trace] = caller(1).join("\n") unless context.key?(:stack_trace)
         log(:error, message, **context)
       end
 
       ##
-      # Log a fatal error message
+      # Log a fatal error message with automatic stack trace
       #
       # @param message [String] The message to log
       # @param context [Hash] Additional structured data
       # @return [void]
       #
       def fatal(message, **context)
+        # Automatically capture stack trace for fatal logging
+        context[:stack_trace] = caller(1).join("\n") unless context.key?(:stack_trace)
         log(:fatal, message, **context)
       end
 
@@ -376,7 +401,27 @@ module RAAF
       end
 
       def api_error(error, **context)
-        error("API error", error: error.message, error_class: error.class.name, **context)
+        # Include exception details and stack trace for API errors
+        context[:error_class] = error.class.name
+        context[:error_backtrace] = error.backtrace.join("\n") if error.backtrace
+        error("API error", error: error.message, **context)
+      end
+
+      ##
+      # Log an exception with complete details
+      #
+      # @param exception [Exception] The exception to log
+      # @param message [String] Optional custom message
+      # @param context [Hash] Additional structured data
+      #
+      def exception(exception, message: nil, **context)
+        context[:error_class] = exception.class.name
+        context[:error_backtrace] = exception.backtrace.join("\n") if exception.backtrace
+        context[:error_cause] = exception.cause.message if exception.cause
+        context[:error_cause_class] = exception.cause.class.name if exception.cause
+        
+        error_message = message || exception.message
+        error(error_message, **context)
       end
 
       # Benchmark utility method

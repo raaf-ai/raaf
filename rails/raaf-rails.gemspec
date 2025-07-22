@@ -34,10 +34,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "raaf-core", "0.1.0"
   spec.add_dependency "raaf-memory", "0.1.0"
   spec.add_dependency "rails", ">= 7.0"
-  spec.add_dependency "sassc-rails", "~> 2.1"
   spec.add_dependency "stimulus-rails", "~> 1.0"
   spec.add_dependency "turbo-rails", "~> 1.0"
-  spec.add_dependency "websocket-rails", "~> 0.7"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
