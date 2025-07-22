@@ -128,7 +128,8 @@ module RAAF
     end
 
     def to_s
-      "FunctionToolResult(#{tool.name}: #{output&.class&.name})"
+      tool_name = tool.respond_to?(:name) ? tool.name : tool.to_s
+      "FunctionToolResult(#{tool_name}: #{output&.class&.name})"
     end
   end
 

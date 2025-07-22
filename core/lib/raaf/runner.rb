@@ -211,8 +211,8 @@ module RAAF
     def run(starting_agent, input = nil, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil,
             context: nil, max_turns: nil, session: nil, previous_response_id: nil, **)
       # Detect usage pattern to maintain backward compatibility
-      if starting_agent.is_a?(String) && input.nil?
-        # Legacy pattern: run("message") - use instance agent
+      if (starting_agent.is_a?(String) || starting_agent.is_a?(Array)) && input.nil?
+        # Legacy pattern: run("message") or run([messages]) - use instance agent
         agent = @agent
         messages = normalize_messages(starting_agent)
       else

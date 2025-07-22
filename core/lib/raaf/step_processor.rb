@@ -150,6 +150,7 @@ module RAAF
         tool_results = execute_function_tools_parallel(
           processed_response.functions, agent, context_wrapper, runner, config
         )
+        
         new_step_items.concat(tool_results.map(&:run_item))
 
         # Check for final output from tools
@@ -204,12 +205,23 @@ module RAAF
       log_debug("🔧 STEP_PROCESSOR: Executing function tools", count: functions.size)
 
       # Execute tools in parallel
-      Async do |task|
-        functions.map do |func_run|
-          task.async do
-            execute_single_function_tool(func_run, agent, context_wrapper, runner, config)
-          end
-        end.map(&:wait)
+      begin
+        task_results = Async do |task|
+          functions.map do |func_run|
+            task.async do
+              result = execute_single_function_tool(func_run, agent, context_wrapper, runner, config)
+              log_debug("🔧 STEP_PROCESSOR: Tool execution completed", result_class: result.class.name)
+              result
+            end
+          end.map(&:wait)
+        end
+        
+        results = task_results.wait
+        log_debug("🔧 STEP_PROCESSOR: All tools completed", results_count: results.size)
+        results
+      rescue => e
+        log_exception(e, message: "Error in parallel tool execution")
+        raise
       end
     end
 
@@ -354,20 +366,33 @@ module RAAF
       return nil if tool_results.empty?
 
       case agent.tool_use_behavior
-      when "run_llm_again", nil
+      when "run_llm_again", nil, ToolUseBehavior::RunLLMAgain
         nil
-      when "stop_on_first_tool"
+      when "stop_on_first_tool", ToolUseBehavior::StopOnFirstTool
         tool_results.first.output
+      when ToolUseBehavior::StopAtTools
+        # Check if any tools match the stop list
+        stop_tools = agent.tool_use_behavior.tool_names
+        stop_result = tool_results.find { |result| stop_tools.include?(result.tool.name) }
+        stop_result&.output
       when Hash
-        # Check for specific tool names
+        # Legacy support for hash-based config
         stop_tools = agent.tool_use_behavior["stop_at_tool_names"] || []
         stop_result = tool_results.find { |result| stop_tools.include?(result.tool.name) }
         stop_result&.output
-      when Proc
+      when ToolUseBehavior::CustomFunction, Proc
         # Custom behavior function
-        agent.tool_use_behavior.call(context_wrapper, tool_results)
+        if agent.tool_use_behavior.respond_to?(:function)
+          agent.tool_use_behavior.function.call(context_wrapper, tool_results)
+        else
+          agent.tool_use_behavior.call(context_wrapper, tool_results)
+        end
+      when ToolUseBehavior::ToolsToFinalOutput
+        # Check if this is a final output tool
+        # This would require more complex implementation
+        nil
       else
-        log_error("Invalid tool_use_behavior", behavior: agent.tool_use_behavior.class.name)
+        log_debug("Unhandled tool_use_behavior, defaulting to run_llm_again", behavior: agent.tool_use_behavior.class.name)
         nil
       end
     end
