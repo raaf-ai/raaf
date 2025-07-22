@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-require_relative 'lib/raaf-core'
-require_relative 'lib/raaf/models/capability_detector'
-require_relative 'lib/raaf/models/interface'
+require_relative "lib/raaf-core"
+require_relative "lib/raaf/models/capability_detector"
+require_relative "lib/raaf/models/interface"
 
 # Test capability detector with non-function calling provider from ProviderAdapter spec
 non_function_calling_provider = Class.new(RAAF::Models::ModelInterface) do
@@ -42,12 +43,12 @@ if non_function_calling_provider.respond_to?(:chat_completion)
     puts "Method parameters: #{params.inspect}"
     tools_param = params.any? { |_param_type, param_name| param_name == :tools }
     puts "Has tools param: #{tools_param}"
-    
+
     # Check if method is actually implemented or just inherited
     puts "Method owner: #{method.owner}"
     puts "Actual class: #{non_function_calling_provider.class}"
     puts "Is implemented: #{method.owner == non_function_calling_provider.class}"
-  rescue => e
+  rescue StandardError => e
     puts "Parameter introspection failed: #{e.class} - #{e.message}"
   end
 end

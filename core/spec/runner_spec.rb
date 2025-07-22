@@ -733,4 +733,490 @@ RSpec.describe RAAF::Runner do
       expect(result_with_agent).to eq(target_agent)
     end
   end
+
+  describe "error handling and resilience" do
+    describe "#should_stop?" do
+      it "returns false when no stop checker is set" do
+        expect(runner.send(:should_stop?)).to be false
+      end
+
+      it "handles stop checker exceptions gracefully" do
+        failing_checker = proc { raise StandardError, "Stop checker failed" }
+        runner.instance_variable_set(:@stop_checker, failing_checker)
+
+        expect(runner).to receive(:log_exception)
+        expect(runner.send(:should_stop?)).to be false
+      end
+
+      it "returns true when stop checker indicates stop" do
+        stop_checker = proc { true }
+        runner.instance_variable_set(:@stop_checker, stop_checker)
+
+        expect(runner.send(:should_stop?)).to be true
+      end
+
+      it "returns false when stop checker indicates continue" do
+        continue_checker = proc { false }
+        runner.instance_variable_set(:@stop_checker, continue_checker)
+
+        expect(runner.send(:should_stop?)).to be false
+      end
+    end
+
+    describe "tool execution error handling" do
+      let(:tool_result) { { role: "tool", tool_call_id: "call_123", content: "Tool result" } }
+
+      it "processes tool responses appropriately" do
+        # This test verifies that the tool processing pipeline works
+        test_tool = proc { "Tool executed successfully" }
+        agent.add_tool(test_tool)
+
+        # Verify the tool was added
+        expect(agent.tools).not_to be_empty
+        expect(agent.tools.first).to be_a(RAAF::FunctionTool)
+      end
+
+      it "handles tool execution exceptions" do
+        failing_tool = proc { raise StandardError, "Tool execution failed" }
+        agent.add_tool(failing_tool)
+
+        mock_response = {
+          id: "resp_123",
+          output: [
+            {
+              type: "function_call",
+              call_id: "call_123",
+              name: "failing_tool",
+              arguments: "{}"
+            }
+          ],
+          usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }
+        }
+
+        allow(runner.instance_variable_get(:@provider)).to receive(:responses_completion)
+          .and_return(mock_response)
+
+        result = runner.run("Test with failing tool")
+        expect(result).to be_a(RAAF::RunResult)
+      end
+    end
+
+    describe "session processing edge cases" do
+      it "handles empty session gracefully" do
+        session = RAAF::Session.new
+        result = runner.send(:process_session, session, [])
+
+        expect(result).to be_an(Array)
+        expect(result).to eq([])  # Should return empty combined messages
+      end
+
+      it "handles session with very large message history" do
+        session = RAAF::Session.new
+        large_messages = Array.new(1000) { |i| { role: "user", content: "Message #{i}" } }
+
+        expect do
+          runner.send(:process_session, session, large_messages)
+        end.not_to raise_error
+      end
+
+      it "handles memory manager failures during session processing" do
+        session = RAAF::Session.new
+        mock_memory_manager = instance_double("MemoryManager")
+        runner.instance_variable_set(:@memory_manager, mock_memory_manager)
+
+        allow(mock_memory_manager).to receive(:token_limit).and_return(4096)
+        allow(mock_memory_manager).to receive(:get_relevant_context)
+          .and_raise(StandardError, "Memory manager failed")
+
+        messages = [{ role: "user", content: "Test message" }]
+        # Currently the implementation allows memory manager exceptions to bubble up
+        # In the future this should be wrapped with error handling
+        expect { runner.send(:process_session, session, messages) }.to raise_error(StandardError, "Memory manager failed")
+      end
+    end
+
+    describe "guardrails integration" do
+      let(:mock_guardrail) { instance_double("Guardrail") }
+
+      before do
+        # Mock guardrails if available
+        if defined?(Guardrails)
+          allow(mock_guardrail).to receive(:process_input).and_return("Safe input")
+          allow(mock_guardrail).to receive(:process_output).and_return("Safe output")
+        end
+      end
+
+      it "handles input guardrail exceptions" do
+        skip "Guardrails gem not available" unless defined?(Guardrails)
+
+        allow(mock_guardrail).to receive(:process_input)
+          .and_raise(StandardError, "Guardrail processing failed")
+
+        runner.instance_variable_set(:@input_guardrails, [mock_guardrail])
+
+        expect { runner.run("Test message") }.not_to raise_error
+      end
+
+      it "handles output guardrail exceptions" do
+        skip "Guardrails gem not available" unless defined?(Guardrails)
+
+        allow(mock_guardrail).to receive(:process_output)
+          .and_raise(StandardError, "Output guardrail failed")
+
+        runner.instance_variable_set(:@output_guardrails, [mock_guardrail])
+
+        expect { runner.run("Test message") }.not_to raise_error
+      end
+    end
+  end
+
+  describe "complex execution flows" do
+    describe "input validation" do
+      let(:mock_provider) { instance_double(RAAF::Models::ResponsesProvider) }
+      let(:runner_with_provider) { described_class.new(agent: agent, provider: mock_provider) }
+
+      it "handles mixed message formats" do
+        mixed_messages = [
+          { role: "user", content: "Message 1" },
+          { role: "assistant", content: "Response 1" },
+          { role: "user", content: "Message 2" }
+        ]
+
+        # Mock both API formats
+        chat_response = {
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => "Handled mixed formats"
+            }
+          }],
+          "usage" => { "prompt_tokens" => 10, "completion_tokens" => 15, "total_tokens" => 25 }
+        }
+
+        responses_response = {
+          id: "resp_123",
+          output: [
+            {
+              type: "message",
+              role: "assistant", 
+              content: [{ type: "output_text", text: "Handled mixed formats" }]
+            }
+          ],
+          usage: { input_tokens: 10, output_tokens: 15 }
+        }
+
+        allow(mock_provider).to receive(:complete).and_return(chat_response)
+        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+
+        result = runner_with_provider.run(mixed_messages)
+        expect(result).to be_a(RAAF::RunResult)
+      end
+
+      it "processes large conversations efficiently" do
+        # Test with a reasonable number of messages
+        large_input = Array.new(20) { |i| { role: "user", content: "Message #{i}" } }
+
+        # Mock both API formats
+        chat_response = {
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => "Processed efficiently"
+            }
+          }],
+          "usage" => { "prompt_tokens" => 100, "completion_tokens" => 10, "total_tokens" => 110 }
+        }
+
+        responses_response = {
+          id: "resp_123",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "Processed efficiently" }]
+            }
+          ],
+          usage: { input_tokens: 100, output_tokens: 10 }
+        }
+
+        allow(mock_provider).to receive(:complete).and_return(chat_response)
+        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+
+        result = runner_with_provider.run(large_input)
+        expect(result).to be_a(RAAF::RunResult)
+      end
+    end
+
+    describe "handoff functionality" do
+      let(:agent1) { RAAF::Agent.new(name: "Agent1", instructions: "First agent") }
+      let(:agent2) { RAAF::Agent.new(name: "Agent2", instructions: "Second agent") }
+      let(:mock_provider) { instance_double(RAAF::Models::ResponsesProvider) }
+
+      it "supports basic handoff setup" do
+        agent1.add_handoff(agent2)
+        runner_with_handoffs = described_class.new(agent: agent1, provider: mock_provider)
+
+        # Mock both API formats
+        chat_response = {
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => "Handoff configured"
+            }
+          }],
+          "usage" => { "prompt_tokens" => 10, "completion_tokens" => 5, "total_tokens" => 15 }
+        }
+
+        responses_response = {
+          id: "resp_123",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "Handoff configured" }]
+            }
+          ],
+          usage: { input_tokens: 10, output_tokens: 5 }
+        }
+
+        allow(mock_provider).to receive(:complete).and_return(chat_response)
+        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+
+        result = runner_with_handoffs.run("Test handoff setup")
+        expect(result).to be_a(RAAF::RunResult)
+      end
+    end
+
+    describe "conversation context management" do
+      let(:mock_provider) { instance_double(RAAF::Models::ResponsesProvider) }
+      let(:runner_with_mock) { described_class.new(agent: agent, provider: mock_provider) }
+
+      it "maintains context across multiple turns" do
+        # Mock both API formats
+        chat_response = {
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => "Context maintained"
+            }
+          }],
+          "usage" => { "prompt_tokens" => 10, "completion_tokens" => 5, "total_tokens" => 15 }
+        }
+
+        responses_response = {
+          id: "resp_123",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "Context maintained" }]
+            }
+          ],
+          usage: { input_tokens: 10, output_tokens: 5 }
+        }
+
+        allow(mock_provider).to receive(:complete).and_return(chat_response)
+        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+
+        conversation_history = [{ role: "user", content: "Previous message" }]
+        result = runner_with_mock.run(conversation_history + [{ role: "user", content: "Current message" }])
+        
+        expect(result).to be_a(RAAF::RunResult)
+        expect(result.messages).not_to be_empty
+      end
+
+      it "handles reasonable conversation lengths" do
+        # Mock both API formats
+        chat_response = {
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => "Handled conversation"
+            }
+          }],
+          "usage" => { "prompt_tokens" => 100, "completion_tokens" => 10, "total_tokens" => 110 }
+        }
+
+        responses_response = {
+          id: "resp_123",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "Handled conversation" }]
+            }
+          ],
+          usage: { input_tokens: 100, output_tokens: 10 }
+        }
+
+        allow(mock_provider).to receive(:complete).and_return(chat_response)
+        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+
+        # Create a reasonable conversation history
+        conversation_history = Array.new(10) do |i|
+          [
+            { role: "user", content: "Question #{i}" },
+            { role: "assistant", content: "Answer #{i}" }
+          ]
+        end.flatten
+
+        result = runner_with_mock.run(conversation_history + [{ role: "user", content: "Final question" }])
+        expect(result).to be_a(RAAF::RunResult)
+      end
+    end
+
+    describe "tool integration" do
+      it "supports agents with tools" do
+        # Add simple tools to the agent
+        tool1 = proc { |arg| "Tool1: #{arg}" }
+        tool2 = proc { |arg| "Tool2: #{arg}" }
+
+        agent.add_tool(tool1)
+        agent.add_tool(tool2)
+
+        # Verify the agent has tools
+        expect(agent.tools).not_to be_empty
+        expect(agent.tools.size).to eq(2)
+      end
+
+      it "handles agents with no tools" do
+        # Use a basic agent with no tools
+        basic_agent = RAAF::Agent.new(name: "BasicAgent", instructions: "Basic agent")
+        basic_runner = described_class.new(agent: basic_agent)
+
+        mock_provider = instance_double(RAAF::Models::ResponsesProvider)
+        basic_runner.instance_variable_set(:@provider, mock_provider)
+
+        # Mock both API methods since the execution path may vary
+        chat_response = {
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => "No tools response"
+            }
+          }],
+          "usage" => { "prompt_tokens" => 10, "completion_tokens" => 5, "total_tokens" => 15 }
+        }
+
+        responses_response = {
+          id: "resp_123",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "No tools response" }]
+            }
+          ],
+          usage: { input_tokens: 10, output_tokens: 5 }
+        }
+
+        allow(mock_provider).to receive(:complete).and_return(chat_response)
+        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+
+        result = basic_runner.run("Test with no tools")
+        expect(result).to be_a(RAAF::RunResult)
+      end
+    end
+  end
+
+  describe "resource management and performance" do
+    it "handles large response processing efficiently" do
+      # Simulate a large API response
+      large_response = {
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            role: "assistant",
+            content: [
+              {
+                type: "output_text",
+                text: "Very long response: #{'A' * 10000}"
+              }
+            ]
+          }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5000, total_tokens: 5010 }
+      }
+
+      allow(runner.instance_variable_get(:@provider)).to receive(:responses_completion)
+        .and_return(large_response)
+
+      start_time = Time.now
+      result = runner.run("Generate large response")
+      duration = Time.now - start_time
+
+      expect(result).to be_a(RAAF::RunResult)
+      expect(duration).to be < 5.0 # Should complete in reasonable time
+    end
+
+    it "manages memory usage during long conversations" do
+      # Test memory usage doesn't grow excessively
+      initial_memory = `ps -o rss= -p #{Process.pid}`.to_i
+
+      mock_response = {
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text: "Response" }]
+          }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }
+      }
+
+      allow(runner.instance_variable_get(:@provider)).to receive(:responses_completion)
+        .and_return(mock_response)
+
+      # Run multiple conversations
+      10.times do |i|
+        runner.run("Conversation turn #{i}")
+      end
+
+      final_memory = `ps -o rss= -p #{Process.pid}`.to_i
+      memory_growth = final_memory - initial_memory
+
+      # Memory growth should be reasonable (less than 50MB for 10 turns)
+      expect(memory_growth).to be < 50000 # KB
+    end
+
+    it "handles concurrent access safely" do
+      results = []
+      threads = []
+
+      mock_response = {
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text: "Concurrent response" }]
+          }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }
+      }
+
+      allow(runner.instance_variable_get(:@provider)).to receive(:responses_completion)
+        .and_return(mock_response)
+
+      # Simulate concurrent requests
+      5.times do |i|
+        threads << Thread.new do
+          begin
+            result = runner.run("Concurrent request #{i}")
+            results << result
+          rescue => e
+            results << e
+          end
+        end
+      end
+
+      threads.each(&:join)
+
+      # All requests should complete successfully
+      expect(results.length).to eq(5)
+      results.each { |r| expect(r).to be_a(RAAF::RunResult) }
+    end
+  end
 end

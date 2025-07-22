@@ -199,7 +199,7 @@ module RAAF
       def validate_model(model)
         return if SUPPORTED_MODELS.include?(model)
 
-        raise ArgumentError, "Model #{model} is not supported. Supported models: #{SUPPORTED_MODELS.join(', ')}"
+        raise ArgumentError, "Model #{model} is not supported. Supported models: #{SUPPORTED_MODELS.join(", ")}"
       end
 
       # Matches Python's _fetch_response

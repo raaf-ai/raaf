@@ -26,7 +26,7 @@ RSpec.describe RAAF::Items do
         "content" => "Hello there!"
       }
     end
-    
+
     let(:message_item) { described_class.new(agent: mock_agent, raw_item: raw_message) }
 
     describe "#initialize" do
@@ -47,7 +47,7 @@ RSpec.describe RAAF::Items do
         "call_id" => "call_123"
       }
     end
-    
+
     let(:tool_item) { described_class.new(agent: mock_agent, raw_item: raw_tool_call) }
 
     describe "#initialize" do
@@ -64,14 +64,14 @@ RSpec.describe RAAF::Items do
       it "extracts string content" do
         message = { "content" => "Simple string" }
         content = described_class.extract_message_content(message)
-        
+
         expect(content).to eq("Simple string")
       end
 
       it "handles empty content" do
         message = { "content" => "" }
         content = described_class.extract_message_content(message)
-        
+
         expect(content).to eq("")
       end
     end

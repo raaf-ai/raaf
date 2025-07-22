@@ -1,0 +1,96 @@
+# Sample tool execution cassette
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4o","input":[{"type":"user_text","text":"What is the weather like in New York?"}],"tools":[{"type":"function","name":"get_weather","description":"Get weather for a location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The location to get weather for"}},"required":["location"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept:
+      - "*/*"
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Agents/Ruby 0.1.0
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 22 Jul 2024 12:00:00 GMT
+    body:
+      encoding: UTF-8
+      string: |
+        {
+          "id": "resp_tool_12345",
+          "output": [
+            {
+              "type": "message",
+              "role": "assistant",
+              "content": "I'll check the weather in New York for you."
+            },
+            {
+              "type": "function_call",
+              "name": "get_weather",
+              "arguments": "{\"location\": \"New York\"}",
+              "call_id": "call_abc123"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 85,
+            "completion_tokens": 45,
+            "total_tokens": 130
+          }
+        }
+  recorded_at: Mon, 22 Jul 2024 12:00:00 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4o","input":[{"type":"function_call_output","call_id":"call_abc123","output":"Weather in New York: sunny, 72°F"}],"previous_response_id":"resp_tool_12345"}'
+    headers:
+      Accept:
+      - "*/*"
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Agents/Ruby 0.1.0
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 22 Jul 2024 12:00:00 GMT
+    body:
+      encoding: UTF-8
+      string: |
+        {
+          "id": "resp_tool_67890",
+          "output": [
+            {
+              "type": "message", 
+              "role": "assistant",
+              "content": "Great! The weather in New York is currently sunny with a temperature of 72°F. It's a beautiful day!"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 60,
+            "completion_tokens": 25,
+            "total_tokens": 85
+          }
+        }
+  recorded_at: Mon, 22 Jul 2024 12:00:00 GMT
+recorded_with: VCR 6.1.0

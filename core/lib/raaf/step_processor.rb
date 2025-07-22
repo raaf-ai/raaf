@@ -150,7 +150,7 @@ module RAAF
         tool_results = execute_function_tools_parallel(
           processed_response.functions, agent, context_wrapper, runner, config
         )
-        
+
         new_step_items.concat(tool_results.map(&:run_item))
 
         # Check for final output from tools
@@ -193,9 +193,7 @@ module RAAF
       return [new_step_items, NextStepFinalOutput.new(final_output)] if final_output
 
       # If there are no items at all, treat this as an empty final output
-      if new_step_items.empty?
-        return [new_step_items, NextStepFinalOutput.new("")]
-      end
+      return [new_step_items, NextStepFinalOutput.new("")] if new_step_items.empty?
 
       # Continue conversation
       [new_step_items, NextStepRunAgain.new]
@@ -220,11 +218,11 @@ module RAAF
             end
           end.map(&:wait)
         end
-        
+
         results = task_results.wait
         log_debug("🔧 STEP_PROCESSOR: All tools completed", results_count: results.size)
         results
-      rescue => e
+      rescue StandardError => e
         log_exception(e, message: "Error in parallel tool execution")
         raise
       end

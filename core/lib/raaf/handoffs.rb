@@ -127,11 +127,15 @@ module RAAF
   end
 
   ##
-  # Handoff - Represents a delegation mechanism from one agent to another
+  # CallbackHandoffTool - Internal tool implementation for agent handoffs
   #
-  # A Handoff encapsulates the logic for transferring control between agents in a
+  # A CallbackHandoffTool encapsulates the logic for transferring control between agents in a
   # multi-agent workflow. It defines the tool interface that allows one agent to
   # invoke another agent, including input validation, context passing, and execution.
+  #
+  # Note: This is the internal implementation class for callback-based handoffs. For the
+  # public API, use the Handoff class in handoff.rb which matches the Python SDK interface.
+  # For structured handoffs with data contracts, see HandoffTool in handoff_tool.rb.
   #
   # == Core Concepts
   #
@@ -144,7 +148,7 @@ module RAAF
   # == Basic Handoff
   #
   #   # Simple handoff without custom logic
-  #   handoff = Handoff.new(
+  #   handoff = CallbackHandoffTool.new(
   #     tool_name: "transfer_to_support",
   #     tool_description: "Transfer to customer support agent",
   #     input_json_schema: {},
@@ -164,7 +168,7 @@ module RAAF
   #     required: ["issue_type"]
   #   }
   #
-  #   handoff = Handoff.new(
+  #   handoff = CallbackHandoffTool.new(
   #     tool_name: "escalate_to_specialist",
   #     tool_description: "Escalate to specialist based on issue type",
   #     input_json_schema: schema,
@@ -183,7 +187,7 @@ module RAAF
   # @since 0.1.0
   # @see Handoffs
   # @see HandoffInputData
-  class Handoff
+  class CallbackHandoffTool
 
     include Logger
 
@@ -327,7 +331,7 @@ module RAAF
     # @return [String] default tool name
     #
     # @example Generate tool name
-    #   tool_name = Handoff.default_tool_name(billing_support_agent)
+    #   tool_name = CallbackHandoffTool.default_tool_name(billing_support_agent)
     #   # => "transfer_to_billing_support_agent"
     #
     # @example More examples
@@ -348,7 +352,7 @@ module RAAF
     # @return [String] default tool description
     #
     # @example Generate description
-    #   desc = Handoff.default_tool_description(support_agent)
+    #   desc = CallbackHandoffTool.default_tool_description(support_agent)
     #   # => "Handoff to the SupportAgent agent to handle the request."
     def self.default_tool_description(agent)
       desc = "Handoff to the #{agent.name} agent to handle the request."
@@ -630,9 +634,9 @@ module RAAF
         end
 
         # Create and return the handoff
-        Handoff.new(
-          tool_name: tool_name_override || Handoff.default_tool_name(agent),
-          tool_description: tool_description_override || Handoff.default_tool_description(agent),
+        CallbackHandoffTool.new(
+          tool_name: tool_name_override || CallbackHandoffTool.default_tool_name(agent),
+          tool_description: tool_description_override || CallbackHandoffTool.default_tool_description(agent),
           input_json_schema: input_json_schema,
           on_invoke_handoff: on_invoke_handoff,
           agent_name: agent.name,

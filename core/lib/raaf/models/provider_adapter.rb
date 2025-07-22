@@ -13,8 +13,8 @@ module RAAF
     # Universal Provider Adapter for Tool-based Handoff Support
     #
     # This adapter wraps any provider to ensure universal handoff support
-    # for providers that support function/tool calling. It provides a consistent 
-    # interface for the Runner while handling the complexities of different 
+    # for providers that support function/tool calling. It provides a consistent
+    # interface for the Runner while handling the complexities of different
     # provider implementations.
     #
     # The adapter automatically detects provider capabilities and routes requests
@@ -332,7 +332,7 @@ module RAAF
       # @param available_agents [Array<String>] Available agent names
       # @return [String] Enhanced instructions (or original if function calling supported)
       #
-      def get_enhanced_system_instructions(base_instructions, available_agents)
+      def get_enhanced_system_instructions(base_instructions, _available_agents)
         # Content-based handoff instructions have been removed
         # Only tool-based handoffs are supported
         base_instructions
@@ -344,11 +344,11 @@ module RAAF
       # Content-based handoff detection has been removed from RAAF.
       # Only tool-based handoffs are supported.
       #
-      # @param content [String] Response content to analyze  
+      # @param content [String] Response content to analyze
       # @return [String, nil] Always returns nil
       # @deprecated Content-based handoffs are no longer supported
       #
-      def detect_content_based_handoff(content)
+      def detect_content_based_handoff(_content)
         # Content-based handoff detection has been removed
         # Only tool-based handoffs are supported
         nil
@@ -365,9 +365,9 @@ module RAAF
       #
       def get_handoff_stats
         # Handoff fallback system removed - only tool-based handoffs supported
-        { 
-          successful_detections: 0, 
-          total_attempts: 0, 
+        {
+          successful_detections: 0,
+          total_attempts: 0,
           success_rate: "N/A",
           available_agents: @available_agents.dup
         }
@@ -869,7 +869,7 @@ module RAAF
                      else
                        "test-model"
                      end
-        
+
         @provider.chat_completion(
           messages: test_messages,
           model: test_model,
@@ -893,12 +893,12 @@ module RAAF
         # Check if the method signature accepts tools parameter
         method = @provider.method(:chat_completion)
         method_parameters = method.parameters
-        
+
         # Check if there's a keyword parameter named 'tools'
         has_tools_param = method_parameters.any? do |type, name|
-          (type == :key || type == :keyreq) && name == :tools
+          %i[key keyreq].include?(type) && name == :tools
         end
-        
+
         return false unless has_tools_param
 
         # Test with a simple call to ensure the method works
@@ -908,7 +908,7 @@ module RAAF
                      else
                        "test-model"
                      end
-        
+
         # Try with empty tools array
         @provider.chat_completion(
           messages: test_messages,

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "net/http"
+require "timeout"
 require_relative "logging"
 
 module RAAF
@@ -50,29 +52,38 @@ module RAAF
       # @return [Object] Result of the block or recovery value
       #
       def with_error_handling(context = {})
-        yield
-      rescue MaxTurnsError => e
-        handle_max_turns_error(e, context)
-      rescue ExecutionStoppedError => e
-        handle_stopped_execution_error(e, context)
-      rescue JSON::ParserError => e
-        handle_parsing_error(e, context)
-      rescue StandardError => e
-        # Check if this is a guardrails error when guardrails gem is loaded
-        if defined?(Guardrails)
-          case e
-          when Guardrails::InputGuardrailTripwireTriggered
-            handle_guardrail_error(e, context, :input)
-          when Guardrails::OutputGuardrailTripwireTriggered
-            handle_guardrail_error(e, context, :output)
+        begin
+          yield
+        rescue MaxTurnsError => e
+          handle_max_turns_error(e, context)
+        rescue ExecutionStoppedError => e
+          handle_stopped_execution_error(e, context)
+        rescue JSON::ParserError => e
+          handle_parsing_error(e, context)
+        rescue StandardError => e
+          # Handle retries for RETRY_ONCE strategy
+          if strategy == RecoveryStrategy::RETRY_ONCE && @retry_count < @max_retries
+            @retry_count += 1
+            log_info("Retrying operation", attempt: @retry_count, **context)
+            retry
+          end
+          
+          # Check if this is a guardrails error when guardrails gem is loaded
+          if defined?(Guardrails)
+            case e
+            when Guardrails::InputGuardrailTripwireTriggered
+              handle_guardrail_error(e, context, :input)
+            when Guardrails::OutputGuardrailTripwireTriggered
+              handle_guardrail_error(e, context, :output)
+            else
+              handle_general_error(e, context)
+            end
           else
             handle_general_error(e, context)
           end
-        else
-          handle_general_error(e, context)
+        ensure
+          @retry_count = 0
         end
-      ensure
-        @retry_count = 0 # Reset retry count after successful execution
       end
 
       ##
@@ -84,7 +95,7 @@ module RAAF
       #
       def with_api_error_handling(context = {})
         yield
-      rescue Net::TimeoutError => e
+      rescue Timeout::Error => e
         handle_timeout_error(e, context)
       rescue Net::HTTPError => e
         handle_http_error(e, context)
@@ -158,8 +169,24 @@ module RAAF
       def handle_stopped_execution_error(error, context)
         log_info("Execution stopped by request", **context, message: error.message)
 
-        # Execution stopped errors are usually intentional, so we handle them gracefully
-        { error: :execution_stopped, message: error.message, handled: true }
+        case strategy
+        when RecoveryStrategy::LOG_AND_CONTINUE
+          { error: :execution_stopped, message: error.message, handled: true }
+        when RecoveryStrategy::GRACEFUL_DEGRADATION
+          { error: :execution_stopped, message: "Execution was halted", handled: true }
+        when RecoveryStrategy::RETRY_ONCE
+          if @retry_count < @max_retries
+            @retry_count += 1
+            log_info("Retrying after execution stopped", attempt: @retry_count)
+            raise error
+          else
+            log_error("Max retries exceeded for execution stopped error")
+            { error: :execution_stopped, message: "Failed after retries", handled: true }
+          end
+        else
+          # FAIL_FAST and unknown strategies
+          raise error
+        end
       end
 
       ##
@@ -230,7 +257,7 @@ module RAAF
       # Processes API timeout errors with retry logic and
       # graceful degradation options.
       #
-      # @param error [Net::TimeoutError] The timeout error
+      # @param error [Timeout::Error] The timeout error
       # @param context [Hash] Error context information
       # @return [Hash] Recovery result or re-raises error
       # @private
@@ -293,18 +320,14 @@ module RAAF
 
         case strategy
         when RecoveryStrategy::LOG_AND_CONTINUE
-          { error: :general_error, message: error.message, handled: true }
+          # LOG_AND_CONTINUE only applies to specific errors, not general errors
+          raise error
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :general_error, message: "An unexpected error occurred", handled: true }
         when RecoveryStrategy::RETRY_ONCE
-          if @retry_count < @max_retries
-            @retry_count += 1
-            log_info("Retrying after general error", attempt: @retry_count)
-            raise error
-          else
-            log_error("Max retries exceeded for general error")
-            { error: :general_error, message: "Failed after retries", handled: true }
-          end
+          # Retry logic is handled at the caller level, this means retries were exhausted
+          log_error("Max retries exceeded for general error")
+          raise error
         else
           # FAIL_FAST and unknown strategies
           raise error

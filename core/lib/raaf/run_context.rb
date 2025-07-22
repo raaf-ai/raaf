@@ -193,6 +193,8 @@ module RAAF
       context.current_agent = @current_agent
       context.current_turn = @current_turn
       context.custom_data = @custom_data.dup
+      # Copy stored data from storage
+      @storage.each { |key, value| context.store(key, value) }
       context
     end
 

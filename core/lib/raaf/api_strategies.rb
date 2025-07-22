@@ -469,6 +469,8 @@ module RAAF
       def convert_response_to_messages(response)
         # Convert Responses API response back to messages format
         # The Responses API uses 'output' array instead of 'choices'
+        return [] unless response.is_a?(Hash)
+
         output = response[:output] || response["output"]
         return [] unless output
 
@@ -497,7 +499,6 @@ module RAAF
             # Convert to tool call format
             tool_calls << {
               "id" => item[:call_id] || item["call_id"] || item[:id] || item["id"],
-              "type" => "function",
               "function" => {
                 "name" => item[:name] || item["name"],
                 "arguments" => item[:arguments] || item["arguments"] || "{}"

@@ -115,7 +115,7 @@ module RAAF
                 # Direct message format
                 [response]
               end
-      
+
       # Convert all items to use symbol keys for consistency
       items.map { |item| Utils.deep_symbolize_keys(item) }
     end
@@ -127,7 +127,7 @@ module RAAF
                               computer_actions:, local_shell_calls:, tools_used:,
                               handoff_map:, function_map:, computer_tool:, local_shell_tool:)
       detected_type = item[:type] || infer_item_type(item)
-      
+
       case detected_type
       when "message", nil
         items << create_message_item(item, agent)
@@ -251,7 +251,7 @@ module RAAF
     # Build lookup map for handoffs by tool name
     #
     def build_handoff_map(handoffs)
-      result = handoffs.to_h do |handoff|
+      handoffs.to_h do |handoff|
         tool_name = case handoff
                     when Agent
                       # For Agent objects, generate the default tool name
@@ -262,8 +262,6 @@ module RAAF
                     end
         [tool_name, handoff]
       end
-      
-      result
     end
 
     ##
@@ -343,7 +341,6 @@ module RAAF
       }
       Items::HandoffCallItem.new(agent: agent, raw_item: raw_item)
     end
-
 
   end
 

@@ -9,7 +9,7 @@ RSpec.describe RAAF::Models::ResponsesProvider do
   describe "#initialize" do
     it "requires API key" do
       allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return(nil)
-      
+
       expect do
         described_class.new
       end.to raise_error(RAAF::Models::AuthenticationError, /API key is required/)
@@ -101,10 +101,10 @@ RSpec.describe RAAF::Models::ResponsesProvider do
     it "accepts valid parameters" do
       # Mock the API call to avoid actual HTTP requests
       allow(provider).to receive(:call_responses_api).and_return({
-        id: "resp_123",
-        output: [{ type: "message", role: "assistant", content: "Hello!" }],
-        usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }
-      })
+                                                                   id: "resp_123",
+                                                                   output: [{ type: "message", role: "assistant", content: "Hello!" }],
+                                                                   usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }
+                                                                 })
 
       result = provider.responses_completion(messages: messages, model: model)
 
@@ -121,7 +121,7 @@ RSpec.describe RAAF::Models::ResponsesProvider do
 
     it "validates model before streaming" do
       expect do
-        provider.stream_completion(messages: messages, model: "invalid-model") { }
+        provider.stream_completion(messages: messages, model: "invalid-model") {}
       end.to raise_error(ArgumentError, /not supported/)
     end
 
@@ -132,8 +132,8 @@ RSpec.describe RAAF::Models::ResponsesProvider do
         tools: nil,
         stream: true
       )
-      
-      provider.stream_completion(messages: messages, model: model) { }
+
+      provider.stream_completion(messages: messages, model: model) {}
     end
   end
 
@@ -141,9 +141,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
     describe "#convert_messages_to_input" do
       it "converts user messages to input items" do
         messages = [{ role: "user", content: "Hello" }]
-        
+
         input = provider.send(:convert_messages_to_input, messages)
-        
+
         expect(input).to be_an(Array)
         expect(input.first[:type]).to eq("user_text")
         expect(input.first[:text]).to eq("Hello")
@@ -163,9 +163,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
             ]
           }
         ]
-        
+
         input = provider.send(:convert_messages_to_input, messages)
-        
+
         expect(input).to be_an(Array)
         expect(input.first[:type]).to eq("function_call")
         expect(input.first[:name]).to eq("get_weather")
@@ -180,9 +180,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
             tool_call_id: "call_123"
           }
         ]
-        
+
         input = provider.send(:convert_messages_to_input, messages)
-        
+
         expect(input.first[:type]).to eq("function_call_output")
         expect(input.first[:call_id]).to eq("call_123")
         expect(input.first[:output]).to eq("The weather is sunny")
@@ -195,17 +195,17 @@ RSpec.describe RAAF::Models::ResponsesProvider do
           { role: "system", content: "You are a helpful assistant" },
           { role: "user", content: "Hello" }
         ]
-        
+
         instructions = provider.send(:extract_system_instructions, messages)
-        
+
         expect(instructions).to eq("You are a helpful assistant")
       end
 
       it "returns nil when no system message" do
         messages = [{ role: "user", content: "Hello" }]
-        
+
         instructions = provider.send(:extract_system_instructions, messages)
-        
+
         expect(instructions).to be_nil
       end
     end
@@ -225,9 +225,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
 
       it "converts FunctionTool objects" do
         tool = RAAF::FunctionTool.new(proc { |x| x }, name: "test_tool")
-        
+
         result = provider.send(:convert_tools, [tool])
-        
+
         expect(result).to be_a(Hash)
         expect(result).to have_key(:tools)
         expect(result).to have_key(:includes)
@@ -237,9 +237,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
 
       it "passes through hash tools" do
         tool_hash = { type: "function", function: { name: "test", parameters: {} } }
-        
+
         result = provider.send(:convert_tools, [tool_hash])
-        
+
         expect(result).to be_a(Hash)
         expect(result).to have_key(:tools)
         expect(result).to have_key(:includes)
@@ -255,7 +255,7 @@ RSpec.describe RAAF::Models::ResponsesProvider do
 
       it "converts string tool_choice to object format" do
         result = provider.send(:convert_tool_choice, "get_weather")
-        
+
         expect(result).to be_a(Hash)
         expect(result[:type]).to eq("function")
         expect(result[:name]).to eq("get_weather")
@@ -263,9 +263,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
 
       it "passes through hash tool_choice" do
         tool_choice = { type: "function", function: { name: "test" } }
-        
+
         result = provider.send(:convert_tool_choice, tool_choice)
-        
+
         expect(result).to eq(tool_choice)
       end
     end
@@ -279,17 +279,17 @@ RSpec.describe RAAF::Models::ResponsesProvider do
       end
 
       it "converts response_format to format structure" do
-        response_format = { 
-          type: "json_schema", 
-          json_schema: { 
-            name: "TestSchema", 
-            schema: { type: "object" }, 
-            strict: true 
-          } 
+        response_format = {
+          type: "json_schema",
+          json_schema: {
+            name: "TestSchema",
+            schema: { type: "object" },
+            strict: true
+          }
         }
-        
+
         result = provider.send(:convert_response_format, response_format)
-        
+
         expect(result).to be_a(Hash)
         expect(result).to have_key(:format)
         expect(result[:format]).to have_key(:type)
@@ -302,44 +302,44 @@ RSpec.describe RAAF::Models::ResponsesProvider do
     describe "#prepare_function_parameters" do
       it "ensures additionalProperties is false for strict mode" do
         parameters = { type: "object", properties: { name: { type: "string" } } }
-        
+
         result = provider.send(:prepare_function_parameters, parameters)
-        
+
         expect(result[:additionalProperties]).to be false
       end
 
       it "preserves existing additionalProperties setting" do
-        parameters = { 
-          type: "object", 
+        parameters = {
+          type: "object",
           properties: { name: { type: "string" } },
           additionalProperties: true
         }
-        
+
         result = provider.send(:prepare_function_parameters, parameters)
-        
+
         expect(result[:additionalProperties]).to be true
       end
     end
 
     describe "#determine_strict_mode" do
       it "returns true when additionalProperties is false and has properties and required" do
-        parameters = { 
-          type: "object", 
+        parameters = {
+          type: "object",
           properties: { name: { type: "string" } },
           additionalProperties: false,
           required: ["name"]
         }
-        
+
         result = provider.send(:determine_strict_mode, parameters)
-        
+
         expect(result).to be true
       end
 
       it "returns false when additionalProperties is true" do
         parameters = { type: "object", additionalProperties: true }
-        
+
         result = provider.send(:determine_strict_mode, parameters)
-        
+
         expect(result).to be false
       end
     end

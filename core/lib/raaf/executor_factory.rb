@@ -97,7 +97,7 @@ module RAAF
       # @return [BasicRunExecutor] Configured executor
       #
       def self.create_basic_executor(runner:, provider:, agent:, config:)
-        require_relative "../run_executor"
+        require_relative "run_executor"
         BasicRunExecutor.new(runner: runner, provider: provider, agent: agent, config: config)
       end
 
@@ -112,7 +112,7 @@ module RAAF
       # @return [TracedRunExecutor] Configured traced executor
       #
       def self.create_traced_executor(runner:, provider:, agent:, config:, tracer:)
-        require_relative "../run_executor"
+        require_relative "run_executor"
         TracedRunExecutor.new(
           runner: runner,
           provider: provider,

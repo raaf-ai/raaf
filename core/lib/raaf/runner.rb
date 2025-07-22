@@ -852,7 +852,7 @@ module RAAF
         log_debug("⚡ HANDOFF FLOW: Processing handoff tool for Responses API",
                   agent: agent.name,
                   tool_name: tool_name)
-        
+
         # Create a tool call structure compatible with process_handoff_tool_call
         tool_call = {
           "id" => tool_call_item[:call_id] || tool_call_item["call_id"],
@@ -861,7 +861,7 @@ module RAAF
             "arguments" => arguments_str
           }
         }
-        
+
         return process_handoff_tool_call(tool_call, agent, nil)
       end
 
