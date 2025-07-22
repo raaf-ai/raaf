@@ -12,6 +12,7 @@ require_relative "raaf/models/responses_provider"
 require_relative "raaf/models/openai_provider"
 require_relative "raaf/result"
 require_relative "raaf/handoffs"
+require_relative "raaf/context_manager"
 require_relative "raaf/agent"
 
 # Try to load retry provider functionality if available

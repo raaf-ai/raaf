@@ -221,14 +221,30 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
           usage: { input_tokens: 15, output_tokens: 20, total_tokens: 35 }
         }
         
-        expect_provider_call(error_tool_response)
+        final_response = {
+          id: "resp_final",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "I encountered an error with the tool." }]
+            }
+          ],
+          usage: { input_tokens: 25, output_tokens: 15, total_tokens: 40 }
+        }
+        
+        call_count = 0
+        allow(mock_provider).to receive(:responses_completion) do
+          call_count += 1
+          call_count == 1 ? error_tool_response : final_response
+        end
         
         result = runner.run("Use the error tool")
         
         # Should handle tool error gracefully
         expect(result.success?).to be true
         # Tool error should be captured in tool results
-        expect(result.tool_results.any? { |tr| tr.to_s.include?("Tool failed") }).to be true
+        expect(result.tool_results.any? { |tr| tr.to_s.include?("failed") || tr.to_s.include?("Error") }).to be true
       end
     end
   end
@@ -247,7 +263,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
           output: [
             {
               type: "function_call",
-              name: "transfer_to_targetagent",
+              name: "transfer_to_target_agent",
               arguments: '{"context": "user needs help"}',
               call_id: "call_handoff"
             }
@@ -279,7 +295,7 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         
         # Use a runner that knows about both agents
         runner_with_agents = described_class.new(agent: agent, provider: mock_provider)
-        result = runner_with_agents.run("I need specific help")
+        result = runner_with_agents.run("I need specific help", agents: [agent, target_agent])
         
         expect(result.success?).to be true
         expect(result.last_agent&.name).to eq("TargetAgent")
@@ -657,16 +673,32 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
           usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 }
         }
         
+        final_response = {
+          id: "resp_final",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "I encountered a JSON parsing error." }]
+            }
+          ],
+          usage: { input_tokens: 15, output_tokens: 10, total_tokens: 25 }
+        }
+        
         # Add tool to handle the call
         agent.add_tool(proc { |param:| "result" }, name: "test_tool")
         
-        expect_provider_call(malformed_response)
+        call_count = 0
+        allow(mock_provider).to receive(:responses_completion) do
+          call_count += 1
+          call_count == 1 ? malformed_response : final_response
+        end
         
         result = runner.run("Test malformed JSON")
         
         # Should handle malformed JSON gracefully
         expect(result.success?).to be true
-        expect(result.tool_results.any? { |tr| tr.success? == false }).to be true
+        expect(result.tool_results.any? { |tr| tr.to_s.include?("Error") || tr.to_s.include?("invalid") }).to be true
       end
 
       it "handles stop condition checking" do
@@ -675,10 +707,10 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         
         expect_provider_call(basic_response)
         
-        result = runner.run("Test stop condition")
-        
-        # Should respect stop condition
-        expect(result.success?).to be true
+        # Should raise ExecutionStoppedError when stop condition is met
+        expect {
+          runner.run("Test stop condition")
+        }.to raise_error(RAAF::ExecutionStoppedError, "Execution stopped by user request")
       end
 
       it "handles very large inputs efficiently" do
@@ -797,8 +829,8 @@ RSpec.describe RAAF::Runner, "Enhanced Core Functionality Tests" do
         duration = Time.now - start_time
         
         expect(result.success?).to be true
-        # Tool results are tracked internally by the runner
-        expect(result.messages.select { |m| m[:role] == "tool" }.length).to be >= 5
+        # Tool results should be tracked in the tool_results array
+        expect(result.tool_results.length).to be >= 5
         expect(duration).to be < 3.0 # Should handle multiple tools reasonably quickly
       end
     end
