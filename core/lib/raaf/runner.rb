@@ -22,6 +22,13 @@ require_relative "items"
 require_relative "context_manager"
 require_relative "context_config"
 require_relative "run_executor"
+require_relative "unified_step_executor"
+require_relative "step_result"
+require_relative "processed_response"
+require_relative "response_processor"
+require_relative "tool_use_tracker"
+require_relative "step_processor"
+require_relative "step_errors"
 
 module RAAF
 
@@ -117,6 +124,9 @@ module RAAF
 
       # Initialize handoff tracking for circular protection
       @handoff_chain = []
+
+      # Initialize unified step executor (the primary processing engine)
+      @unified_step_executor = UnifiedStepExecutor.new(runner: self)
     end
 
     ##
@@ -136,7 +146,7 @@ module RAAF
 
       @stop_checker.call
     rescue StandardError => e
-      log_error("Error checking stop condition", error: e.message, error_class: e.class.name)
+      log_exception(e, message: "Error checking stop condition")
       false
     end
 
@@ -421,7 +431,7 @@ module RAAF
         agent.hooks.send(agent_hook_method, context_wrapper, *args)
       end
     rescue StandardError => e
-      log_error "Error in hook #{hook_method}: #{e.message}", hook: hook_method, error_class: e.class.name
+      log_exception(e, message: "Error in hook #{hook_method}", hook: hook_method)
     end
 
     ##
@@ -711,20 +721,18 @@ module RAAF
     end
 
     ##
-    # Process output items from the Responses API
+    # DEPRECATED: Legacy response processing method
     #
-    # This method handles the output format from OpenAI's Responses API,
-    # which uses an items-based conversation model. It processes different
-    # types of output items (messages, tool calls) and detects handoffs.
+    # This method is deprecated and replaced by unified step processing.
+    # It's kept temporarily for compatibility but will be removed.
+    # Use UnifiedStepExecutor instead.
     #
-    # @param response [Hash] The API response containing output items
+    # @deprecated Use UnifiedStepExecutor.execute_step instead
+    # @param response [Hash] The API response containing output items  
     # @param agent [Agent] The current agent
     # @param generated_items [Array<Items::Base>] Array to append new items to
     # @param span [Tracing::Span, nil] Optional tracing span
-    #
     # @return [Hash] Result hash with :done and :handoff keys
-    #   - :done [Boolean] Whether the conversation is complete
-    #   - :handoff [Hash, nil] Handoff data if a handoff was detected
     #
     def process_responses_api_output(response, agent, generated_items, _span = nil)
       output = response&.dig(:output) || response&.dig("output") || []
@@ -863,19 +871,15 @@ module RAAF
     end
 
     ##
-    # Execute a tool call for the Responses API
+    # DEPRECATED: Legacy tool execution method
     #
-    # This method executes tool calls from the Responses API format,
-    # handling both regular tools and handoff tools. It includes proper
-    # error handling and tracing support.
+    # This method is deprecated and replaced by unified step processing.
+    # Tool execution is now handled by StepProcessor with parallel execution.
     #
+    # @deprecated Use StepProcessor.execute_step instead
     # @param tool_call_item [Hash] The tool call item from the API
-    #   - :name [String] The tool name
-    #   - :arguments [String] JSON-encoded tool arguments
     # @param agent [Agent] The agent executing the tool
-    #
     # @return [String, Hash] Tool execution result or error message
-    #   Returns a Hash with :assistant key for handoff results
     #
     def execute_tool_for_responses_api(tool_call_item, agent)
       tool_name = tool_call_item[:name] || tool_call_item["name"]
@@ -927,10 +931,8 @@ module RAAF
 
         result
       rescue StandardError => e
-        log_error("⚡ HANDOFF FLOW: Tool execution failed", 
-                  agent: agent.name,
-                  tool_name: tool_name,
-                  error: e.message)
+        log_exception(e, message: "⚡ HANDOFF FLOW: Tool execution failed", 
+                      agent: agent.name, tool_name: tool_name)
         "Error executing tool: #{e.message}"
       end
     end
@@ -968,11 +970,9 @@ module RAAF
 
       begin
         arguments = JSON.parse(arguments_str)
-      rescue JSON::ParserError
-        log_error("⚡ HANDOFF FLOW: Invalid tool arguments", 
-                  agent: agent.name,
-                  tool_name: tool_name,
-                  arguments_str: arguments_str)
+      rescue JSON::ParserError => e
+        log_exception(e, message: "⚡ HANDOFF FLOW: Invalid tool arguments", 
+                      agent: agent.name, tool_name: tool_name, arguments_str: arguments_str)
         return "Error: Invalid tool arguments"
       end
 
@@ -1029,11 +1029,8 @@ module RAAF
 
           handoff_result
         rescue StandardError => e
-          log_debug_handoff("Handoff object tool execution failed in Responses API",
-                            from_agent: agent.name,
-                            to_agent: handoff_target.agent_name,
-                            tool_name: tool_name,
-                            error: e.message)
+          log_exception(e, message: "Handoff object tool execution failed in Responses API",
+                        from_agent: agent.name, to_agent: handoff_target.agent_name, tool_name: tool_name)
 
           "Error: Handoff failed - #{e.message}"
         end
@@ -1336,6 +1333,7 @@ module RAAF
         model = config.model&.model || state[:current_agent].model
         model_params = config.to_model_params
         model_params[:response_format] = state[:current_agent].response_format if state[:current_agent].response_format
+        model_params[:tool_choice] = state[:current_agent].tool_choice if state[:current_agent].tool_choice
 
         # Prepare request parameters
         request_messages = [{ role: "system", content: system_instructions }]
@@ -1446,8 +1444,19 @@ module RAAF
           context_wrapper.add_message({ role: "assistant", content: response_content })
         end
 
-        # Process Responses API output
-        process_result = process_responses_api_output(response, state[:current_agent], generated_items)
+        # Process Responses API output with unified processing
+        step_result = @unified_step_executor.execute_step(
+          model_response: response,
+          agent: state[:current_agent],
+          context_wrapper: context_wrapper,
+          config: config,
+          original_input: messages,
+          pre_step_items: generated_items.dup
+        )
+        
+        # Convert to runner format and add new items to generated_items
+        generated_items.concat(step_result.new_step_items)
+        process_result = @unified_step_executor.to_runner_format(step_result)
 
         # Handle handoffs
         if process_result[:handoff]
@@ -2188,9 +2197,8 @@ module RAAF
           content: formatted_result
         }
       rescue StandardError => e
-        log_error("Tool execution error", error: e.message)
-        log_error("Tool execution backtrace", backtrace: e.backtrace[0..2].join('\n'))
-
+        log_exception(e, message: "Tool execution error")
+        
         @tracer.record_exception(e) if @tracer && !@disabled_tracing
 
         {
