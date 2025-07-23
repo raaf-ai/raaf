@@ -64,15 +64,11 @@ RSpec.describe "Guardrails Integration" do
 
       runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
 
-      # Check that agent has guardrails
-      puts "Agent has guardrails: #{agent.input_guardrails?}"
-      puts "Number of guardrails: #{agent.input_guardrails.length}"
-
       # Check the guardrail directly
       long_input = "this is a very long input that exceeds the limit"
       guardrail_result = length_guardrail.run(nil, nil, long_input)
-      puts "Guardrail result: #{guardrail_result.tripwire_triggered?}"
-      puts "Guardrail message: #{guardrail_result.output.output_info}"
+      expect(guardrail_result.tripwire_triggered?).to be true
+      expect(guardrail_result.output.output_info[:blocked_reason]).to include("Input too long")
 
       # This should raise an error
       expect {

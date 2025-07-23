@@ -210,7 +210,6 @@ module RAAF
     #
     def run(starting_agent, input = nil, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil,
             context: nil, max_turns: nil, session: nil, previous_response_id: nil, **)
-      puts "DEBUG Main Run: Called with input_guardrails=#{input_guardrails&.length} stream=#{stream}"
       # Detect usage pattern to maintain backward compatibility
       if (starting_agent.is_a?(String) || starting_agent.is_a?(Array)) && input.nil?
         # Legacy pattern: run("message") or run([messages]) - use instance agent
@@ -468,23 +467,18 @@ module RAAF
       guardrails.concat(@current_config.input_guardrails) if @current_config&.input_guardrails
       guardrails.concat(agent.input_guardrails) if agent.respond_to?(:input_guardrails)
 
-      # Debug logging
-      puts "DEBUG: Guardrails count: #{guardrails.length}"
-      puts "DEBUG: Current config: #{@current_config.class.name}" if @current_config
-      puts "DEBUG: Input: #{input.length} characters" if input
-
       return if guardrails.empty?
 
       guardrails.each do |guardrail|
-        puts "DEBUG: Running guardrail: #{guardrail.get_name}"
         result = guardrail.run(context_wrapper, agent, input)
-        puts "DEBUG: Guardrail result: tripwire=#{result.tripwire_triggered?}"
 
         next unless result.tripwire_triggered?
-
-        puts "DEBUG: Raising guardrail exception"
+        
+        # Use the specific blocked reason from the guardrail if available
+        blocked_reason = result.output.output_info[:blocked_reason] || "Input blocked by guardrail"
+        
         raise Guardrails::InputGuardrailTripwireTriggered.new(
-          "Input guardrail '#{guardrail.get_name}' triggered",
+          blocked_reason,
           triggered_by: guardrail.get_name,
           content: input,
           metadata: result.output.output_info
@@ -519,8 +513,11 @@ module RAAF
 
         next unless result.tripwire_triggered?
 
+        # Use the specific blocked reason from the guardrail if available
+        blocked_reason = result.output.output_info[:blocked_reason] || "Output blocked by guardrail"
+
         raise Guardrails::OutputGuardrailTripwireTriggered.new(
-          "Output guardrail '#{guardrail.get_name}' triggered",
+          blocked_reason,
           triggered_by: guardrail.get_name,
           content: output,
           metadata: result.output.output_info
@@ -1143,6 +1140,18 @@ module RAAF
     def execute_responses_api_core(messages, config, with_tracing: false)
       context_wrapper = initialize_run_context(messages, config)
       state = initialize_execution_state(@agent, config)
+
+      # Run input guardrails on user messages before processing
+      if messages.is_a?(Array)
+        user_messages = messages.select { |msg| msg[:role] == "user" || msg["role"] == "user" }
+        user_messages.each do |msg|
+          content = msg[:content] || msg["content"]
+          run_input_guardrails(context_wrapper, @agent, content) if content
+        end
+      elsif messages.is_a?(String)
+        # Single string message - run guardrails on it
+        run_input_guardrails(context_wrapper, @agent, messages)
+      end
 
       # Convert initial messages to input items
       input = Items::ItemHelpers.input_to_new_input_list(messages)
