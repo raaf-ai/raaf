@@ -54,12 +54,6 @@ module RAAF
       def with_error_handling(context = {})
         begin
           yield
-        rescue MaxTurnsError => e
-          handle_max_turns_error(e, context)
-        rescue ExecutionStoppedError => e
-          handle_stopped_execution_error(e, context)
-        rescue JSON::ParserError => e
-          handle_parsing_error(e, context)
         rescue StandardError => e
           # Handle retries for RETRY_ONCE strategy
           if strategy == RecoveryStrategy::RETRY_ONCE && @retry_count < @max_retries
@@ -68,18 +62,28 @@ module RAAF
             retry
           end
           
-          # Check if this is a guardrails error when guardrails gem is loaded
-          if defined?(Guardrails)
-            case e
-            when Guardrails::InputGuardrailTripwireTriggered
-              handle_guardrail_error(e, context, :input)
-            when Guardrails::OutputGuardrailTripwireTriggered
-              handle_guardrail_error(e, context, :output)
+          # Now handle specific error types after retry logic
+          case e
+          when MaxTurnsError
+            handle_max_turns_error(e, context)
+          when ExecutionStoppedError
+            handle_stopped_execution_error(e, context)
+          when JSON::ParserError
+            handle_parsing_error(e, context)
+          else
+            # Check if this is a guardrails error when guardrails gem is loaded
+            if defined?(Guardrails)
+              case e
+              when Guardrails::InputGuardrailTripwireTriggered
+                handle_guardrail_error(e, context, :input)
+              when Guardrails::OutputGuardrailTripwireTriggered
+                handle_guardrail_error(e, context, :output)
+              else
+                handle_general_error(e, context)
+              end
             else
               handle_general_error(e, context)
             end
-          else
-            handle_general_error(e, context)
           end
         ensure
           @retry_count = 0
@@ -94,13 +98,28 @@ module RAAF
       # @return [Object] Result or recovery value
       #
       def with_api_error_handling(context = {})
-        yield
-      rescue Timeout::Error => e
-        handle_timeout_error(e, context)
-      rescue Net::HTTPError => e
-        handle_http_error(e, context)
-      rescue StandardError => e
-        handle_general_error(e, context)
+        begin
+          yield
+        rescue StandardError => e
+          # Handle retries for RETRY_ONCE strategy
+          if strategy == RecoveryStrategy::RETRY_ONCE && @retry_count < @max_retries
+            @retry_count += 1
+            log_info("Retrying API operation", attempt: @retry_count, **context)
+            retry
+          end
+          
+          # Now handle specific error types
+          case e
+          when Timeout::Error
+            handle_timeout_error(e, context)
+          when Net::HTTPError
+            handle_http_error(e, context)
+          else
+            handle_general_error(e, context)
+          end
+        ensure
+          @retry_count = 0
+        end
       end
 
       ##
@@ -175,14 +194,9 @@ module RAAF
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :execution_stopped, message: "Execution was halted", handled: true }
         when RecoveryStrategy::RETRY_ONCE
-          if @retry_count < @max_retries
-            @retry_count += 1
-            log_info("Retrying after execution stopped", attempt: @retry_count)
-            raise error
-          else
-            log_error("Max retries exceeded for execution stopped error")
-            { error: :execution_stopped, message: "Failed after retries", handled: true }
-          end
+          # Retries have already been exhausted in main method
+          log_error("Max retries exceeded for execution stopped error")
+          { error: :execution_stopped, message: "Failed after retries", handled: true }
         else
           # FAIL_FAST and unknown strategies
           raise error
@@ -237,14 +251,9 @@ module RAAF
         when RecoveryStrategy::LOG_AND_CONTINUE, RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :parsing_failed, message: "Failed to parse response", handled: true }
         when RecoveryStrategy::RETRY_ONCE
-          if @retry_count < @max_retries
-            @retry_count += 1
-            log_info("Retrying after parsing error", attempt: @retry_count)
-            raise error # Let the caller retry
-          else
-            log_error("Max retries exceeded for parsing error")
-            { error: :parsing_failed, message: "Failed to parse after retries", handled: true }
-          end
+          # Retries have already been exhausted in main method
+          log_error("Max retries exceeded for parsing error")
+          { error: :parsing_failed, message: "Failed to parse after retries", handled: true }
         else
           # FAIL_FAST and unknown strategies
           raise error
@@ -267,13 +276,8 @@ module RAAF
 
         case strategy
         when RecoveryStrategy::RETRY_ONCE
-          if @retry_count < @max_retries
-            @retry_count += 1
-            log_info("Retrying after timeout", attempt: @retry_count)
-            raise error # Let the caller retry
-          else
-            { error: :timeout, message: "Request timed out after retries", handled: true }
-          end
+          # Retries have already been exhausted in main method
+          { error: :timeout, message: "Request timed out after retries", handled: true }
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :timeout, message: "Request timed out, please try again", handled: true }
         else
@@ -325,7 +329,7 @@ module RAAF
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :general_error, message: "An unexpected error occurred", handled: true }
         when RecoveryStrategy::RETRY_ONCE
-          # Retry logic is handled at the caller level, this means retries were exhausted
+          # Retries have already been exhausted in main method
           log_error("Max retries exceeded for general error")
           raise error
         else

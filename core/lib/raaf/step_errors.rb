@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "logging"
+
 module RAAF
 
   module Errors
@@ -128,6 +130,7 @@ module RAAF
   # Error handling utilities for step processing
   #
   module ErrorHandling
+    extend RAAF::Logger
 
     ##
     # Safely execute a block with comprehensive error handling
@@ -146,8 +149,6 @@ module RAAF
       e.define_singleton_method(:agent) { agent } unless e.agent
 
       # Log with full context and stack trace
-      require_relative "logging"
-      include RAAF::Logger
       log_exception(e, message: "Step processing error re-raised", context: context, agent: agent&.name)
       raise e
     rescue JSON::ParserError => e
@@ -157,8 +158,6 @@ module RAAF
       )
 
       # Log original exception details
-      require_relative "logging"
-      include RAAF::Logger
       log_exception(e, message: "JSON parsing failed", context: context, agent: agent&.name)
       raise error
     rescue NoMethodError => e
@@ -175,8 +174,6 @@ module RAAF
               end
 
       # Log original exception details
-      require_relative "logging"
-      include RAAF::Logger
       log_exception(e, message: "NoMethodError in step processing", context: context, agent: agent&.name)
       raise error
     rescue StandardError => e
@@ -186,8 +183,6 @@ module RAAF
       )
 
       # Log original exception details
-      require_relative "logging"
-      include RAAF::Logger
       log_exception(e, message: "Unexpected error in step processing", context: context, agent: agent&.name)
       raise error
     end
@@ -205,8 +200,6 @@ module RAAF
       with_error_handling(context: { tool: tool, arguments: arguments }, agent: agent, &)
     rescue Errors::ToolExecutionError => e
       # Log the tool execution error with full context
-      require_relative "logging"
-      include RAAF::Logger
       log_exception(e.original_error, message: "Tool execution failed",
                                       tool: e.tool_name, agent: agent&.name, arguments: arguments)
 
