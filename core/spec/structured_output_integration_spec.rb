@@ -143,7 +143,15 @@ RSpec.describe "Structured Output Integration" do
 
     context "with OpenAIProvider" do
       let(:openai_provider) do
-        provider = instance_double(RAAF::Models::OpenAIProvider)
+        provider = double("OpenAIProvider")
+        allow(provider).to receive(:is_a?).and_return(false)
+        allow(provider).to receive(:is_a?).with(RAAF::Models::ResponsesProvider).and_return(false)
+        allow(provider).to receive(:is_a?).with(RAAF::Models::OpenAIProvider).and_return(true)
+        allow(provider).to receive(:respond_to?).and_return(false)
+        allow(provider).to receive(:respond_to?).with(:supports_responses_api?).and_return(false)
+        allow(provider).to receive(:respond_to?).with(:complete).and_return(true)
+        allow(provider).to receive(:respond_to?).with(:chat_completion).and_return(true)
+        allow(provider).to receive(:respond_to?).with(:provider_name).and_return(true)
         allow(provider).to receive_messages(provider_name: "OpenAI", chat_completion: chat_completions_response,
                                             complete: chat_completions_response)
         provider
@@ -190,30 +198,15 @@ RSpec.describe "Structured Output Integration" do
         # Debug: check what's in result
         expect(result).to respond_to(:messages)
 
-        # Find the assistant message - should be the last one
+        # Find the assistant message specifically
         expect(result.messages).not_to be_empty
 
-        # For OpenAIProvider, check if we get the expected structure
-        last_item = result.messages.last
-
+        # Find the assistant message in the results
+        assistant_message = result.messages.reverse.find { |msg| msg[:role] == "assistant" }
+        expect(assistant_message).not_to be_nil, "No assistant message found in: #{result.messages.inspect}"
+        
         # The content should be JSON parseable
-        if last_item.is_a?(Hash) && last_item["choices"]
-          # It's the raw API response
-          content = last_item.dig("choices", 0, "message", "content")
-        elsif last_item.is_a?(Hash) && last_item[:content]
-          # It's a message format
-          content = last_item[:content]
-        else
-          # Try to find any content
-          content = nil
-          result.messages.each do |msg|
-            if msg.is_a?(Hash)
-              content = msg[:content] || msg["content"]
-              break if content
-            end
-          end
-        end
-
+        content = assistant_message[:content]
         expect(content).not_to be_nil
 
         # Parse JSON and compare objects instead of string comparison for robustness

@@ -214,6 +214,13 @@ module RAAF
           function_tool: function_map[tool_name]
         )
       else
+        log_debug("🚨 HANDOFF DEBUG: Tool lookup failed", 
+                  tool_name: tool_name, 
+                  agent: agent.name,
+                  handoff_map_keys: handoff_map.keys,
+                  function_map_keys: function_map.keys,
+                  agent_handoffs_count: agent.handoffs&.size || 0,
+                  agent_tools_count: agent.tools&.size || 0)
         error = Errors::ModelBehaviorError.new("Tool #{tool_name} not found in agent #{agent.name}", agent: agent)
         log_exception(error, message: "Tool not found", tool_name: tool_name, agent: agent.name)
         raise error

@@ -42,7 +42,7 @@ module RAAF
         current_agent = agent
         turns = 0
 
-        max_turns = config.max_turns || current_agent.max_turns
+        max_turns = config.execution.effective_max_turns(current_agent)
         context_wrapper = create_context_wrapper(conversation)
 
         while turns < max_turns

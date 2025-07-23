@@ -93,7 +93,11 @@ RSpec.describe RAAF::RunExecutor do
 
         result = responses_executor.execute(messages)
 
-        expect(result.messages).to eq(expected_conversation)
+        # System message is added automatically for Python SDK compatibility
+        expected_result_messages = [
+          { role: "system", content: "Name: TestAgent\nInstructions: You are helpful" }
+        ] + expected_conversation
+        expect(result.messages).to eq(expected_result_messages)
         expect(result.usage).to eq(expected_usage)
         expect(result.last_agent).to eq(agent)
       end
@@ -105,7 +109,11 @@ RSpec.describe RAAF::RunExecutor do
 
         result = responses_executor.execute(messages)
 
-        expect(result.messages).to eq(messages)
+        # System message is added automatically
+        expected_result_messages = [
+          { role: "system", content: "Name: TestAgent\nInstructions: You are helpful" }
+        ] + messages
+        expect(result.messages).to eq(expected_result_messages)
         expect(result.usage).to eq({})
         expect(result.last_agent).to eq(agent)
       end
@@ -175,7 +183,11 @@ RSpec.describe RAAF::RunExecutor do
 
         result = openai_executor.execute(messages)
 
-        expect(result.messages).to eq(expected_conversation)
+        # System message is added automatically
+        expected_result_messages = [
+          { role: "system", content: "Name: TestAgent\nInstructions: You are helpful" }
+        ] + expected_conversation
+        expect(result.messages).to eq(expected_result_messages)
         expect(result.usage).to eq(expected_usage)
         expect(result.last_agent).to eq(agent)
       end
@@ -188,9 +200,15 @@ RSpec.describe RAAF::RunExecutor do
           .with(context: { executor: "RAAF::RunExecutor" })
           .and_yield
 
-        allow(basic_executor.services).to receive(:[]).with(:error_handler).and_return(error_handler)
-        allow(basic_executor.services).to receive(:[]).with(:conversation_manager).and_return(double("ConversationManager", execute_conversation: { conversation: [], usage: {}, context_wrapper: nil }))
-        allow(basic_executor.services).to receive(:[]).with(:turn_executor).and_return(double("TurnExecutor", execute_turn: nil))
+        # Use allow to stub all service calls
+        services_double = {
+          error_handler: error_handler,
+          conversation_manager: double("ConversationManager", execute_conversation: { conversation: [], usage: {}, context_wrapper: nil }),
+          turn_executor: double("TurnExecutor", execute_turn: nil),
+          api_strategy: double("ApiStrategy", execute: { final_result: true, conversation: [], usage: {}, last_agent: agent })
+        }
+        
+        allow(basic_executor).to receive(:services).and_return(services_double)
 
         basic_executor.execute(messages)
       end
@@ -204,11 +222,18 @@ RSpec.describe RAAF::RunExecutor do
           "error handled"
         end
 
-        allow(basic_executor.services).to receive(:[]).with(:error_handler).and_return(error_handler)
-        conversation_manager = double("ConversationManager")
-        allow(conversation_manager).to receive(:execute_conversation).and_raise(StandardError, "Test error")
-        allow(basic_executor.services).to receive(:[]).with(:conversation_manager).and_return(conversation_manager)
-        allow(basic_executor.services).to receive(:[]).with(:turn_executor).and_return(double("TurnExecutor"))
+        # Create an API strategy that raises an error
+        api_strategy = double("ApiStrategy")
+        allow(api_strategy).to receive(:execute).and_raise(StandardError, "Test error")
+        
+        services_double = {
+          error_handler: error_handler,
+          api_strategy: api_strategy,
+          conversation_manager: double("ConversationManager"),
+          turn_executor: double("TurnExecutor")
+        }
+        
+        allow(basic_executor).to receive(:services).and_return(services_double)
 
         result = basic_executor.execute(messages)
         expect(result).to eq("error handled")
@@ -219,13 +244,19 @@ RSpec.describe RAAF::RunExecutor do
   describe "#create_result" do
     let(:conversation) { [{ role: "user", content: "test" }, { role: "assistant", content: "response" }] }
     let(:usage) { { input_tokens: 5, output_tokens: 8, total_tokens: 13 } }
-    let(:context_wrapper) { double("ContextWrapper", context: double("Context", metadata: { trace_id: "123" })) }
+    let(:context_wrapper) { double("ContextWrapper", context: double("Context", metadata: { trace_id: "123" }), messages: nil) }
 
     it "creates RunResult with provided parameters" do
       result = basic_executor.send(:create_result, conversation, usage, context_wrapper, agent)
 
       expect(result).to be_a(RAAF::RunResult)
-      expect(result.messages).to eq(conversation)
+      # The system message is now automatically added for Python SDK compatibility
+      expected_messages = [
+        { role: "system", content: "Name: TestAgent\nInstructions: You are helpful" },
+        { role: "user", content: "test" },
+        { role: "assistant", content: "response" }
+      ]
+      expect(result.messages).to eq(expected_messages)
       expect(result.last_agent).to eq(agent)
       expect(result.usage).to eq(usage)
       expect(result.metadata).to eq({ trace_id: "123" })

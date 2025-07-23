@@ -97,7 +97,7 @@ module RAAF
       # @return [Integer] Max turns to use
       #
       def effective_max_turns(agent)
-        max_turns || agent.max_turns
+        max_turns || (agent&.max_turns) || 10
       end
 
       ##

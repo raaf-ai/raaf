@@ -358,9 +358,8 @@ module RAAF
       end
 
       # Initialize hooks context for consistency
-      puts "DEBUG Runner: About to initialize run context"
       initialize_run_context(messages, config)
-      puts "DEBUG Runner: Run context initialized, current_config=#{@current_config.class.name}" if @current_config
+      log_debug("Run context initialized", current_config_class: @current_config&.class&.name)
 
       # Create streaming result
       streaming_result = RunResultStreaming.new(
@@ -506,23 +505,33 @@ module RAAF
       guardrails.concat(@current_config.output_guardrails) if @current_config&.output_guardrails
       guardrails.concat(agent.output_guardrails) if agent.respond_to?(:output_guardrails)
 
-      return if guardrails.empty?
+      return output if guardrails.empty?
 
+      filtered_output = output
+      
       guardrails.each do |guardrail|
-        result = guardrail.run(context_wrapper, agent, output)
+        result = guardrail.run(context_wrapper, agent, filtered_output)
 
-        next unless result.tripwire_triggered?
+        # Check if output was filtered (modified but not blocked)
+        if result.output.output_info && result.output.output_info[:filtered_output]
+          filtered_output = result.output.output_info[:filtered_output]
+        end
 
-        # Use the specific blocked reason from the guardrail if available
-        blocked_reason = result.output.output_info[:blocked_reason] || "Output blocked by guardrail"
+        # Check if guardrail was triggered (blocking case)
+        if result.tripwire_triggered?
+          # Use the specific blocked reason from the guardrail if available
+          blocked_reason = result.output.output_info[:blocked_reason] || "Output blocked by guardrail"
 
-        raise Guardrails::OutputGuardrailTripwireTriggered.new(
-          blocked_reason,
-          triggered_by: guardrail.get_name,
-          content: output,
-          metadata: result.output.output_info
-        )
+          raise Guardrails::OutputGuardrailTripwireTriggered.new(
+            blocked_reason,
+            triggered_by: guardrail.get_name,
+            content: output,
+            metadata: result.output.output_info
+          )
+        end
       end
+      
+      filtered_output
     end
 
     ##
@@ -1332,8 +1341,13 @@ module RAAF
                   end,
                   category: :handoff)
 
-        # Get system instructions
-        system_instructions = state[:current_agent].instructions
+        # Get system instructions using proper system prompt builder
+        system_instructions = build_system_prompt(state[:current_agent], context_wrapper)
+        
+        log_debug("🔍 RUNNER: Built system prompt",
+                  agent: state[:current_agent].name,
+                  system_instructions: system_instructions,
+                  system_instructions_preview: system_instructions&.slice(0, 100))
 
         # Prepare model parameters
         model = config.model&.model || state[:current_agent].model
@@ -1404,6 +1418,7 @@ module RAAF
         unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
           raise StandardError, "Invalid response structure: missing 'output' field"
         end
+        
 
         # Log the response details
         log_debug_api("📥 RUNNER: Received API response",
@@ -1453,6 +1468,18 @@ module RAAF
         # Add message to context wrapper only if we have actual content
         # For Responses API, content is in the output array, not top-level
         response_content = extract_assistant_content_from_response(response)
+        
+        # Run output guardrails on the response content
+        if response_content && !response_content.empty?
+          filtered_content = run_output_guardrails(context_wrapper, state[:current_agent], response_content)
+          if filtered_content != response_content
+            log_debug("Output guardrail applied", 
+                      original: response_content,
+                      filtered: filtered_content)
+          end
+          response_content = filtered_content
+        end
+        
         context_wrapper.add_message({ role: "assistant", content: response_content }) unless response_content.empty?
 
         # Process Responses API output with unified processing
@@ -1617,55 +1644,29 @@ module RAAF
                   { index: i, role: msg[:role], keys: msg.keys, has_output: msg.key?(:output) }
                 })
 
-      # Build final messages - filter out any raw provider responses that may have been incorrectly added
-      final_messages = messages.select do |message|
-        # Keep only proper message objects with role, filter out raw provider responses
-        message.is_a?(Hash) && message.key?(:role) && !message.key?(:output)
+      # Use messages from context_wrapper which contain the filtered content
+      # This ensures output guardrails are properly reflected in the final result
+      final_messages = if context_wrapper && context_wrapper.messages && !context_wrapper.messages.empty?
+        context_wrapper.messages.dup
+      else
+        # Fallback to original messages if context_wrapper is not available
+        messages.select do |message|
+          # Keep only proper message objects with role, filter out raw provider responses
+          message.is_a?(Hash) && message.key?(:role) && !message.key?(:output)
+        end
       end
       
       # For Python SDK compatibility, ensure system message from agent instructions is included
       # This maintains consistency with the system message used in API calls
       unless final_messages.any? { |msg| msg[:role] == "system" }
         system_prompt = build_system_prompt(state[:current_agent], context_wrapper)
-        if system_prompt && !system_prompt.strip.empty?
+        if system_prompt && system_prompt.respond_to?(:strip) && !system_prompt.strip.empty?
           system_message = { role: "system", content: system_prompt }
           final_messages.unshift(system_message)
         end
       end
-      model_responses.each do |response|
-        # Debug: Check what we're processing
-        log_debug("🔍 DEBUG: Processing model response", 
-                  response_keys: response.keys,
-                  has_output: response.key?(:output))
-        
-        # Extract content from Responses API format
-        output = response[:output] || response["output"] || []
-        assistant_content = ""
-
-        output.each do |item|
-          item_type = item[:type] || item["type"]
-          next unless %w[message text output_text].include?(item_type)
-
-          content = item[:content] || item["content"]
-          if content.is_a?(Array)
-            # Handle array format like [{ type: "output_text", text: "content" }]
-            content.each do |content_item|
-              next unless content_item.is_a?(Hash)
-
-              # Extract text from both output_text and text items (matches items.rb logic)
-              content_type = content_item[:type] || content_item["type"]
-              if %w[output_text text].include?(content_type)
-                text = content_item[:text] || content_item["text"]
-                assistant_content += text if text
-              end
-            end
-          elsif content.is_a?(String)
-            assistant_content += content
-          end
-        end
-
-        final_messages << { role: "assistant", content: assistant_content } unless assistant_content.empty?
-      end
+      # Skip re-processing model_responses since we're using messages from context_wrapper
+      # which already contain the filtered assistant content from output guardrails
 
       # Add tool messages from generated_items
       generated_items.each do |item|
@@ -1846,6 +1847,8 @@ module RAAF
     end
 
     def build_system_prompt(agent, context_wrapper = nil)
+      return nil unless agent
+      
       prompt_parts = []
       prompt_parts << "Name: #{agent.name}" if agent.name
 
@@ -2042,6 +2045,7 @@ module RAAF
       log_debug_tools("Processing tool calls",
                       agent: agent.name,
                       tool_count: tool_calls.size)
+      
 
       # Check if we should stop before processing ANY tools
       if should_stop?
@@ -2766,7 +2770,7 @@ module RAAF
           )
 
           # Add memories as a system message if any found
-          if relevant_memories && !relevant_memories.strip.empty?
+          if relevant_memories && relevant_memories.respond_to?(:strip) && !relevant_memories.strip.empty?
             memory_message = {
               role: "system",
               content: "Relevant context from memory:\n#{relevant_memories}"

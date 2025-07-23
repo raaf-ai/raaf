@@ -73,16 +73,16 @@ module RAAF
         model_params = config.to_model_params
 
         # Merge with agent's model settings if available
-        if agent.model_settings
+        if agent&.model_settings
           model_settings_params = agent.model_settings.to_h
           model_params.merge!(model_settings_params)
         end
 
         # Add structured output support (agent-level overrides model settings)
-        model_params[:response_format] = agent.response_format if agent.response_format
+        model_params[:response_format] = agent.response_format if agent&.response_format
 
         # Add tool choice support (agent-level overrides model settings)
-        model_params[:tool_choice] = agent.tool_choice if agent.respond_to?(:tool_choice) && agent.tool_choice
+        model_params[:tool_choice] = agent.tool_choice if agent&.respond_to?(:tool_choice) && agent&.tool_choice
 
         model_params
       end
@@ -98,20 +98,47 @@ module RAAF
       #
       def extract_message_from_response(response)
         if response.is_a?(Hash)
-          if response[:choices]&.first
-            # Standard OpenAI format
-            response[:choices].first[:message]
-          elsif response[:message]
-            # Direct message format
-            response[:message]
-          else
-            # Fallback to response itself
-            response
+          # Handle both symbol and string keys
+          choices = response[:choices] || response["choices"]
+          if choices&.first
+            # Standard OpenAI format - extract message from first choice
+            choice = choices.first
+            message = choice[:message] || choice["message"]
+            if message
+              # Ensure we return with symbol keys for consistency
+              return normalize_message_keys(message)
+            end
           end
+          
+          # Direct message format
+          if response[:message] || response["message"]
+            message = response[:message] || response["message"]
+            return normalize_message_keys(message)
+          end
+          
+          # Fallback to response itself
+          normalize_message_keys(response)
         else
           # Non-hash response
           { role: "assistant", content: response.to_s }
         end
+      end
+
+      ##
+      # Normalize message keys to symbols
+      #
+      # @param message [Hash] Message with potentially string keys
+      # @return [Hash] Message with symbol keys
+      #
+      def normalize_message_keys(message)
+        return message unless message.is_a?(Hash)
+        
+        normalized = {}
+        message.each do |key, value|
+          symbol_key = key.to_sym
+          normalized[symbol_key] = value
+        end
+        normalized
       end
 
       ##
@@ -123,7 +150,8 @@ module RAAF
       def extract_usage_from_response(response)
         return nil unless response.is_a?(Hash)
 
-        response[:usage]
+        # Handle both symbol and string keys
+        response[:usage] || response["usage"]
       end
 
     end
@@ -162,7 +190,7 @@ module RAAF
       def execute(messages, agent, runner)
         # Build messages for API call
         api_messages = runner.build_messages(messages, agent)
-        model = config.model&.model || agent.model
+        model = config.model&.model || agent&.model || "gpt-4"
         model_params = build_model_params(agent, runner)
 
         log_debug_api("Making standard API call", model: model, provider: provider.class.name)
@@ -197,7 +225,7 @@ module RAAF
         model_params = build_base_model_params(agent)
 
         # Add prompt support for compatible providers
-        if agent.prompt && provider.respond_to?(:supports_prompts?) && provider.supports_prompts?
+        if agent&.prompt && provider.respond_to?(:supports_prompts?) && provider.supports_prompts?
           prompt_input = PromptUtil.to_model_input(agent.prompt, nil, agent)
           model_params[:prompt] = prompt_input if prompt_input
         end
@@ -361,7 +389,7 @@ module RAAF
       def build_provider_params(agent)
         params = {
           modalities: ["text"],
-          prompt: agent.prompt&.to_api_format,
+          prompt: agent&.prompt&.to_api_format,
           tools: format_agent_tools(agent),
           temperature: config.temperature,
           max_tokens: config.max_tokens,
@@ -369,10 +397,10 @@ module RAAF
         }.compact
 
         # Add response format if specified
-        params[:response_format] = agent.response_format if agent.response_format
+        params[:response_format] = agent.response_format if agent&.response_format
 
         # Add tool choice if specified
-        params[:tool_choice] = agent.tool_choice if agent.respond_to?(:tool_choice) && agent.tool_choice
+        params[:tool_choice] = agent.tool_choice if agent&.respond_to?(:tool_choice) && agent&.tool_choice
 
         params
       end
@@ -388,7 +416,7 @@ module RAAF
       # @private
       #
       def format_agent_tools(agent)
-        return nil unless agent.tools && !agent.tools.empty?
+        return nil unless agent&.tools && !agent.tools.empty?
 
         agent.tools.map do |tool|
           if tool.respond_to?(:to_tool_definition)

@@ -133,9 +133,9 @@ RSpec.describe RAAF::Execution::ToolExecutor do
         expect(tool_executor.should_continue?(message)).to be false
       end
 
-      it "returns true for normal content" do
+      it "returns false for normal content" do
         message = { role: "assistant", content: "How can I help you?" }
-        expect(tool_executor.should_continue?(message)).to be true
+        expect(tool_executor.should_continue?(message)).to be false
       end
 
       it "returns false when content indicates termination (STOP)" do

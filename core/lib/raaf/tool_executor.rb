@@ -67,11 +67,9 @@ module RAAF
         # Continue if there are tool calls
         return true if tool_calls?(message)
 
-        # Stop if no content
-        return false unless message[:content]
-
-        # Stop if content indicates termination
-        !message[:content].match?(/\b(STOP|TERMINATE|DONE|FINISHED)\b/i)
+        # For normal responses without tools, we should stop after getting a response
+        # This prevents infinite loops in simple Q&A scenarios
+        false
       end
 
       private

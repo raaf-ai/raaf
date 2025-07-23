@@ -69,7 +69,10 @@ module RAAF
         usage = result[:usage]
 
         # Run output guardrails
-        runner.run_output_guardrails(context_wrapper, current_agent, message[:content]) if message[:content]
+        if message[:content]
+          filtered_content = runner.run_output_guardrails(context_wrapper, current_agent, message[:content])
+          message[:content] = filtered_content if filtered_content != message[:content]
+        end
 
         # Call agent end hook
         runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)

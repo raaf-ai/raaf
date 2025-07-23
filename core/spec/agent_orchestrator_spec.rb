@@ -50,7 +50,10 @@ RSpec.describe RAAF::AgentOrchestrator do
         expect(orchestrator).to receive(:log_info).with(
           "Starting workflow",
           hash_including(starting_agent: "Agent1")
-        )
+        ).once
+        
+        # Allow other log messages
+        allow(orchestrator).to receive(:log_info).and_call_original
         
         result = orchestrator.run_workflow(initial_message)
         expect(result).to be_a(RAAF::WorkflowResult)
@@ -63,9 +66,14 @@ RSpec.describe RAAF::AgentOrchestrator do
         expect(orchestrator).to receive(:log_info).with(
           "Starting workflow", 
           hash_including(starting_agent: "Agent2")
-        )
+        ).once
+        
+        # Allow other log messages
+        allow(orchestrator).to receive(:log_info).and_call_original
 
-        orchestrator.run_workflow(initial_message, starting_agent: "Agent2")
+        result = orchestrator.run_workflow(initial_message, starting_agent: "Agent2")
+        expect(result).to be_a(RAAF::WorkflowResult)
+        expect(result.success).to be true
       end
     end
 
@@ -148,10 +156,15 @@ RSpec.describe RAAF::AgentOrchestrator do
   end
 
   describe "#run_agent" do
-    let(:agent_result) { { success: true, response: "Test response" } }
+    let(:run_result) do
+      RAAF::RunResult.new(
+        messages: [{ role: "assistant", content: "Test response" }],
+        usage: { total_tokens: 10 }
+      )
+    end
 
     before do
-      allow_any_instance_of(RAAF::Runner).to receive(:run).and_return(agent_result)
+      allow_any_instance_of(RAAF::Runner).to receive(:run).and_return(run_result)
     end
 
     it "executes agent with provider" do
@@ -295,9 +308,10 @@ RSpec.describe RAAF::AgentOrchestrator do
     before do
       allow(RAAF::Runner).to receive(:new).and_return(mock_runner)
       allow(mock_runner).to receive(:run).and_return(
-        success: true,
-        messages: [{ role: "assistant", content: "Response" }],
-        agent: agent1
+        RAAF::RunResult.new(
+          messages: [{ role: "assistant", content: "Response" }],
+          usage: { total_tokens: 10 }
+        )
       )
     end
 

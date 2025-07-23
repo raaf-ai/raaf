@@ -103,7 +103,7 @@ module RAAF
       tokens += @encoder.encode(message[:role] || "").length
 
       # Count content tokens
-      tokens += @encoder.encode(message[:content]).length if message[:content]
+      tokens += @encoder.encode(message[:content] || "").length
 
       # Count tool calls if present
       tokens += estimate_tool_call_tokens(message[:tool_calls]) if message[:tool_calls]
@@ -192,8 +192,10 @@ module RAAF
       end
 
       # Always preserve recent messages
-      recent_messages = regular_messages.last(@preserve_recent)
-      older_messages = regular_messages[0...-@preserve_recent]
+      recent_messages = @preserve_recent > 0 ? regular_messages.last(@preserve_recent) : []
+      older_messages = @preserve_recent > 0 && @preserve_recent < regular_messages.length ? 
+                      regular_messages[0...-@preserve_recent] : 
+                      (@preserve_recent == 0 ? regular_messages : [])
 
       # Start with system messages and recent messages
       result = system_messages + recent_messages

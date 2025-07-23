@@ -233,9 +233,14 @@ RSpec.describe RAAF::Runner do
 
       result = runner.run(messages)
 
-      # For Responses API, the conversation format is different
-      # We should check that the result contains the expected final text
-      expect(result.messages.last[:content]).to include("The result is 10")
+      # For Responses API, find the assistant's final response
+      assistant_messages = result.messages.select { |msg| msg[:role] == "assistant" }
+      expect(assistant_messages).not_to be_empty, "Expected at least one assistant message"
+      
+      # The last assistant message should contain the final response
+      last_assistant_content = assistant_messages.last[:content]
+      expect(last_assistant_content).to be_a(String)
+      expect(last_assistant_content).to include("The result is 10")
     end
 
     it "handles tool execution errors gracefully" do
@@ -275,7 +280,13 @@ RSpec.describe RAAF::Runner do
       result = runner.run(messages)
 
       # For Responses API, errors are handled internally and the conversation continues
-      expect(result.messages.last[:content]).to include("The result is 10")
+      # Find the assistant's final response
+      assistant_messages = result.messages.select { |msg| msg[:role] == "assistant" }
+      expect(assistant_messages).not_to be_empty, "Expected at least one assistant message"
+      
+      last_assistant_content = assistant_messages.last[:content]
+      expect(last_assistant_content).to be_a(String)
+      expect(last_assistant_content).to include("The result is 10")
     end
 
     it "traces tool execution" do
@@ -286,7 +297,14 @@ RSpec.describe RAAF::Runner do
 
       # Verify that tracing works by checking the run completed successfully
       expect(result).to be_a(RAAF::RunResult)
-      expect(result.messages.last[:content]).to include("The result is 10")
+      
+      # Find the assistant's final response
+      assistant_messages = result.messages.select { |msg| msg[:role] == "assistant" }
+      expect(assistant_messages).not_to be_empty, "Expected at least one assistant message"
+      
+      last_assistant_content = assistant_messages.last[:content]
+      expect(last_assistant_content).to be_a(String)
+      expect(last_assistant_content).to include("The result is 10")
     end
   end
 

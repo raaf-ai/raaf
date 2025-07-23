@@ -242,7 +242,8 @@ RSpec.describe RAAF::Config::ExecutionConfig do
     it "handles agent with nil max_turns" do
       agent = double("Agent", max_turns: nil)
       config.max_turns = nil
-      expect(config.effective_max_turns(agent)).to be_nil
+      # Should return default of 10 when both are nil
+      expect(config.effective_max_turns(agent)).to eq(10)
     end
   end
 

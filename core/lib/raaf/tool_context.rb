@@ -91,7 +91,7 @@ module RAAF
   # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   # @see ContextualTool For context-aware tool execution
-  # @see ContextManager For multi-session context management
+  # @see ToolContextManager For multi-session context management
   class ToolContext
     # Class-level shared memory for all contexts
     @@global_shared_memory = {}
@@ -434,7 +434,7 @@ module RAAF
   end
 
   # Context manager for agent execution
-  class ContextManager
+  class ToolContextManager
 
     def initialize
       @contexts = {}

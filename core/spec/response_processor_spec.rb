@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe RAAF::ResponseProcessor do
   let(:processor) { described_class.new }
-  let(:agent) { double("agent", name: "TestAgent") }
+  let(:agent) { double("agent", name: "TestAgent", handoffs: [], tools: []) }
   let(:function_tool) { double("function_tool", name: "get_weather", is_a?: true) }
   let(:computer_tool) { double("computer_tool", class: double(name: "ComputerTool")) }
   let(:local_shell_tool) { double("local_shell_tool", class: double(name: "LocalShellTool")) }

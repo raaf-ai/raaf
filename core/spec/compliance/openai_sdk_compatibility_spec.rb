@@ -60,7 +60,7 @@ RSpec.describe "OpenAI SDK Compatibility", :compliance do
         expect(raaf_definition[:function][:name]).to eq("get_weather")
         expect(raaf_definition[:function][:parameters][:type]).to eq("object")
         expect(raaf_definition[:function][:parameters][:properties]).to have_key(:location)
-        expect(raaf_definition[:function][:parameters][:required]).to include("location")
+        expect(raaf_definition[:function][:parameters][:required]).to include(:location)
       end
     end
     

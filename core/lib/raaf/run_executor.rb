@@ -156,7 +156,7 @@ module RAAF
     # @return [RunResult] The execution result
     #
     def create_result(conversation, usage, context_wrapper, final_agent = nil, turns: nil, tool_results: nil)
-      effective_agent = final_agent || agent
+      effective_agent = final_agent || @agent
       
       # Debug: Check what's coming into create_result
       log_debug("🔍 DEBUG: create_result input",
@@ -187,8 +187,8 @@ module RAAF
       # For Python SDK compatibility, ensure system message from agent instructions is included
       # This maintains consistency with the system message used in API calls
       unless filtered_messages.any? { |msg| msg[:role] == "system" }
-        system_prompt = runner.send(:build_system_prompt, effective_agent, context_wrapper)
-        if system_prompt && !system_prompt.strip.empty?
+        system_prompt = @runner.send(:build_system_prompt, effective_agent, context_wrapper)
+        if system_prompt && system_prompt.respond_to?(:strip) && !system_prompt.strip.empty?
           system_message = { role: "system", content: system_prompt }
           filtered_messages.unshift(system_message)
         end
