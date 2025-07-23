@@ -205,7 +205,8 @@ module RAAF
     #
     # @return [Boolean] true if tool has parameters, false otherwise
     def parameters?
-      @parameters && @parameters[:properties]&.any?
+      return false unless @parameters && @parameters[:properties]
+      @parameters[:properties].any?
     end
 
     ##
@@ -213,7 +214,8 @@ module RAAF
     #
     # @return [Boolean] true if tool has required parameters, false otherwise
     def required_parameters?
-      @parameters && @parameters[:required]&.any?
+      return false unless @parameters && @parameters[:required]
+      @parameters[:required].any?
     end
 
     ##

@@ -78,7 +78,7 @@ module RAAF
       # @return [Boolean] true if input guardrails are present
       #
       def input_guardrails?
-        input_guardrails && !input_guardrails.empty?
+        !!(input_guardrails && !input_guardrails.empty?)
       end
 
       ##
@@ -87,7 +87,7 @@ module RAAF
       # @return [Boolean] true if output guardrails are present
       #
       def output_guardrails?
-        output_guardrails && !output_guardrails.empty?
+        !!(output_guardrails && !output_guardrails.empty?)
       end
 
       ##
