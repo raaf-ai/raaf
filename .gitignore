@@ -3,3 +3,7 @@
 /agent_memories
 /guides/output
 /core/src
+/core/coverage
+/.ruby-lsp
+/*/coverage
+/*/.ruby-lsp

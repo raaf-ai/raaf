@@ -96,3 +96,6 @@ Thumbs.db
 
 # RSpec
 .rspec_status
+
+# Ruby LSP
+.ruby-lsp/
