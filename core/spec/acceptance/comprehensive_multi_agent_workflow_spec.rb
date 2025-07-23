@@ -274,8 +274,14 @@ RSpec.describe "Comprehensive Multi-Agent Workflow Acceptance Test", :acceptance
     agent
   end
 
-  # Note: Guardrails functionality is tested separately in the guardrails gem
-  # This test focuses on core multi-agent workflow features
+  # Simple guardrails for testing core functionality
+  let(:length_input_guardrail) do
+    RAAF::Guardrails::LengthInputGuardrail.new(max_length: 1000)
+  end
+
+  let(:profanity_output_guardrail) do
+    RAAF::Guardrails::ProfanityOutputGuardrail.new
+  end
 
   describe "complete multi-agent workflow with all features" do
     it "successfully completes research, analysis, and report generation", vcr: { cassette_name: "comprehensive_multi_agent_workflow" } do
@@ -353,6 +359,76 @@ RSpec.describe "Comprehensive Multi-Agent Workflow Acceptance Test", :acceptance
       
       # Verify that some workflow data was captured
       expect(shared_context[:workflow_data]).not_to be_empty
+    end
+
+    it "demonstrates basic guardrail functionality with input/output validation" do
+      # Create agent with basic guardrails
+      test_agent = RAAF::Agent.new(
+        name: "GuardrailTestAgent",
+        instructions: "You are a test agent. Respond professionally.",
+        model: "gpt-4o"
+      )
+
+      # Add guardrails to the agent
+      test_agent.add_input_guardrail(length_input_guardrail)
+      test_agent.add_output_guardrail(profanity_output_guardrail)
+
+      # Use a mock provider to avoid VCR issues
+      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider.add_response("Ruby is a dynamic programming language.")
+      
+      runner = RAAF::Runner.new(agent: test_agent, provider: mock_provider)
+
+      # Test 1: Normal input should work fine
+      result = runner.run("What is Ruby programming?")
+      expect(result).to be_a(RAAF::RunResult)
+      expect(result.messages).not_to be_empty
+
+      # Test 2: Input that is too long should be blocked
+      long_input = "x" * 1001 # Exceeds the 1000 character limit
+      expect {
+        runner.run(long_input)
+      }.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered, /Input too long/)
+
+      # Verify the agent has guardrails configured
+      expect(test_agent.input_guardrails?).to be true
+      expect(test_agent.output_guardrails?).to be true
+      expect(test_agent.input_guardrails.length).to eq(1)
+      expect(test_agent.output_guardrails.length).to eq(1)
+    end
+
+    it "supports run-level guardrails in addition to agent-level guardrails" do
+      # Create basic agent without guardrails
+      test_agent = RAAF::Agent.new(
+        name: "RunLevelGuardrailTest",
+        instructions: "You are a test agent.",
+        model: "gpt-4o"
+      )
+
+      # Use a mock provider to avoid VCR issues
+      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider.add_response("Programming is the art of creating software applications.")
+      
+      runner = RAAF::Runner.new(agent: test_agent, provider: mock_provider)
+
+      # Test with run-level guardrails
+      result = runner.run(
+        "Tell me about programming",
+        input_guardrails: [length_input_guardrail],
+        output_guardrails: [profanity_output_guardrail]
+      )
+
+      expect(result).to be_a(RAAF::RunResult)
+      expect(result.messages).not_to be_empty
+
+      # Test that run-level input guardrails work
+      long_input = "x" * 1001
+      expect {
+        runner.run(
+          long_input,
+          input_guardrails: [length_input_guardrail]
+        )
+      }.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered, /Input too long/)
     end
   end
 end

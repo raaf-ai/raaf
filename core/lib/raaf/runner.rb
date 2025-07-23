@@ -210,6 +210,7 @@ module RAAF
     #
     def run(starting_agent, input = nil, stream: false, config: nil, hooks: nil, input_guardrails: nil, output_guardrails: nil,
             context: nil, max_turns: nil, session: nil, previous_response_id: nil, **)
+      puts "DEBUG Main Run: Called with input_guardrails=#{input_guardrails&.length} stream=#{stream}"
       # Detect usage pattern to maintain backward compatibility
       if (starting_agent.is_a?(String) || starting_agent.is_a?(Array)) && input.nil?
         # Legacy pattern: run("message") or run([messages]) - use instance agent
@@ -358,7 +359,9 @@ module RAAF
       end
 
       # Initialize hooks context for consistency
+      puts "DEBUG Runner: About to initialize run context"
       initialize_run_context(messages, config)
+      puts "DEBUG Runner: Run context initialized, current_config=#{@current_config.class.name}" if @current_config
 
       # Create streaming result
       streaming_result = RunResultStreaming.new(
@@ -465,13 +468,21 @@ module RAAF
       guardrails.concat(@current_config.input_guardrails) if @current_config&.input_guardrails
       guardrails.concat(agent.input_guardrails) if agent.respond_to?(:input_guardrails)
 
+      # Debug logging
+      puts "DEBUG: Guardrails count: #{guardrails.length}"
+      puts "DEBUG: Current config: #{@current_config.class.name}" if @current_config
+      puts "DEBUG: Input: #{input.length} characters" if input
+
       return if guardrails.empty?
 
       guardrails.each do |guardrail|
+        puts "DEBUG: Running guardrail: #{guardrail.get_name}"
         result = guardrail.run(context_wrapper, agent, input)
+        puts "DEBUG: Guardrail result: tripwire=#{result.tripwire_triggered?}"
 
         next unless result.tripwire_triggered?
 
+        puts "DEBUG: Raising guardrail exception"
         raise Guardrails::InputGuardrailTripwireTriggered.new(
           "Input guardrail '#{guardrail.get_name}' triggered",
           triggered_by: guardrail.get_name,
@@ -1099,7 +1110,7 @@ module RAAF
 
     # Initialize context and hooks for any run variant
     def initialize_run_context(messages, config)
-      @current_config = config
+      @current_config = config.execution
 
       # Create run context for hooks
       context = RunContext.new(

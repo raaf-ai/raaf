@@ -61,6 +61,8 @@ module RAAF
 
         # Run input guardrails
         current_input = conversation.last[:content] if conversation.last && conversation.last[:role] == "user"
+        puts "DEBUG TurnExecutor: current_input=#{current_input ? current_input.length : 'nil'} chars"
+        puts "DEBUG TurnExecutor: conversation.last=#{conversation.last}" if conversation.last
         runner.run_input_guardrails(context_wrapper, current_agent, current_input) if current_input
 
         # Execute API call via strategy
