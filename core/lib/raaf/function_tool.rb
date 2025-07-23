@@ -150,7 +150,7 @@ module RAAF
       elsif @callable.is_a?(Proc)
         # Handle both keyword and positional parameters for procs
         params = @callable.parameters
-        if params.empty? || params.any? { |type, _| %i[keyreq key].include?(type) }
+        if params.empty? || params.any? { |type, _| %i[keyreq key keyrest].include?(type) }
           # Proc expects keyword arguments or no arguments
           @callable.call(**kwargs)
         else
