@@ -97,6 +97,11 @@ RSpec.configure do |config|
     metadata[:cost] = true
   end
 
+  config.define_derived_metadata(file_path: %r{/spec/property_based/}) do |metadata|
+    metadata[:type] = :property
+    metadata[:property] = true
+  end
+
   # Skip integration tests by default unless explicitly requested
   config.filter_run_excluding :integration unless ENV["RUN_INTEGRATION_TESTS"]
 
@@ -105,6 +110,9 @@ RSpec.configure do |config|
 
   # Skip cost tests by default unless explicitly requested
   config.filter_run_excluding :cost unless ENV["RUN_COST_TESTS"]
+
+  # Skip acceptance tests by default unless explicitly requested
+  config.filter_run_excluding :acceptance unless ENV["RUN_ACCEPTANCE_TESTS"]
 
   # Configuration for integration tests
   config.before(:each, :integration) do
@@ -123,6 +131,25 @@ RSpec.configure do |config|
     # Reset cost tracking before each test
     RAAF::Testing::CostTracker.reset! if defined?(RAAF::Testing::CostTracker)
   end
+
+  # Configuration for acceptance tests
+  config.before(:each, :acceptance) do
+    # Skip if VCR not available
+    skip "VCR not available" unless defined?(VCR)
+    # Allow real HTTP connections for acceptance tests if VCR_ALLOW_HTTP is set
+    WebMock.allow_net_connect! if defined?(WebMock) && ENV["VCR_ALLOW_HTTP"]
+  end
+
+  # Configuration for property-based tests
+  config.before(:each, :property) do
+    # Disable WebMock for property tests as they generate random data
+    WebMock.disable! if defined?(WebMock)
+  end
+
+  config.after(:each, :property) do
+    # Re-enable WebMock after property tests
+    WebMock.enable! if defined?(WebMock)
+  end
 end
 
 # Test helpers and utilities
@@ -139,10 +166,30 @@ module RAAF
       end
 
       def add_response(content, tool_calls: nil, usage: nil)
+        default_usage = { 
+          prompt_tokens: 10, 
+          completion_tokens: 15, 
+          total_tokens: 25,
+          input_tokens: 10,
+          output_tokens: 15
+        }
+        
+        # Merge custom usage with defaults, converting string keys to symbols
+        final_usage = if usage
+          normalized_usage = {}
+          usage.each do |key, value|
+            symbol_key = key.to_sym
+            normalized_usage[symbol_key] = value
+          end
+          default_usage.merge(normalized_usage)
+        else
+          default_usage
+        end
+        
         response = {
           id: "mock_#{SecureRandom.hex(6)}",
           output: build_output(content, tool_calls),
-          usage: usage || { prompt_tokens: 10, completion_tokens: 15, total_tokens: 25 }
+          usage: final_usage
         }
         @responses << response
       end

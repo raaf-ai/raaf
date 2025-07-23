@@ -1,0 +1,180 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"What is 2+2?"}],"instructions":"You
+        route requests to appropriate models","tools":[{"type":"function","name":"transfer_to_expensive_agent","description":"Handoff
+        to the ExpensiveAgent agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the ExpensiveAgent agent"}},"required":["input"],"additionalProperties":false},"strict":true},{"type":"function","name":"transfer_to_cheap_agent","description":"Handoff
+        to the CheapAgent agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the CheapAgent agent"}},"required":["input"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 07:27:14 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79674'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 244ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_09b8bc60099e93e66bbdc44adec90ec3
+      Openai-Processing-Ms:
+      - '1932'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=snbSKred1AobSpLKBx1F_sH0fPTRh3TTf4FbvhTDRAU-1753255634-1.0.1.1-Zy_YIj.zHqj2yGDcS9TeyD4drwcAwz2ljaGZSVAZ7cWzuac7HXQGJojk91Ila4op.reni2FRaRNbV_0DHeIlh3L1KJDlHZsHZtZvr9Wznnc;
+        path=/; expires=Wed, 23-Jul-25 07:57:14 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=TgViiL5mIX7BPZ1PUKx_tL4gVfyBynIfoJv8KvvEpGU-1753255634223-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 96397434ffc06706-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_68808ed04058819cbd7c66c2bf7e7ea70aed1426c246b22b",
+          "object": "response",
+          "created_at": 1753255632,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "You route requests to appropriate models",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_68808ed17130819c9dd3544de1e0e61e0aed1426c246b22b",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n  \"input\": \"What is 2+2?\"\n}",
+              "call_id": "call_uzXLQ7nlsECcPhJrq6kuMnEQ",
+              "name": "transfer_to_cheap_agent"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Handoff to the ExpensiveAgent agent to handle the request.",
+              "name": "transfer_to_expensive_agent",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the ExpensiveAgent agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Handoff to the CheapAgent agent to handle the request.",
+              "name": "transfer_to_cheap_agent",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the CheapAgent agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 120,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 24,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 144
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Wed, 23 Jul 2025 07:27:14 GMT
+recorded_with: VCR 6.3.1

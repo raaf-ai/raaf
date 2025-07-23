@@ -1,0 +1,75 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4o-mini","input":[{"type":"user_text","text":"Hello"}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 400
+      message: Bad Request
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 07:27:11 GMT
+      Content-Type:
+      - application/json
+      Content-Length:
+      - '442'
+      Connection:
+      - keep-alive
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_abe43801af561d02a0f0f93608276354
+      Openai-Processing-Ms:
+      - '15'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=RwncuEgFECSigCNEMdnIDmxeKXL6T_9mNNWu._oD.Fc-1753255631-1.0.1.1-zA1kPIoikAOGOT2aIw28GI21rfaxr5Z6dWllq964WGk8.xQD50JCgbBTG6tcejbiCVJxUzmKvRBPbydZj9aaUclksI_LbDZYNVbnwStcBkc;
+        path=/; expires=Wed, 23-Jul-25 07:57:11 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=spR9cKfCWtPOMznmXCbxGw8_jlAPrBG2QSNluLrtAIQ-1753255631579-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963974307b505ec9-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "error": {
+            "message": "Invalid value: 'user_text'. Supported values are: 'code_interpreter_call', 'computer_call', 'computer_call_output', 'file_search_call', 'function_call', 'function_call_output', 'image_generation_call', 'item_reference', 'local_shell_call', 'local_shell_call_output', 'message', 'reasoning', and 'web_search_call'.",
+            "type": "invalid_request_error",
+            "param": "input[0]",
+            "code": "invalid_value"
+          }
+        }
+  recorded_at: Wed, 23 Jul 2025 07:27:11 GMT
+recorded_with: VCR 6.3.1

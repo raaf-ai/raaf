@@ -309,9 +309,8 @@ module RAAF
       # This would integrate with your computer tool implementation
       # For now, return a placeholder result
       {
-        type: "tool_output",
-        content: "Computer action executed",
-        agent: agent.name
+        type: "function_call_output",
+        output: "Computer action executed"
       }
     end
 
@@ -322,9 +321,8 @@ module RAAF
       # This would integrate with your shell tool implementation
       # For now, return a placeholder result
       {
-        type: "tool_output",
-        content: "Shell command executed",
-        agent: agent.name
+        type: "function_call_output",
+        output: "Shell command executed"
       }
     end
 
@@ -437,11 +435,14 @@ module RAAF
     # Create tool output item
     #
     def create_tool_output_item(tool_call, result, agent)
+      original_id = tool_call[:id] || tool_call["id"] || tool_call[:call_id] || tool_call["call_id"] || SecureRandom.uuid
+      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
+      normalized_id = original_id.to_s.sub(/^fc_/, 'call_')
+      
       raw_item = {
-        type: "tool_output",
-        id: tool_call[:id] || tool_call[:call_id] || SecureRandom.uuid,
-        content: result.to_s,
-        agent: agent.name
+        type: "function_call_output",
+        call_id: normalized_id,
+        output: result.to_s
       }
       Items::ToolCallOutputItem.new(agent: agent, raw_item: raw_item, output: result)
     end
@@ -451,8 +452,10 @@ module RAAF
     #
     def create_handoff_output_item(tool_call, transfer_message, from_agent, _to_agent)
       # Create function_call_output for OpenAI API compliance
-      # Use call_id field if available, otherwise fall back to id
-      call_id = tool_call[:call_id] || tool_call[:id] || tool_call.dig(:function, :id)
+      # Use id field first (from OpenAI API), then fall back to call_id
+      original_id = tool_call[:id] || tool_call["id"] || tool_call[:call_id] || tool_call["call_id"] || tool_call.dig(:function, :id)
+      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
+      call_id = original_id.to_s.sub(/^fc_/, 'call_')
 
       # Debug the tool call structure
       log_debug("🔧 STEP_PROCESSOR: Creating handoff output",

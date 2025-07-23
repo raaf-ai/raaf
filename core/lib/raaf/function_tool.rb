@@ -345,7 +345,7 @@ module RAAF
           case type
           when :req, :keyreq
             properties[name] = { type: "string", description: "#{name} parameter" }
-            required << name
+            required << name.to_s
           when :opt, :key
             properties[name] = { type: "string", description: "#{name} parameter" }
           end

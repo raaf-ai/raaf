@@ -1,0 +1,129 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Hello"}],"stream":false,"tool_choice":{"type":"function","function":{"name":"get_current_time"}},"tools":[{"type":"function","function":{"name":"get_current_time","description":"Get
+        the current time","parameters":{"type":"object","properties":{"timezone":{"type":"string","description":"The
+        timezone (e.g., ''UTC'', ''PST'')"}},"required":["timezone"]}}}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - application/json
+      User-Agent:
+      - Ruby
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 07:26:54 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Expose-Headers:
+      - X-Request-ID
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Processing-Ms:
+      - '242'
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      Openai-Version:
+      - '2020-10-01'
+      X-Envoy-Upstream-Service-Time:
+      - '251'
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '4000000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '3999995'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 0s
+      X-Request-Id:
+      - req_bcaabea468f32a805430bff6d36c05fd
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=Laij8qpSgBb.YfxkiL3cCT4eF472BiO3qEoTgy1tWG0-1753255614-1.0.1.1-TYNpT7oSc_bEJAydxH.ZsdE_RSuLoBSA4EoWG9pFfckOK8x.i8mTkSiGlXyTEhTHk00wtieeaRKlm0PWCg_AKm5cpkcZpzFkHu3DmCSAtw8;
+        path=/; expires=Wed, 23-Jul-25 07:56:54 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=aEIhdJNA3bXUKxylujSBzTqyegaUdulFOtTeGcLdVQU-1753255614225-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963973c0a8736708-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |
+        {
+          "id": "chatcmpl-BwOAHJ4FBJLWAQj2F6FcAGPm1olYP",
+          "object": "chat.completion",
+          "created": 1753255613,
+          "model": "gpt-3.5-turbo-0125",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [
+                  {
+                    "id": "call_GxLiRz2m4YEjmGe1MANPWnrF",
+                    "type": "function",
+                    "function": {
+                      "name": "get_current_time",
+                      "arguments": "{\"timezone\":\"UTC\"}"
+                    }
+                  }
+                ],
+                "refusal": null,
+                "annotations": []
+              },
+              "logprobs": null,
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 70,
+            "completion_tokens": 5,
+            "total_tokens": 75,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "service_tier": "default",
+          "system_fingerprint": null
+        }
+  recorded_at: Wed, 23 Jul 2025 07:26:54 GMT
+recorded_with: VCR 6.3.1

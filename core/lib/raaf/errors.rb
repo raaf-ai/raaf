@@ -89,7 +89,14 @@ module RAAF
   #
   # @example
   #   raise AuthenticationError, "Invalid API key provided"
-  class AuthenticationError < Error; end
+  class AuthenticationError < Error
+    attr_reader :status
+    
+    def initialize(message, status: nil)
+      super(message)
+      @status = status
+    end
+  end
 
   ##
   # Raised when API rate limits are exceeded
@@ -99,7 +106,14 @@ module RAAF
   #
   # @example
   #   raise RateLimitError, "Rate limit exceeded. Retry after 60 seconds"
-  class RateLimitError < Error; end
+  class RateLimitError < Error
+    attr_reader :status
+    
+    def initialize(message, status: nil)
+      super(message)
+      @status = status
+    end
+  end
 
   ##
   # Raised when the API server encounters an error
@@ -109,7 +123,14 @@ module RAAF
   #
   # @example
   #   raise ServerError, "API server error (status 500): #{response}"
-  class ServerError < Error; end
+  class ServerError < Error
+    attr_reader :status
+    
+    def initialize(message, status: nil)
+      super(message)
+      @status = status
+    end
+  end
 
   ##
   # Raised when API requests fail due to client or server errors
@@ -119,7 +140,14 @@ module RAAF
   #
   # @example
   #   raise APIError, "API request failed: #{response}"
-  class APIError < Error; end
+  class APIError < Error
+    attr_reader :status
+    
+    def initialize(message, status: nil)
+      super(message)
+      @status = status
+    end
+  end
 
   ##
   # Raised when agent execution is stopped by user request
@@ -156,5 +184,22 @@ module RAAF
   # @example Provider configuration error
   #   raise ProviderError, "Provider initialization failed: #{error}"
   class ProviderError < Error; end
+
+  ##
+  # Raised when API requests are invalid or malformed
+  #
+  # This exception is raised when request parameters are invalid,
+  # missing required fields, or violate API constraints.
+  #
+  # @example
+  #   raise InvalidRequestError, "Invalid model specified"
+  class InvalidRequestError < Error
+    attr_reader :status
+    
+    def initialize(message, status: nil)
+      super(message)
+      @status = status
+    end
+  end
 
 end

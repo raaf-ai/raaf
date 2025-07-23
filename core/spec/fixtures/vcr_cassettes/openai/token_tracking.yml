@@ -1,0 +1,119 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-3.5-turbo","messages":[{"role":"system","content":"You
+        are a concise assistant."},{"role":"user","content":"Explain quantum computing
+        in exactly 50 words."}],"stream":false,"max_tokens":100}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - application/json
+      User-Agent:
+      - Ruby
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 07:26:59 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Expose-Headers:
+      - X-Request-ID
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Processing-Ms:
+      - '1635'
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      Openai-Version:
+      - '2020-10-01'
+      X-Envoy-Upstream-Service-Time:
+      - '1641'
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '4000000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '3999978'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 0s
+      X-Request-Id:
+      - req_cd5339bf0b457ca876ed05945e5da0a2
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=PjBO3L6pRXQACP4pZygfFenP_fhJKzaZIQueo8ulBW4-1753255619-1.0.1.1-kAw56.eu4KqXK.U2OO4RjBeiPR6kX4SGE7gt2J2IT47C22oP.IFUQOpMj8D7G.KP_awSKfiY4ZChSRB1BNmyw9vpYmx3Dax2ZQlNcz_eDoc;
+        path=/; expires=Wed, 23-Jul-25 07:56:59 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=fMeTrJBfo9H6KpUC0C.tu6gspFMJjpX3aD7G.FLBTKQ-1753255619414-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963973da1b6c9d31-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |
+        {
+          "id": "chatcmpl-BwOALU8ZJ0xa1cAGekyfgn0Rz9w2l",
+          "object": "chat.completion",
+          "created": 1753255617,
+          "model": "gpt-3.5-turbo-0125",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Quantum computing leverages principles of quantum mechanics to process information using quantum bits, or qubits. Unlike classical computing, qubits can exist in multiple states simultaneously, enabling parallel computation and faster processing of complex problems. Quantum computers have the potential to revolutionize fields like cryptography, optimization, and drug discovery.",
+                "refusal": null,
+                "annotations": []
+              },
+              "logprobs": null,
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 27,
+            "completion_tokens": 61,
+            "total_tokens": 88,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "service_tier": "default",
+          "system_fingerprint": null
+        }
+  recorded_at: Wed, 23 Jul 2025 07:26:59 GMT
+recorded_with: VCR 6.3.1

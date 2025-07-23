@@ -151,6 +151,25 @@ module RAAF
         "tool_call_item"
       end
 
+      ##
+      # Convert tool call item to input format
+      #
+      # For Responses API, tool calls should be converted to function_call format
+      # instead of maintaining the internal tool_call format.
+      #
+      # @return [Hash] The item in API input format
+      def to_input_item
+        raise ArgumentError, "Unexpected raw item type: #{@raw_item.class}" unless @raw_item.is_a?(Hash)
+
+        # Convert from internal tool_call format to Responses API function_call format
+        {
+          type: "function_call",
+          name: @raw_item[:name] || @raw_item["name"],
+          arguments: @raw_item[:arguments] || @raw_item["arguments"],
+          call_id: @raw_item[:id] || @raw_item["id"]
+        }
+      end
+
     end
 
     ##

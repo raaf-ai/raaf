@@ -16,6 +16,11 @@ group :test do
   gem "simplecov"
   gem "vcr"
   gem "webmock"
+  gem "rantly", "~> 2.0"  # Property-based testing
+  gem "rspec-benchmark", "~> 0.6"  # Performance testing
+  gem "memory_profiler", "~> 1.0"  # Memory analysis
+  gem "benchmark-memory", "~> 0.2"  # Memory benchmarking
+  gem "json-schema", "~> 4.0"  # API contract validation
 end
 
 group :development, :test do

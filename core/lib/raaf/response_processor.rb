@@ -318,9 +318,13 @@ module RAAF
     # Create tool call item from response
     #
     def create_tool_call_item(item, agent)
+      original_id = item[:id] || item[:call_id] || SecureRandom.uuid
+      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
+      normalized_id = original_id.to_s.sub(/^fc_/, 'call_')
+      
       raw_item = {
         type: "tool_call",
-        id: item[:id] || item[:call_id] || SecureRandom.uuid,
+        id: normalized_id,
         name: item[:name] || item.dig(:function, :name),
         arguments: item[:arguments] || item.dig(:function, :arguments) || "{}",
         agent: agent.name
@@ -332,9 +336,13 @@ module RAAF
     # Create handoff call item from response
     #
     def create_handoff_call_item(item, agent)
+      original_id = item[:id] || item[:call_id] || SecureRandom.uuid
+      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
+      normalized_id = original_id.to_s.sub(/^fc_/, 'call_')
+      
       raw_item = {
         type: "function_call",
-        id: item[:id] || item[:call_id] || SecureRandom.uuid,
+        id: normalized_id,
         name: item[:name] || item.dig(:function, :name),
         arguments: item[:arguments] || item.dig(:function, :arguments) || "{}",
         agent: agent.name
