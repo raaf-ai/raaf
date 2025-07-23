@@ -5,7 +5,7 @@ require "rantly"
 require "rantly/rspec_extensions"
 
 RSpec.describe "Error Handling Property-Based Tests" do
-  describe RAAF::ErrorHandler do
+  describe RAAF::Execution::ErrorHandler do
     context "property: error recovery strategies" do
       it "always returns a valid result for any error type" do
         property_of {

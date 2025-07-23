@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "async"
+require "set"
 require_relative "step_result"
 require_relative "processed_response"
 require_relative "response_processor"
@@ -140,7 +141,10 @@ module RAAF
     #
     def execute_tools_and_side_effects(agent:, original_input:, pre_step_items:,
                                        processed_response:, context_wrapper:, runner:, config:)
-      new_step_items = processed_response.new_items.dup
+      # CRITICAL FIX: Only include non-function_call and non-tool_call items initially
+      # function_call and tool_call items will be added back only if they are successfully processed
+      new_step_items = processed_response.new_items.reject { |item| %w[function_call tool_call].include?(item.raw_item[:type]) }
+      processed_function_call_ids = Set.new
 
       # Track tool usage
       @tool_use_tracker.add_tool_use(agent, processed_response.tools_used)
@@ -150,6 +154,21 @@ module RAAF
         tool_results = execute_function_tools_parallel(
           processed_response.functions, agent, context_wrapper, runner, config
         )
+
+        # Add successfully processed function calls back to new_step_items
+        tool_results.each do |tool_result|
+          # Find the corresponding function_call or tool_call item and add it
+          function_call_item = processed_response.new_items.find do |item|
+            %w[function_call tool_call].include?(item.raw_item[:type]) && 
+            (item.raw_item[:id] == tool_result.run_item.raw_item[:call_id] ||
+             item.raw_item[:call_id] == tool_result.run_item.raw_item[:call_id])
+          end
+          
+          if function_call_item
+            new_step_items << function_call_item
+            processed_function_call_ids << function_call_item.raw_item[:id] || function_call_item.raw_item[:call_id]
+          end
+        end
 
         new_step_items.concat(tool_results.map(&:run_item))
 
@@ -186,6 +205,19 @@ module RAAF
           runner: runner,
           config: config
         )
+      end
+
+      # Log any unprocessed function calls for debugging
+      unprocessed_function_calls = processed_response.new_items.select do |item|
+        %w[function_call tool_call].include?(item.raw_item[:type]) && 
+        !processed_function_call_ids.include?(item.raw_item[:id] || item.raw_item[:call_id])
+      end
+      
+      if unprocessed_function_calls.any?
+        log_debug("⚠️ STEP_PROCESSOR: Unprocessed function calls detected",
+                  count: unprocessed_function_calls.size,
+                  call_ids: unprocessed_function_calls.map { |item| item.raw_item[:id] || item.raw_item[:call_id] },
+                  call_names: unprocessed_function_calls.map { |item| item.raw_item[:name] })
       end
 
       # Check for final output from message content
@@ -435,8 +467,10 @@ module RAAF
     # Create tool output item
     #
     def create_tool_output_item(tool_call, result, agent)
-      original_id = tool_call[:id] || tool_call["id"] || tool_call[:call_id] || tool_call["call_id"] || SecureRandom.uuid
-      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
+      # Use call_id field FIRST (this is the actual call ID from OpenAI API)
+      # then fall back to id field with fc_ to call_ conversion
+      original_id = tool_call[:call_id] || tool_call["call_id"] || tool_call[:id] || tool_call["id"] || SecureRandom.uuid
+      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility (for fallback case)
       normalized_id = original_id.to_s.sub(/^fc_/, 'call_')
       
       raw_item = {
@@ -452,9 +486,10 @@ module RAAF
     #
     def create_handoff_output_item(tool_call, transfer_message, from_agent, _to_agent)
       # Create function_call_output for OpenAI API compliance
-      # Use id field first (from OpenAI API), then fall back to call_id
-      original_id = tool_call[:id] || tool_call["id"] || tool_call[:call_id] || tool_call["call_id"] || tool_call.dig(:function, :id)
-      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
+      # Use call_id field FIRST (this is the actual call ID from OpenAI API)
+      # then fall back to id field with fc_ to call_ conversion
+      original_id = tool_call[:call_id] || tool_call["call_id"] || tool_call[:id] || tool_call["id"] || tool_call.dig(:function, :id)
+      # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility (for fallback case)
       call_id = original_id.to_s.sub(/^fc_/, 'call_')
 
       # Debug the tool call structure
@@ -506,6 +541,7 @@ module RAAF
       # Return JSON format like Python implementation
       { assistant: target_agent.name }.to_json
     end
+
 
   end
 

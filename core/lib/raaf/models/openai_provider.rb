@@ -165,7 +165,8 @@ module RAAF
             end
           end
 
-          @client.chat.completions.create(**parameters)
+          response = @client.chat.completions.create(**parameters)
+          normalize_response_format(response)
         rescue HTTPClient::Error => e
           handle_openai_error(e)
         end
@@ -284,6 +285,44 @@ module RAAF
           accumulated_content: accumulated_content,
           accumulated_tool_calls: accumulated_tool_calls.values
         })
+      end
+
+      ##
+      # Normalize OpenAI Chat Completions API response to match ResponsesProvider format
+      #
+      # This method converts the legacy usage format (prompt_tokens, completion_tokens)
+      # to the new format (input_tokens, output_tokens) for backwards compatibility.
+      #
+      # @param response [Hash] Raw response from OpenAI Chat Completions API
+      # @return [Hash] Normalized response with converted usage format
+      #
+      def normalize_response_format(response)
+        # Convert usage format if present
+        if response.respond_to?(:[]) && response[:usage]
+          usage = response[:usage]
+          
+          # Convert legacy field names to new format
+          if usage[:prompt_tokens] || usage["prompt_tokens"]
+            response[:usage] = {
+              input_tokens: usage[:prompt_tokens] || usage["prompt_tokens"] || 0,
+              output_tokens: usage[:completion_tokens] || usage["completion_tokens"] || 0,
+              total_tokens: usage[:total_tokens] || usage["total_tokens"] || 0
+            }
+          end
+        elsif response.respond_to?(:dig) && response.dig("usage")
+          usage = response["usage"]
+          
+          # Convert legacy field names to new format for string keys
+          if usage["prompt_tokens"] || usage["completion_tokens"]
+            response["usage"] = {
+              "input_tokens" => usage["prompt_tokens"] || 0,
+              "output_tokens" => usage["completion_tokens"] || 0,
+              "total_tokens" => usage["total_tokens"] || 0
+            }
+          end
+        end
+        
+        response
       end
 
       def handle_openai_error(error)

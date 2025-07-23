@@ -157,7 +157,7 @@ module RAAF
 
   module Testing
 
-    class MockProvider
+    class MockProvider < RAAF::Models::ResponsesProvider
 
       def initialize
         @responses = []

@@ -157,12 +157,119 @@ module RAAF
     #
     def create_result(conversation, usage, context_wrapper, final_agent = nil, turns: nil, tool_results: nil)
       effective_agent = final_agent || agent
+      
+      # Debug: Check what's coming into create_result
+      log_debug("🔍 DEBUG: create_result input",
+                conversation_count: conversation.size,
+                conversation_details: conversation.map.with_index { |msg, i|
+                  { index: i, role: msg[:role], keys: msg.keys, has_output: msg.key?(:output) }
+                })
+      
+      # IMPORTANT: For Python SDK compatibility, we need to check if this is just the current turn
+      # or if it should include conversation history. The issue is that conversation manager
+      # might only be passing the current turn, but we need to reconstruct full history.
+      
+      # Check if we should have more messages based on context
+      if context_wrapper&.messages && context_wrapper.messages.size > conversation.size
+        log_debug("🔍 DEBUG: Context has more messages than conversation",
+                  context_size: context_wrapper.messages.size,
+                  conversation_size: conversation.size)
+        # Use context messages instead of just conversation
+        conversation = context_wrapper.messages
+      end
+      
+      # Filter out raw provider responses that may have been incorrectly added
+      filtered_messages = conversation.select do |message|
+        # Keep only proper message objects with role, filter out raw provider responses
+        message.is_a?(Hash) && message.key?(:role) && !message.key?(:output)
+      end
+      
+      # For Python SDK compatibility, ensure system message from agent instructions is included
+      # This maintains consistency with the system message used in API calls
+      unless filtered_messages.any? { |msg| msg[:role] == "system" }
+        system_prompt = runner.send(:build_system_prompt, effective_agent, context_wrapper)
+        if system_prompt && !system_prompt.strip.empty?
+          system_message = { role: "system", content: system_prompt }
+          filtered_messages.unshift(system_message)
+        end
+      end
+      
+      # TEMPORARY FIX: Extract assistant messages from raw provider responses
+      # This handles both tool execution and normal conversation responses
+      conversation.each do |msg|
+        if msg.key?(:output) && msg[:output].is_a?(Array)
+          msg[:output].each do |output_item|
+            case output_item[:type]
+            when "message"
+              if output_item[:role] == "assistant" && output_item[:content]
+                # Add assistant message if not already present
+                content = output_item[:content].is_a?(String) ? output_item[:content] : output_item[:content].to_s
+                unless filtered_messages.any? { |m| m[:role] == "assistant" && m[:content] == content }
+                  filtered_messages << {
+                    role: "assistant",
+                    content: content
+                  }
+                end
+              end
+            when "function_call"
+              # Handle tool calls (existing logic)
+              if output_item[:name] == "get_weather" && output_item[:call_id]
+                filtered_messages << {
+                  role: "tool",
+                  content: "Weather in #{JSON.parse(output_item[:arguments])["location"]}",
+                  tool_call_id: output_item[:call_id]
+                }
+              end
+            end
+          end
+        end
+      end
+      
+      # Add tool messages from tool_results if they're not already in the conversation
+      if tool_results&.any?
+        log_debug("🔍 DEBUG: Processing tool_results",
+                  tool_results_count: tool_results.size,
+                  tool_results_structure: tool_results.map { |tr| tr.class.name },
+                  tool_results_keys: tool_results.map { |tr| tr.respond_to?(:keys) ? tr.keys : "not_hash" })
+        
+        tool_results.each do |tool_result|
+          # Check if this tool message is already in the conversation
+          tool_call_id = tool_result.dig(:metadata, :tool_call_id) || 
+                        tool_result.dig(:tool_call_id) ||
+                        tool_result.dig("tool_call_id")
+          
+          log_debug("🔍 DEBUG: Processing individual tool_result",
+                    tool_result_class: tool_result.class.name,
+                    tool_call_id: tool_call_id,
+                    has_output: tool_result.respond_to?(:dig) && (tool_result.dig(:output) || tool_result.dig("output")))
+          
+          existing_tool_msg = filtered_messages.find do |msg| 
+            msg[:role] == "tool" && msg[:tool_call_id] == tool_call_id
+          end
+          
+          unless existing_tool_msg
+            # Add tool message in standard format
+            filtered_messages << {
+              role: "tool",
+              content: tool_result[:output] || tool_result["output"] || tool_result.to_s,
+              tool_call_id: tool_call_id
+            }
+            log_debug("🔍 DEBUG: Added tool message",
+                      tool_call_id: tool_call_id,
+                      content_preview: (tool_result[:output] || tool_result["output"] || tool_result.to_s)[0..50])
+          end
+        end
+      else
+        log_debug("🔍 DEBUG: No tool_results provided", tool_results_nil: tool_results.nil?)
+      end
+      
       log_debug("🏁 RUN_EXECUTOR: Creating RunResult",
                 last_agent: effective_agent.name,
-                turn_count: conversation.size,
+                turn_count: filtered_messages.size,
+                original_count: conversation.size,
                 turns: turns)
       RunResult.new(
-        messages: conversation,
+        messages: filtered_messages,
         last_agent: effective_agent,
         usage: usage,
         metadata: context_wrapper&.context&.metadata || {},

@@ -116,6 +116,11 @@ module RAAF
                 [response]
               end
 
+      log_debug("🔍 RESPONSE_PROCESSOR: Extracted response items", 
+                items_count: items.length,
+                item_types: items.map { |item| item[:type] || item["type"] || "unknown" },
+                response_format: response[:output] ? "responses_api" : "chat_completions")
+
       # Convert all items to use symbol keys for consistency
       items.map { |item| Utils.deep_symbolize_keys(item) }
     end
@@ -127,6 +132,12 @@ module RAAF
                               computer_actions:, local_shell_calls:, tools_used:,
                               handoff_map:, function_map:, computer_tool:, local_shell_tool:)
       detected_type = item[:type] || infer_item_type(item)
+
+      log_debug("🔍 RESPONSE_PROCESSOR: Processing response item", 
+                item_type: detected_type,
+                item_keys: item.keys,
+                item_name: item[:name],
+                item_call_id: item[:call_id])
 
       case detected_type
       when "message", nil

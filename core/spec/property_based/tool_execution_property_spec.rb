@@ -5,9 +5,9 @@ require "rantly"
 require "rantly/rspec_extensions"
 
 RSpec.describe "Tool Execution Property-Based Tests" do
-  describe RAAF::ToolExecutor do
+  describe RAAF::Execution::ToolExecutor do
     let(:runner) { double("Runner") }
-    let(:executor) { RAAF::ToolExecutor.new(runner) }
+    let(:executor) { RAAF::Execution::ToolExecutor.new(runner) }
 
     context "property: tool execution with any input types" do
       it "safely executes tools with random argument types" do

@@ -1243,10 +1243,8 @@ module RAAF
                     category: :handoff)
 
           # CRITICAL FIX: When using previous_response_id with Responses API,
-          # items from the previous response are automatically included in context.
-          # Including them again in the input creates duplicates.
-          # We must skip function_call and message items from the previous response but
-          # ALWAYS include function_call_output items as they contain tool results.
+          # the API expects only function_call_output items, not the original function_call items.
+          # The previous_response_id tells the API which response the outputs correspond to.
           if previous_response_id && %w[function_call message].include?(item_type)
             log_debug("🔧 HANDOFF: Skipping #{item_type} item due to previous_response_id",
                       item_id: item_id,
@@ -1370,15 +1368,17 @@ module RAAF
                         end)
         end
 
-        # Make API call
-        response = @provider.responses_completion(
+        # Make API call - only include tools parameter if tools exist
+        api_params = {
           messages: request_messages,
           model: model,
-          tools: tools,
           previous_response_id: previous_response_id,
           input: current_input,
           **model_params
-        )
+        }
+        api_params[:tools] = tools if tools&.any?
+        
+        response = @provider.responses_completion(**api_params)
 
         # Validate response structure for Responses API
         unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
@@ -1590,9 +1590,34 @@ module RAAF
                      end
       call_hook(:on_agent_end, context_wrapper, state[:current_agent], final_output)
 
-      # Build final messages
-      final_messages = messages.dup
+      # Debug: Check what's in messages before building final_messages
+      log_debug("🔍 DEBUG: messages before final_messages creation", 
+                messages_count: messages.size,
+                messages_details: messages.map.with_index { |msg, i| 
+                  { index: i, role: msg[:role], keys: msg.keys, has_output: msg.key?(:output) }
+                })
+
+      # Build final messages - filter out any raw provider responses that may have been incorrectly added
+      final_messages = messages.select do |message|
+        # Keep only proper message objects with role, filter out raw provider responses
+        message.is_a?(Hash) && message.key?(:role) && !message.key?(:output)
+      end
+      
+      # For Python SDK compatibility, ensure system message from agent instructions is included
+      # This maintains consistency with the system message used in API calls
+      unless final_messages.any? { |msg| msg[:role] == "system" }
+        system_prompt = build_system_prompt(state[:current_agent], context_wrapper)
+        if system_prompt && !system_prompt.strip.empty?
+          system_message = { role: "system", content: system_prompt }
+          final_messages.unshift(system_message)
+        end
+      end
       model_responses.each do |response|
+        # Debug: Check what we're processing
+        log_debug("🔍 DEBUG: Processing model response", 
+                  response_keys: response.keys,
+                  has_output: response.key?(:output))
+        
         # Extract content from Responses API format
         output = response[:output] || response["output"] || []
         assistant_content = ""
@@ -1621,6 +1646,33 @@ module RAAF
 
         final_messages << { role: "assistant", content: assistant_content } unless assistant_content.empty?
       end
+
+      # Add tool messages from generated_items
+      generated_items.each do |item|
+        case item
+        when Items::ToolCallOutputItem
+          # Convert tool call output items to standard tool message format
+          final_messages << {
+            role: "tool",
+            content: item.output.to_s,
+            tool_call_id: item.raw_item[:call_id] || item.raw_item["call_id"]
+          }
+        when Items::FunctionCallOutputItem  
+          # Convert function call output items to standard tool message format
+          final_messages << {
+            role: "tool", 
+            content: item.raw_item[:output] || item.raw_item["output"] || "",
+            tool_call_id: item.raw_item[:call_id] || item.raw_item["call_id"]
+          }
+        end
+      end
+
+      # Debug: Check final messages before RunResult creation
+      log_debug("🔍 DEBUG: final_messages before RunResult creation",
+                final_messages_count: final_messages.size,
+                final_messages_details: final_messages.map.with_index { |msg, i|
+                  { index: i, role: msg[:role], keys: msg.keys, has_output: msg.key?(:output) }
+                })
 
       log_debug("🏁 FINAL RESULT: Creating RunResult",
                 final_agent: state[:current_agent].name,
