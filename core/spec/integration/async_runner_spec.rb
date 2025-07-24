@@ -510,6 +510,11 @@ RSpec.describe RAAF::Async::Runner do
   describe "retry functionality" do
     let(:runner) { described_class.new(agent: agent) }
 
+    before do
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
+        .to receive(:chat_completion).and_return(mock_response)
+    end
+
     describe "#process_with_retry" do
       it "returns a task ID" do
         task_id = runner.process_with_retry(agent, "test message")
@@ -537,6 +542,11 @@ RSpec.describe RAAF::Async::Runner do
   describe "streaming session" do
     let(:runner) { described_class.new(agent: agent) }
 
+    before do
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
+        .to receive(:chat_completion).and_return(mock_response)
+    end
+
     describe "#create_streaming_session" do
       it "creates an AsyncStreamingSession" do
         session = runner.create_streaming_session(agent)
@@ -559,6 +569,11 @@ RSpec.describe RAAF::Async::Runner do
 
   describe "shutdown functionality" do
     let(:runner) { described_class.new(agent: agent) }
+
+    before do
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
+        .to receive(:chat_completion).and_return(mock_response)
+    end
 
     describe "#shutdown" do
       it "marks runner as shutdown" do
@@ -585,6 +600,10 @@ RSpec.describe RAAF::Async::Runner do
     before do
       # Test without RAAF::Logging defined
       hide_const("RAAF::Logging") if defined?(RAAF::Logging)
+      
+      # Mock the provider to prevent HTTP requests
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
+        .to receive(:chat_completion).and_return(mock_response)
     end
 
     describe "#log_info" do
