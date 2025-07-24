@@ -86,12 +86,14 @@ module RAAF
 
       tools.any? do |tool|
         case tool
-        when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
-          true
         when Hash
           %w[web_search file_search computer].include?(tool[:type])
         else
-          false
+          # Check if tool is a hosted tool class without depending on RAAF::Tools constants
+          tool.class.name&.include?("WebSearchTool") ||
+            tool.class.name&.include?("HostedFileSearchTool") ||
+            tool.class.name&.include?("HostedComputerTool") ||
+            false
         end
       end
     end
@@ -243,13 +245,17 @@ module RAAF
     def prepare_tools_for_responses_api(tools)
       tools.map do |tool|
         case tool
-        when RAAF::Tools::WebSearchTool, RAAF::Tools::HostedFileSearchTool, RAAF::Tools::HostedComputerTool
-          tool.to_tool_definition
         when Hash
           tool
         else
-          # Convert FunctionTool to hash format
-          tool.respond_to?(:to_h) ? tool.to_h : tool
+          # Check if tool has to_tool_definition method (for hosted tools)
+          if tool.respond_to?(:to_tool_definition)
+            tool.to_tool_definition
+          elsif tool.respond_to?(:to_h)
+            tool.to_h
+          else
+            tool
+          end
         end
       end
     end
@@ -261,6 +267,16 @@ module RAAF
         return content if content
       end
       nil
+    end
+
+    def safe_extract_last_message_content(messages)
+      # Extract content from the last user message for Responses API
+      return "" if messages.nil? || messages.empty?
+
+      last_message = messages.last
+      return "" unless last_message.is_a?(Hash)
+
+      last_message[:content] || last_message["content"] || ""
     end
 
   end

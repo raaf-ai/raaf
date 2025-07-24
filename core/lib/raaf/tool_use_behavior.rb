@@ -261,7 +261,7 @@ module RAAF
       def initialize(tool_names, output_extractor: nil)
         super()
         @tool_names = Array(tool_names).map(&:to_s)
-        @output_extractor = output_extractor || ->(results) { results.last[:content] }
+        @output_extractor = output_extractor || ->(results, _tools) { results.last[:content] }
       end
 
       def process_tool_result(_agent, tool_calls, results, conversation)
