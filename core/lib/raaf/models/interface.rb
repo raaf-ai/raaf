@@ -2,9 +2,7 @@
 
 require_relative "../logging"
 require_relative "../errors"
-
-# Always include RetryableProvider for retry functionality
-require_relative "../../../../providers/lib/raaf/models/retryable_provider"
+require_relative "retryable_provider"
 
 module RAAF
 
@@ -44,7 +42,7 @@ module RAAF
     class ModelInterface
 
       include Logger
-      include RetryableProvider # ALL providers get retries by default
+      include RetryableProvider
 
       ##
       # Initialize a new model provider

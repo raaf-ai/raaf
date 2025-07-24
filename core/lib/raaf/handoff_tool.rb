@@ -276,7 +276,7 @@ module RAAF
             description: "Remaining workflow steps"
           }
         },
-        required: ["workflow_step", "workflow_data"],
+        required: %w[workflow_step workflow_data],
         additionalProperties: false
       }
     end
@@ -304,7 +304,7 @@ module RAAF
             description: "Reason for user handoff"
           }
         },
-        required: ["user_id", "reason"],
+        required: %w[user_id reason],
         additionalProperties: false
       }
     end
@@ -338,7 +338,7 @@ module RAAF
             description: "Task priority"
           }
         },
-        required: ["task_id", "task_type"],
+        required: %w[task_id task_type],
         additionalProperties: false
       }
     end

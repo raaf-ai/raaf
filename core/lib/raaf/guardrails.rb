@@ -47,7 +47,9 @@
 # @author Ruby AI Agents Factory Team
 # @since 0.1.0
 module RAAF
+
   module Guardrails
+
     ##
     # Base error class for all guardrail-related exceptions
     #
@@ -84,6 +86,7 @@ module RAAF
     #     puts "Input blocked by #{e.triggered_by}: #{e.metadata[:blocked_reason]}"
     #   end
     class InputGuardrailTripwireTriggered < GuardrailError
+
       attr_reader :triggered_by, :content, :metadata
 
       ##
@@ -99,6 +102,7 @@ module RAAF
         @content = content
         @metadata = metadata
       end
+
     end
 
     ##
@@ -125,6 +129,7 @@ module RAAF
     #     puts "Filtered: #{e.metadata[:filtered_output]}"
     #   end
     class OutputGuardrailTripwireTriggered < GuardrailError
+
       attr_reader :triggered_by, :content, :metadata
 
       ##
@@ -140,6 +145,7 @@ module RAAF
         @content = content
         @metadata = metadata
       end
+
     end
 
     ##
@@ -160,6 +166,7 @@ module RAAF
     #     puts "Guardrail blocked input: #{result.output.output_info[:blocked_reason]}"
     #   end
     class GuardrailResult
+
       attr_accessor :output, :tripwire_triggered
 
       ##
@@ -198,6 +205,7 @@ module RAAF
       #   puts "Original: #{info[:original_output]}"
       #   puts "Filtered: #{info[:filtered_output]}"
       class Output
+
         attr_accessor :output_info
 
         ##
@@ -207,12 +215,15 @@ module RAAF
         def initialize(output_info: nil)
           @output_info = output_info || {}
         end
+
       end
+
     end
 
     ##
     # Base class for input guardrails
     class InputGuardrail
+
       attr_reader :name, :instructions, :validation_proc
 
       def initialize(name: nil, instructions: nil, &block)
@@ -225,13 +236,13 @@ module RAAF
         @name
       end
 
-      def run(context_wrapper, agent, input)
+      def run(_context_wrapper, _agent, input)
         result = GuardrailResult.new
         result.output = GuardrailResult::Output.new
 
         if @validation_proc
           validation_result = @validation_proc.call(input)
-          
+
           if validation_result.is_a?(String)
             # String result means the input was blocked
             result.tripwire_triggered = true
@@ -246,11 +257,13 @@ module RAAF
 
         result
       end
+
     end
 
     ##
     # Base class for output guardrails
     class OutputGuardrail
+
       attr_reader :name, :instructions, :filter_proc
 
       def initialize(name: nil, instructions: nil, &block)
@@ -263,13 +276,13 @@ module RAAF
         @name
       end
 
-      def run(context_wrapper, agent, output)
+      def run(_context_wrapper, _agent, output)
         result = GuardrailResult.new
         result.output = GuardrailResult::Output.new
 
         if @filter_proc
           filtered_output = @filter_proc.call(output)
-          
+
           if filtered_output != output
             # Output was modified, return the filtered version
             result.output.output_info = { original_output: output, filtered_output: filtered_output }
@@ -278,25 +291,25 @@ module RAAF
 
         result
       end
+
     end
 
     ##
     # Simple length-based input guardrail
     class LengthInputGuardrail < InputGuardrail
+
       def initialize(max_length:, name: "LengthGuardrail")
         super(name: name, instructions: "Block inputs longer than #{max_length} characters") do |input|
-          if input.length > max_length
-            "Input too long: #{input.length} characters (max: #{max_length})"
-          else
-            nil
-          end
+          "Input too long: #{input.length} characters (max: #{max_length})" if input.length > max_length
         end
       end
+
     end
 
     ##
     # Simple profanity filter output guardrail
     class ProfanityOutputGuardrail < OutputGuardrail
+
       PROFANITY_WORDS = %w[damn hell].freeze
 
       def initialize(name: "ProfanityFilter")
@@ -308,6 +321,9 @@ module RAAF
           filtered
         end
       end
+
     end
+
   end
+
 end

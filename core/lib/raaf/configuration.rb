@@ -59,6 +59,7 @@ module RAAF
   class Configuration
 
     include Logger
+
     ##
     # Default configuration values
     DEFAULT_CONFIG = {

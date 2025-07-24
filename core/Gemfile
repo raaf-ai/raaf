@@ -11,16 +11,18 @@ group :development do
 end
 
 group :test do
+  gem "benchmark-memory", "~> 0.2" # Memory benchmarking
+  gem "concurrent-ruby", "~> 1.2" # Thread-safe collections for performance tests
+  gem "json-schema", "~> 4.0" # API contract validation
+  gem "memory_profiler", "~> 1.0" # Memory analysis
+  gem "rantly", "~> 2.0" # Property-based testing
   gem "rspec", "~> 3.0"
+  gem "rspec-benchmark", "~> 0.6" # Performance testing
   gem "rspec-collection_matchers", "~> 1.2"
+  gem "rspec_junit_formatter", "~> 0.6" # JUnit XML formatter for CI
   gem "simplecov"
   gem "vcr"
   gem "webmock"
-  gem "rantly", "~> 2.0"  # Property-based testing
-  gem "rspec-benchmark", "~> 0.6"  # Performance testing
-  gem "memory_profiler", "~> 1.0"  # Memory analysis
-  gem "benchmark-memory", "~> 0.2"  # Memory benchmarking
-  gem "json-schema", "~> 4.0"  # API contract validation
 end
 
 group :development, :test do

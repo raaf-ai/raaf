@@ -1,0 +1,306 @@
+name: Core Nightly Tests
+
+on:
+  schedule:
+    # Run every night at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  RUBY_VERSION: '3.2'
+
+jobs:
+  # Comprehensive test matrix
+  comprehensive-matrix:
+    name: "🌙 Comprehensive Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false  # Don't stop other matrix jobs if one fails
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        ruby-version: ['3.2', '3.3', '3.4', 'ruby-head']
+        exclude:
+          # Exclude some combinations to reduce matrix size
+          - os: macos-latest
+            ruby-version: 'ruby-head'
+          - os: windows-latest
+            ruby-version: 'ruby-head'
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby ${{ matrix.ruby-version }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+        bundler-cache: true
+
+    - name: Install dependencies (Core gem)
+      run: |
+        cd core
+        bundle install
+
+    - name: Run all tests (Core gem)
+      run: |
+        cd core
+        RUN_INTEGRATION_TESTS=true RUN_PERFORMANCE_TESTS=true RUN_COST_TESTS=true RUN_ACCEPTANCE_TESTS=true \
+        bundle exec rspec \
+          --format progress \
+          --format RspecJunitFormatter \
+          --out test-results-${{ matrix.os }}-${{ matrix.ruby-version }}.xml
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: nightly-test-results-${{ matrix.os }}-${{ matrix.ruby-version }}
+        path: core/test-results-*.xml
+
+  # Memory profiling and leak detection
+  memory-analysis:
+    name: "🧠 Memory Analysis"
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies and profiling tools
+      run: |
+        cd core
+        bundle install
+        gem install memory_profiler
+        gem install ruby-prof
+
+    - name: Run memory profiling
+      run: |
+        cd core
+        cat << 'EOF' > memory_profile.rb
+        require 'memory_profiler'
+        require 'bundler/setup'
+        require_relative 'lib/raaf-core'
+        
+        puts "🧠 Memory Profiling Report"
+        puts "=" * 50
+        
+        report = MemoryProfiler.report do
+          # Simulate realistic usage
+          100.times do |i|
+            agent = RAAF::Agent.new(
+              name: "Agent#{i}",
+              instructions: "Test agent for memory profiling",
+              model: "gpt-4o"
+            )
+            
+            # Add tools
+            agent.add_tool(proc { |x| x * 2 })
+            agent.add_tool(proc { |x| x + 1 })
+          end
+        end
+        
+        puts "Total allocated: #{report.total_allocated} objects (#{report.total_allocated_memsize} bytes)"
+        puts "Total retained: #{report.total_retained} objects (#{report.total_retained_memsize} bytes)"
+        
+        # Check for potential memory leaks
+        if report.total_retained > report.total_allocated * 0.1
+          puts "⚠️  WARNING: High memory retention detected (#{(report.total_retained.to_f / report.total_allocated * 100).round(2)}%)"
+          puts "This might indicate a memory leak."
+        else
+          puts "✅ Memory retention looks healthy (#{(report.total_retained.to_f / report.total_allocated * 100).round(2)}%)"
+        end
+        EOF
+        
+        ruby memory_profile.rb
+
+    - name: Run garbage collection stress test
+      run: |
+        cd core
+        cat << 'EOF' > gc_stress_test.rb
+        require 'bundler/setup'
+        require_relative 'lib/raaf-core'
+        require 'objspace'
+        
+        puts "🗑️  Garbage Collection Stress Test"
+        puts "=" * 50
+        
+        # Force GC stats collection
+        GC.stat
+        initial_stats = GC.stat
+        
+        # Create and destroy many objects
+        1000.times do |i|
+          agent = RAAF::Agent.new(
+            name: "StressAgent#{i}",
+            instructions: "Stress test agent",
+            model: "gpt-4o"
+          )
+          
+          # Add and remove tools to stress memory
+          tool = proc { |x| x }
+          agent.add_tool(tool)
+          
+          # Explicitly nil to help GC
+          agent = nil
+          tool = nil
+          
+          # Force GC every 100 iterations
+          GC.start if i % 100 == 0
+        end
+        
+        # Final GC
+        GC.start
+        final_stats = GC.stat
+        
+        puts "GC runs: #{final_stats[:count] - initial_stats[:count]}"
+        puts "Major GC runs: #{final_stats[:major_gc_count] - initial_stats[:major_gc_count]}"
+        puts "Objects allocated: #{final_stats[:total_allocated_objects] - initial_stats[:total_allocated_objects]}"
+        puts "Objects freed: #{final_stats[:total_freed_objects] - initial_stats[:total_freed_objects]}"
+        
+        # Check object space
+        puts "\nObject space summary:"
+        ObjectSpace.count_objects.each do |type, count|
+          puts "  #{type}: #{count}" if count > 1000
+        end
+        EOF
+        
+        ruby gc_stress_test.rb
+
+  # Security and dependency scanning
+  security-scan:
+    name: "🔒 Security Scan"
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies
+      run: |
+        cd core
+        bundle install
+
+    - name: Run bundle audit
+      run: |
+        cd core
+        gem install bundler-audit
+        bundle audit check --update --verbose
+
+    - name: Run Brakeman security scan
+      run: |
+        cd core
+        gem install brakeman
+        brakeman --quiet --format json --output brakeman-report.json || true
+        if [ -f brakeman-report.json ]; then
+          echo "📋 Security scan completed. Report:"
+          cat brakeman-report.json | jq '.'
+        fi
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          core/brakeman-report.json
+
+  # Coverage analysis
+  coverage-analysis:
+    name: "📊 Coverage Analysis"
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies
+      run: |
+        cd core
+        bundle install
+
+    - name: Run tests with coverage
+      run: |
+        cd core
+        COVERAGE=true RUN_INTEGRATION_TESTS=true RUN_ACCEPTANCE_TESTS=true \
+        bundle exec rspec --format progress
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: core/coverage/
+
+  # Generate nightly report
+  nightly-summary:
+    name: "📈 Nightly Summary"
+    runs-on: ubuntu-latest
+    needs: [comprehensive-matrix, memory-analysis, security-scan, coverage-analysis]
+    if: always()
+    
+    steps:
+    - name: Generate summary report
+      run: |
+        echo "# 🌙 Nightly Test Report - $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## Test Matrix Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.comprehensive-matrix.result }}" == "success" ]]; then
+          echo "✅ **Comprehensive Matrix Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Comprehensive Matrix Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.memory-analysis.result }}" == "success" ]]; then
+          echo "✅ **Memory Analysis**: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Memory Analysis**: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.security-scan.result }}" == "success" ]]; then
+          echo "✅ **Security Scan**: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Security Scan**: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.coverage-analysis.result }}" == "success" ]]; then
+          echo "✅ **Coverage Analysis**: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Coverage Analysis**: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.comprehensive-matrix.result }}" == "success" && "${{ needs.memory-analysis.result }}" == "success" && "${{ needs.security-scan.result }}" == "success" && "${{ needs.coverage-analysis.result }}" == "success" ]]; then
+          echo "🎉 **All nightly tests passed!** The core gem is in excellent health." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ **Some nightly tests failed.** Review the results and take appropriate action." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Generated on: $(date)" >> $GITHUB_STEP_SUMMARY

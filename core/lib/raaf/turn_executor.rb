@@ -97,7 +97,6 @@ module RAAF
 
         # Handoffs are now handled through tool calls only
         # No separate handoff detection needed
-        handoff_result = { handoff_occurred: false }
 
         # Determine if execution should continue
         should_continue = @tool_executor.should_continue?(message)

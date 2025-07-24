@@ -49,4 +49,37 @@ namespace :test do
     ENV["VERBOSE"] = "true"
     Rake::Task["spec"].execute
   end
+
+  desc "Run integration tests"
+  task :integration do
+    ENV["RUN_INTEGRATION_TESTS"] = "true"
+    Rake::Task["spec"].execute
+  end
+
+  desc "Run performance tests"
+  task :performance do
+    ENV["RUN_PERFORMANCE_TESTS"] = "true"
+    Rake::Task["spec"].execute
+  end
+
+  desc "Run cost tests"
+  task :cost do
+    ENV["RUN_COST_TESTS"] = "true"
+    Rake::Task["spec"].execute
+  end
+
+  desc "Run acceptance tests"
+  task :acceptance do
+    ENV["RUN_ACCEPTANCE_TESTS"] = "true"
+    Rake::Task["spec"].execute
+  end
+
+  desc "Run all tests (unit, integration, performance, cost, acceptance)"
+  task :all do
+    ENV["RUN_INTEGRATION_TESTS"] = "true"
+    ENV["RUN_PERFORMANCE_TESTS"] = "true"
+    ENV["RUN_COST_TESTS"] = "true"
+    ENV["RUN_ACCEPTANCE_TESTS"] = "true"
+    Rake::Task["spec"].execute
+  end
 end

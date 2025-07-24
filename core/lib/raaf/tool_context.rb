@@ -93,9 +93,16 @@ module RAAF
   # @see ContextualTool For context-aware tool execution
   # @see ToolContextManager For multi-session context management
   class ToolContext
+
     # Class-level shared memory for all contexts
-    @@global_shared_memory = {}
-    @@global_shared_memory_mutex = Mutex.new
+    @global_shared_memory = {}
+    @global_shared_memory_mutex = Mutex.new
+
+    class << self
+
+      attr_accessor :global_shared_memory, :global_shared_memory_mutex
+
+    end
 
     # @return [String] unique identifier for this context instance
     attr_reader :id
@@ -105,10 +112,10 @@ module RAAF
 
     # @return [Hash] metadata associated with this context
     attr_reader :metadata
-    
+
     # @return [ToolContext, nil] parent context if any
     attr_reader :parent
-    
+
     # @return [Array<ToolContext>] child contexts
     attr_reader :children
 
@@ -139,7 +146,7 @@ module RAAF
       @locks = {}
       @parent = parent
       @children = []
-      
+
       # Register with parent if present
       @parent.instance_variable_get(:@children) << self if @parent
     end
@@ -196,26 +203,26 @@ module RAAF
         start_time = Time.now
         result = nil
         error_caught = nil
-        
+
         begin
           result = block.call
-        rescue => e
+        rescue StandardError => e
           error_caught = e
           raise
         ensure
           duration = Time.now - start_time
           track_execution_internal(tool_name, input, result, duration, error: error_caught)
         end
-        
-        return result
+
+        result
       else
         # Direct API call
         track_execution_internal(tool_name, input, output, duration, error: error)
       end
     end
-    
+
     private
-    
+
     def track_execution_internal(tool_name, input, output, duration, error: nil)
       return unless @track_executions
 
@@ -236,7 +243,7 @@ module RAAF
       # Limit history size to prevent memory issues
       @execution_history.shift if @execution_history.size > 1000
     end
-    
+
     public
 
     # Get execution history
@@ -292,20 +299,20 @@ module RAAF
 
     # Shared memory between tools
     def shared_get(key, default = nil)
-      @@global_shared_memory_mutex.synchronize do
-        @@global_shared_memory.fetch(key.to_s, default)
+      self.class.global_shared_memory_mutex.synchronize do
+        self.class.global_shared_memory.fetch(key.to_s, default)
       end
     end
 
     def shared_set(key, value)
-      @@global_shared_memory_mutex.synchronize do
-        @@global_shared_memory[key.to_s] = value
+      self.class.global_shared_memory_mutex.synchronize do
+        self.class.global_shared_memory[key.to_s] = value
       end
     end
 
     def shared_delete(key)
-      @@global_shared_memory_mutex.synchronize do
-        @@global_shared_memory.delete(key.to_s)
+      self.class.global_shared_memory_mutex.synchronize do
+        self.class.global_shared_memory.delete(key.to_s)
       end
     end
 
@@ -336,41 +343,39 @@ module RAAF
         execution_history: @execution_history
       }
     end
-    
+
     # Export context as JSON string
-    def to_json(*args)
-      export.to_json(*args)
+    def to_json(*)
+      export.to_json(*)
     end
-    
+
     # Import data from hash
     def from_hash(data, replace: false)
-      if replace
-        @data.clear
-      end
+      @data.clear if replace
       @data.merge!(data.transform_keys(&:to_s))
     end
-    
+
     # Get most used tools
     def most_used_tools(limit: nil)
       tool_counts = @execution_history.group_by { |e| e[:tool_name] }
                                       .transform_values(&:size)
                                       .sort_by { |_, count| -count }
                                       .map(&:first)
-      
+
       limit ? tool_counts.first(limit) : tool_counts
     end
-    
+
     # Calculate average execution time per tool
     def average_execution_time
       tool_times = {}
-      
+
       @execution_history.select { |e| e[:success] }.group_by { |e| e[:tool_name] }.each do |tool, executions|
         durations = executions.map { |e| e[:duration] }.compact
         next if durations.empty?
-        
+
         tool_times[tool] = durations.sum / durations.size.to_f
       end
-      
+
       tool_times
     end
 

@@ -30,15 +30,15 @@ module RAAF
     def run_workflow(initial_message, starting_agent: nil)
       # Normalize the initial message to ensure it's not nil
       initial_message = "" if initial_message.nil?
-      
+
       # Set starting agent
       first_agent = starting_agent || @agents.keys.first
       @handoff_context.instance_variable_set(:@current_agent, first_agent)
 
       log_info("Starting workflow",
-                 starting_agent: first_agent,
-                 total_agents: @agents.size,
-                 message: initial_message)
+               starting_agent: first_agent,
+               total_agents: @agents.size,
+               message: initial_message)
 
       workflow_start_time = Time.now
       results = []
@@ -50,14 +50,14 @@ module RAAF
 
         # Get current agent
         agent_config = @agents[current_agent_name]
-        
+
         log_debug("🔍 ORCHESTRATOR: Agent lookup",
                   current_agent_name: current_agent_name,
                   agent_config_present: !agent_config.nil?,
                   agent_config_class: agent_config&.class&.name,
                   agent_config_name: agent_config.respond_to?(:name) ? agent_config.name : nil,
                   handoff_context_current: @handoff_context.current_agent)
-        
+
         unless agent_config
           return WorkflowResult.new(
             success: false,
@@ -80,7 +80,7 @@ module RAAF
             started_at: workflow_start_time
           )
         end
-        
+
         # Check for errors
         if agent_result[:success] == false
           return WorkflowResult.new(
@@ -213,14 +213,14 @@ module RAAF
       # Run agent
       begin
         runner = Runner.new(agent: agent, provider: @provider)
-        
+
         log_debug("🔍 ORCHESTRATOR: About to run agent",
                   agent: agent_name,
                   agent_object_name: agent.name,
                   message: message,
                   message_class: message.class.name,
                   provider_class: @provider.class.name)
-        
+
         result = runner.run(message)
 
         log_debug("🔍 ORCHESTRATOR: Runner result details",
@@ -228,13 +228,13 @@ module RAAF
                   result_class: result.class.name,
                   messages_count: result.messages.size,
                   has_tool_results: result.respond_to?(:tool_results) && result.tool_results&.any?,
-                  all_messages: result.messages.map { |msg| 
-                    msg.slice(:role, :content, :tool_calls, :tool_call_id) 
-                  })
+                  all_messages: result.messages.map do |msg|
+                    msg.slice(:role, :content, :tool_calls, :tool_call_id)
+                  end)
 
         # Extract handoff information from result
         extract_agent_result(result, agent_name)
-      rescue => e
+      rescue StandardError => e
         {
           success: false,
           error: "Agent execution failed: #{e.message}",
@@ -254,10 +254,10 @@ module RAAF
       # Handle both RunResult objects and plain hashes (for tests)
       messages = result.respond_to?(:messages) ? result.messages : result[:messages] || []
       usage = result.respond_to?(:usage) ? result.usage : result[:usage]
-      
+
       # Extract tool_calls from RunResult if available
       result_tool_calls = result.respond_to?(:tool_calls) ? result.tool_calls : []
-      
+
       log_debug("🔍 ORCHESTRATOR: Extracting result from runner",
                 agent: agent_name,
                 result_class: result.class.name,
@@ -267,37 +267,45 @@ module RAAF
                 result_tool_calls_count: result_tool_calls.size,
                 result_tool_calls: result_tool_calls,
                 all_messages_preview: messages.map { |m| "#{m[:role]}: #{m[:content]&.slice(0, 50)}..." })
-      
-      return {
-        success: true,
-        agent: agent_name,
-        messages: messages,
-        usage: usage,
-        handoff_requested: false,
-        workflow_completed: false,
-        tool_calls: []
-      } if messages.empty?
-      
+
+      if messages.empty?
+        return {
+          success: true,
+          agent: agent_name,
+          messages: messages,
+          usage: usage,
+          handoff_requested: false,
+          workflow_completed: false,
+          tool_calls: []
+        }
+      end
+
       last_message = messages.last
-      return {
-        success: true,
-        agent: agent_name,
-        messages: messages,
-        usage: usage,
-        handoff_requested: false,
-        workflow_completed: false,
-        tool_calls: []
-      } unless last_message
+      unless last_message
+        return {
+          success: true,
+          agent: agent_name,
+          messages: messages,
+          usage: usage,
+          handoff_requested: false,
+          workflow_completed: false,
+          tool_calls: []
+        }
+      end
 
       # Check for tool calls in the last message or from RunResult
       # Handle both string and symbol keys
       tool_calls = last_message[:tool_calls] || last_message["tool_calls"] || result_tool_calls || []
-      
+
       # Also check if this is a tool response message
       if tool_calls.empty? && last_message[:role] == "tool"
         # Try to parse the tool response to see if it contains handoff info
         begin
-          tool_content = JSON.parse(last_message[:content]) rescue {}
+          tool_content = begin
+            JSON.parse(last_message[:content])
+          rescue StandardError
+            {}
+          end
           if tool_content["assistant"]
             # This is a handoff response
             handoff_requested = true
@@ -306,11 +314,11 @@ module RAAF
                       agent: agent_name,
                       target_agent: target_agent)
           end
-        rescue => e
+        rescue StandardError => e
           log_debug("Failed to parse tool response", error: e.message)
         end
       end
-      
+
       log_debug("Tool calls extraction",
                 agent: agent_name,
                 tool_calls_found: tool_calls.size,
@@ -319,9 +327,9 @@ module RAAF
                 last_message_content: last_message[:content])
 
       # Initialize variables if not already set by tool response parsing
-      handoff_requested = handoff_requested || false
-      workflow_completed = workflow_completed || false
-      target_agent = target_agent || nil
+      handoff_requested ||= false
+      workflow_completed ||= false
+      target_agent ||= nil
       handoff_data = {}
 
       tool_calls.each do |tool_call|
@@ -345,9 +353,9 @@ module RAAF
         end
       end
 
-      log_debug("Extracted agent result", 
+      log_debug("Extracted agent result",
                 agent: agent_name,
-                handoff_requested: handoff_requested, 
+                handoff_requested: handoff_requested,
                 target_agent: target_agent,
                 workflow_completed: workflow_completed,
                 tool_calls_count: tool_calls.size)
@@ -387,13 +395,13 @@ module RAAF
       return true if agent_result[:completion_signal] == true
       return true if agent_result[:workflow_completed] == true
       return true if @handoff_context.shared_context[:workflow_completed] == true
-      
+
       # Check if no handoff is requested and no handoffs are available
-      if agent_result[:handoff_requested] == false && 
+      if agent_result[:handoff_requested] == false &&
          (agent_result[:available_handoffs].nil? || agent_result[:available_handoffs].empty?)
         return true
       end
-      
+
       false
     end
 
@@ -406,7 +414,7 @@ module RAAF
     def execute_handoff(agent_result)
       target_agent = agent_result[:target_agent]
       handoff_data = agent_result[:handoff_data] || {}
-      
+
       # Verify target agent exists
       unless @agents.key?(target_agent)
         return {
@@ -414,7 +422,7 @@ module RAAF
           error: "Target agent '#{target_agent}' not available in agents: #{@agents.keys}"
         }
       end
-      
+
       # Prepare handoff in context
       @handoff_context.set_handoff(
         target_agent: target_agent,
@@ -423,9 +431,7 @@ module RAAF
       )
 
       # Execute the handoff
-      handoff_result = @handoff_context.execute_handoff
-      
-      handoff_result
+      @handoff_context.execute_handoff
     end
 
   end

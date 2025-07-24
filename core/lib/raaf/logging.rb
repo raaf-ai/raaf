@@ -540,14 +540,14 @@ module RAAF
       end
 
       def debug_categories=(value)
-        case value
-        when Array
-          @debug_categories = value
-        when Symbol, String
-          @debug_categories = [value.to_sym]
-        else
-          @debug_categories = [:all]
-        end
+        @debug_categories = case value
+                            when Array
+                              value
+                            when Symbol, String
+                              [value.to_sym]
+                            else
+                              [:all]
+                            end
       end
 
       def debug_enabled?(category)

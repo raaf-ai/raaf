@@ -90,12 +90,14 @@ module RAAF
   # @example
   #   raise AuthenticationError, "Invalid API key provided"
   class AuthenticationError < Error
+
     attr_reader :status
-    
+
     def initialize(message, status: nil)
       super(message)
       @status = status
     end
+
   end
 
   ##
@@ -107,12 +109,14 @@ module RAAF
   # @example
   #   raise RateLimitError, "Rate limit exceeded. Retry after 60 seconds"
   class RateLimitError < Error
+
     attr_reader :status
-    
+
     def initialize(message, status: nil)
       super(message)
       @status = status
     end
+
   end
 
   ##
@@ -124,12 +128,14 @@ module RAAF
   # @example
   #   raise ServerError, "API server error (status 500): #{response}"
   class ServerError < Error
+
     attr_reader :status
-    
+
     def initialize(message, status: nil)
       super(message)
       @status = status
     end
+
   end
 
   ##
@@ -141,12 +147,14 @@ module RAAF
   # @example
   #   raise APIError, "API request failed: #{response}"
   class APIError < Error
+
     attr_reader :status
-    
+
     def initialize(message, status: nil)
       super(message)
       @status = status
     end
+
   end
 
   ##
@@ -194,12 +202,14 @@ module RAAF
   # @example
   #   raise InvalidRequestError, "Invalid model specified"
   class InvalidRequestError < Error
+
     attr_reader :status
-    
+
     def initialize(message, status: nil)
       super(message)
       @status = status
     end
+
   end
 
 end

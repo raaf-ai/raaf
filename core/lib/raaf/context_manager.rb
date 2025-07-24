@@ -192,10 +192,12 @@ module RAAF
       end
 
       # Always preserve recent messages
-      recent_messages = @preserve_recent > 0 ? regular_messages.last(@preserve_recent) : []
-      older_messages = @preserve_recent > 0 && @preserve_recent < regular_messages.length ? 
-                      regular_messages[0...-@preserve_recent] : 
-                      (@preserve_recent == 0 ? regular_messages : [])
+      recent_messages = @preserve_recent.positive? ? regular_messages.last(@preserve_recent) : []
+      older_messages = if @preserve_recent.positive? && @preserve_recent < regular_messages.length
+                         regular_messages[0...-@preserve_recent]
+                       else
+                         (@preserve_recent.zero? ? regular_messages : [])
+                       end
 
       # Start with system messages and recent messages
       result = system_messages + recent_messages

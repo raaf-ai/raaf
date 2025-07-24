@@ -338,7 +338,6 @@ module RAAF
         base_instructions
       end
 
-
       ##
       # Get provider capabilities
       #

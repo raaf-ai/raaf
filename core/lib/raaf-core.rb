@@ -98,4 +98,8 @@ module RAAF
   # Core gem version
   CORE_VERSION = "0.1.0"
 
+  # Aliases for easier access to common classes
+  ErrorHandler = Execution::ErrorHandler
+  RecoveryStrategy = Execution::ErrorHandler::RecoveryStrategy
+
 end

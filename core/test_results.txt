@@ -1,0 +1,4356 @@
+
+While loading ./spec/result_working_spec.rb a `raise SyntaxError` occurred, RSpec will now quit.
+Failure/Error: __send__(method, file)
+
+SyntaxError:
+  --> /Users/hajee/enterprisemodules/work/raaf/core/spec/result_working_spec.rb
+  Unmatched keyword, missing `end' ?
+  >   5  [1;3mRSpec.describe "RAAF Result Types" do
+  [0m>   6  [1;3m  describe RAAF::Result do
+  [0m> 175  [1;3m  end
+  [0m> 177  [1;3m  describe RAAF::AgentResult do
+  [0m> 178  [1;3m    describe "#initialize" do
+  [0m> 232  [1;3m  end
+  [0m> 411  [1;3mend
+  [0m
+  [1m/Users/hajee/enterprisemodules/work/raaf/core/spec/result_working_spec.rb:1518: syntax error, unexpected end-of-input, expecting `end' or dummy end ([1;4mSyntaxError[m[1m)[m
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/configuration.rb:2144:in `load'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/configuration.rb:2144:in `load_file_handling_errors'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/configuration.rb:1643:in `block in load_spec_files'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/configuration.rb:1641:in `each'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/configuration.rb:1641:in `load_spec_files'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/runner.rb:102:in `setup'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/runner.rb:86:in `run'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/runner.rb:71:in `run'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/lib/rspec/core/runner.rb:45:in `invoke'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/gems/rspec-core-3.13.5/exe/rspec:4:in `<top (required)>'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/bin/rspec:25:in `load'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/bin/rspec:25:in `<main>'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/bin/ruby_executable_hooks:22:in `eval'
+# /Users/hajee/.rvm/gems/ruby-3.3.5/bin/ruby_executable_hooks:22:in `<main>'
+# 
+#   Showing full backtrace because every line was filtered out.
+#   See docs for RSpec::Configuration#backtrace_exclusion_patterns and
+#   RSpec::Configuration#backtrace_inclusion_patterns for more information.
+Run options: exclude {:acceptance=>true, :cost=>true, :performance=>true, :integration=>true}
+
+Randomized with seed 34431
+
+RAAF::Utils
+  .prepare_for_openai
+    prepares function definition format
+    prepares typical OpenAI request format
+    correctly converts all keys to strings
+  .normalize_response
+    normalizes error responses
+    correctly converts all keys to symbols
+    normalizes typical OpenAI response format
+  .deep_stringify_keys
+    converts symbol keys to strings in simple hash
+    converts keys recursively in nested hashes
+    leaves non-hash, non-array objects unchanged
+    converts string keys to strings (no-op)
+    handles mixed nested arrays and hashes
+    preserves original object (creates new objects)
+    handles mixed string and symbol keys
+    processes arrays with hashes recursively
+    handles empty collections
+  .parse_json
+    parses valid JSON with symbolized keys
+    raises JSON::ParserError for invalid JSON
+    parses JSON arrays with symbolized keys
+    handles primitive JSON values
+    parses nested JSON structures
+  .format_number
+    formats integers with thousands separators
+    handles edge cases
+    converts input to string first
+    formats floats with thousands separators
+    handles very large numbers
+    handles negative numbers
+    handles small numbers without separators
+  performance considerations
+    handles large arrays efficiently
+    handles deeply nested structures without stack overflow
+  .prepare_schema_for_openai
+    prepares schema for OpenAI strict mode
+    delegates to StrictSchema.ensure_strict_json_schema
+  integration scenarios
+    supports agent name normalization workflow
+    supports safe JSON processing in error scenarios
+    supports typical API request/response cycle
+  .deep_symbolize_keys
+    preserves original object (creates new objects)
+    handles mixed nested arrays and hashes
+    processes arrays with hashes recursively
+    leaves non-hash, non-array objects unchanged
+    handles mixed string and symbol keys
+    converts symbol keys to symbols (no-op)
+    handles empty collections
+    converts string keys to symbols in simple hash
+    converts keys recursively in nested hashes
+  roundtrip conversions
+    maintains data integrity through symbolize -> stringify roundtrip
+    maintains data integrity through stringify -> symbolize roundtrip
+  .sanitize_identifier
+    sanitizes tool names
+    sanitizes table names
+    handles database identifiers
+    delegates to snake_case
+  .snake_case
+    converts PascalCase to snake_case
+    removes leading and trailing underscores
+    handles acronyms correctly
+    converts camelCase to snake_case
+    handles spaces and special characters
+    collapses multiple underscores
+    handles mixed acronyms and words
+    handles numbers in various positions
+    preserves already snake_case strings
+    converts symbols to strings first
+    handles edge cases
+  .safe_parse_json
+    returns different default types
+    parses valid JSON successfully
+    returns specified default for invalid JSON
+    returns nil for invalid JSON by default
+    handles various types of invalid JSON
+    delegates to parse_json for valid JSON
+  .normalize_whitespace
+    strips leading and trailing whitespace
+    handles newlines and line breaks
+    handles empty and whitespace-only strings
+    removes extra whitespace from text
+    normalizes various types of whitespace
+    preserves single spaces between words
+    handles special characters mixed with whitespace
+    converts input to string first
+
+RAAF::RunConfig
+  #to_h
+    returns complete configuration as hash
+    merges all sub-config hashes
+  #with_configs
+    replaces execution config when provided
+    replaces tracing config when provided
+    replaces multiple configs at once
+    replaces model config when provided
+    creates copy with same configs when no changes
+  parameter extraction
+    #extract_model_params
+      extracts model-specific parameters
+      merges model_kwargs when present
+    #extract_execution_params
+      extracts execution-specific parameters
+    #extract_tracing_params
+      extracts tracing-specific parameters
+  #merge
+    merges model configs with other taking precedence
+    merges execution configs
+    merges tracing configs
+    creates new config with merged values
+    returns self when other is nil
+  #initialize
+    with mixed config objects and parameters
+      creates tracing config from parameters
+      uses provided model config
+      creates execution config from parameters
+    with model_kwargs parameter
+      merges model_kwargs into model config
+    with backwards-compatible parameters
+      extracts tracing parameters
+      extracts execution parameters
+      extracts model parameters
+    with config objects
+      uses provided execution config
+      uses provided model config
+      uses provided tracing config
+    with no parameters
+      creates config with default tracing config
+      creates config with default execution config
+      creates config with default model config
+  model config delegation
+    #previous_response_id
+      delegates write to model config
+      delegates read to model config
+    #temperature
+      delegates write to model config
+      delegates read to model config
+    #stream
+      delegates write to model config
+      delegates read to model config
+    #max_tokens
+      delegates read to model config
+      delegates write to model config
+  tracing config delegation
+    #trace_id
+      delegates write to tracing config
+      delegates read to tracing config
+    #group_id
+      delegates read to tracing config
+      delegates write to tracing config
+    #metadata
+      delegates write to tracing config
+      delegates read to tracing config
+    #trace_include_sensitive_data
+      delegates read to tracing config
+      delegates write to tracing config
+    #tracing_disabled
+      delegates read to tracing config
+      delegates write to tracing config
+    #workflow_name
+      delegates write to tracing config
+      delegates read to tracing config
+  edge cases
+    handles nil values in delegation
+    handles empty initialization
+    handles all parameter types together
+  #to_model_params
+    returns model parameters hash
+    delegates to model config
+  execution config delegation
+    #session
+      delegates read to execution config
+      delegates write to execution config
+    #context
+      delegates write to execution config
+      delegates read to execution config
+    #hooks
+      delegates read to execution config
+      delegates write to execution config
+    #output_guardrails
+      delegates read to execution config
+      delegates write to execution config
+    #max_turns
+      delegates read to execution config
+      delegates write to execution config
+    #input_guardrails
+      delegates read to execution config
+      delegates write to execution config
+
+RAAF::RunContext
+  #add_message
+    adds agent name when current_agent is set
+    does not override existing agent_name
+    works without current_agent set
+    adds message to the conversation
+  #initialize
+    initializes with default values
+    allows setting agent and turn information
+    initializes with provided values
+  #generated_messages
+    returns messages from first assistant response onward
+    returns empty array when no assistant messages
+    includes tool messages in generated content
+  #messages_for_agent
+    handles messages without agent_name
+    filters messages by agent name
+    returns empty array for unknown agent
+  #dup
+    creates independent copies of mutable data
+    copies all basic attributes
+    copies stored data independently
+    copies custom data independently
+    creates a deep copy of the context
+  #last_message
+    returns nil when no messages
+    returns the last message in the conversation
+  #to_h
+    includes all expected keys
+    converts context to hash representation
+  #input_messages
+    returns empty array when no user messages before assistant
+    returns user messages before first assistant response
+    ignores system messages in input detection
+    returns all user messages when no assistant responses
+  data storage
+    #key?
+      returns false for non-existing keys
+      returns true for existing keys
+    #store and #fetch
+      stores and retrieves custom data
+      returns nil for missing key without default
+      handles string and symbol keys
+      returns default value for missing key
+
+RAAF::Config::ModelConfig
+  integration scenarios
+    supports streaming scenario with custom parameters
+    supports configuration inheritance and override
+    supports typical chat completion scenario
+  #initialize
+    handles edge case values
+    initializes with provided values
+    accepts additional model kwargs
+    initializes with default values
+  attribute accessors
+    allows setting and getting all parameters
+    allows setting and getting temperature
+    allows setting and getting max_tokens
+    allows setting and getting model
+  #to_model_params
+    includes model_kwargs in output
+    includes all non-nil and truthy standard parameters
+    excludes nil and falsy values
+    excludes previous_response_id parameter from API params
+    handles nil model_kwargs
+    excludes falsy stream parameter
+    converts basic parameters to model params
+    includes zero values for numeric parameters
+    handles empty model_kwargs
+    excludes model parameter from API params
+  #merge
+    creates a new instance, not modifying originals
+    handles nil model_kwargs in other config
+    returns self when merging with nil
+    merges all parameters correctly
+    merges model_kwargs correctly
+    merges with another config, other taking precedence
+    preserves base values when other has nil values
+    handles stream parameter correctly
+  #to_h
+    includes nil values in hash
+    converts to hash with all parameters
+    does not include parallel_tool_calls in to_h output
+
+RAAF Run Executors
+  RAAF::RunExecutor
+    #create_result
+      uses default agent when final_agent is nil
+      prefers provided final_agent over default agent
+      handles nil context_wrapper gracefully
+      creates RunResult with provided parameters
+    #initialize
+      creates executor with required dependencies
+      creates service bundle via factory
+    #execute
+      with ResponsesProvider
+        uses responses API strategy (FAILED - 1)
+        handles incomplete API strategy results gracefully (FAILED - 2)
+        handles API strategy results correctly (FAILED - 3)
+      with non-ResponsesProvider
+        creates result from conversation manager output (FAILED - 4)
+        passes turn data to turn executor (FAILED - 5)
+        uses conversation manager strategy (FAILED - 6)
+      error handling integration
+        wraps execution in error handler
+        allows error handler to catch and handle exceptions
+  RAAF::TracedRunExecutor
+    tracing integration
+      provides tracer access for tracing implementations
+      maintains all parent functionality with tracing context
+    #initialize
+      calls parent constructor
+      stores tracer reference
+      inherits from RunExecutor
+      creates service bundle through parent
+
+RAAF::RunContextWrapper
+  agent stack management
+    #push_agent and #pop_agent
+      manages agent stack like a stack data structure
+      persists agent stack in context storage
+    #agent_stack
+      returns empty array initially
+      returns stored agent stack
+  #initialize
+    wraps the provided context
+  handoff tracking
+    #add_handoff
+      tracks handoffs with metadata
+      accumulates multiple handoffs
+    #handoffs
+      returns empty array initially
+  tool call tracking
+    #tool_calls
+      returns empty array initially
+    #add_tool_call
+      tracks tool calls with metadata
+      accumulates multiple tool calls
+  delegation methods
+    delegates message addition
+    delegates data storage methods
+    delegates basic context methods to wrapped context
+
+RAAF::Logging
+  .configuration
+    creates configuration if none exists
+    returns current configuration
+  .benchmark
+    measures execution time and returns block result
+    handles exceptions in benchmarked block
+  logging methods
+    handles debug messages without errors
+    handles info messages without errors
+    handles warn messages without errors
+    handles error messages without errors
+    handles fatal messages without errors
+  .configure
+    creates configuration if none exists
+    yields configuration object for setup
+    returns the configuration object
+    reuses existing configuration
+  specialized logging methods
+    handles agent_end without errors
+    handles api_error without errors
+    handles handoff without errors
+    handles api_call without errors
+    handles tool_call without errors
+    handles agent_start without errors
+
+RAAF::ResponseProcessor
+  integration with Utils
+    uses Utils.snake_case for agent name conversion
+    uses Utils.deep_symbolize_keys for key normalization
+  private methods
+    #find_computer_tool
+      returns nil when no computer tool found
+      finds computer tool by class name
+    #build_function_map
+      builds map for FunctionTool objects
+    item creation methods
+      #create_handoff_call_item
+        creates handoff call item
+      #create_message_item
+        uses provided role and content
+        creates message item with defaults
+      #create_tool_call_item
+        creates tool call item with direct structure
+        creates tool call item with function structure
+    #find_local_shell_tool
+      finds local shell tool by class name
+      returns nil when no local shell tool found
+    #infer_item_type
+      infers function type from name
+      infers message type
+      returns nil for unknown types
+      infers computer_use type
+      infers local_shell type
+      infers function type from function field
+    #extract_response_items
+      extracts items from Chat Completions format
+      handles direct message format
+      extracts items from Responses API format
+    #build_handoff_map
+      builds map for Handoff objects
+      builds map for Agent objects
+  #process_model_response
+    with unknown item types
+      treats unknown items as messages and logs warning
+    with computer actions
+      raises error when computer tool not available
+      processes computer use actions
+    with local shell calls
+      raises error when local shell tool not available
+      processes local shell calls
+    error handling
+      raises error for unknown tool
+    with Chat Completions format response
+      processes message response correctly
+      processes message with tool calls
+    with Responses API format response
+      processes array output format
+      processes string key output format
+    with direct message format
+      processes direct message
+    with specialized search tools
+      processes file search
+      processes web search
+    with handoffs
+      processes handoff tool calls
+
+RAAF API Strategies
+  RAAF::Execution::ResponsesApiStrategy
+    #execute
+      logs debug information
+      returns properly formatted result
+      handles runner errors gracefully
+      delegates to runner's execute_responses_api_core method
+    #convert_response_to_messages
+      with message output
+        converts simple text output to messages
+        handles output_text type
+        converts array content format to messages
+      with function call output
+        combines text and function calls in one message
+        converts function calls to tool_calls format
+        handles multiple function calls
+      with edge cases
+        handles nil response
+        works with string keys
+        handles empty output
+        handles missing output
+        handles unknown output types gracefully
+  RAAF::Execution::BaseApiStrategy
+    #initialize
+      stores provider and config
+    #execute
+      raises NotImplementedError
+    #extract_message_from_response
+      handles response object without message method
+      handles response object with message method
+      extracts message from hash response with choices
+      extracts message from hash response with first choice
+      handles empty or invalid responses
+    #build_base_model_params
+      starts with config model parameters
+      handles agents without tool_choice method
+      adds tool choice when agent has one
+      ignores nil tool choice
+      adds response format when agent has one
+      merges agent model settings when available
+    #extract_usage_from_response
+      returns nil when no usage available
+      extracts usage from response object
+      extracts usage from hash response
+  RAAF::Execution::StandardApiStrategy
+    #build_model_params
+      skips prompt when PromptUtil returns nil
+      adds prompt support when available
+      starts with base model parameters
+      skips prompt when provider doesn't support it
+      returns base model parameters when no prompt
+    #execute
+      builds model parameters from agent and config
+      handles API errors
+      makes API call with correct parameters
+      returns properly formatted result
+    #make_api_call
+      with streaming enabled
+        calls stream_completion
+      with streaming disabled
+        calls complete
+  RAAF::Execution::ApiStrategyFactory
+    .create
+      creates StandardApiStrategy for custom providers
+      handles nil provider gracefully
+      creates StandardApiStrategy for other providers
+      creates ResponsesApiStrategy for ResponsesProvider
+
+RAAF::Execution::ConversationManager
+  #execute_conversation
+    falls back to agent max_turns when config doesn't specify
+    yields turn data for execution
+    uses config max_turns when provided
+    creates context wrapper with configuration metadata
+    multi-turn execution
+      continues execution when should_continue is true
+      accumulates usage across turns
+    agent handoff scenarios
+      continues conversation with new agent after handoff
+      resets turn count after handoff
+      switches agent when handoff occurs
+    max turns handling
+      handles max turns exceeded scenario
+    single turn execution
+      checks execution stop before each turn
+      processes turn result
+      executes single turn and stops when should_continue is false
+  #initialize
+    stores configuration
+    initializes usage tracking
+  #accumulate_usage
+    with mixed or partial usage data
+      prefers new format over legacy format
+      handles nil usage gracefully
+      handles missing fields gracefully
+    with standard usage format
+      accumulates multiple usage reports
+      accumulates input_tokens, output_tokens, and total_tokens
+    with legacy usage format
+      handles prompt_tokens and completion_tokens
+  private methods
+    #create_context_wrapper
+      creates context wrapper with conversation and config data
+      handles nil metadata gracefully
+      includes trace_id and group_id from config
+    #initialize_usage_tracking
+      returns initial usage structure
+
+RAAF Handoff System
+  RAAF::Handoff
+    #create_agent_instance
+      when agent is an object
+        merges base config with overrides for object agents
+        clones agent and applies overrides
+      when agent is a class
+        creates new instance with overrides
+        merges base config with overrides
+    #filter_input
+      when no input_filter is provided
+        returns input unchanged
+      when input_filter is provided
+        handles empty input
+        applies filter to input data
+    attribute readers
+      provides access to all configuration attributes
+    #get_input_schema
+      when target agent responds to get_input_schema
+        returns agent's schema
+      when target agent doesn't respond to get_input_schema
+        returns default schema
+    .initialize
+      creates handoff with agent object
+      creates handoff with agent class
+      accepts all optional parameters
+  RAAF.handoff factory function
+    passes all options to Handoff.new
+    creates handoff using module-level factory
+
+Corner Cases
+  State corruption edge cases
+    partial state updates
+      handles interrupted agent configuration
+      handles corrupted tool definitions
+    inconsistent internal state
+      handles mismatched tool and handoff counts
+  Timing and concurrency edge cases
+    timeout edge cases
+      handles operations at timeout boundary
+    race condition scenarios
+      handles concurrent agent modifications
+      handles concurrent runner executions on same agent
+  Resource exhaustion edge cases
+    thread exhaustion scenarios
+      handles runner creation when thread pool is exhausted
+    memory pressure scenarios
+      handles agent creation under memory pressure
+      handles tool execution when memory is fragmented
+  Unexpected input combinations
+    circular reference scenarios
+      handles tools that reference themselves
+      handles agents with circular handoff references
+    mixed content types in conversations
+      handles conversation with alternating empty and non-empty messages
+      handles messages with mixed encodings
+      handles conversation with inconsistent role patterns
+    malformed JSON in tool arguments
+      handles JSON with trailing commas
+      handles completely invalid JSON
+      handles JSON with unescaped quotes
+  Protocol violation edge cases
+    unexpected API responses
+      handles responses with wrong data types
+      handles responses with extra unexpected fields
+      handles responses with missing required fields
+
+RAAF Session Components
+  RAAF::FileSessionStore
+    #count
+      ignores non-JSON files in count
+      returns correct count of JSON files
+    #clear
+      leaves non-JSON files untouched
+      deletes all session files
+    #exists?
+      returns false when session file doesn't exist
+      returns true when session file exists
+    #retrieve
+      returns nil for corrupted JSON file
+      returns nil for non-existent file
+      retrieves session from JSON file
+    private methods
+      #session_filename
+        generates correct filename path
+    #initialize
+      creates directory if it doesn't exist
+      uses default directory when none specified
+      expands relative paths
+    thread safety
+      handles concurrent file operations safely
+    error handling
+      handles file system errors during store operations
+      handles file system errors during retrieval gracefully
+    #store
+      overwrites existing file
+      stores session to JSON file
+    #list_sessions
+      returns all session IDs from JSON files
+      ignores non-JSON files
+      returns empty array when no session files
+    #delete
+      returns nil for non-existent file
+      deletes file and returns session
+      returns nil when file read fails during deletion
+    #stats
+      handles corrupted session files gracefully in stats
+      returns empty stats for empty directory
+      returns comprehensive file store statistics
+  RAAF::InMemorySessionStore
+    #store
+      overwrites existing session with same ID
+      stores session by ID
+    #retrieve
+      retrieves stored session
+      returns nil for non-existent session
+    thread safety
+      handles concurrent operations safely
+    #initialize
+      creates empty store
+    #delete
+      deletes and returns session
+      returns nil for non-existent session
+    #exists?
+      returns true for existing session
+      returns false for non-existent session
+    #list_sessions
+      returns all session IDs
+      returns empty array when no sessions
+    #count
+      returns correct session count
+    #clear
+      removes all sessions
+    #stats
+      returns zero stats for empty store
+      returns comprehensive statistics
+  RAAF::Session
+    #clear_messages
+      removes all messages
+      updates updated_at timestamp
+    #last_message_by_role
+      returns last message with specified role
+      returns nil when no messages
+      returns nil for non-existent role
+    #last_message
+      returns last message when messages exist
+      returns nil when no messages
+    #update_metadata
+      updates updated_at timestamp
+      merges new metadata with existing
+      overwrites existing keys
+    #summary
+      returns comprehensive session summary
+      includes unique roles only
+    #to_h
+      converts to hash with all data
+    #to_s and #inspect
+      inspect returns same as to_s
+      provides readable string representation
+    #message_count
+      returns correct count
+    .from_json
+      handles invalid JSON gracefully
+      creates session from JSON string
+    #add_message
+      does not add tool_call_id when nil
+      updates updated_at timestamp when adding message
+      adds message with custom metadata
+      adds message with tool_calls
+      does not add tool_calls when nil
+      adds basic message with role and content
+      adds timestamp to message
+      adds message with tool_call_id
+    #empty?
+      returns false when messages exist
+      returns true after clearing messages
+      returns true when no messages
+    #initialize
+      creates session with initial messages and metadata
+      sets created_at and updated_at to current time
+      creates session with provided ID
+      creates session with auto-generated UUID
+      duplicates messages and metadata arrays to prevent external modification
+    .from_hash
+      creates session from hash with string keys
+      creates session from hash with symbol keys
+      handles missing optional fields
+    #messages_by_role
+      returns messages with specified role
+      returns empty array for non-existent role
+      returns tool messages
+      returns assistant messages
+    #to_json
+      passes additional arguments to to_json
+      converts to JSON string
+
+RAAF::Handoffs and CallbackHandoffTool
+  Custom Handoff Objects and Callbacks
+    supports conditional handoffs with condition evaluation
+    supports handoff objects with on_handoff callbacks
+    supports validated handoffs with schema validation
+  RAAF::HandoffInputData
+    #all_items
+      handles empty arrays
+      combines pre_handoff_items and new_items
+    #initialize
+      stores all provided data
+  integration with RAAF module convenience method
+    creates handoff configuration object (not internal tool)
+  RECOMMENDED_PROMPT_PREFIX
+    contains the standard handoff instructions
+    mentions Agents SDK
+    includes system context header
+    explains handoff functions
+  .prompt_with_handoff_instructions
+    maintains formatting with multi-line custom prompts
+    handles nil prompt
+    prepends handoff instructions to custom prompt
+    handles empty prompt
+    properly separates prefix from custom instructions
+  RAAF::Handoffs.simple_handoff
+    uses default description when none provided
+    creates basic handoff without callbacks
+  RAAF::CallbackHandoffTool (internal callback implementation class)
+    #initialize
+      stores all configuration
+      accepts optional parameters
+    .default_tool_name
+      generates snake_case tool names
+      handles complex agent names
+    #to_tool_definition
+      generates OpenAI function definition
+      includes schema when provided
+    .default_tool_description
+      generates standard descriptions
+      includes agent handoff_description if available
+    #get_transfer_message
+      generates JSON transfer message
+    #invoke
+      handles invocation without input
+      calls the handoff function with context and input
+  RAAF::Handoffs.conditional_handoff
+    raises HandoffError when condition returns false
+    executes condition check and allows handoff when true
+    allows condition exceptions to bubble up
+  RAAF::Handoffs.handoff factory method
+    basic functionality
+      accepts custom tool name and description
+      creates CallbackHandoffTool with default settings
+    error handling
+      raises error for missing input when input_type is specified
+      raises error when input_type is provided without on_handoff
+      raises error for invalid JSON with input_type
+    with on_handoff callback
+      validates callback arity for input validation callbacks
+      executes callback with input validation
+      handles callback exceptions
+      executes callback when handoff is invoked
+      validates callback arity for context-only callbacks
+    input type validation
+      Integer input type
+        creates correct JSON schema for Integer
+        validates and converts integer input
+      Hash input type
+        creates correct JSON schema for Hash
+        validates and passes hash input directly
+      String input type
+        creates correct JSON schema for String
+        validates and converts string input
+      Custom type input
+        attempts to instantiate custom types
+    with input_filter
+      applies input filter when provided
+  RAAF::Handoffs.validated_handoff
+    raises HandoffError with invalid input
+    sets up Hash input_type for validation
+    executes validation and allows handoff with valid input
+
+RAAF::Items
+  RAAF::Items::ItemHelpers
+    .extract_message_content
+      extracts string content
+      handles empty content
+  RAAF::Items::RunItemBase
+    #initialize
+      stores agent and raw item
+  RAAF::Items::MessageOutputItem
+    #initialize
+      inherits from RunItemBase
+  RAAF::Items::ToolCallItem
+    #initialize
+      inherits from RunItemBase
+
+RAAF::FunctionTool
+  edge cases
+    handles proc with splat arguments
+    handles method with block argument
+    handles complex parameter combinations
+  #to_h
+    returns hash representation for OpenAI function calling format
+    includes extracted parameters
+  integration with Agent
+    works correctly when added to an agent
+    maintains tool identity when added to agent
+  #initialize
+    accepts custom parameters
+    creates a tool with a proc
+    accepts custom name and description
+    creates a tool with a method
+  parameter extraction
+    #extract_name
+      handles anonymous procs
+      extracts name from callable with name method
+      extracts name from method
+    #extract_parameters
+      extracts optional parameters
+      sets proper schema structure
+      extracts required parameters
+      returns empty parameters for non-parametrized callables
+      extracts keyword parameters
+  #call
+    handles method with no arguments
+    executes a method with keyword arguments
+    executes a proc with keyword arguments
+    raises ToolError for invalid callable
+    handles proc with no arguments
+    wraps execution errors in ToolError
+    with different argument types
+      handles keyword arguments
+      handles required arguments
+      handles optional arguments
+
+RAAF::TypedRunContextWrapper
+  #update_typed_context
+    returns nil when typed context is not set
+    updates typed context using update method
+    updates typed context using setter methods when update not available
+  #initialize
+    initializes with context and type class
+    works without type class
+  class methods
+    .from_wrapper
+      creates typed wrapper from regular wrapper
+    .create_with_context
+      creates typed wrapper with initial typed context
+  #typed_context_to_h
+    returns nil when typed context is not set
+    extracts instance variables as fallback
+    handles objects with to_hash method
+    converts typed context to hash using to_h method
+  string representations
+    #to_s and #inspect
+      shows type and unset status when typed context is not set
+      shows type and set status when typed context is set
+      handles wrapper without type class
+      inspect returns same as to_s
+  typed context query methods
+    #typed_context!
+      returns typed context when set
+      raises error when typed context is not set
+    #typed_context?
+      returns false when typed context is not set
+      returns true when typed context is set
+    #typed_context_or
+      returns default when typed context is not set
+      returns typed context when set
+  #typed_context=
+    accepts any type when no type class specified
+    raises TypeError for incorrect type
+    sets typed context of correct type
+    allows setting to nil
+
+RAAF::Lifecycle
+  integration scenarios
+    supports multiple hooks with different responsibilities
+    supports agent-specific hooks working independently
+  RAAF::CompositeRunHooks
+    #initialize
+      initializes with empty hooks array by default
+      initializes with provided hooks array
+    hook delegation
+      #on_tool_end
+        calls on_tool_end on all hooks
+      #on_tool_start
+        calls on_tool_start on all hooks with default arguments
+        calls on_tool_start on all hooks with arguments
+      #on_agent_start
+        calls on_agent_start on all hooks
+      #on_handoff
+        calls on_handoff on all hooks
+      #on_agent_end
+        calls on_agent_end on all hooks
+      #on_error
+        calls on_error on all hooks
+    error behavior
+      propagates errors from failing hooks
+    #add_hook
+      adds hooks to the collection
+  RAAF::RunHooks
+    #on_handoff
+      can be overridden to track handoffs
+      has empty default implementation
+    #on_agent_end
+      can be overridden to track outputs
+      has empty default implementation
+    #on_agent_start
+      can be overridden in subclass
+      has empty default implementation
+    #on_tool_start
+      has empty default implementation
+      can be overridden to validate tool usage
+      handles optional arguments parameter
+    #on_tool_end
+      can be overridden to log tool results
+      has empty default implementation
+    #on_error
+      can be overridden to implement error recovery
+      has empty default implementation
+  RAAF::AsyncHooks::AgentHooks
+    async method delegation
+      can override async methods for custom async behavior
+      delegates async methods to sync versions by default
+  RAAF::AgentHooks
+    #on_error
+      has empty default implementation
+    #on_start
+      can be overridden for agent-specific behavior
+      has empty default implementation
+    #on_handoff
+      can be overridden to track handoff sources
+      has empty default implementation
+    #on_end
+      has empty default implementation
+      can be overridden to calculate session duration
+    #on_tool_start
+      can implement agent-specific tool restrictions
+      has empty default implementation
+      handles optional arguments parameter
+    #on_tool_end
+      has empty default implementation
+  RAAF::AsyncHooks::RunHooks
+    async method delegation
+      can override async methods independently
+      delegates async methods to sync versions by default
+
+RAAF::Configuration
+  #get
+    returns nil for missing keys without default
+    handles empty key paths
+    returns default for missing keys
+    retrieves nested values
+    retrieves simple values
+  #initialize
+    reads environment from ENV variable
+    auto-loads configuration by default
+    creates configuration with default environment
+    accepts custom environment
+    accepts custom config paths
+    skips auto-loading when disabled
+  #watch
+    adds configuration watchers
+    supports multiple watchers
+  #load_configuration
+    loads default configuration
+    warns about invalid configuration files
+    loads environment-specific configuration
+    loads JSON configuration files
+    loads custom RAAF_ prefixed environment variables
+    loads YAML configuration files
+    handles missing configuration files gracefully
+    loads environment variables
+    merges configuration in correct order
+  method-based access
+    raises NoMethodError for non-existent sections
+    allows chained method access
+    provides method access to configuration sections
+  #merge!
+    notifies watchers after merge
+    deep merges nested hashes
+    merges additional configuration
+  error handling
+    warns about validation failures in development
+    raises ConfigurationError for validation failures in production
+  private methods
+    #deep_merge
+      merges nested hashes correctly
+    #sensitive_key?
+      identifies sensitive keys
+    #deep_dup
+      creates deep copies of nested structures
+    #valid_url?
+      validates URLs correctly
+    #coerce_value
+      coerces string values to appropriate types
+  export methods
+    #to_json
+      exports configuration as JSON
+    #to_h
+      exports configuration as hash
+      includes sensitive data when requested
+      excludes sensitive data by default
+    #to_yaml
+      exports configuration as YAML
+  #validate
+    validates URLs
+    validates required API keys in production
+    validates numeric values
+    returns empty array for valid configuration
+    validates file paths
+  #set
+    notifies watchers on change
+    sets nested values
+    coerces string values
+    creates nested hash structure
+    sets simple values
+  #save_to_file
+    saves configuration to YAML file
+    raises error for unsupported format
+    saves configuration to JSON file
+  ConfigurationSection
+    returns nested sections
+    converts to hash
+    provides method access to section values
+    raises NoMethodError for non-existent keys
+  environment checks
+    correctly identifies production environment
+    correctly identifies test environment
+    correctly identifies development environment
+
+RAAF::ToolContext
+  #initialize
+    creates a new context with default options
+    accepts custom options
+    generates unique context IDs
+  error handling and edge cases
+    handles nil values correctly
+    handles empty string keys
+    handles circular references in JSON export
+    handles invalid JSON during import
+    handles large data sets
+  thread safety
+    handles concurrent access safely
+    maintains consistency during complex operations
+  serialization
+    #to_h
+      exports context data as hash
+    #from_hash
+      merges with existing data by default
+      imports data from hash
+      replaces all data when replace=true
+    #to_json
+      exports context as JSON string
+  execution tracking
+    #execution_history
+      maintains execution order
+      respects max_execution_history limit
+      returns empty array when tracking disabled
+    #track_execution
+      handles nested executions
+      measures execution time accurately
+      records tool execution details
+      records execution failures
+  statistics and analytics
+    #most_used_tools
+      respects limit parameter
+      returns tools sorted by usage count
+    #execution_stats
+      provides comprehensive execution statistics
+      calculates timing statistics
+      handles empty execution history
+    #average_execution_time
+      calculates average execution time per tool
+  shared memory
+    #shared_set and #shared_get
+      isolates shared memory when disabled
+      handles concurrent access safely
+      manages shared memory across context instances
+  parent-child relationships
+    provides access to parent context
+    inherits parent data
+    allows child to override parent data
+    tracks child contexts
+  state management
+    #set and #get
+      handles complex data structures
+      returns nil for non-existent keys
+      accepts default values
+      stores and retrieves values
+    #clear
+      preserves context metadata
+      removes all data
+    #has?
+      returns false for non-existent keys
+      returns true for existing keys
+    #delete
+      removes keys and returns the value
+      returns nil for non-existent keys
+  performance characteristics
+    maintains good performance with large context
+    efficiently manages execution history
+
+RAAF::Logging
+  .warn
+    logs warning messages
+  .info
+    logs informational messages
+    includes context in log messages
+  .debug
+    with debug disabled
+      skips all debug messages
+    with debug category enabled
+      skips debug message with non-matching category
+      logs debug message with matching category
+      uses general category by default
+  .error
+    logs error messages
+    handles errors without context
+  .fatal
+    logs fatal error messages
+  .configure
+    returns the configuration object
+    creates configuration if none exists
+    yields configuration object for setup
+    reuses existing configuration
+  specialized logging methods
+    .tool_call
+      logs tool execution events
+    .handoff
+      logs agent handoff events
+    .api_call
+      logs API request events
+    .api_error
+      logs API error events
+    .agent_start
+      logs agent startup events
+    .agent_end
+      logs agent completion events
+  .configuration
+    returns current configuration
+    creates configuration if none exists
+  .benchmark
+    measures and logs execution time
+    logs execution time even when block raises exception
+
+RAAF::Models::ProviderAdapter
+  #universal_completion
+    with non-function calling provider
+      converts chat completion response to responses format
+      uses chat_completion when responses_completion not available
+    with provider that supports neither API
+      raises appropriate error
+    with function calling provider
+      uses responses_completion when available
+      passes tools correctly
+  error handling
+    propagates provider errors
+  #supports_handoffs?
+    with non-function calling provider
+      returns true (with fallback)
+    with function calling provider
+      returns true
+    with incompatible provider
+      returns false
+  delegation methods
+    delegates chat_completion
+    delegates responses_completion
+    delegates stream_completion
+  method delegation
+    delegates supported_models
+    raises NoMethodError for unsupported methods
+    delegates provider_name
+  message logging
+    message inspection utilities
+      properly truncates long content
+      properly determines content types
+      properly counts tool properties
+    when making API calls
+      logs message details
+      logs additional parameters when provided
+      logs outgoing request details
+      logs tool details when tools are provided
+      logs incoming response details
+  #get_enhanced_system_instructions
+    with function calling provider
+      returns base instructions unchanged
+    with non-function calling provider
+      no longer adds handoff instructions (deprecated)
+  #initialize
+    with function calling provider
+      initializes with correct capabilities
+      sets up logging correctly
+    with non-function calling provider
+      initializes with correct capabilities
+
+RAAF::ToolUseTracker
+  integration scenarios
+    tracks tool usage evolution over time
+    handles complex multi-agent tool usage patterns
+  #tool_used?
+    returns false when no agents have used the tool
+    handles string and symbol tool names
+    returns true when any agent has used the tool
+  #initialize
+    initializes with empty agent tracking
+  #clear
+    removes all tracking data
+  #usage_summary
+    returns empty hash when no usage
+    uses agent names as keys
+    provides usage summary
+  edge cases and error handling
+    handles nil agent gracefully
+    handles agents without name method
+    handles large numbers of tools efficiently
+  #add_tool_use
+    tracks tool usage for agents
+    handles string and symbol tool names
+    tracks multiple agents independently
+    handles duplicate tool names
+    preserves order of first occurrence when removing duplicates
+    handles empty tool lists
+  #agents_with_tool_usage
+    returns empty array when no agents have used tools
+    returns agents that have used tools
+  #used_tools?
+    returns false for agents with no tool usage
+    returns false for unknown agents
+    returns true after tools are added
+  #tools_used_by
+    returns empty array for unknown agents
+    returns empty array for agents with no usage
+    returns tools in order of first use
+  #total_tool_usage_count
+    counts unique tools per agent
+    handles duplicate tools within same agent correctly
+    returns 0 when no tools used
+  #to_s
+    displays agent tool usage summary
+    handles multiple agents in string output
+    displays no usage message when empty
+
+RAAF::Models::ResponsesProvider Enhanced Coverage Tests
+  parameter preparation and validation
+    format converters
+      converts tool choice to proper format
+      converts response format correctly
+    function parameter processing
+      prepares function parameters correctly
+      handles parameters without required fields
+      determines strict mode correctly
+  tool conversion system - comprehensive coverage
+    with various tool formats
+      handles web search tools specially
+      handles tools with to_tool_definition method
+      converts hash-based tools
+      converts FunctionTool objects
+      raises error for unknown tool types
+      handles tools with tool_definition method
+  API communication - HTTP request/response handling
+    network and timeout errors
+      handles connection timeouts
+      handles connection refused errors
+      handles DNS resolution errors
+    API error responses
+      handles 429 Rate Limit errors
+      handles non-JSON error responses
+      handles 401 Unauthorized errors
+      handles 500 Internal Server errors
+      handles 400 Bad Request errors
+    successful API responses
+      handles 200 OK responses correctly
+      handles 201 Created responses
+  #responses_completion - comprehensive parameter testing
+    with tools parameter
+      processes tools parameter correctly
+    with additional parameters
+      handles temperature, max_tokens, and other options
+    with direct input parameter
+      uses direct input instead of converting messages
+    with previous_response_id
+      includes previous response ID in request
+  edge cases and error handling
+    malformed responses
+      handles non-JSON response bodies
+      handles empty response bodies
+    parameter edge cases
+      handles messages with missing content
+      handles Unicode and special characters
+      handles very large message content
+      handles empty messages array
+  streaming functionality
+    stream_completion method
+      passes tools parameter to streaming
+      enables streaming in responses_completion
+  performance and optimization
+    completes requests within reasonable time
+    handles multiple simultaneous requests
+  authentication and headers
+    includes correct content-type header
+    includes user-agent header
+    includes correct authorization header
+  message format conversion - comprehensive scenarios
+    system instruction extraction
+      handles missing system messages
+      uses the first system message when multiple exist
+      extracts system instructions from messages
+    convert_messages_to_input with various message types
+      converts tool messages correctly
+      converts user messages correctly
+      handles mixed message types in sequence
+      converts assistant messages correctly
+      handles messages with tool calls
+
+Guardrails Integration
+  Debugging guardrail execution
+    shows what happens during guardrail execution
+  Run-level guardrails
+    triggers input guardrail when passed to run method
+  Agent-level guardrails
+    triggers input guardrail when added to agent
+
+RAAF::Logger
+  agent-specific logging methods
+    handles agent logging without errors
+    provides agent lifecycle logging methods
+  utility methods
+    provides log_benchmark method
+  category-specific debug methods
+    provides category-specific debug logging methods
+    handles category-specific logging without errors
+  logging mixin methods
+    provides log_warn method
+    provides log_error method
+    provides log_info method
+    provides log_debug method
+    provides log_fatal method
+  #http_debug_enabled?
+    returns boolean value
+  #log_exception
+    logs exception with details
+    handles exceptions with causes
+    uses exception message when no custom message provided
+
+RAAF::ContextManager
+  #manage_context
+    returns empty array for empty input
+    returns messages unchanged if within limit
+    when messages exceed token limit
+      returns fewer or same messages as input when truncation may occur
+      attempts to respect token limits
+      adds truncation notice when messages are removed
+      preserves system messages when preserve_system is true
+      does not preserve system messages when preserve_system is false
+      preserves recent messages
+    sliding window algorithm
+      maintains chronological order within preserved sections
+      adds older messages from newest to oldest
+    with different preserve_recent settings
+      preserves correct number of recent messages
+      handles preserve_recent larger than message count
+  #count_total_tokens
+    counts tokens for empty message list
+    counts tokens for multiple messages
+    total is greater than sum of individual messages
+    counts tokens for single message
+  edge cases and error handling
+    handles zero preserve_recent
+    handles messages with nil role
+    handles single message exceeding token limit
+    handles very small token limits
+  #count_message_tokens
+    handles messages with multiple tool calls
+    counts tokens for system message
+    counts tokens for basic message
+    handles nil content
+    counts tokens for messages with tool calls
+    handles empty content
+    handles tool calls with missing function data
+  #initialize
+    accepts custom parameters
+    handles tiktoken encoding errors gracefully
+    initializes with default values
+    model-specific max tokens
+      sets correct defaults for gpt-3.5-turbo
+      uses conservative default for unknown models
+      sets correct defaults for gpt-4-turbo
+      sets correct defaults for gpt-3.5-turbo-16k
+      sets correct defaults for gpt-4o
+  private methods
+    #within_token_limit?
+      returns true when within limit
+      returns false when exceeding limit
+    #estimate_tool_call_tokens
+      handles tool calls with missing data
+      handles empty tool calls
+      estimates tokens for tool calls
+    #default_max_tokens
+      returns correct values for known models
+
+RAAF::AgentOrchestrator
+  #handoff_requested?
+    detects explicit handoff requests
+    handles missing handoff key
+    returns false for no handoff
+  integration scenarios
+    maintains conversation context across handoffs
+    handles complex multi-agent workflows
+  #run_workflow
+    when handoff fails
+      returns error result
+    when agent execution fails
+      returns error result with agent failure
+    when agent not found
+      returns error result
+    with handoff workflow
+      executes handoff between agents
+    with specified starting agent
+      uses specified starting agent
+    with default starting agent
+      uses first agent as starting agent
+    when workflow incomplete without handoff
+      returns error result
+  #workflow_completed?
+    returns false for incomplete workflow
+    returns true for completion signals
+    returns true when no handoff available
+  WorkflowResult
+    handles error results
+    provides access to workflow results
+  #initialize
+    requires agents parameter
+    uses default ResponsesProvider when none provided
+    initializes with agents and provider
+  error resilience
+    handles handoff context errors
+    handles malformed agent results
+    handles provider failures gracefully
+  #execute_handoff
+    with invalid target agent
+      returns error for invalid target
+    with valid target agent
+      executes handoff successfully
+    with circular handoff detection
+      prevents circular handoffs
+  #run_agent
+    executes agent with provider
+    handles agent execution errors
+
+RAAF::StepResult
+  creates immutable step results
+  handles handoff results
+  handles final output results
+
+RAAF::Result
+  .success
+    creates a successful result with data
+  basic functionality
+    has success and failure states
+  .failure
+    creates a failure result with string error
+
+OpenAI SDK Compatibility
+  Python SDK Feature Parity
+    Runner execution API
+      supports Python SDK message format
+      matches Python SDK run method signature
+    Agent creation API
+      matches Python SDK agent initialization parameters
+      supports Python SDK tool definition format
+    Tool calling compatibility
+      matches Python SDK tool call format
+    Responses API compatibility
+      sends requests in Responses API format
+      uses OpenAI Responses API by default (not Chat Completions)
+  Error Handling Compatibility
+    exception types
+      raises Python SDK compatible exceptions
+  Tracing Compatibility
+    trace payload structure
+      generates Python SDK compatible trace spans (PENDING: Requires tracing implementation details)
+  Configuration Compatibility
+    model parameter compatibility
+      supports all Python SDK model parameters
+    environment variables
+      respects Python SDK environment variable names
+  Migration Path Testing
+    deprecated OpenAI provider
+      warns when using deprecated OpenAIProvider
+    configuration migration
+      supports legacy configuration parameters
+  API Response Format Validation
+    Responses API output format
+      validates response structure matches Python SDK
+      handles Python SDK error response format
+    Usage tracking compatibility
+      tracks tokens in Python SDK format
+
+RAAF::Models::OpenAIProvider
+  #chat_completion
+    validates model before making request
+  #provider_name
+    returns OpenAI
+  behaves like a model provider
+    responds to required interface methods
+    validates supported models
+    has a provider name
+  streaming chunk processing
+    #process_finish_reason
+      ignores data without finish_reason
+      yields finish event when finish_reason is present
+    #process_content_delta
+      accumulates content and yields chunks
+      ignores deltas without content
+    #process_tool_call_delta
+      handles incremental tool call building
+      accumulates tool calls and yields chunks
+  #stream_completion
+    validates model before streaming
+  #initialize
+    reads API key from environment
+    uses default API base
+    accepts custom API base
+    reads API base from environment
+    accepts API key parameter
+    requires API key
+  #supported_models
+    returns array of supported models
+
+Regression Cases
+  Previously reported bugs
+    threading regressions
+      handles concurrent runner execution safely (regression from shared state issues)
+      prevents race conditions in tool addition (regression from concurrent modifications)
+    tool execution regressions
+      handles tool execution with missing optional parameters
+      prevents tool execution timeout issues (regression from hanging tools)
+      handles tool parameter type coercion (regression from parameter validation)
+    error handling regressions
+      handles error recovery with corrupted state (regression from state corruption)
+      prevents memory leaks in error handling (regression from error accumulation)
+      prevents error handler stack overflow (regression from recursive errors)
+    agent initialization issues
+      prevents memory leak in agent tool storage
+      prevents agent creation with duplicate tool names (issue from handoff testing)
+      handles agent creation with nil model parameter
+    configuration regressions
+      handles configuration merging edge cases (regression from config conflicts)
+      handles nil configuration values correctly (regression from nil handling)
+    memory management regressions
+      handles large conversation history without memory explosion
+      prevents agent reference cycles (regression from memory leaks) (FAILED - 7)
+    handoff system regressions
+      handles handoff context preservation (regression from context loss)
+      prevents handoff to non-existent agents (regression from runtime errors)
+      prevents infinite handoff loops (regression from circular references)
+  Edge case combinations
+    handles multiple edge cases simultaneously
+
+Boundary Conditions
+  Agent boundary conditions
+    instructions boundary conditions
+      handles empty string instructions
+      handles extremely long instructions
+      handles nil instructions
+      handles instructions with Unicode and special encoding
+    agent name limits
+      handles empty agent names
+      handles agent names with special characters
+      handles extremely long agent names
+    max_turns boundary conditions
+      handles extremely large max_turns
+      handles negative max_turns
+      handles zero max_turns
+  Handoff boundary conditions
+    handoff chain boundaries
+      handles maximum handoff chain length
+      handles fully connected handoff network
+      handles zero handoffs
+      handles single handoff
+    handoff execution boundaries
+      handles handoff to same agent (should be prevented)
+      handles handoff with no context
+  Tool boundary conditions
+    tool parameter boundaries
+      handles tools with no parameters
+      handles parameter names with special characters
+      handles tools with maximum parameter counts
+    tool name boundaries
+      handles tools with special characters in names
+      handles tools with very long names
+    tool execution boundaries
+      handles tools that return very large results
+      handles tools that return nil
+      handles tools that consume excessive memory
+      handles tools with infinite loops (timeout protection)
+  Message boundary conditions
+    message content boundaries
+      handles messages with only whitespace
+      handles messages with zero-length content
+      handles messages with extremely long content
+      handles messages with control characters
+    message history boundaries
+      handles single message in history
+      handles empty message history
+      handles alternating role message history
+  Error boundary conditions
+    error handling boundaries
+      handles deeply nested exceptions
+      handles error messages with special characters
+      handles extremely long error messages
+  Configuration boundary conditions
+    ExecutionConfig boundaries
+      handles execution config with empty arrays
+      handles execution config with large arrays
+    RunConfig boundaries
+      handles extreme configuration values
+      handles config with very large metadata
+      handles config with all nil values
+
+RAAF::Execution::ConversationManager
+  private methods
+    #check_execution_stop
+      adds stop message to conversation
+      does nothing when runner should not stop
+      raises ExecutionStoppedError when runner should stop
+    #handle_max_turns_exceeded
+      raises MaxTurnsError with turn count
+      adds error message to conversation
+    #process_turn_result
+      skips nil message
+      handles result without usage
+      adds message to conversation when present
+  integration scenarios
+    handles complex multi-agent workflow
+    handles rapid handoffs without executing turns
+  #accumulate_usage
+    legacy token format
+      maps prompt_tokens to input_tokens
+      handles mixed legacy and standard formats
+    standard token format
+      accumulates all token types
+      handles partial token data
+    edge cases
+      handles negative values
+      handles very large values
+      handles empty hash
+      accumulates over many calls
+      handles nil usage gracefully
+  #initialize
+    handles nil config values
+    stores configuration
+    initializes accumulated usage with zeros
+  #execute_conversation
+    context wrapper creation
+      preserves context wrapper across turns
+      includes metadata from config
+    error scenarios
+      handles missing fields in result
+      handles nil message in result
+      propagates exceptions from yield block
+      handles nil usage in result
+    basic execution flow
+      returns final conversation state
+      preserves original messages array
+      yields turn data with all required fields
+    execution stopping
+      raises ExecutionStoppedError when should_stop is true
+      adds stop message to conversation before raising
+      checks stop condition before each turn
+    multi-turn conversations
+      increments turn counter correctly
+      accumulates messages in conversation
+      accumulates usage across all turns
+    agent handoffs
+      switches to new agent on handoff
+      handles multiple handoffs in sequence
+      resets turn counter after handoff
+      continues with same agent if handoff_occurred is false
+    max turns enforcement
+      adds error message to conversation before raising
+      falls back to agent max_turns when config has nil
+      respects config max_turns over agent max_turns
+
+RAAF::Guardrails
+  InputGuardrail with custom block
+    blocks flagged input
+    allows normal input
+  LengthInputGuardrail
+    allows short input
+    blocks long input
+  ProfanityOutputGuardrail
+    filters profanity from output
+    passes clean output unchanged
+
+RAAF::Execution::ExecutorFactory
+  integration with other components
+    creates executors that can execute basic operations
+    creates service bundles that work together
+  .create_service_bundle
+    creates ToolExecutor with agent and runner
+    creates ApiStrategy through factory
+    creates TurnExecutor with service dependencies
+    creates ErrorHandler with default settings
+    logs service bundle creation
+    creates a hash with all required services
+    creates ConversationManager with config
+    error handling
+      handles service creation failures gracefully
+    with different agent types
+      handles agents that respond to name method
+      handles agents that don't respond to name method
+    service dependency wiring
+      creates independent service instances
+      wires services together correctly
+    with different provider types
+      creates ResponsesApiStrategy for ResponsesProvider
+      creates StandardApiStrategy for OpenAIProvider
+  .log_debug_general
+    when RAAF::Logging is not defined
+      does not raise error when logging module unavailable
+    when RAAF::Logging is defined
+      calls RAAF::Logging.debug with correct parameters
+      handles empty context
+  .create_basic_executor
+    creates executor with service bundle
+    creates a BasicRunExecutor with correct dependencies
+  .create_traced_executor
+    requires tracer parameter
+    creates traced executor with service bundle
+    creates a TracedRunExecutor with correct dependencies
+  service lifecycle management
+    creates fresh services for each bundle
+
+RAAF::Models::ResponsesProvider
+  response format conversion
+    #convert_response_format
+      converts response_format to format structure
+      returns nil for nil response_format
+  #initialize
+    accepts custom API base
+    accepts API key parameter
+    reads API key from environment
+    uses default API base
+    requires API key
+    reads API base from environment
+  #stream_completion
+    validates model before streaming
+    delegates to responses_completion with stream enabled
+  #validate_model
+    accepts supported models
+    rejects unsupported models
+  #provider_name
+    returns OpenAI
+  #supports_prompts?
+    returns true
+  #supported_models
+    returns array of supported models
+  #responses_completion
+    accepts valid parameters
+    validates model before making request
+  #supports_function_calling?
+    returns true
+  tool conversion
+    #convert_tools
+      returns empty hash for nil tools
+      converts FunctionTool objects
+      passes through hash tools
+      returns empty hash for empty tools
+    #convert_tool_choice
+      converts string tool_choice to object format
+      passes through hash tool_choice
+      returns auto for nil tool_choice
+  message conversion
+    #convert_messages_to_input
+      converts user messages to input items
+      converts assistant messages with tool calls
+      converts tool result messages
+    #extract_system_instructions
+      returns nil when no system message
+      extracts system message content
+  parameter preparation
+    #determine_strict_mode
+      returns true when additionalProperties is false and has properties and required
+      returns false when additionalProperties is true
+    #prepare_function_parameters
+      preserves existing additionalProperties setting
+      ensures additionalProperties is false for strict mode
+
+Provider Contract Compliance
+  Base Interface Contract
+    RAAF::Models::ResponsesProvider
+      required method signatures
+        implements chat_completion with required parameters
+        implements supported_models method
+        implements provider_name method
+        implements stream_completion method
+      enhanced interface methods
+        optionally implements capability detection methods
+        optionally implements responses_completion
+    RAAF::Models::OpenAIProvider
+      required method signatures
+        implements chat_completion with required parameters
+        implements stream_completion method
+        implements supported_models method
+        implements provider_name method
+      enhanced interface methods
+        optionally implements capability detection methods
+        optionally implements responses_completion
+  Error Handling Contract
+    error message consistency
+      provides meaningful error messages
+    standard error types
+      raises AuthenticationError for 401 responses
+      raises APIError for general API failures
+      raises RateLimitError for 429 responses
+      preserves error status codes
+  RetryableProvider Integration
+    includes retry logic for transient failures
+    respects retry configuration
+  Configuration Contract
+    RAAF::Models::OpenAIProvider
+      constructor parameters
+        accepts base_url parameter
+        accepts api_key parameter
+        accepts additional options via kwargs
+      environment variable support
+        respects standard environment variables
+    RAAF::Models::ResponsesProvider
+      constructor parameters
+        accepts additional options via kwargs
+        accepts api_key parameter
+        accepts base_url parameter
+      environment variable support
+        respects standard environment variables
+  Tool Calling Contract
+    tool definition format
+      accepts OpenAI-compatible tool definitions
+      returns tool calls in expected format
+  Cross-Provider Consistency
+    maintains consistent method signatures across providers
+    provides consistent provider_name format
+    returns consistent supported_models format
+  Streaming Contract
+    implements streaming interface
+    yields chunks during streaming (PENDING: Streaming implementation requires specific provider testing)
+  Parameter Validation Contract
+    RAAF::Models::OpenAIProvider
+      model parameter validation
+        accepts models from supported_models list
+      tools parameter validation
+        accepts nil tools parameter
+        accepts properly formatted tools array
+      messages parameter validation
+        validates message structure requirements
+        accepts properly formatted messages array
+    RAAF::Models::ResponsesProvider
+      messages parameter validation
+        accepts properly formatted messages array
+        validates message structure requirements
+      model parameter validation
+        accepts models from supported_models list
+      tools parameter validation
+        accepts nil tools parameter
+        accepts properly formatted tools array
+  Response Format Contract
+    responses_completion response format
+      returns hash with Responses API structure
+      includes proper output structure
+    chat_completion response format
+      returns hash with required keys
+      includes usage statistics
+      includes proper choice structure
+
+RAAF::Models::CapabilityDetector
+  #supports_handoffs?
+    caches detection results
+    with no function calling provider
+      returns false
+    with function calling provider
+      returns true
+  #generate_report
+    with basic provider
+      provides appropriate recommendations
+    with no function calling provider
+      identifies limited handoff support
+      provides warning recommendations
+    with full-featured provider
+      provides positive recommendations
+      generates comprehensive report
+      sets optimal usage for full-featured provider
+      includes detailed capability descriptions
+    with minimal provider
+      identifies incompatibility
+      provides critical recommendations
+  error handling
+    logs errors appropriately
+    handles provider errors gracefully during function calling test
+  #detect_capabilities
+    with full-featured provider
+      caches results on subsequent calls
+      detects all capabilities
+    with minimal provider
+      detects minimal capabilities
+    with basic provider
+      detects available capabilities
+    with no function calling provider
+      detects limited capabilities
+  #initialize
+    initializes with provider
+    starts with empty capabilities
+  integration scenarios
+    real-world provider simulation
+      correctly identifies LLaMA-like provider limitations
+      correctly identifies OpenAI-like provider capabilities
+  recommendation generation
+    with various provider types
+      generates appropriate recommendations for each provider type
+  capability testing methods
+    #test_function_calling
+      detects tools parameter in chat_completion
+      with provider without chat_completion
+        returns false
+      with provider without tools parameter
+        returns false
+    #test_responses_api
+      detects responses_completion method
+    #test_chat_completion
+      detects chat_completion method
+    #test_streaming
+      detects stream_completion method
+    #test_handoffs
+      delegates to function calling test
+
+RAAF::Session
+  #initialize
+    creates session with provided ID
+    creates session with auto-generated ID
+    creates session with initial messages
+    sets timestamps
+  basic functionality
+    manages session state
+  #add_message
+    adds message to conversation
+
+Structured Output Integration
+  Multi-provider response_format support
+    with direct response_format parameter
+      with OpenAIProvider
+        passes direct response_format to OpenAI API
+      with ResponsesProvider
+        uses direct response_format when provided
+  Runner with structured output
+    with OpenAIProvider
+      returns structured JSON directly
+      passes response_format directly to OpenAI Chat Completions API
+      passes response_format directly to OpenAI without modification
+    with ResponsesProvider (default)
+      passes response_format directly without modification
+      extracts JSON from nested content structure
+      passes response_format to provider as text.format
+  Complex schema integration
+    handles complex nested schemas
+  Error handling integration
+    when response parsing fails
+      handles malformed responses gracefully
+    when provider fails
+      propagates provider errors
+  ObjectSchema builder integration
+    works with builder-created schemas
+  Agent with structured output
+    creates agent with response format
+    includes response format in hash representation
+
+Core Error Handling
+  RAAF::Errors::ModelBehaviorError
+    captures model response context
+  RAAF::Errors::ToolExecutionError
+    captures tool execution context
+  RAAF::ErrorHandling
+    .validate_model_response
+      validates hash structure
+      passes valid responses
+      validates content structure
+      validates non-nil response
+    .safe_agent_name
+      handles various agent identifier formats
+
+RAAF::UnifiedStepExecutor
+  #to_runner_format
+    handles handoff results in runner format
+    converts StepResult to runner format
+
+RAAF Error Classes
+  RAAF::Error
+    is a StandardError
+    can be rescued specifically
+    can be rescued as a StandardError
+  Error use cases
+    API interactions
+      uses AuthenticationError for auth failures
+      uses RateLimitError for rate limiting
+      uses ServerError for server issues
+    agent initialization
+      uses AgentError for configuration issues
+    tool execution
+      uses ToolError for execution failures
+      uses ToolError for missing tools
+    model behavior
+      uses ModelBehaviorError for unexpected outputs
+  RAAF::MaxTurnsError
+    inherits from RAAF::Error
+    includes turn limit in message
+  RAAF::RateLimitError
+    includes retry information
+    inherits from RAAF::Error
+  RAAF::APIError
+    provides general API error messages
+    inherits from RAAF::Error
+  Error hierarchy and rescue behavior
+    allows rescuing all RAAF errors with base class
+    doesn't catch non-RAAF errors with RAAF::Error
+    allows specific error handling while falling back to general
+  RAAF::ModelBehaviorError
+    inherits from RAAF::Error
+    invalid tool input
+      provides clear error messages
+    constraint violation
+      indicates policy violations
+  RAAF::ToolError
+    inherits from RAAF::Error
+    tool not found
+      provides clear error messages
+    tool execution failure
+      includes execution error details
+  RAAF::BatchError
+    inherits from RAAF::Error
+    submission failure
+      provides clear error messages
+  RAAF::ProviderError
+    inherits from RAAF::Error
+    initialization failure
+      includes failure details
+    unsupported API
+      provides clear error messages
+  RAAF::TracingError
+    inherits from RAAF::Error
+    provides clear error messages for tracing failures
+  RAAF::AuthenticationError
+    inherits from RAAF::Error
+    provides security-appropriate error messages
+  RAAF::ServerError
+    includes status code information
+    inherits from RAAF::Error
+  RAAF::HandoffError
+    inherits from RAAF::Error
+    target not found
+      provides clear error messages
+    invalid configuration
+      explains configuration requirements
+  RAAF::AgentError
+    can be rescued as RAAF::Error
+    inherits from RAAF::Error
+    provides clear error messages for configuration issues
+  RAAF::ExecutionStoppedError
+    inherits from RAAF::Error
+    indicates user-requested stop
+
+RAAF::ProcessedResponse
+  categorizes response elements correctly
+  handles multiple handoffs
+
+RAAF::Logger
+  #log_info
+    delegates to RAAF::Logging.info
+  #log_debug
+    delegates to RAAF::Logging.debug with category
+    uses general category by default
+  agent-specific logging methods
+    #log_agent_start
+      delegates to RAAF::Logging.agent_start
+    #log_handoff
+      delegates to RAAF::Logging.handoff
+    #log_agent_end
+      delegates to RAAF::Logging.agent_end
+    #log_api_error
+      delegates to RAAF::Logging.api_error
+    #log_api_call
+      delegates to RAAF::Logging.api_call
+    #log_tool_call
+      delegates to RAAF::Logging.tool_call
+  #log_error
+    delegates to RAAF::Logging.error with automatic stack trace
+    preserves existing stack trace if provided
+  #log_exception
+    includes cause information when exception has a cause
+    logs exception with detailed context
+    uses exception message when no custom message provided
+  #log_warn
+    delegates to RAAF::Logging.warn
+  category-specific debug methods
+    #log_debug_tracing
+      logs with tracing category
+    #log_debug_context
+      logs with context category
+    #log_debug_tools
+      logs with tools category
+    #log_debug_api
+      logs with api category
+    #log_debug_http
+      logs with http category
+    #log_debug_handoff
+      logs with handoff category
+  utility methods
+    #log_benchmark
+      delegates to RAAF::Logging.benchmark
+  #log_fatal
+    delegates to RAAF::Logging.fatal with automatic stack trace
+  #http_debug_enabled?
+    checks if HTTP debug category is enabled
+
+RAAF Error Handling
+  RAAF::Errors
+    RAAF::Errors::MaxIterationsError
+      stores iteration counts
+    RAAF::Errors::AgentError
+      represents agent execution errors
+    RAAF::Errors::UserError
+      represents user configuration errors
+    RAAF::Errors::ResponseProcessingError
+      stores response that caused the error
+    RAAF::Errors::ModelBehaviorError
+      stores model response
+      inherits from StepProcessingError
+    RAAF::Errors::StepProcessingError
+      works without optional parameters
+      stores agent and step data
+    RAAF::Errors::ToolExecutionError
+      stores tool execution context
+      #tool_name
+        returns string representation when tool doesn't respond to name
+        handles nil tool
+        returns tool name when tool responds to name
+    RAAF::Errors::HandoffError
+      stores handoff context
+      works with string agent names
+    RAAF::Errors::CircularHandoffError
+      stores handoff chain that caused the loop
+  RAAF::ErrorHandling
+    .safe_tool_execution
+      handles other StepProcessingErrors
+      executes tool successfully
+      handles ToolExecutionError gracefully
+    .validate_model_response
+      accepts valid hash response with choices
+      raises error for non-hash response
+      raises error for response without expected structure
+      accepts valid hash response with content
+      accepts valid hash response with output
+      raises error for nil response
+    .safe_agent_name
+      returns nil for nil input
+      converts other objects to string
+      calls name method on objects that respond to it
+      returns string input unchanged
+      extracts name from Agent object
+    .with_error_handling
+      when JSON::ParserError is raised
+        converts to ResponseProcessingError (FAILED - 8)
+      when NoMethodError is raised
+        converts other NoMethodErrors to AgentError
+        converts nil errors to ModelBehaviorError (FAILED - 9)
+      when block succeeds
+        returns the block result
+      when StepProcessingError is raised
+        preserves original agent if already set (FAILED - 10)
+        re-raises with additional context (FAILED - 11)
+      when StandardError is raised
+        converts to StepProcessingError
+
+RAAF::Models::ModelInterface
+  abstract methods
+    raises NotImplementedError for chat_completion
+    raises NotImplementedError for provider_name
+    raises NotImplementedError for stream_completion
+    raises NotImplementedError for supported_models
+  #handle_api_error
+    raises APIError for other error codes
+    raises RateLimitError for 429
+    raises ServerError for 5xx codes
+    raises AuthenticationError for 401
+  #prepare_tools
+    handles mixed tool types
+    returns nil for nil tools
+    handles hash tools
+    returns nil for empty tools
+    handles FunctionTool objects
+    raises error for invalid tool types
+
+RAAF::StrictSchema
+  .ensure_strict_json_schema
+    with allOf schemas
+      processes all schemas in allOf
+    with complex nested structures
+      handles arrays of objects with nested objects
+      handles deeply nested objects
+    with object schema
+      makes all properties required
+      sets additionalProperties to false
+      handles arrays with object items
+      preserves existing additionalProperties: false
+      handles nested objects recursively
+    with edge cases
+      handles non-hash schema gracefully
+      handles nil schema gracefully
+      handles schemas without properties
+      preserves existing required array
+      handles empty properties
+    with non-object schemas
+      returns array schemas unchanged
+      returns string schemas unchanged
+      returns primitive schemas unchanged
+    with anyOf schemas
+      processes all alternatives
+
+RAAF::Logging::Configuration
+  private methods
+    #parse_debug_categories
+      handles special values
+      returns empty array for empty string
+      parses comma-separated category list
+      handles whitespace in category list
+  #debug_enabled?
+    with none specified
+      returns false for any category
+    with no categories enabled
+      returns false for any category
+    with all categories enabled
+      returns true for any category
+    with specific categories enabled
+      returns false for disabled categories
+      returns true for enabled categories
+  #initialize
+    sets default configuration values
+    with environment variables
+      loads configuration from environment variables
+  attribute accessors
+    allows setting and getting debug_categories
+    allows setting and getting log_output
+    allows setting and getting log_level
+    allows setting and getting log_format
+
+RAAF::Models::EnhancedModelInterface
+  #responses_completion
+    with edge cases
+      handles missing usage information
+      generates ID when missing
+      handles nil content gracefully
+    error handling
+      propagates errors from chat_completion
+    with basic message conversion
+      converts chat completion to responses format
+      preserves model information
+      includes response ID
+      preserves usage information
+    with additional parameters
+      passes through additional kwargs
+    with input items (Responses API continuation)
+      converts input items back to messages
+    with streaming
+      passes stream parameter to chat_completion
+    with tool calls
+      converts tool calls to function call format
+      handles multiple tool calls
+  real-world usage patterns
+    with handoff scenario
+      provides seamless handoff support
+    with conversation continuation
+      handles multi-turn conversations
+  integration with base interface
+    provides automatic responses_completion implementation
+    supports all required interface methods
+    maintains compatibility with ModelInterface
+  #capabilities
+    returns comprehensive capability information
+    with provider implementing streaming
+      detects streaming capability
+  #supports_handoffs?
+    returns true for providers with function calling
+    with provider without function calling
+      returns false
+  method delegation
+    delegates provider_name
+    inherits other ModelInterface methods
+    delegates supported_models
+  #supports_function_calling?
+    returns true when chat_completion accepts tools parameter
+    with provider without tools parameter
+      returns false
+
+RAAF::Items
+  RAAF::Items::RunItemBase
+    #initialize
+      accepts hash raw items
+      stores agent and raw item correctly
+    #to_input_item
+      returns raw item when it's a hash
+      handles complex hash structures
+      raises ArgumentError for non-hash raw items
+  RAAF::Items::ReasoningItem
+    handles different reasoning types
+    #initialize
+      inherits from RunItemBase
+    #type
+      returns correct type identifier
+  RAAF::Items::ModelResponse
+    attribute readers
+      provides read access to all attributes
+    #to_input_items
+      handles mixed convertible items
+      raises ArgumentError for unconvertible items
+      converts output items to input format using to_h method
+      handles empty output array
+      handles hash items directly
+    #initialize
+      handles empty output array
+      stores output, usage, and response_id
+      works without response_id
+  RAAF::Items::MessageOutputItem
+    #initialize
+      inherits from RunItemBase
+    #type
+      returns correct type identifier
+    #to_input_item
+      converts message to input format
+  RAAF::Items::HandoffCallItem
+    #initialize
+      inherits from RunItemBase
+    #type
+      returns correct type identifier
+  RAAF::Items::ToolCallOutputItem
+    #initialize
+      inherits from RunItemBase and sets output
+    #type
+      returns correct type identifier
+    output attribute
+      handles string outputs
+      provides access to tool execution result
+      handles complex object outputs
+  RAAF::Items::FunctionCallOutputItem
+    #initialize
+      extracts output from raw_item when output parameter is nil
+      handles symbol keys in raw_item
+      inherits from RunItemBase and sets output
+      prefers explicit output parameter over raw_item output
+    output extraction logic
+      handles empty raw_item
+      handles missing output in raw_item
+    #type
+      returns correct type identifier
+  RAAF::Items::ToolCallItem
+    handles complex tool call arguments
+    #type
+      returns correct type identifier
+    #initialize
+      inherits from RunItemBase
+  RAAF::Items::HandoffOutputItem
+    attribute readers
+      provides access to source and target agents
+    #type
+      returns correct type identifier
+    #initialize
+      inherits from RunItemBase and sets additional attributes
+  RAAF::Items::ItemHelpers
+    .tool_call_output_item
+      creates tool call output with call_id
+      uses id field when call_id not present
+      converts output to string
+      handles complex object output
+    .convert_messages_to_input_items
+      converts user messages to message items
+      handles mixed message types
+      converts assistant messages with tool calls
+      converts tool messages to function_call_output items
+      handles symbol keys in messages
+      skips messages with unknown roles
+      handles assistant messages without content or tool calls
+      converts assistant messages to text items
+    .extract_last_content
+      handles missing text or refusal fields
+      extracts refusal content
+      extracts text from output_text content
+      returns empty string for non-assistant messages
+      returns empty string for message without content array
+      returns last content when multiple items exist
+      returns empty string for empty content array
+      returns empty string for unknown content type
+      returns empty string for non-hash input
+    message creation helpers
+      .tool_message
+        creates properly formatted tool message
+        handles complex tool results
+      .assistant_message
+        creates assistant message without tool calls
+        creates assistant message with tool calls
+        does not include tool_calls when nil
+      .user_message
+        creates properly formatted user message
+        handles empty content
+    .input_to_new_input_list
+      converts message array to input items
+      handles empty array
+      returns copy of input item array
+      raises ArgumentError for unsupported input types
+      converts string input to message item
+      handles empty string input
+    .extract_last_text
+      returns last text when multiple items exist
+      extracts text from output_text content
+      returns nil for non-assistant messages
+      returns nil when no output_text in last position
+      returns nil for refusal content
+      returns nil for invalid input
+    .tool_calls?
+      returns false for message without tool calls
+      returns true for message with tool calls
+      returns false for nil tool calls
+      returns false for non-hash input
+      returns false for empty tool calls array
+      handles symbol keys
+    .text_message_output
+      concatenates multiple text parts
+      ignores non-text content types
+      extracts text from message output item
+      returns empty string for non-MessageOutputItem
+      returns empty string for message with no hash raw_item
+      returns empty string for message without content array
+    .text_message_outputs
+      concatenates text from multiple message output items
+      ignores non-MessageOutputItem objects
+      returns empty string when no message items present
+      returns empty string for empty array
+    .extract_message_content
+      returns empty string for non-hash input
+      handles symbol keys
+      ignores non-text array items
+      handles empty content array
+      extracts content from array format
+      extracts simple string content
+      returns empty string for message without content
+    .extract_tool_calls
+      extracts tool calls array from message
+      returns empty array for nil tool calls
+      returns empty array for non-hash input
+      returns empty array for message without tool calls
+      returns empty array for non-array tool calls
+      handles symbol keys
+
+RAAF::Execution::ToolExecutor
+  #initialize
+    stores agent and runner references
+  #should_continue?
+    without tool calls
+      returns false when content indicates termination (TERMINATE)
+      returns false when termination words are standalone (word boundaries)
+      returns false for normal content
+      returns false when content indicates termination (STOP)
+      returns false when content is nil
+      returns false when content indicates termination (DONE)
+      returns false when content indicates termination (FINISHED)
+      returns false when message has no content
+      is case insensitive for termination words
+    with tool calls
+      returns true when message has tool calls
+  private helper methods
+    #extract_tool_call_id
+      extracts id from symbol key format
+      extracts id from string key format
+    #extract_arguments
+      extracts arguments from string key format
+      extracts arguments from symbol key format
+    #extract_function_name
+      extracts name from symbol key format
+      extracts name from string key format
+  #execute_tool_calls
+    executes each tool call
+    executes multiple tool calls in order
+    passes tool wrapper block to single tool execution
+    returns true to continue execution
+    handles empty tool calls array
+  integration with agent tools
+    executes actual agent tools
+  #execute_single_tool_call
+    calls tool end hook
+    calls tool start hook
+    parses arguments and executes tool
+    adds tool result to conversation
+    error handling
+      handles JSON parsing errors
+      handles tool execution errors
+    with tool wrapper block
+      can modify tool result through wrapper
+      executes tool through wrapper
+  #tool_calls?
+    returns empty array when message has empty tool_calls
+    returns truthy when message has tool_calls (symbol key)
+    returns truthy when message has tool_calls (string key)
+    returns nil when message has nil tool_calls
+    returns falsy when message has no tool_calls
+
+RAAF::Config::ExecutionConfig
+  #input_guardrails?
+    returns false when input_guardrails is empty array
+    returns false when input_guardrails is nil
+    returns true when input_guardrails has items
+    returns true when multiple guardrails present
+  Python SDK compatibility
+    supports session for conversation history
+    supports context for dependency injection
+  #initialize
+    with no parameters
+      initializes with nil values
+    with all parameters
+      stores input_guardrails
+      stores max_turns
+      stores context
+      stores output_guardrails
+      stores hooks
+      stores session
+    with partial parameters
+      leaves unspecified parameters as nil
+      stores provided parameters
+  #effective_max_turns
+    returns config max_turns when set
+    handles agent with nil max_turns
+    handles zero max_turns from config
+    returns agent max_turns when config max_turns is nil
+    prefers config value over agent value
+  integration with agent
+    provides configuration for agent execution
+    supports runtime configuration changes
+  edge cases and validation scenarios
+    handles frozen arrays for guardrails
+    handles negative max_turns
+    handles very large max_turns
+    allows mutation of guardrail arrays
+    handles non-array guardrails gracefully in predicates
+  #to_h
+    doesn't include context and session in to_h
+    includes nil values in hash
+    includes all configured values
+    returns a hash representation
+  attribute accessors
+    #max_turns
+      allows reading and writing
+      allows nil value
+    #session
+      allows reading and writing
+    #input_guardrails
+      allows empty array
+      allows reading and writing
+    #output_guardrails
+      allows empty array
+      allows reading and writing
+    #context
+      allows reading and writing
+    #hooks
+      allows reading and writing
+  usage patterns
+    supports configuration for different environments
+    supports builder pattern for configuration
+  #output_guardrails?
+    returns false when output_guardrails is empty array
+    returns true when output_guardrails has items
+    returns true when multiple guardrails present
+    returns false when output_guardrails is nil
+  #hooks?
+    returns true when hooks is present
+    returns true even for empty hooks object
+    returns false when hooks is nil
+  #merge
+    uses original hooks when other's is nil
+    returns self when other is nil
+    uses original max_turns when other's is nil
+    creates new config instance
+    handles all attributes in merge
+    prefers other's hooks when present
+    preserves context and session in merge
+    prefers other's max_turns when present
+
+RAAF::StepProcessor
+  #execute_step
+    creates and returns StepResult
+    logs step execution details
+    processes model response
+    executes tools and side effects
+  #maybe_reset_tool_choice
+    when agent does not respond to reset_tool_choice
+      does not reset tool choice
+    when agent does not have reset_tool_choice enabled
+      does not reset tool choice regardless of tool usage
+    when agent has reset_tool_choice enabled
+      resets tool choice when tools have been used
+      logs when resetting tool choice
+      does not reset tool choice when no tools have been used
+  #initialize
+    initializes with response processor
+    initializes with tool use tracker
+  private methods
+    #process_model_response
+      handles nil tools and handoffs gracefully
+      includes agent tools and handoffs
+      delegates to response processor with agent context
+    #execute_tools_and_side_effects
+      returns new items and next step
+      tracks tool usage
+      with handoffs detected
+        executes handoffs when detected
+      with function tools
+        includes tool results in new step items
+        checks for final output from tools
+        executes function tools in parallel
+        returns final output when found
+      with computer actions
+        executes computer actions sequentially
+        includes computer results in new step items
+      with local shell calls
+        executes local shell calls sequentially
+        includes shell results in new step items
+
+RAAF::HTTPClient
+  integration tests
+    chat completions workflow
+      creates a completion through the resource chain
+      streams a completion through the resource chain
+    error handling integration
+      handles authentication errors in the resource chain
+      handles rate limiting in streaming
+  error classes
+    defines the expected error hierarchy
+  RAAF::HTTPClient::ChatResource
+    #completions
+      passes the client to CompletionsResource
+      returns the same instance on repeated calls
+      returns a CompletionsResource
+    #initialize
+      stores the client
+  RAAF::HTTPClient::CompletionsResource
+    #initialize
+      stores the client
+    #stream_raw
+      calls make_request with streaming parameters
+      overwrites stream parameter if already present
+      merges stream: true with existing parameters
+    #create
+      handles empty parameters
+      calls make_request with POST method and parameters
+  RAAF::HTTPClient::Client
+    #initialize
+      accepts custom timeout options
+      uses default base URL
+      initializes with required parameters
+      uses default timeout values
+    #make_request
+      streaming requests
+        ignores non-data lines and empty data
+        handles streaming responses with invalid JSON
+        processes streaming responses
+      successful requests
+        includes custom headers
+        makes POST requests with body
+        makes GET requests
+      error handling
+        raises ConflictError for 409
+        raises UnprocessableEntityError for 422
+        raises AuthenticationError for 401
+        raises NotFoundError for 404
+        raises BadRequestError for 400
+        raises InternalServerError for 500
+        raises ServiceUnavailableError for 503
+        raises PermissionDeniedError for 403
+        handles streaming error responses
+        raises RateLimitError for 429
+        raises BadGatewayError for 502
+        handles error responses without error message
+        handles non-JSON error responses
+        raises GatewayTimeoutError for 504
+        raises APIError for unknown status codes
+      unsupported methods
+        raises ArgumentError for unsupported HTTP methods
+    #chat
+      returns a ChatResource
+      returns the same instance on repeated calls
+
+RAAF::Execution::ErrorHandler
+  retry logic
+    with RETRY_ONCE strategy
+      succeeds on retry attempt
+      resets retry count between executions
+      tracks retry attempts correctly
+      handles ExecutionStoppedError with retries
+  guardrail error handling
+    when Guardrails is not defined
+      handles errors normally
+  general error handling
+    handles with FAIL_FAST strategy
+    still raises with LOG_AND_CONTINUE for general errors
+    retries with RETRY_ONCE then raises
+    handles with GRACEFUL_DEGRADATION strategy
+  error handling strategies integration
+    MaxTurnsError handling
+      applies different strategies correctly
+    ExecutionStoppedError handling
+      applies different strategies correctly
+  #with_api_error_handling
+    handles Net::HTTPError
+    falls back to general error handling for other errors
+    executes block successfully
+    handles Timeout::Error
+  parsing error handling
+    with JSON::ParserError
+      handles with GRACEFUL_DEGRADATION strategy
+      handles with FAIL_FAST strategy
+      handles with RETRY_ONCE strategy
+      handles with LOG_AND_CONTINUE strategy
+  #handle_tool_error
+    handles JSON::ParserError
+    includes tool name in error context
+    handles general StandardError
+    handles ArgumentError
+    merges additional context information
+  API error handling
+    with Timeout::Error
+      handles with RETRY_ONCE strategy
+      handles with FAIL_FAST strategy
+      handles with GRACEFUL_DEGRADATION strategy
+    with Net::HTTPError
+      re-raises with other strategies
+      handles with GRACEFUL_DEGRADATION strategy
+  #with_error_handling
+    resets retry count after successful execution
+    with GRACEFUL_DEGRADATION strategy
+      provides user-friendly error messages for MaxTurnsError
+      provides user-friendly error messages for ExecutionStoppedError
+    with FAIL_FAST strategy
+      executes block successfully
+      re-raises general errors
+      re-raises ExecutionStoppedError
+      re-raises MaxTurnsError
+      re-raises JSON parsing errors
+    with RETRY_ONCE strategy
+      gives up after max retries
+      retries operation once on general errors
+    with LOG_AND_CONTINUE strategy
+      handles MaxTurnsError gracefully
+      still re-raises other errors in LOG_AND_CONTINUE mode
+      handles ExecutionStoppedError gracefully
+  logging integration
+    logs retries
+    includes Logger module
+    logs warnings for guardrail-like errors
+    logs errors with context
+  edge cases
+    preserves non-error exceptions
+    ensures retry count is reset in ensure block
+    handles nil context gracefully
+    handles empty context gracefully
+  RecoveryStrategy constants
+    defines all recovery strategies
+  #initialize
+    uses FAIL_FAST strategy by default
+    initializes retry count to zero
+    accepts max_retries configuration
+    accepts custom strategy
+
+RAAF::Agent
+  #add_handoff
+    raises error for invalid handoff
+    accumulates multiple handoffs
+    adds another agent as handoff
+  #initialize
+    creates an agent with custom values
+    duplicates tools and handoffs arrays to prevent mutation
+    creates an agent with pre-configured tools and handoffs
+    creates an agent with default values
+    supports block-based configuration
+  #add_tool
+    adds a method as a tool
+    accumulates multiple tools
+    adds a proc as a tool
+    adds a FunctionTool directly
+    raises error for invalid tool
+  #execute_tool
+    raises error when tool not found
+    propagates tool execution errors
+    executes the correct tool by name
+    executes tool with keyword arguments
+  #clone
+    allows overriding specific parameters
+    creates a new agent with same configuration
+    duplicates collections to prevent mutation
+    filters out handoff tools to avoid duplication
+  #get_input_schema
+    returns basic schema without handoff description
+    includes handoff description in schema
+  #hooks?
+    returns true when hooks configured
+    returns false when no hooks configured
+  bang methods for mutation
+    #reset_tools!
+      clears all tools and returns self
+    #reset!
+      clears everything and returns self
+    #reset_handoffs!
+      clears all handoffs and returns self
+  dynamic method calls via method_missing
+    raises NoMethodError for non-existent tools
+    passes arguments correctly through method_missing
+    responds to tool methods via respond_to_missing?
+    allows calling tools as methods
+  #handoffs?
+    returns true when handoffs are added
+    returns false when no handoffs are added
+  tool use behavior
+    supports string configuration
+    defaults to run_llm_again behavior
+    supports symbol configuration
+    supports reset_tool_choice configuration
+    defaults reset_tool_choice to true
+  memory management
+    #remember
+      raises error when memory store not configured
+      includes conversation_id when provided
+      stores content in memory with metadata
+    #memory_context
+      formats memories as context string
+      returns empty string when no memories found
+    #recent_memories
+      filters by conversation_id when provided
+      returns recent memories sorted by updated_at
+    #recall
+      searches memory store with query and filters
+      returns empty array when no memory store
+    #memories?
+      returns false when agent has no memories
+      returns true when agent has memories
+    #forget
+      deletes specific memory
+      returns false when no memory store
+    #clear_memories
+      deletes all memories for agent
+    #memory_count
+      returns count of memories for agent
+      returns 0 when no memory store
+  #all_tools
+    returns empty array when no tools
+    returns all tools regardless of enabled state
+  attribute accessors
+    allows reading and writing all attributes
+    allows setting additional attributes
+  #enabled_tools
+    returns all tools when no context provided
+    delegates to FunctionTool.enabled_tools with context
+  error handling
+    wraps tool execution errors
+    provides helpful error for invalid tool in execute_tool
+  #validate_output
+    with output_type configured
+      validates and parses JSON when output type expects object
+      validates string output type
+    without output_type configured
+      returns output unchanged
+  #as_tool
+    supports custom output extractor via parameter
+    supports custom output extractor via block
+    includes proper parameters schema
+    uses handoff_description when available
+    uses custom tool name and description
+    converts agent to a FunctionTool
+  advanced initialization
+    supports output type configuration
+    supports response format configuration
+    supports tool choice configuration
+    supports Python SDK compatible parameters
+  #tool_exists?
+    returns false for non-existent tool
+    returns true for existing tool by string name
+    handles hosted tools with type field
+    returns true for existing tool by symbol name
+  #tools?
+    returns true when tools are added
+    returns false when no tools are added
+  #to_h
+    includes tools and handoffs in hash
+    handles custom instructions and model
+    returns a hash representation of the agent
+  #find_handoff
+    returns nil when agent not found
+    returns the correct agent when found
+  #can_handoff_to?
+    returns false if handoff is not available
+    returns true if handoff is available
+  guardrails
+    #add_input_guardrail
+      adds guardrail to collection
+    #add_output_guardrail
+      adds guardrail to collection
+  handoff tool generation
+    generates handoff tool when adding handoff dynamically
+    supports handoff objects with custom configuration
+    handoff tool returns proper handoff data structure
+    automatically generates handoff tools for agents in constructor
+
+RAAF::HandoffTool
+  error handling and validation
+    validates data contract structure
+    handles handoff context errors gracefully
+    handles missing target agent
+    handles missing handoff context
+  .company_discovery_contract
+    returns valid data contract for company discovery
+    has proper company validation structure
+  #initialize
+    initializes with required attributes
+  integration with handoff context
+    handles handoff chain tracking
+    integrates with real handoff context
+  .search_strategies_contract
+    has proper strategy validation
+    returns valid data contract for search strategies
+  handoff execution
+    handles handoff execution errors
+    handles empty handoff data
+    executes handoff with provided data
+    includes handoff data in result message
+  tool naming and sanitization
+    ensures unique tool names
+    handles complex agent names
+  .create_handoff_tool
+    with special characters in agent name
+      sanitizes agent name for tool name
+    with custom data contract
+      creates handoff tool with custom data contract
+    with default data contract
+      creates handoff tool with default parameters
+  data contract templates
+    provides template for workflow handoffs (PENDING: workflow_handoff_contract method not implemented)
+    provides template for task handoffs (PENDING: task_handoff_contract method not implemented)
+    provides template for user handoffs (PENDING: user_handoff_contract method not implemented)
+
+RAAF::Logging::Configuration
+  attribute accessors
+    allows setting and getting debug_categories
+    allows setting and getting log_format
+    allows setting and getting log_output
+    allows setting and getting log_level
+  #initialize
+    loads configuration from environment variables
+    sets default configuration values
+  #debug_enabled?
+    with no categories enabled
+      returns false for any category
+    with specific categories enabled
+      returns true for enabled categories
+      returns false for disabled categories
+    with none specified
+      returns false for any category
+    with all categories enabled
+      returns true for any category
+  #parse_debug_categories
+    handles whitespace in category list
+    parses comma-separated category list
+    handles special values
+    returns empty array for empty string
+
+RAAF::Models Error classes
+  defines model-specific error hierarchy
+
+RAAF::FunctionTool
+  logging behavior
+    logs debug information during initialization
+    logs when generating to_h output
+  .enabled_tools
+    filters out disabled tools
+    includes tools without enabled? method
+    handles mixed tool types
+    passes context to conditional tools
+    handles empty tools array
+  #call
+    with different callable types
+      executes proc with keyrest parameters
+      executes proc with mixed parameter types
+      executes proc with positional arguments
+      executes proc with no arguments
+      executes proc with keyword arguments
+    error handling
+      wraps execution errors with tool name
+      raises ToolError for non-callable
+      preserves original error class information
+  #enabled?
+    with proc value
+      returns false when proc raises error
+      calls proc with no arguments when arity is 0
+      calls proc with context when arity is not 0
+    with other truthy/falsy values
+      returns true for truthy non-boolean values
+      returns false for falsy non-boolean values
+    with boolean value
+      returns false when enabled is false
+      returns true when enabled is true
+      returns true when enabled is nil (default)
+  parameter extraction
+    handles required keyword arguments
+    sets additionalProperties to false
+    handles mixed positional arguments
+    ignores splat and block parameters
+    handles optional keyword arguments
+  #required_parameters?
+    returns false when required array is empty
+    returns false when parameters is nil
+    returns true when tool has required parameters
+    returns false when tool has only optional parameters
+  #parameters?
+    returns false when properties is empty
+    returns false when parameters is nil
+    returns true when parameters have properties
+    returns false when parameters have no properties
+  #initialize
+    with lambda
+      treats lambda as proc
+    with is_enabled option
+      stores proc is_enabled value
+      stores boolean is_enabled value
+    with method
+      extracts name from method
+      preserves explicitly provided parameters over extraction
+    with proc
+      creates tool with default name and description
+      accepts custom metadata
+  #to_h
+    generates OpenAI-compatible function definition
+    includes extracted parameters in definition
+  integration scenarios
+    works with agent handoff tools
+    supports dynamic enabling based on agent state
+    handles tools with complex return types
+  #callable?
+    returns false for invalid callable
+    returns true for method
+    returns true for proc
+
+RAAF::StructuredOutput
+  ResponseFormatter
+    #validate_and_format
+      parses JSON and validates
+      returns error for invalid JSON
+      returns error for schema violation
+    #format_response
+      formats valid data
+      returns error for invalid data
+  ObjectSchema
+    .build
+      supports enum constraints
+      supports nested objects
+      creates schema using builder pattern
+    #initialize
+      sets required fields
+      creates object schema with properties
+      sets additionalProperties
+  StringSchema
+    #initialize
+      creates string schema with constraints
+    #validate
+      raises ValidationError for non-string
+      raises ValidationError for pattern mismatch
+      validates correct string
+      raises ValidationError for too short string
+      raises ValidationError for too long string
+      with enum constraint
+        raises ValidationError for invalid enum value
+        validates enum values
+  ArraySchema
+    #initialize
+      creates array schema with item type
+    #validate
+      raises ValidationError for wrong item type
+      raises ValidationError for too many items
+      raises ValidationError for non-array
+      raises ValidationError for too few items
+      validates correct array
+  BaseSchema
+    #to_h
+      returns schema as hash
+    #validate
+      raises ValidationError for wrong type
+      raises ValidationError for additional properties when not allowed
+      raises ValidationError for out of range values
+      validates correct data
+      raises ValidationError for missing required fields
+    #initialize
+      creates a schema with valid JSON schema
+      raises SchemaError for invalid schema
+    #to_json
+      returns schema as JSON string
+
+RAAF::AgentOrchestrator
+  Edge Cases and Boundary Conditions
+    handles single agent workflows
+    handles nil and empty string inputs
+    handles empty agent list gracefully
+    handles very long handoff chains
+  Logging and Observability
+    logs workflow progression at appropriate levels
+    includes structured context in error logs
+  Advanced Workflow Scenarios
+    performance optimizations
+      caches agent lookups for efficiency
+      minimizes handoff context operations
+    agent coordination patterns
+      supports delegation with return pattern
+      supports parallel agent consultation pattern
+    error recovery and resilience
+      handles partial agent failures in workflow
+      recovers from transient handoff context errors
+    state management
+      tracks workflow metadata throughout execution
+      preserves handoff context state
+    handoff validation and security
+      validates handoff targets are legitimate agents
+      enforces handoff permissions
+      prevents handoff loops with cycle detection
+    complex multi-agent workflows
+      handles workflows with multiple handoffs and context preservation
+      maintains conversation context across all handoffs
+    provider integration
+      passes provider configuration to all agents
+      handles provider-specific response formats
+
+RAAF::TokenEstimator
+  .estimate_messages_tokens
+    returns total tokens for message array
+    returns 0 for non-array input
+    returns 0 for empty array
+    returns 0 for nil input
+    sums tokens from individual messages
+  .estimate_usage
+    calculates input tokens from messages
+    uses default model when none provided
+    returns complete usage hash with all required fields
+    handles nil response content gracefully
+    handles empty messages array
+    calculates output tokens from response content
+  .estimate_tool_calls_tokens
+    estimates tokens for tool calls with function data
+    handles non-hash elements in tool calls array
+    handles tool calls missing function data gracefully
+    handles tool calls with string keys
+    handles tool calls with missing name or arguments
+    returns 0 for nil tool calls
+    returns 0 for non-array input
+    sums tokens for multiple tool calls
+    returns 0 for empty array
+  .estimate_text_tokens
+    returns 0 for nil text
+    returns 0 for empty text
+    returns positive count for non-empty text
+    uses tiktoken for token counting
+    returns reasonable estimates for different text lengths
+  .estimate_response_format_tokens
+    returns 0 for non-hash response format
+    handles json_schema format without schema
+    returns 0 for nil response format
+    calculates reasonable schema overhead
+    handles json_schema format with schema
+    handles basic format overhead
+  integration scenarios
+    demonstrates tiktoken fallback behavior
+    handles edge cases gracefully
+    provides consistent estimation across methods
+    handles complex conversation with tools and structured output
+  .model_base
+    handles empty string
+    handles single-part model names
+    extracts base name for timestamped models
+    extracts base name for known models
+    returns 'default' for unknown models
+    returns 'default' for nil model
+    shows model_base limitations with hyphenated models
+  constants
+    TOKEN_RATIOS
+      includes default ratio
+      includes ratios for O1 models
+      includes ratios for GPT-4 models
+      includes ratios for GPT-3.5 models
+      is frozen to prevent modification
+    message overhead constants
+      defines message overhead
+      defines role tokens
+  .count_tokens_with_tiktoken
+    uses gpt-4 encoding for gpt-4 models
+    uses gpt-4 encoding for gpt-4 variant models
+    uses cl100k_base encoding for other models
+    uses gpt-3.5-turbo encoding for gpt-3.5 models
+    returns accurate token count for simple text
+    when tiktoken fails
+      returns at least 1 token for non-empty text
+      logs the warning
+      falls back to character-based estimation
+  .estimate_message_tokens
+    returns 0 for non-hash message
+    handles basic message with role and content
+    handles string keys in message hash
+    handles message with name field
+    returns 0 for nil message
+    handles missing content gracefully
+    handles empty content gracefully
+    handles message with tool calls
+
+Behavioral Compatibility
+  Edge Case Behavioral Compatibility
+    handles unicode content like Python SDK
+    handles empty responses like Python SDK
+    handles malformed tool calls like Python SDK
+  Python SDK Behavioral Parity
+    streaming behavior compatibility
+      handles streaming responses like Python SDK (PENDING: Streaming not yet implemented - placeholder for future)
+    conversation state management
+      handles context window limits like Python SDK
+      maintains conversation history like Python SDK
+    configuration precedence
+      applies configuration precedence like Python SDK
+    error handling behavior
+      handles API errors like Python SDK
+      handles validation errors like Python SDK
+    agent execution behavior
+      follows Python SDK execution flow
+      handles tool execution like Python SDK
+      processes handoffs like Python SDK
+  Performance Behavioral Compatibility
+    scales similarly to Python SDK
+    maintains similar performance characteristics to Python SDK
+
+API Contract Validation
+  Backwards Compatibility Contract
+    maintains compatibility with legacy OpenAI provider
+    supports legacy configuration parameters
+  Field Mapping Validation
+    correctly maps Python SDK fields to RAAF fields
+  OpenAI Responses API Contract
+    validates tool definitions in requests
+    generates valid request payloads
+    handles response validation
+  Version Compatibility
+    handles different API versions gracefully
+  Provider Interface Contract
+    handles errors consistently
+    implements consistent interface across providers
+    returns consistent response structure
+
+RAAF::Runner
+  complex execution flows
+    tool integration
+      supports agents with tools
+      handles agents with no tools
+    handoff functionality
+      supports basic handoff setup
+    conversation context management
+      handles reasonable conversation lengths
+      maintains context across multiple turns
+    input validation
+      handles mixed message formats
+      processes large conversations efficiently
+  #run_async
+    returns an Async task
+  #run
+    processes messages and returns results
+    traces the conversation flow
+    preserves original messages array
+    raises MaxTurnsError when max turns exceeded
+    adds assistant response to conversation
+  Assistant Content Extraction
+    extract_assistant_content_from_response method
+      handles malformed responses gracefully
+      handles responses with nil output
+      handles empty responses
+      extracts content from single output_text item
+      concatenates multiple output_text items
+      handles responses with no output_text items
+    content preservation during complex scenarios
+      preserves content through multiple API calls
+      handles mixed content types in responses
+    final message construction
+      handles multiple output_text items
+      extracts assistant content from Responses API format
+      prevents empty assistant messages
+  resource management and performance
+    manages memory usage during long conversations
+    handles large response processing efficiently
+    handles concurrent access safely
+  tool execution
+    traces tool execution
+    executes tools and continues conversation
+    handles tool execution errors gracefully
+  private methods
+    #build_messages
+      prepends system message to conversation
+    #build_system_prompt
+      handles agents without tools or handoffs
+      includes available tools
+      includes agent name and instructions
+      does not include handoffs in system prompt
+  #initialize
+    uses ResponsesProvider by default
+    accepts a custom provider
+    creates a runner with an agent
+    accepts a custom tracer (PENDING: Tracing is in a separate gem)
+  normalize_agent_name utility method
+    works with objects that respond to :name
+    converts Agent objects to their name strings
+    passes through string names unchanged
+    handles symbols by converting to strings
+    converts non-Agent objects to strings
+    handles edge case with whitespace in names
+    handles empty strings correctly
+    handles nil input gracefully
+    with different Agent objects
+      works with agents having different names
+      works with agents having complex names
+  error handling and resilience
+    guardrails integration
+      handles output guardrail exceptions (PENDING: Guardrails gem not available)
+      handles input guardrail exceptions (PENDING: Guardrails gem not available)
+    session processing edge cases
+      handles empty session gracefully
+      handles session with very large message history
+      handles memory manager failures during session processing
+    tool execution error handling
+      handles tool execution exceptions
+      processes tool responses appropriately
+    #should_stop?
+      handles stop checker exceptions gracefully
+      returns false when no stop checker is set
+      returns false when stop checker indicates continue
+      returns true when stop checker indicates stop
+  streaming support
+    supports streaming mode
+  normalize_agent_name integration with handoff methods
+    provides consistent results regardless of input type
+    find_handoff_agent works with string names
+    find_handoff_agent handles nil input
+    find_handoff_agent works with Agent objects
+    find_handoff_agent returns nil for non-existent agents
+
+RAAF::Models::ResponsesProvider Basic Coverage Tests
+  edge cases
+    handles empty messages array
+    handles non-JSON response bodies
+    handles very large message content
+  performance
+    completes requests within reasonable time
+  authentication and headers
+    includes correct authorization header
+    includes correct content-type header
+    includes user-agent header
+  streaming functionality
+    stream_completion method
+      enables streaming in responses_completion
+      passes tools parameter to streaming
+  #responses_completion - basic functionality
+    processes basic completion request
+    with tools parameter
+      processes tools parameter correctly
+    with additional parameters
+      handles temperature, max_tokens, and other options
+  API error handling
+    handles 401 Unauthorized errors
+    handles network timeouts
+    handles 400 Bad Request errors
+
+RAAF Agent Output Schemas
+  RAAF::AgentOutputSchemaBase
+    abstract interface
+      raises NotImplementedError for name
+      raises NotImplementedError for plain_text?
+      raises NotImplementedError for validate_json
+      raises NotImplementedError for validate_response (FAILED - 12)
+  RAAF::AgentOutputSchema
+    #validate_json
+      with strict JSON schema validation
+        validates JSON string against Array schema (FAILED - 13)
+        validates JSON string against Hash schema (FAILED - 14)
+        raises error for JSON type mismatch (FAILED - 15)
+        raises error for invalid JSON (FAILED - 16)
+      with plain text schema
+        returns JSON string as-is for String output type
+        returns JSON string as-is for nil output type
+      with non-strict JSON schema validation
+        still raises error for invalid JSON (FAILED - 17)
+        passes through parsed JSON for any structure (FAILED - 18)
+    #initialize
+      defaults strict_json_schema to true
+      initializes with String output type
+      allows setting strict_json_schema to false
+      initializes with hash output type (FAILED - 19)
+      initializes with custom output type (FAILED - 20)
+      initializes with nil output type
+      initializes with array output type
+    #validate_response
+      with plain text response
+        validates string response for String output type (FAILED - 21)
+        raises error for non-string response with String output type (FAILED - 22)
+        validates string response for nil output type (FAILED - 23)
+      with custom output type
+        validates custom object with from_hash method (FAILED - 24)
+        passes through already correct custom type (FAILED - 25)
+        raises error for incompatible type (FAILED - 26)
+      with structured response
+        validates hash response for Hash output type (FAILED - 27)
+        raises error for wrong type with Hash output type (FAILED - 28)
+        validates array response for Array output type (FAILED - 29)
+        raises error for wrong type with Array output type (FAILED - 30)
+    #name
+      returns class name for custom output type (FAILED - 31)
+      returns 'text' for nil output type (FAILED - 32)
+      returns 'text' for String output type (FAILED - 33)
+      returns 'Array' for Array output type
+      returns 'Hash' for Hash output type (FAILED - 34)
+    private methods
+      #validate_type_match
+        raises error for mismatched types (FAILED - 35)
+        passes validation for matching types (FAILED - 36)
+      #validate_custom_type
+        calls from_hash on custom class for hash data (FAILED - 37)
+        handles non-strict mode for unknown custom types
+        returns data as-is if already correct type (FAILED - 38)
+        raises error if custom class doesn't have from_hash method (FAILED - 39)
+    #plain_text?
+      returns true for String output type
+      returns false for Array output type
+      returns false for custom output type (FAILED - 40)
+      returns true for nil output type
+      returns false for Hash output type (FAILED - 41)
+    #json_schema
+      returns nil for String output type (FAILED - 42)
+      returns object schema for Hash output type (FAILED - 43)
+      returns array schema for Array output type (FAILED - 44)
+      returns custom schema for class with json_schema method (FAILED - 45)
+      returns default object schema for unknown custom types (FAILED - 46)
+      returns nil for nil output type (FAILED - 47)
+  RAAF::TypeAdapter
+    #json_schema
+      returns boolean schema for Boolean types
+      returns default object schema for unknown types
+      returns number schema for Float type
+      returns custom schema for type with json_schema method
+      returns array schema for Array type
+      returns number schema for Integer type
+      returns string schema for String type
+    #validate
+      validates Float type correctly
+      validates Boolean types correctly
+      validates String type correctly
+      validates Array type correctly
+      raises error for type mismatch (FAILED - 48)
+      validates Hash type correctly
+      validates Integer type correctly
+    #initialize
+      stores the provided type
+
+Pending: (Failures listed here are expected and do not affect your suite's status)
+
+  1) OpenAI SDK Compatibility Tracing Compatibility trace payload structure generates Python SDK compatible trace spans
+     # Requires tracing implementation details
+     # ./spec/compliance/openai_sdk_compatibility_spec.rb:306
+
+  2) Provider Contract Compliance Streaming Contract yields chunks during streaming
+     # Streaming implementation requires specific provider testing
+     # ./spec/compliance/provider_contract_compliance_spec.rb:488
+
+  3) RAAF::HandoffTool data contract templates provides template for workflow handoffs
+     # workflow_handoff_contract method not implemented
+     # ./spec/handoff_tool_spec.rb:325
+
+  4) RAAF::HandoffTool data contract templates provides template for task handoffs
+     # task_handoff_contract method not implemented
+     # ./spec/handoff_tool_spec.rb:315
+
+  5) RAAF::HandoffTool data contract templates provides template for user handoffs
+     # user_handoff_contract method not implemented
+     # ./spec/handoff_tool_spec.rb:320
+
+  6) Behavioral Compatibility Python SDK Behavioral Parity streaming behavior compatibility handles streaming responses like Python SDK
+     # Streaming not yet implemented - placeholder for future
+     # ./spec/compliance/behavioral_compatibility_spec.rb:320
+
+  7) RAAF::Runner#initialize accepts a custom tracer
+     # Tracing is in a separate gem
+     # ./spec/runner_spec.rb:16
+
+  8) RAAF::Runner error handling and resilience guardrails integration handles output guardrail exceptions
+     # Guardrails gem not available
+     # ./spec/runner_spec.rb:875
+
+  9) RAAF::Runner error handling and resilience guardrails integration handles input guardrail exceptions
+     # Guardrails gem not available
+     # ./spec/runner_spec.rb:864
+
+Failures:
+
+  1) RAAF Run Executors RAAF::RunExecutor#execute with ResponsesProvider uses responses API strategy
+     Failure/Error:
+       allow(error_handler).to receive(:with_error_handling) do |_context:, &block|
+         block.call
+       end
+
+     ArgumentError:
+       missing keyword: :_context
+     # ./spec/run_executor_spec.rb:62:in `block (6 levels) in <top (required)>'
+     # ./lib/raaf/run_executor.rb:82:in `execute'
+     # ./spec/run_executor_spec.rb:78:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  2) RAAF Run Executors RAAF::RunExecutor#execute with ResponsesProvider handles incomplete API strategy results gracefully
+     Failure/Error:
+       allow(error_handler).to receive(:with_error_handling) do |_context:, &block|
+         block.call
+       end
+
+     ArgumentError:
+       missing keyword: :_context
+     # ./spec/run_executor_spec.rb:62:in `block (6 levels) in <top (required)>'
+     # ./lib/raaf/run_executor.rb:82:in `execute'
+     # ./spec/run_executor_spec.rb:111:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  3) RAAF Run Executors RAAF::RunExecutor#execute with ResponsesProvider handles API strategy results correctly
+     Failure/Error:
+       allow(error_handler).to receive(:with_error_handling) do |_context:, &block|
+         block.call
+       end
+
+     ArgumentError:
+       missing keyword: :_context
+     # ./spec/run_executor_spec.rb:62:in `block (6 levels) in <top (required)>'
+     # ./lib/raaf/run_executor.rb:82:in `execute'
+     # ./spec/run_executor_spec.rb:95:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  4) RAAF Run Executors RAAF::RunExecutor#execute with non-ResponsesProvider creates result from conversation manager output
+     Failure/Error:
+       allow(error_handler).to receive(:with_error_handling) do |_context:, &block|
+         block.call
+       end
+
+     ArgumentError:
+       missing keyword: :_context
+     # ./spec/run_executor_spec.rb:148:in `block (6 levels) in <top (required)>'
+     # ./lib/raaf/run_executor.rb:82:in `execute'
+     # ./spec/run_executor_spec.rb:185:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  5) RAAF Run Executors RAAF::RunExecutor#execute with non-ResponsesProvider passes turn data to turn executor
+     Failure/Error:
+       allow(error_handler).to receive(:with_error_handling) do |_context:, &block|
+         block.call
+       end
+
+     ArgumentError:
+       missing keyword: :_context
+     # ./spec/run_executor_spec.rb:148:in `block (6 levels) in <top (required)>'
+     # ./lib/raaf/run_executor.rb:82:in `execute'
+     # ./spec/run_executor_spec.rb:172:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  6) RAAF Run Executors RAAF::RunExecutor#execute with non-ResponsesProvider uses conversation manager strategy
+     Failure/Error:
+       allow(error_handler).to receive(:with_error_handling) do |_context:, &block|
+         block.call
+       end
+
+     ArgumentError:
+       missing keyword: :_context
+     # ./spec/run_executor_spec.rb:148:in `block (6 levels) in <top (required)>'
+     # ./lib/raaf/run_executor.rb:82:in `execute'
+     # ./spec/run_executor_spec.rb:158:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  7) Regression Cases Previously reported bugs memory management regressions prevents agent reference cycles (regression from memory leaks)
+     Failure/Error: expect(agent1_still_exists).to be_nil  # GC collected the object
+
+       expected: nil
+            got: #<RAAF::Agent:0x000000012b5f8490 @name="RefCycleAgent1", @instructions=nil, @tools=[#<RAAF::FunctionT...tool_use_behavior=#<RAAF::ToolUseBehavior::RunLLMAgain:0x000000012a419f30>, @reset_tool_choice=true>
+     # ./spec/edge_cases/regression_cases_spec.rb:405:in `block (4 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  8) RAAF Error Handling RAAF::ErrorHandling.with_error_handling when JSON::ParserError is raised converts to ResponseProcessingError
+     Failure/Error:
+       expect do
+         described_class.with_error_handling(agent: test_agent) do
+           raise JSON::ParserError, "Invalid JSON"
+         end
+       end.to raise_error(RAAF::Errors::ResponseProcessingError)
+         .and have_attributes(agent: test_agent)
+         .and have_attributes(message: include("Failed to parse JSON"))
+
+       You must pass an argument rather than a block to `expect` to use the provided matcher (raise RAAF::Errors::ResponseProcessingError and have attributes {:agent => #<RAAF::Agent:0x000000012b...3fd90>, @reset_tool_choice=true>} and have attributes {:message => (include "Failed to parse JSON")}), or the matcher must implement `supports_block_expectations?`.
+     # ./spec/step_errors_spec.rb:243:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  9) RAAF Error Handling RAAF::ErrorHandling.with_error_handling when NoMethodError is raised converts nil errors to ModelBehaviorError
+     Failure/Error:
+       expect do
+         described_class.with_error_handling(agent: test_agent) do
+           raise NoMethodError, "undefined method `foo' for nil:NilClass"
+         end
+       end.to raise_error(RAAF::Errors::ModelBehaviorError)
+         .and have_attributes(
+           agent: test_agent,
+           message: include("Unexpected nil value")
+         )
+
+       You must pass an argument rather than a block to `expect` to use the provided matcher (raise RAAF::Errors::ModelBehaviorError and have attributes {:agent => #<RAAF::Agent:0x000000012b5b654...LMAgain:0x0000000129834a30>, @reset_tool_choice=true>, :message => (include "Unexpected nil value")}), or the matcher must implement `supports_block_expectations?`.
+     # ./spec/step_errors_spec.rb:255:in `block (5 levels) in <top (required)>'
+     # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  10) RAAF Error Handling RAAF::ErrorHandling.with_error_handling when StepProcessingError is raised preserves original agent if already set
+      Failure/Error:
+        expect do
+          described_class.with_error_handling(agent: test_agent) do
+            raise original_error
+          end
+        end.to raise_error(RAAF::Errors::AgentError)
+          .and have_attributes(agent: original_agent)
+
+        You must pass an argument rather than a block to `expect` to use the provided matcher (raise RAAF::Errors::AgentError and have attributes {:agent => #<RAAF::Agent:0x000000012b5b4ec0 @name=...ool_use_behavior=#<RAAF::ToolUseBehavior::RunLLMAgain:0x00000001297faab0>, @reset_tool_choice=true>}), or the matcher must implement `supports_block_expectations?`.
+      # ./spec/step_errors_spec.rb:232:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  11) RAAF Error Handling RAAF::ErrorHandling.with_error_handling when StepProcessingError is raised re-raises with additional context
+      Failure/Error:
+        expect do
+          described_class.with_error_handling(context: context, agent: test_agent) do
+            raise original_error
+          end
+        end.to raise_error(RAAF::Errors::AgentError)
+          .and have_attributes(
+            message: "Agent failed",
+            context: context,
+            agent: test_agent
+          )
+
+        You must pass an argument rather than a block to `expect` to use the provided matcher (raise RAAF::Errors::AgentError and have attributes {:agent => #<RAAF::Agent:0x000000012b5b4100 @name=...reset_tool_choice=true>, :context => {:operation => "test", :step => 1}, :message => "Agent failed"}), or the matcher must implement `supports_block_expectations?`.
+      # ./spec/step_errors_spec.rb:216:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  12) RAAF Agent Output Schemas RAAF::AgentOutputSchemaBase abstract interface raises NotImplementedError for validate_response
+      Failure/Error: expect { schema.validate_response("test") }.to raise_error(NotImplementedError, "Subclasses must implement #validate_response")
+
+        expected NotImplementedError with "Subclasses must implement #validate_response", got #<NoMethodError: undefined method `validate_response' for an instance of RAAF::AgentOutputSchemaBase> with backtrace:
+          # ./spec/agent_output_spec.rb:19:in `block (5 levels) in <top (required)>'
+          # ./spec/agent_output_spec.rb:19:in `block (4 levels) in <top (required)>'
+          # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ./spec/agent_output_spec.rb:19:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  13) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation validates JSON string against Array schema
+      Failure/Error: raise Errors::ModelBehaviorError, "Expected a Hash, got #{parsed.class} for JSON: #{json_str}" unless parsed.is_a?(Hash)
+
+      RAAF::Errors::ModelBehaviorError:
+        Expected a Hash, got Array for JSON: ["item1", "item2", "item3"]
+      # ./lib/raaf/agent_output.rb:187:in `validate_json'
+      # ./spec/agent_output_spec.rb:292:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  14) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation validates JSON string against Hash schema
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:282:in `new'
+      # ./spec/agent_output_spec.rb:282:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  15) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation raises error for JSON type mismatch
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:305:in `new'
+      # ./spec/agent_output_spec.rb:305:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  16) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation raises error for invalid JSON
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:298:in `new'
+      # ./spec/agent_output_spec.rb:298:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  17) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with non-strict JSON schema validation still raises error for invalid JSON
+      Failure/Error:
+        expect do
+          schema.validate_json("invalid json")
+        end.to raise_error(JSON::ParserError)
+
+        expected JSON::ParserError, got #<RAAF::Errors::ModelBehaviorError: Invalid JSON: unexpected character: 'invalid' at line 1 column 1> with backtrace:
+          # ./lib/raaf/agent_output.rb:199:in `rescue in validate_json'
+          # ./lib/raaf/agent_output.rb:183:in `validate_json'
+          # ./spec/agent_output_spec.rb:325:in `block (6 levels) in <top (required)>'
+          # ./spec/agent_output_spec.rb:324:in `block (5 levels) in <top (required)>'
+          # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ./spec/agent_output_spec.rb:324:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  18) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with non-strict JSON schema validation passes through parsed JSON for any structure
+      Failure/Error: raise Errors::ModelBehaviorError, "Expected Hash, got #{data.class}" unless data.is_a?(Hash)
+
+      RAAF::Errors::ModelBehaviorError:
+        Expected Hash, got Array
+      # ./lib/raaf/agent_output.rb:343:in `validate_against_type'
+      # ./lib/raaf/agent_output.rb:197:in `validate_json'
+      # ./spec/agent_output_spec.rb:317:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  19) RAAF Agent Output Schemas RAAF::AgentOutputSchema#initialize initializes with hash output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:50:in `new'
+      # ./spec/agent_output_spec.rb:50:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  20) RAAF Agent Output Schemas RAAF::AgentOutputSchema#initialize initializes with custom output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:44:in `new'
+      # ./spec/agent_output_spec.rb:44:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  21) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with plain text response validates string response for String output type
+      Failure/Error: result = schema.validate_response("Hello")
+
+      NoMethodError:
+        undefined method `validate_response' for an instance of RAAF::AgentOutputSchema
+      # ./spec/agent_output_spec.rb:189:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  22) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with plain text response raises error for non-string response with String output type
+      Failure/Error:
+        expect do
+          schema.validate_response({ message: "Hello" })
+        end.to raise_error(ArgumentError, /Expected String, got Hash/)
+
+        expected ArgumentError with message matching /Expected String, got Hash/, got #<NoMethodError: undefined method `validate_response' for an instance of RAAF::AgentOutputSchema> with backtrace:
+          # ./spec/agent_output_spec.rb:196:in `block (6 levels) in <top (required)>'
+          # ./spec/agent_output_spec.rb:195:in `block (5 levels) in <top (required)>'
+          # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ./spec/agent_output_spec.rb:195:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  23) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with plain text response validates string response for nil output type
+      Failure/Error: result = schema.validate_response("Hello")
+
+      NoMethodError:
+        undefined method `validate_response' for an instance of RAAF::AgentOutputSchema
+      # ./spec/agent_output_spec.rb:183:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  24) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with custom output type validates custom object with from_hash method
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:253:in `new'
+      # ./spec/agent_output_spec.rb:253:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  25) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with custom output type passes through already correct custom type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:263:in `new'
+      # ./spec/agent_output_spec.rb:263:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  26) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with custom output type raises error for incompatible type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:271:in `new'
+      # ./spec/agent_output_spec.rb:271:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  27) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response validates hash response for Hash output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:203:in `new'
+      # ./spec/agent_output_spec.rb:203:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  28) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response raises error for wrong type with Hash output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:217:in `new'
+      # ./spec/agent_output_spec.rb:217:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  29) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response validates array response for Array output type
+      Failure/Error: result = schema.validate_response(data)
+
+      NoMethodError:
+        undefined method `validate_response' for an instance of RAAF::AgentOutputSchema
+      # ./spec/agent_output_spec.rb:212:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  30) RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response raises error for wrong type with Array output type
+      Failure/Error:
+        expect do
+          schema.validate_response({ not: "array" })
+        end.to raise_error(ArgumentError, /Expected Array, got Hash/)
+
+        expected ArgumentError with message matching /Expected Array, got Hash/, got #<NoMethodError: undefined method `validate_response' for an instance of RAAF::AgentOutputSchema> with backtrace:
+          # ./spec/agent_output_spec.rb:226:in `block (6 levels) in <top (required)>'
+          # ./spec/agent_output_spec.rb:225:in `block (5 levels) in <top (required)>'
+          # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ./spec/agent_output_spec.rb:225:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  31) RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns class name for custom output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:85:in `new'
+      # ./spec/agent_output_spec.rb:85:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  32) RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns 'text' for nil output type
+      Failure/Error: expect(schema.name).to eq("text")
+
+        expected: "text"
+             got: "nil"
+
+        (compared using ==)
+      # ./spec/agent_output_spec.rb:75:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  33) RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns 'text' for String output type
+      Failure/Error: expect(schema.name).to eq("text")
+
+        expected: #<Encoding:UTF-8> "text"
+             got: #<Encoding:US-ASCII> "String"
+
+        (compared using ==)
+      # ./spec/agent_output_spec.rb:80:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  34) RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns 'Hash' for Hash output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:90:in `new'
+      # ./spec/agent_output_spec.rb:90:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  35) RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_type_match raises error for mismatched types
+      Failure/Error:
+        expect do
+          schema.send(:validate_type_match, 123, String)
+        end.to raise_error(ArgumentError, /Expected String, got Integer/)
+
+        expected ArgumentError with message matching /Expected String, got Integer/, got #<NoMethodError: undefined method `validate_type_match' for an instance of RAAF::AgentOutputSchema> with backtrace:
+          # ./spec/agent_output_spec.rb:361:in `block (6 levels) in <top (required)>'
+          # ./spec/agent_output_spec.rb:360:in `block (5 levels) in <top (required)>'
+          # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ./spec/agent_output_spec.rb:360:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  36) RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_type_match passes validation for matching types
+      Failure/Error:
+        expect do
+          schema.send(:validate_type_match, "test", String)
+        end.not_to raise_error
+
+        expected no Exception, got #<NoMethodError: undefined method `validate_type_match' for an instance of RAAF::AgentOutputSchema> with backtrace:
+          # ./spec/agent_output_spec.rb:354:in `block (6 levels) in <top (required)>'
+          # ./spec/agent_output_spec.rb:353:in `block (5 levels) in <top (required)>'
+          # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ./spec/agent_output_spec.rb:353:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  37) RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_custom_type calls from_hash on custom class for hash data
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:376:in `new'
+      # ./spec/agent_output_spec.rb:376:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  38) RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_custom_type returns data as-is if already correct type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:384:in `new'
+      # ./spec/agent_output_spec.rb:384:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  39) RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_custom_type raises error if custom class doesn't have from_hash method
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:393:in `new'
+      # ./spec/agent_output_spec.rb:393:in `block (5 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  40) RAAF Agent Output Schemas RAAF::AgentOutputSchema#plain_text? returns false for custom output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:123:in `new'
+      # ./spec/agent_output_spec.rb:123:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  41) RAAF Agent Output Schemas RAAF::AgentOutputSchema#plain_text? returns false for Hash output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:112:in `new'
+      # ./spec/agent_output_spec.rb:112:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  42) RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns nil for String output type
+      Failure/Error: raise Errors::UserError, "Output type is plain text, so no JSON schema is available" if plain_text?
+
+      RAAF::Errors::UserError:
+        Output type is plain text, so no JSON schema is available
+      # ./lib/raaf/agent_output.rb:165:in `json_schema'
+      # ./spec/agent_output_spec.rb:136:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  43) RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns object schema for Hash output type
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:140:in `new'
+      # ./spec/agent_output_spec.rb:140:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  44) RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns array schema for Array output type
+      Failure/Error:
+        expect(schema.json_schema).to eq({
+                                           type: "array",
+                                           items: {}
+                                         })
+
+        expected: {:items=>{}, :type=>"array"}
+             got: {"additionalProperties"=>false, "properties"=>{"response"=>{"items"=>{}, "type"=>"array"}}, "required"=>["response"], "type"=>"object"}
+
+        (compared using ==)
+
+        Diff:
+        @@ -1,2 +1,4 @@
+        -:items => {},
+        -:type => "array",
+        +"additionalProperties" => false,
+        +"properties" => {"response"=>{"items"=>{}, "type"=>"array"}},
+        +"required" => ["response"],
+        +"type" => "object",
+      # ./spec/agent_output_spec.rb:149:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  45) RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns custom schema for class with json_schema method
+      Failure/Error:
+        expect(schema.json_schema).to eq({
+                                           type: "custom",
+                                           properties: { name: { type: "string" } }
+                                         })
+
+        expected: {:properties=>{:name=>{:type=>"string"}}, :type=>"custom"}
+             got: {"properties"=>{"name"=>{"type"=>"string"}}, "type"=>"custom"}
+
+        (compared using ==)
+
+        Diff:
+        @@ -1,2 +1,2 @@
+        -:properties => {:name=>{:type=>"string"}},
+        -:type => "custom",
+        +"properties" => {"name"=>{"type"=>"string"}},
+        +"type" => "custom",
+      # ./spec/agent_output_spec.rb:163:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  46) RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns default object schema for unknown custom types
+      Failure/Error:
+        raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
+                                 "Either make the output type strict, or pass strict_json_schema: false"
+
+      RAAF::Errors::UserError:
+        Strict JSON schema is enabled, but the output type is not valid. Either make the output type strict, or pass strict_json_schema: false
+      # ./lib/raaf/agent_output.rb:234:in `rescue in configure_schema'
+      # ./lib/raaf/agent_output.rb:231:in `configure_schema'
+      # ./lib/raaf/agent_output.rb:128:in `initialize'
+      # ./spec/agent_output_spec.rb:171:in `new'
+      # ./spec/agent_output_spec.rb:171:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ------------------
+      # --- Caused by: ---
+      # ArgumentError:
+      #   additionalProperties should not be set to true for strict schemas
+      #   ./lib/raaf/strict_schema.rb:242:in `ensure_strict_json_schema_recursive'
+
+  47) RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns nil for nil output type
+      Failure/Error: raise Errors::UserError, "Output type is plain text, so no JSON schema is available" if plain_text?
+
+      RAAF::Errors::UserError:
+        Output type is plain text, so no JSON schema is available
+      # ./lib/raaf/agent_output.rb:165:in `json_schema'
+      # ./spec/agent_output_spec.rb:131:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+  48) RAAF Agent Output Schemas RAAF::TypeAdapter#validate raises error for type mismatch
+      Failure/Error:
+        expect do
+          adapter.validate(123)
+        end.to raise_error(ArgumentError, /Expected String, got Integer/)
+
+        expected ArgumentError with message matching /Expected String, got Integer/, got #<TypeError: Expected String, got Integer> with backtrace:
+          # ./lib/raaf/agent_output.rb:434:in `validate'
+          # ./spec/agent_output_spec.rb:462:in `block (5 levels) in <top (required)>'
+          # ./spec/agent_output_spec.rb:461:in `block (4 levels) in <top (required)>'
+          # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+      # ./spec/agent_output_spec.rb:461:in `block (4 levels) in <top (required)>'
+      # /Users/hajee/.rvm/gems/ruby-3.3.5/gems/webmock-3.25.1/lib/webmock/rspec.rb:39:in `block (2 levels) in <top (required)>'
+
+Finished in 14.27 seconds (files took 2.86 seconds to load)
+2260 examples, 48 failures, 9 pending, 1 error occurred outside of examples
+
+Failed examples:
+
+rspec ./spec/run_executor_spec.rb:68 # RAAF Run Executors RAAF::RunExecutor#execute with ResponsesProvider uses responses API strategy
+rspec ./spec/run_executor_spec.rb:106 # RAAF Run Executors RAAF::RunExecutor#execute with ResponsesProvider handles incomplete API strategy results gracefully
+rspec ./spec/run_executor_spec.rb:84 # RAAF Run Executors RAAF::RunExecutor#execute with ResponsesProvider handles API strategy results correctly
+rspec ./spec/run_executor_spec.rb:175 # RAAF Run Executors RAAF::RunExecutor#execute with non-ResponsesProvider creates result from conversation manager output
+rspec ./spec/run_executor_spec.rb:161 # RAAF Run Executors RAAF::RunExecutor#execute with non-ResponsesProvider passes turn data to turn executor
+rspec ./spec/run_executor_spec.rb:154 # RAAF Run Executors RAAF::RunExecutor#execute with non-ResponsesProvider uses conversation manager strategy
+rspec ./spec/edge_cases/regression_cases_spec.rb:372 # Regression Cases Previously reported bugs memory management regressions prevents agent reference cycles (regression from memory leaks)
+rspec ./spec/step_errors_spec.rb:242 # RAAF Error Handling RAAF::ErrorHandling.with_error_handling when JSON::ParserError is raised converts to ResponseProcessingError
+rspec ./spec/step_errors_spec.rb:254 # RAAF Error Handling RAAF::ErrorHandling.with_error_handling when NoMethodError is raised converts nil errors to ModelBehaviorError
+rspec ./spec/step_errors_spec.rb:228 # RAAF Error Handling RAAF::ErrorHandling.with_error_handling when StepProcessingError is raised preserves original agent if already set
+rspec ./spec/step_errors_spec.rb:212 # RAAF Error Handling RAAF::ErrorHandling.with_error_handling when StepProcessingError is raised re-raises with additional context
+rspec ./spec/agent_output_spec.rb:18 # RAAF Agent Output Schemas RAAF::AgentOutputSchemaBase abstract interface raises NotImplementedError for validate_response
+rspec ./spec/agent_output_spec.rb:289 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation validates JSON string against Array schema
+rspec ./spec/agent_output_spec.rb:281 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation validates JSON string against Hash schema
+rspec ./spec/agent_output_spec.rb:304 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation raises error for JSON type mismatch
+rspec ./spec/agent_output_spec.rb:297 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with strict JSON schema validation raises error for invalid JSON
+rspec ./spec/agent_output_spec.rb:322 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with non-strict JSON schema validation still raises error for invalid JSON
+rspec ./spec/agent_output_spec.rb:314 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_json with non-strict JSON schema validation passes through parsed JSON for any structure
+rspec ./spec/agent_output_spec.rb:49 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#initialize initializes with hash output type
+rspec ./spec/agent_output_spec.rb:42 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#initialize initializes with custom output type
+rspec ./spec/agent_output_spec.rb:187 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with plain text response validates string response for String output type
+rspec ./spec/agent_output_spec.rb:193 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with plain text response raises error for non-string response with String output type
+rspec ./spec/agent_output_spec.rb:181 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with plain text response validates string response for nil output type
+rspec ./spec/agent_output_spec.rb:252 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with custom output type validates custom object with from_hash method
+rspec ./spec/agent_output_spec.rb:262 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with custom output type passes through already correct custom type
+rspec ./spec/agent_output_spec.rb:270 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with custom output type raises error for incompatible type
+rspec ./spec/agent_output_spec.rb:202 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response validates hash response for Hash output type
+rspec ./spec/agent_output_spec.rb:216 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response raises error for wrong type with Hash output type
+rspec ./spec/agent_output_spec.rb:209 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response validates array response for Array output type
+rspec ./spec/agent_output_spec.rb:223 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#validate_response with structured response raises error for wrong type with Array output type
+rspec ./spec/agent_output_spec.rb:83 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns class name for custom output type
+rspec ./spec/agent_output_spec.rb:73 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns 'text' for nil output type
+rspec ./spec/agent_output_spec.rb:78 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns 'text' for String output type
+rspec ./spec/agent_output_spec.rb:89 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#name returns 'Hash' for Hash output type
+rspec ./spec/agent_output_spec.rb:358 # RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_type_match raises error for mismatched types
+rspec ./spec/agent_output_spec.rb:351 # RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_type_match passes validation for matching types
+rspec ./spec/agent_output_spec.rb:375 # RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_custom_type calls from_hash on custom class for hash data
+rspec ./spec/agent_output_spec.rb:383 # RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_custom_type returns data as-is if already correct type
+rspec ./spec/agent_output_spec.rb:391 # RAAF Agent Output Schemas RAAF::AgentOutputSchema private methods #validate_custom_type raises error if custom class doesn't have from_hash method
+rspec ./spec/agent_output_spec.rb:121 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#plain_text? returns false for custom output type
+rspec ./spec/agent_output_spec.rb:111 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#plain_text? returns false for Hash output type
+rspec ./spec/agent_output_spec.rb:134 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns nil for String output type
+rspec ./spec/agent_output_spec.rb:139 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns object schema for Hash output type
+rspec ./spec/agent_output_spec.rb:147 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns array schema for Array output type
+rspec ./spec/agent_output_spec.rb:155 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns custom schema for class with json_schema method
+rspec ./spec/agent_output_spec.rb:169 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns default object schema for unknown custom types
+rspec ./spec/agent_output_spec.rb:129 # RAAF Agent Output Schemas RAAF::AgentOutputSchema#json_schema returns nil for nil output type
+rspec ./spec/agent_output_spec.rb:459 # RAAF Agent Output Schemas RAAF::TypeAdapter#validate raises error for type mismatch
+
+Randomized with seed 34431
+

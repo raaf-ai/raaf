@@ -26,11 +26,13 @@ module RAAF
 
       # rubocop:disable Lint/MissingSuper
       def initialize(api_key: nil, api_base: nil, **)
-        # Issue deprecation warning
-        warn "DEPRECATION WARNING: OpenAIProvider is deprecated and will be removed in a future version. " \
-             "Use ResponsesProvider instead (it's the default). OpenAIProvider is maintained only for " \
-             "backwards compatibility and streaming support. " \
-             "Called from #{caller_locations(1, 1).first}"
+        # Issue deprecation warning unless suppressed
+        unless ENV["RAAF_SUPPRESS_WARNINGS"] == "true"
+          warn "DEPRECATION WARNING: OpenAIProvider is deprecated and will be removed in a future version. " \
+               "Use ResponsesProvider instead (it's the default). OpenAIProvider is maintained only for " \
+               "backwards compatibility and streaming support. " \
+               "Called from #{caller_locations(1, 1).first}"
+        end
 
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
@@ -300,7 +302,7 @@ module RAAF
         # Convert usage format if present
         if response.respond_to?(:[]) && response[:usage]
           usage = response[:usage]
-          
+
           # Convert legacy field names to new format
           if usage[:prompt_tokens] || usage["prompt_tokens"]
             response[:usage] = {
@@ -309,9 +311,9 @@ module RAAF
               total_tokens: usage[:total_tokens] || usage["total_tokens"] || 0
             }
           end
-        elsif response.respond_to?(:dig) && response.dig("usage")
+        elsif response.respond_to?(:dig) && response["usage"]
           usage = response["usage"]
-          
+
           # Convert legacy field names to new format for string keys
           if usage["prompt_tokens"] || usage["completion_tokens"]
             response["usage"] = {
@@ -321,7 +323,7 @@ module RAAF
             }
           end
         end
-        
+
         response
       end
 

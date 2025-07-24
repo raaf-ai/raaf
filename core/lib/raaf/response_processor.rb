@@ -116,7 +116,7 @@ module RAAF
                 [response]
               end
 
-      log_debug("🔍 RESPONSE_PROCESSOR: Extracted response items", 
+      log_debug("🔍 RESPONSE_PROCESSOR: Extracted response items",
                 items_count: items.length,
                 item_types: items.map { |item| item[:type] || item["type"] || "unknown" },
                 response_format: response[:output] ? "responses_api" : "chat_completions")
@@ -133,7 +133,7 @@ module RAAF
                               handoff_map:, function_map:, computer_tool:, local_shell_tool:)
       detected_type = item[:type] || infer_item_type(item)
 
-      log_debug("🔍 RESPONSE_PROCESSOR: Processing response item", 
+      log_debug("🔍 RESPONSE_PROCESSOR: Processing response item",
                 item_type: detected_type,
                 item_keys: item.keys,
                 item_name: item[:name],
@@ -214,8 +214,8 @@ module RAAF
           function_tool: function_map[tool_name]
         )
       else
-        log_debug("🚨 HANDOFF DEBUG: Tool lookup failed", 
-                  tool_name: tool_name, 
+        log_debug("🚨 HANDOFF DEBUG: Tool lookup failed",
+                  tool_name: tool_name,
                   agent: agent.name,
                   handoff_map_keys: handoff_map.keys,
                   function_map_keys: function_map.keys,
@@ -338,8 +338,8 @@ module RAAF
     def create_tool_call_item(item, agent)
       original_id = item[:id] || item[:call_id] || SecureRandom.uuid
       # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
-      normalized_id = original_id.to_s.sub(/^fc_/, 'call_')
-      
+      normalized_id = original_id.to_s.sub(/^fc_/, "call_")
+
       raw_item = {
         type: "tool_call",
         id: normalized_id,
@@ -356,8 +356,8 @@ module RAAF
     def create_handoff_call_item(item, agent)
       original_id = item[:id] || item[:call_id] || SecureRandom.uuid
       # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility
-      normalized_id = original_id.to_s.sub(/^fc_/, 'call_')
-      
+      normalized_id = original_id.to_s.sub(/^fc_/, "call_")
+
       raw_item = {
         type: "function_call",
         id: normalized_id,

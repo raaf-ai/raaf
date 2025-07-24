@@ -268,10 +268,10 @@ module RAAF
     #     description: "Search the database"
     #   )
     #   agent.add_tool(tool)
-    def add_tool(tool, **options)
+    def add_tool(tool, **)
       case tool
       when Proc, Method
-        @tools << FunctionTool.new(tool, **options)
+        @tools << FunctionTool.new(tool, **)
       when FunctionTool
         @tools << tool
       else
@@ -499,18 +499,6 @@ module RAAF
     end
 
     ##
-    # Get enabled tools for current context
-    #
-    # This method provides the interface expected by the Runner class
-    # and delegates to enabled_tools for consistency.
-    #
-    # @param context [RunContextWrapper, nil] current run context
-    # @return [Array<FunctionTool>] enabled tools only (always returns array)
-    def tools(context = nil)
-      enabled_tools(context)
-    end
-
-    ##
     # Executes a specific tool by name
     #
     # This method allows direct execution of agent tools, useful for testing
@@ -537,7 +525,7 @@ module RAAF
 
       begin
         tool.call(**)
-      rescue => e
+      rescue StandardError => e
         raise ToolError, "Tool execution failed: #{e.message}"
       end
     end
@@ -733,7 +721,7 @@ module RAAF
       non_handoff_tools = @tools.reject do |tool|
         tool.respond_to?(:name) && tool.name.start_with?("transfer_to_")
       end
-      
+
       # Get current configuration
       current_config = {
         name: @name,
@@ -870,7 +858,7 @@ module RAAF
       )
 
       # Create memory object - handle case where Memory module isn't loaded
-      memory = if defined?(::RAAF::Memory) && defined?(::RAAF::Memory::Memory)
+      memory = if defined?(::RAAF::Memory::Memory)
                  ::RAAF::Memory::Memory.new(
                    content: content,
                    agent_name: @name,
@@ -1047,7 +1035,7 @@ module RAAF
     def get_input_schema
       base_description = "Input text to send to the #{@name} agent"
       description = @handoff_description ? "#{base_description}. #{@handoff_description}" : base_description
-      
+
       {
         type: "object",
         properties: {

@@ -7,13 +7,9 @@ require "securerandom"
 require_relative "interface"
 require_relative "../token_estimator"
 require_relative "../logging"
+require_relative "../streaming_events"
 
-# Optional streaming support - only load if available
-begin
-  require "raaf-streaming"
-rescue LoadError
-  # Streaming not available - streaming methods will raise errors
-end
+# Streaming support is now included in core
 
 module RAAF
 
@@ -62,6 +58,7 @@ module RAAF
       # Models supported by the Responses API
       SUPPORTED_MODELS = %w[
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4
+        gpt-3.5-turbo gpt-3.5-turbo-16k
         o1-preview o1-mini
       ].freeze
 
@@ -207,7 +204,8 @@ module RAAF
                          previous_response_id: nil, tool_choice: nil, parallel_tool_calls: nil,
                          temperature: nil, top_p: nil, max_tokens: nil, response_format: nil, **)
         # Convert input to list format if it's a string
-        list_input = input.is_a?(String) ? [{ type: "user_text", text: input }] : input
+        # Use "message" type instead of "user_text" as per OpenAI Responses API requirements
+        list_input = input.is_a?(String) ? [{ type: "message", role: "user", content: [{ type: "input_text", text: input }] }] : input
 
         # Convert tools to Responses API format
         converted_tools = convert_tools(tools)
@@ -227,7 +225,7 @@ module RAAF
         body[:parallel_tool_calls] = parallel_tool_calls unless parallel_tool_calls.nil?
         body[:temperature] = temperature if temperature
         body[:top_p] = top_p if top_p
-        body[:max_output_tokens] = max_tokens if max_tokens  # OpenAI Responses API uses max_output_tokens
+        body[:max_output_tokens] = max_tokens if max_tokens # OpenAI Responses API uses max_output_tokens
         body[:stream] = stream if stream
 
         # Handle response format
@@ -264,7 +262,7 @@ module RAAF
           final_response = nil
           call_responses_api_stream(body) do |event|
             # Capture the final response from the completed event
-            final_response = event.response if event.is_a?(StreamingEvents::ResponseCompletedEvent)
+            final_response = event.response if event.is_a?(RAAF::StreamingEvents::ResponseCompletedEvent)
             yield event if block_given?
           end
           final_response
@@ -331,13 +329,13 @@ module RAAF
           raise APIError, "Responses API returned #{response.code}: #{response.body}"
         end
 
-        parsed_response = JSON.parse(response.body, symbolize_names: true)
+        parsed_response = JSON.parse(response.body)
 
         # Debug logging for successful responses
         log_info("OpenAI Responses API Success",
-                 response_id: parsed_response[:id],
-                 output_items: parsed_response[:output]&.length || 0,
-                 usage: parsed_response[:usage])
+                 response_id: parsed_response["id"],
+                 output_items: parsed_response["output"]&.length || 0,
+                 usage: parsed_response["usage"])
 
         # Return the raw Responses API response
         # The runner will need to handle the items-based format
@@ -352,7 +350,7 @@ module RAAF
       #
       # @param body [Hash] Request body
       # @yield [event] Yields streaming events as they arrive
-      # @yieldparam event [StreamingEvents::Base] Parsed streaming event
+      # @yieldparam event [RAAF::StreamingEvents::Base] Parsed streaming event
       #
       # @raise [APIError] If the API returns an error
       #
@@ -438,24 +436,24 @@ module RAAF
       def create_streaming_event(event_data)
         case event_data[:type]
         when "response.created"
-          StreamingEvents::ResponseCreatedEvent.new(
+          RAAF::StreamingEvents::ResponseCreatedEvent.new(
             response: event_data[:response],
             sequence_number: event_data[:sequence_number]
           )
         when "response.output_item.added"
-          StreamingEvents::ResponseOutputItemAddedEvent.new(
+          RAAF::StreamingEvents::ResponseOutputItemAddedEvent.new(
             item: event_data[:item],
             output_index: event_data[:output_index],
             sequence_number: event_data[:sequence_number]
           )
         when "response.output_item.done"
-          StreamingEvents::ResponseOutputItemDoneEvent.new(
+          RAAF::StreamingEvents::ResponseOutputItemDoneEvent.new(
             item: event_data[:item],
             output_index: event_data[:output_index],
             sequence_number: event_data[:sequence_number]
           )
         when "response.done"
-          StreamingEvents::ResponseCompletedEvent.new(
+          RAAF::StreamingEvents::ResponseCompletedEvent.new(
             response: event_data[:response],
             sequence_number: event_data[:sequence_number]
           )
@@ -475,24 +473,22 @@ module RAAF
 
           case role
           when "user"
-            input_items << { type: "user_text", text: content }
+            input_items << { type: "message", role: "user", content: [{ type: "input_text", text: content }] }
           when "assistant"
             # Assistant messages become output items in the input
             if msg[:tool_calls]
               # Handle assistant message with both content and tool calls
-              if content && !content.empty?
-                input_items << { type: "message", text: content }
-              end
+              input_items << { type: "message", text: content } if content && !content.empty?
               # Handle tool calls
               msg[:tool_calls].each do |tool_call|
                 input_items << convert_tool_call_to_input(tool_call)
               end
             else
               # Regular text message
-              input_items << { 
-                type: "message", 
-                role: "assistant", 
-                content: [{ type: "text", text: content }] 
+              input_items << {
+                type: "message",
+                role: "assistant",
+                content: [{ type: "output_text", text: content }]
               }
             end
           when "tool"
@@ -515,7 +511,7 @@ module RAAF
         arguments = tool_call.dig("function", "arguments") || tool_call.dig(:function, :arguments)
         # Parse JSON arguments if they're a string
         parsed_arguments = arguments.is_a?(String) ? JSON.parse(arguments) : arguments
-        
+
         {
           type: "function_call",
           name: tool_call.dig("function", "name") || tool_call.dig(:function, :name),
@@ -563,7 +559,7 @@ module RAAF
               includes << "web_search_call.results"
               next
             end
-            
+
             # Handle DSL tools that respond to tool_definition or tool_configuration
             if tool.respond_to?(:tool_definition)
               tool_def = tool.tool_definition

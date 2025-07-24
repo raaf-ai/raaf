@@ -370,20 +370,21 @@ module RAAF
         #
         # @example Convert string input
         #   items = ItemHelpers.input_to_new_input_list("Hello")
-        #   # => [{ "type" => "user_text", "text" => "Hello" }]
+        #   # => [{ "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Hello" }] }]
         #
         def input_to_new_input_list(input)
           case input
           when String
             # For Responses API, use proper input item format
             [{
-              "type" => "user_text",
-              "text" => input
+              "type" => "message",
+              "role" => "user",
+              "content" => [{ "type" => "text", "text" => input }]
             }]
           when Array
             # Check if it's already in input item format or needs conversion
-            if input.first && input.first["role"]
-              # Convert from message format to input items
+            if input.first && input.first["role"] && !input.first["type"]
+              # Convert from message format to input items (has role but no type)
               convert_messages_to_input_items(input)
             else
               # Already in input item format or empty array
@@ -412,7 +413,7 @@ module RAAF
 
             case role
             when "user"
-              input_items << { "type" => "user_text", "text" => content }
+              input_items << { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => content }] }
             when "assistant"
               if msg["tool_calls"] || msg[:tool_calls]
                 # Convert tool calls

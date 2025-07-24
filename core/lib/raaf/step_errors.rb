@@ -130,6 +130,7 @@ module RAAF
   # Error handling utilities for step processing
   #
   module ErrorHandling
+
     extend RAAF::Logger
 
     ##

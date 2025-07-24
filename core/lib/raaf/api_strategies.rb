@@ -82,7 +82,7 @@ module RAAF
         model_params[:response_format] = agent.response_format if agent&.response_format
 
         # Add tool choice support (agent-level overrides model settings)
-        model_params[:tool_choice] = agent.tool_choice if agent&.respond_to?(:tool_choice) && agent&.tool_choice
+        model_params[:tool_choice] = agent.tool_choice if agent.respond_to?(:tool_choice) && agent.tool_choice
 
         model_params
       end
@@ -109,13 +109,13 @@ module RAAF
               return normalize_message_keys(message)
             end
           end
-          
+
           # Direct message format
           if response[:message] || response["message"]
             message = response[:message] || response["message"]
             return normalize_message_keys(message)
           end
-          
+
           # Fallback to response itself
           normalize_message_keys(response)
         else
@@ -132,7 +132,7 @@ module RAAF
       #
       def normalize_message_keys(message)
         return message unless message.is_a?(Hash)
-        
+
         normalized = {}
         message.each do |key, value|
           symbol_key = key.to_sym
@@ -400,7 +400,7 @@ module RAAF
         params[:response_format] = agent.response_format if agent&.response_format
 
         # Add tool choice if specified
-        params[:tool_choice] = agent.tool_choice if agent&.respond_to?(:tool_choice) && agent&.tool_choice
+        params[:tool_choice] = agent.tool_choice if agent.respond_to?(:tool_choice) && agent.tool_choice
 
         params
       end

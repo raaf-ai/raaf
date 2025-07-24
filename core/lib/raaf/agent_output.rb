@@ -59,6 +59,18 @@ module RAAF
     end
 
     ##
+    # Validate a response against the output type
+    #
+    # @param response [Object] Response to validate
+    # @return [Object] Validated response
+    # @abstract Must be implemented by subclasses
+    # @raise [NotImplementedError] if not implemented by subclass
+    #
+    def validate_response(response)
+      raise NotImplementedError, "Subclasses must implement #validate_response"
+    end
+
+    ##
     # Validate a JSON string against the output type
     #
     # @param json_str [String] JSON string to validate
@@ -152,7 +164,11 @@ module RAAF
     # @return [String] Name of the output type
     #
     def name
-      type_to_string(@output_type)
+      if plain_text?
+        "text"
+      else
+        type_to_string(@output_type)
+      end
     end
 
     ##
@@ -162,15 +178,44 @@ module RAAF
     # @raise [UserError] if output type is plain text
     #
     def json_schema
-      raise Errors::UserError, "Output type is plain text, so no JSON schema is available" if plain_text?
+      return nil if plain_text?
 
-      @output_schema
+      # Convert back to symbol keys for backwards compatibility with tests
+      deep_symbolize_keys(@output_schema)
     end
 
     ##
     # Validate JSON string against the output type
     #
     # Parses JSON and validates it against the configured output type.
+    # Handles both wrapped and unwrapped output formats.
+    #
+    # @param response [Object] Response to validate (could be string or already parsed)
+    # @return [Object] Validated response data
+    # @raise [ModelBehaviorError] if validation fails
+    #
+    def validate_response(response)
+      if response.is_a?(String) && !plain_text?
+        # For structured types, try to parse as JSON first, then validate type
+        begin
+          validate_json(response)
+        rescue Errors::ModelBehaviorError => e
+          # If JSON parsing fails and it's not obviously JSON, treat as direct validation
+          raise e if response.strip.start_with?("{", "[")
+
+          validate_against_type(response)
+        end
+      elsif response.is_a?(String)
+        # For plain text, return as-is
+        response
+      else
+        validate_against_type(response)
+      end
+    end
+
+    ##
+    # Validate JSON string against the output type
+    #
     # Handles both wrapped and unwrapped output formats.
     #
     # @param json_str [String] JSON string to validate
@@ -202,6 +247,17 @@ module RAAF
 
     private
 
+    def deep_symbolize_keys(obj)
+      case obj
+      when Hash
+        obj.transform_keys(&:to_sym).transform_values { |v| deep_symbolize_keys(v) }
+      when Array
+        obj.map { |v| deep_symbolize_keys(v) }
+      else
+        obj
+      end
+    end
+
     def configure_schema
       if plain_text?
         @output_schema = { type: "string" }
@@ -232,24 +288,30 @@ module RAAF
         @output_schema = StrictSchema.ensure_strict_json_schema(@output_schema)
       rescue StandardError
         raise Errors::UserError, "Strict JSON schema is enabled, but the output type is not valid. " \
-                         "Either make the output type strict, or pass strict_json_schema: false"
+                                 "Either make the output type strict, or pass strict_json_schema: false"
       end
     end
 
     def subclass_of_hash_or_structured?(type)
       return false unless type.is_a?(Class)
 
-      # Check if it's Hash or a structured type
+      # Check if it's Hash, Array, or a structured type
       begin
         is_hash_subclass = type <= Hash
       rescue StandardError
         is_hash_subclass = false
       end
 
-      has_json_schema = !!defined?(type.json_schema) && type.respond_to?(:json_schema)
-      has_schema = !!defined?(type.schema) && type.respond_to?(:schema)
+      begin
+        is_array_subclass = type <= Array
+      rescue StandardError
+        is_array_subclass = false
+      end
 
-      is_hash_subclass || has_json_schema || has_schema
+      has_json_schema = !defined?(type.json_schema).nil? && type.respond_to?(:json_schema)
+      has_schema = !defined?(type.schema).nil? && type.respond_to?(:schema)
+
+      is_hash_subclass || is_array_subclass || has_json_schema || has_schema
     end
 
     def generate_schema_for_type(type)
@@ -266,7 +328,11 @@ module RAAF
         elsif type == Array
           { type: "array", items: {} }
         elsif type == Hash
-          { type: "object", additionalProperties: true }
+          if @strict_json_schema
+            { type: "object", properties: {}, additionalProperties: false }
+          else
+            { type: "object", additionalProperties: true }
+          end
         elsif type.respond_to?(:json_schema)
           type.json_schema
         elsif type.respond_to?(:schema)
@@ -276,7 +342,7 @@ module RAAF
           infer_schema_from_class(type)
         end
       else
-        { type: "object", additionalProperties: true }
+        { type: "object", additionalProperties: @strict_json_schema ? false : true }
       end
     end
 
@@ -307,7 +373,7 @@ module RAAF
       {
         type: "object",
         properties: properties.empty? ? {} : properties,
-        additionalProperties: true
+        additionalProperties: @strict_json_schema ? false : true
       }
     end
 
@@ -325,7 +391,7 @@ module RAAF
         { type: "array", items: {} }
       else
         # Default for Hash, unknown types, and else case
-        { type: "object", additionalProperties: true }
+        { type: "object", additionalProperties: @strict_json_schema ? false : true }
       end
     end
 
@@ -334,42 +400,33 @@ module RAAF
 
       case @output_type.name
       when "String"
-        data.to_s
+        raise ArgumentError, "Expected String, got #{data.class}" unless data.is_a?(String)
+
+        data
       when "Integer"
-        Integer(data)
+        raise ArgumentError, "Expected Integer, got #{data.class}" unless data.is_a?(Integer)
+
+        data
       when "Float"
-        Float(data)
+        raise ArgumentError, "Expected Float, got #{data.class}" unless data.is_a?(Float)
+
+        data
       when "Hash"
-        raise Errors::ModelBehaviorError, "Expected Hash, got #{data.class}" unless data.is_a?(Hash)
+        raise Errors::ModelBehaviorError, "Expected Hash, got #{data.class}" if @strict_json_schema && !data.is_a?(Hash)
 
         data
       when "Array"
-        raise Errors::ModelBehaviorError, "Expected Array, got #{data.class}" unless data.is_a?(Array)
+        unless data.is_a?(Array)
+          raise Errors::ModelBehaviorError, "Expected Array, got #{data.class}" if @strict_json_schema
 
+          raise ArgumentError, "Expected Array, got #{data.class}"
+
+        end
         data
       else
         # For custom types, attempt validation
         validate_custom_type(data)
       end
-    rescue ArgumentError => e
-      raise Errors::ModelBehaviorError, "Type validation failed: #{e.message}"
-    end
-
-    def validate_custom_type(data)
-      # If the type has a from_json method, use it
-      return @output_type.from_json(data) if @output_type.respond_to?(:from_json)
-
-      # If the type has a new method and accepts a hash, try that
-      if @output_type.respond_to?(:new) && data.is_a?(Hash)
-        begin
-          return @output_type.new(data)
-        rescue StandardError
-          # Fall through to next attempt
-        end
-      end
-
-      # Otherwise, return the data as-is
-      data
     end
 
     def type_to_string(type)
@@ -377,6 +434,25 @@ module RAAF
       return type.name if type.respond_to?(:name)
 
       type.to_s
+    end
+
+    def validate_type_match(data, expected_type)
+      return if data.is_a?(expected_type)
+
+      raise ArgumentError, "Expected #{expected_type}, got #{data.class}"
+    end
+
+    def validate_custom_type(data)
+      return data if data.is_a?(@output_type)
+
+      if data.is_a?(Hash) && @output_type.respond_to?(:from_hash)
+        @output_type.from_hash(data)
+      elsif !@strict_json_schema
+        # In non-strict mode, return data as-is if conversion fails
+        data
+      else
+        raise ArgumentError, "Cannot convert #{data.class} to #{@output_type}"
+      end
     end
 
   end
@@ -431,7 +507,7 @@ module RAAF
     def validate(value)
       case @type
       when Class, Module
-        raise TypeError, "Expected #{@type}, got #{value.class}" unless value.is_a?(@type)
+        raise ArgumentError, "Expected #{@type}, got #{value.class}" unless value.is_a?(@type)
         # For non-class types, just return the value
       end
       value
@@ -453,8 +529,6 @@ module RAAF
         { type: "boolean" }
       elsif @type == Array
         { type: "array", items: {} }
-      elsif @type == Hash
-        { type: "object", additionalProperties: true }
       elsif @type.respond_to?(:json_schema)
         @type.json_schema
       else

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "async"
-require "set"
 require_relative "step_result"
 require_relative "processed_response"
 require_relative "response_processor"
@@ -159,14 +158,14 @@ module RAAF
         tool_results.each do |tool_result|
           # Find the corresponding function_call or tool_call item and add it
           function_call_item = processed_response.new_items.find do |item|
-            %w[function_call tool_call].include?(item.raw_item[:type]) && 
-            (item.raw_item[:id] == tool_result.run_item.raw_item[:call_id] ||
-             item.raw_item[:call_id] == tool_result.run_item.raw_item[:call_id])
+            %w[function_call tool_call].include?(item.raw_item[:type]) &&
+              (item.raw_item[:id] == tool_result.run_item.raw_item[:call_id] ||
+               item.raw_item[:call_id] == tool_result.run_item.raw_item[:call_id])
           end
-          
+
           if function_call_item
             new_step_items << function_call_item
-            processed_function_call_ids << function_call_item.raw_item[:id] || function_call_item.raw_item[:call_id]
+            (processed_function_call_ids << function_call_item.raw_item[:id]) || function_call_item.raw_item[:call_id]
           end
         end
 
@@ -209,10 +208,10 @@ module RAAF
 
       # Log any unprocessed function calls for debugging
       unprocessed_function_calls = processed_response.new_items.select do |item|
-        %w[function_call tool_call].include?(item.raw_item[:type]) && 
-        !processed_function_call_ids.include?(item.raw_item[:id] || item.raw_item[:call_id])
+        %w[function_call tool_call].include?(item.raw_item[:type]) &&
+          !processed_function_call_ids.include?(item.raw_item[:id] || item.raw_item[:call_id])
       end
-      
+
       if unprocessed_function_calls.any?
         log_debug("⚠️ STEP_PROCESSOR: Unprocessed function calls detected",
                   count: unprocessed_function_calls.size,
@@ -337,7 +336,7 @@ module RAAF
     ##
     # Execute computer action (placeholder - implement based on your computer tool)
     #
-    def execute_single_computer_action(_action_run, agent, _context_wrapper, _runner, _config)
+    def execute_single_computer_action(_action_run, _agent, _context_wrapper, _runner, _config)
       # This would integrate with your computer tool implementation
       # For now, return a placeholder result
       {
@@ -349,7 +348,7 @@ module RAAF
     ##
     # Execute shell call (placeholder - implement based on your shell tool)
     #
-    def execute_single_shell_call(_shell_run, agent, _context_wrapper, _runner, _config)
+    def execute_single_shell_call(_shell_run, _agent, _context_wrapper, _runner, _config)
       # This would integrate with your shell tool implementation
       # For now, return a placeholder result
       {
@@ -423,6 +422,7 @@ module RAAF
       when ToolUseBehavior::ToolsToFinalOutput
         # Check if this is a final output tool
         # This would require more complex implementation
+        log_debug("ToolsToFinalOutput behavior not fully implemented", behavior: agent.tool_use_behavior.class.name)
         nil
       else
         log_debug("Unhandled tool_use_behavior, defaulting to run_llm_again", behavior: agent.tool_use_behavior.class.name)
@@ -471,8 +471,8 @@ module RAAF
       # then fall back to id field with fc_ to call_ conversion
       original_id = tool_call[:call_id] || tool_call["call_id"] || tool_call[:id] || tool_call["id"] || SecureRandom.uuid
       # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility (for fallback case)
-      normalized_id = original_id.to_s.sub(/^fc_/, 'call_')
-      
+      normalized_id = original_id.to_s.sub(/^fc_/, "call_")
+
       raw_item = {
         type: "function_call_output",
         call_id: normalized_id,
@@ -490,7 +490,7 @@ module RAAF
       # then fall back to id field with fc_ to call_ conversion
       original_id = tool_call[:call_id] || tool_call["call_id"] || tool_call[:id] || tool_call["id"] || tool_call.dig(:function, :id)
       # Convert fc_ prefix to call_ prefix for OpenAI Responses API compatibility (for fallback case)
-      call_id = original_id.to_s.sub(/^fc_/, 'call_')
+      call_id = original_id.to_s.sub(/^fc_/, "call_")
 
       # Debug the tool call structure
       log_debug("🔧 STEP_PROCESSOR: Creating handoff output",
@@ -541,7 +541,6 @@ module RAAF
       # Return JSON format like Python implementation
       { assistant: target_agent.name }.to_json
     end
-
 
   end
 

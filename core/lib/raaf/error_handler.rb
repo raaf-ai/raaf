@@ -52,42 +52,40 @@ module RAAF
       # @return [Object] Result of the block or recovery value
       #
       def with_error_handling(context = {})
-        begin
-          yield
-        rescue StandardError => e
-          # Handle retries for RETRY_ONCE strategy
-          if strategy == RecoveryStrategy::RETRY_ONCE && @retry_count < @max_retries
-            @retry_count += 1
-            log_info("Retrying operation", attempt: @retry_count, **context)
-            retry
-          end
-          
-          # Now handle specific error types after retry logic
-          case e
-          when MaxTurnsError
-            handle_max_turns_error(e, context)
-          when ExecutionStoppedError
-            handle_stopped_execution_error(e, context)
-          when JSON::ParserError
-            handle_parsing_error(e, context)
-          else
-            # Check if this is a guardrails error when guardrails gem is loaded
-            if defined?(Guardrails)
-              case e
-              when Guardrails::InputGuardrailTripwireTriggered
-                handle_guardrail_error(e, context, :input)
-              when Guardrails::OutputGuardrailTripwireTriggered
-                handle_guardrail_error(e, context, :output)
-              else
-                handle_general_error(e, context)
-              end
+        yield
+      rescue StandardError => e
+        # Handle retries for RETRY_ONCE strategy
+        if strategy == RecoveryStrategy::RETRY_ONCE && @retry_count < @max_retries
+          @retry_count += 1
+          log_info("Retrying operation", attempt: @retry_count, **context)
+          retry
+        end
+
+        # Now handle specific error types after retry logic
+        case e
+        when MaxTurnsError
+          handle_max_turns_error(e, context)
+        when ExecutionStoppedError
+          handle_stopped_execution_error(e, context)
+        when JSON::ParserError
+          handle_parsing_error(e, context)
+        else
+          # Check if this is a guardrails error when guardrails gem is loaded
+          if defined?(Guardrails)
+            case e
+            when Guardrails::InputGuardrailTripwireTriggered
+              handle_guardrail_error(e, context, :input)
+            when Guardrails::OutputGuardrailTripwireTriggered
+              handle_guardrail_error(e, context, :output)
             else
               handle_general_error(e, context)
             end
+          else
+            handle_general_error(e, context)
           end
-        ensure
-          @retry_count = 0
         end
+      ensure
+        @retry_count = 0
       end
 
       ##
@@ -98,28 +96,26 @@ module RAAF
       # @return [Object] Result or recovery value
       #
       def with_api_error_handling(context = {})
-        begin
-          yield
-        rescue StandardError => e
-          # Handle retries for RETRY_ONCE strategy
-          if strategy == RecoveryStrategy::RETRY_ONCE && @retry_count < @max_retries
-            @retry_count += 1
-            log_info("Retrying API operation", attempt: @retry_count, **context)
-            retry
-          end
-          
-          # Now handle specific error types
-          case e
-          when Timeout::Error
-            handle_timeout_error(e, context)
-          when Net::HTTPError
-            handle_http_error(e, context)
-          else
-            handle_general_error(e, context)
-          end
-        ensure
-          @retry_count = 0
+        yield
+      rescue StandardError => e
+        # Handle retries for RETRY_ONCE strategy
+        if strategy == RecoveryStrategy::RETRY_ONCE && @retry_count < @max_retries
+          @retry_count += 1
+          log_info("Retrying API operation", attempt: @retry_count, **context)
+          retry
         end
+
+        # Now handle specific error types
+        case e
+        when Timeout::Error
+          handle_timeout_error(e, context)
+        when Net::HTTPError
+          handle_http_error(e, context)
+        else
+          handle_general_error(e, context)
+        end
+      ensure
+        @retry_count = 0
       end
 
       ##
@@ -323,9 +319,6 @@ module RAAF
                   **context, error_class: error.class.name, message: error.message)
 
         case strategy
-        when RecoveryStrategy::LOG_AND_CONTINUE
-          # LOG_AND_CONTINUE only applies to specific errors, not general errors
-          raise error
         when RecoveryStrategy::GRACEFUL_DEGRADATION
           { error: :general_error, message: "An unexpected error occurred", handled: true }
         when RecoveryStrategy::RETRY_ONCE
@@ -333,7 +326,7 @@ module RAAF
           log_error("Max retries exceeded for general error")
           raise error
         else
-          # FAIL_FAST and unknown strategies
+          # LOG_AND_CONTINUE, FAIL_FAST and unknown strategies
           raise error
         end
       end

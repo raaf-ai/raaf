@@ -14,6 +14,7 @@ rescue LoadError
   # Tracing gem not available - tracing features will be disabled
 end
 require_relative "raaf/streaming"
+require_relative "raaf/streaming_events"
 require_relative "raaf/batch_processor"
 require_relative "raaf/http_client"
 require_relative "raaf/errors"
