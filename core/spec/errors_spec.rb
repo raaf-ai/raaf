@@ -17,7 +17,7 @@ RSpec.describe "RAAF Error Classes" do
     it "can be rescued specifically" do
       expect do
         raise described_class, "Test error"
-      end.to raise_error(RAAF::Error, "Test error")
+      end.to raise_error(described_class, "Test error")
     end
   end
 
@@ -219,7 +219,7 @@ RSpec.describe "RAAF Error Classes" do
   describe "Error hierarchy and rescue behavior" do
     it "allows rescuing all RAAF errors with base class" do
       errors_caught = []
-      
+
       [
         RAAF::AgentError,
         RAAF::ToolError,
@@ -235,20 +235,18 @@ RSpec.describe "RAAF Error Classes" do
         RAAF::ModelBehaviorError,
         RAAF::ProviderError
       ].each do |error_class|
-        begin
-          raise error_class, "Test error"
-        rescue RAAF::Error => e
-          errors_caught << e.class
-        end
+        raise error_class, "Test error"
+      rescue RAAF::Error => e
+        errors_caught << e.class
       end
-      
+
       expect(errors_caught.size).to eq(13)
       expect(errors_caught.uniq.size).to eq(13) # All different error classes
     end
 
     it "allows specific error handling while falling back to general" do
       handled = nil
-      
+
       begin
         raise RAAF::AuthenticationError, "Invalid key"
       rescue RAAF::AuthenticationError
@@ -256,17 +254,15 @@ RSpec.describe "RAAF Error Classes" do
       rescue RAAF::Error
         handled = :general_error
       end
-      
+
       expect(handled).to eq(:auth_error)
     end
 
     it "doesn't catch non-RAAF errors with RAAF::Error" do
       expect do
-        begin
-          raise StandardError, "Not a RAAF error"
-        rescue RAAF::Error
-          # This should not be reached
-        end
+        raise StandardError, "Not a RAAF error"
+      rescue RAAF::Error
+        # This should not be reached
       end.to raise_error(StandardError, "Not a RAAF error")
     end
   end

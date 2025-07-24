@@ -7,7 +7,7 @@ RSpec.describe RAAF::Utils do
     it "converts string keys to symbols in simple hash" do
       input = { "name" => "John", "age" => 30 }
       result = described_class.deep_symbolize_keys(input)
-      
+
       expect(result).to eq(name: "John", age: 30)
     end
 
@@ -22,9 +22,9 @@ RSpec.describe RAAF::Utils do
           }
         }
       }
-      
+
       result = described_class.deep_symbolize_keys(input)
-      
+
       expect(result).to eq(
         user: {
           profile: {
@@ -42,13 +42,13 @@ RSpec.describe RAAF::Utils do
         { "id" => 1, "name" => "First" },
         { "id" => 2, "name" => "Second" }
       ]
-      
+
       result = described_class.deep_symbolize_keys(input)
-      
+
       expect(result).to eq([
-        { id: 1, name: "First" },
-        { id: 2, name: "Second" }
-      ])
+                             { id: 1, name: "First" },
+                             { id: 2, name: "Second" }
+                           ])
     end
 
     it "handles mixed nested arrays and hashes" do
@@ -61,9 +61,9 @@ RSpec.describe RAAF::Utils do
           }
         ]
       }
-      
+
       result = described_class.deep_symbolize_keys(input)
-      
+
       expect(result).to eq(
         items: [
           {
@@ -86,7 +86,7 @@ RSpec.describe RAAF::Utils do
         :symbol,
         Object.new
       ]
-      
+
       inputs.each do |input|
         result = described_class.deep_symbolize_keys(input)
         expect(result).to eq(input)
@@ -101,9 +101,9 @@ RSpec.describe RAAF::Utils do
     it "preserves original object (creates new objects)" do
       input = { "name" => "John" }
       original_input = input.dup
-      
+
       result = described_class.deep_symbolize_keys(input)
-      
+
       expect(input).to eq(original_input) # Original unchanged
       expect(result).not_to be(input) # New object created
     end
@@ -111,14 +111,14 @@ RSpec.describe RAAF::Utils do
     it "converts symbol keys to symbols (no-op)" do
       input = { name: "John", age: 30 }
       result = described_class.deep_symbolize_keys(input)
-      
+
       expect(result).to eq(input)
     end
 
     it "handles mixed string and symbol keys" do
-      input = { "name" => "John", :age => 30, "profile" => { :theme => "dark" } }
+      input = { "name" => "John", :age => 30, "profile" => { theme: "dark" } }
       result = described_class.deep_symbolize_keys(input)
-      
+
       expect(result).to eq(name: "John", age: 30, profile: { theme: "dark" })
     end
   end
@@ -127,7 +127,7 @@ RSpec.describe RAAF::Utils do
     it "converts symbol keys to strings in simple hash" do
       input = { name: "John", age: 30 }
       result = described_class.deep_stringify_keys(input)
-      
+
       expect(result).to eq("name" => "John", "age" => 30)
     end
 
@@ -142,9 +142,9 @@ RSpec.describe RAAF::Utils do
           }
         }
       }
-      
+
       result = described_class.deep_stringify_keys(input)
-      
+
       expect(result).to eq(
         "user" => {
           "profile" => {
@@ -162,13 +162,13 @@ RSpec.describe RAAF::Utils do
         { id: 1, name: "First" },
         { id: 2, name: "Second" }
       ]
-      
+
       result = described_class.deep_stringify_keys(input)
-      
+
       expect(result).to eq([
-        { "id" => 1, "name" => "First" },
-        { "id" => 2, "name" => "Second" }
-      ])
+                             { "id" => 1, "name" => "First" },
+                             { "id" => 2, "name" => "Second" }
+                           ])
     end
 
     it "handles mixed nested arrays and hashes" do
@@ -181,9 +181,9 @@ RSpec.describe RAAF::Utils do
           }
         ]
       }
-      
+
       result = described_class.deep_stringify_keys(input)
-      
+
       expect(result).to eq(
         "items" => [
           {
@@ -206,7 +206,7 @@ RSpec.describe RAAF::Utils do
         :symbol,
         Object.new
       ]
-      
+
       inputs.each do |input|
         result = described_class.deep_stringify_keys(input)
         expect(result).to eq(input)
@@ -221,9 +221,9 @@ RSpec.describe RAAF::Utils do
     it "preserves original object (creates new objects)" do
       input = { name: "John" }
       original_input = input.dup
-      
+
       result = described_class.deep_stringify_keys(input)
-      
+
       expect(input).to eq(original_input) # Original unchanged
       expect(result).not_to be(input) # New object created
     end
@@ -231,14 +231,14 @@ RSpec.describe RAAF::Utils do
     it "converts string keys to strings (no-op)" do
       input = { "name" => "John", "age" => 30 }
       result = described_class.deep_stringify_keys(input)
-      
+
       expect(result).to eq(input)
     end
 
     it "handles mixed string and symbol keys" do
-      input = { "name" => "John", :age => 30, "profile" => { :theme => "dark" } }
+      input = { "name" => "John", :age => 30, "profile" => { theme: "dark" } }
       result = described_class.deep_stringify_keys(input)
-      
+
       expect(result).to eq("name" => "John", "age" => 30, "profile" => { "theme" => "dark" })
     end
   end
@@ -246,9 +246,9 @@ RSpec.describe RAAF::Utils do
   describe ".prepare_for_openai" do
     it "correctly converts all keys to strings" do
       input = { model: "gpt-4", messages: [{ role: :user, content: "Hello" }] }
-      
+
       result = described_class.prepare_for_openai(input)
-      
+
       expect(result).to eq(
         "model" => "gpt-4",
         "messages" => [{ "role" => :user, "content" => "Hello" }]
@@ -265,9 +265,9 @@ RSpec.describe RAAF::Utils do
         temperature: 0.7,
         max_tokens: 1000
       }
-      
+
       result = described_class.prepare_for_openai(request)
-      
+
       expect(result).to eq(
         "model" => "gpt-4o",
         "messages" => [
@@ -288,14 +288,14 @@ RSpec.describe RAAF::Utils do
           type: :object,
           properties: {
             location: { type: :string },
-            unit: { type: :string, enum: [:celsius, :fahrenheit] }
+            unit: { type: :string, enum: %i[celsius fahrenheit] }
           },
           required: [:location]
         }
       }
-      
+
       result = described_class.prepare_for_openai(function_def)
-      
+
       expect(result).to eq(
         "name" => "get_weather",
         "description" => "Get weather info",
@@ -303,7 +303,7 @@ RSpec.describe RAAF::Utils do
           "type" => :object,
           "properties" => {
             "location" => { "type" => :string },
-            "unit" => { "type" => :string, "enum" => [:celsius, :fahrenheit] }
+            "unit" => { "type" => :string, "enum" => %i[celsius fahrenheit] }
           },
           "required" => [:location]
         }
@@ -314,9 +314,9 @@ RSpec.describe RAAF::Utils do
   describe ".normalize_response" do
     it "correctly converts all keys to symbols" do
       response = { "id" => "chatcmpl-123", "choices" => [] }
-      
+
       result = described_class.normalize_response(response)
-      
+
       expect(result).to eq(id: "chatcmpl-123", choices: [])
     end
 
@@ -338,9 +338,9 @@ RSpec.describe RAAF::Utils do
           "total_tokens" => 25
         }
       }
-      
+
       result = described_class.normalize_response(api_response)
-      
+
       expect(result).to eq(
         id: "chatcmpl-123",
         object: "chat.completion",
@@ -369,9 +369,9 @@ RSpec.describe RAAF::Utils do
           "code" => "invalid_api_key"
         }
       }
-      
+
       result = described_class.normalize_response(error_response)
-      
+
       expect(result).to eq(
         error: {
           message: "Invalid API key",
@@ -392,7 +392,7 @@ RSpec.describe RAAF::Utils do
 
     it "delegates to StrictSchema.ensure_strict_json_schema" do
       schema = { type: :object, properties: { name: { type: :string } } }
-      
+
       expect(RAAF::StrictSchema).to receive(:ensure_strict_json_schema).with(schema)
       described_class.prepare_schema_for_openai(schema)
     end
@@ -406,9 +406,9 @@ RSpec.describe RAAF::Utils do
         },
         required: [:name]
       }
-      
+
       result = described_class.prepare_schema_for_openai(schema)
-      
+
       # With our mock, this should return stringified keys
       expect(result).to be_a(Hash)
       expect(result.keys).to all(be_a(String))
@@ -489,10 +489,10 @@ RSpec.describe RAAF::Utils do
   describe ".sanitize_identifier" do
     it "delegates to snake_case" do
       input = "My Identifier!"
-      
+
       expect(described_class).to receive(:snake_case).with(input).and_call_original
       result = described_class.sanitize_identifier(input)
-      
+
       expect(result).to eq("my_identifier")
     end
 
@@ -516,18 +516,18 @@ RSpec.describe RAAF::Utils do
     it "parses valid JSON with symbolized keys" do
       json_string = '{"name": "John", "age": 30}'
       result = described_class.parse_json(json_string)
-      
+
       expect(result).to eq(name: "John", age: 30)
     end
 
     it "parses JSON arrays with symbolized keys" do
       json_string = '[{"id": 1, "name": "First"}, {"id": 2, "name": "Second"}]'
       result = described_class.parse_json(json_string)
-      
+
       expect(result).to eq([
-        { id: 1, name: "First" },
-        { id: 2, name: "Second" }
-      ])
+                             { id: 1, name: "First" },
+                             { id: 2, name: "Second" }
+                           ])
     end
 
     it "parses nested JSON structures" do
@@ -539,31 +539,31 @@ RSpec.describe RAAF::Utils do
           }
         }
       }'
-      
+
       result = described_class.parse_json(json_string)
-      
+
       expect(result).to eq(
         user: {
           profile: {
             name: "John",
-            settings: ["theme", "notifications"]
+            settings: %w[theme notifications]
           }
         }
       )
     end
 
     it "raises JSON::ParserError for invalid JSON" do
-      expect {
-        described_class.parse_json('invalid json')
-      }.to raise_error(JSON::ParserError)
+      expect do
+        described_class.parse_json("invalid json")
+      end.to raise_error(JSON::ParserError)
     end
 
     it "handles primitive JSON values" do
       expect(described_class.parse_json('"string"')).to eq("string")
-      expect(described_class.parse_json('42')).to eq(42)
-      expect(described_class.parse_json('true')).to eq(true)
-      expect(described_class.parse_json('false')).to eq(false)
-      expect(described_class.parse_json('null')).to be_nil
+      expect(described_class.parse_json("42")).to eq(42)
+      expect(described_class.parse_json("true")).to be(true)
+      expect(described_class.parse_json("false")).to be(false)
+      expect(described_class.parse_json("null")).to be_nil
     end
   end
 
@@ -571,42 +571,42 @@ RSpec.describe RAAF::Utils do
     it "parses valid JSON successfully" do
       json_string = '{"name": "John", "age": 30}'
       result = described_class.safe_parse_json(json_string)
-      
+
       expect(result).to eq(name: "John", age: 30)
     end
 
     it "returns nil for invalid JSON by default" do
-      result = described_class.safe_parse_json('invalid json')
+      result = described_class.safe_parse_json("invalid json")
       expect(result).to be_nil
     end
 
     it "returns specified default for invalid JSON" do
       default_value = { error: "parsing_failed" }
-      result = described_class.safe_parse_json('invalid json', default_value)
-      
+      result = described_class.safe_parse_json("invalid json", default_value)
+
       expect(result).to eq(default_value)
     end
 
     it "returns different default types" do
-      expect(described_class.safe_parse_json('invalid', {})).to eq({})
-      expect(described_class.safe_parse_json('invalid', [])).to eq([])
-      expect(described_class.safe_parse_json('invalid', "error")).to eq("error")
-      expect(described_class.safe_parse_json('invalid', 0)).to eq(0)
-      expect(described_class.safe_parse_json('invalid', false)).to eq(false)
+      expect(described_class.safe_parse_json("invalid", {})).to eq({})
+      expect(described_class.safe_parse_json("invalid", [])).to eq([])
+      expect(described_class.safe_parse_json("invalid", "error")).to eq("error")
+      expect(described_class.safe_parse_json("invalid", 0)).to eq(0)
+      expect(described_class.safe_parse_json("invalid", false)).to be(false)
     end
 
     it "handles various types of invalid JSON" do
       invalid_jsons = [
-        'invalid json',
-        '{invalid}',
+        "invalid json",
+        "{invalid}",
         '{"unclosed": "string}',
         '{"trailing": "comma",}',
         '{duplicate": "key", "duplicate": "key"}',
-        '',
-        'undefined',
-        'NaN'
+        "",
+        "undefined",
+        "NaN"
       ]
-      
+
       invalid_jsons.each do |invalid_json|
         result = described_class.safe_parse_json(invalid_json, "default")
         expect(result).to eq("default")
@@ -615,7 +615,7 @@ RSpec.describe RAAF::Utils do
 
     it "delegates to parse_json for valid JSON" do
       json_string = '{"test": true}'
-      
+
       expect(described_class).to receive(:parse_json).with(json_string).and_call_original
       described_class.safe_parse_json(json_string)
     end
@@ -623,14 +623,14 @@ RSpec.describe RAAF::Utils do
 
   describe ".format_number" do
     it "formats integers with thousands separators" do
-      expect(described_class.format_number(1234567)).to eq("1,234,567")
+      expect(described_class.format_number(1_234_567)).to eq("1,234,567")
       expect(described_class.format_number(1000)).to eq("1,000")
-      expect(described_class.format_number(12345)).to eq("12,345")
+      expect(described_class.format_number(12_345)).to eq("12,345")
     end
 
     it "formats floats with thousands separators" do
       expect(described_class.format_number(1234.56)).to eq("1,234.56")
-      expect(described_class.format_number(1234567.89)).to eq("1,234,567.89")
+      expect(described_class.format_number(1_234_567.89)).to eq("1,234,567.89")
       expect(described_class.format_number(1000.0)).to eq("1,000.0")
     end
 
@@ -642,7 +642,7 @@ RSpec.describe RAAF::Utils do
     end
 
     it "handles negative numbers" do
-      expect(described_class.format_number(-1234567)).to eq("-1,234,567")
+      expect(described_class.format_number(-1_234_567)).to eq("-1,234,567")
       expect(described_class.format_number(-1234.56)).to eq("-1,234.56")
       expect(described_class.format_number(-1000)).to eq("-1,000")
     end
@@ -654,14 +654,14 @@ RSpec.describe RAAF::Utils do
     end
 
     it "handles very large numbers" do
-      expect(described_class.format_number(1234567890123)).to eq("1,234,567,890,123")
-      expect(described_class.format_number(999999999999999)).to eq("999,999,999,999,999")
+      expect(described_class.format_number(1_234_567_890_123)).to eq("1,234,567,890,123")
+      expect(described_class.format_number(999_999_999_999_999)).to eq("999,999,999,999,999")
     end
 
     it "converts input to string first" do
       # Should work with various numeric types
-      expect(described_class.format_number(1234567)).to eq("1,234,567")
-      expect(described_class.format_number(1234567.0)).to eq("1,234,567.0")
+      expect(described_class.format_number(1_234_567)).to eq("1,234,567")
+      expect(described_class.format_number(1_234_567.0)).to eq("1,234,567.0")
     end
   end
 
@@ -674,7 +674,7 @@ RSpec.describe RAAF::Utils do
     it "normalizes various types of whitespace" do
       text_with_mixed_whitespace = "Text\t\twith\n\nmixed\r\nwhitespace"
       result = described_class.normalize_whitespace(text_with_mixed_whitespace)
-      
+
       expect(result).to eq("Text with mixed whitespace")
     end
 
@@ -698,7 +698,7 @@ RSpec.describe RAAF::Utils do
     it "handles newlines and line breaks" do
       multiline_text = "Line one\n\nLine two\n\n\nLine three"
       result = described_class.normalize_whitespace(multiline_text)
-      
+
       expect(result).to eq("Line one Line two Line three")
     end
 
@@ -711,7 +711,7 @@ RSpec.describe RAAF::Utils do
     it "handles special characters mixed with whitespace" do
       text = "  Special!@#$%  characters   with   spaces  "
       result = described_class.normalize_whitespace(text)
-      
+
       expect(result).to eq("Special!@#$% characters with spaces")
     end
   end
@@ -726,10 +726,10 @@ RSpec.describe RAAF::Utils do
           }
         }
       }
-      
+
       stringified = described_class.deep_stringify_keys(original)
       symbolized_again = described_class.deep_symbolize_keys(stringified)
-      
+
       expect(symbolized_again).to eq(original)
     end
 
@@ -742,10 +742,10 @@ RSpec.describe RAAF::Utils do
           }
         }
       }
-      
+
       symbolized = described_class.deep_symbolize_keys(original)
       stringified_again = described_class.deep_stringify_keys(symbolized)
-      
+
       expect(stringified_again).to eq(original)
     end
   end
@@ -755,29 +755,31 @@ RSpec.describe RAAF::Utils do
       # Create a deeply nested structure
       deep_hash = { "level0" => {} }
       current = deep_hash["level0"]
-      
+
       100.times do |i|
         current["level#{i + 1}"] = {}
         current = current["level#{i + 1}"]
       end
       current["value"] = "deep"
-      
+
       # Should not raise stack overflow
-      expect {
+      expect do
         result = described_class.deep_symbolize_keys(deep_hash)
-        expect(result.dig(*Array.new(101) { |i| "level#{i}".to_sym }).merge(value: "deep")).to include(value: "deep")
-      }.not_to raise_error
+        expect(result.dig(*Array.new(101) { |i| :"level#{i}" }).merge(value: "deep")).to include(value: "deep")
+      end.not_to raise_error
     end
 
     it "handles large arrays efficiently" do
       large_array = Array.new(1000) { |i| { "item_#{i}" => i } }
-      
+
       result = described_class.deep_symbolize_keys(large_array)
-      
+
       expect(result).to be_an(Array)
       expect(result.length).to eq(1000)
-      expect(result[0]).to have_key(:"item_0")
-      expect(result[999]).to have_key(:"item_999")
+      # rubocop:disable Naming/VariableNumber
+      expect(result[0]).to have_key(:item_0)
+      expect(result[999]).to have_key(:item_999)
+      # rubocop:enable Naming/VariableNumber
     end
   end
 
@@ -792,10 +794,10 @@ RSpec.describe RAAF::Utils do
         ],
         temperature: 0.7
       }
-      
+
       api_request = described_class.prepare_for_openai(request)
       expect(api_request.keys).to all(be_a(String))
-      
+
       # Simulate API response
       api_response = {
         "id" => "chatcmpl-123",
@@ -806,10 +808,10 @@ RSpec.describe RAAF::Utils do
           }
         }]
       }
-      
+
       normalized_response = described_class.normalize_response(api_response)
       expect(normalized_response.keys).to all(be_a(Symbol))
-      
+
       # Verify data integrity
       expect(normalized_response[:choices][0][:message][:content]).to eq("Hello! How can I help?")
     end
@@ -821,34 +823,34 @@ RSpec.describe RAAF::Utils do
         "Web-Search Tool v2",
         "Special Characters & Symbols!"
       ]
-      
+
       normalized_names = agent_names.map do |name|
         described_class.snake_case(name)
       end
-      
-      expect(normalized_names).to eq([
-        "customer_service_agent",
-        "xml_parser_agent",
-        "web_search_tool_v2",
-        "special_characters_symbols"
-      ])
+
+      expect(normalized_names).to eq(%w[
+                                       customer_service_agent
+                                       xml_parser_agent
+                                       web_search_tool_v2
+                                       special_characters_symbols
+                                     ])
     end
 
     it "supports safe JSON processing in error scenarios" do
       # Simulate various JSON inputs that might come from external sources
       json_inputs = [
         '{"valid": "json"}',      # Valid
-        'invalid json',           # Invalid
-        '',                       # Empty
-        '{"partial"',            # Incomplete
-        'null',                   # Null value
-        '[]'                      # Empty array
+        "invalid json",           # Invalid
+        "",                       # Empty
+        '{"partial"', # Incomplete
+        "null",                   # Null value
+        "[]"                      # Empty array
       ]
-      
+
       results = json_inputs.map do |json|
         described_class.safe_parse_json(json, { error: "parse_failed" })
       end
-      
+
       expect(results[0]).to eq(valid: "json")
       expect(results[1]).to eq(error: "parse_failed")
       expect(results[2]).to eq(error: "parse_failed")

@@ -83,7 +83,7 @@ RSpec.describe RAAF::RunConfig do
 
     context "with mixed config objects and parameters" do
       let(:model_config) { RAAF::Config::ModelConfig.new(temperature: 0.5) }
-      
+
       let(:config) do
         described_class.new(
           model: model_config,
@@ -384,7 +384,7 @@ RSpec.describe RAAF::RunConfig do
 
     it "creates new config with merged values" do
       merged = config1.merge(config2)
-      
+
       expect(merged).to be_a(described_class)
       expect(merged).not_to eq(config1)
       expect(merged).not_to eq(config2)
@@ -422,7 +422,7 @@ RSpec.describe RAAF::RunConfig do
 
     it "returns complete configuration as hash" do
       hash = config.to_h
-      
+
       expect(hash).to be_a(Hash)
       expect(hash[:temperature]).to eq(0.8)
       expect(hash[:max_tokens]).to eq(500)
@@ -456,7 +456,7 @@ RSpec.describe RAAF::RunConfig do
 
     it "creates copy with same configs when no changes" do
       copy = original.with_configs
-      
+
       expect(copy).not_to eq(original)
       expect(copy.model).to eq(original.model)
       expect(copy.tracing).to eq(original.tracing)
@@ -466,7 +466,7 @@ RSpec.describe RAAF::RunConfig do
     it "replaces model config when provided" do
       new_model = RAAF::Config::ModelConfig.new(temperature: 0.9)
       copy = original.with_configs(model: new_model)
-      
+
       expect(copy.model).to eq(new_model)
       expect(copy.tracing).to eq(original.tracing)
       expect(copy.execution).to eq(original.execution)
@@ -476,7 +476,7 @@ RSpec.describe RAAF::RunConfig do
     it "replaces tracing config when provided" do
       new_tracing = RAAF::Config::TracingConfig.new(trace_id: "new-trace")
       copy = original.with_configs(tracing: new_tracing)
-      
+
       expect(copy.model).to eq(original.model)
       expect(copy.tracing).to eq(new_tracing)
       expect(copy.execution).to eq(original.execution)
@@ -486,7 +486,7 @@ RSpec.describe RAAF::RunConfig do
     it "replaces execution config when provided" do
       new_execution = RAAF::Config::ExecutionConfig.new(max_turns: 25)
       copy = original.with_configs(execution: new_execution)
-      
+
       expect(copy.model).to eq(original.model)
       expect(copy.tracing).to eq(original.tracing)
       expect(copy.execution).to eq(new_execution)
@@ -496,9 +496,9 @@ RSpec.describe RAAF::RunConfig do
     it "replaces multiple configs at once" do
       new_model = RAAF::Config::ModelConfig.new(temperature: 0.9)
       new_execution = RAAF::Config::ExecutionConfig.new(max_turns: 30)
-      
+
       copy = original.with_configs(model: new_model, execution: new_execution)
-      
+
       expect(copy.model).to eq(new_model)
       expect(copy.tracing).to eq(original.tracing)
       expect(copy.execution).to eq(new_execution)
@@ -508,7 +508,7 @@ RSpec.describe RAAF::RunConfig do
   describe "parameter extraction" do
     describe "#extract_model_params" do
       let(:config) { described_class.new }
-      
+
       it "extracts model-specific parameters" do
         kwargs = {
           temperature: 0.7,
@@ -528,7 +528,7 @@ RSpec.describe RAAF::RunConfig do
         }
 
         params = config.send(:extract_model_params, kwargs)
-        
+
         expect(params[:temperature]).to eq(0.7)
         expect(params[:max_tokens]).to eq(1000)
         expect(params[:model]).to eq("gpt-4")
@@ -540,7 +540,7 @@ RSpec.describe RAAF::RunConfig do
         expect(params[:stream]).to be true
         expect(params[:previous_response_id]).to eq("resp-123")
         expect(params[:parallel_tool_calls]).to be false
-        
+
         # Should not include non-model params
         expect(params).not_to have_key(:trace_id)
         expect(params).not_to have_key(:max_turns)
@@ -556,7 +556,7 @@ RSpec.describe RAAF::RunConfig do
         }
 
         params = config.send(:extract_model_params, kwargs)
-        
+
         expect(params[:temperature]).to eq(0.7)
         expect(params[:top_p]).to eq(0.9)
         expect(params[:custom_param]).to eq("value")
@@ -565,7 +565,7 @@ RSpec.describe RAAF::RunConfig do
 
     describe "#extract_tracing_params" do
       let(:config) { described_class.new }
-      
+
       it "extracts tracing-specific parameters" do
         kwargs = {
           trace_id: "trace-456",
@@ -580,14 +580,14 @@ RSpec.describe RAAF::RunConfig do
         }
 
         params = config.send(:extract_tracing_params, kwargs)
-        
+
         expect(params[:trace_id]).to eq("trace-456")
         expect(params[:group_id]).to eq("group-789")
         expect(params[:metadata]).to eq({ user: "test" })
         expect(params[:tracing_disabled]).to be true
         expect(params[:trace_include_sensitive_data]).to be false
         expect(params[:workflow_name]).to eq("test-workflow")
-        
+
         # Should not include non-tracing params
         expect(params).not_to have_key(:temperature)
         expect(params).not_to have_key(:max_turns)
@@ -601,7 +601,7 @@ RSpec.describe RAAF::RunConfig do
       let(:output_guardrails) { [double("output_guardrail")] }
       let(:context) { double("context") }
       let(:session) { double("session") }
-      
+
       it "extracts execution-specific parameters" do
         kwargs = {
           max_turns: 15,
@@ -616,14 +616,14 @@ RSpec.describe RAAF::RunConfig do
         }
 
         params = config.send(:extract_execution_params, kwargs)
-        
+
         expect(params[:max_turns]).to eq(15)
         expect(params[:hooks]).to eq(hooks)
         expect(params[:input_guardrails]).to eq(input_guardrails)
         expect(params[:output_guardrails]).to eq(output_guardrails)
         expect(params[:context]).to eq(context)
         expect(params[:session]).to eq(session)
-        
+
         # Should not include non-execution params
         expect(params).not_to have_key(:temperature)
         expect(params).not_to have_key(:trace_id)
@@ -634,7 +634,7 @@ RSpec.describe RAAF::RunConfig do
   describe "edge cases" do
     it "handles empty initialization" do
       config = described_class.new
-      
+
       expect(config.model).not_to be_nil
       expect(config.tracing).not_to be_nil
       expect(config.execution).not_to be_nil
@@ -642,13 +642,13 @@ RSpec.describe RAAF::RunConfig do
 
     it "handles nil values in delegation" do
       config = described_class.new
-      
+
       config.temperature = nil
       expect(config.temperature).to be_nil
-      
+
       config.trace_id = nil
       expect(config.trace_id).to be_nil
-      
+
       config.max_turns = nil
       expect(config.max_turns).to be_nil
     end
@@ -681,13 +681,13 @@ RSpec.describe RAAF::RunConfig do
       expect(config.model.top_p).to eq(0.95)
       expect(config.stream).to be true
       expect(config.model.model_kwargs[:custom]).to eq("param")
-      
+
       # Tracing params
       expect(config.trace_id).to eq("full-trace")
       expect(config.group_id).to eq("full-group")
       expect(config.metadata).to eq({ full: true })
       expect(config.tracing_disabled).to be false
-      
+
       # Execution params
       expect(config.max_turns).to eq(25)
       expect(config.hooks).not_to be_nil

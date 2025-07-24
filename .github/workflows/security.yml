@@ -1,146 +1,159 @@
-name: Security
-
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-  schedule:
-    # Run security scans daily at 2 AM UTC
-    - cron: '0 2 * * *'
-
-jobs:
-  dependency-scan:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.2'
-        bundler-cache: true
-
-    - name: Install dependencies
-      run: bundle install
-
-    - name: Run bundle audit
-      run: |
-        gem install bundler-audit
-        bundle audit check --update
-
-    - name: Run Brakeman security scan
-      run: |
-        gem install brakeman
-        brakeman --quiet --format json --output brakeman-report.json || true
-        if [ -f brakeman-report.json ]; then
-          echo "Security scan completed. Check report for issues."
-          cat brakeman-report.json
-        fi
-
-  # code-security:
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #   - uses: actions/checkout@v4
-
-  #   - name: Run CodeQL Analysis
-  #     uses: github/codeql-action/init@v2
-  #     with:
-  #       languages: ruby
-
-  #   - name: Autobuild
-  #     uses: github/codeql-action/autobuild@v2
-
-  #   - name: Perform CodeQL Analysis
-  #     uses: github/codeql-action/analyze@v2
-
-  # Note: TruffleHog OSS is free but may have rate limits on public repos
-  # Uncomment below if you want secret scanning (recommended for security)
-  # secrets-scan:
-  #   runs-on: ubuntu-latest
-  #
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #     with:
-  #       fetch-depth: 0  # Fetch all history for all branches and tags
-  #
-  #   - name: Run TruffleHog OSS
-  #     uses: trufflesecurity/trufflehog@main
-  #     with:
-  #       path: ./
-  #       base: main
-  #       head: HEAD
-  #       extra_args: --debug --only-verified
-
-  dependency-review:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-    - name: Dependency Review
-      uses: actions/dependency-review-action@v3
-      with:
-        fail-on-severity: moderate
-        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
-
-  license-check:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.2'
-        bundler-cache: true
-
-    - name: Install dependencies
-      run: bundle install
-
-    - name: Check licenses
-      run: |
-        gem install license_finder
-        license_finder --decisions-file .license_finder.yml || true
-
-    - name: Generate license report
-      run: |
-        echo "# License Report" > license-report.md
-        echo "" >> license-report.md
-        echo "Generated on: $(date)" >> license-report.md
-        echo "" >> license-report.md
-        license_finder --format markdown >> license-report.md || true
-
-    - name: Upload license report
-      uses: actions/upload-artifact@v4
-      with:
-        name: license-report
-        path: license-report.md
-
-  security-policy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Check for security policy
-      run: |
-        if [ ! -f SECURITY.md ]; then
-          echo "⚠️ No SECURITY.md file found. Consider adding a security policy."
-          echo "See: https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository"
-        else
-          echo "✅ Security policy found"
-          echo "Content preview:"
-          head -10 SECURITY.md
-        fi
-
-    - name: Check for vulnerability reporting
-      run: |
-        if [ -f .github/SECURITY.md ] || [ -f SECURITY.md ]; then
-          echo "✅ Security vulnerability reporting is configured"
-        else
-          echo "⚠️ Consider enabling GitHub Security Advisories"
-          echo "See: https://docs.github.com/en/code-security/security-advisories"
-        fi
+# DISABLED - Security workflow replaced by core-specific workflows
+# This workflow is disabled in favor of gem-specific workflows
+# Currently focusing development on core gem only
+# 
+# Original content below commented out:
+# 
+# name: Security
+# 
+# on:
+#   push:
+#     branches: [ main, develop ]
+#   pull_request:
+#     branches: [ main, develop ]
+#   schedule:
+#     # Run security scans daily at 2 AM UTC
+#     - cron: '0 2 * * *'
+# 
+# jobs:
+#   dependency-scan:
+#     runs-on: ubuntu-latest
+# 
+#     steps:
+#     - uses: actions/checkout@v4
+# 
+#     - name: Set up Ruby
+#       uses: ruby/setup-ruby@v1
+#       with:
+#         ruby-version: '3.2'
+#         bundler-cache: true
+# 
+#     - name: Install dependencies (Core gem)
+#       run: |
+#         cd core
+#         bundle install
+# 
+#     - name: Run bundle audit (Core gem)
+#       run: |
+#         cd core
+#         gem install bundler-audit
+#         bundle audit check --update
+# 
+#     - name: Run Brakeman security scan
+#       run: |
+#         gem install brakeman
+#         brakeman --quiet --format json --output brakeman-report.json || true
+#         if [ -f brakeman-report.json ]; then
+#           echo "Security scan completed. Check report for issues."
+#           cat brakeman-report.json
+#         fi
+# 
+#   # code-security:
+#   #   runs-on: ubuntu-latest
+# 
+#   #   steps:
+#   #   - uses: actions/checkout@v4
+# 
+#   #   - name: Run CodeQL Analysis
+#   #     uses: github/codeql-action/init@v2
+#   #     with:
+#   #       languages: ruby
+# 
+#   #   - name: Autobuild
+#   #     uses: github/codeql-action/autobuild@v2
+# 
+#   #   - name: Perform CodeQL Analysis
+#   #     uses: github/codeql-action/analyze@v2
+# 
+#   # Note: TruffleHog OSS is free but may have rate limits on public repos
+#   # Uncomment below if you want secret scanning (recommended for security)
+#   # secrets-scan:
+#   #   runs-on: ubuntu-latest
+#   #
+#   #   steps:
+#   #   - uses: actions/checkout@v4
+#   #     with:
+#   #       fetch-depth: 0  # Fetch all history for all branches and tags
+#   #
+#   #   - name: Run TruffleHog OSS
+#   #     uses: trufflesecurity/trufflehog@main
+#   #     with:
+#   #       path: ./
+#   #       base: main
+#   #       head: HEAD
+#   #       extra_args: --debug --only-verified
+# 
+#   dependency-review:
+#     runs-on: ubuntu-latest
+#     if: github.event_name == 'pull_request'
+# 
+#     steps:
+#     - name: Dependency Review
+#       uses: actions/dependency-review-action@v3
+#       with:
+#         fail-on-severity: moderate
+#         allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
+# 
+#   license-check:
+#     runs-on: ubuntu-latest
+# 
+#     steps:
+#     - uses: actions/checkout@v4
+# 
+#     - name: Set up Ruby
+#       uses: ruby/setup-ruby@v1
+#       with:
+#         ruby-version: '3.2'
+#         bundler-cache: true
+# 
+#     - name: Install dependencies (Core gem)
+#       run: |
+#         cd core
+#         bundle install
+# 
+#     - name: Check licenses (Core gem)
+#       run: |
+#         cd core
+#         gem install license_finder
+#         license_finder --decisions-file .license_finder.yml || true
+# 
+#     - name: Generate license report (Core gem)
+#       run: |
+#         cd core
+#         echo "# License Report" > license-report.md
+#         echo "" >> license-report.md
+#         echo "Generated on: $(date)" >> license-report.md
+#         echo "" >> license-report.md
+#         license_finder --format markdown >> license-report.md || true
+# 
+#     - name: Upload license report
+#       uses: actions/upload-artifact@v4
+#       with:
+#         name: license-report
+#         path: core/license-report.md
+# 
+#   security-policy:
+#     runs-on: ubuntu-latest
+# 
+#     steps:
+#     - uses: actions/checkout@v4
+# 
+#     - name: Check for security policy
+#       run: |
+#         if [ ! -f SECURITY.md ]; then
+#           echo "⚠️ No SECURITY.md file found. Consider adding a security policy."
+#           echo "See: https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository"
+#         else
+#           echo "✅ Security policy found"
+#           echo "Content preview:"
+#           head -10 SECURITY.md
+#         fi
+# 
+#     - name: Check for vulnerability reporting
+#       run: |
+#         if [ -f .github/SECURITY.md ] || [ -f SECURITY.md ]; then
+#           echo "✅ Security vulnerability reporting is configured"
+#         else
+#           echo "⚠️ Consider enabling GitHub Security Advisories"
+#           echo "See: https://docs.github.com/en/code-security/security-advisories"
+#         fi

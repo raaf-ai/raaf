@@ -10,7 +10,7 @@ RSpec.describe RAAF::FunctionTool do
     context "with proc" do
       it "creates tool with default name and description" do
         tool = described_class.new(simple_proc)
-        
+
         expect(tool.callable).to eq(simple_proc)
         expect(tool.name).to eq("anonymous_function")
         expect(tool.description).to eq("A function tool")
@@ -56,9 +56,9 @@ RSpec.describe RAAF::FunctionTool do
 
     context "with lambda" do
       it "treats lambda as proc" do
-        lambda_func = lambda { |x:| x + 1 }
+        lambda_func = ->(x:) { x + 1 }
         tool = described_class.new(lambda_func)
-        
+
         expect(tool.callable).to eq(lambda_func)
         expect(tool.name).to eq("anonymous_function")
       end
@@ -67,7 +67,7 @@ RSpec.describe RAAF::FunctionTool do
     context "with is_enabled option" do
       it "stores boolean is_enabled value" do
         tool = described_class.new(simple_proc, is_enabled: false)
-        expect(tool.is_enabled).to eq(false)
+        expect(tool.is_enabled).to be(false)
       end
 
       it "stores proc is_enabled value" do
@@ -83,7 +83,7 @@ RSpec.describe RAAF::FunctionTool do
       it "executes proc with keyword arguments" do
         proc_tool = proc { |a:, b: 10| a + b }
         tool = described_class.new(proc_tool)
-        
+
         expect(tool.call(a: 5)).to eq(15)
         expect(tool.call(a: 5, b: 20)).to eq(25)
       end
@@ -91,14 +91,14 @@ RSpec.describe RAAF::FunctionTool do
       it "executes proc with positional arguments" do
         proc_tool = proc { |x, y| x * y }
         tool = described_class.new(proc_tool)
-        
+
         expect(tool.call(x: 3, y: 4)).to eq(12)
       end
 
       it "executes proc with no arguments" do
         proc_tool = proc { "constant" }
         tool = described_class.new(proc_tool)
-        
+
         expect(tool.call).to eq("constant")
         expect(tool.call(ignored: "value")).to eq("constant")
       end
@@ -106,46 +106,48 @@ RSpec.describe RAAF::FunctionTool do
       it "executes proc with keyrest parameters" do
         proc_tool = proc { |**kwargs| kwargs }
         tool = described_class.new(proc_tool)
-        
+
         result = tool.call(foo: "bar", baz: 42)
         expect(result).to eq({ foo: "bar", baz: 42 })
       end
 
       it "executes proc with mixed parameter types" do
-        proc_tool = proc { |required:, optional: "default", **rest| 
+        proc_tool = proc { |required:, optional: "default", **rest|
           { required: required, optional: optional, rest: rest }
         }
         tool = described_class.new(proc_tool)
-        
+
         result = tool.call(required: "value", extra: "data")
         expect(result).to eq({
-          required: "value",
-          optional: "default",
-          rest: { extra: "data" }
-        })
+                               required: "value",
+                               optional: "default",
+                               rest: { extra: "data" }
+                             })
       end
     end
 
     context "error handling" do
       it "raises ToolError for non-callable" do
         tool = described_class.new("not_callable")
-        
+
         expect { tool.call }.to raise_error(RAAF::ToolError, /Callable must be a Method or Proc/)
       end
 
       it "wraps execution errors with tool name" do
         error_proc = proc { raise "Custom error" }
         tool = described_class.new(error_proc, name: "error_tool")
-        
+
         expect { tool.call }.to raise_error(RAAF::ToolError, /Error executing tool 'error_tool': Custom error/)
       end
 
       it "preserves original error class information" do
+        # rubocop:disable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
         class CustomToolError < StandardError; end
-        
+        # rubocop:enable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
+
         error_proc = proc { raise CustomToolError, "Specific error" }
         tool = described_class.new(error_proc)
-        
+
         expect { tool.call }.to raise_error(RAAF::ToolError) do |error|
           expect(error.message).to include("Specific error")
         end
@@ -174,9 +176,12 @@ RSpec.describe RAAF::FunctionTool do
     context "with proc value" do
       it "calls proc with no arguments when arity is 0" do
         called = false
-        enabler = proc { called = true; false }
+        enabler = proc {
+          called = true
+          false
+        }
         tool = described_class.new(simple_proc, is_enabled: enabler)
-        
+
         result = tool.enabled?
         expect(called).to be true
         expect(result).to be false
@@ -185,9 +190,12 @@ RSpec.describe RAAF::FunctionTool do
       it "calls proc with context when arity is not 0" do
         context = double("context")
         received_context = nil
-        enabler = proc { |ctx| received_context = ctx; true }
+        enabler = proc { |ctx|
+          received_context = ctx
+          true
+        }
         tool = described_class.new(simple_proc, is_enabled: enabler)
-        
+
         result = tool.enabled?(context)
         expect(received_context).to eq(context)
         expect(result).to be true
@@ -196,7 +204,7 @@ RSpec.describe RAAF::FunctionTool do
       it "returns false when proc raises error" do
         enabler = proc { raise "Enable check failed" }
         tool = described_class.new(simple_proc, is_enabled: enabler)
-        
+
         expect(tool.enabled?).to be false
       end
     end
@@ -209,7 +217,7 @@ RSpec.describe RAAF::FunctionTool do
 
       it "returns false for falsy non-boolean values" do
         tool = described_class.new(simple_proc, is_enabled: nil)
-        tool.is_enabled = false  # Explicitly set to false after init
+        tool.is_enabled = false # Explicitly set to false after init
         expect(tool.enabled?).to be false
       end
     end
@@ -291,23 +299,23 @@ RSpec.describe RAAF::FunctionTool do
     it "filters out disabled tools" do
       tools = [enabled_tool, disabled_tool]
       result = described_class.enabled_tools(tools)
-      
+
       expect(result).to eq([enabled_tool])
     end
 
     it "includes tools without enabled? method" do
       tools = [enabled_tool, hash_tool]
       result = described_class.enabled_tools(tools)
-      
+
       expect(result).to eq([enabled_tool, hash_tool])
     end
 
     it "passes context to conditional tools" do
       tools = [conditional_tool]
-      
+
       result_allowed = described_class.enabled_tools(tools, :allowed)
       expect(result_allowed).to eq([conditional_tool])
-      
+
       result_denied = described_class.enabled_tools(tools, :denied)
       expect(result_denied).to be_empty
     end
@@ -320,7 +328,7 @@ RSpec.describe RAAF::FunctionTool do
     it "handles mixed tool types" do
       tools = [enabled_tool, disabled_tool, hash_tool, conditional_tool]
       result = described_class.enabled_tools(tools, :allowed)
-      
+
       expect(result).to contain_exactly(enabled_tool, hash_tool, conditional_tool)
     end
   end
@@ -334,16 +342,16 @@ RSpec.describe RAAF::FunctionTool do
       )
 
       result = tool.to_h
-      
+
       expect(result).to eq({
-        type: "function",
-        name: "web_search",
-        function: {
-          name: "web_search",
-          description: "Search the web",
-          parameters: tool.parameters
-        }
-      })
+                             type: "function",
+                             name: "web_search",
+                             function: {
+                               name: "web_search",
+                               description: "Search the web",
+                               parameters: tool.parameters
+                             }
+                           })
     end
 
     it "includes extracted parameters in definition" do
@@ -366,7 +374,7 @@ RSpec.describe RAAF::FunctionTool do
     it "handles required keyword arguments" do
       tool = described_class.new(proc { |a:, b:| a + b })
       params = tool.parameters
-      
+
       expect(params[:properties]).to have_key(:a)
       expect(params[:properties]).to have_key(:b)
       expect(params[:required]).to contain_exactly(:a, :b)
@@ -375,7 +383,7 @@ RSpec.describe RAAF::FunctionTool do
     it "handles optional keyword arguments" do
       tool = described_class.new(proc { |a: 1, b: 2| a + b })
       params = tool.parameters
-      
+
       expect(params[:properties]).to have_key(:a)
       expect(params[:properties]).to have_key(:b)
       expect(params[:required]).to be_empty
@@ -388,7 +396,7 @@ RSpec.describe RAAF::FunctionTool do
 
       tool = described_class.new(method(:mixed_method))
       params = tool.parameters
-      
+
       expect(params[:properties]).to have_key(:required)
       expect(params[:properties]).to have_key(:optional)
       expect(params[:required]).to eq([:required])
@@ -401,7 +409,7 @@ RSpec.describe RAAF::FunctionTool do
 
       tool = described_class.new(method(:complex_params))
       params = tool.parameters
-      
+
       expect(params[:properties]).to have_key(:normal)
       expect(params[:properties]).not_to have_key(:splat)
       expect(params[:properties]).not_to have_key(:kwargs)
@@ -417,18 +425,18 @@ RSpec.describe RAAF::FunctionTool do
   describe "logging behavior" do
     it "logs debug information during initialization" do
       allow_any_instance_of(described_class).to receive(:log_debug_tools)
-      
+
       tool = described_class.new(simple_proc, name: "test", parameters: { custom: true })
-      
+
       expect(tool).to have_received(:log_debug_tools).at_least(:once)
     end
 
     it "logs when generating to_h output" do
       tool = described_class.new(simple_proc, name: "test")
       allow(tool).to receive(:log_debug_tools)
-      
+
       tool.to_h
-      
+
       expect(tool).to have_received(:log_debug_tools).with(
         "FunctionTool.to_h generated",
         hash_including(tool_name: "test")
@@ -472,7 +480,7 @@ RSpec.describe RAAF::FunctionTool do
       end
 
       tool = described_class.new(complex_tool, name: "complex_returns")
-      
+
       expect(tool.call(action: "array")).to eq([1, 2, 3])
       expect(tool.call(action: "hash")).to eq({ data: "complex", nested: { value: 42 } })
       expect(tool.call(action: "nil")).to be_nil
@@ -481,7 +489,7 @@ RSpec.describe RAAF::FunctionTool do
 
     it "supports dynamic enabling based on agent state" do
       agent_context = double("context", user_role: "admin")
-      
+
       admin_tool = described_class.new(
         proc { "admin action" },
         name: "admin_tool",
@@ -489,7 +497,7 @@ RSpec.describe RAAF::FunctionTool do
       )
 
       expect(admin_tool.enabled?(agent_context)).to be true
-      
+
       user_context = double("context", user_role: "user")
       expect(admin_tool.enabled?(user_context)).to be false
     end

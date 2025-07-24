@@ -7,6 +7,7 @@ RSpec.describe RAAF::Agent do
   let(:test_agent) { described_class.new(name: "TestAgent") }
   let(:support_agent) { described_class.new(name: "SupportAgent", instructions: "Handle support requests") }
   let(:sales_agent) { described_class.new(name: "SalesAgent", instructions: "Handle sales inquiries") }
+
   describe "#initialize" do
     it "creates an agent with default values" do
       agent = described_class.new(name: "TestAgent")
@@ -558,7 +559,7 @@ RSpec.describe RAAF::Agent do
       # Tools are duplicated
       expect(cloned.tools).not_to be(base_agent.tools)
       # But non-handoff tools are preserved
-      expect(cloned.tools.select { |t| !t.name.start_with?("transfer_to_") }.size).to eq(1)
+      expect(cloned.tools.reject { |t| t.name.start_with?("transfer_to_") }.size).to eq(1)
 
       # Handoffs are duplicated
       expect(cloned.handoffs).not_to be(base_agent.handoffs)
@@ -647,7 +648,7 @@ RSpec.describe RAAF::Agent do
     context "without output_type configured" do
       it "returns output unchanged" do
         agent = described_class.new(name: "Agent")
-        
+
         expect(agent.validate_output("test")).to eq("test")
         expect(agent.validate_output({ key: "value" })).to eq({ key: "value" })
       end
@@ -656,14 +657,14 @@ RSpec.describe RAAF::Agent do
     context "with output_type configured" do
       it "validates string output type" do
         agent = described_class.new(name: "Agent", output_type: String)
-        
+
         expect(agent.validate_output("valid string")).to eq("valid string")
       end
 
       it "validates and parses JSON when output type expects object" do
         agent = described_class.new(name: "Agent", output_type: Hash)
         json_string = '{"key": "value"}'
-        
+
         # For non-plain-text types, it should parse and validate JSON
         expect { agent.validate_output(json_string) }.not_to raise_error
       end
@@ -687,7 +688,7 @@ RSpec.describe RAAF::Agent do
     it "delegates to FunctionTool.enabled_tools with context" do
       context = double("context")
       expect(RAAF::FunctionTool).to receive(:enabled_tools).with([tool1, tool2], context)
-      
+
       agent.enabled_tools(context)
     end
   end
@@ -702,7 +703,7 @@ RSpec.describe RAAF::Agent do
     it "returns all tools regardless of enabled state" do
       tool = RAAF::FunctionTool.new(proc { "tool" }, name: "tool")
       agent.add_tool(tool)
-      
+
       expect(agent.all_tools).to eq([tool])
     end
   end
@@ -728,7 +729,7 @@ RSpec.describe RAAF::Agent do
 
     it "handles hosted tools with type field" do
       agent.instance_variable_set(:@tools, agent.tools + [{ type: "web_search" }])
-      
+
       expect(agent.tool_exists?("web_search")).to be true
       expect(agent.tool_exists?(:web_search)).to be true
     end
@@ -740,16 +741,16 @@ RSpec.describe RAAF::Agent do
       schema = agent.get_input_schema
 
       expect(schema).to eq({
-        type: "object",
-        properties: {
-          input: {
-            type: "string",
-            description: "Input text to send to the TestAgent agent"
-          }
-        },
-        required: ["input"],
-        additionalProperties: false
-      })
+                             type: "object",
+                             properties: {
+                               input: {
+                                 type: "string",
+                                 description: "Input text to send to the TestAgent agent"
+                               }
+                             },
+                             required: ["input"],
+                             additionalProperties: false
+                           })
     end
 
     it "includes handoff description in schema" do
@@ -860,10 +861,10 @@ RSpec.describe RAAF::Agent do
 
       it "raises error when memory store not configured" do
         agent_no_memory = described_class.new(name: "NoMemory")
-        
-        expect {
+
+        expect do
           agent_no_memory.remember("Test")
-        }.to raise_error(RAAF::AgentError, /Memory store not configured/)
+        end.to raise_error(RAAF::AgentError, /Memory store not configured/)
       end
     end
 
@@ -875,7 +876,7 @@ RSpec.describe RAAF::Agent do
             limit: 5,
             agent_name: "MemoryAgent",
             conversation_id: "conv-123",
-            tags: ["ruby", "code"]
+            tags: %w[ruby code]
           )
         ).and_return([])
 
@@ -883,29 +884,29 @@ RSpec.describe RAAF::Agent do
           "programming",
           limit: 5,
           conversation_id: "conv-123",
-          tags: ["ruby", "code"]
+          tags: %w[ruby code]
         )
-        
+
         expect(result).to eq([])
       end
 
       it "returns empty array when no memory store" do
         agent_no_memory = described_class.new(name: "NoMemory")
-        
+
         expect(agent_no_memory.recall("test")).to eq([])
       end
     end
 
     describe "#memory_count" do
       it "returns count of memories for agent" do
-        expect(memory_store).to receive(:list_keys).with(agent_name: "MemoryAgent").and_return(["key1", "key2", "key3"])
-        
+        expect(memory_store).to receive(:list_keys).with(agent_name: "MemoryAgent").and_return(%w[key1 key2 key3])
+
         expect(agent.memory_count).to eq(3)
       end
 
       it "returns 0 when no memory store" do
         agent_no_memory = described_class.new(name: "NoMemory")
-        
+
         expect(agent_no_memory.memory_count).to eq(0)
       end
     end
@@ -913,13 +914,13 @@ RSpec.describe RAAF::Agent do
     describe "#memories?" do
       it "returns true when agent has memories" do
         allow(memory_store).to receive(:list_keys).and_return(["key1"])
-        
+
         expect(agent.memories?).to be true
       end
 
       it "returns false when agent has no memories" do
         allow(memory_store).to receive(:list_keys).and_return([])
-        
+
         expect(agent.memories?).to be false
       end
     end
@@ -927,23 +928,23 @@ RSpec.describe RAAF::Agent do
     describe "#forget" do
       it "deletes specific memory" do
         expect(memory_store).to receive(:delete).with("memory-key-123").and_return(true)
-        
+
         expect(agent.forget("memory-key-123")).to be true
       end
 
       it "returns false when no memory store" do
         agent_no_memory = described_class.new(name: "NoMemory")
-        
+
         expect(agent_no_memory.forget("key")).to be false
       end
     end
 
     describe "#clear_memories" do
       it "deletes all memories for agent" do
-        expect(memory_store).to receive(:list_keys).with(agent_name: "MemoryAgent").and_return(["key1", "key2"])
+        expect(memory_store).to receive(:list_keys).with(agent_name: "MemoryAgent").and_return(%w[key1 key2])
         expect(memory_store).to receive(:delete).with("key1")
         expect(memory_store).to receive(:delete).with("key2")
-        
+
         agent.clear_memories
       end
     end
@@ -955,15 +956,15 @@ RSpec.describe RAAF::Agent do
           { content: "New", updated_at: "2024-01-02T10:00:00Z" },
           { content: "Middle", updated_at: "2024-01-01T15:00:00Z" }
         ]
-        
+
         expect(memory_store).to receive(:search).with(
           "",
           { limit: 4, agent_name: "MemoryAgent", conversation_id: nil }
         ).and_return(memories)
-        
+
         result = agent.recent_memories(limit: 2)
-        
-        expect(result.map { |m| m[:content] }).to eq(["New", "Middle"])
+
+        expect(result.map { |m| m[:content] }).to eq(%w[New Middle])
       end
 
       it "filters by conversation_id when provided" do
@@ -971,7 +972,7 @@ RSpec.describe RAAF::Agent do
           "",
           hash_including(conversation_id: "conv-123")
         ).and_return([])
-        
+
         agent.recent_memories(conversation_id: "conv-123")
       end
     end
@@ -982,11 +983,11 @@ RSpec.describe RAAF::Agent do
           { content: "User prefers Python", updated_at: "2024-01-01T10:00:00Z" },
           { content: "User works on web apps", updated_at: "2024-01-01T11:00:00Z" }
         ]
-        
+
         allow(memory_store).to receive(:search).and_return(memories)
-        
+
         context = agent.memory_context("preferences", limit: 2)
-        
+
         expect(context).to include("Relevant memories:")
         expect(context).to include("1. User prefers Python")
         expect(context).to include("2. User works on web apps")
@@ -994,7 +995,7 @@ RSpec.describe RAAF::Agent do
 
       it "returns empty string when no memories found" do
         allow(memory_store).to receive(:search).and_return([])
-        
+
         expect(agent.memory_context("test")).to eq("")
       end
     end
@@ -1006,7 +1007,7 @@ RSpec.describe RAAF::Agent do
         name: "Agent",
         tool_use_behavior: :run_llm_again
       )
-      
+
       expect(agent.tool_use_behavior).to be_a(RAAF::ToolUseBehavior::Base)
     end
 
@@ -1015,27 +1016,27 @@ RSpec.describe RAAF::Agent do
         name: "Agent",
         tool_use_behavior: "return_direct"
       )
-      
+
       expect(agent.tool_use_behavior).to be_a(RAAF::ToolUseBehavior::Base)
     end
 
     it "defaults to run_llm_again behavior" do
       agent = described_class.new(name: "Agent")
-      
+
       expect(agent.tool_use_behavior).to be_a(RAAF::ToolUseBehavior::Base)
     end
 
     it "supports reset_tool_choice configuration" do
       agent_reset = described_class.new(name: "Agent1", reset_tool_choice: true)
       agent_no_reset = described_class.new(name: "Agent2", reset_tool_choice: false)
-      
+
       expect(agent_reset.reset_tool_choice).to be true
       expect(agent_no_reset.reset_tool_choice).to be false
     end
 
     it "defaults reset_tool_choice to true" do
       agent = described_class.new(name: "Agent")
-      
+
       expect(agent.reset_tool_choice).to be true
     end
   end
@@ -1047,7 +1048,7 @@ RSpec.describe RAAF::Agent do
       it "adds guardrail to collection" do
         guardrail = double("input_guardrail")
         agent.add_input_guardrail(guardrail)
-        
+
         expect(agent.input_guardrails).to include(guardrail)
       end
     end
@@ -1056,7 +1057,7 @@ RSpec.describe RAAF::Agent do
       it "adds guardrail to collection" do
         guardrail = double("output_guardrail")
         agent.add_output_guardrail(guardrail)
-        
+
         expect(agent.output_guardrails).to include(guardrail)
       end
     end
@@ -1078,9 +1079,9 @@ RSpec.describe RAAF::Agent do
     let(:agent) { described_class.new(name: "Agent") }
 
     it "provides helpful error for invalid tool in execute_tool" do
-      expect {
+      expect do
         agent.execute_tool("non_existent")
-      }.to raise_error(RAAF::ToolError, /Tool 'non_existent' not found/)
+      end.to raise_error(RAAF::ToolError, /Tool 'non_existent' not found/)
     end
 
     it "wraps tool execution errors" do
@@ -1089,10 +1090,10 @@ RSpec.describe RAAF::Agent do
         name: "failing"
       )
       agent.add_tool(failing_tool)
-      
-      expect {
+
+      expect do
         agent.execute_tool("failing")
-      }.to raise_error(RAAF::ToolError, /Tool execution failed:.*Internal error/)
+      end.to raise_error(RAAF::ToolError, /Tool execution failed:.*Internal error/)
     end
   end
 end

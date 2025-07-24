@@ -11,7 +11,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
     end
 
     let(:agent_b) do
-      create_test_agent(name: "AgentB", instructions: "Agent B in circular test") 
+      create_test_agent(name: "AgentB", instructions: "Agent B in circular test")
     end
 
     let(:agent_c) do
@@ -31,15 +31,15 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Transferring to Agent B",
           tool_calls: [{
-            function: { name: "transfer_to_agentb", arguments: "{}" }
+            function: { name: "transfer_to_agent_b", arguments: "{}" }
           }]
         )
 
         # Agent B transfers to C
         mock_provider.add_response(
-          "Transferring to Agent C", 
+          "Transferring to Agent C",
           tool_calls: [{
-            function: { name: "transfer_to_agentc", arguments: "{}" }
+            function: { name: "transfer_to_agent_c", arguments: "{}" }
           }]
         )
 
@@ -47,7 +47,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Attempting circular transfer",
           tool_calls: [{
-            function: { name: "transfer_to_agenta", arguments: "{}" }
+            function: { name: "transfer_to_agent_a", arguments: "{}" }
           }]
         )
 
@@ -71,7 +71,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
   describe "Conditional Handoff Logic" do
     let(:triage_agent) do
       agent = create_test_agent(
-        name: "TriageAgent", 
+        name: "TriageAgent",
         instructions: "Routes requests based on conditions"
       )
       agent.add_tool(method(:priority_assessment_tool))
@@ -110,7 +110,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "This is critical - routing to express service",
           tool_calls: [{
-            function: { name: "transfer_to_expressagent", arguments: '{"priority": "critical", "sla": "1_hour"}' }
+            function: { name: "transfer_to_express_agent", arguments: '{"priority": "critical", "sla": "1_hour"}' }
           }]
         )
 
@@ -139,7 +139,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Routing to standard processing",
           tool_calls: [{
-            function: { name: "transfer_to_standardagent", arguments: '{"priority": "normal", "sla": "24_hours"}' }
+            function: { name: "transfer_to_standard_agent", arguments: '{"priority": "normal", "sla": "24_hours"}' }
           }]
         )
 
@@ -187,9 +187,9 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "This requires unified support across multiple channels",
           tool_calls: [{
-            function: { 
-              name: "transfer_to_unifiedagent", 
-              arguments: '{"original_channel": "email", "ticket_id": "email_12345", "complexity": "multi_channel"}' 
+            function: {
+              name: "transfer_to_unified_agent",
+              arguments: '{"original_channel": "email", "ticket_id": "email_12345", "complexity": "multi_channel"}'
             }
           }]
         )
@@ -205,9 +205,9 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
 
         expect(result.success?).to be true
         expect(result.last_agent&.name).to eq("UnifiedAgent")
-        
+
         # Verify channel context preservation
-        handoff_message = result.messages.find { |msg| msg.to_s.include?("transfer_to_unifiedagent") }
+        handoff_message = result.messages.find { |msg| msg.to_s.include?("transfer_to_unified_agent") }
         expect(handoff_message.to_s).to include("email_12345") if handoff_message
       end
     end
@@ -229,9 +229,9 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "I'll create a specialized agent for your Ruby performance needs",
           tool_calls: [{
-            function: { 
-              name: "create_specialist_tool", 
-              arguments: '{"specialty": "ruby_performance", "experience_level": "expert", "tools_needed": ["profiler", "benchmark"]}' 
+            function: {
+              name: "create_specialist_tool",
+              arguments: '{"specialty": "ruby_performance", "experience_level": "expert", "tools_needed": ["profiler", "benchmark"]}'
             }
           }]
         )
@@ -240,9 +240,9 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Specialist created, transferring you now",
           tool_calls: [{
-            function: { 
-              name: "transfer_to_rubyperformancespecialist", 
-              arguments: '{"context": "performance_optimization", "client_code": "provided"}' 
+            function: {
+              name: "transfer_to_ruby_performance_specialist",
+              arguments: '{"context": "performance_optimization", "client_code": "provided"}'
             }
           }]
         )
@@ -258,7 +258,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         result = runner.run("I need an expert Ruby performance consultant to optimize my application")
 
         expect(result.success?).to be true
-        # Note: The final agent name would depend on the actual implementation
+        # NOTE: The final agent name would depend on the actual implementation
         # This test mainly verifies the workflow pattern
       end
     end
@@ -293,7 +293,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Starting batch processing - distributing to processors",
           tool_calls: [{
-            function: { name: "transfer_to_processoragent1", arguments: '{"batch_id": "batch_001", "items": ["item1", "item2"]}' }
+            function: { name: "transfer_to_processor_agent1", arguments: '{"batch_id": "batch_001", "items": ["item1", "item2"]}' }
           }]
         )
 
@@ -302,7 +302,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Continuing with next batch",
           tool_calls: [{
-            function: { name: "transfer_to_processoragent2", arguments: '{"batch_id": "batch_001", "items": ["item3", "item4"]}' }
+            function: { name: "transfer_to_processor_agent2", arguments: '{"batch_id": "batch_001", "items": ["item3", "item4"]}' }
           }]
         )
 
@@ -356,9 +356,9 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Starting workflow - saving initial state",
           tool_calls: [{
-            function: { 
-              name: "save_workflow_state_tool", 
-              arguments: '{"workflow_id": "wf_123", "step": 1, "data": {"user_id": "user_456", "process": "onboarding"}}' 
+            function: {
+              name: "save_workflow_state_tool",
+              arguments: '{"workflow_id": "wf_123", "step": 1, "data": {"user_id": "user_456", "process": "onboarding"}}'
             }
           }]
         )
@@ -367,7 +367,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Transferring to step 1 processor",
           tool_calls: [{
-            function: { name: "transfer_to_step1agent", arguments: '{"workflow_id": "wf_123", "step": 1}' }
+            function: { name: "transfer_to_step1_agent", arguments: '{"workflow_id": "wf_123", "step": 1}' }
           }]
         )
 
@@ -375,7 +375,7 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
         mock_provider.add_response(
           "Step 1 complete, advancing to step 2",
           tool_calls: [{
-            function: { name: "transfer_to_step2agent", arguments: '{"workflow_id": "wf_123", "step": 2, "step1_result": "verified"}' }
+            function: { name: "transfer_to_step2_agent", arguments: '{"workflow_id": "wf_123", "step": 2, "step1_result": "verified"}' }
           }]
         )
 
@@ -400,15 +400,15 @@ RSpec.describe "Advanced Workflow Patterns", :integration do
   # Mock tools for advanced workflow testing
   def priority_assessment_tool(urgency:, customer_tier:)
     score = case urgency
-           when "critical" then 10
-           when "high" then 7
-           when "normal" then 5
-           when "low" then 2
-           else 1
-           end
-    
+            when "critical" then 10
+            when "high" then 7
+            when "normal" then 5
+            when "low" then 2
+            else 1
+            end
+
     tier_bonus = customer_tier == "enterprise" ? 3 : 0
-    
+
     { priority_score: score + tier_bonus, recommendation: score > 8 ? "express" : "standard" }
   end
 

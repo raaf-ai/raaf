@@ -1,0 +1,143 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4o","input":[{"role":"user","content":"Test message"}],"instructions":"Name:
+        PrimaryAgent\nInstructions: Primary responder"}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 08:23:13 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '800000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '799959'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 3ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_f301544a7c35ee10868fd055f7124442
+      Openai-Processing-Ms:
+      - '1211'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=h.2qVvBX_wk452zMEXYAywQqLPYSQY8cOmS0F_nZPEQ-1753345393-1.0.1.1-1HEHBVyhZvlNBrert4TYvbh8K1bOVBaMYHLCFOy2pW0iJIWCAn2P_dUSC3EZ3IQ.WsvNMiLUNPvFj2ytkaFN9bXK6VtVGye9TCFSAcvYLiU;
+        path=/; expires=Thu, 24-Jul-25 08:53:13 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=7tonW2GD1ECF38zvjGrJllaQZ_KA5SNoSas55FX6cCY-1753345393270-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9642039aea8a5925-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_6881ed6fe4ec81a1b84abee1445f42ba0506e809f3d0a6e0",
+          "object": "response",
+          "created_at": 1753345391,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: PrimaryAgent\nInstructions: Primary responder",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4o-2024-08-06",
+          "output": [
+            {
+              "id": "msg_6881ed707ea881a1b024c6bc412816b30506e809f3d0a6e0",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "Test message received! How can I assist you today?"
+                }
+              ],
+              "role": "assistant"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 22,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 12,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 34
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 08:23:13 GMT
+recorded_with: VCR 6.3.1

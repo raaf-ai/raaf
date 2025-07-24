@@ -3,7 +3,9 @@
 require "spec_helper"
 require "webmock/rspec"
 
+# rubocop:disable RSpec/DescribeMethod
 RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
+  # rubocop:enable RSpec/DescribeMethod
   let(:api_key) { "sk-test-key" }
   let(:provider) { described_class.new(api_key: api_key) }
 
@@ -61,7 +63,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           tools: tools
         )
 
-        expect(result).to include(:id, :output, :usage)
+        expect(result).to include("id", "output", "usage")
         expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
           .with(body: hash_including("tools"))
       end
@@ -96,12 +98,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           .to_return(status: 200, body: mock_response.to_json)
 
         result = provider.responses_completion(
-          messages: [],  # Empty since using direct input
+          messages: [], # Empty since using direct input
           model: model,
           input: input_items
         )
 
-        expect(result).to include(:id, :output)
+        expect(result).to include("id", "output")
         expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
           .with(body: hash_including("input"))
       end
@@ -141,13 +143,13 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         }
 
         stub_request(:post, "https://api.openai.com/v1/responses")
-          .to_return(status: 200, body: response_body.to_json, headers: { 'Content-Type' => 'application/json' })
+          .to_return(status: 200, body: response_body.to_json, headers: { "Content-Type" => "application/json" })
 
         result = provider.responses_completion(messages: messages, model: model)
 
-        expect(result[:id]).to eq("resp_success_123")
-        expect(result[:output]).to be_an(Array)
-        expect(result[:usage][:total_tokens]).to eq(15)
+        expect(result["id"]).to eq("resp_success_123")
+        expect(result["output"]).to be_an(Array)
+        expect(result["usage"]["total_tokens"]).to eq(15)
       end
 
       it "handles 201 Created responses" do
@@ -157,7 +159,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           .to_return(status: 201, body: response_body.to_json)
 
         result = provider.responses_completion(messages: messages, model: model)
-        expect(result[:id]).to eq("resp_created")
+        expect(result["id"]).to eq("resp_created")
       end
     end
 
@@ -174,9 +176,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 400, body: error_body.to_json)
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::APIError, /Invalid request format/)
+        end.to raise_error(RAAF::Models::APIError, /Invalid request format/)
       end
 
       it "handles 401 Unauthorized errors" do
@@ -190,9 +192,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 401, body: error_body.to_json)
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::APIError, /Invalid API key/)
+        end.to raise_error(RAAF::Models::APIError, /Invalid API key/)
       end
 
       it "handles 429 Rate Limit errors" do
@@ -206,9 +208,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 429, body: error_body.to_json)
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
+        end.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
       end
 
       it "handles 500 Internal Server errors" do
@@ -222,18 +224,18 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 500, body: error_body.to_json)
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
+        end.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
       end
 
       it "handles non-JSON error responses" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 503, body: "Service Temporarily Unavailable")
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
+        end.to raise_error(RAAF::Models::RetryableProvider::RetryableError)
       end
     end
 
@@ -242,27 +244,27 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_timeout
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(Timeout::Error)
+        end.to raise_error(Timeout::Error)
       end
 
       it "handles connection refused errors" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_raise(Errno::ECONNREFUSED)
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(Errno::ECONNREFUSED)
+        end.to raise_error(Errno::ECONNREFUSED)
       end
 
       it "handles DNS resolution errors" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_raise(SocketError.new("Failed to open TCP connection"))
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(SocketError)
+        end.to raise_error(SocketError)
       end
     end
   end
@@ -318,13 +320,11 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
       it "handles web search tools specially" do
         # Mock a web search tool
         web_search_tool = double("WebSearchTool")
-        allow(web_search_tool).to receive(:class).and_return(Object) # Simulate class check
-        allow(web_search_tool).to receive(:to_s).and_return("WebSearchTool")
         allow(web_search_tool).to receive(:respond_to?).with(:tool_definition).and_return(false)
         allow(web_search_tool).to receive(:respond_to?).with(:to_tool_definition).and_return(true)
-        allow(web_search_tool).to receive(:to_tool_definition).and_return({
-          type: "web_search"
-        })
+        allow(web_search_tool).to receive_messages(class: Object, to_s: "WebSearchTool", to_tool_definition: {
+                                                     type: "web_search"
+                                                   })
 
         # Simulate web search tool detection
         tools = [web_search_tool]
@@ -342,9 +342,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         dsl_tool = double("DSLTool")
         allow(dsl_tool).to receive(:respond_to?).with(:tool_definition).and_return(true)
         allow(dsl_tool).to receive(:tool_definition).and_return({
-          type: "function",
-          function: { name: "dsl_tool", description: "DSL tool", parameters: {} }
-        })
+                                                                  type: "function",
+                                                                  function: { name: "dsl_tool", description: "DSL tool", parameters: {} }
+                                                                })
 
         tools = [dsl_tool]
 
@@ -362,9 +362,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         allow(custom_tool).to receive(:respond_to?).with(:tool_definition).and_return(false)
         allow(custom_tool).to receive(:respond_to?).with(:to_tool_definition).and_return(true)
         allow(custom_tool).to receive(:to_tool_definition).and_return({
-          type: "function",
-          function: { name: "custom_tool", description: "Custom tool", parameters: {} }
-        })
+                                                                        type: "function",
+                                                                        function: { name: "custom_tool", description: "Custom tool", parameters: {} }
+                                                                      })
 
         tools = [custom_tool]
 
@@ -381,9 +381,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         unknown_tool = "not_a_tool"
         tools = [unknown_tool]
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model, tools: tools)
-        }.to raise_error(ArgumentError, /Unknown tool type/)
+        end.to raise_error(ArgumentError, /Unknown tool type/)
       end
     end
   end
@@ -400,9 +400,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
 
         expect(input).to be_an(Array)
         expect(input.length).to eq(2)
-        expect(input[0][:type]).to eq("user_text")
-        expect(input[0][:text]).to eq("Hello")
-        expect(input[1][:text]).to eq("How are you?")
+        expect(input[0][:type]).to eq("message")
+        expect(input[0][:role]).to eq("user")
+        expect(input[0][:content]).to eq([{ type: "input_text", text: "Hello" }])
+        expect(input[1][:type]).to eq("message")
+        expect(input[1][:role]).to eq("user")
+        expect(input[1][:content]).to eq([{ type: "input_text", text: "How are you?" }])
       end
 
       it "converts assistant messages correctly" do
@@ -416,7 +419,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         expect(input.length).to eq(2)
         expect(input[0][:type]).to eq("message")
         expect(input[0][:role]).to eq("assistant")
-        expect(input[0][:content]).to eq([{ type: "text", text: "Hi there!" }])
+        expect(input[0][:content]).to eq([{ type: "output_text", text: "Hi there!" }])
       end
 
       it "converts tool messages correctly" do
@@ -460,8 +463,8 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         messages = [
           { role: "user", content: "What's the weather?" },
           { role: "assistant", content: "I'll check", tool_calls: [
-            { id: "call_1", type: "function", function: { name: "weather", arguments: "{}" }}
-          ]},
+            { id: "call_1", type: "function", function: { name: "weather", arguments: "{}" } }
+          ] },
           { role: "tool", content: "Sunny, 72F", tool_call_id: "call_1" },
           { role: "assistant", content: "It's sunny and 72F!" }
         ]
@@ -469,7 +472,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         input = provider.send(:convert_messages_to_input, messages)
 
         expect(input.length).to eq(5) # user + assistant content + tool_call + tool_result + final assistant
-        expect(input[0][:type]).to eq("user_text")
+        expect(input[0][:type]).to eq("message")
         expect(input[1][:type]).to eq("message")
         expect(input[2][:type]).to eq("function_call")
         expect(input[3][:type]).to eq("function_call_output")
@@ -515,7 +518,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           type: "object",
           properties: {
             location: { type: "string", description: "City name" },
-            unit: { type: "string", enum: ["celsius", "fahrenheit"] }
+            unit: { type: "string", enum: %w[celsius fahrenheit] }
           },
           required: ["location"]
         }
@@ -580,7 +583,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         }
 
         result = provider.send(:convert_response_format, json_schema)
-        
+
         # The method converts to the format expected by the Responses API
         expected = {
           format: {
@@ -590,7 +593,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
             strict: nil
           }
         }
-        
+
         expect(result).to eq(expected)
       end
     end
@@ -609,7 +612,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           stream: true
         )
 
+        # rubocop:disable Lint/EmptyBlock
         provider.stream_completion(messages: messages, model: model) {}
+        # rubocop:enable Lint/EmptyBlock
       end
 
       it "passes tools parameter to streaming" do
@@ -622,11 +627,13 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           stream: true
         )
 
+        # rubocop:disable Lint/EmptyBlock
         provider.stream_completion(messages: messages, model: model, tools: tools) {}
+        # rubocop:enable Lint/EmptyBlock
       end
     end
 
-    # Note: Full streaming tests would require more complex SSE mocking
+    # NOTE: Full streaming tests would require more complex SSE mocking
     # These tests focus on the streaming delegation and parameter handling
   end
 
@@ -639,18 +646,18 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 200, body: "Not JSON")
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(JSON::ParserError)
+        end.to raise_error(JSON::ParserError)
       end
 
       it "handles empty response bodies" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 200, body: "")
 
-        expect {
+        expect do
           provider.responses_completion(messages: messages, model: model)
-        }.to raise_error(JSON::ParserError)
+        end.to raise_error(JSON::ParserError)
       end
     end
 
@@ -660,7 +667,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
 
         result = provider.responses_completion(messages: [], model: model)
-        expect(result[:id]).to eq("test")
+        expect(result["id"]).to eq("test")
       end
 
       it "handles messages with missing content" do
@@ -669,21 +676,21 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
           { role: "assistant", content: "Response" }
         ]
 
-        expect {
+        expect do
           provider.send(:convert_messages_to_input, messages_with_missing_content)
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "handles very large message content" do
-        large_content = "x" * 10000
+        large_content = "x" * 10_000
         large_messages = [{ role: "user", content: large_content }]
 
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
 
-        expect {
+        expect do
           provider.responses_completion(messages: large_messages, model: model)
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "handles Unicode and special characters" do
@@ -692,9 +699,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
 
-        expect {
+        expect do
           provider.responses_completion(messages: unicode_messages, model: model)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
   end
@@ -710,7 +717,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
       provider.responses_completion(messages: messages, model: model)
 
       expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with(headers: { 'Authorization' => 'Bearer sk-test-key' })
+        .with(headers: { "Authorization" => "Bearer sk-test-key" })
     end
 
     it "includes correct content-type header" do
@@ -720,7 +727,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
       provider.responses_completion(messages: messages, model: model)
 
       expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with(headers: { 'Content-Type' => 'application/json' })
+        .with(headers: { "Content-Type" => "application/json" })
     end
 
     it "includes user-agent header" do
@@ -730,7 +737,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
       provider.responses_completion(messages: messages, model: model)
 
       expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with(headers: { 'User-Agent' => /Agents/ })
+        .with(headers: { "User-Agent" => /Agents/ })
     end
   end
 
@@ -769,7 +776,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
       threads.each(&:join)
 
       expect(results.length).to eq(5)
-      results.each { |result| expect(result[:id]).to eq("test") }
+      results.each { |result| expect(result["id"]).to eq("test") }
     end
   end
 end

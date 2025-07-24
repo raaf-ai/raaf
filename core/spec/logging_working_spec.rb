@@ -2,6 +2,7 @@
 
 require "spec_helper"
 
+# rubocop:disable RSpec/MultipleDescribes
 RSpec.describe RAAF::Logging do
   let(:original_configuration) { described_class.instance_variable_get(:@configuration) }
   let(:original_logger) { described_class.instance_variable_get(:@logger) }
@@ -38,7 +39,7 @@ RSpec.describe RAAF::Logging do
     it "reuses existing configuration" do
       config1 = described_class.configure { |c| c.log_level = :error }
       config2 = described_class.configure { |c| c.log_format = :json }
-      
+
       expect(config1).to be(config2)
       expect(config2.log_level).to eq(:error)
       expect(config2.log_format).to eq(:json)
@@ -60,72 +61,72 @@ RSpec.describe RAAF::Logging do
 
   describe "logging methods" do
     it "handles debug messages without errors" do
-      expect {
+      expect do
         described_class.debug("Debug message", category: :api, url: "test.com")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles info messages without errors" do
-      expect {
+      expect do
         described_class.info("Info message", user_id: 123)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles warn messages without errors" do
-      expect {
+      expect do
         described_class.warn("Warning message", deprecated: true)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles error messages without errors" do
-      expect {
+      expect do
         described_class.error("Error message", status: 500)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles fatal messages without errors" do
-      expect {
+      expect do
         described_class.fatal("Fatal message", component: "database")
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
   describe "specialized logging methods" do
     it "handles agent_start without errors" do
-      expect {
+      expect do
         described_class.agent_start("GPT-4", run_id: "abc123")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles agent_end without errors" do
-      expect {
+      expect do
         described_class.agent_end("GPT-4", duration: 1.5)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles tool_call without errors" do
-      expect {
+      expect do
         described_class.tool_call("search", query: "test")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles handoff without errors" do
-      expect {
+      expect do
         described_class.handoff("Agent1", "Agent2", reason: "complete")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles api_call without errors" do
-      expect {
+      expect do
         described_class.api_call("POST", "https://api.test.com")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles api_error without errors" do
       error = StandardError.new("API Error")
-      expect {
+      expect do
         described_class.api_error(error, status: 500)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -140,11 +141,11 @@ RSpec.describe RAAF::Logging do
     end
 
     it "handles exceptions in benchmarked block" do
-      expect {
+      expect do
         described_class.benchmark("Failing operation") do
           raise StandardError, "Test error"
         end
-      }.to raise_error(StandardError, "Test error")
+      end.to raise_error(StandardError, "Test error")
     end
   end
 end
@@ -154,10 +155,12 @@ RSpec.describe RAAF::Logging::Configuration do
 
   describe "#initialize" do
     it "sets default configuration values" do
-      expect(config.log_level).to eq(:info)
+      # In test environment, log level is overridden to :fatal in spec_helper
+      expected_log_level = ENV["RAAF_LOG_LEVEL"] ? ENV["RAAF_LOG_LEVEL"].to_sym : :info
+      expect(config.log_level).to eq(expected_log_level)
       expect(config.log_format).to eq(:text)
       expect(config.log_output).to eq(:auto)
-      expect(config.debug_categories).to eq([:all])  # Default is :all, not :general
+      expect(config.debug_categories).to eq([:all]) # Default is :all, not :general
     end
 
     context "with environment variables" do
@@ -175,7 +178,7 @@ RSpec.describe RAAF::Logging::Configuration do
 
         expect(config.log_level).to eq(:debug)
         expect(config.log_format).to eq(:json)
-        expect(config.debug_categories).to eq([:api, :tracing])
+        expect(config.debug_categories).to eq(%i[api tracing])
       end
     end
   end
@@ -202,7 +205,7 @@ RSpec.describe RAAF::Logging::Configuration do
     end
 
     context "with specific categories enabled" do
-      before { config.debug_categories = [:api, :tracing] }
+      before { config.debug_categories = %i[api tracing] }
 
       it "returns true for enabled categories" do
         expect(config.debug_enabled?(:api)).to be true
@@ -229,12 +232,12 @@ RSpec.describe RAAF::Logging::Configuration do
     describe "#parse_debug_categories" do
       it "parses comma-separated category list" do
         categories = config.send(:parse_debug_categories, "api,tools,tracing")
-        expect(categories).to eq([:api, :tools, :tracing])
+        expect(categories).to eq(%i[api tools tracing])
       end
 
       it "handles whitespace in category list" do
         categories = config.send(:parse_debug_categories, " api , tools , tracing ")
-        expect(categories).to eq([:api, :tools, :tracing])
+        expect(categories).to eq(%i[api tools tracing])
       end
 
       it "handles special values" do
@@ -265,8 +268,8 @@ RSpec.describe RAAF::Logging::Configuration do
     end
 
     it "allows setting and getting debug_categories" do
-      config.debug_categories = [:api, :tools]
-      expect(config.debug_categories).to eq([:api, :tools])
+      config.debug_categories = %i[api tools]
+      expect(config.debug_categories).to eq(%i[api tools])
     end
   end
 end
@@ -278,37 +281,37 @@ RSpec.describe RAAF::Logger do
   describe "logging mixin methods" do
     it "provides log_debug method" do
       expect(instance).to respond_to(:log_debug)
-      expect {
+      expect do
         instance.log_debug("Debug message", category: :api)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "provides log_info method" do
       expect(instance).to respond_to(:log_info)
-      expect {
+      expect do
         instance.log_info("Info message", user_id: 123)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "provides log_warn method" do
       expect(instance).to respond_to(:log_warn)
-      expect {
+      expect do
         instance.log_warn("Warning message")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "provides log_error method" do
       expect(instance).to respond_to(:log_error)
-      expect {
+      expect do
         instance.log_error("Error message")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "provides log_fatal method" do
       expect(instance).to respond_to(:log_fatal)
-      expect {
+      expect do
         instance.log_fatal("Fatal message")
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -323,14 +326,14 @@ RSpec.describe RAAF::Logger do
     end
 
     it "handles category-specific logging without errors" do
-      expect {
+      expect do
         instance.log_debug_tracing("Trace message")
         instance.log_debug_api("API message")
         instance.log_debug_tools("Tools message")
         instance.log_debug_handoff("Handoff message")
         instance.log_debug_context("Context message")
         instance.log_debug_http("HTTP message")
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -361,50 +364,45 @@ RSpec.describe RAAF::Logger do
 
     it "handles agent logging without errors" do
       error = StandardError.new("Test error")
-      expect {
+      expect do
         instance.log_agent_start("GPT-4")
         instance.log_agent_end("GPT-4")
         instance.log_tool_call("search")
         instance.log_handoff("Agent1", "Agent2")
         instance.log_api_call("POST", "https://api.test.com")
         instance.log_api_error(error)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
   describe "#log_exception" do
     it "logs exception with details" do
-      begin
-        raise StandardError, "Test error"
-      rescue StandardError => e
-        expect {
-          instance.log_exception(e, message: "Custom message", user_id: 123)
-        }.not_to raise_error
-      end
+      raise StandardError, "Test error"
+    rescue StandardError => e
+      expect do
+        instance.log_exception(e, message: "Custom message", user_id: 123)
+      end.not_to raise_error
     end
 
     it "uses exception message when no custom message provided" do
-      begin
-        raise ArgumentError, "Invalid argument"
-      rescue ArgumentError => e
-        expect {
-          instance.log_exception(e, context: "test")
-        }.not_to raise_error
-      end
+      raise ArgumentError, "Invalid argument"
+    rescue ArgumentError => e
+      expect do
+        instance.log_exception(e, context: "test")
+      end.not_to raise_error
     end
 
     it "handles exceptions with causes" do
       begin
-        begin
-          raise RuntimeError, "Root cause"
-        rescue RuntimeError => e
-          raise StandardError, "Wrapper error"
-        end
-      rescue StandardError => e
-        expect {
-          instance.log_exception(e)
-        }.not_to raise_error
+        raise "Root cause"
+      rescue RuntimeError => e
+        raise StandardError, "Wrapper error"
       end
+    rescue StandardError => e
+      expect do
+        instance.log_exception(e)
+      end.not_to raise_error
     end
   end
 end
+# rubocop:enable RSpec/MultipleDescribes

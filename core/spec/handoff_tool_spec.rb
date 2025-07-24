@@ -115,12 +115,11 @@ RSpec.describe RAAF::HandoffTool do
   end
 
   describe "handoff execution" do
-    let(:handoff_data) { { strategies: ["analysis", "research"], priority: 3 } }
+    let(:handoff_data) { { strategies: %w[analysis research], priority: 3 } }
     let(:handoff_timestamp) { Time.now }
 
     before do
-      allow(handoff_context).to receive(:set_handoff).and_return(true)
-      allow(handoff_context).to receive(:handoff_timestamp).and_return(handoff_timestamp)
+      allow(handoff_context).to receive_messages(set_handoff: true, handoff_timestamp: handoff_timestamp)
     end
 
     it "executes handoff with provided data" do
@@ -160,7 +159,7 @@ RSpec.describe RAAF::HandoffTool do
     end
 
     it "includes handoff data in result message" do
-      result = described_class.execute_handoff(target_agent, handoff_context, { reason: "User needs specialized help" })
+      described_class.execute_handoff(target_agent, handoff_context, { reason: "User needs specialized help" })
 
       expect(handoff_context).to have_received(:set_handoff).with(
         target_agent: target_agent,
@@ -225,8 +224,7 @@ RSpec.describe RAAF::HandoffTool do
 
     it "handles handoff chain tracking" do
       # Simulate handoff chain: Agent1 -> Agent2 -> Agent3
-      allow(real_context).to receive(:set_handoff).and_return(true)
-      allow(real_context).to receive(:handoff_timestamp).and_return(Time.now)
+      allow(real_context).to receive_messages(set_handoff: true, handoff_timestamp: Time.now)
 
       result = described_class.execute_handoff("Agent3", real_context, { data: "test" })
       parsed = JSON.parse(result)
@@ -280,7 +278,7 @@ RSpec.describe RAAF::HandoffTool do
     it "handles complex agent names" do
       complex_names = [
         "Multi-Word Agent Name",
-        "Agent_With_Underscores", 
+        "Agent_With_Underscores",
         "Agent123WithNumbers",
         "UPPERCASE_AGENT",
         "Agent-With-Dashes"
@@ -297,7 +295,7 @@ RSpec.describe RAAF::HandoffTool do
     end
 
     it "ensures unique tool names" do
-      agents = ["TestAgent", "test_agent", "TEST-AGENT"]
+      agents = %w[TestAgent test_agent TEST-AGENT]
       tools = []
 
       agents.each do |agent_name|

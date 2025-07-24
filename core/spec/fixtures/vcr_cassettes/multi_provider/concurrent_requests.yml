@@ -1,0 +1,144 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4o-mini","input":[{"role":"user","content":"Concurrent
+        request 1"}],"instructions":"Name: ConcurrentAgent1\nInstructions: Concurrent
+        processing"}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 07:06:22 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '4000000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '3999956'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 0s
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_3674e8029ed2505045b8f376de40d4da
+      Openai-Processing-Ms:
+      - '1089'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=MHSF9OZt22hJZgcbLax7q8SVykF2kUJO1RjIztLQRRs-1753340782-1.0.1.1-nQOME4eIfOz_KpEji4eNBbD0JbVflJrcJpvR9YDJG972z5HTY.6AOJ8gWVD4_UptIi07Lker9VuRwSHdpcX2uP2P_ICoC31tDjlCcBsZKpc;
+        path=/; expires=Thu, 24-Jul-25 07:36:22 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=_TRn_G8AKcv5q0kgu0_TUFiWXUAmDcGO4l.mLRTyskI-1753340782720-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9641930bda7ed4d1-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_6881db6d95ac819e8bed6fd3f374596f0997570ea648199b",
+          "object": "response",
+          "created_at": 1753340781,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ConcurrentAgent1\nInstructions: Concurrent processing",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4o-mini-2024-07-18",
+          "output": [
+            {
+              "id": "msg_6881db6e26f8819e948cc1ca002f73940997570ea648199b",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "It looks like you're initiating a concurrent request. Could you please provide more details or specify what you need assistance with? This will help me respond appropriately!"
+                }
+              ],
+              "role": "assistant"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 25,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 31,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 56
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 07:06:22 GMT
+recorded_with: VCR 6.3.1

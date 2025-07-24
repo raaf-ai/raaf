@@ -51,6 +51,7 @@ RSpec.describe RAAF::Models::OpenAIProvider do
       allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return(nil)
       allow(ENV).to receive(:[]).with("OPENAI_ORG_ID").and_return(nil)
       allow(ENV).to receive(:[]).with("OPENAI_PROJECT_ID").and_return(nil)
+      allow(ENV).to receive(:[]).with("RAAF_SUPPRESS_WARNINGS").and_return("true")
 
       provider = described_class.new
       expect(provider.instance_variable_get(:@api_key)).to eq("sk-env-key")
@@ -71,6 +72,7 @@ RSpec.describe RAAF::Models::OpenAIProvider do
       allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return("https://env.api.com")
       allow(ENV).to receive(:[]).with("OPENAI_ORG_ID").and_return(nil)
       allow(ENV).to receive(:[]).with("OPENAI_PROJECT_ID").and_return(nil)
+      allow(ENV).to receive(:[]).with("RAAF_SUPPRESS_WARNINGS").and_return("true")
 
       provider = described_class.new
       expect(provider.instance_variable_get(:@api_base)).to eq("https://env.api.com")

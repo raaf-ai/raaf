@@ -1,0 +1,326 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Try the risky operation
+        with action ''test''"}],"instructions":"Name: Assistant\nInstructions: You
+        are helpful\n\nAvailable tools:\n- risky_operation: Perform an operation that
+        might fail","tools":[{"type":"function","name":"risky_operation","description":"Perform
+        an operation that might fail","parameters":{"type":"object","properties":{"action":{"type":"string","description":"action
+        parameter"}},"required":["action"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:29:43 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79714'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 214ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_43623daf6ce72427fc8dc1477cd79f7f
+      Openai-Processing-Ms:
+      - '1300'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=jOILBp4l96p8i4yjTRJ9OlsJhvXrfOV0kAnxgtxpVm4-1753298983-1.0.1.1-Pux.1q.LicZPAtTPAZObbW7nMtXWrOlqHOOk7eglyrRieonp7NveVVFNTfA4hgINWhcpX_vSvamcTwC.ykvb8jtVGneI5xrokdsJELI429U;
+        path=/; expires=Wed, 23-Jul-25 19:59:43 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=hEbYOEU5v2DWl.GEdZccg.BEAKi7o7iBOJu.15vOnjw-1753298983603-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d968ebe522f36-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_6881382642988191a9a26e81cae5d5b505be3638c95e5039",
+          "object": "response",
+          "created_at": 1753298982,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- risky_operation: Perform an operation that might fail",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688138275b1081918b20a3b0424883d205be3638c95e5039",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n  \"action\": \"test\"\n}",
+              "call_id": "call_MMZXCOAprIDqvTNsN7Gv7EkW",
+              "name": "risky_operation"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Perform an operation that might fail",
+              "name": "risky_operation",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "action parameter"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 80,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 17,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 97
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Wed, 23 Jul 2025 19:29:43 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Try the risky operation
+        with action ''test''"},{"type":"function_call_output","call_id":"call_MMZXCOAprIDqvTNsN7Gv7EkW","output":"Success:
+        test"}],"previous_response_id":"resp_6881382642988191a9a26e81cae5d5b505be3638c95e5039","instructions":"Name:
+        Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- risky_operation:
+        Perform an operation that might fail","tools":[{"type":"function","name":"risky_operation","description":"Perform
+        an operation that might fail","parameters":{"type":"object","properties":{"action":{"type":"string","description":"action
+        parameter"}},"required":["action"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:29:45 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79672'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 246ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_d9fc1c42be407b65d3af6da78072a338
+      Openai-Processing-Ms:
+      - '1347'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=v90pk.m7VsG9Ap2oYGnvab6MSvs1vWlZVL1MiQrFlZM-1753298985-1.0.1.1-_z1vpT_oINuupk7guO.Gz5oeMSTT3S7h_iGEmSKiXliBrGBIezMUIcQ2PtqhOe6aPACP2fyTmjLKhZnHR5L.2msL865hXQQrWD6R0QJtLlo;
+        path=/; expires=Wed, 23-Jul-25 19:59:45 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=lQ9AvXOhIaMqvXRwR1jMLZxI9eUa9XoM2tAKGZ9l0hM-1753298985100-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d9697a8fb9fed-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_68813827b68c8191a42fc62f52aacb9d05be3638c95e5039",
+          "object": "response",
+          "created_at": 1753298983,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- risky_operation: Perform an operation that might fail",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "msg_68813828c84881918223fd069640f6ca05be3638c95e5039",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "The risky operation with action 'test' was successful."
+                }
+              ],
+              "role": "assistant"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_6881382642988191a9a26e81cae5d5b505be3638c95e5039",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Perform an operation that might fail",
+              "name": "risky_operation",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "action parameter"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 122,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 13,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 135
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Wed, 23 Jul 2025 19:29:45 GMT
+recorded_with: VCR 6.3.1

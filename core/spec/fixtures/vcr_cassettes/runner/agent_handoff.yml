@@ -1,0 +1,99 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Research Ruby programming
+        best practices and then write an article about them"}],"instructions":"Name:
+        Researcher\nInstructions: # System context\nYou are part of a multi-agent
+        system called the Agents SDK, designed to make agent coordination and execution
+        easy. Agents uses two primary abstraction: **Agents** and **Handoffs**. An
+        agent encompasses instructions and tools and can hand off a conversation to
+        another agent when appropriate. Handoffs are achieved by calling a handoff
+        function, generally named `transfer_to_<agent_name>`. Transfers between agents
+        are handled seamlessly in the background; do not mention or draw attention
+        to these transfers in your conversation with the user.\n\nYou research topics\n\nAvailable
+        tools:\n- transfer_to_writer: Handoff to the Writer agent to handle the request.","tools":[{"type":"function","name":"transfer_to_writer","description":"Handoff
+        to the Writer agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the Writer agent"}},"required":["input"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 500
+      message: Internal Server Error
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:29:37 GMT
+      Content-Type:
+      - application/json
+      Content-Length:
+      - '353'
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79586'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 310ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_e654fd26142332f8c5f75084ccaca822
+      Openai-Processing-Ms:
+      - '5349'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=.NUoH63m_k2L8xnLWjpaFiQhbSJb8Y_oJBYc9tyQN8Y-1753298977-1.0.1.1-2bFfMupAVW6Rq54EzyPbb4L4eyl9k7JSF.fUp3F6YhbRBkP49tsrHjjmoPxHYYul76JpDsk1ZjHLbqNjzC8hiqnfYZzKiW_EHVpeRyYbI8w;
+        path=/; expires=Wed, 23-Jul-25 19:59:37 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=rEPsbh1qx5c0qMjbcgfNTy.s4dtB7HddRG11d5dvlaY-1753298977706-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d96507b1a669e-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "error": {
+            "message": "An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_e654fd26142332f8c5f75084ccaca822 in your message.",
+            "type": "server_error",
+            "param": null,
+            "code": "server_error"
+          }
+        }
+  recorded_at: Wed, 23 Jul 2025 19:29:37 GMT
+recorded_with: VCR 6.3.1

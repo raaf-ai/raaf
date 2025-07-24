@@ -150,7 +150,7 @@ RSpec.describe RAAF::Execution::ConversationManager do
         fresh_manager = described_class.new(config)
         allow(fresh_manager).to receive(:check_execution_stop)
         allow(fresh_manager).to receive(:handle_max_turns_exceeded)
-        
+
         fresh_manager.execute_conversation(messages, agent, executor) do
           {
             should_continue: false,

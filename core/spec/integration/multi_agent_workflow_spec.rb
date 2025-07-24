@@ -38,7 +38,7 @@ RSpec.describe "Multi-Agent Workflows", :integration do
       mock_provider.add_response(
         "I'll transfer you to technical support",
         tool_calls: [{
-          function: { name: "transfer_to_supportagent", arguments: "{}" }
+          function: { name: "transfer_to_support_agent", arguments: "{}" }
         }]
       )
       mock_provider.add_response("I can help with technical issues")
@@ -58,7 +58,7 @@ RSpec.describe "Multi-Agent Workflows", :integration do
       mock_provider.add_response(
         "Let me connect you with billing",
         tool_calls: [{
-          function: { name: "transfer_to_billingagent", arguments: "{}" }
+          function: { name: "transfer_to_billing_agent", arguments: "{}" }
         }]
       )
       mock_provider.add_response("I can help with your billing question")
@@ -78,7 +78,7 @@ RSpec.describe "Multi-Agent Workflows", :integration do
       mock_provider.add_response(
         "I'll transfer you to billing with your account info",
         tool_calls: [{
-          function: { name: "transfer_to_billingagent", arguments: '{"context": "premium customer"}' }
+          function: { name: "transfer_to_billing_agent", arguments: '{"context": "premium customer"}' }
         }]
       )
       mock_provider.add_response("I see you're a premium customer, I can help")
@@ -100,13 +100,13 @@ RSpec.describe "Multi-Agent Workflows", :integration do
       mock_provider.add_response(
         "Let me check with technical support first",
         tool_calls: [{
-          function: { name: "transfer_to_supportagent", arguments: "{}" }
+          function: { name: "transfer_to_support_agent", arguments: "{}" }
         }]
       )
       mock_provider.add_response(
         "This seems to be a billing-related technical issue",
         tool_calls: [{
-          function: { name: "transfer_to_billingagent", arguments: "{}" }
+          function: { name: "transfer_to_billing_agent", arguments: "{}" }
         }]
       )
       mock_provider.add_response("I can help resolve this billing technical issue")
@@ -181,7 +181,7 @@ RSpec.describe "Multi-Agent Workflows", :integration do
       if defined?(RSpec::Benchmark)
         expect do
           runner.run("Quick question")
-        end.to perform_under(1).second
+        end.to perform_under(1).sec
       end
     end
   end

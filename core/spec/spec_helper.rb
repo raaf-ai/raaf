@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
+# Suppress Ruby warnings during test runs
+$VERBOSE = nil
+
 require "simplecov"
 SimpleCov.start do
   add_filter "/spec/"
   add_filter "/vendor/"
   track_files "lib/**/*.rb"
-  
+
   add_group "Core", "lib/raaf"
   add_group "Models", "lib/raaf/models"
   add_group "Execution", "lib/raaf/execution"
@@ -39,8 +42,21 @@ rescue LoadError
   # Benchmarking not available
 end
 
+# Load concurrent-ruby for performance tests
+begin
+  require "concurrent-ruby"
+rescue LoadError
+  # Concurrent not available
+end
+
 # Disable tracing during tests to prevent API calls and console noise
 ENV["RAAF_DISABLE_TRACING"] = "true"
+
+# Silence logging during tests to prevent console noise
+ENV["RAAF_LOG_LEVEL"] = "fatal"
+
+# Suppress deprecation warnings during tests
+ENV["RAAF_SUPPRESS_WARNINGS"] = "true"
 
 # Set dummy API key for tests to allow provider initialization
 ENV["OPENAI_API_KEY"] = "test-api-key" unless ENV["OPENAI_API_KEY"]
@@ -160,32 +176,33 @@ module RAAF
     class MockProvider < RAAF::Models::ResponsesProvider
 
       def initialize
+        super
         @responses = []
         @errors = []
         @call_count = 0
       end
 
       def add_response(content, tool_calls: nil, usage: nil)
-        default_usage = { 
-          prompt_tokens: 10, 
-          completion_tokens: 15, 
+        default_usage = {
+          prompt_tokens: 10,
+          completion_tokens: 15,
           total_tokens: 25,
           input_tokens: 10,
           output_tokens: 15
         }
-        
+
         # Merge custom usage with defaults, converting string keys to symbols
         final_usage = if usage
-          normalized_usage = {}
-          usage.each do |key, value|
-            symbol_key = key.to_sym
-            normalized_usage[symbol_key] = value
-          end
-          default_usage.merge(normalized_usage)
-        else
-          default_usage
-        end
-        
+                        normalized_usage = {}
+                        usage.each do |key, value|
+                          symbol_key = key.to_sym
+                          normalized_usage[symbol_key] = value
+                        end
+                        default_usage.merge(normalized_usage)
+                      else
+                        default_usage
+                      end
+
         response = {
           id: "mock_#{SecureRandom.hex(6)}",
           output: build_output(content, tool_calls),
@@ -279,6 +296,8 @@ module RAAF
         def estimate_cost(tokens, model)
           # Simplified cost estimation - adjust based on actual pricing
           case model
+          when /gpt-4o-mini/
+            tokens * 0.000004 # $0.004 per 1K tokens
           when /gpt-4o/
             tokens * 0.00001  # $0.01 per 1K tokens (average of input/output)
           when /gpt-4/
@@ -286,7 +305,7 @@ module RAAF
           when /gpt-3.5/
             tokens * 0.000002 # $0.002 per 1K tokens
           else
-            tokens * 0.00001  # Default rate
+            tokens * 0.00005  # Default rate (slightly higher than gpt-4o)
           end
         end
 

@@ -26,9 +26,9 @@ RSpec.describe "Guardrails Integration" do
       expect(result).to be_a(RAAF::RunResult)
 
       # Long input should raise error
-      expect {
+      expect do
         runner.run("this is a very long input that exceeds the limit")
-      }.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered, /Input too long/)
+      end.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered, /Input too long/)
     end
   end
 
@@ -47,9 +47,9 @@ RSpec.describe "Guardrails Integration" do
       expect(result).to be_a(RAAF::RunResult)
 
       # Long input should raise error
-      expect {
+      expect do
         runner.run("this is a very long input that exceeds the limit", input_guardrails: [length_guardrail])
-      }.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered, /Input too long/)
+      end.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered, /Input too long/)
     end
   end
 
@@ -71,9 +71,9 @@ RSpec.describe "Guardrails Integration" do
       expect(guardrail_result.output.output_info[:blocked_reason]).to include("Input too long")
 
       # This should raise an error
-      expect {
+      expect do
         runner.run(long_input)
-      }.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered)
+      end.to raise_error(RAAF::Guardrails::InputGuardrailTripwireTriggered)
     end
   end
 end

@@ -79,9 +79,9 @@ RSpec.describe RAAF::ToolContext do
     describe "#delete" do
       it "removes keys and returns the value" do
         context.set("to_delete", "value")
-        
+
         result = context.delete("to_delete")
-        
+
         expect(result).to eq("value")
         expect(context.has?("to_delete")).to be false
       end
@@ -95,18 +95,18 @@ RSpec.describe RAAF::ToolContext do
       it "removes all data" do
         context.set("key1", "value1")
         context.set("key2", "value2")
-        
+
         context.clear!
-        
+
         expect(context.to_h).to be_empty
       end
 
       it "preserves context metadata" do
         original_id = context.id
         context.set("data", "value")
-        
+
         context.clear!
-        
+
         expect(context.id).to eq(original_id)
       end
     end
@@ -122,10 +122,10 @@ RSpec.describe RAAF::ToolContext do
         end
 
         expect(result).to eq("tool result")
-        
+
         executions = tracking_context.execution_history
         expect(executions).to have(1).item
-        
+
         execution = executions.first
         expect(execution[:tool_name]).to eq("test_tool")
         expect(execution[:input]).to eq({ arg: "value" })
@@ -143,7 +143,7 @@ RSpec.describe RAAF::ToolContext do
 
         executions = tracking_context.execution_history
         execution = executions.first
-        
+
         expect(execution[:success]).to be false
         # error is stored as string only
         expect(execution[:error]).to eq("Tool failed")
@@ -168,10 +168,10 @@ RSpec.describe RAAF::ToolContext do
         end
 
         expect(tracking_context.execution_history).to have(2).items
-        
+
         inner_execution = tracking_context.execution_history.find { |e| e[:tool_name] == "inner_tool" }
         outer_execution = tracking_context.execution_history.find { |e| e[:tool_name] == "outer_tool" }
-        
+
         # output is stored, not result
         expect(inner_execution[:output]).to eq("inner result")
         expect(outer_execution[:output]).to eq("outer result")
@@ -213,10 +213,20 @@ RSpec.describe RAAF::ToolContext do
 
     before do
       # Create some execution history for testing
-      stats_context.track_execution("tool_a", {}) { sleep(0.001); "result_a" }
+      stats_context.track_execution("tool_a", {}) do
+        sleep(0.001)
+        "result_a"
+      end
       stats_context.track_execution("tool_b", {}) { "result_b" }
-      stats_context.track_execution("tool_a", {}) { sleep(0.002); "result_a2" }
-      stats_context.track_execution("tool_c", {}) { raise "Error" } rescue nil
+      stats_context.track_execution("tool_a", {}) do
+        sleep(0.002)
+        "result_a2"
+      end
+      begin
+        stats_context.track_execution("tool_c", {}) { raise "Error" }
+      rescue StandardError
+        nil
+      end
     end
 
     describe "#execution_stats" do
@@ -252,7 +262,7 @@ RSpec.describe RAAF::ToolContext do
         most_used = stats_context.most_used_tools
 
         # most_used_tools returns just tool names, not counts
-        expect(most_used).to eq(["tool_a", "tool_b", "tool_c"])
+        expect(most_used).to eq(%w[tool_a tool_b tool_c])
       end
 
       it "respects limit parameter" do
@@ -278,14 +288,14 @@ RSpec.describe RAAF::ToolContext do
     describe "#shared_set and #shared_get" do
       it "manages shared memory across context instances" do
         shared_context.shared_set("global_key", "global_value")
-        
+
         other_context = described_class.new
         expect(other_context.shared_get("global_key")).to eq("global_value")
       end
 
       it "isolates shared memory when disabled" do
         context.set("key", "value")
-        
+
         other_context = described_class.new
         expect(other_context.get("key")).to be_nil
       end
@@ -302,7 +312,7 @@ RSpec.describe RAAF::ToolContext do
         end
 
         threads.each(&:join)
-        expect(results).to contain_exactly(*(0..9))
+        expect(results).to match_array(0..9)
       end
     end
   end
@@ -313,14 +323,14 @@ RSpec.describe RAAF::ToolContext do
 
     it "inherits parent data" do
       parent_context.set("parent_key", "parent_value")
-      
+
       expect(child_context.get("parent_key")).to eq("parent_value")
     end
 
     it "allows child to override parent data" do
       parent_context.set("shared_key", "parent_value")
       child_context.set("shared_key", "child_value")
-      
+
       expect(child_context.get("shared_key")).to eq("child_value")
       expect(parent_context.get("shared_key")).to eq("parent_value") # Parent unchanged
     end
@@ -346,7 +356,7 @@ RSpec.describe RAAF::ToolContext do
     describe "#to_h" do
       it "exports context data as hash" do
         exported = context.to_h
-        
+
         expect(exported["string_key"]).to eq("string_value")
         expect(exported["number_key"]).to eq(42)
         expect(exported["hash_key"]).to eq({ nested: "data" })
@@ -358,7 +368,7 @@ RSpec.describe RAAF::ToolContext do
       it "exports context as JSON string" do
         json_string = context.to_json
         parsed = JSON.parse(json_string)
-        
+
         # to_json exports the whole context structure
         expect(parsed["data"]["string_key"]).to eq("string_value")
         expect(parsed["data"]["number_key"]).to eq(42)
@@ -372,9 +382,9 @@ RSpec.describe RAAF::ToolContext do
           "imported_number" => 100,
           "imported_hash" => { "nested" => "imported" }
         }
-        
+
         context.from_hash(data)
-        
+
         expect(context.get("imported_string")).to eq("value")
         expect(context.get("imported_number")).to eq(100)
         expect(context.get("imported_hash")).to eq({ "nested" => "imported" })
@@ -382,18 +392,18 @@ RSpec.describe RAAF::ToolContext do
 
       it "merges with existing data by default" do
         context.set("existing", "original")
-        
+
         context.from_hash({ "new" => "imported", "existing" => "updated" })
-        
+
         expect(context.get("new")).to eq("imported")
         expect(context.get("existing")).to eq("updated")
       end
 
       it "replaces all data when replace=true" do
         context.set("existing", "original")
-        
+
         context.from_hash({ "new" => "imported" }, replace: true)
-        
+
         expect(context.get("new")).to eq("imported")
         expect(context.get("existing")).to be_nil
       end
@@ -425,7 +435,6 @@ RSpec.describe RAAF::ToolContext do
     end
 
     it "maintains consistency during complex operations" do
-      shared_counter = 0
       threads = []
 
       # Simulate concurrent increment operations
@@ -441,7 +450,7 @@ RSpec.describe RAAF::ToolContext do
       # Due to potential race conditions, counter might be less than 100
       # but should be positive and consistent
       counter_value = context.get("counter", 0)
-      expect(counter_value).to be > 0
+      expect(counter_value).to be_positive
       expect(counter_value).to be <= 100
     end
   end
@@ -459,9 +468,9 @@ RSpec.describe RAAF::ToolContext do
     end
 
     it "handles large data sets" do
-      large_array = (1..10000).to_a
+      large_array = (1..10_000).to_a
       context.set("large_data", large_array)
-      
+
       expect(context.get("large_data")).to eq(large_array)
     end
 
@@ -469,9 +478,9 @@ RSpec.describe RAAF::ToolContext do
       hash1 = { name: "hash1" }
       hash2 = { name: "hash2", ref: hash1 }
       hash1[:ref] = hash2
-      
+
       context.set("circular", hash1)
-      
+
       # Ruby's JSON doesn't handle circular references, this is expected to raise
       expect { context.to_json }.to raise_error(JSON::NestingError)
     end
@@ -493,19 +502,19 @@ RSpec.describe RAAF::ToolContext do
 
       # Operations should still be fast
       start_time = Time.now
-      
+
       100.times do |i|
         context.get("key_#{i}")
         context.set("new_key_#{i}", "new_value")
       end
-      
+
       duration = Time.now - start_time
       expect(duration).to be < 1.0 # Should complete in less than 1 second
     end
 
     it "efficiently manages execution history" do
       tracking_context = described_class.new(track_executions: true)
-      
+
       # Add many executions
       2000.times do |i|
         tracking_context.track_execution("tool_#{i % 10}", {}) { "result_#{i}" }
@@ -513,7 +522,7 @@ RSpec.describe RAAF::ToolContext do
 
       # Should maintain only the configured maximum
       expect(tracking_context.execution_history.length).to eq(1000)
-      
+
       # Statistics should still be calculated efficiently
       stats = tracking_context.execution_stats
       expect(stats[:total_executions]).to eq(1000)

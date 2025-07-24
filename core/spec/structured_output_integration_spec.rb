@@ -144,10 +144,9 @@ RSpec.describe "Structured Output Integration" do
     context "with OpenAIProvider" do
       let(:openai_provider) do
         provider = double("OpenAIProvider")
-        allow(provider).to receive(:is_a?).and_return(false)
         allow(provider).to receive(:is_a?).with(RAAF::Models::ResponsesProvider).and_return(false)
         allow(provider).to receive(:is_a?).with(RAAF::Models::OpenAIProvider).and_return(true)
-        allow(provider).to receive(:respond_to?).and_return(false)
+        allow(provider).to receive_messages(is_a?: false, respond_to?: false)
         allow(provider).to receive(:respond_to?).with(:supports_responses_api?).and_return(false)
         allow(provider).to receive(:respond_to?).with(:complete).and_return(true)
         allow(provider).to receive(:respond_to?).with(:chat_completion).and_return(true)
@@ -204,7 +203,7 @@ RSpec.describe "Structured Output Integration" do
         # Find the assistant message in the results
         assistant_message = result.messages.reverse.find { |msg| msg[:role] == "assistant" }
         expect(assistant_message).not_to be_nil, "No assistant message found in: #{result.messages.inspect}"
-        
+
         # The content should be JSON parseable
         content = assistant_message[:content]
         expect(content).not_to be_nil

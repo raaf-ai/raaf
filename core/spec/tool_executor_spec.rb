@@ -90,17 +90,17 @@ RSpec.describe RAAF::Execution::ToolExecutor do
   describe "#tool_calls?" do
     it "returns truthy when message has tool_calls (string key)" do
       message = { "tool_calls" => [{ "function" => { "name" => "test" } }] }
-      expect(tool_executor.tool_calls?(message)).to be_truthy
+      expect(tool_executor).to be_tool_calls(message)
     end
 
     it "returns truthy when message has tool_calls (symbol key)" do
       message = { tool_calls: [{ function: { name: "test" } }] }
-      expect(tool_executor.tool_calls?(message)).to be_truthy
+      expect(tool_executor).to be_tool_calls(message)
     end
 
     it "returns falsy when message has no tool_calls" do
       message = { role: "assistant", content: "Hello" }
-      expect(tool_executor.tool_calls?(message)).to be_falsy
+      expect(tool_executor).not_to be_tool_calls(message)
     end
 
     it "returns empty array when message has empty tool_calls" do

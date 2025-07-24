@@ -313,7 +313,7 @@ RSpec.describe RAAF::Execution::ErrorHandler do
 
       it "resets retry count between executions" do
         handler = described_class.new(strategy: :retry_once, max_retries: 1)
-        
+
         # First execution with failure
         attempt_count1 = 0
         expect do
@@ -323,7 +323,7 @@ RSpec.describe RAAF::Execution::ErrorHandler do
           end
         end.to raise_error(StandardError)
         expect(attempt_count1).to eq(2)
-        
+
         # Second execution should also get full retries
         attempt_count2 = 0
         expect do
@@ -338,13 +338,14 @@ RSpec.describe RAAF::Execution::ErrorHandler do
       it "handles ExecutionStoppedError with retries" do
         handler = described_class.new(strategy: :retry_once, max_retries: 2)
         attempt_count = 0
-        
+
         result = handler.with_error_handling(context) do
           attempt_count += 1
           raise RAAF::ExecutionStoppedError, "Stopped" if attempt_count <= 2
+
           "success after retries"
         end
-        
+
         expect(attempt_count).to eq(3)
         expect(result).to eq("success after retries")
       end
@@ -377,12 +378,12 @@ RSpec.describe RAAF::Execution::ErrorHandler do
       it "handles with RETRY_ONCE strategy" do
         handler = described_class.new(strategy: :retry_once, max_retries: 1)
         attempt_count = 0
-        
+
         result = handler.with_error_handling(context) do
           attempt_count += 1
           raise parse_error
         end
-        
+
         expect(attempt_count).to eq(2) # Original + 1 retry
         expect(result).to eq({ error: :parsing_failed, message: "Failed to parse after retries", handled: true })
       end
@@ -403,12 +404,12 @@ RSpec.describe RAAF::Execution::ErrorHandler do
       it "handles with RETRY_ONCE strategy" do
         handler = described_class.new(strategy: :retry_once, max_retries: 1)
         attempt_count = 0
-        
+
         result = handler.with_api_error_handling(context) do
           attempt_count += 1
           raise timeout_error
         end
-        
+
         expect(attempt_count).to eq(2)
         expect(result).to eq({ error: :timeout, message: "Request timed out after retries", handled: true })
       end
@@ -430,7 +431,7 @@ RSpec.describe RAAF::Execution::ErrorHandler do
       end
 
       it "re-raises with other strategies" do
-        [:fail_fast, :log_and_continue, :retry_once].each do |strategy|
+        %i[fail_fast log_and_continue retry_once].each do |strategy|
           handler = described_class.new(strategy: strategy)
           expect do
             handler.with_api_error_handling(context) { raise http_error }
@@ -466,20 +467,20 @@ RSpec.describe RAAF::Execution::ErrorHandler do
     it "retries with RETRY_ONCE then raises" do
       handler = described_class.new(strategy: :retry_once, max_retries: 1)
       attempt_count = 0
-      
+
       expect do
         handler.with_error_handling(context) do
           attempt_count += 1
           raise general_error
         end
       end.to raise_error(StandardError)
-      
+
       expect(attempt_count).to eq(2)
     end
   end
 
   describe "guardrail error handling" do
-    # Note: These tests simulate guardrail behavior when the Guardrails gem is not loaded
+    # NOTE: These tests simulate guardrail behavior when the Guardrails gem is not loaded
     context "when Guardrails is not defined" do
       it "handles errors normally" do
         handler = described_class.new
@@ -504,11 +505,11 @@ RSpec.describe RAAF::Execution::ErrorHandler do
 
     it "logs errors with context" do
       allow(handler).to receive(:log_error)
-      
+
       expect do
         handler.with_error_handling(context) { raise StandardError, "Test error" }
       end.to raise_error(StandardError)
-      
+
       expect(handler).to have_received(:log_error).with(
         "Unexpected error occurred",
         hash_including(
@@ -523,13 +524,13 @@ RSpec.describe RAAF::Execution::ErrorHandler do
     it "logs retries" do
       handler = described_class.new(strategy: :retry_once)
       allow(handler).to receive(:log_info)
-      
+
       expect do
         handler.with_error_handling(context) do
           raise StandardError, "Retry me"
         end
       end.to raise_error(StandardError)
-      
+
       expect(handler).to have_received(:log_info).with(
         "Retrying operation",
         hash_including(attempt: 1)
@@ -539,10 +540,34 @@ RSpec.describe RAAF::Execution::ErrorHandler do
     it "logs warnings for guardrail-like errors" do
       handler = described_class.new(strategy: :log_and_continue)
       allow(handler).to receive(:log_warn)
-      
-      result = handler.with_error_handling(context) { raise RAAF::MaxTurnsError, "Too many" }
-      
+
+      handler.with_error_handling(context) { raise RAAF::MaxTurnsError, "Too many" }
+
       expect(handler).to have_received(:log_warn).with("Continuing despite max turns exceeded")
+    end
+  end
+
+  describe "strategy-specific behaviors" do
+    context "LOG_AND_CONTINUE vs other strategies" do
+      it "LOG_AND_CONTINUE still re-raises general errors" do
+        log_handler = described_class.new(strategy: RAAF::Execution::ErrorHandler::RecoveryStrategy::LOG_AND_CONTINUE)
+        expect do
+          log_handler.with_error_handling(context) { raise StandardError, "Test error" }
+        end.to raise_error(StandardError, "Test error")
+      end
+
+      it "FAIL_FAST re-raises general errors" do
+        fail_handler = described_class.new(strategy: RAAF::Execution::ErrorHandler::RecoveryStrategy::FAIL_FAST)
+        expect do
+          fail_handler.with_error_handling(context) { raise StandardError, "Test error" }
+        end.to raise_error(StandardError, "Test error")
+      end
+
+      it "GRACEFUL_DEGRADATION handles general errors gracefully" do
+        graceful_handler = described_class.new(strategy: RAAF::Execution::ErrorHandler::RecoveryStrategy::GRACEFUL_DEGRADATION)
+        result = graceful_handler.with_error_handling(context) { raise StandardError, "Test error" }
+        expect(result).to eq({ error: :general_error, message: "An unexpected error occurred", handled: true })
+      end
     end
   end
 
@@ -561,7 +586,7 @@ RSpec.describe RAAF::Execution::ErrorHandler do
 
     it "preserves non-error exceptions" do
       handler = described_class.new
-      
+
       expect do
         handler.with_error_handling(context) { throw :test_signal }
       end.to throw_symbol(:test_signal)
@@ -569,13 +594,13 @@ RSpec.describe RAAF::Execution::ErrorHandler do
 
     it "ensures retry count is reset in ensure block" do
       handler = described_class.new(strategy: :retry_once)
-      
+
       begin
         handler.with_error_handling(context) { raise StandardError }
       rescue StandardError
         # Ignore
       end
-      
+
       expect(handler.instance_variable_get(:@retry_count)).to eq(0)
     end
   end

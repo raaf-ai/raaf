@@ -1,0 +1,324 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"What is 15 * 23
+        + 47?"}],"instructions":"Name: Assistant\nInstructions: You are helpful\n\nAvailable
+        tools:\n- calculator: Evaluate mathematical expressions","tools":[{"type":"function","name":"calculator","description":"Evaluate
+        mathematical expressions","parameters":{"type":"object","properties":{"expression":{"type":"string","description":"expression
+        parameter"}},"required":["expression"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:29:39 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79720'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 210ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_bb38d565ec5c62cc60d5fd2661f182c7
+      Openai-Processing-Ms:
+      - '1743'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=JbdabWa6NB3D2yUb7OShtqFZhm8LSzyqHai8dFVWkCk-1753298979-1.0.1.1-mfC3k211545pcI_EeTZa3kzOGB0JJK8puRYkgK0XOWce0S0NvSJhmpAaIyr49_UyEE.Hp4zxvTmT9eYkljW.P9O0YfFQ7eoyEp4XuZiUNVk;
+        path=/; expires=Wed, 23-Jul-25 19:59:39 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=YuSAzsjgrabPalkyPVZ5YEDmnavuLP7HOT3Ht4n7IO0-1753298979593-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d9672d833d4d1-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_68813821cfdc81a1ae7b783608c9c972030c824063c02fb8",
+          "object": "response",
+          "created_at": 1753298977,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- calculator: Evaluate mathematical expressions",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_68813823014881a19cb494dc0ee61303030c824063c02fb8",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n  \"expression\": \"15 * 23 + 47\"\n}",
+              "call_id": "call_yjDWvtlpV8uOlm4nmNEuQnWV",
+              "name": "calculator"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Evaluate mathematical expressions",
+              "name": "calculator",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "expression": {
+                    "type": "string",
+                    "description": "expression parameter"
+                  }
+                },
+                "required": [
+                  "expression"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 74,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 22,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 96
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Wed, 23 Jul 2025 19:29:39 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"What is 15 * 23
+        + 47?"},{"type":"function_call_output","call_id":"call_yjDWvtlpV8uOlm4nmNEuQnWV","output":"392"}],"previous_response_id":"resp_68813821cfdc81a1ae7b783608c9c972030c824063c02fb8","instructions":"Name:
+        Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- calculator:
+        Evaluate mathematical expressions","tools":[{"type":"function","name":"calculator","description":"Evaluate
+        mathematical expressions","parameters":{"type":"object","properties":{"expression":{"type":"string","description":"expression
+        parameter"}},"required":["expression"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:29:42 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79674'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 244ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_a3ca974aafaaa8409faee1d5962a38bd
+      Openai-Processing-Ms:
+      - '2407'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=qMCa0xL.1vmocR4QsrRn7.SQjOBPIQJng01lt7l5IQU-1753298982-1.0.1.1-xnPdfhMW_EtXk5hyrc2Ggqk2CsXzrTr.oJKuRaXullbAYl8hqzD87VtHAXtKMW4X6292SkRwPQWoE7aWdiMVe4jRiTKSa7PeShDKR2NX.e4;
+        path=/; expires=Wed, 23-Jul-25 19:59:42 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=U2JNpygNAE56otiLKRUfH6089AkfhnrlTus_vmfWrJI-1753298982161-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d967e9c9d0e68-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_68813823bcc881a1928d17a4f4c51ca4030c824063c02fb8",
+          "object": "response",
+          "created_at": 1753298979,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- calculator: Evaluate mathematical expressions",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "msg_6881382593ec81a1b8fea3cc90616891030c824063c02fb8",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "The result of the expression 15 * 23 + 47 is 392."
+                }
+              ],
+              "role": "assistant"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_68813821cfdc81a1ae7b783608c9c972030c824063c02fb8",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Evaluate mathematical expressions",
+              "name": "calculator",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "expression": {
+                    "type": "string",
+                    "description": "expression parameter"
+                  }
+                },
+                "required": [
+                  "expression"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 120,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 19,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 139
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Wed, 23 Jul 2025 19:29:42 GMT
+recorded_with: VCR 6.3.1

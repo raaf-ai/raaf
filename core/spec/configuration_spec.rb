@@ -84,6 +84,10 @@ RSpec.describe RAAF::Configuration do
     end
 
     it "loads JSON configuration files" do
+      # Temporarily unset environment variable to test config file loading
+      original_log_level = ENV.fetch("RAAF_LOG_LEVEL", nil)
+      ENV.delete("RAAF_LOG_LEVEL")
+
       File.write(File.join(config_path, "openai_agents.json"), <<~JSON)
         {
           "agent": {
@@ -99,6 +103,9 @@ RSpec.describe RAAF::Configuration do
 
       expect(config.get("agent.max_turns")).to eq(25)
       expect(config.get("logging.level")).to eq("debug")
+    ensure
+      # Restore original environment variable
+      ENV["RAAF_LOG_LEVEL"] = original_log_level if original_log_level
     end
 
     it "loads environment-specific configuration" do

@@ -1,0 +1,105 @@
+name: Core CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'core/**'
+      - '.github/workflows/core-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'core/**'
+      - '.github/workflows/core-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ruby-version: ['3.2', '3.3', '3.4', 'ruby-head']
+        include:
+          - ruby-version: '3.4'
+            experimental: true
+          - ruby-version: 'ruby-head'
+            experimental: true
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby ${{ matrix.ruby-version }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+        bundler-cache: true
+
+    - name: Install dependencies (Core gem)
+      run: |
+        cd core
+        bundle install
+
+    - name: Run tests (Core gem)
+      run: |
+        cd core
+        bundle exec rspec
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+
+    - name: Install dependencies (Core gem)
+      run: |
+        cd core
+        bundle install
+
+    - name: Run RuboCop (Core gem)
+      run: |
+        cd core
+        bundle exec rubocop
+
+    - name: Check bundle audit (Core gem)
+      run: |
+        cd core
+        gem install bundler-audit
+        bundle audit check --update
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+
+    - name: Install dependencies (Core gem)
+      run: |
+        cd core
+        bundle install
+
+    - name: Build gem (Core gem)
+      run: |
+        cd core
+        gem build raaf-core.gemspec
+
+    - name: Validate gem (Core gem)
+      run: |
+        cd core
+        gem install --local raaf-core-*.gem
+        ruby -r raaf-core -e "puts 'Core gem loads successfully'"

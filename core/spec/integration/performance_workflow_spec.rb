@@ -35,9 +35,9 @@ RSpec.describe "Performance Workflow Integration", :integration do
           mock_provider.add_response(
             "Delegating task #{i + 1}",
             tool_calls: [{
-              function: { 
-                name: "transfer_to_workeragent#{(i % 10) + 1}", 
-                arguments: "{\"task_id\": #{i + 1}, \"priority\": \"normal\"}" 
+              function: {
+                name: "transfer_to_workeragent#{(i % 10) + 1}",
+                arguments: "{\"task_id\": #{i + 1}, \"priority\": \"normal\"}"
               }
             }]
           )
@@ -45,14 +45,14 @@ RSpec.describe "Performance Workflow Integration", :integration do
         end
 
         start_time = Time.now
-        
+
         runner = RAAF::Runner.new(
           agent: coordinator_agent,
           provider: mock_provider
         )
 
         result = runner.run("Process 10 tasks rapidly")
-        
+
         end_time = Time.now
         processing_time = end_time - start_time
 
@@ -90,9 +90,9 @@ RSpec.describe "Performance Workflow Integration", :integration do
         mock_provider.add_response(
           "Processing large dataset - monitoring memory",
           tool_calls: [{
-            function: { 
-              name: "process_large_dataset_tool", 
-              arguments: '{"size": "1GB", "format": "json", "operations": ["parse", "transform", "aggregate"]}' 
+            function: {
+              name: "process_large_dataset_tool",
+              arguments: '{"size": "1GB", "format": "json", "operations": ["parse", "transform", "aggregate"]}'
             }
           }]
         )
@@ -101,9 +101,9 @@ RSpec.describe "Performance Workflow Integration", :integration do
         mock_provider.add_response(
           "Memory usage high - transferring to optimizer",
           tool_calls: [{
-            function: { 
-              name: "transfer_to_memoryoptimizer", 
-              arguments: '{"memory_usage": "85%", "optimization_needed": true}' 
+            function: {
+              name: "transfer_to_memoryoptimizer",
+              arguments: '{"memory_usage": "85%", "optimization_needed": true}'
             }
           }]
         )
@@ -159,9 +159,9 @@ RSpec.describe "Performance Workflow Integration", :integration do
           mock_provider.add_response(
             "Starting parallel task #{i + 1}",
             tool_calls: [{
-              function: { 
-                name: "transfer_to_parallelworker#{i + 1}", 
-                arguments: "{\"task_id\": \"parallel_#{i + 1}\", \"thread_id\": #{i + 1}}" 
+              function: {
+                name: "transfer_to_parallelworker#{i + 1}",
+                arguments: "{\"task_id\": \"parallel_#{i + 1}\", \"thread_id\": #{i + 1}}"
               }
             }]
           )
@@ -177,7 +177,7 @@ RSpec.describe "Performance Workflow Integration", :integration do
         )
 
         result = runner.run("Execute 5 parallel workflows")
-        
+
         total_time = Time.now - start_time
 
         expect(result.success?).to be true
@@ -215,9 +215,9 @@ RSpec.describe "Performance Workflow Integration", :integration do
         mock_provider.add_response(
           "Allocating resources for intensive operation",
           tool_calls: [{
-            function: { 
-              name: "allocate_resources_tool", 
-              arguments: '{"memory": "2GB", "cpu_cores": 4, "disk_space": "10GB", "duration": "30min"}' 
+            function: {
+              name: "allocate_resources_tool",
+              arguments: '{"memory": "2GB", "cpu_cores": 4, "disk_space": "10GB", "duration": "30min"}'
             }
           }]
         )
@@ -226,9 +226,9 @@ RSpec.describe "Performance Workflow Integration", :integration do
         mock_provider.add_response(
           "Resources allocated, transferring to processor",
           tool_calls: [{
-            function: { 
-              name: "transfer_to_resourceintensiveagent", 
-              arguments: '{"resource_id": "res_12345", "allocated_resources": {"memory": "2GB", "cpu": 4}}' 
+            function: {
+              name: "transfer_to_resourceintensiveagent",
+              arguments: '{"resource_id": "res_12345", "allocated_resources": {"memory": "2GB", "cpu": 4}}'
             }
           }]
         )
@@ -237,9 +237,9 @@ RSpec.describe "Performance Workflow Integration", :integration do
         mock_provider.add_response(
           "Operation complete, cleaning up resources",
           tool_calls: [{
-            function: { 
-              name: "cleanup_resources_tool", 
-              arguments: '{"resource_id": "res_12345", "cleanup_type": "full"}' 
+            function: {
+              name: "cleanup_resources_tool",
+              arguments: '{"resource_id": "res_12345", "cleanup_type": "full"}'
             }
           }]
         )
@@ -295,20 +295,18 @@ RSpec.describe "Performance Workflow Integration", :integration do
             mock_provider.add_response(
               "Processing request #{i + 1} under load",
               tool_calls: [{
-                function: { 
-                  name: "transfer_to_backupagent#{(i % 3) + 1}", 
-                  arguments: "{\"request_id\": #{i + 1}, \"load_level\": \"high\"}" 
+                function: {
+                  name: "transfer_to_backupagent#{(i % 3) + 1}",
+                  arguments: "{\"request_id\": #{i + 1}, \"load_level\": \"high\"}"
                 }
               }]
             )
             mock_provider.add_response("Request #{i + 1} completed under stress")
-          else
+          elsif (i % 4).zero?
             # Simulate some failures under extreme stress
-            if i % 4 == 0
-              mock_provider.add_error(RAAF::Models::APIError.new("Service temporarily overloaded"))
-            else
-              mock_provider.add_response("Request #{i + 1} handled despite stress conditions")
-            end
+            mock_provider.add_error(RAAF::Models::APIError.new("Service temporarily overloaded"))
+          else
+            mock_provider.add_response("Request #{i + 1} handled despite stress conditions")
           end
         end
 
@@ -331,7 +329,7 @@ RSpec.describe "Performance Workflow Integration", :integration do
         end
 
         total_time = Time.now - start_time
-        
+
         # Under stress, some failures are acceptable, but system should remain responsive
         success_rate = successful_requests.to_f / 20
         expect(success_rate).to be > 0.7 # At least 70% success rate under stress
@@ -350,21 +348,21 @@ RSpec.describe "Performance Workflow Integration", :integration do
 
   def get_active_resource_count
     # Simulate active resource tracking
-    @active_resources ||= rand(5..15)
+    @get_active_resource_count ||= rand(5..15)
   end
 
   # Mock tools for performance testing
   def process_large_dataset_tool(size:, format:, operations: [])
     # Simulate processing time based on size
     processing_time = case size
-                     when "1GB" then 0.5
-                     when "5GB" then 2.0 
-                     when "10GB" then 4.0
-                     else 0.1
-                     end
-    
+                      when "1GB" then 0.5
+                      when "5GB" then 2.0
+                      when "10GB" then 4.0
+                      else 0.1
+                      end
+
     sleep(processing_time) if ENV["ENABLE_REALISTIC_TIMING"]
-    
+
     {
       processed_size: size,
       format: format,
@@ -375,8 +373,10 @@ RSpec.describe "Performance Workflow Integration", :integration do
   end
 
   def allocate_resources_tool(memory:, cpu_cores:, disk_space:, duration:)
+    # rubocop:disable RSpec/InstanceVariable
     @active_resources = (@active_resources || 0) + 1
-    
+    # rubocop:enable RSpec/InstanceVariable
+
     {
       resource_id: "res_#{SecureRandom.hex(6)}",
       allocated: {
@@ -390,8 +390,10 @@ RSpec.describe "Performance Workflow Integration", :integration do
   end
 
   def cleanup_resources_tool(resource_id:, cleanup_type:)
+    # rubocop:disable RSpec/InstanceVariable
     @active_resources = [@active_resources - 1, 0].max if @active_resources
-    
+    # rubocop:enable RSpec/InstanceVariable
+
     {
       resource_id: resource_id,
       cleanup_type: cleanup_type,

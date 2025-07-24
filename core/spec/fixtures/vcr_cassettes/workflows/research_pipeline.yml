@@ -1,0 +1,331 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Research current
+        AI trends, analyze their impact on software development, and create a brief
+        report"}],"instructions":"Name: Coordinator\nInstructions: # System context\nYou
+        are part of a multi-agent system called the Agents SDK, designed to make agent
+        coordination and execution easy. Agents uses two primary abstraction: **Agents**
+        and **Handoffs**. An agent encompasses instructions and tools and can hand
+        off a conversation to another agent when appropriate. Handoffs are achieved
+        by calling a handoff function, generally named `transfer_to_<agent_name>`.
+        Transfers between agents are handled seamlessly in the background; do not
+        mention or draw attention to these transfers in your conversation with the
+        user.\n\nYou coordinate research tasks\n\nAvailable tools:\n- transfer_to_researcher:
+        Handoff to the Researcher agent to handle the request.\n- transfer_to_analyst:
+        Handoff to the Analyst agent to handle the request.\n- transfer_to_reporter:
+        Handoff to the Reporter agent to handle the request.","tools":[{"type":"function","name":"transfer_to_researcher","description":"Handoff
+        to the Researcher agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the Researcher agent"}},"required":["input"],"additionalProperties":false},"strict":true},{"type":"function","name":"transfer_to_analyst","description":"Handoff
+        to the Analyst agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the Analyst agent"}},"required":["input"],"additionalProperties":false},"strict":true},{"type":"function","name":"transfer_to_reporter","description":"Handoff
+        to the Reporter agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the Reporter agent"}},"required":["input"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:28:49 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79460'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 405ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_99bd776a29568d3bf449ddfaeec85afc
+      Openai-Processing-Ms:
+      - '10894'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=YBX3G0ZMe4eSlq5YN_vM1DiDni7KFLkSrQA8mwWsMuE-1753298929-1.0.1.1-ySFUPUBMDE2B.paCoyoJN5aUT_tOmRu9ZpXbKnsBiSeKtSVgY7vLPxbXWHhXve4Dw_.utcneSCFelA6o13sa3vAFaVvnWqMhq7txRnFq5_U;
+        path=/; expires=Wed, 23-Jul-25 19:58:49 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=AV8iXVC0_xnA4s2tH3j2xZfFnfCsxTbuNBDB2IFBj20-1753298929276-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d94ff2cee6d17-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688137e65b3c81a3850a89715a86053d069f43a33241720b",
+          "object": "response",
+          "created_at": 1753298918,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: Coordinator\nInstructions: # System context\nYou are part of a multi-agent system called the Agents SDK, designed to make agent coordination and execution easy. Agents uses two primary abstraction: **Agents** and **Handoffs**. An agent encompasses instructions and tools and can hand off a conversation to another agent when appropriate. Handoffs are achieved by calling a handoff function, generally named `transfer_to_<agent_name>`. Transfers between agents are handled seamlessly in the background; do not mention or draw attention to these transfers in your conversation with the user.\n\nYou coordinate research tasks\n\nAvailable tools:\n- transfer_to_researcher: Handoff to the Researcher agent to handle the request.\n- transfer_to_analyst: Handoff to the Analyst agent to handle the request.\n- transfer_to_reporter: Handoff to the Reporter agent to handle the request.",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688137e9cefc81a3abe714a76739f6f9069f43a33241720b",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"input\": \"Research current AI trends\"\n      }",
+              "call_id": "call_xcm8ALImg8hK1bBf7YtrOGZa",
+              "name": "transfer_to_researcher"
+            },
+            {
+              "id": "fc_688137ed71c081a3bc43e11a9e8e4794069f43a33241720b",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"input\": \"Analyze the impact of current AI trends on software development\"\n      }",
+              "call_id": "call_Q40I4NvyRpVo2dppr5S9BdWJ",
+              "name": "transfer_to_analyst"
+            },
+            {
+              "id": "fc_688137ef57f081a3acb8034e6e75d565069f43a33241720b",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"input\": \"Create a brief report on the impact of current AI trends on software development\"\n      }",
+              "call_id": "call_4UMgMss9Xe6xmN7B31LcSSps",
+              "name": "transfer_to_reporter"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Handoff to the Researcher agent to handle the request.",
+              "name": "transfer_to_researcher",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the Researcher agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Handoff to the Analyst agent to handle the request.",
+              "name": "transfer_to_analyst",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the Analyst agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Handoff to the Reporter agent to handle the request.",
+              "name": "transfer_to_reporter",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the Reporter agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 333,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 135,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 468
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Wed, 23 Jul 2025 19:28:49 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Research current
+        AI trends, analyze their impact on software development, and create a brief
+        report"},{"type":"function_call_output","call_id":"call_Q40I4NvyRpVo2dppr5S9BdWJ","output":"Multiple
+        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_4UMgMss9Xe6xmN7B31LcSSps","output":"Multiple
+        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_xcm8ALImg8hK1bBf7YtrOGZa","output":"{\"assistant\":\"Researcher\"}"}],"previous_response_id":"resp_688137e65b3c81a3850a89715a86053d069f43a33241720b","instructions":"Name:
+        Researcher\nInstructions: # System context\nYou are part of a multi-agent
+        system called the Agents SDK, designed to make agent coordination and execution
+        easy. Agents uses two primary abstraction: **Agents** and **Handoffs**. An
+        agent encompasses instructions and tools and can hand off a conversation to
+        another agent when appropriate. Handoffs are achieved by calling a handoff
+        function, generally named `transfer_to_<agent_name>`. Transfers between agents
+        are handled seamlessly in the background; do not mention or draw attention
+        to these transfers in your conversation with the user.\n\nYou research information\n\nAvailable
+        tools:\n- transfer_to_analyst: Handoff to the Analyst agent to handle the
+        request.","tools":[{"type":"function","name":"transfer_to_analyst","description":"Handoff
+        to the Analyst agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the Analyst agent"}},"required":["input"],"additionalProperties":false},"strict":true},{"type":"function","name":"transfer_to_reporter","description":"Handoff
+        to the Reporter agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the Reporter agent"}},"required":["input"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 500
+      message: Internal Server Error
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:29:06 GMT
+      Content-Type:
+      - application/json
+      Content-Length:
+      - '353'
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79301'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 524ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_2b3a07ddccf05aad88219afe711628f9
+      Openai-Processing-Ms:
+      - '17092'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=Rd9UWQqpFto305wSqFwk44Nnk_58fuQgL.oYDe8yjIE-1753298946-1.0.1.1-vh9I24jqUu05.jfISqgG_vkKtf9kErMBP5xGjtRdN_fNX0w8RF4JB5fzRseeN8fpLSGkNe5IxPqjpOFI0N_Xm_xZCbiZUcePF6hk2PFc6H8;
+        path=/; expires=Wed, 23-Jul-25 19:59:06 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=ZMqG0tik2x546t0J2ZVCB38Diwwd9aVGi_96cX4qKlk-1753298946600-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d95442ff55286-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "error": {
+            "message": "An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_2b3a07ddccf05aad88219afe711628f9 in your message.",
+            "type": "server_error",
+            "param": null,
+            "code": "server_error"
+          }
+        }
+  recorded_at: Wed, 23 Jul 2025 19:29:06 GMT
+recorded_with: VCR 6.3.1

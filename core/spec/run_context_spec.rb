@@ -2,6 +2,7 @@
 
 require "spec_helper"
 
+# rubocop:disable RSpec/MultipleDescribes
 RSpec.describe RAAF::RunContext do
   let(:messages) do
     [
@@ -527,6 +528,7 @@ RSpec.describe RAAF::TypedRunContextWrapper do
   let(:base_context) { RAAF::RunContext.new }
 
   # Test type class
+  # rubocop:disable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
   class TestUserContext
 
     attr_accessor :user_id, :name, :preferences
@@ -538,11 +540,13 @@ RSpec.describe RAAF::TypedRunContextWrapper do
     end
 
     def to_h
+      # rubocop:disable RSpec/InstanceVariable
       {
         user_id: @user_id,
         name: @name,
         preferences: @preferences
       }
+      # rubocop:enable RSpec/InstanceVariable
     end
 
     def update(updates)
@@ -550,6 +554,7 @@ RSpec.describe RAAF::TypedRunContextWrapper do
     end
 
   end
+  # rubocop:enable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
 
   describe "#initialize" do
     it "initializes with context and type class" do
@@ -656,13 +661,17 @@ RSpec.describe RAAF::TypedRunContextWrapper do
     it "updates typed context using setter methods when update not available" do
       # Create object without update method
       simple_object = Object.new
+      # rubocop:disable Style/TrivialAccessors
       def simple_object.name=(value)
         @name = value
       end
-      
+
       def simple_object.name
+        # rubocop:disable RSpec/InstanceVariable
         @name
+        # rubocop:enable RSpec/InstanceVariable
       end
+      # rubocop:enable Style/TrivialAccessors
 
       untyped_wrapper = described_class.new(base_context)
       untyped_wrapper.typed_context = simple_object
@@ -787,4 +796,4 @@ RSpec.describe RAAF::TypedRunContextWrapper do
     end
   end
 end
-
+# rubocop:enable RSpec/MultipleDescribes

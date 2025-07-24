@@ -10,23 +10,23 @@ RSpec.describe RAAF::AgentOrchestrator do
     output = [
       {
         "type" => "message",
-        "role" => "assistant", 
+        "role" => "assistant",
         "content" => content
       }
     ]
-    
+
     # Add function call if handoff is requested
     if handoff
       output << {
         "type" => "function_call",
         "name" => "transfer_to_#{handoff[:target_agent].downcase}",
         "arguments" => JSON.generate({ reason: handoff[:reason] || "Handoff requested" }),
-        "call_id" => "call_#{agent_name || 'test'}"
+        "call_id" => "call_#{agent_name || "test"}"
       }
     end
-    
-    response = {
-      "id" => "responses_#{agent_name || 'test'}",
+
+    {
+      "id" => "responses_#{agent_name || "test"}",
       "output" => output,
       "usage" => {
         "prompt_tokens" => 10,
@@ -34,13 +34,11 @@ RSpec.describe RAAF::AgentOrchestrator do
         "total_tokens" => 20
       }
     }
-    
-    response
   end
 
   # Keep the old method for backward compatibility
   alias_method :create_responses_api_response, :create_chat_completion_response
-  
+
   # Helper method to setup provider mocks correctly for both complete and responses_completion
   def setup_provider_mock(response_or_proc)
     if response_or_proc.respond_to?(:call)
@@ -49,8 +47,7 @@ RSpec.describe RAAF::AgentOrchestrator do
       allow(provider).to receive(:responses_completion, &response_or_proc)
     else
       # It's a static response
-      allow(provider).to receive(:complete).and_return(response_or_proc)
-      allow(provider).to receive(:responses_completion).and_return(response_or_proc)
+      allow(provider).to receive_messages(complete: response_or_proc, responses_completion: response_or_proc)
     end
   end
 
@@ -59,7 +56,7 @@ RSpec.describe RAAF::AgentOrchestrator do
   let(:support_agent) { RAAF::Agent.new(name: "Support", instructions: "Handle technical support") }
   let(:sales_agent) { RAAF::Agent.new(name: "Sales", instructions: "Handle sales inquiries") }
   let(:manager_agent) { RAAF::Agent.new(name: "Manager", instructions: "Handle escalations") }
-  
+
   let(:agents) do
     {
       "Router" => router_agent,
@@ -69,11 +66,11 @@ RSpec.describe RAAF::AgentOrchestrator do
     }
   end
 
-  let(:provider) { 
+  let(:provider) do
     mock = instance_double(RAAF::Models::ResponsesProvider)
     allow(mock).to receive(:is_a?).with(RAAF::Models::ResponsesProvider).and_return(true)
     mock
-  }
+  end
   let(:orchestrator) { described_class.new(agents: agents, provider: provider) }
 
   before do
@@ -106,40 +103,42 @@ RSpec.describe RAAF::AgentOrchestrator do
 
         current_responses = responses.dup
         call_count = 0
-        mock_handler = proc do |messages: nil, input: nil, **kwargs|
+        mock_handler = proc do |messages: nil, _input: nil, **_kwargs|
           call_count += 1
           puts "🔍 MOCK: Call ##{call_count}"
-          
+
           # Handle both message formats - Responses API uses separate input and messages params
           # For Responses API: messages contains system message, input contains user input
-          
+
           # Look for system message in messages parameter
           agent_name = nil
-          if messages && messages.is_a?(Array)
+          if messages.is_a?(Array)
             system_message = messages.find { |m| (m[:role] || m["role"]) == "system" }
             if system_message
-              agent_name = system_message[:content].match(/Name: (\w+)/)[1] rescue nil
+              agent_name = begin
+                system_message[:content].match(/Name: (\w+)/)[1]
+              rescue StandardError
+                nil
+              end
             end
           end
-          
+
           # Default to Router if not found
           agent_name ||= "Router"
-          
+
           puts "🔍 MOCK: Call ##{call_count} - Agent detected: #{agent_name}"
           response = current_responses[agent_name]
-          
+
           result = create_chat_completion_response(
             response[:messages].first[:content],
             response[:handoff],
             agent_name
           )
-          
-          if response[:handoff]
-            puts "🔍 MOCK: Returning handoff from #{agent_name} to #{response[:handoff][:target_agent]}"
-          end
+
+          puts "🔍 MOCK: Returning handoff from #{agent_name} to #{response[:handoff][:target_agent]}" if response[:handoff]
           result
         end
-        
+
         setup_provider_mock(mock_handler)
 
         result = orchestrator.run_workflow("I have a complex technical problem", starting_agent: "Router")
@@ -157,11 +156,11 @@ RSpec.describe RAAF::AgentOrchestrator do
         user_context = "User ID: 12345, Priority: High"
         initial_message = "#{user_context} - Need urgent help"
 
-        setup_provider_mock(proc do |messages: nil, input: nil, **kwargs|
+        setup_provider_mock(proc do |messages: nil, input: nil, **_kwargs|
           target_messages = input || messages
           # Verify context is preserved in messages
           expect(target_messages.any? { |m| m[:content]&.include?(user_context) }).to be true
-          
+
           create_responses_api_response("Acknowledged context: #{user_context}")
         end)
 
@@ -173,7 +172,7 @@ RSpec.describe RAAF::AgentOrchestrator do
     describe "error recovery and resilience" do
       it "handles partial agent failures in workflow" do
         call_count = 0
-        mock_handler = proc do |**kwargs|
+        mock_handler = proc do |**_kwargs|
           call_count += 1
           case call_count
           when 1
@@ -187,11 +186,11 @@ RSpec.describe RAAF::AgentOrchestrator do
             raise "Unexpected call"
           end
         end
-        
+
         setup_provider_mock(mock_handler)
 
         result = orchestrator.run_workflow("Help needed")
-        
+
         expect(result).not_to be_success
         expect(result.error).to include("Network error")
         expect(result.results.size).to eq(1) # Only router succeeded
@@ -215,32 +214,32 @@ RSpec.describe RAAF::AgentOrchestrator do
         # because the tool doesn't exist (Router doesn't have a handoff to FakeAgent).
         # However, this doesn't cause the workflow to fail - it just logs an error
         # and continues. The handoff doesn't happen because the tool doesn't exist.
-        
+
         # First response from Router contains handoff to non-existent agent
-        response = create_responses_api_response("Transferring to fake agent", 
-                                                 { target_agent: "FakeAgent", reason: "Malicious handoff" }, 
+        response = create_responses_api_response("Transferring to fake agent",
+                                                 { target_agent: "FakeAgent", reason: "Malicious handoff" },
                                                  "Router")
-        
+
         setup_provider_mock(response)
 
         result = orchestrator.run_workflow("Test security")
-        
+
         # The workflow completes successfully because the invalid handoff tool doesn't exist
         # This is actually secure behavior - you can't handoff to an agent you don't have permission for
         expect(result).to be_success
-        expect(result.final_agent).to eq("Router")  # Stays with Router
+        expect(result.final_agent).to eq("Router") # Stays with Router
       end
 
       it "prevents handoff loops with cycle detection" do
         # Create a scenario where agents keep handing off in a loop
         handoff_count = 0
-        mock_handler = proc do |**kwargs|
+        mock_handler = proc do |**_kwargs|
           handoff_count += 1
-          
+
           if handoff_count < 10 # Would create infinite loop
             create_responses_api_response(
               "Passing to next agent",
-              { 
+              {
                 target_agent: handoff_count.even? ? "Support" : "Sales",
                 reason: "Loop test"
               }
@@ -249,11 +248,11 @@ RSpec.describe RAAF::AgentOrchestrator do
             create_responses_api_response("Breaking loop")
           end
         end
-        
+
         setup_provider_mock(mock_handler)
 
         result = orchestrator.run_workflow("Create loop", starting_agent: "Sales")
-        
+
         # Should complete despite potential loop
         expect(result).to be_success
         expect(result.results.size).to be <= 10 # Reasonable limit
@@ -263,12 +262,12 @@ RSpec.describe RAAF::AgentOrchestrator do
         # Create agent without handoff permission
         isolated_agent = RAAF::Agent.new(name: "Isolated", instructions: "Cannot handoff")
         agents["Isolated"] = isolated_agent
-        
+
         setup_provider_mock(create_responses_api_response("Trying invalid handoff", { target_agent: "Support", reason: "Not allowed" }))
 
         orchestrator_with_isolated = described_class.new(agents: agents, provider: provider)
         result = orchestrator_with_isolated.run_workflow("Test", starting_agent: "Isolated")
-        
+
         # Handoff should fail because Isolated doesn't have Support as a handoff target
         expect(result.results.size).to eq(1) # Only the isolated agent's response
       end
@@ -277,13 +276,13 @@ RSpec.describe RAAF::AgentOrchestrator do
     describe "state management" do
       it "tracks workflow metadata throughout execution" do
         start_time = Time.now
-        
-        setup_provider_mock(proc do |**kwargs|
+
+        setup_provider_mock(proc do |**_kwargs|
           create_responses_api_response("Processing with metadata")
         end)
 
         result = orchestrator.run_workflow("Track metadata")
-        
+
         expect(result.started_at).to be_within(1).of(start_time)
         expect(result.completed_at).to be > result.started_at
         expect(result.final_agent).to eq("Router") # Default first agent
@@ -291,30 +290,30 @@ RSpec.describe RAAF::AgentOrchestrator do
 
       it "preserves handoff context state" do
         handoff_reasons = []
-        
+
         # Track handoff reasons when set_handoff is called
         allow(orchestrator.handoff_context).to receive(:set_handoff).and_wrap_original do |method, **kwargs|
           handoff_reasons << kwargs[:reason] if kwargs[:reason]
           method.call(**kwargs)
         end
-        
+
         responses = [
           create_responses_api_response("First response", { target_agent: "Support", reason: "Initial routing" }, "Router"),
           create_responses_api_response("Support response", { target_agent: "Manager", reason: "Needs approval" }, "Support"),
           create_responses_api_response("Approved", nil, "Manager"),
-          create_responses_api_response("Manager final response", nil, "Manager")  # Extra response for orchestrator re-execution
+          create_responses_api_response("Manager final response", nil, "Manager") # Extra response for orchestrator re-execution
         ]
-        
+
         call_count = 0
-        mock_handler = proc do |**kwargs|
+        mock_handler = proc do |**_kwargs|
           call_count += 1
           responses[call_count - 1] || create_responses_api_response("Fallback response", nil, "Manager")
         end
-        
+
         setup_provider_mock(mock_handler)
 
-        result = orchestrator.run_workflow("Test context preservation")
-        
+        orchestrator.run_workflow("Test context preservation")
+
         # Due to the Runner's internal handling, we may not see all reasons
         # The orchestrator only sees the final handoff
         expect(handoff_reasons.size).to be >= 1
@@ -327,10 +326,10 @@ RSpec.describe RAAF::AgentOrchestrator do
     describe "provider integration" do
       it "passes provider configuration to all agents" do
         custom_provider = instance_double(RAAF::Models::ResponsesProvider)
-        
+
         # Make sure the provider reports as ResponsesProvider
         allow(custom_provider).to receive(:is_a?).with(RAAF::Models::ResponsesProvider).and_return(true)
-        
+
         # Verify provider receives correct configuration via responses_completion
         expect(custom_provider).to receive(:responses_completion).with(
           hash_including(
@@ -363,7 +362,7 @@ RSpec.describe RAAF::AgentOrchestrator do
         # First lookup
         agent = orchestrator.send(:find_agent, "Support")
         expect(agent).to eq(support_agent)
-        
+
         # Second lookup should use cached reference
         agent2 = orchestrator.send(:find_agent, "Support")
         expect(agent2).to equal(agent) # Same object reference
@@ -378,7 +377,7 @@ RSpec.describe RAAF::AgentOrchestrator do
         setup_provider_mock(create_responses_api_response("No handoff"))
 
         orchestrator.run_workflow("Single agent response")
-        
+
         # Should not call set_handoff when no handoff occurs
         expect(call_count).to eq(0)
       end
@@ -391,20 +390,24 @@ RSpec.describe RAAF::AgentOrchestrator do
           "Support" => "Technical solution available",
           "Sales" => "Discount can be applied"
         }
-        
-        mock_handler = proc do |messages: nil, input: nil, **kwargs|
+
+        mock_handler = proc do |messages: nil, _input: nil, **_kwargs|
           # Look for system message in messages parameter
           agent_name = nil
-          if messages && messages.is_a?(Array)
+          if messages.is_a?(Array)
             system_message = messages.find { |m| (m[:role] || m["role"]) == "system" }
             if system_message
-              agent_name = system_message[:content].match(/Name: (\w+)/)[1] rescue nil
+              agent_name = begin
+                system_message[:content].match(/Name: (\w+)/)[1]
+              rescue StandardError
+                nil
+              end
             end
           end
-          
+
           # Default to Router if not found
           agent_name ||= "Router"
-          
+
           if consultation_results[agent_name]
             create_responses_api_response(
               consultation_results[agent_name],
@@ -416,7 +419,7 @@ RSpec.describe RAAF::AgentOrchestrator do
             create_responses_api_response("Based on consultations: Tech support + discount available")
           end
         end
-        
+
         setup_provider_mock(mock_handler)
 
         # This would require custom coordination logic in practice
@@ -441,17 +444,17 @@ RSpec.describe RAAF::AgentOrchestrator do
           # Router uses the answer
           create_responses_api_response("Based on support's input: Solution is X", nil, "Router")
         ]
-        
+
         call_count = 0
-        mock_handler = proc do |**kwargs|
+        mock_handler = proc do |**_kwargs|
           call_count += 1
           responses[call_count - 1]
         end
-        
+
         setup_provider_mock(mock_handler)
 
         result = orchestrator.run_workflow("Complex question")
-        
+
         # Due to Runner's internal handling, we may get 2 results instead of 3
         # The Runner processes Router->Support->Router internally as one execution
         expect(result.results.size).to be >= 2
@@ -472,14 +475,14 @@ RSpec.describe RAAF::AgentOrchestrator do
         create_responses_api_response("Response", { target_agent: "Support" }, "Router"),
         create_responses_api_response("Support response", nil, "Support")
       ]
-      
+
       call_count = 0
-      mock_handler = proc do |**kwargs|
+      mock_handler = proc do |**_kwargs|
         response = responses[call_count]
         call_count += 1
         response
       end
-      
+
       setup_provider_mock(mock_handler)
 
       orchestrator.run_workflow("Test logging")
@@ -504,10 +507,10 @@ RSpec.describe RAAF::AgentOrchestrator do
   describe "Edge Cases and Boundary Conditions" do
     it "handles empty agent list gracefully" do
       expect { described_class.new(agents: {}, provider: provider) }.not_to raise_error
-      
+
       empty_orchestrator = described_class.new(agents: {}, provider: provider)
       result = empty_orchestrator.run_workflow("Test")
-      
+
       expect(result).not_to be_success
       expect(result.error).to include("Agent '' not found")
     end
@@ -531,16 +534,14 @@ RSpec.describe RAAF::AgentOrchestrator do
       20.times do |i|
         agent = RAAF::Agent.new(name: "Agent#{i}", instructions: "Agent #{i}")
         chain_agents["Agent#{i}"] = agent
-        
-        if i > 0
-          chain_agents["Agent#{i-1}"].add_handoff(agent)
-        end
+
+        chain_agents["Agent#{i - 1}"].add_handoff(agent) if i.positive?
       end
 
       chain_orchestrator = described_class.new(agents: chain_agents, provider: provider)
-      
+
       call_count = 0
-      mock_handler = proc do |**kwargs|
+      mock_handler = proc do |**_kwargs|
         call_count += 1
         if call_count < 20
           create_responses_api_response(
@@ -552,14 +553,14 @@ RSpec.describe RAAF::AgentOrchestrator do
           create_responses_api_response("Final response", nil, "Agent19")
         end
       end
-      
+
       setup_provider_mock(mock_handler)
 
       result = chain_orchestrator.run_workflow("Test long chain", starting_agent: "Agent0")
-      
+
       expect(result).to be_success
       # The chain completes but with fewer results due to handoff limit
-      expect(result.results.size).to be <= 11  # Reduced from 20 due to orchestrator's loop safety check
+      expect(result.results.size).to be <= 11 # Reduced from 20 due to orchestrator's loop safety check
     end
 
     it "handles nil and empty string inputs" do

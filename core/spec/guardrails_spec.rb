@@ -37,11 +37,7 @@ RSpec.describe "RAAF::Guardrails" do
   describe "InputGuardrail with custom block" do
     let(:guardrail) do
       RAAF::Guardrails::InputGuardrail.new(name: "TestGuardrail") do |input|
-        if input.include?("blocked")
-          "Input contains blocked content"
-        else
-          nil
-        end
+        "Input contains blocked content" if input.include?("blocked")
       end
     end
 

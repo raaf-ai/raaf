@@ -106,7 +106,7 @@ RSpec.describe RAAF::ResponseProcessor do
           "output" => [
             {
               "type" => "message",
-              "role" => "assistant", 
+              "role" => "assistant",
               "content" => "Hello!"
             }
           ]
@@ -211,14 +211,14 @@ RSpec.describe RAAF::ResponseProcessor do
           }]
         }
 
-        expect {
+        expect do
           processor.process_model_response(
             response: response,
             agent: agent,
-            all_tools: [],  # No computer tool available
+            all_tools: [], # No computer tool available
             handoffs: handoffs
           )
-        }.to raise_error(RAAF::Errors::ModelBehaviorError, /Computer tool not available/)
+        end.to raise_error(RAAF::Errors::ModelBehaviorError, /Computer tool not available/)
       end
     end
 
@@ -254,14 +254,14 @@ RSpec.describe RAAF::ResponseProcessor do
           }]
         }
 
-        expect {
+        expect do
           processor.process_model_response(
             response: response,
             agent: agent,
             all_tools: [], # No local shell tool available
             handoffs: handoffs
           )
-        }.to raise_error(RAAF::Errors::ModelBehaviorError, /Local shell tool not available/)
+        end.to raise_error(RAAF::Errors::ModelBehaviorError, /Local shell tool not available/)
       end
     end
 
@@ -315,9 +315,9 @@ RSpec.describe RAAF::ResponseProcessor do
         }
 
         expect(processor).to receive(:log_warn).with(
-          "Unknown response item type", 
-          type: "unknown_type", 
-          item_keys: [:type, :data]
+          "Unknown response item type",
+          type: "unknown_type",
+          item_keys: %i[type data]
         )
 
         result = processor.process_model_response(
@@ -349,14 +349,14 @@ RSpec.describe RAAF::ResponseProcessor do
           }]
         }
 
-        expect {
+        expect do
           processor.process_model_response(
             response: response,
             agent: agent,
             all_tools: all_tools,
             handoffs: handoffs
           )
-        }.to raise_error(RAAF::Errors::ModelBehaviorError, /Tool unknown_tool not found/)
+        end.to raise_error(RAAF::Errors::ModelBehaviorError, /Tool unknown_tool not found/)
       end
     end
   end
@@ -529,7 +529,7 @@ RSpec.describe RAAF::ResponseProcessor do
           item = { content: "Hello" }
           allow(RAAF::Items::MessageOutputItem).to receive(:new).and_call_original
 
-          result = processor.send(:create_message_item, item, agent)
+          processor.send(:create_message_item, item, agent)
 
           expect(RAAF::Items::MessageOutputItem).to have_received(:new)
             .with(agent: agent, raw_item: hash_including(
@@ -612,7 +612,7 @@ RSpec.describe RAAF::ResponseProcessor do
           expect(RAAF::Items::HandoffCallItem).to have_received(:new)
             .with(agent: agent, raw_item: hash_including(
               type: "function_call",
-              id: "call_handoff", 
+              id: "call_handoff",
               name: "transfer_to_agent",
               arguments: '{"context": "help needed"}'
             ))

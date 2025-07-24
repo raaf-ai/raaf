@@ -43,14 +43,14 @@ RSpec.describe RAAF::ToolUseTracker do
 
     it "handles empty tool lists" do
       tracker.add_tool_use(agent, [])
-      
+
       expect(tracker.used_tools?(agent)).to be(false)
       expect(tracker.tools_used_by(agent)).to eq([])
     end
 
     it "handles string and symbol tool names" do
       tracker.add_tool_use(agent, ["string_tool", :symbol_tool])
-      
+
       expect(tracker.tools_used_by(agent)).to eq(["string_tool", :symbol_tool])
       expect(tracker.total_tool_usage_count).to eq(2)
     end
@@ -151,8 +151,8 @@ RSpec.describe RAAF::ToolUseTracker do
       agent1 = double("Agent1", name: "Agent1")
       agent2 = double("Agent2", name: "Agent2")
 
-      tracker.add_tool_use(agent1, ["common_tool", "tool1"])
-      tracker.add_tool_use(agent2, ["tool2", "tool3"])
+      tracker.add_tool_use(agent1, %w[common_tool tool1])
+      tracker.add_tool_use(agent2, %w[tool2 tool3])
 
       expect(tracker.tool_used?("common_tool")).to be(true)
       expect(tracker.tool_used?("tool2")).to be(true)
@@ -268,7 +268,7 @@ RSpec.describe RAAF::ToolUseTracker do
 
     it "handles large numbers of tools efficiently" do
       large_tool_list = (1..1000).map { |i| "tool_#{i}" }
-      
+
       expect do
         tracker.add_tool_use(agent, large_tool_list)
       end.not_to raise_error
@@ -287,10 +287,10 @@ RSpec.describe RAAF::ToolUseTracker do
 
       # Research agent uses search tools
       tracker.add_tool_use(research_agent, %w[web_search document_search api_call])
-      
+
       # Writer agent uses writing tools and some search tools (overlap)
       tracker.add_tool_use(writer_agent, %w[text_generator web_search spell_check])
-      
+
       # Reviewer agent uses analysis tools
       tracker.add_tool_use(reviewer_agent, %w[grammar_check plagiarism_check])
 
@@ -329,7 +329,7 @@ RSpec.describe RAAF::ToolUseTracker do
       expect(tracker.tools_used_by(agent)).to eq(%w[basic_tool advanced_tool expert_tool specialized_tool])
 
       # Verify no duplicates even if tools are re-added
-      tracker.add_tool_use(agent, ["basic_tool", "new_tool"])
+      tracker.add_tool_use(agent, %w[basic_tool new_tool])
       expect(tracker.tools_used_by(agent)).to eq(%w[basic_tool advanced_tool expert_tool specialized_tool new_tool])
     end
   end

@@ -146,12 +146,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
         expect(subject.capabilities[:chat_completion]).to be true
         expect(subject.capabilities[:responses_api]).to be false
       end
-
-    end
-
-    context "without available agents" do
-      subject { described_class.new(function_calling_provider) }
-
     end
   end
 
@@ -273,7 +267,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
     end
   end
 
-
   describe "#get_enhanced_system_instructions" do
     let(:base_instructions) { "You are a helpful assistant." }
 
@@ -295,7 +288,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
       end
     end
   end
-
 
   describe "delegation methods" do
     subject { described_class.new(function_calling_provider) }
@@ -337,7 +329,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
       expect { subject.non_existent_method }.to raise_error(NoMethodError)
     end
   end
-
 
   describe "error handling" do
     subject { described_class.new(error_provider) }

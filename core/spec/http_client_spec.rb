@@ -60,7 +60,9 @@ RSpec.describe RAAF::HTTPClient do
       end
 
       it "returns the same instance on repeated calls" do
+        # rubocop:disable RSpec/IdenticalEqualityAssertion
         expect(client.chat).to be(client.chat)
+        # rubocop:enable RSpec/IdenticalEqualityAssertion
       end
     end
 
@@ -70,10 +72,10 @@ RSpec.describe RAAF::HTTPClient do
           response_body = { "data" => "test response" }
           stub_request(:get, "#{base_url}/test")
             .with(headers: {
-              "Authorization" => "Bearer #{api_key}",
-              "Content-Type" => "application/json",
-              "Accept" => "application/json"
-            })
+                    "Authorization" => "Bearer #{api_key}",
+                    "Content-Type" => "application/json",
+                    "Accept" => "application/json"
+                  })
             .to_return(status: 200, body: response_body.to_json)
 
           result = client.make_request("GET", "/test")
@@ -83,7 +85,7 @@ RSpec.describe RAAF::HTTPClient do
         it "makes POST requests with body" do
           request_body = { "model" => "gpt-4o", "messages" => [] }
           response_body = { "id" => "chatcmpl-123", "choices" => [] }
-          
+
           stub_request(:post, "#{base_url}/chat/completions")
             .with(
               body: request_body.to_json,
@@ -102,14 +104,14 @@ RSpec.describe RAAF::HTTPClient do
         it "includes custom headers" do
           custom_headers = { "X-Custom-Header" => "custom-value" }
           response_body = { "success" => true }
-          
+
           stub_request(:post, "#{base_url}/test")
             .with(headers: {
-              "Authorization" => "Bearer #{api_key}",
-              "Content-Type" => "application/json",
-              "Accept" => "application/json",
-              "X-Custom-Header" => "custom-value"
-            })
+                    "Authorization" => "Bearer #{api_key}",
+                    "Content-Type" => "application/json",
+                    "Accept" => "application/json",
+                    "X-Custom-Header" => "custom-value"
+                  })
             .to_return(status: 200, body: response_body.to_json)
 
           result = client.make_request("POST", "/test", headers: custom_headers)
@@ -124,7 +126,7 @@ RSpec.describe RAAF::HTTPClient do
             "data: {\"id\":\"chatcmpl-123\",\"choices\":[{\"delta\":{\"content\":\" world\"}}]}\n",
             "data: [DONE]\n"
           ]
-          
+
           stub_request(:post, "#{base_url}/chat/completions")
             .with(
               body: hash_including(stream: true),
@@ -137,9 +139,9 @@ RSpec.describe RAAF::HTTPClient do
             .to_return(status: 200, body: streaming_data.join)
 
           received_chunks = []
-          client.make_request("POST", "/chat/completions", 
-                             body: { model: "gpt-4o", stream: true }, 
-                             stream: true) do |chunk|
+          client.make_request("POST", "/chat/completions",
+                              body: { model: "gpt-4o", stream: true },
+                              stream: true) do |chunk|
             received_chunks << chunk
           end
 
@@ -155,15 +157,15 @@ RSpec.describe RAAF::HTTPClient do
             "data: {\"another\":\"valid\"}\n",
             "data: [DONE]\n"
           ]
-          
+
           stub_request(:post, "#{base_url}/chat/completions")
             .with(body: hash_including(stream: true))
             .to_return(status: 200, body: streaming_data.join)
 
           received_chunks = []
-          client.make_request("POST", "/chat/completions", 
-                             body: { model: "gpt-4o", stream: true }, 
-                             stream: true) do |chunk|
+          client.make_request("POST", "/chat/completions",
+                              body: { model: "gpt-4o", stream: true },
+                              stream: true) do |chunk|
             received_chunks << chunk
           end
 
@@ -181,14 +183,14 @@ RSpec.describe RAAF::HTTPClient do
             "data: {\"content\":\"test\"}\n",
             "data: [DONE]\n"
           ]
-          
+
           stub_request(:post, "#{base_url}/chat/completions")
             .to_return(status: 200, body: streaming_data.join)
 
           received_chunks = []
-          client.make_request("POST", "/chat/completions", 
-                             body: { stream: true }, 
-                             stream: true) do |chunk|
+          client.make_request("POST", "/chat/completions",
+                              body: { stream: true },
+                              stream: true) do |chunk|
             received_chunks << chunk
           end
 
@@ -203,9 +205,9 @@ RSpec.describe RAAF::HTTPClient do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 400, body: error_response.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::BadRequestError, "Invalid request")
+          end.to raise_error(RAAF::HTTPClient::BadRequestError, "Invalid request")
         end
 
         it "raises AuthenticationError for 401" do
@@ -213,134 +215,136 @@ RSpec.describe RAAF::HTTPClient do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 401, body: error_response.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::AuthenticationError, "Invalid API key")
+          end.to raise_error(RAAF::HTTPClient::AuthenticationError, "Invalid API key")
         end
 
         it "raises PermissionDeniedError for 403" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 403, body: { error: { message: "Forbidden" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::PermissionDeniedError, "Forbidden")
+          end.to raise_error(RAAF::HTTPClient::PermissionDeniedError, "Forbidden")
         end
 
         it "raises NotFoundError for 404" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 404, body: { error: { message: "Not found" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::NotFoundError, "Not found")
+          end.to raise_error(RAAF::HTTPClient::NotFoundError, "Not found")
         end
 
         it "raises ConflictError for 409" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 409, body: { error: { message: "Conflict" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::ConflictError, "Conflict")
+          end.to raise_error(RAAF::HTTPClient::ConflictError, "Conflict")
         end
 
         it "raises UnprocessableEntityError for 422" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 422, body: { error: { message: "Unprocessable" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::UnprocessableEntityError, "Unprocessable")
+          end.to raise_error(RAAF::HTTPClient::UnprocessableEntityError, "Unprocessable")
         end
 
         it "raises RateLimitError for 429" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 429, body: { error: { message: "Rate limit exceeded" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::RateLimitError, "Rate limit exceeded")
+          end.to raise_error(RAAF::HTTPClient::RateLimitError, "Rate limit exceeded")
         end
 
         it "raises InternalServerError for 500" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 500, body: { error: { message: "Internal server error" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::InternalServerError, "Internal server error")
+          end.to raise_error(RAAF::HTTPClient::InternalServerError, "Internal server error")
         end
 
         it "raises BadGatewayError for 502" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 502, body: { error: { message: "Bad gateway" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::BadGatewayError, "Bad gateway")
+          end.to raise_error(RAAF::HTTPClient::BadGatewayError, "Bad gateway")
         end
 
         it "raises ServiceUnavailableError for 503" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 503, body: { error: { message: "Service unavailable" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::ServiceUnavailableError, "Service unavailable")
+          end.to raise_error(RAAF::HTTPClient::ServiceUnavailableError, "Service unavailable")
         end
 
         it "raises GatewayTimeoutError for 504" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 504, body: { error: { message: "Gateway timeout" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::GatewayTimeoutError, "Gateway timeout")
+          end.to raise_error(RAAF::HTTPClient::GatewayTimeoutError, "Gateway timeout")
         end
 
         it "raises APIError for unknown status codes" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 418, body: { error: { message: "I'm a teapot" } }.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::APIError, "HTTP 418: I'm a teapot")
+          end.to raise_error(RAAF::HTTPClient::APIError, "HTTP 418: I'm a teapot")
         end
 
         it "handles non-JSON error responses" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 500, body: "Internal Server Error")
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::InternalServerError, "Internal Server Error")
+          end.to raise_error(RAAF::HTTPClient::InternalServerError, "Internal Server Error")
         end
 
         it "handles error responses without error message" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 400, body: {}.to_json)
 
-          expect {
+          expect do
             client.make_request("POST", "/test")
-          }.to raise_error(RAAF::HTTPClient::BadRequestError, "Unknown error")
+          end.to raise_error(RAAF::HTTPClient::BadRequestError, "Unknown error")
         end
 
         it "handles streaming error responses" do
           stub_request(:post, "#{base_url}/test")
             .to_return(status: 401, body: { error: { message: "Unauthorized" } }.to_json)
 
-          expect {
+          expect do
+            # rubocop:disable Lint/EmptyBlock
             client.make_request("POST", "/test", stream: true) { |chunk| }
-          }.to raise_error(RAAF::HTTPClient::AuthenticationError, "Unauthorized")
+            # rubocop:enable Lint/EmptyBlock
+          end.to raise_error(RAAF::HTTPClient::AuthenticationError, "Unauthorized")
         end
       end
 
       context "unsupported methods" do
         it "raises ArgumentError for unsupported HTTP methods" do
-          expect {
+          expect do
             client.make_request("PUT", "/test")
-          }.to raise_error(ArgumentError, "Unsupported HTTP method: PUT")
+          end.to raise_error(ArgumentError, "Unsupported HTTP method: PUT")
         end
       end
     end
@@ -362,7 +366,9 @@ RSpec.describe RAAF::HTTPClient do
       end
 
       it "returns the same instance on repeated calls" do
+        # rubocop:disable RSpec/IdenticalEqualityAssertion
         expect(chat_resource.completions).to be(chat_resource.completions)
+        # rubocop:enable RSpec/IdenticalEqualityAssertion
       end
 
       it "passes the client to CompletionsResource" do
@@ -385,7 +391,7 @@ RSpec.describe RAAF::HTTPClient do
     describe "#create" do
       it "calls make_request with POST method and parameters" do
         parameters = { model: "gpt-4o", messages: [{ role: "user", content: "Hello" }] }
-        
+
         expect(client).to receive(:make_request)
           .with("POST", "/chat/completions", body: parameters)
           .and_return({ "id" => "chatcmpl-123" })
@@ -406,9 +412,9 @@ RSpec.describe RAAF::HTTPClient do
       it "calls make_request with streaming parameters" do
         parameters = { model: "gpt-4o", messages: [] }
         expected_params = parameters.merge(stream: true)
-        
+
         block = proc { |chunk| puts chunk }
-        
+
         expect(client).to receive(:make_request)
           .with("POST", "/chat/completions", body: expected_params, stream: true, &block)
 
@@ -418,21 +424,25 @@ RSpec.describe RAAF::HTTPClient do
       it "merges stream: true with existing parameters" do
         parameters = { model: "gpt-4o", messages: [], temperature: 0.7 }
         expected_params = { model: "gpt-4o", messages: [], temperature: 0.7, stream: true }
-        
+
         expect(client).to receive(:make_request)
           .with("POST", "/chat/completions", body: expected_params, stream: true)
 
+        # rubocop:disable Lint/EmptyBlock
         completions_resource.stream_raw(parameters) { |chunk| }
+        # rubocop:enable Lint/EmptyBlock
       end
 
       it "overwrites stream parameter if already present" do
         parameters = { model: "gpt-4o", messages: [], stream: false }
         expected_params = { model: "gpt-4o", messages: [], stream: true }
-        
+
         expect(client).to receive(:make_request)
           .with("POST", "/chat/completions", body: expected_params, stream: true)
 
+        # rubocop:disable Lint/EmptyBlock
         completions_resource.stream_raw(parameters) { |chunk| }
+        # rubocop:enable Lint/EmptyBlock
       end
     end
   end
@@ -456,7 +466,7 @@ RSpec.describe RAAF::HTTPClient do
           messages: [{ role: "user", content: "Hello!" }],
           max_tokens: 100
         }
-        
+
         response_body = {
           "id" => "chatcmpl-123",
           "object" => "chat.completion",
@@ -469,7 +479,7 @@ RSpec.describe RAAF::HTTPClient do
             "finish_reason" => "stop"
           }]
         }
-        
+
         stub_request(:post, "https://api.openai.com/v1/chat/completions")
           .with(
             body: request_params.to_json,
@@ -482,7 +492,7 @@ RSpec.describe RAAF::HTTPClient do
           .to_return(status: 200, body: response_body.to_json)
 
         result = client.chat.completions.create(**request_params)
-        
+
         expect(result).to eq(response_body)
         expect(result["choices"][0]["message"]["content"]).to eq("Hello! How can I help you today?")
       end
@@ -499,7 +509,7 @@ RSpec.describe RAAF::HTTPClient do
             body: hash_including(stream: true),
             headers: {
               "Authorization" => "Bearer #{api_key}",
-              "Content-Type" => "application/json", 
+              "Content-Type" => "application/json",
               "Accept" => "text/event-stream"
             }
           )
@@ -526,12 +536,12 @@ RSpec.describe RAAF::HTTPClient do
             body: { error: { message: "Invalid API key provided" } }.to_json
           )
 
-        expect {
+        expect do
           client.chat.completions.create(
             model: "gpt-4o",
             messages: [{ role: "user", content: "Hello!" }]
           )
-        }.to raise_error(RAAF::HTTPClient::AuthenticationError, "Invalid API key provided")
+        end.to raise_error(RAAF::HTTPClient::AuthenticationError, "Invalid API key provided")
       end
 
       it "handles rate limiting in streaming" do
@@ -541,12 +551,14 @@ RSpec.describe RAAF::HTTPClient do
             body: { error: { message: "Rate limit exceeded" } }.to_json
           )
 
-        expect {
+        expect do
+          # rubocop:disable Lint/EmptyBlock
           client.chat.completions.stream_raw(
             model: "gpt-4o",
             messages: [{ role: "user", content: "Hello!" }]
           ) { |chunk| }
-        }.to raise_error(RAAF::HTTPClient::RateLimitError, "Rate limit exceeded")
+          # rubocop:enable Lint/EmptyBlock
+        end.to raise_error(RAAF::HTTPClient::RateLimitError, "Rate limit exceeded")
       end
     end
   end

@@ -38,7 +38,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
       expect(service_bundle[:tool_executor].instance_variable_get(:@runner)).to eq(runner)
     end
 
-
     it "creates ErrorHandler with default settings" do
       expect(service_bundle[:error_handler]).to be_a(RAAF::Execution::ErrorHandler)
       expect(service_bundle[:error_handler].strategy).to eq(RAAF::Execution::ErrorHandler::RecoveryStrategy::FAIL_FAST)
@@ -142,7 +141,6 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
         tool_executor = bundle[:tool_executor]
         expect(tool_executor.instance_variable_get(:@agent)).to eq(agent)
         expect(tool_executor.instance_variable_get(:@runner)).to eq(runner)
-
 
         # ApiStrategy needs provider and config
         api_strategy = bundle[:api_strategy]

@@ -101,17 +101,17 @@ RSpec.describe RAAF::Models::ResponsesProvider do
     it "accepts valid parameters" do
       # Mock the API call to avoid actual HTTP requests
       allow(provider).to receive(:call_responses_api).and_return({
-                                                                   id: "resp_123",
-                                                                   output: [{ type: "message", role: "assistant", content: "Hello!" }],
-                                                                   usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }
+                                                                   "id" => "resp_123",
+                                                                   "output" => [{ "type" => "message", "role" => "assistant", "content" => "Hello!" }],
+                                                                   "usage" => { "input_tokens" => 10, "output_tokens" => 5, "total_tokens" => 15 }
                                                                  })
 
       result = provider.responses_completion(messages: messages, model: model)
 
-      expect(result).to include(:id, :output, :usage)
-      expect(result[:id]).to eq("resp_123")
-      expect(result[:output]).to be_an(Array)
-      expect(result[:usage]).to be_a(Hash)
+      expect(result).to include("id", "output", "usage")
+      expect(result["id"]).to eq("resp_123")
+      expect(result["output"]).to be_an(Array)
+      expect(result["usage"]).to be_a(Hash)
     end
   end
 
@@ -121,7 +121,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
 
     it "validates model before streaming" do
       expect do
+        # rubocop:disable Lint/EmptyBlock
         provider.stream_completion(messages: messages, model: "invalid-model") {}
+        # rubocop:enable Lint/EmptyBlock
       end.to raise_error(ArgumentError, /not supported/)
     end
 
@@ -133,7 +135,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
         stream: true
       )
 
+      # rubocop:disable Lint/EmptyBlock
       provider.stream_completion(messages: messages, model: model) {}
+      # rubocop:enable Lint/EmptyBlock
     end
   end
 
@@ -145,8 +149,9 @@ RSpec.describe RAAF::Models::ResponsesProvider do
         input = provider.send(:convert_messages_to_input, messages)
 
         expect(input).to be_an(Array)
-        expect(input.first[:type]).to eq("user_text")
-        expect(input.first[:text]).to eq("Hello")
+        expect(input.first[:type]).to eq("message")
+        expect(input.first[:role]).to eq("user")
+        expect(input.first[:content]).to eq([{ type: "input_text", text: "Hello" }])
       end
 
       it "converts assistant messages with tool calls" do
@@ -167,13 +172,13 @@ RSpec.describe RAAF::Models::ResponsesProvider do
         input = provider.send(:convert_messages_to_input, messages)
 
         expect(input).to be_an(Array)
-        
+
         # When assistant message has both content and tool_calls,
         # content is added first as a message, then the function_call
         expect(input.length).to eq(2)
         expect(input[0][:type]).to eq("message")
         expect(input[0][:text]).to eq("I'll help you with that")
-        
+
         expect(input[1][:type]).to eq("function_call")
         expect(input[1][:name]).to eq("get_weather")
         expect(input[1][:call_id]).to eq("call_123")

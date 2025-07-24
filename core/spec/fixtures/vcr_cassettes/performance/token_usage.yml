@@ -1,0 +1,144 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Generate a 100
+        word story"}],"instructions":"Name: PerformanceTest\nInstructions: You help
+        with performance testing"}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Wed, 23 Jul 2025 19:29:56 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79967'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 24ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_27ee5b725157d898a84a2b04366ce2e7
+      Openai-Processing-Ms:
+      - '8790'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=ZbGeEYBB1oaofFnU1Fwo3AKhPxC.WhESzmt7WS.4wT0-1753298996-1.0.1.1-BI4WHC0jgp8XJApiSHYJml_UJKmpY2L8sqnuZTAuAPrEMsPEbP8tveLp6p1.XjDaENwYkdZZquEIlFtOyU96C5ssitBB85NXw.sGZBIuNFo;
+        path=/; expires=Wed, 23-Jul-25 19:59:56 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=Vh7nQ1wT78looaVHemQz63tZWcCNERTnwsgb0kMjuQU-1753298996922-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 963d96b319929ff3-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_6881382c17ec81a0a43a6ff58f53039d07c93289f0356d16",
+          "object": "response",
+          "created_at": 1753298988,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: PerformanceTest\nInstructions: You help with performance testing",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "msg_6881382dc7e881a0962863113909efcd07c93289f0356d16",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "Once upon a time, in a magical kingdom, there lived an unusual dragon named Drako. Unlike other dragons, Drako didn't like violence but loved music. He played a golden flute that could turn anything it touched into a melody. This was his secret tool. His music was so enchanting, it calmed even the wildest beasts. Legend says that his flute was made from a star. Drako spent days exploring new tunes and spreading peace in the kingdom. Everyone adored Drako's music. It brought harmony in everyone's life. Drako proved that dragons weren't menacing, but could be peace-bringers too."
+                }
+              ],
+              "role": "assistant"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 28,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 130,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 158
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Wed, 23 Jul 2025 19:29:56 GMT
+recorded_with: VCR 6.3.1

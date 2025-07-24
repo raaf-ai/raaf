@@ -236,7 +236,7 @@ RSpec.describe RAAF::Runner do
       # For Responses API, find the assistant's final response
       assistant_messages = result.messages.select { |msg| msg[:role] == "assistant" }
       expect(assistant_messages).not_to be_empty, "Expected at least one assistant message"
-      
+
       # The last assistant message should contain the final response
       last_assistant_content = assistant_messages.last[:content]
       expect(last_assistant_content).to be_a(String)
@@ -283,7 +283,7 @@ RSpec.describe RAAF::Runner do
       # Find the assistant's final response
       assistant_messages = result.messages.select { |msg| msg[:role] == "assistant" }
       expect(assistant_messages).not_to be_empty, "Expected at least one assistant message"
-      
+
       last_assistant_content = assistant_messages.last[:content]
       expect(last_assistant_content).to be_a(String)
       expect(last_assistant_content).to include("The result is 10")
@@ -297,11 +297,11 @@ RSpec.describe RAAF::Runner do
 
       # Verify that tracing works by checking the run completed successfully
       expect(result).to be_a(RAAF::RunResult)
-      
+
       # Find the assistant's final response
       assistant_messages = result.messages.select { |msg| msg[:role] == "assistant" }
       expect(assistant_messages).not_to be_empty, "Expected at least one assistant message"
-      
+
       last_assistant_content = assistant_messages.last[:content]
       expect(last_assistant_content).to be_a(String)
       expect(last_assistant_content).to include("The result is 10")
@@ -825,7 +825,7 @@ RSpec.describe RAAF::Runner do
         result = runner.send(:process_session, session, [])
 
         expect(result).to be_an(Array)
-        expect(result).to eq([])  # Should return empty combined messages
+        expect(result).to eq([]) # Should return empty combined messages
       end
 
       it "handles session with very large message history" do
@@ -839,7 +839,7 @@ RSpec.describe RAAF::Runner do
 
       it "handles memory manager failures during session processing" do
         session = RAAF::Session.new
-        mock_memory_manager = instance_double("MemoryManager")
+        mock_memory_manager = double("MemoryManager")
         runner.instance_variable_set(:@memory_manager, mock_memory_manager)
 
         allow(mock_memory_manager).to receive(:token_limit).and_return(4096)
@@ -854,14 +854,11 @@ RSpec.describe RAAF::Runner do
     end
 
     describe "guardrails integration" do
-      let(:mock_guardrail) { instance_double("Guardrail") }
+      let(:mock_guardrail) { instance_double(Guardrail) }
 
       before do
         # Mock guardrails if available
-        if defined?(Guardrails)
-          allow(mock_guardrail).to receive(:process_input).and_return("Safe input")
-          allow(mock_guardrail).to receive(:process_output).and_return("Safe output")
-        end
+        allow(mock_guardrail).to receive_messages(process_input: "Safe input", process_output: "Safe output") if defined?(Guardrails)
       end
 
       it "handles input guardrail exceptions" do
@@ -916,15 +913,14 @@ RSpec.describe RAAF::Runner do
           output: [
             {
               type: "message",
-              role: "assistant", 
+              role: "assistant",
               content: [{ type: "output_text", text: "Handled mixed formats" }]
             }
           ],
           usage: { input_tokens: 10, output_tokens: 15 }
         }
 
-        allow(mock_provider).to receive(:complete).and_return(chat_response)
-        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
 
         result = runner_with_provider.run(mixed_messages)
         expect(result).to be_a(RAAF::RunResult)
@@ -957,8 +953,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 100, output_tokens: 10 }
         }
 
-        allow(mock_provider).to receive(:complete).and_return(chat_response)
-        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
 
         result = runner_with_provider.run(large_input)
         expect(result).to be_a(RAAF::RunResult)
@@ -997,8 +992,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 10, output_tokens: 5 }
         }
 
-        allow(mock_provider).to receive(:complete).and_return(chat_response)
-        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
 
         result = runner_with_handoffs.run("Test handoff setup")
         expect(result).to be_a(RAAF::RunResult)
@@ -1033,12 +1027,11 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 10, output_tokens: 5 }
         }
 
-        allow(mock_provider).to receive(:complete).and_return(chat_response)
-        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
 
         conversation_history = [{ role: "user", content: "Previous message" }]
         result = runner_with_mock.run(conversation_history + [{ role: "user", content: "Current message" }])
-        
+
         expect(result).to be_a(RAAF::RunResult)
         expect(result.messages).not_to be_empty
       end
@@ -1067,8 +1060,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 100, output_tokens: 10 }
         }
 
-        allow(mock_provider).to receive(:complete).and_return(chat_response)
-        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
 
         # Create a reasonable conversation history
         conversation_history = Array.new(10) do |i|
@@ -1128,8 +1120,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 10, output_tokens: 5 }
         }
 
-        allow(mock_provider).to receive(:complete).and_return(chat_response)
-        allow(mock_provider).to receive(:responses_completion).and_return(responses_response)
+        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
 
         result = basic_runner.run("Test with no tools")
         expect(result).to be_a(RAAF::RunResult)
@@ -1149,7 +1140,7 @@ RSpec.describe RAAF::Runner do
             content: [
               {
                 type: "output_text",
-                text: "Very long response: #{'A' * 10000}"
+                text: "Very long response: #{"A" * 10_000}"
               }
             ]
           }
@@ -1196,7 +1187,7 @@ RSpec.describe RAAF::Runner do
       memory_growth = final_memory - initial_memory
 
       # Memory growth should be reasonable (less than 50MB for 10 turns)
-      expect(memory_growth).to be < 50000 # KB
+      expect(memory_growth).to be < 50_000 # KB
     end
 
     it "handles concurrent access safely" do
@@ -1221,12 +1212,10 @@ RSpec.describe RAAF::Runner do
       # Simulate concurrent requests
       5.times do |i|
         threads << Thread.new do
-          begin
-            result = runner.run("Concurrent request #{i}")
-            results << result
-          rescue => e
-            results << e
-          end
+          result = runner.run("Concurrent request #{i}")
+          results << result
+        rescue StandardError => e
+          results << e
         end
       end
 
@@ -1234,7 +1223,7 @@ RSpec.describe RAAF::Runner do
 
       # All requests should complete successfully
       expect(results.length).to eq(5)
-      results.each { |r| expect(r).to be_a(RAAF::RunResult) }
+      expect(results).to all(be_a(RAAF::RunResult))
     end
   end
 end

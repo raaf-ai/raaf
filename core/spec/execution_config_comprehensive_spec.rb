@@ -302,7 +302,7 @@ RSpec.describe RAAF::Config::ExecutionConfig do
       hooks2 = double("hooks2")
       input_g2 = [double("input2")]
       output_g2 = [double("output2")]
-      
+
       full_config2 = described_class.new(
         max_turns: 30,
         hooks: hooks2,
@@ -311,7 +311,7 @@ RSpec.describe RAAF::Config::ExecutionConfig do
       )
 
       result = config1.merge(full_config2)
-      
+
       expect(result.max_turns).to eq(30)
       expect(result.hooks).to eq(hooks2)
       expect(result.input_guardrails).to eq(input_g2)
@@ -321,13 +321,13 @@ RSpec.describe RAAF::Config::ExecutionConfig do
     it "preserves context and session in merge" do
       context = double("context")
       session = double("session")
-      
+
       config1.context = context
       config1.session = session
-      
+
       # config2 doesn't have context/session
       result = config1.merge(config2)
-      
+
       # Should preserve from config1 (merge doesn't handle these yet)
       # Based on current implementation, these aren't included in merge
       expect(result.context).to be_nil
@@ -356,7 +356,7 @@ RSpec.describe RAAF::Config::ExecutionConfig do
 
     it "includes all configured values" do
       result = config.to_h
-      
+
       expect(result[:max_turns]).to eq(15)
       expect(result[:hooks]).to eq(hooks)
       expect(result[:input_guardrails]).to eq(input_guardrails)
@@ -366,12 +366,12 @@ RSpec.describe RAAF::Config::ExecutionConfig do
     it "includes nil values in hash" do
       empty_config = described_class.new
       result = empty_config.to_h
-      
+
       expect(result).to have_key(:max_turns)
       expect(result).to have_key(:hooks)
       expect(result).to have_key(:input_guardrails)
       expect(result).to have_key(:output_guardrails)
-      
+
       expect(result[:max_turns]).to be_nil
       expect(result[:hooks]).to be_nil
       expect(result[:input_guardrails]).to be_nil
@@ -381,9 +381,9 @@ RSpec.describe RAAF::Config::ExecutionConfig do
     it "doesn't include context and session in to_h" do
       config.context = double("context")
       config.session = double("session")
-      
+
       result = config.to_h
-      
+
       # Current implementation doesn't include these
       expect(result).not_to have_key(:context)
       expect(result).not_to have_key(:session)
@@ -425,12 +425,12 @@ RSpec.describe RAAF::Config::ExecutionConfig do
 
   describe "Python SDK compatibility" do
     it "supports context for dependency injection" do
-      context = { 
+      context = {
         db: double("database"),
         api_client: double("api_client"),
         user: { id: 123, role: "admin" }
       }
-      
+
       config = described_class.new(context: context)
       expect(config.context).to eq(context)
       expect(config.context[:user][:id]).to eq(123)
@@ -438,11 +438,10 @@ RSpec.describe RAAF::Config::ExecutionConfig do
 
     it "supports session for conversation history" do
       session = double("Session",
-        id: "sess-123",
-        messages: [],
-        metadata: { started_at: Time.now }
-      )
-      
+                       id: "sess-123",
+                       messages: [],
+                       metadata: { started_at: Time.now })
+
       config = described_class.new(session: session)
       expect(config.session).to eq(session)
       expect(config.session.id).to eq("sess-123")
@@ -452,11 +451,11 @@ RSpec.describe RAAF::Config::ExecutionConfig do
   describe "usage patterns" do
     it "supports builder pattern for configuration" do
       config = described_class.new
-      
+
       config.max_turns = 10
       config.hooks = double("hooks")
       config.input_guardrails = [double("guardrail")]
-      
+
       expect(config.max_turns).to eq(10)
       expect(config.hooks?).to be true
       expect(config.input_guardrails?).to be true
@@ -468,14 +467,14 @@ RSpec.describe RAAF::Config::ExecutionConfig do
         max_turns: 50,
         input_guardrails: []
       )
-      
+
       # Production config - strict guardrails
       prod_config = described_class.new(
         max_turns: 10,
         input_guardrails: [double("content_filter"), double("injection_guard")],
         output_guardrails: [double("pii_filter"), double("safety_check")]
       )
-      
+
       expect(dev_config.input_guardrails?).to be false
       expect(prod_config.input_guardrails?).to be true
       expect(prod_config.output_guardrails?).to be true
@@ -484,13 +483,13 @@ RSpec.describe RAAF::Config::ExecutionConfig do
 
   describe "integration with agent" do
     let(:config) { described_class.new(max_turns: 25) }
-    
+
     it "provides configuration for agent execution" do
       agent = double("Agent", max_turns: 10)
-      
+
       # Config overrides agent default
       expect(config.effective_max_turns(agent)).to eq(25)
-      
+
       # Other settings available during execution
       expect(config.hooks?).to be false
       expect(config.input_guardrails?).to be false
@@ -499,10 +498,10 @@ RSpec.describe RAAF::Config::ExecutionConfig do
 
     it "supports runtime configuration changes" do
       agent = double("Agent", max_turns: 10)
-      
+
       # Start with one configuration
       expect(config.effective_max_turns(agent)).to eq(25)
-      
+
       # Modify for different run
       config.max_turns = 5
       expect(config.effective_max_turns(agent)).to eq(5)

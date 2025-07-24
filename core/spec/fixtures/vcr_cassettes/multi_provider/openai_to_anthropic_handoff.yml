@@ -1,0 +1,168 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-3.5-turbo","input":[{"role":"user","content":"Start with
+        OpenAI then handoff to Anthropic"}],"instructions":"Name: OpenAIAgent\nInstructions:
+        # System context\nYou are part of a multi-agent system called the Agents SDK,
+        designed to make agent coordination and execution easy. Agents uses two primary
+        abstraction: **Agents** and **Handoffs**. An agent encompasses instructions
+        and tools and can hand off a conversation to another agent when appropriate.
+        Handoffs are achieved by calling a handoff function, generally named `transfer_to_<agent_name>`.
+        Transfers between agents are handled seamlessly in the background; do not
+        mention or draw attention to these transfers in your conversation with the
+        user.\n\nYou use OpenAI models\n\nAvailable tools:\n- transfer_to_anthropic_agent:
+        Handoff to the AnthropicAgent agent to handle the request.","tools":[{"type":"function","name":"transfer_to_anthropic_agent","description":"Handoff
+        to the AnthropicAgent agent to handle the request.","parameters":{"type":"object","properties":{"input":{"type":"string","description":"Input
+        text to send to the AnthropicAgent agent"}},"required":["input"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 07:21:33 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '4000000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '3999572'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 6ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_17322813bd65ec58fc7f4f15071adbd0
+      Openai-Processing-Ms:
+      - '605'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=IdhxHt6lcaY5ZG5GoLbfJiIowC9__xF_TNCGtsXytO4-1753341693-1.0.1.1-hjangHKioG27i3C8NaTTPssi26YS9E4EblhCMznGBzT7qPgH0Dqz6oKEmLhcbO4c7hJ.qRs3Y9UPcTVAU5bR_uX.uie2i0nQZR_ozqhhxbk;
+        path=/; expires=Thu, 24-Jul-25 07:51:33 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=jjbXV.ECWLlCX3Pn2OHHv7TUA0ehJ6sWgzZMlrji0H8-1753341693626-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9641a94ca94a95ab-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_6881defcf9e4819db82984e169f064780096ff05eb584515",
+          "object": "response",
+          "created_at": 1753341693,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: OpenAIAgent\nInstructions: # System context\nYou are part of a multi-agent system called the Agents SDK, designed to make agent coordination and execution easy. Agents uses two primary abstraction: **Agents** and **Handoffs**. An agent encompasses instructions and tools and can hand off a conversation to another agent when appropriate. Handoffs are achieved by calling a handoff function, generally named `transfer_to_<agent_name>`. Transfers between agents are handled seamlessly in the background; do not mention or draw attention to these transfers in your conversation with the user.\n\nYou use OpenAI models\n\nAvailable tools:\n- transfer_to_anthropic_agent: Handoff to the AnthropicAgent agent to handle the request.",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-3.5-turbo-0125",
+          "output": [
+            {
+              "id": "fc_6881defd5d50819d8de95a1f5bc75e670096ff05eb584515",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\"input\":\"Let's start with OpenAI models and then handoff to Anthropic for further assistance.\"}",
+              "call_id": "call_4QFoxqaKdcYAfIVVwkg78nDW",
+              "name": "transfer_to_anthropic_agent"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Handoff to the AnthropicAgent agent to handle the request.",
+              "name": "transfer_to_anthropic_agent",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the AnthropicAgent agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 222,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 36,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 258
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 07:21:31 GMT
+recorded_with: VCR 6.3.1

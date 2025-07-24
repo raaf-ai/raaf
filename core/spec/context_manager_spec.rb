@@ -6,7 +6,7 @@ RSpec.describe RAAF::ContextManager do
   describe "#initialize" do
     it "initializes with default values" do
       manager = described_class.new
-      expect(manager.max_tokens).to be > 0
+      expect(manager.max_tokens).to be_positive
       expect(manager.preserve_system).to be true
       expect(manager.preserve_recent).to eq(5)
     end
@@ -53,7 +53,7 @@ RSpec.describe RAAF::ContextManager do
     it "handles tiktoken encoding errors gracefully" do
       allow(Tiktoken).to receive(:encoding_for_model).and_raise(StandardError)
       expect(Tiktoken).to receive(:get_encoding).with("cl100k_base")
-      
+
       manager = described_class.new(model: "invalid-model")
       expect(manager).to be_a(described_class)
     end
@@ -65,26 +65,26 @@ RSpec.describe RAAF::ContextManager do
     it "counts tokens for basic message" do
       message = { role: "user", content: "Hello world" }
       tokens = manager.count_message_tokens(message)
-      expect(tokens).to be > 0
+      expect(tokens).to be_positive
       expect(tokens).to be < 20 # Should be reasonable for short message
     end
 
     it "counts tokens for system message" do
       message = { role: "system", content: "You are a helpful assistant" }
       tokens = manager.count_message_tokens(message)
-      expect(tokens).to be > 0
+      expect(tokens).to be_positive
     end
 
     it "handles empty content" do
       message = { role: "user", content: "" }
       tokens = manager.count_message_tokens(message)
-      expect(tokens).to be > 0 # Should have base overhead
+      expect(tokens).to be_positive # Should have base overhead
     end
 
     it "handles nil content" do
       message = { role: "user" }
       tokens = manager.count_message_tokens(message)
-      expect(tokens).to be > 0 # Should have base overhead
+      expect(tokens).to be_positive # Should have base overhead
     end
 
     it "counts tokens for messages with tool calls" do
@@ -141,7 +141,7 @@ RSpec.describe RAAF::ContextManager do
         ]
       }
       tokens = manager.count_message_tokens(message)
-      expect(tokens).to be > 0 # Should have base overhead
+      expect(tokens).to be_positive # Should have base overhead
     end
   end
 
@@ -175,10 +175,10 @@ RSpec.describe RAAF::ContextManager do
         { role: "user", content: "Hello" },
         { role: "assistant", content: "Hi!" }
       ]
-      
+
       total_tokens = manager.count_total_tokens(messages)
       individual_sum = messages.sum { |msg| manager.count_message_tokens(msg) }
-      
+
       expect(total_tokens).to be > individual_sum
     end
   end
@@ -216,7 +216,7 @@ RSpec.describe RAAF::ContextManager do
       it "preserves system messages when preserve_system is true" do
         manager = described_class.new(model: "gpt-4o", max_tokens: 100, preserve_system: true)
         result = manager.manage_context(large_messages)
-        
+
         system_messages = result.select { |msg| msg[:role] == "system" && !msg[:content].include?("[Note:") }
         expect(system_messages.length).to be >= 1
       end
@@ -224,7 +224,7 @@ RSpec.describe RAAF::ContextManager do
       it "does not preserve system messages when preserve_system is false" do
         manager = described_class.new(model: "gpt-4o", max_tokens: 100, preserve_system: false)
         result = manager.manage_context(large_messages)
-        
+
         original_system_messages = result.select { |msg| msg[:role] == "system" && !msg[:content].include?("[Note:") }
         expect(original_system_messages).to be_empty
       end
@@ -232,7 +232,7 @@ RSpec.describe RAAF::ContextManager do
       it "preserves recent messages" do
         manager = described_class.new(model: "gpt-4o", max_tokens: 100, preserve_recent: 2)
         result = manager.manage_context(large_messages)
-        
+
         # Should preserve the last 2 messages
         expect(result.last[:content]).to eq("Latest question")
         expect(result[-2][:content]).to include("examples of functional")
@@ -240,7 +240,7 @@ RSpec.describe RAAF::ContextManager do
 
       it "adds truncation notice when messages are removed" do
         result = manager.manage_context(large_messages)
-        
+
         truncation_messages = result.select { |msg| msg[:content]&.include?("[Note:") }
         expect(truncation_messages.length).to eq(1)
         expect(truncation_messages.first[:role]).to eq("system")
@@ -268,10 +268,10 @@ RSpec.describe RAAF::ContextManager do
       it "preserves correct number of recent messages" do
         manager = described_class.new(model: "gpt-4o", max_tokens: 50, preserve_recent: 3, preserve_system: false)
         result = manager.manage_context(messages)
-        
+
         # Should include the last 3 messages
         expect(result.last[:content]).to eq("Message 10")
-        expect(result[-2][:content]).to eq("Message 9") 
+        expect(result[-2][:content]).to eq("Message 9")
         expect(result[-3][:content]).to eq("Message 8")
       end
 
@@ -280,7 +280,7 @@ RSpec.describe RAAF::ContextManager do
           { role: "user", content: "Message 1" },
           { role: "user", content: "Message 2" }
         ]
-        
+
         manager = described_class.new(model: "gpt-4o", max_tokens: 1000, preserve_recent: 10)
         result = manager.manage_context(small_messages)
         expect(result).to eq(small_messages)
@@ -303,18 +303,18 @@ RSpec.describe RAAF::ContextManager do
 
       it "adds older messages from newest to oldest" do
         manager = described_class.new(
-          model: "gpt-4o", 
+          model: "gpt-4o",
           max_tokens: 200, # Enough for some but not all
           preserve_recent: 2,
           preserve_system: true
         )
-        
+
         result = manager.manage_context(messages)
-        
+
         # Should have system message, some older messages (newer first), and recent messages
         system_msgs = result.select { |m| m[:role] == "system" && !m[:content].include?("[Note:") }
         expect(system_msgs.length).to eq(1)
-        
+
         # Recent messages should be at the end
         expect(result.last[:content]).to eq("Recent message 2")
         expect(result[-2][:content]).to eq("Recent response 1")
@@ -327,14 +327,14 @@ RSpec.describe RAAF::ContextManager do
           preserve_recent: 2,
           preserve_system: true
         )
-        
+
         result = manager.manage_context(messages)
-        
+
         # Find positions of messages to ensure order is maintained
         system_idx = result.find_index { |m| m[:content] == "System message" }
         recent1_idx = result.find_index { |m| m[:content] == "Recent response 1" }
         recent2_idx = result.find_index { |m| m[:content] == "Recent message 2" }
-        
+
         expect(system_idx).to be < recent1_idx
         expect(recent1_idx).to be < recent2_idx
       end
@@ -347,7 +347,7 @@ RSpec.describe RAAF::ContextManager do
     it "handles messages with nil role" do
       message = { content: "Hello" }
       tokens = manager.count_message_tokens(message)
-      expect(tokens).to be > 0
+      expect(tokens).to be_positive
     end
 
     it "handles very small token limits" do
@@ -356,7 +356,7 @@ RSpec.describe RAAF::ContextManager do
         { role: "system", content: "Help" }, # Shorter system message
         { role: "user", content: "Hi" }
       ]
-      
+
       result = small_manager.manage_context(messages)
       total_tokens = small_manager.count_total_tokens(result)
       # With very small limits, may still exceed due to minimum required messages
@@ -370,7 +370,7 @@ RSpec.describe RAAF::ContextManager do
         { role: "user", content: "Message 2" },
         { role: "user", content: "Message 3" }
       ]
-      
+
       result = manager.manage_context(messages)
       # Should still return valid result
       expect(result).to be_an(Array)
@@ -380,7 +380,7 @@ RSpec.describe RAAF::ContextManager do
     it "handles single message exceeding token limit" do
       huge_message = { role: "user", content: "x" * 1000 } # Very long message
       small_manager = described_class.new(model: "gpt-4o", max_tokens: 50)
-      
+
       result = small_manager.manage_context([huge_message])
       # Should handle gracefully, even if it exceeds limit
       expect(result).to be_an(Array)
@@ -423,7 +423,7 @@ RSpec.describe RAAF::ContextManager do
             }
           }
         ]
-        
+
         tokens = manager.send(:estimate_tool_call_tokens, tool_calls)
         expect(tokens).to be > 10
       end
@@ -442,7 +442,7 @@ RSpec.describe RAAF::ContextManager do
             }
           }
         ]
-        
+
         tokens = manager.send(:estimate_tool_call_tokens, tool_calls)
         expect(tokens).to eq(10) # Base overhead only
       end

@@ -50,9 +50,9 @@ RSpec.describe "RAAF::Lifecycle" do
         custom_hooks.on_agent_end(context, other_agent, output2)
 
         expect(context.metadata[:outputs]).to eq([
-          { agent: "TestAgent", output: output1 },
-          { agent: "OtherAgent", output: output2 }
-        ])
+                                                   { agent: "TestAgent", output: output1 },
+                                                   { agent: "OtherAgent", output: output2 }
+                                                 ])
       end
     end
 
@@ -73,9 +73,9 @@ RSpec.describe "RAAF::Lifecycle" do
         custom_hooks.on_handoff(context, other_agent, agent)
 
         expect(context.metadata[:handoff_chain]).to eq([
-          "TestAgent -> OtherAgent",
-          "OtherAgent -> TestAgent"
-        ])
+                                                         "TestAgent -> OtherAgent",
+                                                         "OtherAgent -> TestAgent"
+                                                       ])
       end
     end
 
@@ -91,12 +91,13 @@ RSpec.describe "RAAF::Lifecycle" do
 
       it "can be overridden to validate tool usage" do
         custom_hooks = Class.new(described_class) do
+          # rubocop:disable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
           ALLOWED_TOOLS = %w[allowed_tool].freeze
+          # rubocop:enable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
 
-          def on_tool_start(context, agent, tool, arguments = {})
-            unless ALLOWED_TOOLS.include?(tool.name)
-              raise "Unauthorized tool: #{tool.name}"
-            end
+          def on_tool_start(context, _agent, tool, _arguments = {})
+            raise "Unauthorized tool: #{tool.name}" unless ALLOWED_TOOLS.include?(tool.name)
+
             context.metadata[:tool_calls] ||= []
             context.metadata[:tool_calls] << tool.name
           end
@@ -110,9 +111,9 @@ RSpec.describe "RAAF::Lifecycle" do
         expect(context.metadata[:tool_calls]).to include("allowed_tool")
 
         # Should raise error with forbidden tool
-        expect {
+        expect do
           custom_hooks.on_tool_start(context, agent, forbidden_tool)
-        }.to raise_error("Unauthorized tool: forbidden_tool")
+        end.to raise_error("Unauthorized tool: forbidden_tool")
       end
     end
 
@@ -124,7 +125,7 @@ RSpec.describe "RAAF::Lifecycle" do
 
       it "can be overridden to log tool results" do
         custom_hooks = Class.new(described_class) do
-          def on_tool_end(context, agent, tool, result)
+          def on_tool_end(context, _agent, tool, result)
             context.metadata[:tool_results] ||= []
             context.metadata[:tool_results] << {
               tool: tool.name,
@@ -141,9 +142,9 @@ RSpec.describe "RAAF::Lifecycle" do
         custom_hooks.on_tool_end(context, agent, tool, error_result)
 
         expect(context.metadata[:tool_results]).to eq([
-          { tool: "test_tool", success: true, result_size: success_result.length },
-          { tool: "test_tool", success: false, result_size: error_result.to_s.length }
-        ])
+                                                        { tool: "test_tool", success: true, result_size: success_result.length },
+                                                        { tool: "test_tool", success: false, result_size: error_result.to_s.length }
+                                                      ])
       end
     end
 
@@ -219,11 +220,11 @@ RSpec.describe "RAAF::Lifecycle" do
 
       it "can be overridden to calculate session duration" do
         custom_hooks = Class.new(described_class) do
-          def on_start(context, agent)
+          def on_start(context, _agent)
             context.metadata[:session_start] = Time.now
           end
 
-          def on_end(context, agent, output)
+          def on_end(context, _agent, output)
             start_time = context.metadata[:session_start]
             if start_time
               duration = Time.now - start_time
@@ -236,12 +237,12 @@ RSpec.describe "RAAF::Lifecycle" do
         # Start session
         custom_hooks.on_start(context, agent)
         sleep(0.01) # Small delay to ensure measurable duration
-        
+
         # End session
         output = { result: "completed" }
         custom_hooks.on_end(context, agent, output)
 
-        expect(context.metadata[:session_duration]).to be > 0
+        expect(context.metadata[:session_duration]).to be_positive
         expect(context.metadata[:final_output]).to eq(output)
       end
     end
@@ -253,7 +254,7 @@ RSpec.describe "RAAF::Lifecycle" do
 
       it "can be overridden to track handoff sources" do
         custom_hooks = Class.new(described_class) do
-          def on_handoff(context, agent, source)
+          def on_handoff(context, _agent, source)
             context.metadata[:received_from] = source.name
             context.metadata[:handoff_timestamp] = Time.now
           end
@@ -285,16 +286,16 @@ RSpec.describe "RAAF::Lifecycle" do
             @allowed_tools = allowed_tools
           end
 
-          def on_tool_start(context, agent, tool, arguments = {})
-            unless @allowed_tools.include?(tool.name)
-              raise "Agent #{agent.name} cannot use tool #{tool.name}"
-            end
+          def on_tool_start(_context, agent, tool, _arguments = {})
+            return if @allowed_tools.include?(tool.name)
+
+            raise "Agent #{agent.name} cannot use tool #{tool.name}"
           end
         end
 
         # Create hooks with specific allowed tools
-        restricted_hooks = custom_hooks.new(["search", "email"])
-        
+        restricted_hooks = custom_hooks.new(%w[search email])
+
         search_tool = double("tool", name: "search")
         email_tool = double("tool", name: "email")
         database_tool = double("tool", name: "database")
@@ -304,9 +305,9 @@ RSpec.describe "RAAF::Lifecycle" do
         expect { restricted_hooks.on_tool_start(context, agent, email_tool) }.not_to raise_error
 
         # Should fail with disallowed tool
-        expect {
+        expect do
           restricted_hooks.on_tool_start(context, agent, database_tool)
-        }.to raise_error("Agent TestAgent cannot use tool database")
+        end.to raise_error("Agent TestAgent cannot use tool database")
       end
     end
 
@@ -455,27 +456,27 @@ RSpec.describe "RAAF::Lifecycle" do
     describe "async method delegation" do
       it "delegates async methods to sync versions by default" do
         custom_hooks = Class.new(described_class) do
-          def on_agent_start(context, agent)
+          def on_agent_start(context, _agent)
             context.metadata[:sync_called] = true
           end
 
-          def on_agent_end(context, agent, output)
+          def on_agent_end(context, _agent, _output)
             context.metadata[:sync_end_called] = true
           end
 
-          def on_handoff(context, from_agent, to_agent)
+          def on_handoff(context, _from_agent, _to_agent)
             context.metadata[:sync_handoff_called] = true
           end
 
-          def on_tool_start(context, agent, tool, arguments = {})
+          def on_tool_start(context, _agent, _tool, _arguments = {})
             context.metadata[:sync_tool_start_called] = true
           end
 
-          def on_tool_end(context, agent, tool, result)
+          def on_tool_end(context, _agent, _tool, _result)
             context.metadata[:sync_tool_end_called] = true
           end
 
-          def on_error(context, agent, error)
+          def on_error(context, _agent, _error)
             context.metadata[:sync_error_called] = true
           end
         end.new
@@ -499,11 +500,11 @@ RSpec.describe "RAAF::Lifecycle" do
 
       it "can override async methods independently" do
         custom_hooks = Class.new(described_class) do
-          def on_agent_start(context, agent)
+          def on_agent_start(context, _agent)
             context.metadata[:sync_called] = true
           end
 
-          def on_agent_start_async(context, agent)
+          def on_agent_start_async(context, _agent)
             context.metadata[:async_called] = true
           end
         end.new
@@ -528,27 +529,27 @@ RSpec.describe "RAAF::Lifecycle" do
     describe "async method delegation" do
       it "delegates async methods to sync versions by default" do
         custom_hooks = Class.new(described_class) do
-          def on_start(context, agent)
+          def on_start(context, _agent)
             context.metadata[:sync_start] = true
           end
 
-          def on_end(context, agent, output)
+          def on_end(context, _agent, _output)
             context.metadata[:sync_end] = true
           end
 
-          def on_handoff(context, agent, source)
+          def on_handoff(context, _agent, _source)
             context.metadata[:sync_handoff] = true
           end
 
-          def on_tool_start(context, agent, tool, arguments = {})
+          def on_tool_start(context, _agent, _tool, _arguments = {})
             context.metadata[:sync_tool_start] = true
           end
 
-          def on_tool_end(context, agent, tool, result)
+          def on_tool_end(context, _agent, _tool, _result)
             context.metadata[:sync_tool_end] = true
           end
 
-          def on_error(context, agent, error)
+          def on_error(context, _agent, _error)
             context.metadata[:sync_error] = true
           end
         end.new
@@ -572,11 +573,11 @@ RSpec.describe "RAAF::Lifecycle" do
 
       it "can override async methods for custom async behavior" do
         custom_hooks = Class.new(described_class) do
-          def on_start(context, agent)
+          def on_start(context, _agent)
             context.metadata[:sync_start] = true
           end
 
-          def on_start_async(context, agent)
+          def on_start_async(context, _agent)
             # Simulate async behavior
             context.metadata[:async_start] = true
             context.metadata[:async_timestamp] = Time.now
@@ -610,19 +611,19 @@ RSpec.describe "RAAF::Lifecycle" do
           context.metadata[:log] << "Agent #{agent.name} started"
         end
 
-        def on_tool_start(context, agent, tool, arguments = {})
+        def on_tool_start(context, agent, tool, _arguments = {})
           context.metadata[:log] ||= []
           context.metadata[:log] << "Tool #{tool.name} called by #{agent.name}"
         end
       end.new
 
       metrics_hooks = Class.new(RAAF::RunHooks) do
-        def on_agent_start(context, agent)
+        def on_agent_start(context, _agent)
           context.metadata[:metrics] ||= { agent_starts: 0, tool_calls: 0 }
           context.metadata[:metrics][:agent_starts] += 1
         end
 
-        def on_tool_start(context, agent, tool, arguments = {})
+        def on_tool_start(context, _agent, _tool, _arguments = {})
           context.metadata[:metrics] ||= { agent_starts: 0, tool_calls: 0 }
           context.metadata[:metrics][:tool_calls] += 1
         end
@@ -637,35 +638,35 @@ RSpec.describe "RAAF::Lifecycle" do
 
       # Verify both hooks were called
       expect(context.metadata[:log]).to eq([
-        "Agent TestAgent started",
-        "Tool test_tool called by TestAgent"
-      ])
+                                             "Agent TestAgent started",
+                                             "Tool test_tool called by TestAgent"
+                                           ])
 
       expect(context.metadata[:metrics]).to eq({
-        agent_starts: 1,
-        tool_calls: 1
-      })
+                                                 agent_starts: 1,
+                                                 tool_calls: 1
+                                               })
     end
 
     it "supports agent-specific hooks working independently" do
       # Create different agent hooks
       customer_hooks = Class.new(RAAF::AgentHooks) do
-        def on_start(context, agent)
+        def on_start(context, _agent)
           context.metadata[:customer_session] = Time.now
         end
 
-        def on_tool_start(context, agent, tool, arguments = {})
+        def on_tool_start(context, _agent, tool, _arguments = {})
           context.metadata[:customer_tools] ||= []
           context.metadata[:customer_tools] << tool.name
         end
       end.new
 
       admin_hooks = Class.new(RAAF::AgentHooks) do
-        def on_start(context, agent)
+        def on_start(context, _agent)
           context.metadata[:admin_session] = { started: Time.now, privileged: true }
         end
 
-        def on_tool_start(context, agent, tool, arguments = {})
+        def on_tool_start(context, _agent, _tool, _arguments = {})
           # Admin can use any tool without restrictions
           context.metadata[:admin_tool_usage] ||= 0
           context.metadata[:admin_tool_usage] += 1

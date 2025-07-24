@@ -1,0 +1,26 @@
+# DISABLED - All gem workflows except core
+# This file serves as documentation of disabled workflows
+# Only the core gem CI is currently active
+
+# The following workflows would be enabled for each gem:
+# - tracing-ci.yml
+# - memory-ci.yml  
+# - tools-ci.yml
+# - guardrails-ci.yml
+# - providers-ci.yml
+# - dsl-ci.yml
+# - rails-ci.yml
+# - streaming-ci.yml
+# - analytics-ci.yml
+# - compliance-ci.yml
+# - debug-ci.yml
+# - guides-ci.yml
+# - mcp-ci.yml
+# - misc-ci.yml
+# - testing-ci.yml
+
+# Currently focusing development on core gem only
+# To re-enable a gem workflow:
+# 1. Create <gem-name>-ci.yml based on core-ci.yml template
+# 2. Update paths to target specific gem directory
+# 3. Update gem name and build commands appropriately

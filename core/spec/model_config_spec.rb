@@ -27,7 +27,7 @@ RSpec.describe RAAF::Config::ModelConfig do
         max_tokens: 1000,
         model: "gpt-4o",
         top_p: 0.9,
-        stop: ["END", "STOP"],
+        stop: %w[END STOP],
         frequency_penalty: 0.5,
         presence_penalty: 0.3,
         user: "user123",
@@ -40,7 +40,7 @@ RSpec.describe RAAF::Config::ModelConfig do
       expect(config.max_tokens).to eq(1000)
       expect(config.model).to eq("gpt-4o")
       expect(config.top_p).to eq(0.9)
-      expect(config.stop).to eq(["END", "STOP"])
+      expect(config.stop).to eq(%w[END STOP])
       expect(config.frequency_penalty).to eq(0.5)
       expect(config.presence_penalty).to eq(0.3)
       expect(config.user).to eq("user123")
@@ -98,7 +98,7 @@ RSpec.describe RAAF::Config::ModelConfig do
         max_tokens: nil,
         model: "gpt-4o",
         top_p: nil,
-        stream: false  # false is falsy, so excluded
+        stream: false # false is falsy, so excluded
       )
 
       params = config.to_model_params
@@ -119,7 +119,7 @@ RSpec.describe RAAF::Config::ModelConfig do
         presence_penalty: 0.2,
         user: "user456",
         stream: true,
-        parallel_tool_calls: true  # Must be truthy to be included
+        parallel_tool_calls: true # Must be truthy to be included
       )
 
       params = config.to_model_params
@@ -328,7 +328,7 @@ RSpec.describe RAAF::Config::ModelConfig do
 
       expect(merged).not_to be(base_config)
       expect(merged).not_to be(other_config)
-      expect(base_config.temperature).to eq(0.5)  # Original unchanged
+      expect(base_config.temperature).to eq(0.5) # Original unchanged
     end
 
     it "merges all parameters correctly" do
@@ -518,9 +518,9 @@ RSpec.describe RAAF::Config::ModelConfig do
       )
 
       specialized = base.merge(described_class.new(
-        temperature: 0.9,
-        stream: true
-      ))
+                                 temperature: 0.9,
+                                 stream: true
+                               ))
 
       expect(specialized.temperature).to eq(0.9)
       expect(specialized.max_tokens).to eq(500)  # Inherited

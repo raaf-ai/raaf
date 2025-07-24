@@ -3,7 +3,9 @@
 require "spec_helper"
 require "webmock/rspec"
 
+# rubocop:disable RSpec/DescribeMethod
 RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
+  # rubocop:enable RSpec/DescribeMethod
   let(:api_key) { "sk-test-key" }
   let(:provider) { described_class.new(api_key: api_key) }
 
@@ -42,8 +44,8 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
         model: model
       )
 
-      expect(result).to include(:id, :output, :usage)
-      expect(result[:id]).to eq("resp_test_123")
+      expect(result).to include("id", "output", "usage")
+      expect(result["id"]).to eq("resp_test_123")
     end
 
     context "with tools parameter" do
@@ -74,7 +76,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
           tools: tools
         )
 
-        expect(result).to include(:id, :output, :usage)
+        expect(result).to include("id", "output", "usage")
         expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
           .with(body: hash_including("tools"))
       end
@@ -115,9 +117,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_return(status: 400, body: error_body.to_json)
 
-      expect {
+      expect do
         provider.responses_completion(messages: messages, model: model)
-      }.to raise_error(RAAF::Models::APIError, /Invalid request format/)
+      end.to raise_error(RAAF::Models::APIError, /Invalid request format/)
     end
 
     it "handles 401 Unauthorized errors" do
@@ -131,18 +133,18 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_return(status: 401, body: error_body.to_json)
 
-      expect {
+      expect do
         provider.responses_completion(messages: messages, model: model)
-      }.to raise_error(RAAF::Models::APIError, /Invalid API key/)
+      end.to raise_error(RAAF::Models::APIError, /Invalid API key/)
     end
 
     it "handles network timeouts" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_timeout
 
-      expect {
+      expect do
         provider.responses_completion(messages: messages, model: model)
-      }.to raise_error(Timeout::Error)
+      end.to raise_error(Timeout::Error)
     end
   end
 
@@ -157,7 +159,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
       provider.responses_completion(messages: messages, model: model)
 
       expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with(headers: { 'Authorization' => 'Bearer sk-test-key' })
+        .with(headers: { "Authorization" => "Bearer sk-test-key" })
     end
 
     it "includes correct content-type header" do
@@ -167,7 +169,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
       provider.responses_completion(messages: messages, model: model)
 
       expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with(headers: { 'Content-Type' => 'application/json' })
+        .with(headers: { "Content-Type" => "application/json" })
     end
 
     it "includes user-agent header" do
@@ -177,7 +179,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
       provider.responses_completion(messages: messages, model: model)
 
       expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with(headers: { 'User-Agent' => /Agents/ })
+        .with(headers: { "User-Agent" => /Agents/ })
     end
   end
 
@@ -194,7 +196,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
           stream: true
         )
 
+        # rubocop:disable Lint/EmptyBlock
         provider.stream_completion(messages: messages, model: model) {}
+        # rubocop:enable Lint/EmptyBlock
       end
 
       it "passes tools parameter to streaming" do
@@ -207,7 +211,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
           stream: true
         )
 
+        # rubocop:disable Lint/EmptyBlock
         provider.stream_completion(messages: messages, model: model, tools: tools) {}
+        # rubocop:enable Lint/EmptyBlock
       end
     end
   end
@@ -221,7 +227,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
         .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
 
       result = provider.responses_completion(messages: [], model: model)
-      expect(result[:id]).to eq("test")
+      expect(result["id"]).to eq("test")
     end
 
     it "handles very large message content" do
@@ -231,18 +237,18 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Basic Coverage Tests" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
 
-      expect {
+      expect do
         provider.responses_completion(messages: large_messages, model: model)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles non-JSON response bodies" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_return(status: 200, body: "Not JSON")
 
-      expect {
+      expect do
         provider.responses_completion(messages: messages, model: model)
-      }.to raise_error(JSON::ParserError)
+      end.to raise_error(JSON::ParserError)
     end
   end
 

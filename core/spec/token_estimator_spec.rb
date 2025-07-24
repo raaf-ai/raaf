@@ -76,7 +76,7 @@ RSpec.describe RAAF::TokenEstimator do
         model: model
       )
 
-      expect(result["input_tokens"]).to be > 0
+      expect(result["input_tokens"]).to be_positive
       expect(result["output_tokens"]).to eq(0)
       expect(result["total_tokens"]).to eq(result["input_tokens"])
     end
@@ -88,8 +88,8 @@ RSpec.describe RAAF::TokenEstimator do
         model: model
       )
 
-      expect(result["input_tokens"]).to be > 0
-      expect(result["output_tokens"]).to be > 0
+      expect(result["input_tokens"]).to be_positive
+      expect(result["output_tokens"]).to be_positive
       expect(result["total_tokens"]).to eq(result["input_tokens"] + result["output_tokens"])
     end
 
@@ -104,9 +104,9 @@ RSpec.describe RAAF::TokenEstimator do
     end
 
     it "uses default model when none provided" do
-      expect {
+      expect do
         described_class.estimate_usage(messages: messages)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "handles empty messages array" do
@@ -117,7 +117,7 @@ RSpec.describe RAAF::TokenEstimator do
       )
 
       expect(result["input_tokens"]).to eq(0)
-      expect(result["output_tokens"]).to be > 0
+      expect(result["output_tokens"]).to be_positive
     end
   end
 
@@ -131,7 +131,7 @@ RSpec.describe RAAF::TokenEstimator do
 
     it "returns total tokens for message array" do
       result = described_class.estimate_messages_tokens(messages, "gpt-4o")
-      expect(result).to be > 0
+      expect(result).to be_positive
     end
 
     it "returns 0 for empty array" do
@@ -161,8 +161,8 @@ RSpec.describe RAAF::TokenEstimator do
     it "handles basic message with role and content" do
       message = { role: "user", content: "Hello, world!" }
       result = described_class.estimate_message_tokens(message, "gpt-4o")
-      
-      expect(result).to be > 0
+
+      expect(result).to be_positive
       # Should include base message overhead plus content
       expect(result).to be >= 3 # tokens_per_message
     end
@@ -170,17 +170,17 @@ RSpec.describe RAAF::TokenEstimator do
     it "handles string keys in message hash" do
       message = { "role" => "assistant", "content" => "Hello back!" }
       result = described_class.estimate_message_tokens(message, "gpt-4o")
-      
-      expect(result).to be > 0
+
+      expect(result).to be_positive
     end
 
     it "handles message with name field" do
       message = { role: "user", content: "Hello", name: "Alice" }
       result_with_name = described_class.estimate_message_tokens(message, "gpt-4o")
-      
+
       message_without_name = { role: "user", content: "Hello" }
       result_without_name = described_class.estimate_message_tokens(message_without_name, "gpt-4o")
-      
+
       # Message with name should have more tokens
       expect(result_with_name).to be > result_without_name
     end
@@ -196,12 +196,12 @@ RSpec.describe RAAF::TokenEstimator do
           }
         }]
       }
-      
+
       result_with_tools = described_class.estimate_message_tokens(message, "gpt-4o")
-      
+
       message_without_tools = { role: "assistant", content: "I'll help you with that." }
       result_without_tools = described_class.estimate_message_tokens(message_without_tools, "gpt-4o")
-      
+
       # Message with tool calls should have more tokens
       expect(result_with_tools).to be > result_without_tools
     end
@@ -209,14 +209,14 @@ RSpec.describe RAAF::TokenEstimator do
     it "handles empty content gracefully" do
       message = { role: "user", content: "" }
       result = described_class.estimate_message_tokens(message, "gpt-4o")
-      
+
       expect(result).to be >= 3 # Should still have base overhead
     end
 
     it "handles missing content gracefully" do
       message = { role: "user" }
       result = described_class.estimate_message_tokens(message, "gpt-4o")
-      
+
       expect(result).to be >= 3 # Should still have base overhead
     end
 
@@ -244,12 +244,12 @@ RSpec.describe RAAF::TokenEstimator do
 
     it "returns positive count for non-empty text" do
       result = described_class.estimate_text_tokens("Hello, world!", "gpt-4o")
-      expect(result).to be > 0
+      expect(result).to be_positive
     end
 
     it "uses tiktoken for token counting" do
       text = "The quick brown fox jumps over the lazy dog."
-      
+
       # Should delegate to count_tokens_with_tiktoken
       expect(described_class).to receive(:count_tokens_with_tiktoken).with(text, "gpt-4o")
       described_class.estimate_text_tokens(text, "gpt-4o")
@@ -278,28 +278,28 @@ RSpec.describe RAAF::TokenEstimator do
 
     it "uses gpt-4 encoding for gpt-4 models" do
       text = "Hello, world!"
-      
+
       expect(Tiktoken).to receive(:encoding_for_model).with("gpt-4").and_call_original
       described_class.send(:count_tokens_with_tiktoken, text, "gpt-4")
     end
 
     it "uses gpt-4 encoding for gpt-4 variant models" do
       text = "Hello, world!"
-      
+
       expect(Tiktoken).to receive(:encoding_for_model).with("gpt-4").and_call_original
       described_class.send(:count_tokens_with_tiktoken, text, "gpt-4o")
     end
 
     it "uses gpt-3.5-turbo encoding for gpt-3.5 models" do
       text = "Hello, world!"
-      
+
       expect(Tiktoken).to receive(:encoding_for_model).with("gpt-3.5-turbo").and_call_original
       described_class.send(:count_tokens_with_tiktoken, text, "gpt-3.5-turbo")
     end
 
     it "uses cl100k_base encoding for other models" do
       text = "Hello, world!"
-      
+
       expect(Tiktoken).to receive(:get_encoding).with("cl100k_base").and_call_original
       described_class.send(:count_tokens_with_tiktoken, text, "claude-3")
     end
@@ -308,7 +308,7 @@ RSpec.describe RAAF::TokenEstimator do
       # Test with a known simple phrase
       text = "Hello"
       result = described_class.send(:count_tokens_with_tiktoken, text, "gpt-4")
-      
+
       # Should return a reasonable token count (exact count depends on tiktoken)
       expect(result).to be_between(1, 3)
     end
@@ -323,16 +323,16 @@ RSpec.describe RAAF::TokenEstimator do
       it "falls back to character-based estimation" do
         text = "A" * 1000 # 1000 characters
         result = described_class.send(:count_tokens_with_tiktoken, text, "gpt-4o")
-        
+
         # Should use character ratio for gpt-4o (250 tokens per 1000 chars)
         expect(result).to be_between(240, 260) # Allow for rounding
       end
 
       it "logs the warning" do
         text = "Hello, world!"
-        
+
         described_class.send(:count_tokens_with_tiktoken, text, "gpt-4o")
-        
+
         expect(RAAF::Logging).to have_received(:warn).with(
           "Tiktoken encoding failed, falling back to estimation",
           hash_including(:model, :error, :error_class)
@@ -342,7 +342,7 @@ RSpec.describe RAAF::TokenEstimator do
       it "returns at least 1 token for non-empty text" do
         text = "x"
         result = described_class.send(:count_tokens_with_tiktoken, text, "gpt-4o")
-        
+
         expect(result).to be >= 1
       end
     end
@@ -371,9 +371,9 @@ RSpec.describe RAAF::TokenEstimator do
           arguments: '{"location": "New York", "units": "celsius"}'
         }
       }]
-      
+
       result = described_class.estimate_tool_calls_tokens(tool_calls, "gpt-4o")
-      
+
       # Should include base overhead (10) plus function name and arguments
       expect(result).to be > 10
     end
@@ -385,16 +385,16 @@ RSpec.describe RAAF::TokenEstimator do
           "arguments" => '{"query": "Ruby gems"}'
         }
       }]
-      
+
       result = described_class.estimate_tool_calls_tokens(tool_calls, "gpt-4o")
       expect(result).to be > 10
     end
 
     it "handles tool calls missing function data gracefully" do
       tool_calls = [{}] # Empty tool call
-      
+
       result = described_class.estimate_tool_calls_tokens(tool_calls, "gpt-4o")
-      
+
       # Should still have base overhead (actual result is 11)
       expect(result).to eq(11)
     end
@@ -406,9 +406,9 @@ RSpec.describe RAAF::TokenEstimator do
           # Missing arguments
         }
       }]
-      
+
       result = described_class.estimate_tool_calls_tokens(tool_calls, "gpt-4o")
-      
+
       # Should handle missing data gracefully
       expect(result).to be > 10
     end
@@ -428,18 +428,18 @@ RSpec.describe RAAF::TokenEstimator do
           }
         }
       ]
-      
+
       result = described_class.estimate_tool_calls_tokens(tool_calls, "gpt-4o")
-      
+
       # Should be at least double the base overhead
       expect(result).to be >= 20
     end
 
     it "handles non-hash elements in tool calls array" do
       tool_calls = ["not a hash", { function: { name: "valid_tool" } }]
-      
+
       result = described_class.estimate_tool_calls_tokens(tool_calls, "gpt-4o")
-      
+
       # Should handle the invalid element and process the valid one
       expect(result).to be >= 10
     end
@@ -458,7 +458,7 @@ RSpec.describe RAAF::TokenEstimator do
 
     it "handles basic format overhead" do
       response_format = { type: "text" }
-      
+
       result = described_class.estimate_response_format_tokens(response_format, "gpt-4o")
       expect(result).to eq(5)
     end
@@ -477,9 +477,9 @@ RSpec.describe RAAF::TokenEstimator do
           }
         }
       }
-      
+
       result = described_class.estimate_response_format_tokens(response_format, "gpt-4o")
-      
+
       # Should be more than basic overhead due to schema complexity
       expect(result).to be > 5
     end
@@ -489,9 +489,9 @@ RSpec.describe RAAF::TokenEstimator do
         type: "json_schema"
         # Missing json_schema field
       }
-      
+
       result = described_class.estimate_response_format_tokens(response_format, "gpt-4o")
-      
+
       # Should handle missing schema gracefully
       expect(result).to be >= 0
     end
@@ -504,7 +504,7 @@ RSpec.describe RAAF::TokenEstimator do
           schema: { type: "string" }
         }
       }
-      
+
       complex_schema = {
         type: "json_schema",
         json_schema: {
@@ -520,7 +520,7 @@ RSpec.describe RAAF::TokenEstimator do
                   preferences: {
                     type: "object",
                     properties: {
-                      theme: { type: "string", enum: ["light", "dark"] },
+                      theme: { type: "string", enum: %w[light dark] },
                       notifications: { type: "boolean" }
                     }
                   }
@@ -530,10 +530,10 @@ RSpec.describe RAAF::TokenEstimator do
           }
         }
       }
-      
+
       simple_result = described_class.estimate_response_format_tokens(simple_schema, "gpt-4o")
       complex_result = described_class.estimate_response_format_tokens(complex_schema, "gpt-4o")
-      
+
       # Complex schema should require more tokens
       expect(complex_result).to be > simple_result
     end
@@ -589,10 +589,10 @@ RSpec.describe RAAF::TokenEstimator do
 
       # Text tokens should be consistent whether called directly or through messages
       direct_tokens = described_class.estimate_text_tokens(text, model)
-      
+
       message = { role: "user", content: text }
       message_tokens = described_class.estimate_message_tokens(message, model)
-      
+
       # Message tokens should be higher due to role and formatting overhead
       expect(message_tokens).to be > direct_tokens
       # But the difference should be reasonable (role + overhead)
@@ -603,8 +603,8 @@ RSpec.describe RAAF::TokenEstimator do
       messages = [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: "Search for information about Ruby gems." },
-        { 
-          role: "assistant", 
+        {
+          role: "assistant",
           content: "I'll search for that information.",
           tool_calls: [{
             function: {
@@ -641,14 +641,14 @@ RSpec.describe RAAF::TokenEstimator do
         model: "gpt-4o"
       )
 
-      expect(usage["input_tokens"]).to be > 0
-      expect(usage["output_tokens"]).to be > 0
+      expect(usage["input_tokens"]).to be_positive
+      expect(usage["output_tokens"]).to be_positive
       expect(usage["total_tokens"]).to eq(usage["input_tokens"] + usage["output_tokens"])
       expect(usage["estimated"]).to be true
 
       # Test structured response overhead
       format_tokens = described_class.estimate_response_format_tokens(response_format, "gpt-4o")
-      expect(format_tokens).to be > 0
+      expect(format_tokens).to be_positive
     end
 
     it "handles edge cases gracefully" do
@@ -660,7 +660,7 @@ RSpec.describe RAAF::TokenEstimator do
       # Very short message
       short_message = [{ role: "user", content: "Hi" }]
       short_usage = described_class.estimate_usage(messages: short_message, model: "gpt-4o")
-      expect(short_usage["input_tokens"]).to be > 0
+      expect(short_usage["input_tokens"]).to be_positive
 
       # Message with only role, no content
       role_only = [{ role: "assistant" }]
@@ -672,19 +672,19 @@ RSpec.describe RAAF::TokenEstimator do
         messages: [{ role: "user", content: "Hello" }],
         model: "unknown-model-2024"
       )
-      expect(unknown_model_usage["input_tokens"]).to be > 0
+      expect(unknown_model_usage["input_tokens"]).to be_positive
     end
 
     it "demonstrates tiktoken fallback behavior" do
       # This test would require mocking tiktoken failures, but we can test that
       # the method handles various text types correctly
-      
+
       texts = [
         "Simple English text",
         "Text with émojis 🤖 and ñón-ASCII characters",
         "Code snippet: def hello\n  puts 'Hello, World!'\nend",
         "Mixed content: Here's some text AND CODE: `array.map(&:upcase)` with symbols.",
-        ""  # Empty string
+        "" # Empty string
       ]
 
       texts.each do |text|
@@ -692,7 +692,7 @@ RSpec.describe RAAF::TokenEstimator do
         if text.empty?
           expect(result).to eq(0)
         else
-          expect(result).to be > 0
+          expect(result).to be_positive
         end
       end
     end

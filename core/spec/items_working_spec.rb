@@ -21,7 +21,7 @@ RSpec.describe RAAF::Items do
       it "accepts hash raw items" do
         hash_item = { "test" => "data", "role" => "assistant" }
         item = described_class.new(agent: mock_agent, raw_item: hash_item)
-        
+
         expect(item.raw_item).to eq(hash_item)
       end
     end
@@ -34,20 +34,20 @@ RSpec.describe RAAF::Items do
 
       it "raises ArgumentError for non-hash raw items" do
         string_item = described_class.new(agent: mock_agent, raw_item: "not a hash")
-        
-        expect {
+
+        expect do
           string_item.to_input_item
-        }.to raise_error(ArgumentError, "Unexpected raw item type: String")
+        end.to raise_error(ArgumentError, "Unexpected raw item type: String")
       end
 
       it "handles complex hash structures" do
         complex_item = {
           "type" => "complex",
-          "nested" => { "data" => ["array", "values"] },
+          "nested" => { "data" => %w[array values] },
           "metadata" => { "id" => 123 }
         }
         item = described_class.new(agent: mock_agent, raw_item: complex_item)
-        
+
         expect(item.to_input_item).to eq(complex_item)
       end
     end
@@ -57,7 +57,7 @@ RSpec.describe RAAF::Items do
     let(:raw_message) do
       {
         "type" => "message",
-        "role" => "assistant", 
+        "role" => "assistant",
         "content" => [
           { "type" => "output_text", "text" => "Hello there!" }
         ]
@@ -116,7 +116,7 @@ RSpec.describe RAAF::Items do
   describe RAAF::Items::HandoffOutputItem do
     let(:raw_handoff_output) do
       {
-        "type" => "handoff_output", 
+        "type" => "handoff_output",
         "from_agent" => "SourceAgent",
         "to_agent" => "TargetAgent",
         "context" => "transferred successfully"
@@ -186,12 +186,12 @@ RSpec.describe RAAF::Items do
         "options" => {
           "days" => 5,
           "include_hourly" => true,
-          "metrics" => ["temperature", "precipitation", "wind"]
+          "metrics" => %w[temperature precipitation wind]
         }
       }
       complex_call = raw_tool_call.merge("arguments" => complex_args)
       item = described_class.new(agent: mock_agent, raw_item: complex_call)
-      
+
       expect(item.raw_item["arguments"]).to eq(complex_args)
     end
   end
@@ -240,14 +240,14 @@ RSpec.describe RAAF::Items do
           raw_item: { "call_id" => "test" },
           output: string_output
         )
-        
+
         expect(item.output).to eq(string_output)
       end
 
       it "handles complex object outputs" do
         complex_output = {
           "status" => "success",
-          "data" => ["item1", "item2"],
+          "data" => %w[item1 item2],
           "metadata" => { "processed_at" => "2024-01-01" }
         }
         item = described_class.new(
@@ -255,7 +255,7 @@ RSpec.describe RAAF::Items do
           raw_item: { "call_id" => "test" },
           output: complex_output
         )
-        
+
         expect(item.output).to eq(complex_output)
       end
     end
@@ -278,7 +278,7 @@ RSpec.describe RAAF::Items do
           raw_item: raw_function_output,
           output: function_output
         )
-        
+
         expect(item).to be_a(RAAF::Items::RunItemBase)
         expect(item.agent).to eq(mock_agent)
         expect(item.raw_item).to eq(raw_function_output)
@@ -290,7 +290,7 @@ RSpec.describe RAAF::Items do
           agent: mock_agent,
           raw_item: raw_function_output
         )
-        
+
         expect(item.output).to eq(function_output)
       end
 
@@ -304,7 +304,7 @@ RSpec.describe RAAF::Items do
           agent: mock_agent,
           raw_item: symbol_raw_item
         )
-        
+
         expect(item.output).to eq("symbol key output")
       end
 
@@ -315,7 +315,7 @@ RSpec.describe RAAF::Items do
           raw_item: raw_function_output,
           output: explicit_output
         )
-        
+
         expect(item.output).to eq(explicit_output)
       end
     end
@@ -334,7 +334,7 @@ RSpec.describe RAAF::Items do
           agent: mock_agent,
           raw_item: raw_without_output
         )
-        
+
         expect(item.output).to be_nil
       end
 
@@ -343,7 +343,7 @@ RSpec.describe RAAF::Items do
           agent: mock_agent,
           raw_item: {}
         )
-        
+
         expect(item.output).to be_nil
       end
     end
@@ -378,12 +378,12 @@ RSpec.describe RAAF::Items do
         "type" => "reasoning",
         "steps" => [
           "First, analyze the problem",
-          "Second, consider alternatives", 
+          "Second, consider alternatives",
           "Third, choose best approach"
         ]
       }
       item = described_class.new(agent: mock_agent, raw_item: step_by_step_reasoning)
-      
+
       expect(item.raw_item["steps"]).to be_an(Array)
       expect(item.raw_item["steps"].length).to eq(3)
     end
@@ -413,7 +413,7 @@ RSpec.describe RAAF::Items do
           usage: usage_data,
           response_id: response_id
         )
-        
+
         expect(response.output).to eq(output_items)
         expect(response.usage).to eq(usage_data)
         expect(response.response_id).to eq(response_id)
@@ -424,7 +424,7 @@ RSpec.describe RAAF::Items do
           output: output_items,
           usage: usage_data
         )
-        
+
         expect(response.output).to eq(output_items)
         expect(response.usage).to eq(usage_data)
         expect(response.response_id).to be_nil
@@ -435,7 +435,7 @@ RSpec.describe RAAF::Items do
           output: [],
           usage: usage_data
         )
-        
+
         expect(response.output).to eq([])
         expect(response.usage).to eq(usage_data)
       end
@@ -454,13 +454,13 @@ RSpec.describe RAAF::Items do
         # Mock to_h method on items
         allow(message_item).to receive(:to_h).and_return({ "converted" => "message" })
         allow(tool_item).to receive(:to_h).and_return({ "converted" => "tool" })
-        
+
         result = response.to_input_items
-        
+
         expect(result).to eq([
-          { "converted" => "message" },
-          { "converted" => "tool" }
-        ])
+                               { "converted" => "message" },
+                               { "converted" => "tool" }
+                             ])
       end
 
       it "handles hash items directly" do
@@ -469,7 +469,7 @@ RSpec.describe RAAF::Items do
           { "type" => "tool_call", "name" => "direct_tool" }
         ]
         response = described_class.new(output: hash_items, usage: usage_data)
-        
+
         result = response.to_input_items
         expect(result).to eq(hash_items)
       end
@@ -477,30 +477,30 @@ RSpec.describe RAAF::Items do
       it "raises ArgumentError for unconvertible items" do
         unconvertible_item = "string item"
         response = described_class.new(output: [unconvertible_item], usage: usage_data)
-        
-        expect {
+
+        expect do
           response.to_input_items
-        }.to raise_error(ArgumentError, "Cannot convert item to input: String")
+        end.to raise_error(ArgumentError, "Cannot convert item to input: String")
       end
 
       it "handles mixed convertible items" do
         hash_item = { "type" => "direct_hash" }
         convertible_item = double("ConvertibleItem")
         allow(convertible_item).to receive(:to_h).and_return({ "converted" => "item" })
-        
+
         response = described_class.new(output: [hash_item, convertible_item], usage: usage_data)
         result = response.to_input_items
-        
+
         expect(result).to eq([
-          { "type" => "direct_hash" },
-          { "converted" => "item" }
-        ])
+                               { "type" => "direct_hash" },
+                               { "converted" => "item" }
+                             ])
       end
 
       it "handles empty output array" do
         response = described_class.new(output: [], usage: usage_data)
         result = response.to_input_items
-        
+
         expect(result).to eq([])
       end
     end
@@ -531,7 +531,7 @@ RSpec.describe RAAF::Items do
             { "type" => "output_text", "text" => "Hello there!" }
           ]
         }
-        
+
         result = described_class.extract_last_content(message)
         expect(result).to eq("Hello there!")
       end
@@ -543,7 +543,7 @@ RSpec.describe RAAF::Items do
             { "type" => "refusal", "refusal" => "I cannot help with that" }
           ]
         }
-        
+
         result = described_class.extract_last_content(message)
         expect(result).to eq("I cannot help with that")
       end
@@ -556,7 +556,7 @@ RSpec.describe RAAF::Items do
             { "type" => "output_text", "text" => "Last text" }
           ]
         }
-        
+
         result = described_class.extract_last_content(message)
         expect(result).to eq("Last text")
       end
@@ -568,7 +568,7 @@ RSpec.describe RAAF::Items do
             { "type" => "output_text", "text" => "User content" }
           ]
         }
-        
+
         result = described_class.extract_last_content(user_message)
         expect(result).to eq("")
       end
@@ -583,7 +583,7 @@ RSpec.describe RAAF::Items do
           "role" => "assistant",
           "content" => "simple string content"
         }
-        
+
         result = described_class.extract_last_content(message)
         expect(result).to eq("")
       end
@@ -593,7 +593,7 @@ RSpec.describe RAAF::Items do
           "role" => "assistant",
           "content" => []
         }
-        
+
         result = described_class.extract_last_content(message)
         expect(result).to eq("")
       end
@@ -605,7 +605,7 @@ RSpec.describe RAAF::Items do
             { "type" => "unknown_type", "data" => "some data" }
           ]
         }
-        
+
         result = described_class.extract_last_content(message)
         expect(result).to eq("")
       end
@@ -617,14 +617,14 @@ RSpec.describe RAAF::Items do
             { "type" => "output_text" }
           ]
         }
-        
+
         message_no_refusal = {
           "role" => "assistant",
           "content" => [
             { "type" => "refusal" }
           ]
         }
-        
+
         expect(described_class.extract_last_content(message_no_text)).to eq("")
         expect(described_class.extract_last_content(message_no_refusal)).to eq("")
       end
@@ -638,7 +638,7 @@ RSpec.describe RAAF::Items do
             { "type" => "output_text", "text" => "Hello world!" }
           ]
         }
-        
+
         result = described_class.extract_last_text(message)
         expect(result).to eq("Hello world!")
       end
@@ -650,7 +650,7 @@ RSpec.describe RAAF::Items do
             { "type" => "refusal", "refusal" => "Cannot help" }
           ]
         }
-        
+
         result = described_class.extract_last_text(message)
         expect(result).to be_nil
       end
@@ -664,7 +664,7 @@ RSpec.describe RAAF::Items do
             { "type" => "output_text", "text" => "Final text" }
           ]
         }
-        
+
         result = described_class.extract_last_text(message)
         expect(result).to eq("Final text")
       end
@@ -676,7 +676,7 @@ RSpec.describe RAAF::Items do
             { "type" => "output_text", "text" => "User text" }
           ]
         }
-        
+
         result = described_class.extract_last_text(message)
         expect(result).to be_nil
       end
@@ -695,27 +695,27 @@ RSpec.describe RAAF::Items do
             { "type" => "unknown", "data" => "unknown" }
           ]
         }
-        
+
         result = described_class.extract_last_text(message)
         expect(result).to be_nil
       end
     end
 
     describe ".input_to_new_input_list" do
-      it "converts string input to user_text item" do
+      it "converts string input to message item" do
         result = described_class.input_to_new_input_list("Hello world")
-        
+
         expect(result).to eq([
-          { "type" => "user_text", "text" => "Hello world" }
-        ])
+                               { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Hello world" }] }
+                             ])
       end
 
       it "handles empty string input" do
         result = described_class.input_to_new_input_list("")
-        
+
         expect(result).to eq([
-          { "type" => "user_text", "text" => "" }
-        ])
+                               { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "" }] }
+                             ])
       end
 
       it "converts message array to input items" do
@@ -723,22 +723,22 @@ RSpec.describe RAAF::Items do
           { "role" => "user", "content" => "Hello" },
           { "role" => "assistant", "content" => "Hi there" }
         ]
-        
+
         result = described_class.input_to_new_input_list(messages)
-        
+
         expect(result).to include(
-          { "type" => "user_text", "text" => "Hello" },
+          { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Hello" }] },
           { "type" => "text", "text" => "Hi there" }
         )
       end
 
       it "returns copy of input item array" do
         input_items = [
-          { "type" => "user_text", "text" => "Already formatted" }
+          { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Already formatted" }] }
         ]
-        
+
         result = described_class.input_to_new_input_list(input_items)
-        
+
         expect(result).to eq(input_items)
         expect(result).not_to be(input_items) # Should be a copy
       end
@@ -749,41 +749,41 @@ RSpec.describe RAAF::Items do
       end
 
       it "raises ArgumentError for unsupported input types" do
-        expect {
+        expect do
           described_class.input_to_new_input_list(123)
-        }.to raise_error(ArgumentError, "Input must be string or array, got Integer")
+        end.to raise_error(ArgumentError, "Input must be string or array, got Integer")
 
-        expect {
+        expect do
           described_class.input_to_new_input_list({ "invalid" => "hash" })
-        }.to raise_error(ArgumentError, "Input must be string or array, got Hash")
+        end.to raise_error(ArgumentError, "Input must be string or array, got Hash")
       end
     end
 
     describe ".convert_messages_to_input_items" do
-      it "converts user messages to user_text items" do
+      it "converts user messages to message items" do
         messages = [
           { "role" => "user", "content" => "First message" },
           { "role" => "user", "content" => "Second message" }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
-        
+
         expect(result).to eq([
-          { "type" => "user_text", "text" => "First message" },
-          { "type" => "user_text", "text" => "Second message" }
-        ])
+                               { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "First message" }] },
+                               { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Second message" }] }
+                             ])
       end
 
       it "converts assistant messages to text items" do
         messages = [
           { "role" => "assistant", "content" => "Assistant response" }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
-        
+
         expect(result).to eq([
-          { "type" => "text", "text" => "Assistant response" }
-        ])
+                               { "type" => "text", "text" => "Assistant response" }
+                             ])
       end
 
       it "converts assistant messages with tool calls" do
@@ -801,17 +801,17 @@ RSpec.describe RAAF::Items do
             ]
           }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
-        
+
         expect(result).to eq([
-          {
-            "type" => "function_call",
-            "name" => "get_weather",
-            "arguments" => "{\"location\": \"NYC\"}",
-            "call_id" => "call_123"
-          }
-        ])
+                               {
+                                 "type" => "function_call",
+                                 "name" => "get_weather",
+                                 "arguments" => "{\"location\": \"NYC\"}",
+                                 "call_id" => "call_123"
+                               }
+                             ])
       end
 
       it "converts tool messages to function_call_output items" do
@@ -822,16 +822,16 @@ RSpec.describe RAAF::Items do
             "content" => "Weather is sunny"
           }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
-        
+
         expect(result).to eq([
-          {
-            "type" => "function_call_output",
-            "call_id" => "call_123",
-            "output" => "Weather is sunny"
-          }
-        ])
+                               {
+                                 "type" => "function_call_output",
+                                 "call_id" => "call_123",
+                                 "output" => "Weather is sunny"
+                               }
+                             ])
       end
 
       it "handles mixed message types" do
@@ -850,15 +850,15 @@ RSpec.describe RAAF::Items do
           { "role" => "tool", "tool_call_id" => "call_1", "content" => "Results" },
           { "role" => "assistant", "content" => "Here's what I found" }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
-        
+
         expect(result).to eq([
-          { "type" => "user_text", "text" => "Question" },
-          { "type" => "function_call", "name" => "search", "arguments" => "{}", "call_id" => "call_1" },
-          { "type" => "function_call_output", "call_id" => "call_1", "output" => "Results" },
-          { "type" => "text", "text" => "Here's what I found" }
-        ])
+                               { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Question" }] },
+                               { "type" => "function_call", "name" => "search", "arguments" => "{}", "call_id" => "call_1" },
+                               { "type" => "function_call_output", "call_id" => "call_1", "output" => "Results" },
+                               { "type" => "text", "text" => "Here's what I found" }
+                             ])
       end
 
       it "handles symbol keys in messages" do
@@ -874,11 +874,11 @@ RSpec.describe RAAF::Items do
             ]
           }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
-        
+
         expect(result).to include(
-          { "type" => "user_text", "text" => "Symbol key message" },
+          { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Symbol key message" }] },
           { "type" => "function_call", "name" => "func", "arguments" => "{}", "call_id" => "call_sym" }
         )
       end
@@ -889,19 +889,19 @@ RSpec.describe RAAF::Items do
           { "role" => "system", "content" => "System message" },
           { "role" => "unknown", "content" => "Unknown role" }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
-        
+
         expect(result).to eq([
-          { "type" => "user_text", "text" => "Valid message" }
-        ])
+                               { "type" => "message", "role" => "user", "content" => [{ "type" => "text", "text" => "Valid message" }] }
+                             ])
       end
 
       it "handles assistant messages without content or tool calls" do
         messages = [
           { "role" => "assistant" }
         ]
-        
+
         result = described_class.convert_messages_to_input_items(messages)
         expect(result).to eq([])
       end
@@ -934,17 +934,17 @@ RSpec.describe RAAF::Items do
 
       it "concatenates text from multiple message output items" do
         items = [message_item1, message_item2]
-        
+
         result = described_class.text_message_outputs(items)
-        
+
         expect(result).to eq("First messageSecond message")
       end
 
       it "ignores non-MessageOutputItem objects" do
         items = [message_item1, non_message_item, message_item2]
-        
+
         result = described_class.text_message_outputs(items)
-        
+
         expect(result).to eq("First messageSecond message")
       end
 
@@ -954,8 +954,8 @@ RSpec.describe RAAF::Items do
       end
 
       it "returns empty string when no message items present" do
-        items = ["not", "message", "items"]
-        
+        items = %w[not message items]
+
         result = described_class.text_message_outputs(items)
         expect(result).to eq("")
       end
@@ -971,7 +971,7 @@ RSpec.describe RAAF::Items do
             ]
           }
         )
-        
+
         result = described_class.text_message_output(message_item)
         expect(result).to eq("Hello world!")
       end
@@ -986,7 +986,7 @@ RSpec.describe RAAF::Items do
             ]
           }
         )
-        
+
         result = described_class.text_message_output(message_item)
         expect(result).to eq("Part 1 Part 2")
       end
@@ -1002,7 +1002,7 @@ RSpec.describe RAAF::Items do
             ]
           }
         )
-        
+
         result = described_class.text_message_output(message_item)
         expect(result).to eq("Text part")
       end
@@ -1017,7 +1017,7 @@ RSpec.describe RAAF::Items do
           agent: mock_agent,
           raw_item: { "content" => "string content" }
         )
-        
+
         result = described_class.text_message_output(message_item)
         expect(result).to eq("")
       end
@@ -1028,7 +1028,7 @@ RSpec.describe RAAF::Items do
           agent: mock_agent,
           raw_item: {}
         )
-        
+
         result = described_class.text_message_output(message_item)
         expect(result).to eq("")
       end
@@ -1038,48 +1038,48 @@ RSpec.describe RAAF::Items do
       it "creates tool call output with call_id" do
         tool_call = { "call_id" => "call_123" }
         output = "Tool result"
-        
+
         result = described_class.tool_call_output_item(tool_call, output)
-        
+
         expect(result).to eq({
-          "call_id" => "call_123",
-          "output" => "Tool result",
-          "type" => "function_call_output"
-        })
+                               "call_id" => "call_123",
+                               "output" => "Tool result",
+                               "type" => "function_call_output"
+                             })
       end
 
       it "uses id field when call_id not present" do
         tool_call = { "id" => "call_456" }
         output = { "result" => "success" }
-        
+
         result = described_class.tool_call_output_item(tool_call, output)
-        
+
         expect(result).to eq({
-          "call_id" => "call_456",
-          "output" => "{\"result\"=>\"success\"}",
-          "type" => "function_call_output"
-        })
+                               "call_id" => "call_456",
+                               "output" => "{\"result\"=>\"success\"}",
+                               "type" => "function_call_output"
+                             })
       end
 
       it "converts output to string" do
         tool_call = { "call_id" => "call_789" }
         numeric_output = 42
-        
+
         result = described_class.tool_call_output_item(tool_call, numeric_output)
-        
+
         expect(result).to eq({
-          "call_id" => "call_789",
-          "output" => "42",
-          "type" => "function_call_output"
-        })
+                               "call_id" => "call_789",
+                               "output" => "42",
+                               "type" => "function_call_output"
+                             })
       end
 
       it "handles complex object output" do
         tool_call = { "id" => "call_complex" }
         complex_output = { "data" => [1, 2, 3], "status" => "complete" }
-        
+
         result = described_class.tool_call_output_item(tool_call, complex_output)
-        
+
         expect(result["call_id"]).to eq("call_complex")
         expect(result["output"]).to eq(complex_output.to_s)
         expect(result["type"]).to eq("function_call_output")
@@ -1089,7 +1089,7 @@ RSpec.describe RAAF::Items do
     describe ".extract_message_content" do
       it "extracts simple string content" do
         message = { "content" => "Simple string content" }
-        
+
         result = described_class.extract_message_content(message)
         expect(result).to eq("Simple string content")
       end
@@ -1102,7 +1102,7 @@ RSpec.describe RAAF::Items do
             { "type" => "image", "data" => "image_data" }
           ]
         }
-        
+
         result = described_class.extract_message_content(message)
         expect(result).to eq("First part Second part")
       end
@@ -1113,7 +1113,7 @@ RSpec.describe RAAF::Items do
             { type: :text, text: "Symbol key content" }
           ]
         }
-        
+
         result = described_class.extract_message_content(message)
         expect(result).to eq("Symbol key content")
       end
@@ -1126,14 +1126,14 @@ RSpec.describe RAAF::Items do
 
       it "returns empty string for message without content" do
         message = { "role" => "user" }
-        
+
         result = described_class.extract_message_content(message)
         expect(result).to eq("")
       end
 
       it "handles empty content array" do
         message = { "content" => [] }
-        
+
         result = described_class.extract_message_content(message)
         expect(result).to eq("")
       end
@@ -1146,7 +1146,7 @@ RSpec.describe RAAF::Items do
             { "type" => "video", "url" => "http://example.com/video.mp4" }
           ]
         }
-        
+
         result = described_class.extract_message_content(message)
         expect(result).to eq("Text content")
       end
@@ -1160,25 +1160,25 @@ RSpec.describe RAAF::Items do
             { "id" => "call_1", "function" => { "name" => "test" } }
           ]
         }
-        
+
         expect(described_class.tool_calls?(message)).to be true
       end
 
       it "returns false for message without tool calls" do
         message = { "role" => "assistant", "content" => "No tools here" }
-        
+
         expect(described_class.tool_calls?(message)).to be false
       end
 
       it "returns false for empty tool calls array" do
         message = { "tool_calls" => [] }
-        
+
         expect(described_class.tool_calls?(message)).to be false
       end
 
       it "returns false for nil tool calls" do
         message = { "tool_calls" => nil }
-        
+
         expect(described_class.tool_calls?(message)).to be false
       end
 
@@ -1187,7 +1187,7 @@ RSpec.describe RAAF::Items do
           role: "assistant",
           tool_calls: [{ id: "call_1" }]
         }
-        
+
         expect(described_class.tool_calls?(message)).to be true
       end
 
@@ -1205,28 +1205,28 @@ RSpec.describe RAAF::Items do
           { "id" => "call_2", "function" => { "name" => "func2" } }
         ]
         message = { "tool_calls" => tool_calls }
-        
+
         result = described_class.extract_tool_calls(message)
         expect(result).to eq(tool_calls)
       end
 
       it "returns empty array for message without tool calls" do
         message = { "role" => "assistant" }
-        
+
         result = described_class.extract_tool_calls(message)
         expect(result).to eq([])
       end
 
       it "returns empty array for nil tool calls" do
         message = { "tool_calls" => nil }
-        
+
         result = described_class.extract_tool_calls(message)
         expect(result).to eq([])
       end
 
       it "returns empty array for non-array tool calls" do
         message = { "tool_calls" => "not an array" }
-        
+
         result = described_class.extract_tool_calls(message)
         expect(result).to eq([])
       end
@@ -1234,7 +1234,7 @@ RSpec.describe RAAF::Items do
       it "handles symbol keys" do
         tool_calls = [{ id: "call_sym" }]
         message = { tool_calls: tool_calls }
-        
+
         result = described_class.extract_tool_calls(message)
         expect(result).to eq(tool_calls)
       end
@@ -1249,54 +1249,54 @@ RSpec.describe RAAF::Items do
       describe ".user_message" do
         it "creates properly formatted user message" do
           result = described_class.user_message("Hello there")
-          
+
           expect(result).to eq({
-            "role" => "user",
-            "content" => "Hello there"
-          })
+                                 "role" => "user",
+                                 "content" => "Hello there"
+                               })
         end
 
         it "handles empty content" do
           result = described_class.user_message("")
-          
+
           expect(result).to eq({
-            "role" => "user",
-            "content" => ""
-          })
+                                 "role" => "user",
+                                 "content" => ""
+                               })
         end
       end
 
       describe ".assistant_message" do
         it "creates assistant message without tool calls" do
           result = described_class.assistant_message("Assistant response")
-          
+
           expect(result).to eq({
-            "role" => "assistant",
-            "content" => "Assistant response"
-          })
+                                 "role" => "assistant",
+                                 "content" => "Assistant response"
+                               })
         end
 
         it "creates assistant message with tool calls" do
           tool_calls = [
             { "id" => "call_1", "function" => { "name" => "test_func" } }
           ]
-          
+
           result = described_class.assistant_message("I'll call a function", tool_calls: tool_calls)
-          
+
           expect(result).to eq({
-            "role" => "assistant",
-            "content" => "I'll call a function",
-            "tool_calls" => tool_calls
-          })
+                                 "role" => "assistant",
+                                 "content" => "I'll call a function",
+                                 "tool_calls" => tool_calls
+                               })
         end
 
         it "does not include tool_calls when nil" do
           result = described_class.assistant_message("No tools", tool_calls: nil)
-          
+
           expect(result).to eq({
-            "role" => "assistant",
-            "content" => "No tools"
-          })
+                                 "role" => "assistant",
+                                 "content" => "No tools"
+                               })
           expect(result).not_to have_key("tool_calls")
         end
       end
@@ -1304,24 +1304,24 @@ RSpec.describe RAAF::Items do
       describe ".tool_message" do
         it "creates properly formatted tool message" do
           result = described_class.tool_message("call_123", "Tool execution result")
-          
+
           expect(result).to eq({
-            "role" => "tool",
-            "tool_call_id" => "call_123",
-            "content" => "Tool execution result"
-          })
+                                 "role" => "tool",
+                                 "tool_call_id" => "call_123",
+                                 "content" => "Tool execution result"
+                               })
         end
 
         it "handles complex tool results" do
           complex_result = { "status" => "success", "data" => [1, 2, 3] }.to_s
-          
+
           result = described_class.tool_message("call_complex", complex_result)
-          
+
           expect(result).to eq({
-            "role" => "tool",
-            "tool_call_id" => "call_complex",
-            "content" => complex_result
-          })
+                                 "role" => "tool",
+                                 "tool_call_id" => "call_complex",
+                                 "content" => complex_result
+                               })
         end
       end
     end
