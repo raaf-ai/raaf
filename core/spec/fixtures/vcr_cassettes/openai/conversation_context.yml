@@ -24,7 +24,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 07:26:55 GMT
+      - Thu, 24 Jul 2025 15:41:14 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -36,13 +36,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '271'
+      - '920'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '275'
+      - '926'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -56,39 +56,39 @@ http_interactions:
       X-Ratelimit-Reset-Tokens:
       - 0s
       X-Request-Id:
-      - 71974138-175d-4ba2-8a58-1f4c963a9c28
+      - req_7568a0e99aea72a9f9a29657383c1b65
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=B63KtW0TWXEZ.GgRDeEl20LH5mK7NJSrpGxGCVF2A2Q-1753255615-1.0.1.1-wx4gCaiHRKK_RbG5DJgsyp37uSlSDgiFD8D8xFmpkFigpaJlNN_2eEga.Xwz4MDSJtQMUJ_1.GsVbUsgQBRSO_it8ho7S7Nsyevm49qGV78;
-        path=/; expires=Wed, 23-Jul-25 07:56:55 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=le.ZLssIgONVV4Hhk.oBggeMjfsq3Nhm56TUMOTuMgo-1753371674-1.0.1.1-eLVaUKWEm38mZ8RzuZA51AGl2S4QUOimfSIrYddgcqOEDtcAbb0Kr6tMC0WY97NkFVwLxOQsvGhcJDY83XAn1aJprW1WuKVsPZ1lJZfSy8o;
+        path=/; expires=Thu, 24-Jul-25 16:11:14 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=GP3zNBLiyDONSg.AiPlqpP85rFDlcF0ep5K36lUBonM-1753255615720-0.0.1.1-604800000;
+      - _cfuvid=7obahXIv9ShlefuRTSL5tMWoEAxhDLuZY1zShKZvsPs-1753371674964-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963973ca99fb6651-AMS
+      - 964485411b14c0f7-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwOAJZtt0I2IDfUlgSW2Gi4hBQDzn",
+          "id": "chatcmpl-BwsME2rm2UYNrRaeTJ9b3c5WzUO69",
           "object": "chat.completion",
-          "created": 1753255615,
+          "created": 1753371674,
           "model": "gpt-3.5-turbo-0125",
           "choices": [
             {
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "Blue is a calming and serene color. What do you like most about it?",
+                "content": "Blue is a calming and serene color that brings a sense of peace and tranquility. It's often associated with loyalty, trust, and stability. Blue can also evoke feelings of security and safety. It's a versatile color that can be both soothing and energizing, depending on the shade. Overall, blue is a timeless and classic color that can be incorporated into a variety of styles and designs.",
                 "refusal": null,
                 "annotations": []
               },
@@ -98,8 +98,8 @@ http_interactions:
           ],
           "usage": {
             "prompt_tokens": 12,
-            "completion_tokens": 16,
-            "total_tokens": 28,
+            "completion_tokens": 79,
+            "total_tokens": 91,
             "prompt_tokens_details": {
               "cached_tokens": 0,
               "audio_tokens": 0
@@ -114,7 +114,7 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Wed, 23 Jul 2025 07:26:55 GMT
+  recorded_at: Thu, 24 Jul 2025 15:41:14 GMT
 - request:
     method: post
     uri: https://api.openai.com/v1/chat/completions
@@ -122,7 +122,11 @@ http_interactions:
       encoding: UTF-8
       string: '{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"My favorite
         color is blue"},{"role":"assistant","content":"Blue is a calming and serene
-        color. What do you like most about it?","refusal":null,"annotations":[]},{"role":"user","content":"What''s
+        color that brings a sense of peace and tranquility. It''s often associated
+        with loyalty, trust, and stability. Blue can also evoke feelings of security
+        and safety. It''s a versatile color that can be both soothing and energizing,
+        depending on the shade. Overall, blue is a timeless and classic color that
+        can be incorporated into a variety of styles and designs.","refusal":null,"annotations":[]},{"role":"user","content":"What''s
         my favorite color?"}],"stream":false}'
     headers:
       Accept-Encoding:
@@ -141,7 +145,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 07:26:56 GMT
+      - Thu, 24 Jul 2025 15:41:16 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -153,13 +157,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '205'
+      - '1297'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '210'
+      - '1305'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -167,45 +171,45 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '3999965'
+      - '3999886'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
-      - 0s
+      - 1ms
       X-Request-Id:
-      - req_732f9d48996cf35ec8f1b21efdf82888
+      - req_c335cbde5ee2f67e80c8b1d76ddb3b95
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=rEACWLH_faE_75Iq.MoxAsoN6K_qqAl6yrUnLMdqVIk-1753255616-1.0.1.1-DMgLPAl6i59zQ5Tj0E8lsgIzvdE2Wox2NgXwzUkcfcorr2QHXfvknfXjrHqrHezvNGCnFV8VhgUoDy3dwaD96lx7rb8OPOSThEL4QNDgJxg;
-        path=/; expires=Wed, 23-Jul-25 07:56:56 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=4jgYVpHjO_ASArx_V_C7E2kNMLux.lY95asPgBo0grU-1753371676-1.0.1.1-.VLivSxKMXI4YV6W1J2H239och6Dx8Xugs2nhSniC2shsxnZk.59tOr7_xQ6KzKlE.wEt4sU5DPfbz6hGND1WiYfo9v_5W2AQCz4dheXXk4;
+        path=/; expires=Thu, 24-Jul-25 16:11:16 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=cpsOCWPmXlQ_nP0A5_PdiuO1W1REnwfwp0it3WtzlpI-1753255616115-0.0.1.1-604800000;
+      - _cfuvid=qKhWBbUCG9xz5brjvACQS9BeoqleHXEeX8D6qXLYFic-1753371676510-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963973ce6cbb3d7f-AMS
+      - 96448548adb8d8cc-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwOAJrKTLXMik7ShpZdZIVCtJpb6Q",
+          "id": "chatcmpl-BwsMFKa23W45JeJ05ToXUafTamTu9",
           "object": "chat.completion",
-          "created": 1753255615,
+          "created": 1753371675,
           "model": "gpt-3.5-turbo-0125",
           "choices": [
             {
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "Your favorite color is blue.",
+                "content": "I'm sorry, I don't have access to personal information about you, so I can't determine your favorite color. If you'd like, you can share your favorite color with me and I can provide some information about it!",
                 "refusal": null,
                 "annotations": []
               },
@@ -214,9 +218,9 @@ http_interactions:
             }
           ],
           "usage": {
-            "prompt_tokens": 42,
-            "completion_tokens": 6,
-            "total_tokens": 48,
+            "prompt_tokens": 105,
+            "completion_tokens": 46,
+            "total_tokens": 151,
             "prompt_tokens_details": {
               "cached_tokens": 0,
               "audio_tokens": 0
@@ -231,5 +235,5 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Wed, 23 Jul 2025 07:26:55 GMT
+  recorded_at: Thu, 24 Jul 2025 15:41:16 GMT
 recorded_with: VCR 6.3.1

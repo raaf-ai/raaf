@@ -26,7 +26,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 19:29:32 GMT
+      - Thu, 24 Jul 2025 15:40:30 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -52,34 +52,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_482b5cdf17b3a097d3bae880d11cc102
+      - req_f974a9cdee15723cb55bf33050600244
       Openai-Processing-Ms:
-      - '2804'
+      - '3558'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=0_iR0TjleDNHHfDuHYpWa8IYSTMWsBM_KiH6NEy0Ka4-1753298972-1.0.1.1-BicW8TD0kJDGFJEwt89NueWVLb.uW4MiaCKKbMnE4wYRqyMKoKENRN5UMvkAHIRiYwWaafzlY1akgY_nLNcSFxGBAZZ3FUAUgd68z0gTX4c;
-        path=/; expires=Wed, 23-Jul-25 19:59:32 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=12TNRRilpLRUP9BRoMmTmOJGUtcVMMZdWR3SqJgoxY8-1753371630-1.0.1.1-O219wELBJMBUtGeRC0A_CXJKM_3ljUhZxJDGHO3W.EpXd5IuFV82NyxT1vtZsqEoOqgumoyi8TQsQJK25diK8pBEaCwcdKOhoDQPhJymPnY;
+        path=/; expires=Thu, 24-Jul-25 16:10:30 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=D5RjLWt7NKV82hMDStvnR3Nw8w7wrhhuqyVZrSrto84-1753298972215-0.0.1.1-604800000;
+      - _cfuvid=pTVtCmIBiGSd2uW_kixVm0K2IeNpfoXXUUX9wnGwptk-1753371630085-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963d963e0b84febb-AMS
+      - 964484191e2b6694-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688138195d4481919080f9953c2f3b8f048252c2c4826015",
+          "id": "resp_688253ea7b8c819eb66efeca3653f9dd0be464c83baedc11",
           "object": "response",
-          "created_at": 1753298969,
+          "created_at": 1753371626,
           "status": "completed",
           "background": false,
           "error": null,
@@ -90,7 +90,7 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_6881381a9afc8191a65276016cecff01048252c2c4826015",
+              "id": "msg_688253ecca80819e84f963fb4bd9d8bc0be464c83baedc11",
               "type": "message",
               "status": "completed",
               "content": [
@@ -98,7 +98,7 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "Hello! I'm an artificial intelligence, so I don't have feelings, but I'm here and ready to help you. How can I assist you today?"
+                  "text": "Hello! I'm an artificial intelligence and don't have feelings, but I'm ready and able to assist you. How can I help you today?"
                 }
               ],
               "role": "assistant"
@@ -130,14 +130,14 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 34,
+            "output_tokens": 32,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 59
+            "total_tokens": 57
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Wed, 23 Jul 2025 19:29:32 GMT
+  recorded_at: Thu, 24 Jul 2025 15:40:29 GMT
 recorded_with: VCR 6.3.1

@@ -26,7 +26,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 07:41:52 GMT
+      - Thu, 24 Jul 2025 15:40:07 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -52,34 +52,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_2c077a2ba2d9512d5cfac0041561eb9a
+      - req_be7d646ce9f7dbb7dfb6761dbaccc145
       Openai-Processing-Ms:
-      - '655'
+      - '553'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=z4cYUbl_E4o.5y9yLXyyr_lQ5tSwQ17lKkscbevWeaE-1753342912-1.0.1.1-XrJFdwES0iB3NeyNqrdQQBQfo24wAPMSqCOjTzZ8KFTjj.MlkRsAEny9YOKOSh1SgSqS.N84UrBgNDZCRcCcAhSN7bSt8cor3gDZjpBFjiY;
-        path=/; expires=Thu, 24-Jul-25 08:11:52 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=EGYx0aDtLCO.CQOqeaIktX8pLWyqp34Xxg3OYs7Z6jk-1753371607-1.0.1.1-mY5A3YN4SPilMqt6pE.ovEa6MsYwK6uU6qUkQ6HvLF.Domu61q_38f6MAiEwsoI5RCO_F5X2bVhXwJxQupOS.BBDKn.wo891ToP2IZRKHxY;
+        path=/; expires=Thu, 24-Jul-25 16:10:07 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=fKJfuedw_bfsRQlx_xGRpKSI5HP0VCrX2haKguRm36Y-1753342912518-0.0.1.1-604800000;
+      - _cfuvid=sddSsfFT3n0bRYRbfMcSiAKxk7weJOY8YKcEoVfRghQ-1753371607567-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 9641c70e5a106625-AMS
+      - 9644839ee8ba6d07-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_6881e3bfd0c0819fbffa7eac8f0b42100dccd142e7ae082d",
+          "id": "resp_688253d6f85c81a2845320c665b51c7802551d5710cc01d9",
           "object": "response",
-          "created_at": 1753342911,
+          "created_at": 1753371606,
           "status": "completed",
           "background": false,
           "error": null,
@@ -90,7 +90,7 @@ http_interactions:
           "model": "gpt-4o-mini-2024-07-18",
           "output": [
             {
-              "id": "msg_6881e3c031cc819f93ea101dc5453dc60dccd142e7ae082d",
+              "id": "msg_688253d73cb081a28b19511f903a733902551d5710cc01d9",
               "type": "message",
               "status": "completed",
               "content": [
@@ -139,5 +139,5 @@ http_interactions:
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 07:41:52 GMT
+  recorded_at: Thu, 24 Jul 2025 15:40:07 GMT
 recorded_with: VCR 6.3.1

@@ -26,7 +26,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 07:41:50 GMT
+      - Thu, 24 Jul 2025 15:40:02 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -52,34 +52,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_8ce17c736f9700cf0f50d5074926abbb
+      - req_4b0ca37d0d05aed1defba3783e66d7bb
       Openai-Processing-Ms:
-      - '715'
+      - '669'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=acMzhi.kBg9W77IUK_ax.V0fXeoGmrzg69bRyJFXl_g-1753342910-1.0.1.1-5w5cVc8OkCfEUHh94J0w9k.lS93ov_kl3_yKpTH7_54GJVsNYSpXWD3VkVCpRY896aVg1D6XbGXKaBxeiGF9LySNLZDs52yFs3svOBOb5Po;
-        path=/; expires=Thu, 24-Jul-25 08:11:50 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=V589C11SUeRHJ0mPn8TNvAY_6AfBZKTAYdBcZIxg_hI-1753371602-1.0.1.1-iX8Jik_DH43XMeFaZRFJd7IsmQoJjt68opkc0fnx_MvFlwD2kGqiQ8Mct9JB3jZKtBvNKyJ3S9RPX_f.EFKLXqczS1oMGpJubbWEDDhjobg;
+        path=/; expires=Thu, 24-Jul-25 16:10:02 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=PdYPVoJvdm5J2.29Gi3xHof4ECp2FusYmO37vgfWJKE-1753342910256-0.0.1.1-604800000;
+      - _cfuvid=1YknTDYOxcK6VivRidForHC6vTlDxgti7nfARjzcq4w-1753371602960-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 9641c6fffaa970c7-AMS
+      - 9644838189e5ddee-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_6881e3bd7f28819ebe842b73ffa996030143a420d194534f",
+          "id": "resp_688253d23e2081a2ab7d003462c3c5db0c63f38d1952fc79",
           "object": "response",
-          "created_at": 1753342909,
+          "created_at": 1753371602,
           "status": "completed",
           "background": false,
           "error": null,
@@ -90,7 +90,7 @@ http_interactions:
           "model": "gpt-4o-mini-2024-07-18",
           "output": [
             {
-              "id": "msg_6881e3bdc3bc819ea1c315e3afff88c10143a420d194534f",
+              "id": "msg_688253d28a5081a2a76b69db552ab5b80c63f38d1952fc79",
               "type": "message",
               "status": "completed",
               "content": [
@@ -98,7 +98,7 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "Hello World \ud83c\udf0d \u041f\u0440\u0438\u0432\u0435\u0442 translates to \"Hello World\" in English, \"\u041f\u0440\u0438\u0432\u0435\u0442\" means \"Hello\" in Russian."
+                  "text": "Hello world \ud83c\udf0d \u041f\u0440\u0438\u0432\u0435\u0442 translates to \"Hello world\" in English. \"\u041f\u0440\u0438\u0432\u0435\u0442\" is \"Hello\" in Russian."
                 }
               ],
               "role": "assistant"
@@ -139,5 +139,5 @@ http_interactions:
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 07:41:50 GMT
+  recorded_at: Thu, 24 Jul 2025 15:40:02 GMT
 recorded_with: VCR 6.3.1

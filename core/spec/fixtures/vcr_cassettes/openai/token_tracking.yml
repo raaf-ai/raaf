@@ -25,7 +25,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 07:26:59 GMT
+      - Thu, 24 Jul 2025 15:41:13 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -37,13 +37,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '1635'
+      - '1245'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '1641'
+      - '1251'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -51,45 +51,45 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '3999978'
+      - '3999977'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
       - 0s
       X-Request-Id:
-      - req_cd5339bf0b457ca876ed05945e5da0a2
+      - req_8dd6860de9fb5414c135b2d76c549124
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=PjBO3L6pRXQACP4pZygfFenP_fhJKzaZIQueo8ulBW4-1753255619-1.0.1.1-kAw56.eu4KqXK.U2OO4RjBeiPR6kX4SGE7gt2J2IT47C22oP.IFUQOpMj8D7G.KP_awSKfiY4ZChSRB1BNmyw9vpYmx3Dax2ZQlNcz_eDoc;
-        path=/; expires=Wed, 23-Jul-25 07:56:59 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=1GZTzOUpNpgv4PLzW10ckrdhRvamxgub75fKp3A4h68-1753371673-1.0.1.1-4eTXIJ3v0WKrLU0cjsFJsKAOp_XueekNYjb9NYyZjuJTmQHZDIkx2Qb09wJmrIhK0F7AmeGGHoGiYwqz8lsepG8xPCgwdUTgWat9vSWzG3Q;
+        path=/; expires=Thu, 24-Jul-25 16:11:13 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=fMeTrJBfo9H6KpUC0C.tu6gspFMJjpX3aD7G.FLBTKQ-1753255619414-0.0.1.1-604800000;
+      - _cfuvid=aX29SjamiqNy5fxkl6c1Rf9bAAkKc8ek4xm1s1lXSdg-1753371673751-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963973da1b6c9d31-AMS
+      - 964485376bd6f5b8-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwOALU8ZJ0xa1cAGekyfgn0Rz9w2l",
+          "id": "chatcmpl-BwsMC0HTdJEJBdaSDvIi643hJ2Qvc",
           "object": "chat.completion",
-          "created": 1753255617,
+          "created": 1753371672,
           "model": "gpt-3.5-turbo-0125",
           "choices": [
             {
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "Quantum computing leverages principles of quantum mechanics to process information using quantum bits, or qubits. Unlike classical computing, qubits can exist in multiple states simultaneously, enabling parallel computation and faster processing of complex problems. Quantum computers have the potential to revolutionize fields like cryptography, optimization, and drug discovery.",
+                "content": "Quantum computing leverages principles of quantum mechanics to perform complex calculations. Unlike classical computers that rely on bits, quantum computers use quantum bits (qubits) that can exist in multiple states simultaneously, allowing for more efficient processing of vast amounts of data. This potential for parallel processing enables quantum computers to solve certain problems exponentially faster.",
                 "refusal": null,
                 "annotations": []
               },
@@ -99,8 +99,8 @@ http_interactions:
           ],
           "usage": {
             "prompt_tokens": 27,
-            "completion_tokens": 61,
-            "total_tokens": 88,
+            "completion_tokens": 65,
+            "total_tokens": 92,
             "prompt_tokens_details": {
               "cached_tokens": 0,
               "audio_tokens": 0
@@ -115,5 +115,5 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Wed, 23 Jul 2025 07:26:59 GMT
+  recorded_at: Thu, 24 Jul 2025 15:41:13 GMT
 recorded_with: VCR 6.3.1

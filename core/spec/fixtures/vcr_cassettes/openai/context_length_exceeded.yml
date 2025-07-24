@@ -1690,7 +1690,7 @@ http_interactions:
       message: Bad Request
     headers:
       Date:
-      - Wed, 23 Jul 2025 07:26:53 GMT
+      - Thu, 24 Jul 2025 15:41:10 GMT
       Content-Type:
       - application/json
       Content-Length:
@@ -1702,13 +1702,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '83'
+      - '50'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '87'
+      - '54'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -1722,23 +1722,23 @@ http_interactions:
       X-Ratelimit-Reset-Tokens:
       - 487ms
       X-Request-Id:
-      - req_44d935f5cd8d7f4f752dc255f87d9f86
+      - req_5db00ee405a78fd3d649c7b55cbcc936
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=7QvybeNSCKlR0vMIWfhxvI0hkbG2e3_2Udh.7jH89CE-1753255613-1.0.1.1-xbWqUBynkcepeBFxdOl_7.wtoHCfa.EeLe9SS2cepiCFCgn0tIaf2dfOkFFOGrz0GRsWySk.06xLB.eF6XWCMtBHza0PFEmZw70VvTPlODU;
-        path=/; expires=Wed, 23-Jul-25 07:56:53 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=_EPELgmIWGqAKZDq4Px83NUbZosTaQdKT8M_TwJjQ_s-1753371670-1.0.1.1-XH4VCdQR5_j3l0thPzqAsstiPU4.xGY702uSTs6MyCoLToq0nPcYFLBusmwX7VWgErxMtfqVXkxVwd2s05rh3dBi5lBxFeG1BXovdJmhtw4;
+        path=/; expires=Thu, 24-Jul-25 16:11:10 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=hKjqNXIr3jS.QuWywCV.ZXZEGpK21VKovktTGefoWIw-1753255613519-0.0.1.1-604800000;
+      - _cfuvid=FkRFvH4ySwIoIZ.HFNreYhvyaglFytY7c30605wNYJc-1753371670445-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963973bd4dc26d99-AMS
+      - 9644852a7c930bbd-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
@@ -1752,5 +1752,5 @@ http_interactions:
             "code": "context_length_exceeded"
           }
         }
-  recorded_at: Wed, 23 Jul 2025 07:26:53 GMT
+  recorded_at: Thu, 24 Jul 2025 15:41:10 GMT
 recorded_with: VCR 6.3.1

@@ -44,7 +44,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 19:28:49 GMT
+      - Thu, 24 Jul 2025 15:40:43 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -70,34 +70,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_99bd776a29568d3bf449ddfaeec85afc
+      - req_8ee140abfc64b55320b4119e734f7aeb
       Openai-Processing-Ms:
-      - '10894'
+      - '8456'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=YBX3G0ZMe4eSlq5YN_vM1DiDni7KFLkSrQA8mwWsMuE-1753298929-1.0.1.1-ySFUPUBMDE2B.paCoyoJN5aUT_tOmRu9ZpXbKnsBiSeKtSVgY7vLPxbXWHhXve4Dw_.utcneSCFelA6o13sa3vAFaVvnWqMhq7txRnFq5_U;
-        path=/; expires=Wed, 23-Jul-25 19:58:49 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=JNsH_1T3O9RxZ0vbCAKgS5.2uo6UXR0DZKWuFHaAFvw-1753371643-1.0.1.1-wqaZjdxeodubqFItQ.CIL_erJx.FaUx9yWsybhDUklbEyuw0rWcDDGJIldunN_zcPYeoboOm3u3T2X1vY4jMR4ucyTaGmd.R9CsbINqNnvQ;
+        path=/; expires=Thu, 24-Jul-25 16:10:43 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=AV8iXVC0_xnA4s2tH3j2xZfFnfCsxTbuNBDB2IFBj20-1753298929276-0.0.1.1-604800000;
+      - _cfuvid=DjpQcsPG2iLNoeAzpM4eT3lLgi0EofNAw.FwW7qFcKs-1753371643088-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963d94ff2cee6d17-AMS
+      - 9644844baff39fb1-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688137e65b3c81a3850a89715a86053d069f43a33241720b",
+          "id": "resp_688253f298c481928663a7aaeac8bb4d0e6fec800e1ebadb",
           "object": "response",
-          "created_at": 1753298918,
+          "created_at": 1753371634,
           "status": "completed",
           "background": false,
           "error": null,
@@ -108,27 +108,27 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "fc_688137e9cefc81a3abe714a76739f6f9069f43a33241720b",
+              "id": "fc_688253f536f881928431b063dcc2b6260e6fec800e1ebadb",
               "type": "function_call",
               "status": "completed",
               "arguments": "{\n        \"input\": \"Research current AI trends\"\n      }",
-              "call_id": "call_xcm8ALImg8hK1bBf7YtrOGZa",
+              "call_id": "call_bXfgA9XzesgrBxVWwrWLJHGB",
               "name": "transfer_to_researcher"
             },
             {
-              "id": "fc_688137ed71c081a3bc43e11a9e8e4794069f43a33241720b",
+              "id": "fc_688253f6ec2081928201ed6df699d5150e6fec800e1ebadb",
               "type": "function_call",
               "status": "completed",
               "arguments": "{\n        \"input\": \"Analyze the impact of current AI trends on software development\"\n      }",
-              "call_id": "call_Q40I4NvyRpVo2dppr5S9BdWJ",
+              "call_id": "call_ZLQiFn21No2VvB2KGU4wzFnN",
               "name": "transfer_to_analyst"
             },
             {
-              "id": "fc_688137ef57f081a3acb8034e6e75d565069f43a33241720b",
+              "id": "fc_688253f93dec8192ba82c57863a9de9e0e6fec800e1ebadb",
               "type": "function_call",
               "status": "completed",
-              "arguments": "{\n        \"input\": \"Create a brief report on the impact of current AI trends on software development\"\n      }",
-              "call_id": "call_4UMgMss9Xe6xmN7B31LcSSps",
+              "arguments": "{\n        \"input\": \"Create a brief report on the current AI trends and their impact on software development\"\n      }",
+              "call_id": "call_7rsLtes9uYSO5gXpGTvToImm",
               "name": "transfer_to_reporter"
             }
           ],
@@ -216,16 +216,16 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 135,
+            "output_tokens": 138,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 468
+            "total_tokens": 471
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Wed, 23 Jul 2025 19:28:49 GMT
+  recorded_at: Thu, 24 Jul 2025 15:40:42 GMT
 - request:
     method: post
     uri: https://api.openai.com/v1/responses
@@ -233,9 +233,9 @@ http_interactions:
       encoding: UTF-8
       string: '{"model":"gpt-4","input":[{"role":"user","content":"Research current
         AI trends, analyze their impact on software development, and create a brief
-        report"},{"type":"function_call_output","call_id":"call_Q40I4NvyRpVo2dppr5S9BdWJ","output":"Multiple
-        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_4UMgMss9Xe6xmN7B31LcSSps","output":"Multiple
-        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_xcm8ALImg8hK1bBf7YtrOGZa","output":"{\"assistant\":\"Researcher\"}"}],"previous_response_id":"resp_688137e65b3c81a3850a89715a86053d069f43a33241720b","instructions":"Name:
+        report"},{"type":"function_call_output","call_id":"call_ZLQiFn21No2VvB2KGU4wzFnN","output":"Multiple
+        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_7rsLtes9uYSO5gXpGTvToImm","output":"Multiple
+        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_bXfgA9XzesgrBxVWwrWLJHGB","output":"{\"assistant\":\"Researcher\"}"}],"previous_response_id":"resp_688253f298c481928663a7aaeac8bb4d0e6fec800e1ebadb","instructions":"Name:
         Researcher\nInstructions: # System context\nYou are part of a multi-agent
         system called the Agents SDK, designed to make agent coordination and execution
         easy. Agents uses two primary abstraction: **Agents** and **Handoffs**. An
@@ -269,7 +269,7 @@ http_interactions:
       message: Internal Server Error
     headers:
       Date:
-      - Wed, 23 Jul 2025 19:29:06 GMT
+      - Thu, 24 Jul 2025 15:40:53 GMT
       Content-Type:
       - application/json
       Content-Length:
@@ -283,11 +283,11 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '79301'
+      - '79359'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
-      - 524ms
+      - 480ms
       Openai-Version:
       - '2020-10-01'
       Openai-Organization:
@@ -295,25 +295,25 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_2b3a07ddccf05aad88219afe711628f9
+      - req_aad87e324f81209b646da0024b0b17b2
       Openai-Processing-Ms:
-      - '17092'
+      - '10034'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=Rd9UWQqpFto305wSqFwk44Nnk_58fuQgL.oYDe8yjIE-1753298946-1.0.1.1-vh9I24jqUu05.jfISqgG_vkKtf9kErMBP5xGjtRdN_fNX0w8RF4JB5fzRseeN8fpLSGkNe5IxPqjpOFI0N_Xm_xZCbiZUcePF6hk2PFc6H8;
-        path=/; expires=Wed, 23-Jul-25 19:59:06 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=XgP2OOQiqv8AC7Eb_gaf3XKnAS2xKD4_v.P6R1oI4RM-1753371653-1.0.1.1-672ajEECZW7Cb1zshwdeD9oX3BQ.1sTF0stKqDoMXJ1CEZfyEu_AjvRVX57gyWH6_DKPUWHD1VzioB11i5D00Jc3LQEGeD3nw0ES0qeKWVE;
+        path=/; expires=Thu, 24-Jul-25 16:10:53 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=ZMqG0tik2x546t0J2ZVCB38Diwwd9aVGi_96cX4qKlk-1753298946600-0.0.1.1-604800000;
+      - _cfuvid=VRqJDImVmPf8cC78Dc78fsJLOTYfv_Um1elMAeu2_k0-1753371653264-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963d95442ff55286-AMS
+      - 96448481882795ab-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
@@ -321,11 +321,11 @@ http_interactions:
       string: |-
         {
           "error": {
-            "message": "An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_2b3a07ddccf05aad88219afe711628f9 in your message.",
+            "message": "An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_aad87e324f81209b646da0024b0b17b2 in your message.",
             "type": "server_error",
             "param": null,
             "code": "server_error"
           }
         }
-  recorded_at: Wed, 23 Jul 2025 19:29:06 GMT
+  recorded_at: Thu, 24 Jul 2025 15:40:53 GMT
 recorded_with: VCR 6.3.1

@@ -24,7 +24,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 07:26:51 GMT
+      - Thu, 24 Jul 2025 15:41:19 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -36,13 +36,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '313'
+      - '1217'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '316'
+      - '1243'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -56,39 +56,39 @@ http_interactions:
       X-Ratelimit-Reset-Tokens:
       - 0s
       X-Request-Id:
-      - req_f18c5a8260b58db3e364aea274e168b7
+      - req_41bac47a44d10bd75484a461aa7e94cd
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=UmCCWj8_8knr7rVqEcFfl2nPX_tZwWlcGKDwn8vs31s-1753255611-1.0.1.1-geEelH40wMTh6sonVamgv4RpIOIxsHfghZge4eE0oiamuqnI.D1DVPk5L_0JN7cZdnxsvU1M5jQILdXdgiSQNmvp1E_WgV3a1Ydye6WCkZw;
-        path=/; expires=Wed, 23-Jul-25 07:56:51 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=_GsH51ZmVknxRkbZkzOIkieFwdZq834Xu.XNY66pB40-1753371679-1.0.1.1-hnUJxPzaSPjVF9XaSmmWC9tQ.FWQGZAjW3CYPkFHmcqTw237a5cTwkOw5uLk72lNrGSE8AQWrt_JPVhKV1qjpl3oQ799d.NYNuHmy3DTbAQ;
+        path=/; expires=Thu, 24-Jul-25 16:11:19 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=LIhNBwzz5vcQ_wuUvSxIfEqxNZTLSQSuN_Ed7KoDmhk-1753255611796-0.0.1.1-604800000;
+      - _cfuvid=b8clPWVkgvVarzqyJi5_cHO9XUvvlsTIBF9_hGwrgb0-1753371679090-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963973b2ccecf4d1-AMS
+      - 964485593fc7a009-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwOAF7UmKbxgcvjZh5zakdGBSXImJ",
+          "id": "chatcmpl-BwsMIN253CDQSAilWxuXrSEGLrwD0",
           "object": "chat.completion",
-          "created": 1753255611,
+          "created": 1753371678,
           "model": "gpt-3.5-turbo-0125",
           "choices": [
             {
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "Do you like pizza?",
+                "content": "Do you like ice cream?",
                 "refusal": null,
                 "annotations": []
               },
@@ -96,7 +96,7 @@ http_interactions:
                 "content": [
                   {
                     "token": "Do",
-                    "logprob": -0.5799977,
+                    "logprob": -0.7406328,
                     "bytes": [
                       68,
                       111
@@ -104,7 +104,7 @@ http_interactions:
                     "top_logprobs": [
                       {
                         "token": "Do",
-                        "logprob": -0.5799977,
+                        "logprob": -0.7406328,
                         "bytes": [
                           68,
                           111
@@ -112,7 +112,7 @@ http_interactions:
                       },
                       {
                         "token": "Yes",
-                        "logprob": -1.2920606,
+                        "logprob": -0.973356,
                         "bytes": [
                           89,
                           101,
@@ -123,7 +123,7 @@ http_interactions:
                   },
                   {
                     "token": " you",
-                    "logprob": -0.004755257,
+                    "logprob": -0.005655606,
                     "bytes": [
                       32,
                       121,
@@ -133,7 +133,7 @@ http_interactions:
                     "top_logprobs": [
                       {
                         "token": " you",
-                        "logprob": -0.004755257,
+                        "logprob": -0.005655606,
                         "bytes": [
                           32,
                           121,
@@ -143,7 +143,7 @@ http_interactions:
                       },
                       {
                         "token": " dogs",
-                        "logprob": -6.230425,
+                        "logprob": -6.126353,
                         "bytes": [
                           32,
                           100,
@@ -156,7 +156,7 @@ http_interactions:
                   },
                   {
                     "token": " like",
-                    "logprob": -0.28408042,
+                    "logprob": -0.2622925,
                     "bytes": [
                       32,
                       108,
@@ -167,7 +167,7 @@ http_interactions:
                     "top_logprobs": [
                       {
                         "token": " like",
-                        "logprob": -0.28408042,
+                        "logprob": -0.2622925,
                         "bytes": [
                           32,
                           108,
@@ -178,7 +178,7 @@ http_interactions:
                       },
                       {
                         "token": " enjoy",
-                        "logprob": -1.6595534,
+                        "logprob": -1.7944809,
                         "bytes": [
                           32,
                           101,
@@ -191,20 +191,18 @@ http_interactions:
                     ]
                   },
                   {
-                    "token": " pizza",
-                    "logprob": -1.1590812,
+                    "token": " ice",
+                    "logprob": -1.2304243,
                     "bytes": [
                       32,
-                      112,
                       105,
-                      122,
-                      122,
-                      97
+                      99,
+                      101
                     ],
                     "top_logprobs": [
                       {
                         "token": " pizza",
-                        "logprob": -1.1590812,
+                        "logprob": -1.1003469,
                         "bytes": [
                           32,
                           112,
@@ -216,7 +214,7 @@ http_interactions:
                       },
                       {
                         "token": " ice",
-                        "logprob": -1.2066238,
+                        "logprob": -1.2304243,
                         "bytes": [
                           32,
                           105,
@@ -227,22 +225,59 @@ http_interactions:
                     ]
                   },
                   {
+                    "token": " cream",
+                    "logprob": -9.0883464e-7,
+                    "bytes": [
+                      32,
+                      99,
+                      114,
+                      101,
+                      97,
+                      109
+                    ],
+                    "top_logprobs": [
+                      {
+                        "token": " cream",
+                        "logprob": -9.0883464e-7,
+                        "bytes": [
+                          32,
+                          99,
+                          114,
+                          101,
+                          97,
+                          109
+                        ]
+                      },
+                      {
+                        "token": "cream",
+                        "logprob": -14.651639,
+                        "bytes": [
+                          99,
+                          114,
+                          101,
+                          97,
+                          109
+                        ]
+                      }
+                    ]
+                  },
+                  {
                     "token": "?",
-                    "logprob": -0.0046038614,
+                    "logprob": -0.0027192833,
                     "bytes": [
                       63
                     ],
                     "top_logprobs": [
                       {
                         "token": "?",
-                        "logprob": -0.0046038614,
+                        "logprob": -0.0027192833,
                         "bytes": [
                           63
                         ]
                       },
                       {
                         "token": "?\n\n",
-                        "logprob": -5.8027244,
+                        "logprob": -6.485662,
                         "bytes": [
                           63,
                           10,
@@ -259,8 +294,8 @@ http_interactions:
           ],
           "usage": {
             "prompt_tokens": 15,
-            "completion_tokens": 5,
-            "total_tokens": 20,
+            "completion_tokens": 6,
+            "total_tokens": 21,
             "prompt_tokens_details": {
               "cached_tokens": 0,
               "audio_tokens": 0
@@ -275,5 +310,5 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Wed, 23 Jul 2025 07:26:51 GMT
+  recorded_at: Thu, 24 Jul 2025 15:41:18 GMT
 recorded_with: VCR 6.3.1

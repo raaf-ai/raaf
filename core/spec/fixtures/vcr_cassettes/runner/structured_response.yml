@@ -27,7 +27,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 19:29:29 GMT
+      - Thu, 24 Jul 2025 15:40:26 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -41,11 +41,11 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '79970'
+      - '79733'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
-      - 22ms
+      - 199ms
       Openai-Version:
       - '2020-10-01'
       Openai-Organization:
@@ -53,34 +53,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_f059b0464c85bf54e9dbe64dd08569a0
+      - req_c4a3c796e7c202dc09b959075cbd51b8
       Openai-Processing-Ms:
-      - '21845'
+      - '8774'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=yHCsAqNp_3iwBYHQqahpwv92LL8AW5_gV_NL6SslKNY-1753298969-1.0.1.1-Wzyf49lVfAqjbZ992O6MzGvOzuT0C10BGg7qwLUJUbWSKNFERRfFJYLjk0K7gpEEq_hLI7uHQvmnJXb9otBXg_SnUbt.0KMPT2Ce9kjFODM;
-        path=/; expires=Wed, 23-Jul-25 19:59:29 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=v0WnLltA3mcKtmn.lKq2TjvnvcgX80Nap6AdxiY5kt8-1753371626-1.0.1.1-Y9STvWoBh4taCDq8gdHSAqGD5082GbBx.r96EdNZsiBKjQtBIVf7Vog1PeNtX7KyW1KJJT7zAsMUtSVt.rSMn5Ko6R.P1ZI3IZFc0RKabRQ;
+        path=/; expires=Thu, 24-Jul-25 16:10:26 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=1uA9YUTDPGeje8yduHKJv8cGV5cnk63SFifO8ndFlUc-1753298969261-0.0.1.1-604800000;
+      - _cfuvid=AgXO_JcdHG2.z0NC6g0MyoSlKnz_aPUGnIpSxF7kGts-1753371626308-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963d95b3fb1ae149-AMS
+      - 964483e0c9ad6668-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_6881380348b881a0a8a40adfc6b1019d0b8ade3abc5a1244",
+          "id": "resp_688253e17c4081a3bc85645546a3c1ec000f512261becd8f",
           "object": "response",
-          "created_at": 1753298947,
+          "created_at": 1753371617,
           "status": "completed",
           "background": false,
           "error": null,
@@ -91,7 +91,7 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_6881380476d481a0b6ca5b8a2f8bc4250b8ade3abc5a1244",
+              "id": "msg_688253e2aca481a3a1c6827bc386f09a000f512261becd8f",
               "type": "message",
               "status": "completed",
               "content": [
@@ -99,7 +99,7 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "{\n  \"Full Name\": \"John Doe\",\n  \"Gender\": \"Male\",\n  \"Date of Birth\": \"1990-01-01\",\n  \"Nationality\": \"American\",\n  \"Occupation\": \"Software Engineer\",\n  \"Education\": \"Master's in Computer Science\",\n  \"Hobbies\": [\"Reading\", \"Hiking\", \"Photography\"],\n  \"Languages\": [\"English\", \"French\"],\n  \"Email\": \"johndoe@gmail.com\",\n  \"Contact Number\": \"+1-202-555-0156\",\n  \"Address\": {\n    \"Street\": \"123 Main Street\",\n    \"City\": \"New York\",\n    \"State\": \"NY\",\n    \"Zip Code\": \"10001\"\n  },\n  \"Skills\": [\"JavaScript\", \"Java\", \"Python\", \"ReactJS\", \"NodeJS\"],\n  \"Work Experience\": [\n    {\n      \"Company\": \"XYZ Tech\",\n      \"Position\": \"Senior Software Engineer\",\n      \"Duration\": \"2018-Present\",\n      \"Responsibilities\": [\"Developed high-end software solutions\", \"Led a team of engineers\", \"Coordinated with clients for requirements\"]\n    },\n    {\n      \"Company\": \"ABC Corp\",\n      \"Position\": \"Junior Software Engineer\",\n      \"Duration\": \"2015-2018\",\n      \"Responsibilities\": [\"Worked on bug fixing and improving application performance\", \"Collaborated with the team to define app features\"]\n    }\n  ],\n  \"Certifications\": [\n    {\n      \"Certification Name\": \"Oracle Certified Professional, Java SE 8 Programmer\",\n      \"Year Obtained\": \"2017\"\n    },\n    {\n      \"Certification Name\": \"Python Certification from The University of Michigan\",\n      \"Year Obtained\": \"2016\"\n    }\n  ]\n}"
+                  "text": "{\n  \"Personal Information\": {\n    \"First Name\": \"John\",\n    \"Last Name\": \"Doe\",\n    \"Age\": 35,\n    \"Gender\": \"Male\",\n    \"Date of Birth\": \"1986-07-01\"\n  },\n  \"Contact Information\": {\n    \"Email\": \"johndoe@example.com\",\n    \"Phone\": \"+1-123-456-7890\",\n    \"Address\": \"123 Main St, Some City, Some State, 11111\"\n  },\n  \"Employment\": {\n    \"Current Position\": \"Software Engineer\",\n    \"Company\": \"XYZ Corporation\",\n    \"Years of Experience\": 10\n  },\n  \"Education\": {\n    \"Highest Degree\": \"Master's in Computer Science\",\n    \"University\": \"ABC University\",\n    \"Graduation Year\": 2009\n  },\n  \"Skills\": [\"Java\", \"Python\", \"SQL\", \"JavaScript\", \"HTML/CSS\"],\n  \"Hobbies\": [\"Reading\", \"Traveling\", \"Photography\", \"Hiking\"]\n}"
                 }
               ],
               "role": "assistant"
@@ -131,14 +131,14 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 371,
+            "output_tokens": 222,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 396
+            "total_tokens": 247
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Wed, 23 Jul 2025 19:29:29 GMT
+  recorded_at: Thu, 24 Jul 2025 15:40:26 GMT
 recorded_with: VCR 6.3.1

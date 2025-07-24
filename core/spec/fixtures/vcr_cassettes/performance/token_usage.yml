@@ -27,7 +27,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Wed, 23 Jul 2025 19:29:56 GMT
+      - Thu, 24 Jul 2025 15:40:00 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -53,34 +53,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_27ee5b725157d898a84a2b04366ce2e7
+      - req_164e56a4f0591922ced787a35e9aad7b
       Openai-Processing-Ms:
-      - '8790'
+      - '8190'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=ZbGeEYBB1oaofFnU1Fwo3AKhPxC.WhESzmt7WS.4wT0-1753298996-1.0.1.1-BI4WHC0jgp8XJApiSHYJml_UJKmpY2L8sqnuZTAuAPrEMsPEbP8tveLp6p1.XjDaENwYkdZZquEIlFtOyU96C5ssitBB85NXw.sGZBIuNFo;
-        path=/; expires=Wed, 23-Jul-25 19:59:56 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=_NnNmy_GJP8h_gUvv1StuxbjyD6uIlPRDpHblz.l2vM-1753371600-1.0.1.1-MEtYXSkV37gBcf4l76Y4FfFRVO5bKLUk.r.Fvt6_lHMU085UO8mNNs1UTtQnBe6I.JsNNAmKbiQbmKoXAY0i.1fxNATznSUn4kWSdZ8uCoc;
+        path=/; expires=Thu, 24-Jul-25 16:10:00 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=Vh7nQ1wT78looaVHemQz63tZWcCNERTnwsgb0kMjuQU-1753298996922-0.0.1.1-604800000;
+      - _cfuvid=QKFtyTFCGU3GP0UNuTtD8nlJxm4EDRAYPisa2kbPG7o-1753371600318-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 963d96b319929ff3-AMS
+      - 964483420b570e30-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_6881382c17ec81a0a43a6ff58f53039d07c93289f0356d16",
+          "id": "resp_688253c815c4819d896bbe639013a3320576fe36155d3129",
           "object": "response",
-          "created_at": 1753298988,
+          "created_at": 1753371592,
           "status": "completed",
           "background": false,
           "error": null,
@@ -91,7 +91,7 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_6881382dc7e881a0962863113909efcd07c93289f0356d16",
+              "id": "msg_688253c9a89c819d8045d1e295d37bf00576fe36155d3129",
               "type": "message",
               "status": "completed",
               "content": [
@@ -99,7 +99,7 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "Once upon a time, in a magical kingdom, there lived an unusual dragon named Drako. Unlike other dragons, Drako didn't like violence but loved music. He played a golden flute that could turn anything it touched into a melody. This was his secret tool. His music was so enchanting, it calmed even the wildest beasts. Legend says that his flute was made from a star. Drako spent days exploring new tunes and spreading peace in the kingdom. Everyone adored Drako's music. It brought harmony in everyone's life. Drako proved that dragons weren't menacing, but could be peace-bringers too."
+                  "text": "In a small town lived a kind baker, known for his magical bread. Humble and hardworking, he found joy in simple things. Famed for the aroma that charmed the town each morning, many savored his bread\u2019s unsurpassed taste. Secretly, he possessed an age-old recipe passed through generations. One day, a sinister man discovered his secret and coveted it. Testing his bravery, the baker faced deceit, danger, and devastation. Through sheer determination and a noble heart, he protected his legacy. By revealing the man\u2019s treachery, he became a celebrated hero. His simple bread, baked with love and courage, engendered cherished tales of valor."
                 }
               ],
               "role": "assistant"
@@ -131,14 +131,14 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 130,
+            "output_tokens": 139,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 158
+            "total_tokens": 167
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Wed, 23 Jul 2025 19:29:56 GMT
+  recorded_at: Thu, 24 Jul 2025 15:40:00 GMT
 recorded_with: VCR 6.3.1
