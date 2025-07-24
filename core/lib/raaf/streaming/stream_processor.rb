@@ -66,7 +66,7 @@ module RAAF
             options: options,
             block: block,
             status: :starting,
-            started_at: Time.current,
+            started_at: Time.now,
             chunks: [],
             total_chunks: 0
           }
@@ -110,7 +110,7 @@ module RAAF
             status: stream[:status],
             started_at: stream[:started_at],
             total_chunks: stream[:total_chunks],
-            duration: Time.current - stream[:started_at]
+            duration: Time.now - stream[:started_at]
           }
         end
       end
@@ -270,7 +270,7 @@ module RAAF
               processed_chunk = {
                 content: chunk,
                 type: :text,
-                timestamp: Time.current.iso8601,
+                timestamp: Time.now.iso8601,
                 stream_id: stream_id
               }
 
@@ -289,7 +289,7 @@ module RAAF
           stream[:block]&.call({
                                  type: :error,
                                  message: e.message,
-                                 timestamp: Time.current.iso8601,
+                                 timestamp: Time.now.iso8601,
                                  stream_id: stream_id
                                })
         ensure
@@ -307,19 +307,19 @@ module RAAF
           {
             content: chunk,
             type: :text,
-            timestamp: Time.current.iso8601,
+            timestamp: Time.now.iso8601,
             stream_id: stream_id
           }
         when Hash
           chunk.merge(
-            timestamp: Time.current.iso8601,
+            timestamp: Time.now.iso8601,
             stream_id: stream_id
           )
         else
           {
             content: chunk.to_s,
             type: :text,
-            timestamp: Time.current.iso8601,
+            timestamp: Time.now.iso8601,
             stream_id: stream_id
           }
         end
@@ -330,7 +330,7 @@ module RAAF
           stream = @active_streams[stream_id]
           if stream
             stream[:status] = status
-            stream[:updated_at] = Time.current
+            stream[:updated_at] = Time.now
           end
         end
       end

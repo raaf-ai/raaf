@@ -355,8 +355,8 @@ module RAAF
         @websocket = websocket
         @id = id
         @channels = []
-        @connected_at = Time.current
-        @last_ping = Time.current
+        @connected_at = Time.now
+        @last_ping = Time.now
         @metadata = {}
       end
 
@@ -376,7 +376,7 @@ module RAAF
         send_message({
                        type: "error",
                        message: error,
-                       timestamp: Time.current.iso8601
+                       timestamp: Time.now.iso8601
                      })
       end
 
@@ -385,7 +385,7 @@ module RAAF
       #
       def ping
         @websocket.ping
-        @last_ping = Time.current
+        @last_ping = Time.now
       end
 
       ##
@@ -400,7 +400,7 @@ module RAAF
       #
       # @return [Boolean] True if client is alive
       def alive?
-        Time.current - @last_ping < 60
+        Time.now - @last_ping < 60
       end
 
       ##

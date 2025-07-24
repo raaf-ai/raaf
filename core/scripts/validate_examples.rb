@@ -181,7 +181,7 @@ class CoreExampleValidator
     when :skipped
       puts "  ⏭️  #{result[:message]}"
       puts "     Reason: #{result[:error]}" if result[:error]
-    when :warning
+    when :warnings
       puts "  ⚠️  #{result[:message]}"
       puts "     Output: #{result[:output]}" if result[:output]
     end
@@ -264,7 +264,7 @@ class CoreExampleValidator
           }
         else
           {
-            status: :warning,
+            status: :warnings,
             file: filename,
             message: "Executed without error but no clear success indicators",
             output: extract_key_output(combined_output)

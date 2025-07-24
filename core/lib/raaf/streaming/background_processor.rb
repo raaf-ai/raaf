@@ -131,7 +131,7 @@ module RAAF
           type: job_type,
           data: data,
           priority: priority,
-          created_at: Time.current.to_f,
+          created_at: Time.now.to_f,
           attempts: 0,
           max_attempts: @retry_count + 1
         }
@@ -140,7 +140,7 @@ module RAAF
 
         if delay.positive?
           # Schedule for later
-          @redis.zadd("raaf:scheduled_jobs", Time.current.to_f + delay, JSON.generate(job))
+          @redis.zadd("raaf:scheduled_jobs", Time.now.to_f + delay, JSON.generate(job))
         else
           # Enqueue immediately
           @redis.lpush(queue_name, JSON.generate(job))
@@ -160,7 +160,7 @@ module RAAF
       # @return [String] Job ID
       #
       def schedule_job(job_type, data, at:, **)
-        delay = at.to_f - Time.current.to_f
+        delay = at.to_f - Time.now.to_f
         enqueue_job(job_type, data, delay: delay, **)
       end
 
@@ -375,7 +375,7 @@ module RAAF
       end
 
       def process_scheduled_jobs
-        current_time = Time.current.to_f
+        current_time = Time.now.to_f
 
         # Get jobs ready to be processed
         jobs = @redis.zrangebyscore("raaf:scheduled_jobs", "-inf", current_time)
@@ -433,14 +433,14 @@ module RAAF
           # Increment attempts
           job["attempts"] += 1
           job["last_error"] = e.message
-          job["failed_at"] = Time.current.to_f
+          job["failed_at"] = Time.now.to_f
 
           @redis.hdel("raaf:processing_jobs", job_id)
 
           if job["attempts"] < job["max_attempts"]
             # Retry after delay
             delay = @retry_delay * (job["attempts"]**2) # Exponential backoff
-            @redis.zadd("raaf:scheduled_jobs", Time.current.to_f + delay, JSON.generate(job))
+            @redis.zadd("raaf:scheduled_jobs", Time.now.to_f + delay, JSON.generate(job))
             log_info("Job scheduled for retry", job_id: job_id, attempts: job["attempts"])
           else
             # Move to failed jobs

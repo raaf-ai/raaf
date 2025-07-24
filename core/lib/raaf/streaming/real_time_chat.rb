@@ -167,7 +167,7 @@ module RAAF
             id: room_id,
             name: room_name,
             type: :room,
-            created_at: Time.current,
+            created_at: Time.now,
             participants: [],
             current_agent: @agent.name,
             options: options
@@ -198,7 +198,7 @@ module RAAF
                                       type: "user_joined",
                                       room_id: room_id,
                                       user_id: client_id,
-                                      timestamp: Time.current.iso8601
+                                      timestamp: Time.now.iso8601
                                     }, channel: room_id)
 
         log_info("Client joined room", client_id: client_id, room_id: room_id)
@@ -225,7 +225,7 @@ module RAAF
                                       type: "user_left",
                                       room_id: room_id,
                                       user_id: client_id,
-                                      timestamp: Time.current.iso8601
+                                      timestamp: Time.now.iso8601
                                     }, channel: room_id)
 
         log_info("Client left room", client_id: client_id, room_id: room_id)
@@ -248,7 +248,7 @@ module RAAF
 
           session[:current_agent] = target_agent
           session[:handoff_context] = context
-          session[:handoff_at] = Time.current
+          session[:handoff_at] = Time.now
         end
 
         log_info("Agent handoff requested",
@@ -284,7 +284,7 @@ module RAAF
             id: session_id,
             client_id: client.id,
             type: :chat,
-            created_at: Time.current,
+            created_at: Time.now,
             current_agent: @agent.name,
             message_count: 0
           }
@@ -299,7 +299,7 @@ module RAAF
                               type: "welcome",
                               session_id: session_id,
                               agent: @agent.name,
-                              timestamp: Time.current.iso8601
+                              timestamp: Time.now.iso8601
                             })
 
         log_info("Client connected to chat", client_id: client.id, session_id: session_id)
@@ -347,7 +347,7 @@ module RAAF
         client.send_message({
                               type: "error",
                               message: "An error occurred",
-                              timestamp: Time.current.iso8601
+                              timestamp: Time.now.iso8601
                             })
       end
 
@@ -359,7 +359,7 @@ module RAAF
         add_to_history(session_id, {
                          role: "user",
                          content: content,
-                         timestamp: Time.current.iso8601,
+                         timestamp: Time.now.iso8601,
                          client_id: client.id
                        })
 
@@ -376,7 +376,7 @@ module RAAF
           add_to_history(session_id, {
                            role: "assistant",
                            content: response_content,
-                           timestamp: Time.current.iso8601,
+                           timestamp: Time.now.iso8601,
                            agent: agent.name
                          })
 
@@ -386,7 +386,7 @@ module RAAF
                                 content: response_content,
                                 agent: agent.name,
                                 session_id: session_id,
-                                timestamp: Time.current.iso8601
+                                timestamp: Time.now.iso8601
                               })
         rescue StandardError => e
           log_error("Chat message processing error", error: e, session_id: session_id)
@@ -394,7 +394,7 @@ module RAAF
           client.send_message({
                                 type: "error",
                                 message: "Failed to process message",
-                                timestamp: Time.current.iso8601
+                                timestamp: Time.now.iso8601
                               })
         end
       end
@@ -414,7 +414,7 @@ module RAAF
                                 chunk: chunk,
                                 session_id: session_id,
                                 stream_id: stream_id,
-                                timestamp: Time.current.iso8601
+                                timestamp: Time.now.iso8601
                               })
         end
 
@@ -424,7 +424,7 @@ module RAAF
                               type: "stream_started",
                               stream_id: stream_id,
                               session_id: session_id,
-                              timestamp: Time.current.iso8601
+                              timestamp: Time.now.iso8601
                             })
       end
 
@@ -439,7 +439,7 @@ module RAAF
                               type: "stream_stopped",
                               stream_id: stream_id,
                               session_id: session_id,
-                              timestamp: Time.current.iso8601
+                              timestamp: Time.now.iso8601
                             })
       end
 
@@ -452,14 +452,14 @@ module RAAF
                                 type: "handoff_completed",
                                 target_agent: target_agent,
                                 session_id: session_id,
-                                timestamp: Time.current.iso8601
+                                timestamp: Time.now.iso8601
                               })
         else
           client.send_message({
                                 type: "handoff_failed",
                                 target_agent: target_agent,
                                 session_id: session_id,
-                                timestamp: Time.current.iso8601
+                                timestamp: Time.now.iso8601
                               })
         end
       end
@@ -472,13 +472,13 @@ module RAAF
           client.send_message({
                                 type: "room_joined",
                                 room_id: room_id,
-                                timestamp: Time.current.iso8601
+                                timestamp: Time.now.iso8601
                               })
         else
           client.send_message({
                                 type: "room_join_failed",
                                 room_id: room_id,
-                                timestamp: Time.current.iso8601
+                                timestamp: Time.now.iso8601
                               })
         end
       end
@@ -492,7 +492,7 @@ module RAAF
         client.send_message({
                               type: "room_left",
                               room_id: room_id,
-                              timestamp: Time.current.iso8601
+                              timestamp: Time.now.iso8601
                             })
       end
 
@@ -504,7 +504,7 @@ module RAAF
                               type: "message_history",
                               history: history,
                               session_id: session_id,
-                              timestamp: Time.current.iso8601
+                              timestamp: Time.now.iso8601
                             })
       end
 

@@ -183,7 +183,7 @@ module RAAF
             options: options,
             block: block,
             status: :queued,
-            started_at: Time.current
+            started_at: Time.now
           }
         end
 
@@ -226,10 +226,10 @@ module RAAF
       #
       def wait_for_tasks(task_ids, timeout: nil)
         timeout ||= @timeout
-        start_time = Time.current
+        start_time = Time.now
         results = []
 
-        while task_ids.any? && (Time.current - start_time) < timeout
+        while task_ids.any? && (Time.now - start_time) < timeout
           @mutex.synchronize do
             task_ids.each do |task_id|
               task = @active_tasks[task_id]
@@ -354,7 +354,7 @@ module RAAF
             options: options,
             block: block,
             status: :queued,
-            started_at: Time.current,
+            started_at: Time.now,
             retry_count: retry_count,
             retry_delay: retry_delay,
             attempts: 0
@@ -422,7 +422,7 @@ module RAAF
           # Update status
           @mutex.synchronize do
             task[:status] = :running
-            task[:started_at] = Time.current
+            task[:started_at] = Time.now
           end
 
           log_debug("Executing async task", task_id: task_id)
@@ -432,13 +432,15 @@ module RAAF
           message = task[:message]
           options = task[:options]
 
-          result = agent.run(message, **options)
+          # Create a runner instance to execute the agent
+          runner = RAAF::Runner.new(agent: agent)
+          result = runner.run(message, **options)
 
           # Update task with result
           @mutex.synchronize do
             task[:result] = result
             task[:status] = :completed
-            task[:completed_at] = Time.current
+            task[:completed_at] = Time.now
           end
 
           log_debug("Task completed", task_id: task_id,
@@ -451,7 +453,7 @@ module RAAF
           @mutex.synchronize do
             task[:error] = e
             task[:status] = :failed
-            task[:completed_at] = Time.current
+            task[:completed_at] = Time.now
           end
 
           log_error("Task failed", task_id: task_id, error: e)
@@ -488,13 +490,15 @@ module RAAF
           message = task[:message]
           options = task[:options]
 
-          result = agent.run(message, **options)
+          # Create a runner instance to execute the agent
+          runner = RAAF::Runner.new(agent: agent)
+          result = runner.run(message, **options)
 
           # Update task with result
           @mutex.synchronize do
             task[:result] = result
             task[:status] = :completed
-            task[:completed_at] = Time.current
+            task[:completed_at] = Time.now
           end
 
           log_debug("Task completed with retry",
@@ -514,7 +518,7 @@ module RAAF
             @mutex.synchronize do
               task[:error] = e
               task[:status] = :failed
-              task[:completed_at] = Time.current
+              task[:completed_at] = Time.now
             end
 
             log_error("Task failed after all retries",
@@ -655,7 +659,7 @@ module RAAF
             message: message,
             options: options,
             block: block,
-            queued_at: Time.current
+            queued_at: Time.now
           }
         end
 
@@ -733,7 +737,7 @@ module RAAF
               chunk_data = {
                 content: chunk,
                 stream_id: stream_id,
-                timestamp: Time.current.iso8601
+                timestamp: Time.now.iso8601
               }
 
               block&.call(chunk_data)

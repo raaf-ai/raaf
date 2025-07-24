@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "async"
-require "async/queue"
 
 module RAAF
 
@@ -116,7 +115,7 @@ module RAAF
     # Initialize streaming execution instance
     #
     # @param agent [Agent] the agent to execute
-    # @param input [String, Array, Hash] input for the agent (message(s))
+    # @param input [String, Array, Hash] input for the agent (message(s)
     # @param run_config [RunConfig, nil] execution configuration
     # @param tracer [Tracing::SpanTracer, nil] tracer for execution monitoring
     # @param provider [Models::Interface, nil] AI provider for execution
@@ -141,7 +140,7 @@ module RAAF
       @tracer = tracer
       @provider = provider
 
-      @events_queue = Async::Queue.new
+      @events_queue = Queue.new
       @final_result = nil
       @finished = false
       @error = nil
@@ -194,14 +193,15 @@ module RAAF
     def next_event
       return nil if @finished && @events_queue.empty?
 
-      begin
-        @events_queue.dequeue_nonblock
-      rescue Async::Queue::Empty
+      # For non-blocking behavior, check if queue is empty first
+      if @events_queue.empty?
         return nil if @finished
 
-        # Wait for next event
-        @events_queue.dequeue
+        # If not finished, do blocking dequeue to wait for next event
+      else
+        # Queue has items, dequeue immediately
       end
+      @events_queue.deq
     end
 
     ##
@@ -223,10 +223,10 @@ module RAAF
         run_agent_with_streaming(task)
       rescue StandardError => e
         @error = e
-        @events_queue.enqueue(StreamErrorEvent.new(error: e))
+        @events_queue << StreamErrorEvent.new(error: e)
       ensure
         @finished = true
-        @events_queue.close
+        @events_queue.close if @events_queue.respond_to?(:close)
       end
 
       self
@@ -286,7 +286,7 @@ module RAAF
       span = @tracer&.start_span("agent.#{@agent.name}")
 
       begin
-        @events_queue.enqueue(AgentStartEvent.new(agent: @agent))
+        @events_queue << AgentStartEvent.new(agent: @agent)
 
         # Initialize conversation
         messages = normalize_input(@input)
@@ -314,11 +314,11 @@ module RAAF
         if result[:handoff_to]
           handoff_agent = find_handoff_agent(current_agent, result[:handoff_to])
           if handoff_agent
-            @events_queue.enqueue(AgentHandoffEvent.new(
-                                    from_agent: current_agent,
-                                    to_agent: handoff_agent,
-                                    reason: result[:handoff_reason]
-                                  ))
+            @events_queue << AgentHandoffEvent.new(
+              from_agent: current_agent,
+              to_agent: handoff_agent,
+              reason: result[:handoff_reason]
+            )
             current_agent = handoff_agent
             result[:messages]
             next
@@ -332,10 +332,10 @@ module RAAF
             agent: current_agent,
             turn_count: turn_count
           )
-          @events_queue.enqueue(AgentFinishEvent.new(
-                                  agent: current_agent,
-                                  result: @final_result
-                                ))
+          @events_queue << AgentFinishEvent.new(
+            agent: current_agent,
+            result: @final_result
+          )
           break
         end
 
@@ -345,7 +345,7 @@ module RAAF
       return unless turn_count >= max_turns
 
       error = MaxTurnsError.new("Maximum turns (#{max_turns}) exceeded")
-      @events_queue.enqueue(StreamErrorEvent.new(error: error))
+      @events_queue << StreamErrorEvent.new(error: error)
       raise error
     end
 
@@ -364,35 +364,35 @@ module RAAF
         **(@run_config&.to_model_params || {})
       ) do |chunk|
         event = process_raw_chunk(chunk, agent)
-        @events_queue.enqueue(event) if event
+        @events_queue << event if event
 
         # Accumulate response
         if chunk[:type] == :content_delta
           if response_messages.empty?
             response_messages << { role: "assistant", content: chunk[:delta] }
-            @events_queue.enqueue(MessageStartEvent.new(
-                                    agent: agent,
-                                    message: response_messages.last
-                                  ))
+            @events_queue << MessageStartEvent.new(
+              agent: agent,
+              message: response_messages.last
+            )
           else
             response_messages.last[:content] += chunk[:delta]
           end
         elsif chunk[:type] == :tool_call
           tool_calls << chunk[:tool_call]
-          @events_queue.enqueue(ToolCallEvent.new(
-                                  agent: agent,
-                                  tool_call: chunk[:tool_call]
-                                ))
+          @events_queue << ToolCallEvent.new(
+            agent: agent,
+            tool_call: chunk[:tool_call]
+          )
         end
       end
 
       # Finalize message
       if response_messages.any?
         messages << response_messages.last
-        @events_queue.enqueue(MessageCompleteEvent.new(
-                                agent: agent,
-                                message: response_messages.last
-                              ))
+        @events_queue << MessageCompleteEvent.new(
+          agent: agent,
+          message: response_messages.last
+        )
       end
 
       # Execute tools if present
@@ -433,10 +433,10 @@ module RAAF
       results = []
 
       tool_calls.each do |tool_call|
-        @events_queue.enqueue(ToolExecutionStartEvent.new(
-                                agent: agent,
-                                tool_call: tool_call
-                              ))
+        @events_queue << ToolExecutionStartEvent.new(
+          agent: agent,
+          tool_call: tool_call
+        )
 
         begin
           result = agent.execute_tool(
@@ -452,11 +452,11 @@ module RAAF
 
           results << tool_message
 
-          @events_queue.enqueue(ToolExecutionCompleteEvent.new(
-                                  agent: agent,
-                                  tool_call: tool_call,
-                                  result: result
-                                ))
+          @events_queue << ToolExecutionCompleteEvent.new(
+            agent: agent,
+            tool_call: tool_call,
+            result: result
+          )
         rescue StandardError => e
           error_message = {
             role: "tool",
@@ -466,11 +466,11 @@ module RAAF
 
           results << error_message
 
-          @events_queue.enqueue(ToolExecutionErrorEvent.new(
-                                  agent: agent,
-                                  tool_call: tool_call,
-                                  error: e
-                                ))
+          @events_queue << ToolExecutionErrorEvent.new(
+            agent: agent,
+            tool_call: tool_call,
+            error: e
+          )
         end
       end
 
@@ -481,27 +481,27 @@ module RAAF
       return unless agent.input_guardrails&.any?
 
       agent.input_guardrails.each do |guardrail|
-        @events_queue.enqueue(GuardrailStartEvent.new(
-                                agent: agent,
-                                guardrail: guardrail,
-                                type: :input
-                              ))
+        @events_queue << GuardrailStartEvent.new(
+          agent: agent,
+          guardrail: guardrail,
+          type: :input
+        )
 
         result = guardrail.call(context, agent, input)
 
-        @events_queue.enqueue(GuardrailCompleteEvent.new(
-                                agent: agent,
-                                guardrail: guardrail,
-                                type: :input,
-                                result: result
-                              ))
+        @events_queue << GuardrailCompleteEvent.new(
+          agent: agent,
+          guardrail: guardrail,
+          type: :input,
+          result: result
+        )
 
         next unless result.tripwire_triggered
 
         error = InputGuardrailTripwireTriggered.new(
           "Input guardrail '#{guardrail.name}' triggered"
         )
-        @events_queue.enqueue(StreamErrorEvent.new(error: error))
+        @events_queue << StreamErrorEvent.new(error: error)
         raise error
       end
     end
@@ -510,27 +510,27 @@ module RAAF
       return unless agent.output_guardrails&.any?
 
       agent.output_guardrails.each do |guardrail|
-        @events_queue.enqueue(GuardrailStartEvent.new(
-                                agent: agent,
-                                guardrail: guardrail,
-                                type: :output
-                              ))
+        @events_queue << GuardrailStartEvent.new(
+          agent: agent,
+          guardrail: guardrail,
+          type: :output
+        )
 
         result = guardrail.call(context, agent, output)
 
-        @events_queue.enqueue(GuardrailCompleteEvent.new(
-                                agent: agent,
-                                guardrail: guardrail,
-                                type: :output,
-                                result: result
-                              ))
+        @events_queue << GuardrailCompleteEvent.new(
+          agent: agent,
+          guardrail: guardrail,
+          type: :output,
+          result: result
+        )
 
         next unless result.tripwire_triggered
 
         error = OutputGuardrailTripwireTriggered.new(
           "Output guardrail '#{guardrail.name}' triggered"
         )
-        @events_queue.enqueue(StreamErrorEvent.new(error: error))
+        @events_queue << StreamErrorEvent.new(error: error)
         raise error
       end
     end
@@ -634,6 +634,8 @@ module RAAF
       # @yieldparam event [Object] streaming event
       # @return [Enumerator] if no block given
       def each
+        return enum_for(:each) unless block_given?
+
         while (event = @streaming_result.next_event)
           yield event
         end

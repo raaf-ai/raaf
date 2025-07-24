@@ -62,7 +62,7 @@ module RAAF
               pattern: event,
               regex: wildcard_to_regex(event),
               handler: block,
-              created_at: Time.current
+              created_at: Time.now
             }
           else
             raise StandardError, "Maximum listeners exceeded for event: #{event}" if @listeners[event].size >= @max_listeners
@@ -70,7 +70,7 @@ module RAAF
             @listeners[event] << {
               id: listener_id,
               handler: block,
-              created_at: Time.current
+              created_at: Time.now
             }
           end
         end
@@ -148,7 +148,7 @@ module RAAF
         event_data = {
           event: event,
           data: data,
-          timestamp: Time.current.iso8601,
+          timestamp: Time.now.iso8601,
           id: SecureRandom.hex(8)
         }
 

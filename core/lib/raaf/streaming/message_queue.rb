@@ -85,7 +85,7 @@ module RAAF
           id: message_id,
           data: message,
           priority: priority,
-          created_at: Time.current.to_f,
+          created_at: Time.now.to_f,
           ttl: ttl,
           attempts: 0,
           max_attempts: 3
@@ -195,7 +195,7 @@ module RAAF
             if envelope["attempts"] < envelope["max_attempts"]
               # Requeue with delay
               delay = envelope["attempts"] * 2 # Exponential backoff
-              @redis.zadd("#{@queue_name}:delayed", Time.current.to_f + delay, JSON.generate(envelope))
+              @redis.zadd("#{@queue_name}:delayed", Time.now.to_f + delay, JSON.generate(envelope))
               log_info("Message requeued with delay", message_id: message_id, delay: delay)
             else
               # Move to dead letter queue
@@ -440,7 +440,7 @@ module RAAF
         @redis.lpush(@processing_queue, envelope["id"])
 
         # Check TTL
-        if envelope["ttl"] && (Time.current.to_f - envelope["created_at"]) > envelope["ttl"]
+        if envelope["ttl"] && (Time.now.to_f - envelope["created_at"]) > envelope["ttl"]
           log_warn("Message expired", message_id: envelope["id"])
           acknowledge(envelope["id"])
           return nil
@@ -452,7 +452,7 @@ module RAAF
       def process_delayed_messages
         while @running
           begin
-            current_time = Time.current.to_f
+            current_time = Time.now.to_f
 
             # Get messages ready to be processed
             messages = @redis.zrangebyscore("#{@queue_name}:delayed", "-inf", current_time)

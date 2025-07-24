@@ -132,9 +132,9 @@ module RAAF
       def native_stream(messages, **options, &block)
         @streaming_requests = (@streaming_requests || 0) + 1
         @total_requests = (@total_requests || 0) + 1
-        @last_request_at = Time.current
+        @last_request_at = Time.now
 
-        start_time = Time.current
+        start_time = Time.now
 
         begin
           result = @provider.stream(messages, **options) do |chunk|
@@ -153,9 +153,9 @@ module RAAF
       def simulated_stream(messages, **, &block)
         @simulation_requests = (@simulation_requests || 0) + 1
         @total_requests = (@total_requests || 0) + 1
-        @last_request_at = Time.current
+        @last_request_at = Time.now
 
-        start_time = Time.current
+        start_time = Time.now
 
         begin
           # Generate complete response
@@ -167,7 +167,7 @@ module RAAF
             processed_chunk = {
               content: chunk,
               type: :text,
-              timestamp: Time.current.iso8601,
+              timestamp: Time.now.iso8601,
               simulated: true
             }
 
@@ -191,26 +191,26 @@ module RAAF
           {
             content: chunk,
             type: :text,
-            timestamp: Time.current.iso8601,
+            timestamp: Time.now.iso8601,
             simulated: false
           }
         when Hash
           chunk.merge(
-            timestamp: Time.current.iso8601,
+            timestamp: Time.now.iso8601,
             simulated: false
           )
         else
           {
             content: chunk.to_s,
             type: :text,
-            timestamp: Time.current.iso8601,
+            timestamp: Time.now.iso8601,
             simulated: false
           }
         end
       end
 
       def update_stats(start_time)
-        duration = Time.current - start_time
+        duration = Time.now - start_time
         @total_response_time = (@total_response_time || 0) + duration
         @average_response_time = @total_response_time / @total_requests
       end
@@ -275,7 +275,7 @@ module RAAF
         user_message = {
           role: "user",
           content: content,
-          timestamp: Time.current.iso8601
+          timestamp: Time.now.iso8601
         }
 
         @mutex.synchronize do
@@ -295,7 +295,7 @@ module RAAF
         assistant_message = {
           role: "assistant",
           content: result.messages.last[:content],
-          timestamp: Time.current.iso8601,
+          timestamp: Time.now.iso8601,
           agent: @agent.name
         }
 
@@ -441,7 +441,7 @@ module RAAF
         {
           session_id: @session_id,
           messages: history,
-          timestamp: Time.current.iso8601
+          timestamp: Time.now.iso8601
         }
       end
 

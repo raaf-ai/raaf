@@ -700,12 +700,12 @@ module RAAF
           handoff_agents << handoff
         when Handoff
           # Look up the target agent from the agents registry
-          target_agent = @agents&.find { |a| a.name == handoff.agent_name }
+          target_agent = @agents&.find { |a| a.name == handoff.agent.name }
           if target_agent
             handoff_agents << target_agent
           else
             log_debug("🔧 HANDOFF FLOW: Target agent not found in registry",
-                      target_name: handoff.agent_name,
+                      target_name: handoff.agent.name,
                       available_agents: @agents&.map(&:name)&.join(", ") || "none")
           end
         end

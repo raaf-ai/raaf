@@ -137,7 +137,7 @@ module RAAF
         send_message({
                        type: "subscribe",
                        channel: channel,
-                       timestamp: Time.current.iso8601
+                       timestamp: Time.now.iso8601
                      })
       end
 
@@ -150,7 +150,7 @@ module RAAF
         send_message({
                        type: "unsubscribe",
                        channel: channel,
-                       timestamp: Time.current.iso8601
+                       timestamp: Time.now.iso8601
                      })
       end
 
@@ -236,7 +236,7 @@ module RAAF
                        agent_id: agent.id,
                        message: message,
                        options: options,
-                       timestamp: Time.current.iso8601
+                       timestamp: Time.now.iso8601
                      })
 
         # Handle streaming responses
@@ -261,7 +261,7 @@ module RAAF
         send_message({
                        type: "stop_stream",
                        stream_id: stream_id,
-                       timestamp: Time.current.iso8601
+                       timestamp: Time.now.iso8601
                      })
       end
 
@@ -277,7 +277,7 @@ module RAAF
                        agent_id: agent_id,
                        message: message,
                        options: options,
-                       timestamp: Time.current.iso8601
+                       timestamp: Time.now.iso8601
                      })
       end
 
@@ -293,7 +293,7 @@ module RAAF
                        from_agent: from_agent,
                        to_agent: to_agent,
                        context: context,
-                       timestamp: Time.current.iso8601
+                       timestamp: Time.now.iso8601
                      })
       end
 

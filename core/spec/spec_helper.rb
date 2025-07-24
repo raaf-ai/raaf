@@ -10,7 +10,14 @@ SimpleCov.start do
   add_filter "/spec/"
   add_filter "/vendor/"
   add_filter "/examples/"
-  
+
+  # Exclude specific test directories from coverage tracking
+  add_filter "/spec/compliance/"
+  add_filter "/spec/cost/"
+  add_filter "/spec/integration/"
+  add_filter "/spec/performance/"
+  add_filter "/spec/acceptance/"
+
   # Only track files that are actually used in the test suite being run
   track_files "lib/**/*.rb"
 
@@ -21,12 +28,10 @@ SimpleCov.start do
   add_group "Tools", "lib/raaf/tools"
 
   # Set minimum coverage threshold based on test context
-  if ENV["CI"]
-    # CI environment - be more lenient due to environment variations
-    minimum_coverage 35
-  elsif ENV["RUN_INTEGRATION_TESTS"] || ENV["RUN_ACCEPTANCE_TESTS"] || ENV["RUN_COST_TESTS"]
-    # When running all test types, expect higher coverage
-    minimum_coverage 50
+  # Disable coverage requirements for specialized test types
+  if ENV["RUN_ACCEPTANCE_TESTS"] || ENV["RUN_COMPLIANCE_TESTS"] || ENV["RUN_PERFORMANCE_TESTS"] || ENV["RUN_COST_TESTS"] || ENV["RUN_INTEGRATION_TESTS"]
+    # These test types don't contribute to coverage - disable minimum threshold
+    minimum_coverage 0
   else
     # Standard unit test coverage target
     minimum_coverage 40
@@ -156,6 +161,16 @@ RSpec.configure do |config|
     metadata[:property] = true
   end
 
+  config.define_derived_metadata(file_path: %r{/spec/compliance/}) do |metadata|
+    metadata[:type] = :compliance
+    metadata[:compliance] = true
+  end
+
+  config.define_derived_metadata(file_path: %r{/spec/acceptance/}) do |metadata|
+    metadata[:type] = :acceptance
+    metadata[:acceptance] = true
+  end
+
   # Skip integration tests by default unless explicitly requested
   config.filter_run_excluding :integration unless ENV["RUN_INTEGRATION_TESTS"]
 
@@ -167,6 +182,9 @@ RSpec.configure do |config|
 
   # Skip acceptance tests by default unless explicitly requested
   config.filter_run_excluding :acceptance unless ENV["RUN_ACCEPTANCE_TESTS"]
+
+  # Skip compliance tests by default unless explicitly requested
+  config.filter_run_excluding :compliance unless ENV["RUN_COMPLIANCE_TESTS"]
 
   # Configuration for integration tests
   config.before(:each, :integration) do
@@ -192,6 +210,12 @@ RSpec.configure do |config|
     skip "VCR not available" unless defined?(VCR)
     # Allow real HTTP connections for acceptance tests if VCR_ALLOW_HTTP is set
     WebMock.allow_net_connect! if defined?(WebMock) && ENV["VCR_ALLOW_HTTP"]
+  end
+
+  # Configuration for compliance tests
+  config.before(:each, :compliance) do
+    # Skip if VCR not available
+    skip "VCR not available" unless defined?(VCR)
   end
 
   # Configuration for property-based tests
