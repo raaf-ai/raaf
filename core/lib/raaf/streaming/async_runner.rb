@@ -5,7 +5,7 @@ require "concurrent-ruby"
 
 module RAAF
 
-  module Streaming
+  module Async
 
     ##
     # Async runner for non-blocking agent operations
@@ -14,9 +14,84 @@ module RAAF
     # and thread pools. Enables non-blocking agent processing with proper
     # error handling and resource management.
     #
-    class AsyncRunner
+    class Runner
 
-      include RAAF::Logging
+      # NOTE: RAAF::Logging might not be available in streaming context
+      # We'll provide basic logging methods instead
+      def log_info(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[INFO] #{message} #{context.inspect}" if ENV["RAAF_LOG_LEVEL"] == "debug"
+      end
+
+      def log_debug(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[DEBUG] #{message} #{context.inspect}" if ENV["RAAF_LOG_LEVEL"] == "debug"
+      end
+
+      def log_warn(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[WARN] #{message} #{context.inspect}" if ENV["RAAF_LOG_LEVEL"] == "debug"
+      end
+
+      def log_error(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[ERROR] #{message} #{context.inspect}"
+      end
+
+      ##
+      # Wrapper to make synchronous providers async-compatible
+      #
+      class AsyncProviderWrapper
+
+        def initialize(sync_provider)
+          @sync_provider = sync_provider
+        end
+
+        ##
+        # Wrap synchronous chat_completion in async block
+        #
+        # @param messages [Array<Hash>] Message history
+        # @param kwargs [Hash] Additional parameters
+        # @return [Async::Task] Task that resolves to API response
+        #
+        def async_chat_completion(messages:, **kwargs)
+          Async do
+            @sync_provider.chat_completion(messages: messages, **kwargs)
+          end
+        end
+
+        # Delegate other methods to the synchronous provider
+        def method_missing(method, ...)
+          @sync_provider.send(method, ...)
+        end
+
+        def respond_to_missing?(method, include_private = false)
+          @sync_provider.respond_to?(method, include_private) || super
+        end
+
+      end
+
+      # @return [RAAF::Agent] The agent being run
+      attr_reader :agent
+
+      # @return [Object] The provider being used
+      attr_reader :provider
 
       # @return [Integer] Thread pool size
       attr_reader :pool_size
@@ -30,14 +105,28 @@ module RAAF
       ##
       # Initialize async runner
       #
+      # @param agent [RAAF::Agent] The agent to run
+      # @param provider [Object] The provider to use (optional)
       # @param pool_size [Integer] Thread pool size
       # @param queue_size [Integer] Queue size
       # @param timeout [Integer] Timeout in seconds
       #
-      def initialize(pool_size: 10, queue_size: 100, timeout: 60)
+      def initialize(agent:, provider: nil, pool_size: 10, queue_size: 100, timeout: 60)
+        @agent = agent
         @pool_size = pool_size
         @queue_size = queue_size
         @timeout = timeout
+
+        # Set up async provider
+        @async_provider = if provider.respond_to?(:async_chat_completion)
+                            provider
+                          elsif provider
+                            self.class::AsyncProviderWrapper.new(provider)
+                          else
+                            # Use default async-enhanced ResponsesProvider
+                            RAAF::Async::Providers::ResponsesProvider.new
+                          end
+
         @thread_pool = Concurrent::ThreadPoolExecutor.new(
           min_threads: 2,
           max_threads: pool_size,
@@ -47,6 +136,32 @@ module RAAF
         @active_tasks = {}
         @task_counter = 0
         @mutex = Mutex.new
+      end
+
+      ##
+      # Run agent asynchronously
+      #
+      # @param messages [String, Array<Hash>] Initial message(s)
+      # @param config [RAAF::RunConfig] Run configuration
+      # @return [Async::Task] Task that resolves to run result
+      #
+      def run_async(messages, config: nil, &block)
+        Async do
+          # Create a basic runner to handle the conversation
+          sync_runner = RAAF::Runner.new(agent: @agent, provider: @async_provider)
+          sync_runner.run(messages, config: config, &block)
+        end
+      end
+
+      ##
+      # Run agent synchronously (waits for async completion)
+      #
+      # @param messages [String, Array<Hash>] Initial message(s)
+      # @param config [RAAF::RunConfig] Run configuration
+      # @return [RAAF::RunResult] Run result
+      #
+      def run(messages, config: nil, &)
+        run_async(messages, config: config, &).wait
       end
 
       ##
@@ -427,12 +542,48 @@ module RAAF
     #
     class AsyncStreamingSession
 
-      include RAAF::Logging
+      # NOTE: RAAF::Logging might not be available in streaming context
+      # We'll provide basic logging methods instead
+      def log_info(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[INFO] #{message} #{context.inspect}" if ENV["RAAF_LOG_LEVEL"] == "debug"
+      end
+
+      def log_debug(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[DEBUG] #{message} #{context.inspect}" if ENV["RAAF_LOG_LEVEL"] == "debug"
+      end
+
+      def log_warn(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[WARN] #{message} #{context.inspect}" if ENV["RAAF_LOG_LEVEL"] == "debug"
+      end
+
+      def log_error(message, **context)
+        return unless defined?(RAAF::Logging)
+
+        super
+      rescue NameError
+        # Fallback if RAAF::Logging not available
+        puts "[ERROR] #{message} #{context.inspect}"
+      end
 
       # @return [Agent] Agent instance
       attr_reader :agent
 
-      # @return [AsyncRunner] Async runner
+      # @return [Runner] Async runner
       attr_reader :runner
 
       # @return [String] Session ID
@@ -442,7 +593,7 @@ module RAAF
       # Initialize async streaming session
       #
       # @param agent [Agent] Agent instance
-      # @param runner [AsyncRunner] Async runner
+      # @param runner [Runner] Async runner
       # @param options [Hash] Session options
       #
       def initialize(agent:, runner:, **options)
