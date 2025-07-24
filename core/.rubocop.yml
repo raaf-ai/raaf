@@ -110,3 +110,6 @@ RSpec/SubjectStub:
 
 RSpec/ExpectActual:
   Enabled: false
+
+RSpec/BeforeAfterAll:
+  Enabled: false
