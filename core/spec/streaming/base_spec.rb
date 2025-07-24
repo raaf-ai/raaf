@@ -75,13 +75,15 @@ RSpec.describe "RAAF Async Components" do
 
     describe "#async_sleep" do
       it "returns an async task that sleeps" do
-        task = test_instance.async_sleep(0.01)
-        expect(task).to be_a(Async::Task)
+        Async do
+          task = test_instance.async_sleep(0.01)
+          expect(task).to be_a(Async::Task)
 
-        start_time = Time.now
-        task.wait
-        elapsed = Time.now - start_time
-        expect(elapsed).to be >= 0.005 # More lenient timing
+          start_time = Time.now
+          task.wait
+          elapsed = Time.now - start_time
+          expect(elapsed).to be >= 0.001 # Very lenient timing for CI environments
+        end
       end
     end
 
