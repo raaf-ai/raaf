@@ -401,26 +401,26 @@ RSpec.describe "Provider Contract Compliance", :compliance do
     end
   end
 
-  describe "RetryableProvider Integration" do
+  describe "Built-in Retry Logic (ModelInterface)" do
     let(:mock_provider) { create_mock_provider }
 
-    it "includes retry logic for transient failures" do
-      # Test that providers handle retryable errors
-      # First call fails, second succeeds
-      retryable_error = RAAF::RateLimitError.new("Rate limited", status: 429)
-      mock_provider.add_error(retryable_error)
-      mock_provider.add_response("Success after retry")
-
-      # MockProvider doesn't actually implement retry logic, but we can verify the interface
+    it "includes retry logic in ModelInterface base class" do
+      # Test that all providers inherit retry logic from ModelInterface
+      expect(mock_provider).to respond_to(:configure_retry)
       expect(mock_provider).to respond_to(:responses_completion)
+      
+      # Verify retry configuration is available
+      expect(mock_provider.retry_config).to be_a(Hash)
+      expect(mock_provider.retry_config).to have_key(:max_attempts)
+      expect(mock_provider.retry_config).to have_key(:base_delay)
     end
 
-    it "respects retry configuration" do
-      # Verify that retry behavior can be configured
-      # This would require actual provider implementation testing
-      # rubocop:disable RSpec/IdenticalEqualityAssertion
-      expect(true).to be true # Placeholder
-      # rubocop:enable RSpec/IdenticalEqualityAssertion
+    it "allows retry configuration customization" do
+      # Verify that retry behavior can be configured on any provider
+      mock_provider.configure_retry(max_attempts: 5, base_delay: 2.0)
+      
+      expect(mock_provider.retry_config[:max_attempts]).to eq(5)
+      expect(mock_provider.retry_config[:base_delay]).to eq(2.0)
     end
   end
 

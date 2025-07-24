@@ -510,38 +510,21 @@ def configure_providers(config)
       api_base: config.openai_api_base
     )
 
-    # ❌ PLANNED: Create retryable wrapper based on configuration
-    # The following code shows intended API but RetryableProvider doesn't exist yet
-    puts "⚠️  WARNING: RetryableProvider is not implemented yet"
-    puts "⚠️  Using basic OpenAI provider without retry logic for now"
+    # ✅ Configure retry behavior - built into all providers via ModelInterface
+    puts "✅ Configuring retry behavior (built into ModelInterface)"
+    
+    # Configure retry settings based on configuration
+    openai_provider.configure_retry(
+      max_attempts: config.retry_max_attempts,
+      base_delay: config.retry_base_delay,
+      max_delay: config.retry_max_delay,
+      multiplier: 2.0,
+      jitter: 0.1
+    )
 
-    # PLANNED API (commented out until RetryableProvider is implemented):
-    # retryable_class = Class.new(RAAF::Models::ResponsesProvider) do  # Use ResponsesProvider
-    #   include RAAF::Models::RetryableProvider  # This doesn't exist yet
-    #
-    #   def initialize(base_provider, config)
-    #     super(api_key: base_provider.instance_variable_get(:@api_key))
-    #     configure_retry(
-    #       max_attempts: config.retry_max_attempts,
-    #       base_delay: config.retry_base_delay,
-    #       max_delay: config.retry_max_delay,
-    #       multiplier: 2.0,
-    #       jitter: 0.1
-    #     )
-    #   end
-    #
-    #   def chat_completion(**kwargs)
-    #     with_retry { super(**kwargs) }
-    #   end
-    #
-    #   def stream_completion(...)
-    #     with_retry { super(...) }
-    #   end
-    # end
+    providers[:openai] = openai_provider
 
-    providers[:openai] = openai_provider # Use basic provider for now
-
-    puts "✅ OpenAI provider configured (basic version without retry logic)"
+    puts "✅ OpenAI provider configured with retry logic (#{config.retry_max_attempts} attempts max)"
   end
 
   # Anthropic Provider (backup)
