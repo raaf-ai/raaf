@@ -43,6 +43,7 @@ GEM
     drb (2.2.3)
     erubi (1.13.1)
     ffi (1.17.2-x86_64-darwin)
+    ffi (1.17.2-x86_64-linux-gnu)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
     kramdown (2.5.1)
@@ -65,7 +66,9 @@ GEM
       tomlrb
     mixlib-shellout (3.3.9)
       chef-utils
-    nokogiri (1.18.8-x86_64-darwin)
+    nokogiri (1.18.9-x86_64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.18.9-x86_64-linux-gnu)
       racc (~> 1.4)
     ostruct (0.6.2)
     racc (1.8.1)
@@ -103,6 +106,7 @@ GEM
 
 PLATFORMS
   x86_64-darwin
+  x86_64-linux
 
 DEPENDENCIES
   actionpack (~> 7.0)
@@ -111,7 +115,7 @@ DEPENDENCIES
   dartsass (~> 1.6)
   kramdown (~> 2.4)
   mdl (~> 0.12)
-  nokogiri (~> 1.13)
+  nokogiri (~> 1.18)
   ostruct (~> 0.5)
   rails-html-sanitizer (~> 1.4)
   rake (~> 13.0)
