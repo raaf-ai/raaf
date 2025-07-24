@@ -8,13 +8,15 @@ RSpec.describe "RAAF Basic Acceptance", :acceptance do
     skip "Acceptance tests require OPENAI_API_KEY to be set" unless ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
   end
 
-  # Disable VCR for acceptance tests - we want real API calls
+  # Disable VCR and WebMock for acceptance tests - we want real API calls
   before do
     VCR.turn_off! if defined?(VCR)
+    WebMock.disable! if defined?(WebMock)
   end
 
   after do
     VCR.turn_on! if defined?(VCR)
+    WebMock.enable! if defined?(WebMock)
   end
 
   let(:agent) do

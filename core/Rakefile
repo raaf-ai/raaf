@@ -82,6 +82,9 @@ namespace :spec do
 
   desc "Run all tests (unit, integration, performance, cost, acceptance, compliance)"
   task :all do
-    Rake::Task["spec"].execute
+    # Run tests with all tags to ensure nothing is excluded
+    system("bundle exec rspec --tag integration --tag performance --tag cost --tag acceptance --tag compliance --tag ~skip")
+    # Also run unit tests (those without special tags)
+    system("bundle exec rspec --tag ~integration --tag ~performance --tag ~cost --tag ~acceptance --tag ~compliance")
   end
 end
