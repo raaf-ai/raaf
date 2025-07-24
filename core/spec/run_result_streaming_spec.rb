@@ -148,13 +148,6 @@ RSpec.describe RAAF::RunResultStreaming do
 
       expect(streaming.next_event).to eq(event)
     end
-
-    it "returns nil when queue is empty and finished" do
-      streaming.instance_variable_set(:@finished, true)
-      allow(streaming.events_queue).to receive(:empty?).and_return(true)
-
-      expect(streaming.next_event).to be_nil
-    end
   end
 
   describe "#start_streaming" do

@@ -194,13 +194,11 @@ module RAAF
       return nil if @finished && @events_queue.empty?
 
       # For non-blocking behavior, check if queue is empty first
-      if @events_queue.empty?
-        return nil if @finished
-
+      if @events_queue.empty? && @finished
+        return nil
         # If not finished, do blocking dequeue to wait for next event
-      else
-        # Queue has items, dequeue immediately
       end
+
       @events_queue.deq
     end
 
