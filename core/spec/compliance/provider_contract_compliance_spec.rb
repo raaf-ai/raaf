@@ -408,7 +408,7 @@ RSpec.describe "Provider Contract Compliance", :compliance do
       # Test that all providers inherit retry logic from ModelInterface
       expect(mock_provider).to respond_to(:configure_retry)
       expect(mock_provider).to respond_to(:responses_completion)
-      
+
       # Verify retry configuration is available
       expect(mock_provider.retry_config).to be_a(Hash)
       expect(mock_provider.retry_config).to have_key(:max_attempts)
@@ -418,7 +418,7 @@ RSpec.describe "Provider Contract Compliance", :compliance do
     it "allows retry configuration customization" do
       # Verify that retry behavior can be configured on any provider
       mock_provider.configure_retry(max_attempts: 5, base_delay: 2.0)
-      
+
       expect(mock_provider.retry_config[:max_attempts]).to eq(5)
       expect(mock_provider.retry_config[:base_delay]).to eq(2.0)
     end

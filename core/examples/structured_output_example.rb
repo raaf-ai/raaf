@@ -15,16 +15,13 @@ require_relative "../lib/raaf-core"
 
 # API key validation - structured output requires a valid OpenAI API key
 # The response_format feature is a paid API feature
-unless ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
-  puts "⚠️  OPENAI_API_KEY environment variable is required for full execution"
-  puts "Demonstrating schema creation without API calls..."
-  puts "Set API key with: export OPENAI_API_KEY='your-api-key'"
-  puts "Get your API key from: https://platform.openai.com/api-keys"
-  puts
-  demo_mode = true
-else
-  demo_mode = false
-end
+return if ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
+
+puts "⚠️  OPENAI_API_KEY environment variable is required for full execution"
+puts "Demonstrating schema creation without API calls..."
+puts "Set API key with: export OPENAI_API_KEY='your-api-key'"
+puts "Get your API key from: https://platform.openai.com/api-keys"
+puts
 
 puts "=== RAAF (Ruby AI Agents Factory) - Structured Output Example ==="
 puts "Demonstrates modern response_format approach for universal structured output"

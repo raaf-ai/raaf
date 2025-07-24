@@ -512,7 +512,7 @@ def configure_providers(config)
 
     # ✅ Configure retry behavior - built into all providers via ModelInterface
     puts "✅ Configuring retry behavior (built into ModelInterface)"
-    
+
     # Configure retry settings based on configuration
     openai_provider.configure_retry(
       max_attempts: config.retry_max_attempts,
