@@ -104,6 +104,42 @@ jobs:
           !core/coverage/assets/
 
   # Stage 3: Parallel comprehensive tests (run simultaneously after unit tests)
+  example-validation:
+    name: "📝 Example Validation"
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies (Core gem)
+      run: |
+        cd core
+        bundle install
+
+    - name: Validate core examples
+      run: |
+        cd core
+        bundle exec ruby scripts/validate_examples.rb
+      env:
+        CI: true
+        RAAF_TEST_MODE: true
+        # Note: Using test mode to avoid requiring real API keys in CI
+        # This validates example structure and basic functionality
+
+    - name: Upload example validation report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: example-validation-report
+        path: core/example_validation_report.json
+
   integration-tests:
     name: "🔗 Integration Tests"
     runs-on: ubuntu-latest
@@ -184,7 +220,7 @@ jobs:
   acceptance-tests:
     name: "✅ Acceptance Tests"
     runs-on: ubuntu-latest
-    needs: [integration-tests, compliance-tests, performance-tests, cost-tests]
+    needs: [example-validation, integration-tests, compliance-tests, performance-tests, cost-tests]
     
     steps:
     - uses: actions/checkout@v4

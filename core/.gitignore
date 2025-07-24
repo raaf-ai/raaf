@@ -99,3 +99,7 @@ Thumbs.db
 
 # Ruby LSP
 .ruby-lsp/
+
+# CI/Test artifacts
+example_validation_report.json
+test-results-*.xml
