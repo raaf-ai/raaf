@@ -43,8 +43,12 @@ end
 
 require_relative "raaf/runner"
 
+# Streaming functionality
+require_relative "raaf/streaming"
+require_relative "raaf/run_result_streaming"
+
 ##
-# RAAF Core - Essential agent runtime with default OpenAI provider
+# RAAF Core - Essential agent runtime with default OpenAI provider and streaming support
 #
 # This is the core module of the Ruby AI Agents Factory (RAAF), providing
 # the essential components needed to create and run AI agents. It includes

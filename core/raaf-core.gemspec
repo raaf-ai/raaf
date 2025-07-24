@@ -42,8 +42,9 @@ Gem::Specification.new do |spec|
   # base64 was moved to a bundled gem in Ruby 3.4+
   spec.add_dependency "base64", "~> 0.1"
 
-  # Async for concurrent operations
+  # Async gems for streaming and concurrent operations
   spec.add_dependency "async", "~> 2.0"
+  spec.add_dependency "async-http", "~> 0.69"
 
   # Tiktoken for accurate token counting
   spec.add_dependency "tiktoken_ruby", "~> 0.0.9"
