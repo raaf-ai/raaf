@@ -41,7 +41,7 @@ RSpec.describe "Provider Communication", :integration do
   describe "Tool integration" do
     let(:weather_tool) do
       RAAF::FunctionTool.new(
-        proc { |location| "Weather in #{location}: sunny, 72°F" },
+        proc { |location:| "Weather in #{location}: sunny, 72°F" },
         name: "get_weather",
         description: "Get weather for a location",
         parameters: {

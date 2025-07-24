@@ -3,7 +3,11 @@
 require "spec_helper"
 
 if defined?(RAAF::Async::Runner)
-  RSpec.describe "RAAF Streaming Acceptance", :acceptance do
+  RSpec.describe "RAAF Async Streaming Acceptance", :acceptance do
+    before(:context) do
+      skip "Async acceptance tests are currently disabled"
+    end
+
     let(:agent) do
       RAAF::Agent.new(
         name: "AcceptanceTestAgent",

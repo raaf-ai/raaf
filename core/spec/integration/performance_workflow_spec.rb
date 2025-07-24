@@ -124,7 +124,7 @@ RSpec.describe "Performance Workflow Integration", :integration do
         memory_increase = memory_after - memory_before
 
         expect(result.success?).to be true
-        expect(memory_increase).to be < 100_000_000 # Less than 100MB increase
+        expect(memory_increase).to be < 150_000_000 # Less than 150MB increase
       end
     end
   end

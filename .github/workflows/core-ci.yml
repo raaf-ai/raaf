@@ -78,7 +78,7 @@ jobs:
     - name: Run unit tests, models, and edge cases (Core gem)
       run: |
         cd core
-        bundle exec rspec --exclude-pattern "spec/{acceptance,compliance,cost,integration,performance}/**/*_spec.rb" \
+        bundle exec rspec --tag ~integration --tag ~performance --tag ~cost --tag ~acceptance --tag ~compliance \
                          --format progress \
                          --format RspecJunitFormatter \
                          --out test-results-unit.xml
@@ -162,7 +162,7 @@ jobs:
     - name: Run integration tests (Core gem)
       run: |
         cd core
-        RUN_INTEGRATION_TESTS=true bundle exec rspec spec/integration/ \
+        bundle exec rspec --tag integration \
                          --format progress \
                          --format RspecJunitFormatter \
                          --out test-results-integration.xml
@@ -200,7 +200,7 @@ jobs:
     - name: Run compliance tests (Core gem)
       run: |
         cd core
-        bundle exec rspec spec/compliance/ \
+        bundle exec rspec --tag compliance \
                          --format progress \
                          --format RspecJunitFormatter \
                          --out test-results-compliance.xml
@@ -239,7 +239,7 @@ jobs:
     - name: Run acceptance tests (Core gem)
       run: |
         cd core
-        RUN_ACCEPTANCE_TESTS=true bundle exec rspec spec/acceptance/ \
+        bundle exec rspec --tag acceptance \
                          --format progress \
                          --format RspecJunitFormatter \
                          --out test-results-acceptance.xml
@@ -315,7 +315,7 @@ jobs:
     - name: Run performance tests (Core gem)
       run: |
         cd core
-        RUN_PERFORMANCE_TESTS=true bundle exec rspec spec/performance/ \
+        bundle exec rspec --tag performance \
                          --format progress \
                          --format RspecJunitFormatter \
                          --out test-results-performance.xml
@@ -354,7 +354,7 @@ jobs:
     - name: Run cost analysis tests (Core gem)
       run: |
         cd core
-        RUN_COST_TESTS=true bundle exec rspec spec/cost/ \
+        bundle exec rspec --tag cost \
                          --format progress \
                          --format RspecJunitFormatter \
                          --out test-results-cost.xml
@@ -533,7 +533,7 @@ jobs:
         
         # Run tests to generate baseline coverage
         CI=true bundle exec rspec \
-          --exclude-pattern "spec/{acceptance,cost,performance,integration}/**/*_spec.rb" \
+          --tag ~integration --tag ~performance --tag ~cost --tag ~acceptance \
           --format progress \
           --quiet
         
