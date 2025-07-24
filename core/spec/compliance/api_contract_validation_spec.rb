@@ -294,7 +294,7 @@ RSpec.describe "API Contract Validation", :compliance do
     end
 
     it "implements consistent interface across providers" do
-      required_methods = %i[complete responses_completion]
+      required_methods = %i[chat_completion responses_completion]
 
       providers.each do |provider|
         required_methods.each do |method|
@@ -318,7 +318,7 @@ RSpec.describe "API Contract Validation", :compliance do
           "usage" => { "input_tokens" => 10, "output_tokens" => 5, "total_tokens" => 15 }
         }
 
-        allow(provider).to receive_messages(complete: mock_response, responses_completion: mock_response)
+        allow(provider).to receive_messages(chat_completion: mock_response, responses_completion: mock_response)
 
         runner = RAAF::Runner.new(agent: agent, provider: provider)
         result = runner.run("Interface test")
@@ -351,7 +351,7 @@ RSpec.describe "API Contract Validation", :compliance do
           # Create a mock that explicitly raises the error without going through HTTP
           mock_provider = double("MockProvider")
           allow(mock_provider).to receive(:is_a?).with(RAAF::Models::ResponsesProvider).and_return(provider.is_a?(RAAF::Models::ResponsesProvider))
-          allow(mock_provider).to receive(:complete).and_raise(scenario[:error])
+          allow(mock_provider).to receive(:chat_completion).and_raise(scenario[:error])
           allow(mock_provider).to receive(:responses_completion).and_raise(scenario[:error])
 
           runner = RAAF::Runner.new(agent: agent, provider: mock_provider)

@@ -12,9 +12,13 @@ on:
       - 'core/**'
       - '.github/workflows/core-ci.yml'
 
-# Fail fast - stop all jobs if critical early jobs fail
+# Workflow Structure:
+# 1. Lint & Style + Unit Tests (parallel foundation)
+# 2. Integration, Compliance, Performance & Cost Tests (parallel comprehensive)
+# 3. Acceptance Tests (validates all parallel tests passed)
+# 4. Build & Summary (final validation and reporting)
 env:
-  RUBY_VERSION: '3.2'
+  RUBY_VERSION: '3.4.5'
 
 jobs:
   # Stage 1: Basic validation (fastest feedback)
@@ -55,7 +59,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        ruby-version: ['3.2', '3.3', '3.4']
+        ruby-version: ['3.2', '3.3', '3.4.5']
     
     steps:
     - uses: actions/checkout@v4
@@ -71,10 +75,10 @@ jobs:
         cd core
         bundle install
 
-    - name: Run unit tests and models (Core gem)
+    - name: Run unit tests, models, and edge cases (Core gem)
       run: |
         cd core
-        bundle exec rspec --exclude-pattern "spec/{acceptance,compliance,cost,edge_cases,integration,performance}/**/*_spec.rb" \
+        bundle exec rspec --exclude-pattern "spec/{acceptance,compliance,cost,integration,performance}/**/*_spec.rb" \
                          --format progress \
                          --format RspecJunitFormatter \
                          --out test-results-unit.xml
@@ -90,45 +94,16 @@ jobs:
         name: unit-test-results-${{ matrix.ruby-version }}
         path: core/test-results-unit.xml
 
-  # Stage 3: Parallel tests (run simultaneously after unit tests)
-  edge-cases-tests:
-    name: "⚠️ Edge Cases"
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ env.RUBY_VERSION }}
-        bundler-cache: true
-
-    - name: Install dependencies (Core gem)
-      run: |
-        cd core
-        bundle install
-
-    - name: Run edge cases tests (Core gem)
-      run: |
-        cd core
-        bundle exec rspec spec/edge_cases/ \
-                         --format progress \
-                         --format RspecJunitFormatter \
-                         --out test-results-edge-cases.xml
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
-        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
-
-    - name: Upload edge cases test results
+    - name: Upload coverage reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: edge-cases-test-results
-        path: core/test-results-edge-cases.xml
+        name: coverage-reports-${{ matrix.ruby-version }}
+        path: |
+          core/coverage/
+          !core/coverage/assets/
 
+  # Stage 3: Parallel comprehensive tests (run simultaneously after unit tests)
   integration-tests:
     name: "🔗 Integration Tests"
     runs-on: ubuntu-latest
@@ -205,11 +180,11 @@ jobs:
         name: compliance-test-results
         path: core/test-results-compliance.xml
 
-  # Stage 4: Acceptance tests (end-to-end scenarios)
+  # Stage 4: Acceptance tests (end-to-end scenarios) - depends on all parallel tests
   acceptance-tests:
     name: "✅ Acceptance Tests"
     runs-on: ubuntu-latest
-    needs: [edge-cases-tests, integration-tests, compliance-tests]
+    needs: [integration-tests, compliance-tests, performance-tests, cost-tests]
     
     steps:
     - uses: actions/checkout@v4
@@ -281,7 +256,6 @@ jobs:
         name: raaf-core-gem
         path: core/raaf-core-*.gem
 
-  # Stage 6: Performance tests (resource intensive - run in parallel)
   performance-tests:
     name: "⚡ Performance Tests"
     runs-on: ubuntu-latest
@@ -321,7 +295,6 @@ jobs:
         name: performance-test-results
         path: core/test-results-performance.xml
 
-  # Stage 7: Cost analysis tests (expensive operations - run in parallel)
   cost-tests:
     name: "💰 Cost Analysis Tests"
     runs-on: ubuntu-latest
@@ -365,62 +338,287 @@ jobs:
   test-summary:
     name: "📊 Test Summary"
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, edge-cases-tests, integration-tests, compliance-tests, acceptance-tests, build]
+    needs: [acceptance-tests]
     if: always()
     
     steps:
+    - uses: actions/checkout@v4
+
+    - name: Download coverage reports
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-reports-*
+        path: coverage-artifacts/
+        merge-multiple: false
+      continue-on-error: true
+
+    - name: Process coverage data
+      id: coverage
+      run: |
+        echo "Processing coverage reports..."
+        
+        # Find the primary coverage report (use 3.4.5 as primary, fallback to first available)
+        PRIMARY_COVERAGE=""
+        if [ -d "coverage-artifacts/coverage-reports-3.4.5" ]; then
+          PRIMARY_COVERAGE="coverage-artifacts/coverage-reports-3.4.5"
+        else
+          PRIMARY_COVERAGE=$(find coverage-artifacts -name "coverage-reports-*" -type d | head -1)
+        fi
+        
+        if [ -n "$PRIMARY_COVERAGE" ] && [ -f "$PRIMARY_COVERAGE/.last_run.json" ]; then
+          # Extract coverage percentage from SimpleCov's last_run.json
+          COVERAGE_PERCENT=$(cat "$PRIMARY_COVERAGE/.last_run.json" | jq -r '.result.line // 0' | cut -d. -f1)
+          echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
+          
+          # Count covered and total lines
+          if [ -f "$PRIMARY_COVERAGE/.resultset.json" ]; then
+            TOTAL_LINES=$(cat "$PRIMARY_COVERAGE/.resultset.json" | jq -r '
+              [.. | objects | select(has("coverage")) | .coverage | to_entries[] | .value] 
+              | map(select(. != null)) | length'
+            )
+            COVERED_LINES=$(cat "$PRIMARY_COVERAGE/.resultset.json" | jq -r '
+              [.. | objects | select(has("coverage")) | .coverage | to_entries[] | .value] 
+              | map(select(. != null and . > 0)) | length'
+            )
+            echo "total_lines=$TOTAL_LINES" >> $GITHUB_OUTPUT
+            echo "covered_lines=$COVERED_LINES" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "coverage_available=true" >> $GITHUB_OUTPUT
+        else
+          echo "coverage_available=false" >> $GITHUB_OUTPUT
+          echo "No coverage data found"
+        fi
+      continue-on-error: true
+
     - name: Check test results
       run: |
         echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        if [[ "${{ needs.lint.result }}" == "success" ]]; then
-          echo "✅ Lint & Style: PASSED" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Lint & Style: FAILED" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [[ "${{ needs.unit-tests.result }}" == "success" ]]; then
-          echo "✅ Unit Tests & Models: PASSED" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Unit Tests & Models: FAILED" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [[ "${{ needs.edge-cases-tests.result }}" == "success" ]]; then
-          echo "✅ Edge Cases: PASSED" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Edge Cases: FAILED" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [[ "${{ needs.integration-tests.result }}" == "success" ]]; then
-          echo "✅ Integration Tests: PASSED" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Integration Tests: FAILED" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [[ "${{ needs.compliance-tests.result }}" == "success" ]]; then
-          echo "✅ Compliance Tests: PASSED" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Compliance Tests: FAILED" >> $GITHUB_STEP_SUMMARY
-        fi
-        
         if [[ "${{ needs.acceptance-tests.result }}" == "success" ]]; then
-          echo "✅ Acceptance Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All Tests PASSED** (Lint, Unit, Integration, Compliance, Performance, Cost & Acceptance)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 The acceptance tests validate that all prerequisite tests have passed successfully!" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ Acceptance Tests: FAILED" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [[ "${{ needs.build.result }}" == "success" ]]; then
-          echo "✅ Build: PASSED" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Build: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Tests FAILED** - Acceptance tests did not pass" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ This means one or more of the prerequisite tests (Lint, Unit, Integration, Compliance, Performance, Cost) failed." >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Performance and Cost tests run independently and don't affect CI status." >> $GITHUB_STEP_SUMMARY
+        echo "## 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ steps.coverage.outputs.coverage_available }}" == "true" ]]; then
+          COVERAGE_PERCENT="${{ steps.coverage.outputs.coverage_percent }}"
+          TOTAL_LINES="${{ steps.coverage.outputs.total_lines }}"
+          COVERED_LINES="${{ steps.coverage.outputs.covered_lines }}"
+          
+          # Coverage status emoji
+          if (( COVERAGE_PERCENT >= 90 )); then
+            COVERAGE_EMOJI="🟢"
+          elif (( COVERAGE_PERCENT >= 80 )); then
+            COVERAGE_EMOJI="🟡"
+          else
+            COVERAGE_EMOJI="🔴"
+          fi
+          
+          echo "${COVERAGE_EMOJI} **Overall Coverage: ${COVERAGE_PERCENT}%**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lines Covered:** ${COVERED_LINES}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Lines:** ${TOTAL_LINES}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage Threshold:** 80% minimum" >> $GITHUB_STEP_SUMMARY
+          
+          # Coverage quality assessment
+          if (( COVERAGE_PERCENT >= 80 )); then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Coverage meets the minimum threshold requirement!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Coverage is below the minimum threshold of 80%" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "⚠️ Coverage data not available" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📋 **Workflow Structure:**" >> $GITHUB_STEP_SUMMARY
+        echo "1. Lint & Style + Unit Tests (parallel foundation)" >> $GITHUB_STEP_SUMMARY
+        echo "2. Integration, Compliance, Performance & Cost Tests (parallel comprehensive)" >> $GITHUB_STEP_SUMMARY
+        echo "3. Acceptance Tests (validates all parallel tests passed)" >> $GITHUB_STEP_SUMMARY
+        echo "4. Build Gem (depends on Acceptance Tests)" >> $GITHUB_STEP_SUMMARY
+        echo "5. Test Summary (depends on Acceptance Tests)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Performance and Cost tests run in parallel but may continue-on-error." >> $GITHUB_STEP_SUMMARY
 
-    - name: Fail if critical tests failed
-      if: needs.lint.result != 'success' || needs.unit-tests.result != 'success' || needs.edge-cases-tests.result != 'success' || needs.integration-tests.result != 'success' || needs.compliance-tests.result != 'success' || needs.acceptance-tests.result != 'success' || needs.build.result != 'success'
+    - name: Fail if acceptance tests failed
+      if: needs.acceptance-tests.result != 'success'
       run: |
-        echo "❌ Critical tests failed. See summary above."
+        echo "❌ Acceptance tests failed, indicating issues with prerequisite tests. See summary above."
         exit 1
+
+  # Coverage comparison job - fails PR if coverage decreases
+  coverage-check:
+    name: "📊 Coverage Check"
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for base comparison
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+    
+    - name: Install dependencies (Core gem)
+      run: |
+        cd core
+        bundle install
+    
+    - name: Download current PR coverage
+      uses: actions/download-artifact@v4
+      with:
+        name: coverage-reports-${{ env.RUBY_VERSION }}
+        path: pr-coverage/
+    
+    - name: Get base branch coverage
+      run: |
+        echo "Getting base branch coverage for comparison..."
+        cd core
+        
+        # Switch to base branch and run tests to get baseline coverage
+        git checkout ${{ github.event.pull_request.base.sha }}
+        
+        # Run tests to generate baseline coverage
+        CI=true bundle exec rspec \
+          --exclude-pattern "spec/{acceptance,cost,performance,integration}/**/*_spec.rb" \
+          --format progress \
+          --quiet
+        
+        # Save base coverage data
+        mkdir -p ../base-coverage
+        cp -r coverage/* ../base-coverage/ 2>/dev/null || echo "No base coverage to copy"
+        
+        # Switch back to PR branch
+        git checkout ${{ github.sha }}
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
+    
+    - name: Compare coverage and fail if decreased
+      id: coverage-comparison
+      run: |
+        echo "Comparing coverage between base branch and PR..."
+        
+        # Extract PR coverage
+        if [ -f "pr-coverage/.last_run.json" ]; then
+          PR_COVERAGE=$(cat pr-coverage/.last_run.json | jq -r '.result.line // 0')
+          echo "PR Coverage: ${PR_COVERAGE}%"
+        else
+          echo "❌ PR coverage data not found"
+          exit 1
+        fi
+        
+        # Extract base coverage
+        if [ -f "base-coverage/.last_run.json" ]; then
+          BASE_COVERAGE=$(cat base-coverage/.last_run.json | jq -r '.result.line // 0')
+          echo "Base Coverage: ${BASE_COVERAGE}%"
+        else
+          echo "⚠️ Base coverage data not found, using 0% as baseline"
+          BASE_COVERAGE=0
+        fi
+        
+        # Calculate difference using awk (more portable than bc)
+        COVERAGE_DIFF=$(awk "BEGIN {printf \"%.2f\", $PR_COVERAGE - $BASE_COVERAGE}")
+        
+        echo "pr_coverage=$PR_COVERAGE" >> $GITHUB_OUTPUT
+        echo "base_coverage=$BASE_COVERAGE" >> $GITHUB_OUTPUT
+        echo "coverage_diff=$COVERAGE_DIFF" >> $GITHUB_OUTPUT
+        
+        echo "Coverage comparison:"
+        echo "- Base branch: ${BASE_COVERAGE}%"
+        echo "- PR branch: ${PR_COVERAGE}%"
+        echo "- Difference: ${COVERAGE_DIFF}%"
+        
+        # Fail if coverage decreased by more than 0.1%
+        if awk "BEGIN {exit !($COVERAGE_DIFF < -0.1)}"; then
+          echo "❌ Coverage decreased by ${COVERAGE_DIFF#-}%"
+          echo "coverage_decreased=true" >> $GITHUB_OUTPUT
+          exit 1
+        elif awk "BEGIN {exit !($COVERAGE_DIFF > 0.1)}"; then
+          echo "✅ Coverage improved by ${COVERAGE_DIFF}%"
+          echo "coverage_decreased=false" >> $GITHUB_OUTPUT
+        else
+          echo "✅ Coverage remained stable (${COVERAGE_DIFF}%)"
+          echo "coverage_decreased=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Comment on PR with coverage comparison
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const prCoverage = '${{ steps.coverage-comparison.outputs.pr_coverage }}';
+          const baseCoverage = '${{ steps.coverage-comparison.outputs.base_coverage }}';
+          const coverageDiff = '${{ steps.coverage-comparison.outputs.coverage_diff }}';
+          const coverageDecreased = '${{ steps.coverage-comparison.outputs.coverage_decreased }}' === 'true';
+          
+          let emoji = '✅';
+          let status = 'Coverage maintained';
+          
+          if (coverageDecreased) {
+            emoji = '❌';
+            status = 'Coverage decreased';
+          } else if (parseFloat(coverageDiff) > 0.1) {
+            emoji = '🎉';
+            status = 'Coverage improved';
+          }
+          
+          const comment = `## ${emoji} Coverage Report
+          
+          | Metric | Base Branch | PR Branch | Change |
+          |--------|-------------|-----------|---------|
+          | **Line Coverage** | ${baseCoverage}% | ${prCoverage}% | ${coverageDiff > 0 ? '+' : ''}${coverageDiff}% |
+          
+          **Status:** ${status}
+          
+          ${coverageDecreased ? 
+            '⚠️ **This PR decreases test coverage.** Please add tests to maintain or improve coverage.' : 
+            '✅ Coverage check passed!'}
+          
+          ---
+          *Coverage threshold: 80% minimum | Generated by GitHub Actions*`;
+          
+          // Find existing coverage comment and update it, or create new one
+          const comments = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.data.find(comment => 
+            comment.body.includes('Coverage Report') && comment.user.type === 'Bot'
+          );
+          
+          if (existingComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: comment
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+          }

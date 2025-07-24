@@ -135,7 +135,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         capabilities = subject.detect_capabilities
 
         expect(capabilities).to include(
-          responses_api: false,
+          responses_api: true,
           chat_completion: true,
           streaming: false,
           function_calling: true,
@@ -151,7 +151,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         capabilities = subject.detect_capabilities
 
         expect(capabilities).to include(
-          responses_api: false,
+          responses_api: true,
           chat_completion: true,
           streaming: false,
           function_calling: false,
@@ -167,7 +167,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         capabilities = subject.detect_capabilities
 
         expect(capabilities).to include(
-          responses_api: false,
+          responses_api: true,
           chat_completion: false,
           streaming: false,
           function_calling: false,
@@ -227,7 +227,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         report = subject.generate_report
 
         expect(report[:handoff_support]).to eq("Full")
-        expect(report[:optimal_usage]).to eq("Chat Completions with ProviderAdapter - Full handoff support")
+        expect(report[:optimal_usage]).to eq("Native Responses API - No adapter needed")
       end
     end
 
@@ -260,12 +260,12 @@ RSpec.describe RAAF::Models::CapabilityDetector do
         expect(report[:optimal_usage]).to eq("Not compatible - Implement required methods")
       end
 
-      it "provides critical recommendations" do
+      it "provides warning recommendations" do
         report = subject.generate_report
 
-        critical = report[:recommendations].select { |r| r[:type] == :critical }
-        expect(critical).not_to be_empty
-        expect(critical.first[:message]).to include("completion API")
+        warnings = report[:recommendations].select { |r| r[:type] == :warning }
+        expect(warnings).not_to be_empty
+        expect(warnings.first[:message]).to include("function calling")
       end
     end
   end
@@ -415,7 +415,7 @@ RSpec.describe RAAF::Models::CapabilityDetector do
           },
           {
             provider: minimal_provider,
-            expected_types: %i[critical info],
+            expected_types: %i[warning info success],
             description: "minimal provider"
           }
         ]

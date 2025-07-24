@@ -45,7 +45,7 @@ RSpec.describe "OpenAI SDK Compatibility", :compliance do
         expect(raaf_definition[:function][:name]).to eq("get_weather")
         expect(raaf_definition[:function][:parameters][:type]).to eq("object")
         expect(raaf_definition[:function][:parameters][:properties]).to have_key(:location)
-        expect(raaf_definition[:function][:parameters][:required]).to include(:location)
+        expect(raaf_definition[:function][:parameters][:required]).to include("location")
       end
     end
 
@@ -297,25 +297,6 @@ RSpec.describe "OpenAI SDK Compatibility", :compliance do
         # Should also support legacy format
         expect(result.usage).to have_key(:input_tokens)  # Not prompt_tokens
         expect(result.usage).to have_key(:output_tokens) # Not completion_tokens
-      end
-    end
-  end
-
-  describe "Tracing Compatibility" do
-    context "trace payload structure" do
-      it "generates Python SDK compatible trace spans" do
-        skip "Requires tracing implementation details"
-
-        # Python SDK trace structure:
-        # - Agent spans are root spans (parent_id: null)
-        # - Response spans are children of agent spans
-        # - Identical field structures
-
-        RAAF::Agent.new(name: "TracingAgent")
-        RAAF::Tracing::SpanTracer.new
-
-        # This would require access to tracing internals
-        # to verify span structure matches Python SDK
       end
     end
   end

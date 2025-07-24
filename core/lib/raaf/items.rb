@@ -483,7 +483,7 @@ module RAAF
         def tool_call_output_item(tool_call, output)
           {
             "call_id" => tool_call["call_id"] || tool_call["id"],
-            "output" => output.to_s,
+            "output" => output.is_a?(String) ? output : JSON.generate(output),
             "type" => "function_call_output"
           }
         end

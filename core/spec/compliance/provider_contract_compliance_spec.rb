@@ -490,20 +490,6 @@ RSpec.describe "Provider Contract Compliance", :compliance do
         expect(method.parameters.map(&:last)).to include(:messages, :model)
       end
     end
-
-    it "yields chunks during streaming" do
-      skip "Streaming implementation requires specific provider testing"
-
-      # This would test actual streaming behavior:
-      # chunks = []
-      # mock_provider.stream_completion(
-      #   messages: test_messages,
-      #   model: "gpt-4o"
-      # ) do |chunk|
-      #   chunks << chunk
-      # end
-      # expect(chunks).not_to be_empty
-    end
   end
 
   describe "Cross-Provider Consistency" do

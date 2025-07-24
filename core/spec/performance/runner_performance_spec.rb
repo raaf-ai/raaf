@@ -279,14 +279,6 @@ RSpec.describe "Runner Performance", :performance do
     end
   end
 
-  describe "Error handling performance" do
-    it "handles errors without performance degradation" do
-      # Mock provider always raises errors in order, so we expect failures
-      # Skip - Test requires sophisticated error recovery infrastructure
-      skip "Error handling performance test requires advanced recovery mechanisms"
-    end
-  end
-
   describe "Concurrent operations" do
     it "handles concurrent runners efficiently" do
       # Prepare responses for concurrent requests

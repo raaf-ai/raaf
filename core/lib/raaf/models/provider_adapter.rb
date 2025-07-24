@@ -51,7 +51,7 @@ module RAAF
     #
     # @see HandoffFallbackSystem
     # @see CapabilityDetector
-    # @see EnhancedModelInterface
+    # @see ModelInterface
     # @author RAAF Development Team
     # @since 0.2.0
     #
@@ -785,8 +785,8 @@ module RAAF
       def detect_capabilities
         capabilities = {}
 
-        # Check for Responses API support
-        capabilities[:responses_api] = @provider.respond_to?(:responses_completion)
+        # Check for Responses API support - needs both the method and implemented perform_chat_completion
+        capabilities[:responses_api] = check_responses_api_support
 
         # Check for Chat Completion API support (must be actually implemented)
         capabilities[:chat_completion] = check_chat_completion_support
@@ -824,6 +824,33 @@ module RAAF
       #
       # @return [Boolean] True if function calling is supported
       #
+      def check_responses_api_support
+        return false unless @provider.respond_to?(:responses_completion)
+
+        # Test if underlying perform_chat_completion is implemented
+        test_messages = [{ role: "user", content: "test" }]
+        test_model = if @provider.respond_to?(:supported_models)
+                       @provider.supported_models.first || "test-model"
+                     else
+                       "test-model"
+                     end
+
+        @provider.responses_completion(
+          messages: test_messages,
+          model: test_model
+        )
+        true
+      rescue NotImplementedError
+        # Provider doesn't implement perform_chat_completion, so no responses API support
+        false
+      rescue StandardError => e
+        # Other errors (like auth) don't tell us about responses API support
+        log_debug("🔧 PROVIDER ADAPTER: Responses API check failed with error",
+                  provider: @provider.provider_name,
+                  error: e.message)
+        false
+      end
+
       def check_chat_completion_support
         return false unless @provider.respond_to?(:chat_completion)
 
@@ -855,8 +882,9 @@ module RAAF
       def check_function_calling_support
         return false unless @provider.respond_to?(:chat_completion)
 
-        # Check if the method signature accepts tools parameter
-        method = @provider.method(:chat_completion)
+        # Check if the perform_chat_completion method signature accepts tools parameter
+        # (This is the actual implementation method after our refactoring)
+        method = @provider.method(:perform_chat_completion)
         method_parameters = method.parameters
 
         # Check if there's a keyword parameter named 'tools'

@@ -546,8 +546,8 @@ RSpec.describe "RAAF API Strategies" do
       context "with streaming disabled" do
         let(:config) { RAAF::RunConfig.new(stream: false) }
 
-        it "calls complete" do
-          expect(provider).to receive(:complete)
+        it "calls chat_completion" do
+          expect(provider).to receive(:chat_completion)
             .with(messages: api_messages, model: model, **model_params)
 
           strategy.send(:make_api_call, api_messages, model, model_params)

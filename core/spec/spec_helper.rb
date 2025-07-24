@@ -4,6 +4,8 @@
 $VERBOSE = nil
 
 require "simplecov"
+
+# Configure SimpleCov for both local development and CI
 SimpleCov.start do
   add_filter "/spec/"
   add_filter "/vendor/"
@@ -11,9 +13,31 @@ SimpleCov.start do
 
   add_group "Core", "lib/raaf"
   add_group "Models", "lib/raaf/models"
-  add_group "Execution", "lib/raaf/execution"
+  add_group "Execution", "lib/raaf/execution"  
   add_group "Tracing", "lib/raaf/tracing"
   add_group "Tools", "lib/raaf/tools"
+
+  # Set minimum coverage threshold
+  minimum_coverage 80
+  minimum_coverage_by_file 70
+
+  # Enable different formatters for CI and local development
+  if ENV['CI']
+    # CI environment - generate multiple formats for GitHub Actions
+    require 'simplecov-json'
+    require 'simplecov-lcov'
+    
+    SimpleCov::Formatter::LcovFormatter.config.report_with_single_file = true
+    formatters = [
+      SimpleCov::Formatter::HTMLFormatter,  # For artifact viewing
+      SimpleCov::Formatter::JSONFormatter,  # For programmatic access
+      SimpleCov::Formatter::LcovFormatter   # For coverage services
+    ]
+    formatter SimpleCov::Formatter::MultiFormatter.new(formatters)
+  else
+    # Local development - just HTML
+    formatter SimpleCov::Formatter::HTMLFormatter
+  end
 end
 
 require "bundler/setup"
@@ -59,7 +83,9 @@ ENV["RAAF_LOG_LEVEL"] = "fatal"
 ENV["RAAF_SUPPRESS_WARNINGS"] = "true"
 
 # Set dummy API key for tests to allow provider initialization
-ENV["OPENAI_API_KEY"] = "test-api-key" unless ENV["OPENAI_API_KEY"]
+# Use consistent dummy key that matches VCR recordings
+ENV["OPENAI_API_KEY"] = "test-api-key" unless ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
+ENV["ANTHROPIC_API_KEY"] = "test-anthropic-key" unless ENV["ANTHROPIC_API_KEY"] && !ENV["ANTHROPIC_API_KEY"].empty?
 
 require "raaf-core"
 require "rspec/collection_matchers"
@@ -71,7 +97,7 @@ if defined?(VCR)
     config.hook_into :webmock
     config.default_cassette_options = {
       record: :once,
-      match_requests_on: %i[method uri headers body]
+      match_requests_on: %i[method uri body] # Exclude headers to avoid auth key mismatch in CI
     }
 
     # Filter sensitive data

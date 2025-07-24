@@ -339,4 +339,154 @@ RSpec.describe RAAF::FunctionTool do
       expect(agent.tools.first.name).to eq("identity")
     end
   end
+
+  # Boundary conditions and edge cases
+  describe "boundary conditions" do
+    context "tool name boundaries" do
+      it "handles tools with very long names" do
+        long_name = "tool_with_very_long_name_#{"x" * 1000}"
+        tool = described_class.new(
+          proc { "result" },
+          name: long_name
+        )
+
+        expect(tool.name).to eq(long_name)
+      end
+
+      it "handles tools with special characters in names" do
+        special_names = %w[
+          tool-with-dashes
+          tool_with_underscores
+          tool123with456numbers
+          toolWithCamelCase
+          TOOL_WITH_CAPS
+        ]
+
+        special_names.each do |name|
+          tool = described_class.new(proc { "result" }, name: name)
+          expect(tool.name).to eq(name)
+        end
+      end
+    end
+
+    context "tool parameter boundaries" do
+      it "handles tools with no parameters" do
+        tool = described_class.new(proc { "no params" }, name: "no_param_tool")
+
+        expect(tool.parameters?).to be false
+        expect(tool.required_parameters?).to be false
+      end
+
+      it "handles tools with maximum parameter counts" do
+        # Create proc with many parameters
+        many_params = (1..50).map { |i| "param#{i}:" }.join(", ")
+        proc_string = "proc { |#{many_params}| 'many params' }"
+        # rubocop:disable Security/Eval
+        many_param_proc = eval(proc_string)
+        # rubocop:enable Security/Eval
+
+        tool = described_class.new(many_param_proc, name: "many_param_tool")
+
+        expect(tool.parameters?).to be true
+        expect(tool.required_parameters?).to be true
+
+        schema = tool.to_h[:function][:parameters]
+        expect(schema[:properties].keys.length).to eq(50)
+      end
+    end
+
+    context "malformed input handling" do
+      it "handles tools with complex parameter types" do
+        tool = described_class.new(
+          proc { |data:| "Received: #{data}" },
+          name: "json_tool"
+        )
+
+        expect(tool.name).to eq("json_tool")
+        expect(tool.parameters?).to be true
+      end
+
+      it "handles tools with optional and required parameters" do
+        tool = described_class.new(
+          proc { |required:, optional: "default"| "Required: #{required}, Optional: #{optional}" },
+          name: "mixed_params_tool"
+        )
+
+        expect(tool.parameters?).to be true
+        expect(tool.required_parameters?).to be true
+
+        schema = tool.to_h[:function][:parameters]
+        expect(schema[:required]).to include("required")
+        expect(schema[:properties]).to have_key(:optional)
+      end
+    end
+
+    context "comprehensive initialization tests" do
+      it "handles method-based tools correctly" do
+        def test_method(value:)
+          value.upcase
+        end
+
+        tool = described_class.new(method(:test_method))
+        expect(tool.name).to eq("test_method")
+        expect(tool.callable).to be_a(Method)
+      end
+
+      it "handles lambda-based tools" do
+        lambda_func = ->(input:) { input.reverse }
+        tool = described_class.new(lambda_func, name: "reverser")
+
+        expect(tool.name).to eq("reverser")
+        expect(tool.callable).to eq(lambda_func)
+      end
+
+      it "supports is_enabled option with boolean" do
+        tool = described_class.new(proc { "test" }, is_enabled: false)
+        expect(tool.is_enabled).to be false
+      end
+
+      it "supports is_enabled option with proc" do
+        enabler = proc { true }
+        tool = described_class.new(proc { "test" }, is_enabled: enabler)
+        expect(tool.is_enabled).to eq(enabler)
+      end
+    end
+
+    context "parameter extraction and validation" do
+      it "extracts parameters from method signatures correctly" do
+        def complex_method(required:, another_required:, optional: "default")
+          "#{required}-#{optional}-#{another_required}"
+        end
+
+        tool = described_class.new(method(:complex_method))
+        schema = tool.to_h[:function][:parameters]
+
+        expect(schema[:required]).to include("required", "another_required")
+        expect(schema[:required]).not_to include("optional")
+        expect(schema[:properties]).to have_key(:optional)
+      end
+
+      it "handles tools with no parameters" do
+        tool = described_class.new(proc { Time.now }, name: "timestamp")
+
+        expect(tool.parameters?).to be false
+        expect(tool.required_parameters?).to be false
+        expect(tool.to_h[:function][:parameters][:properties]).to be_empty
+      end
+
+      it "validates parameter types correctly" do
+        def typed_method(number:, text:, flag:)
+          { number: number, text: text, flag: flag }
+        end
+
+        tool = described_class.new(method(:typed_method))
+        schema = tool.to_h[:function][:parameters]
+
+        expect(schema[:required]).to match_array(%w[number text flag])
+        expect(schema[:properties]).to have_key(:number)
+        expect(schema[:properties]).to have_key(:text)
+        expect(schema[:properties]).to have_key(:flag)
+      end
+    end
+  end
 end

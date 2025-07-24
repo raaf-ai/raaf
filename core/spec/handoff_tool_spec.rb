@@ -310,21 +310,4 @@ RSpec.describe RAAF::HandoffTool do
       expect(tools).to all(be_a(RAAF::FunctionTool))
     end
   end
-
-  describe "data contract templates" do
-    it "provides template for task handoffs" do
-      # These methods don't exist in the implementation
-      skip "task_handoff_contract method not implemented"
-    end
-
-    it "provides template for user handoffs" do
-      # These methods don't exist in the implementation
-      skip "user_handoff_contract method not implemented"
-    end
-
-    it "provides template for workflow handoffs" do
-      # These methods don't exist in the implementation
-      skip "workflow_handoff_contract method not implemented"
-    end
-  end
 end

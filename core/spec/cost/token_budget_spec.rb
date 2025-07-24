@@ -57,30 +57,6 @@ RSpec.describe "Token Budget Management", :cost do
         expect(cost_tracker.total_cost).to be > 0.03
       end
     end
-
-    it "tracks cumulative costs across multiple requests" do
-      # Skip - Cost calculation expectations require fine-tuning of mock data
-      skip "Cost tracking test requires precise mock token calculations"
-      mock_provider = create_mock_provider
-
-      # Add multiple responses with varying token usage
-      mock_provider.add_response("Response 1", usage: { total_tokens: 100 })
-      mock_provider.add_response("Response 2", usage: { total_tokens: 150 })
-      mock_provider.add_response("Response 3", usage: { total_tokens: 200 })
-
-      runner = RAAF::Runner.new(agent: efficient_agent, provider: mock_provider)
-
-      with_cost_tracking do
-        3.times do |i|
-          result = runner.run("Query #{i + 1}")
-          cost_tracker.track_usage(result.usage, model: efficient_agent.model)
-        end
-
-        expect(cost_tracker.total_tokens).to eq(450)
-        expect(cost_tracker.calls.length).to eq(3)
-        expect(cost_tracker.total_cost).to be_within(0.001).of(0.0045) # 450 * 0.00001
-      end
-    end
   end
 
   describe "Tool usage costs" do
@@ -165,29 +141,6 @@ RSpec.describe "Token Budget Management", :cost do
       expect(cost).to be > 0.1 # Flag operations over $0.10
     end
 
-    it "tracks daily budget consumption" do
-      # Skip - Daily budget tracking expects specific token accumulation patterns
-      skip "Daily budget tracking requires precise cost calculation setup"
-      with_cost_tracking do
-        # Simulate a day's worth of operations
-        10.times do |i|
-          cost_tracker.track_usage(
-            { total_tokens: 200 + (i * 50) },
-            model: "gpt-4o"
-          )
-        end
-
-        daily_cost = cost_tracker.total_cost
-        daily_tokens = cost_tracker.total_tokens
-
-        expect(daily_tokens).to eq(2450) # 200*10 + 50*(0+1+...+9)
-        expect(daily_cost).to be_within(0.001).of(0.0245)
-
-        # Flag if approaching daily budget (e.g., $1.00)
-        expect(daily_cost).to be < 1.0
-      end
-    end
-
     it "provides cost breakdown by operation type" do
       with_cost_tracking do
         # Different operation types
@@ -215,23 +168,6 @@ RSpec.describe "Token Budget Management", :cost do
       savings = long_cost - summarized_cost
       expect(savings).to be_positive
       expect(savings / long_cost).to be > 0.7 # 70%+ savings through summarization
-    end
-
-    it "shows batch processing cost benefits" do
-      # Skip - Batch processing cost calculations require precise efficiency measurements
-      skip "Batch processing cost analysis requires tuned efficiency calculations"
-      # Single request vs. batch processing
-      single_request_overhead = 20 # Base tokens per request
-
-      # 5 separate requests
-      individual_cost = 5 * cost_tracker.estimate_cost(100 + single_request_overhead, "gpt-4o")
-
-      # 1 batched request
-      batch_cost = cost_tracker.estimate_cost(500 + single_request_overhead, "gpt-4o")
-
-      expect(batch_cost).to be < individual_cost
-      savings_percent = (individual_cost - batch_cost) / individual_cost
-      expect(savings_percent).to be > 0.15 # At least 15% savings from batching
     end
   end
 end

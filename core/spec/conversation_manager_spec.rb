@@ -6,7 +6,12 @@ RSpec.describe RAAF::Execution::ConversationManager do
   let(:config) { RAAF::RunConfig.new(max_turns: 3, metadata: { test: "value" }) }
   let(:conversation_manager) { described_class.new(config) }
   let(:agent) { create_test_agent(name: "TestAgent", max_turns: 5) }
-  let(:executor) { double("RunExecutor") }
+  let(:executor) do
+    double("RunExecutor").tap do |exec|
+      mock_runner = double("Runner", should_stop?: false)
+      allow(exec).to receive(:runner).and_return(mock_runner)
+    end
+  end
   let(:messages) { [{ role: "user", content: "Hello" }] }
 
   describe "#initialize" do
@@ -368,6 +373,95 @@ RSpec.describe RAAF::Execution::ConversationManager do
         context_wrapper = manager_no_metadata.send(:create_context_wrapper, messages)
 
         expect(context_wrapper.context.metadata).to eq({})
+      end
+    end
+
+    # Comprehensive test scenarios
+    context "multi-turn conversations" do
+      it "properly tracks conversation flow across multiple turns" do
+        messages = [
+          { role: "user", content: "First message" },
+          { role: "assistant", content: "First response" },
+          { role: "user", content: "Second message" }
+        ]
+
+        turn_count = 0
+        conversation_manager.execute_conversation(messages, agent, executor) do |data|
+          turn_count += 1
+          expect(data[:turns]).to eq(turn_count - 1) # turns is 0-indexed
+          expect(data[:conversation]).to be_an(Array)
+          expect(data[:context_wrapper]).to be_a(RAAF::RunContextWrapper)
+          { should_continue: false, handoff_result: nil }
+        end
+
+        expect(turn_count).to be > 0
+      end
+
+      it "accumulates token usage across turns" do
+        messages = [{ role: "user", content: "Test message" }]
+
+        conversation_manager.execute_conversation(messages, agent, executor) do |_data|
+          # Return a result with usage data
+          {
+            should_continue: false,
+            handoff_result: nil,
+            usage: { input_tokens: 10, output_tokens: 15, total_tokens: 25 }
+          }
+        end
+
+        # Verify usage is being tracked
+        expect(conversation_manager.accumulated_usage[:total_tokens]).to eq(25)
+      end
+
+      it "handles configuration limits properly" do
+        limited_config = RAAF::RunConfig.new(max_turns: 2)
+        limited_manager = described_class.new(limited_config)
+
+        messages = [{ role: "user", content: "Test message" }]
+        turn_count = 0
+
+        limited_manager.execute_conversation(messages, agent, executor) do |_data|
+          turn_count += 1
+          expect(turn_count).to be <= limited_config.max_turns
+          { should_continue: false, handoff_result: nil }
+        end
+      end
+    end
+
+    context "error handling and resilience" do
+      it "handles executor failures gracefully" do
+        messages = [{ role: "user", content: "Test message" }]
+
+        expect do
+          conversation_manager.execute_conversation(messages, agent, executor) do |_data|
+            # Simulate an error in the block
+            raise StandardError, "Executor error"
+          end
+        end.to raise_error(StandardError, "Executor error")
+      end
+
+      it "preserves message integrity during errors" do
+        original_messages = [
+          { role: "user", content: "Original message" },
+          { role: "assistant", content: "Original response" }
+        ]
+
+        messages_copy = original_messages.dup
+
+        # Even if something goes wrong, original messages should be preserved
+        begin
+          conversation_manager.execute_conversation(messages_copy, agent, executor) do |_data|
+            # Normal processing
+            { should_continue: false, handoff_result: nil }
+          end
+        rescue StandardError
+          # Ignore errors for this test
+        end
+
+        expect(original_messages).to eq([
+                                          { role: "user", content: "Original message" },
+                                          { role: "assistant", content: "Original response" }
+                                        ])
       end
     end
   end

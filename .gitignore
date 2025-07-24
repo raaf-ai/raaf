@@ -7,3 +7,4 @@
 /.ruby-lsp
 /*/coverage
 /*/.ruby-lsp
+/core/test-results-integration.xml

@@ -95,49 +95,6 @@ RSpec.describe "Memory Profiling", :performance do
   end
 
   describe "Memory leak detection" do
-    it "detects memory leaks in long-running sessions" do
-      # Skip - Memory leak detection requires long-running tests and sophisticated analysis
-      skip "Memory leak detection requires specialized profiling tools"
-      agent = create_test_agent(name: "LeakTestAgent")
-      runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
-
-      # Prepare many responses
-      1000.times { mock_provider.add_response("Leak test response") }
-
-      # Take memory snapshots
-      snapshots = []
-
-      [100, 200, 500, 1000].each do |iteration|
-        GC.start  # Clean up before measurement
-
-        (snapshots.last&.dig(:iteration) || 0).upto(iteration - 1) do |i|
-          runner.run("Leak test #{i}")
-        end
-
-        GC.start  # Clean up after execution
-
-        snapshots << {
-          iteration: iteration,
-          heap_pages: GC.stat[:heap_allocated_pages],
-          heap_slots: GC.stat[:heap_available_slots],
-          live_objects: ObjectSpace.count_objects[:TOTAL] - ObjectSpace.count_objects[:FREE]
-        }
-      end
-
-      # Analyze memory growth trend
-      growth_rates = snapshots.each_cons(2).map do |prev, curr|
-        iterations_diff = curr[:iteration] - prev[:iteration]
-        memory_diff = curr[:heap_pages] - prev[:heap_pages]
-        memory_diff.to_f / iterations_diff
-      end
-
-      # Memory growth should stabilize (declining growth rate)
-      expect(growth_rates.last).to be < growth_rates.first
-
-      # No significant memory growth in later phases
-      expect(growth_rates.last).to be < 0.1 # Less than 0.1 pages per iteration
-    end
-
     it "profiles memory usage in complex multi-agent scenarios" do
       # Create complex agent network
       agents = 10.times.map do |i|
@@ -229,35 +186,6 @@ RSpec.describe "Memory Profiling", :performance do
       # GC time should be reasonable
       gc_time_per_operation = gc_time_spent.to_f / 1000
       expect(gc_time_per_operation).to be < 1000 # Less than 1ms GC time per operation
-    end
-
-    it "profiles memory allocation types" do
-      # Skip - Requires specialized memory profiling tools and specific allocation patterns
-      skip "Memory allocation profiling requires specialized tools"
-      agent = create_test_agent(name: "AllocationAgent")
-      runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
-
-      # Different response types to create different allocations
-      mock_provider.add_response("Short response")
-      mock_provider.add_response("Medium length response with more content")
-      mock_provider.add_response("Very long response #{"with lots of content " * 100}")
-
-      report = MemoryProfiler.report do
-        3.times do |i|
-          runner.run("Allocation test #{i}")
-        end
-      end
-
-      # Analyze allocation types
-      string_allocations = report.strings_allocated
-      hash_allocations = report.total_allocated - string_allocations.size
-
-      # Most allocations should be strings (messages, JSON)
-      expect(string_allocations.size).to be > hash_allocations * 0.3
-
-      # Check for unexpected large allocations
-      large_strings = string_allocations.select { |str| str.bytesize > 10_000 }
-      expect(large_strings.size).to be < 5 # Few large string allocations
     end
   end
 

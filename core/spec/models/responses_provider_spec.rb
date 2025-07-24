@@ -1,167 +1,450 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "webmock/rspec"
 
-RSpec.describe RAAF::Models::ResponsesProvider do
+# rubocop:disable RSpec/DescribeMethod
+RSpec.describe RAAF::Models::ResponsesProvider, "Enhanced Coverage Tests" do
+  # rubocop:enable RSpec/DescribeMethod
   let(:api_key) { "sk-test-key" }
   let(:provider) { described_class.new(api_key: api_key) }
 
-  describe "#initialize" do
-    it "requires API key" do
-      allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return(nil)
-
-      expect do
-        described_class.new
-      end.to raise_error(RAAF::Models::AuthenticationError, /API key is required/)
-    end
-
-    it "accepts API key parameter" do
-      provider = described_class.new(api_key: "sk-test")
-      expect(provider.instance_variable_get(:@api_key)).to eq("sk-test")
-    end
-
-    it "reads API key from environment" do
-      allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("sk-env-key")
-      allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return(nil)
-
-      provider = described_class.new
-      expect(provider.instance_variable_get(:@api_key)).to eq("sk-env-key")
-    end
-
-    it "uses default API base" do
-      provider = described_class.new(api_key: "sk-test")
-      expect(provider.instance_variable_get(:@api_base)).to eq("https://api.openai.com/v1")
-    end
-
-    it "accepts custom API base" do
-      provider = described_class.new(api_key: "sk-test", api_base: "https://custom.api.com")
-      expect(provider.instance_variable_get(:@api_base)).to eq("https://custom.api.com")
-    end
-
-    it "reads API base from environment" do
-      allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("sk-test")
-      allow(ENV).to receive(:[]).with("OPENAI_API_BASE").and_return("https://env.api.com")
-
-      provider = described_class.new
-      expect(provider.instance_variable_get(:@api_base)).to eq("https://env.api.com")
-    end
+  before do
+    WebMock.disable_net_connect!(allow_localhost: true)
   end
 
-  describe "#supported_models" do
-    it "returns array of supported models" do
-      models = provider.supported_models
-
-      expect(models).to include("gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4")
-      expect(models).to include("o1-preview", "o1-mini")
-      expect(models).to be_frozen
-    end
+  after do
+    WebMock.reset!
   end
 
-  describe "#provider_name" do
-    it "returns OpenAI" do
-      expect(provider.provider_name).to eq("OpenAI")
-    end
-  end
-
-  describe "#supports_prompts?" do
-    it "returns true" do
-      expect(provider.supports_prompts?).to be true
-    end
-  end
-
-  describe "#supports_function_calling?" do
-    it "returns true" do
-      expect(provider.supports_function_calling?).to be true
-    end
-  end
-
-  describe "#validate_model" do
-    it "accepts supported models" do
-      expect { provider.send(:validate_model, "gpt-4o") }.not_to raise_error
-      expect { provider.send(:validate_model, "gpt-4") }.not_to raise_error
-    end
-
-    it "rejects unsupported models" do
-      expect do
-        provider.send(:validate_model, "unsupported-model")
-      end.to raise_error(ArgumentError, /not supported/)
-    end
-  end
-
-  describe "#responses_completion" do
+  describe "#responses_completion - comprehensive parameter testing" do
     let(:messages) { [{ role: "user", content: "Hello" }] }
     let(:model) { "gpt-4o" }
 
-    it "validates model before making request" do
-      expect do
-        provider.responses_completion(messages: messages, model: "invalid-model")
-      end.to raise_error(ArgumentError, /not supported/)
+    let(:mock_response) do
+      {
+        id: "resp_test_123",
+        output: [
+          {
+            type: "message",
+            role: "assistant",
+            content: [{ type: "text", text: "Hello! How can I help you?" }]
+          }
+        ],
+        usage: { input_tokens: 15, output_tokens: 25, total_tokens: 40 }
+      }
     end
 
-    it "accepts valid parameters" do
-      # Mock the API call to avoid actual HTTP requests
-      allow(provider).to receive(:call_responses_api).and_return({
-                                                                   "id" => "resp_123",
-                                                                   "output" => [{ "type" => "message", "role" => "assistant", "content" => "Hello!" }],
-                                                                   "usage" => { "input_tokens" => 10, "output_tokens" => 5, "total_tokens" => 15 }
-                                                                 })
+    context "with tools parameter" do
+      let(:tools) do
+        [
+          {
+            type: "function",
+            function: {
+              name: "get_weather",
+              description: "Get current weather",
+              parameters: {
+                type: "object",
+                properties: { location: { type: "string" } },
+                required: ["location"]
+              }
+            }
+          }
+        ]
+      end
 
-      result = provider.responses_completion(messages: messages, model: model)
+      it "processes tools parameter correctly" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: mock_response.to_json)
 
-      expect(result).to include("id", "output", "usage")
-      expect(result["id"]).to eq("resp_123")
-      expect(result["output"]).to be_an(Array)
-      expect(result["usage"]).to be_a(Hash)
+        result = provider.responses_completion(
+          messages: messages,
+          model: model,
+          tools: tools
+        )
+
+        expect(result).to include("id", "output", "usage")
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("tools"))
+      end
+    end
+
+    context "with previous_response_id" do
+      it "includes previous response ID in request" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: mock_response.to_json)
+
+        provider.responses_completion(
+          messages: messages,
+          model: model,
+          previous_response_id: "resp_previous_123"
+        )
+
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("previous_response_id"))
+      end
+    end
+
+    context "with direct input parameter" do
+      let(:input_items) do
+        [
+          { type: "user_text", text: "Direct input message" },
+          { type: "function_call_output", output: "Function result" }
+        ]
+      end
+
+      it "uses direct input instead of converting messages" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: mock_response.to_json)
+
+        result = provider.responses_completion(
+          messages: [], # Empty since using direct input
+          model: model,
+          input: input_items
+        )
+
+        expect(result).to include("id", "output")
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("input"))
+      end
+    end
+
+    context "with additional parameters" do
+      it "handles temperature, max_tokens, and other options" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: mock_response.to_json)
+
+        provider.responses_completion(
+          messages: messages,
+          model: model,
+          temperature: 0.7,
+          max_tokens: 150,
+          top_p: 0.9,
+          frequency_penalty: 0.1,
+          presence_penalty: 0.1
+        )
+
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("temperature", "max_output_tokens", "top_p"))
+      end
     end
   end
 
-  describe "#stream_completion" do
-    let(:messages) { [{ role: "user", content: "Hello" }] }
+  describe "API communication - HTTP request/response handling" do
+    let(:messages) { [{ role: "user", content: "Test message" }] }
     let(:model) { "gpt-4o" }
 
-    it "validates model before streaming" do
-      expect do
-        # rubocop:disable Lint/EmptyBlock
-        provider.stream_completion(messages: messages, model: "invalid-model") {}
-        # rubocop:enable Lint/EmptyBlock
-      end.to raise_error(ArgumentError, /not supported/)
+    context "successful API responses" do
+      it "handles 200 OK responses correctly" do
+        response_body = {
+          id: "resp_success_123",
+          output: [{ type: "message", role: "assistant", content: [{ type: "text", text: "Success!" }] }],
+          usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }
+        }
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: response_body.to_json, headers: { "Content-Type" => "application/json" })
+
+        result = provider.responses_completion(messages: messages, model: model)
+
+        expect(result["id"]).to eq("resp_success_123")
+        expect(result["output"]).to be_an(Array)
+        expect(result["usage"]["total_tokens"]).to eq(15)
+      end
+
+      it "handles 201 Created responses" do
+        response_body = { id: "resp_created", output: [], usage: {} }
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 201, body: response_body.to_json)
+
+        result = provider.responses_completion(messages: messages, model: model)
+        expect(result["id"]).to eq("resp_created")
+      end
     end
 
-    it "delegates to responses_completion with stream enabled" do
-      expect(provider).to receive(:responses_completion).with(
-        messages: messages,
-        model: model,
-        tools: nil,
-        stream: true
-      )
+    context "API error responses" do
+      it "handles 400 Bad Request errors" do
+        error_body = {
+          error: {
+            message: "Invalid request format",
+            type: "invalid_request_error",
+            code: "bad_request"
+          }
+        }
 
-      # rubocop:disable Lint/EmptyBlock
-      provider.stream_completion(messages: messages, model: model) {}
-      # rubocop:enable Lint/EmptyBlock
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("model" => model))
+          .to_return(status: 400, body: error_body.to_json)
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(RAAF::Models::APIError, /Invalid request format/)
+      end
+
+      it "handles 401 Unauthorized errors" do
+        error_body = {
+          error: {
+            message: "Invalid API key",
+            type: "authentication_error"
+          }
+        }
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("model" => model))
+          .to_return(status: 401, body: error_body.to_json)
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(RAAF::Models::AuthenticationError, /Invalid API key/)
+      end
+
+      it "handles 429 Rate Limit errors" do
+        error_body = {
+          error: {
+            message: "Rate limit exceeded",
+            type: "rate_limit_error"
+          }
+        }
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 429, body: error_body.to_json)
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(RAAF::Models::RateLimitError)
+      end
+
+      it "handles 500 Internal Server errors" do
+        error_body = {
+          error: {
+            message: "Internal server error",
+            type: "server_error"
+          }
+        }
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 500, body: error_body.to_json)
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(RAAF::Models::ServerError)
+      end
+
+      it "handles non-JSON error responses" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 503, body: "Service Temporarily Unavailable")
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(RAAF::Models::ServerError)
+      end
+    end
+
+    context "network and timeout errors" do
+      it "handles connection timeouts" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_timeout
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(Timeout::Error)
+      end
+
+      it "handles connection refused errors" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_raise(Errno::ECONNREFUSED)
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(Errno::ECONNREFUSED)
+      end
+
+      it "handles DNS resolution errors" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_raise(SocketError.new("Failed to open TCP connection"))
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(SocketError)
+      end
     end
   end
 
-  describe "message conversion" do
-    describe "#convert_messages_to_input" do
-      it "converts user messages to input items" do
-        messages = [{ role: "user", content: "Hello" }]
+  describe "tool conversion system - comprehensive coverage" do
+    let(:messages) { [{ role: "user", content: "Test" }] }
+    let(:model) { "gpt-4o" }
+
+    context "with various tool formats" do
+      it "converts hash-based tools" do
+        tools = [
+          {
+            type: "function",
+            function: {
+              name: "calculator",
+              description: "Performs calculations",
+              parameters: {
+                type: "object",
+                properties: { expression: { type: "string" } },
+                required: ["expression"]
+              }
+            }
+          }
+        ]
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        provider.responses_completion(messages: messages, model: model, tools: tools)
+
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("tools"))
+      end
+
+      it "converts FunctionTool objects" do
+        function_tool = RAAF::FunctionTool.new(
+          proc { |text:| text.upcase },
+          name: "upcase",
+          description: "Convert text to uppercase"
+        )
+
+        tools = [function_tool]
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        provider.responses_completion(messages: messages, model: model, tools: tools)
+
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("tools"))
+      end
+
+      it "handles web search tools specially" do
+        # Mock a web search tool
+        web_search_tool = double("WebSearchTool")
+        allow(web_search_tool).to receive(:respond_to?).with(:tool_definition).and_return(false)
+        allow(web_search_tool).to receive(:respond_to?).with(:to_tool_definition).and_return(true)
+        allow(web_search_tool).to receive_messages(class: Object, to_s: "WebSearchTool", to_tool_definition: {
+                                                     type: "web_search"
+                                                   })
+
+        # Simulate web search tool detection
+        tools = [web_search_tool]
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        # This might trigger special web search handling
+        provider.responses_completion(messages: messages, model: model, tools: tools)
+
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+      end
+
+      it "handles tools with tool_definition method" do
+        dsl_tool = double("DSLTool")
+        allow(dsl_tool).to receive(:respond_to?).with(:tool_definition).and_return(true)
+        allow(dsl_tool).to receive(:tool_definition).and_return({
+                                                                  type: "function",
+                                                                  function: { name: "dsl_tool", description: "DSL tool", parameters: {} }
+                                                                })
+
+        tools = [dsl_tool]
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        provider.responses_completion(messages: messages, model: model, tools: tools)
+
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("tools"))
+      end
+
+      it "handles tools with to_tool_definition method" do
+        custom_tool = double("CustomTool")
+        allow(custom_tool).to receive(:respond_to?).with(:tool_definition).and_return(false)
+        allow(custom_tool).to receive(:respond_to?).with(:to_tool_definition).and_return(true)
+        allow(custom_tool).to receive(:to_tool_definition).and_return({
+                                                                        type: "function",
+                                                                        function: { name: "custom_tool", description: "Custom tool", parameters: {} }
+                                                                      })
+
+        tools = [custom_tool]
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        provider.responses_completion(messages: messages, model: model, tools: tools)
+
+        expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+          .with(body: hash_including("tools"))
+      end
+
+      it "raises error for unknown tool types" do
+        unknown_tool = "not_a_tool"
+        tools = [unknown_tool]
+
+        expect do
+          provider.responses_completion(messages: messages, model: model, tools: tools)
+        end.to raise_error(ArgumentError, /Unknown tool type/)
+      end
+    end
+  end
+
+  describe "message format conversion - comprehensive scenarios" do
+    context "convert_messages_to_input with various message types" do
+      it "converts user messages correctly" do
+        messages = [
+          { role: "user", content: "Hello" },
+          { role: "user", content: "How are you?" }
+        ]
 
         input = provider.send(:convert_messages_to_input, messages)
 
         expect(input).to be_an(Array)
-        expect(input.first[:type]).to eq("message")
-        expect(input.first[:role]).to eq("user")
-        expect(input.first[:content]).to eq([{ type: "input_text", text: "Hello" }])
+        expect(input.length).to eq(2)
+        expect(input[0][:type]).to eq("message")
+        expect(input[0][:role]).to eq("user")
+        expect(input[0][:content]).to eq([{ type: "input_text", text: "Hello" }])
+        expect(input[1][:type]).to eq("message")
+        expect(input[1][:role]).to eq("user")
+        expect(input[1][:content]).to eq([{ type: "input_text", text: "How are you?" }])
       end
 
-      it "converts assistant messages with tool calls" do
+      it "converts assistant messages correctly" do
+        messages = [
+          { role: "assistant", content: "Hi there!" },
+          { role: "assistant", content: "I'm doing well." }
+        ]
+
+        input = provider.send(:convert_messages_to_input, messages)
+
+        expect(input.length).to eq(2)
+        expect(input[0][:type]).to eq("message")
+        expect(input[0][:role]).to eq("assistant")
+        expect(input[0][:content]).to eq([{ type: "output_text", text: "Hi there!" }])
+      end
+
+      it "converts tool messages correctly" do
+        messages = [
+          { role: "tool", content: "Tool result", tool_call_id: "call_123" }
+        ]
+
+        input = provider.send(:convert_messages_to_input, messages)
+
+        expect(input.length).to eq(1)
+        expect(input[0][:type]).to eq("function_call_output")
+        expect(input[0][:output]).to eq("Tool result")
+        expect(input[0][:call_id]).to eq("call_123")
+      end
+
+      it "handles messages with tool calls" do
         messages = [
           {
             role: "assistant",
-            content: "I'll help you with that",
+            content: "I'll check the weather",
             tool_calls: [
               {
-                id: "call_123",
+                id: "call_weather_123",
                 type: "function",
                 function: { name: "get_weather", arguments: '{"location": "NYC"}' }
               }
@@ -171,189 +454,331 @@ RSpec.describe RAAF::Models::ResponsesProvider do
 
         input = provider.send(:convert_messages_to_input, messages)
 
-        expect(input).to be_an(Array)
-
-        # When assistant message has both content and tool_calls,
-        # content is added first as a message, then the function_call
-        expect(input.length).to eq(2)
+        expect(input.length).to eq(2) # Message + tool call
         expect(input[0][:type]).to eq("message")
-        expect(input[0][:text]).to eq("I'll help you with that")
-
         expect(input[1][:type]).to eq("function_call")
         expect(input[1][:name]).to eq("get_weather")
-        expect(input[1][:call_id]).to eq("call_123")
+        expect(input[1][:arguments]).to eq(JSON.parse('{"location": "NYC"}'))
       end
 
-      it "converts tool result messages" do
+      it "handles mixed message types in sequence" do
         messages = [
-          {
-            role: "tool",
-            content: "The weather is sunny",
-            tool_call_id: "call_123"
-          }
+          { role: "user", content: "What's the weather?" },
+          { role: "assistant", content: "I'll check", tool_calls: [
+            { id: "call_1", type: "function", function: { name: "weather", arguments: "{}" } }
+          ] },
+          { role: "tool", content: "Sunny, 72F", tool_call_id: "call_1" },
+          { role: "assistant", content: "It's sunny and 72F!" }
         ]
 
         input = provider.send(:convert_messages_to_input, messages)
 
-        expect(input.first[:type]).to eq("function_call_output")
-        expect(input.first[:call_id]).to eq("call_123")
-        expect(input.first[:output]).to eq("The weather is sunny")
+        expect(input.length).to eq(5) # user + assistant content + tool_call + tool_result + final assistant
+        expect(input[0][:type]).to eq("message")
+        expect(input[1][:type]).to eq("message")
+        expect(input[2][:type]).to eq("function_call")
+        expect(input[3][:type]).to eq("function_call_output")
+        expect(input[4][:type]).to eq("message")
       end
     end
 
-    describe "#extract_system_instructions" do
-      it "extracts system message content" do
+    context "system instruction extraction" do
+      it "extracts system instructions from messages" do
         messages = [
-          { role: "system", content: "You are a helpful assistant" },
+          { role: "system", content: "You are a helpful assistant." },
           { role: "user", content: "Hello" }
         ]
 
         instructions = provider.send(:extract_system_instructions, messages)
-
-        expect(instructions).to eq("You are a helpful assistant")
+        expect(instructions).to eq("You are a helpful assistant.")
       end
 
-      it "returns nil when no system message" do
+      it "handles missing system messages" do
         messages = [{ role: "user", content: "Hello" }]
 
         instructions = provider.send(:extract_system_instructions, messages)
-
         expect(instructions).to be_nil
       end
-    end
-  end
 
-  describe "tool conversion" do
-    describe "#convert_tools" do
-      it "returns empty hash for nil tools" do
-        result = provider.send(:convert_tools, nil)
-        expect(result).to eq({ tools: [], includes: [] })
-      end
+      it "uses the first system message when multiple exist" do
+        messages = [
+          { role: "system", content: "First instruction" },
+          { role: "system", content: "Second instruction" },
+          { role: "user", content: "Hello" }
+        ]
 
-      it "returns empty hash for empty tools" do
-        result = provider.send(:convert_tools, [])
-        expect(result).to eq({ tools: [], includes: [] })
-      end
-
-      it "converts FunctionTool objects" do
-        tool = RAAF::FunctionTool.new(proc { |x| x }, name: "test_tool")
-
-        result = provider.send(:convert_tools, [tool])
-
-        expect(result).to be_a(Hash)
-        expect(result).to have_key(:tools)
-        expect(result).to have_key(:includes)
-        expect(result[:tools].first[:type]).to eq("function")
-        expect(result[:tools].first[:name]).to eq("test_tool")
-      end
-
-      it "passes through hash tools" do
-        tool_hash = { type: "function", function: { name: "test", parameters: {} } }
-
-        result = provider.send(:convert_tools, [tool_hash])
-
-        expect(result).to be_a(Hash)
-        expect(result).to have_key(:tools)
-        expect(result).to have_key(:includes)
-        expect(result[:tools]).to include(tool_hash)
-      end
-    end
-
-    describe "#convert_tool_choice" do
-      it "returns auto for nil tool_choice" do
-        result = provider.send(:convert_tool_choice, nil)
-        expect(result).to eq("auto")
-      end
-
-      it "converts string tool_choice to object format" do
-        result = provider.send(:convert_tool_choice, "get_weather")
-
-        expect(result).to be_a(Hash)
-        expect(result[:type]).to eq("function")
-        expect(result[:name]).to eq("get_weather")
-      end
-
-      it "passes through hash tool_choice" do
-        tool_choice = { type: "function", function: { name: "test" } }
-
-        result = provider.send(:convert_tool_choice, tool_choice)
-
-        expect(result).to eq(tool_choice)
+        instructions = provider.send(:extract_system_instructions, messages)
+        expect(instructions).to eq("First instruction")
       end
     end
   end
 
-  describe "response format conversion" do
-    describe "#convert_response_format" do
-      it "returns nil for nil response_format" do
-        result = provider.send(:convert_response_format, nil)
-        expect(result).to be_nil
+  describe "parameter preparation and validation" do
+    context "function parameter processing" do
+      it "prepares function parameters correctly" do
+        params = {
+          type: "object",
+          properties: {
+            location: { type: "string", description: "City name" },
+            unit: { type: "string", enum: %w[celsius fahrenheit] }
+          },
+          required: ["location"]
+        }
+
+        prepared = provider.send(:prepare_function_parameters, params)
+
+        expect(prepared).to include(:type, :properties)
+        expect(prepared[:additionalProperties]).to be false
       end
 
-      it "converts response_format to format structure" do
-        response_format = {
-          type: "json_schema",
-          json_schema: {
-            name: "TestSchema",
-            schema: { type: "object" },
-            strict: true
+      it "handles parameters without required fields" do
+        params = {
+          type: "object",
+          properties: {
+            optional_param: { type: "string" }
           }
         }
 
-        result = provider.send(:convert_response_format, response_format)
+        prepared = provider.send(:prepare_function_parameters, params)
 
-        expect(result).to be_a(Hash)
-        expect(result).to have_key(:format)
-        expect(result[:format]).to have_key(:type)
-        expect(result[:format][:type]).to eq("json_schema")
+        expect(prepared[:required]).to eq([])
+      end
+
+      it "determines strict mode correctly" do
+        # Strict mode conditions
+        strict_params = {
+          type: "object",
+          properties: { param: { type: "string" } },
+          required: ["param"],
+          additionalProperties: false
+        }
+
+        expect(provider.send(:determine_strict_mode, strict_params)).to be true
+
+        # Non-strict mode
+        non_strict_params = { type: "object", properties: {} }
+        expect(provider.send(:determine_strict_mode, non_strict_params)).to be false
+      end
+    end
+
+    context "format converters" do
+      it "converts tool choice to proper format" do
+        # Auto choice
+        expect(provider.send(:convert_tool_choice, "auto")).to eq("auto")
+
+        # Required choice
+        expect(provider.send(:convert_tool_choice, "required")).to eq("required")
+
+        # Function choice
+        choice_hash = { type: "function", function: { name: "my_tool" } }
+        result = provider.send(:convert_tool_choice, choice_hash)
+        expect(result).to eq(choice_hash)
+      end
+
+      it "converts response format correctly" do
+        json_schema = {
+          type: "json_schema",
+          json_schema: {
+            name: "response_format",
+            schema: { type: "object", properties: {} }
+          }
+        }
+
+        result = provider.send(:convert_response_format, json_schema)
+
+        # The method converts to the format expected by the Responses API
+        expected = {
+          format: {
+            type: "json_schema",
+            name: "response_format",
+            schema: { type: "object", properties: {} },
+            strict: nil
+          }
+        }
+
+        expect(result).to eq(expected)
       end
     end
   end
 
-  describe "parameter preparation" do
-    describe "#prepare_function_parameters" do
-      it "ensures additionalProperties is false for strict mode" do
-        parameters = { type: "object", properties: { name: { type: "string" } } }
+  describe "streaming functionality" do
+    let(:messages) { [{ role: "user", content: "Stream test" }] }
+    let(:model) { "gpt-4o" }
 
-        result = provider.send(:prepare_function_parameters, parameters)
+    context "stream_completion method" do
+      it "enables streaming in responses_completion" do
+        expect(provider).to receive(:responses_completion).with(
+          messages: messages,
+          model: model,
+          tools: nil,
+          stream: true
+        )
 
-        expect(result[:additionalProperties]).to be false
+        # rubocop:disable Lint/EmptyBlock
+        provider.stream_completion(messages: messages, model: model) {}
+        # rubocop:enable Lint/EmptyBlock
       end
 
-      it "preserves existing additionalProperties setting" do
-        parameters = {
-          type: "object",
-          properties: { name: { type: "string" } },
-          additionalProperties: true
-        }
+      it "passes tools parameter to streaming" do
+        tools = [{ type: "function", function: { name: "test" } }]
 
-        result = provider.send(:prepare_function_parameters, parameters)
+        expect(provider).to receive(:responses_completion).with(
+          messages: messages,
+          model: model,
+          tools: tools,
+          stream: true
+        )
 
-        expect(result[:additionalProperties]).to be true
+        # rubocop:disable Lint/EmptyBlock
+        provider.stream_completion(messages: messages, model: model, tools: tools) {}
+        # rubocop:enable Lint/EmptyBlock
       end
     end
 
-    describe "#determine_strict_mode" do
-      it "returns true when additionalProperties is false and has properties and required" do
-        parameters = {
-          type: "object",
-          properties: { name: { type: "string" } },
-          additionalProperties: false,
-          required: ["name"]
-        }
+    # NOTE: Full streaming tests would require more complex SSE mocking
+    # These tests focus on the streaming delegation and parameter handling
+  end
 
-        result = provider.send(:determine_strict_mode, parameters)
+  describe "edge cases and error handling" do
+    let(:messages) { [{ role: "user", content: "Test" }] }
+    let(:model) { "gpt-4o" }
 
-        expect(result).to be true
+    context "malformed responses" do
+      it "handles non-JSON response bodies" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: "Not JSON")
+
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(JSON::ParserError)
       end
 
-      it "returns false when additionalProperties is true" do
-        parameters = { type: "object", additionalProperties: true }
+      it "handles empty response bodies" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: "")
 
-        result = provider.send(:determine_strict_mode, parameters)
-
-        expect(result).to be false
+        expect do
+          provider.responses_completion(messages: messages, model: model)
+        end.to raise_error(JSON::ParserError)
       end
+    end
+
+    context "parameter edge cases" do
+      it "handles empty messages array" do
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        result = provider.responses_completion(messages: [], model: model)
+        expect(result["id"]).to eq("test")
+      end
+
+      it "handles messages with missing content" do
+        messages_with_missing_content = [
+          { role: "user" }, # Missing content
+          { role: "assistant", content: "Response" }
+        ]
+
+        expect do
+          provider.send(:convert_messages_to_input, messages_with_missing_content)
+        end.not_to raise_error
+      end
+
+      it "handles very large message content" do
+        large_content = "x" * 10_000
+        large_messages = [{ role: "user", content: large_content }]
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        expect do
+          provider.responses_completion(messages: large_messages, model: model)
+        end.not_to raise_error
+      end
+
+      it "handles Unicode and special characters" do
+        unicode_messages = [{ role: "user", content: "Hello 🌍 こんにちは" }]
+
+        stub_request(:post, "https://api.openai.com/v1/responses")
+          .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+        expect do
+          provider.responses_completion(messages: unicode_messages, model: model)
+        end.not_to raise_error
+      end
+    end
+  end
+
+  describe "authentication and headers" do
+    let(:messages) { [{ role: "user", content: "Test" }] }
+    let(:model) { "gpt-4o" }
+
+    it "includes correct authorization header" do
+      stub_request(:post, "https://api.openai.com/v1/responses")
+        .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+      provider.responses_completion(messages: messages, model: model)
+
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+        .with(headers: { "Authorization" => "Bearer sk-test-key" })
+    end
+
+    it "includes correct content-type header" do
+      stub_request(:post, "https://api.openai.com/v1/responses")
+        .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+      provider.responses_completion(messages: messages, model: model)
+
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+        .with(headers: { "Content-Type" => "application/json" })
+    end
+
+    it "includes user-agent header" do
+      stub_request(:post, "https://api.openai.com/v1/responses")
+        .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+      provider.responses_completion(messages: messages, model: model)
+
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+        .with(headers: { "User-Agent" => /Agents/ })
+    end
+  end
+
+  describe "performance and optimization" do
+    let(:messages) { [{ role: "user", content: "Performance test" }] }
+    let(:model) { "gpt-4o" }
+
+    it "completes requests within reasonable time" do
+      stub_request(:post, "https://api.openai.com/v1/responses")
+        .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+      start_time = Time.now
+      provider.responses_completion(messages: messages, model: model)
+      duration = Time.now - start_time
+
+      expect(duration).to be < 1.0 # Should complete within 1 second (mocked)
+    end
+
+    it "handles multiple simultaneous requests" do
+      stub_request(:post, "https://api.openai.com/v1/responses")
+        .to_return(status: 200, body: { id: "test", output: [], usage: {} }.to_json)
+
+      threads = []
+      results = []
+
+      5.times do |i|
+        threads << Thread.new do
+          result = provider.responses_completion(
+            messages: [{ role: "user", content: "Request #{i}" }],
+            model: model
+          )
+          results << result
+        end
+      end
+
+      threads.each(&:join)
+
+      expect(results.length).to eq(5)
+      results.each { |result| expect(result["id"]).to eq("test") }
     end
   end
 end

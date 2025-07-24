@@ -326,7 +326,7 @@ module RAAF
                     status_code: response.code,
                     response_body: response.body,
                     request_body: body.to_json)
-          raise APIError, "Responses API returned #{response.code}: #{response.body}"
+          handle_api_error(response, provider_name)
         end
 
         parsed_response = JSON.parse(response.body)

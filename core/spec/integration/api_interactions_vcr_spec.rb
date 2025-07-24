@@ -216,7 +216,7 @@ RSpec.describe "API Interactions with VCR", :integration do
             handoff_runner.run(
               "Research Ruby programming best practices and then write an article about them"
             )
-          end.to raise_error(RAAF::Models::RetryableProvider::RetryableError, /HTTP 500/)
+          end.to raise_error(RAAF::Models::ServerError, /500/)
         end
       end
     end
@@ -335,7 +335,7 @@ RSpec.describe "API Interactions with VCR", :integration do
               "Research current AI trends, analyze their impact on software development, " \
               "and create a brief report"
             )
-          end.to raise_error(RAAF::Models::RetryableProvider::RetryableError, /HTTP 500/)
+          end.to raise_error(RAAF::Models::ServerError, /500/)
         end
       end
     end

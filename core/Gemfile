@@ -2,6 +2,9 @@
 
 source "https://rubygems.org"
 
+# Ruby version is specified in gemspec (>= 3.2.0) to allow multi-version testing in CI
+# Local development should use .ruby-version file (3.4.5)
+
 # Specify your gem's dependencies in the gemspec
 gemspec
 
@@ -21,6 +24,8 @@ group :test do
   gem "rspec-collection_matchers", "~> 1.2"
   gem "rspec_junit_formatter", "~> 0.6" # JUnit XML formatter for CI
   gem "simplecov"
+  gem "simplecov-json"  # JSON format for CI
+  gem "simplecov-lcov"  # LCOV format for coverage services
   gem "vcr"
   gem "webmock"
 end

@@ -252,7 +252,7 @@ module RAAF
             **model_params
           )
         else
-          provider.complete(
+          provider.chat_completion(
             messages: api_messages,
             model: model,
             **model_params

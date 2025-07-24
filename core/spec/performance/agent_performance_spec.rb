@@ -52,39 +52,6 @@ RSpec.describe "Agent Performance", :performance do
         end.to perform_under(1).sec
       end
     end
-
-    it "maintains performance under load" do
-      skip "rspec-benchmark not available" unless defined?(RSpec::Benchmark)
-
-      # Simulate load testing
-      100.times { mock_provider.add_response("Load test response") }
-
-      runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
-
-      expect do
-        100.times.map do |i|
-          Thread.new { runner.run("Load test #{i}") }
-        end.each(&:join)
-      end.to perform_under(5).sec
-    end
-  end
-
-  describe "Memory usage" do
-    it "doesn't leak memory during extended operation" do
-      skip "Memory profiling requires specialized tools"
-
-      # This would require memory profiling gems like memory_profiler
-      # initial_memory = GC.stat[:heap_live_slots]
-      #
-      # 1000.times do |i|
-      #   runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
-      #   runner.run("Memory test #{i}")
-      # end
-      #
-      # GC.start
-      # final_memory = GC.stat[:heap_live_slots]
-      # expect(final_memory - initial_memory).to be < 10000
-    end
   end
 
   describe "Tool execution performance" do

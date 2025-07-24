@@ -2,19 +2,19 @@
 
 require "spec_helper"
 
-RSpec.describe RAAF::Models::RetryableProvider do
-  let(:mock_provider) do
-    Class.new do
-      include RAAF::Models::RetryableProvider
-
+RSpec.describe "RAAF::Models::ModelInterface Retry Functionality" do
+  # Test provider that implements the ModelInterface to test retry functionality
+  let(:test_provider_class) do
+    Class.new(RAAF::Models::ModelInterface) do
       def initialize
         super
         @call_count = 0
+        @fail_count = 2 # Fail first 2 attempts, succeed on 3rd
       end
 
       attr_reader :call_count
 
-      def test_method
+      def perform_chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         @call_count += 1
 
         case @call_count
@@ -23,192 +23,344 @@ RSpec.describe RAAF::Models::RetryableProvider do
         when 2
           raise Net::ReadTimeout, "Read timeout"
         else
-          "success after #{@call_count} attempts"
+          {
+            "choices" => [{
+              "message" => {
+                "role" => "assistant",
+                "content" => "success after #{@call_count} attempts"
+              }
+            }],
+            "usage" => { "total_tokens" => 10 },
+            "model" => model
+          }
         end
       end
-    end.new
-  end
 
-  describe "module inclusion" do
-    it "includes retry functionality in the target class" do
-      expect(mock_provider).to respond_to(:with_retry)
-      expect(mock_provider).to respond_to(:configure_retry)
-    end
-
-    it "sets up default retry configuration" do
-      expect(mock_provider.retry_config).to be_a(Hash)
-      expect(mock_provider.retry_config[:max_attempts]).to eq(3)
-      expect(mock_provider.retry_config[:base_delay]).to eq(1.0)
-    end
-  end
-
-  describe "#with_retry" do
-    it "succeeds on first attempt when no error occurs" do
-      allow(mock_provider).to receive(:test_method).and_return("immediate success")
-
-      result = mock_provider.with_retry("test") do
-        mock_provider.test_method
+      def supported_models
+        ["test-model"]
       end
 
-      expect(result).to eq("immediate success")
-    end
-
-    it "retries on retryable exceptions and eventually succeeds" do
-      result = mock_provider.with_retry("test") do
-        mock_provider.test_method
+      def provider_name
+        "TestRetryProvider"
       end
 
-      expect(result).to eq("success after 3 attempts")
-      expect(mock_provider.call_count).to eq(3)
-    end
-
-    it "respects max_attempts configuration" do
-      mock_provider.configure_retry(max_attempts: 2)
-
-      expect do
-        mock_provider.with_retry("test") do
-          mock_provider.test_method
-        end
-      end.to raise_error(Net::ReadTimeout)
-
-      expect(mock_provider.call_count).to eq(2)
-    end
-
-    it "re-raises non-retryable exceptions immediately" do
-      allow(mock_provider).to receive(:test_method).and_raise(ArgumentError.new("Invalid argument"))
-
-      expect do
-        mock_provider.with_retry("test") do
-          mock_provider.test_method
-        end
-      end.to raise_error(ArgumentError)
+      # Reset call count for testing
+      def reset_calls
+        @call_count = 0
+      end
     end
   end
 
-  describe "#configure_retry" do
-    it "updates retry configuration" do
-      mock_provider.configure_retry(
-        max_attempts: 5,
-        base_delay: 2.0,
-        max_delay: 60.0
-      )
+  let(:test_provider) { test_provider_class.new }
 
-      expect(mock_provider.retry_config[:max_attempts]).to eq(5)
-      expect(mock_provider.retry_config[:base_delay]).to eq(2.0)
-      expect(mock_provider.retry_config[:max_delay]).to eq(60.0)
+  describe "built-in retry functionality" do
+    it "has retry configuration by default" do
+      expect(test_provider.retry_config).to be_a(Hash)
+      expect(test_provider.retry_config[:max_attempts]).to eq(3)
+      expect(test_provider.retry_config[:base_delay]).to eq(1.0)
+      expect(test_provider.retry_config[:max_delay]).to eq(30.0)
+    end
+
+    it "allows retry configuration customization" do
+      test_provider.configure_retry(max_attempts: 5, base_delay: 0.5)
+
+      expect(test_provider.retry_config[:max_attempts]).to eq(5)
+      expect(test_provider.retry_config[:base_delay]).to eq(0.5)
     end
 
     it "returns self for method chaining" do
-      result = mock_provider.configure_retry(max_attempts: 5)
-      expect(result).to eq(mock_provider)
+      result = test_provider.configure_retry(max_attempts: 2)
+      expect(result).to eq(test_provider)
     end
   end
 
-  describe "RetryableProviderWrapper" do
-    let(:base_provider) do
-      Class.new do
+  describe "automatic retry on chat_completion" do
+    it "succeeds on first attempt when no error occurs" do
+      # Create provider that succeeds immediately
+      success_provider = Class.new(RAAF::Models::ModelInterface) do
         def initialize
+          super
           @call_count = 0
         end
 
         attr_reader :call_count
 
-        def chat_completion(messages:, model:, **_options)
+        def perform_chat_completion(messages:, model:, **_kwargs)
+          @call_count += 1
+          {
+            "choices" => [{ "message" => { "role" => "assistant", "content" => "immediate success" } }],
+            "usage" => { "total_tokens" => 5 }
+          }
+        end
+
+        def supported_models = ["success-model"]
+        def provider_name = "SuccessProvider"
+      end.new
+
+      result = success_provider.chat_completion(messages: [], model: "success-model")
+
+      expect(success_provider.call_count).to eq(1)
+      expect(result["choices"][0]["message"]["content"]).to eq("immediate success")
+    end
+
+    it "retries on retryable exceptions and eventually succeeds" do
+      # Mock sleep to speed up tests
+      allow(test_provider).to receive(:sleep)
+
+      result = test_provider.chat_completion(messages: [], model: "test-model")
+
+      expect(test_provider.call_count).to eq(3) # Failed twice, succeeded on 3rd
+      expect(result["choices"][0]["message"]["content"]).to eq("success after 3 attempts")
+    end
+
+    it "fails after max_attempts retries" do
+      # Create provider that always fails
+      failing_provider = Class.new(RAAF::Models::ModelInterface) do
+        def initialize
+          super
+          @call_count = 0
+        end
+
+        attr_reader :call_count
+
+        def perform_chat_completion(messages:, model:, **_kwargs)
+          @call_count += 1
+          raise Errno::ECONNRESET, "Always fails"
+        end
+
+        def supported_models = ["fail-model"]
+        def provider_name = "FailProvider"
+      end.new
+
+      # Mock sleep to speed up tests
+      allow(failing_provider).to receive(:sleep)
+
+      expect do
+        failing_provider.chat_completion(messages: [], model: "fail-model")
+      end.to raise_error(Errno::ECONNRESET, /Always fails/)
+
+      expect(failing_provider.call_count).to eq(3) # Default max_attempts
+    end
+
+    it "respects custom max_attempts configuration" do
+      # Create provider that always fails
+      failing_provider = Class.new(RAAF::Models::ModelInterface) do
+        def initialize
+          super
+          @call_count = 0
+        end
+
+        attr_reader :call_count
+
+        def perform_chat_completion(messages:, model:, **_kwargs)
+          @call_count += 1
+          raise Net::ReadTimeout, "Custom retry test"
+        end
+
+        def supported_models = ["custom-fail-model"]
+        def provider_name = "CustomFailProvider"
+      end.new
+
+      failing_provider.configure_retry(max_attempts: 2)
+      allow(failing_provider).to receive(:sleep)
+
+      expect do
+        failing_provider.chat_completion(messages: [], model: "custom-fail-model")
+      end.to raise_error(Net::ReadTimeout, /Custom retry test/)
+
+      expect(failing_provider.call_count).to eq(2) # Custom max_attempts
+    end
+  end
+
+  describe "automatic retry on responses_completion" do
+    it "retries responses_completion calls" do
+      allow(test_provider).to receive(:sleep)
+
+      result = test_provider.responses_completion(messages: [], model: "test-model")
+
+      expect(test_provider.call_count).to eq(3)
+      expect(result[:output][0][:content]).to eq("success after 3 attempts")
+    end
+  end
+
+  describe "retry exception handling" do
+    let(:custom_provider_class) do
+      Class.new(RAAF::Models::ModelInterface) do
+        def initialize(error_sequence)
+          super()
+          @error_sequence = error_sequence
+          @call_count = 0
+        end
+
+        attr_reader :call_count
+
+        def perform_chat_completion(messages:, model:, **_kwargs)
           @call_count += 1
 
-          raise Errno::ECONNRESET, "Connection reset" if @call_count <= 2
+          raise @error_sequence[@call_count - 1] if @call_count <= @error_sequence.length
 
-          { "choices" => [{ "message" => { "content" => "Success!" } }] }
+          { "choices" => [{ "message" => { "role" => "assistant", "content" => "success" } }] }
         end
-      end.new
-    end
 
-    let(:wrapped_provider) do
-      RAAF::Models::RetryableProviderWrapper.new(
-        base_provider,
-        max_attempts: 5,
-        base_delay: 0.01 # Fast for testing
-      )
-    end
-
-    it "wraps provider methods with retry logic" do
-      result = wrapped_provider.chat_completion(
-        messages: [{ role: "user", content: "test" }],
-        model: "gpt-4o"
-      )
-
-      expect(result).to eq({ "choices" => [{ "message" => { "content" => "Success!" } }] })
-      expect(base_provider.call_count).to eq(3)
-    end
-
-    it "forwards method calls to wrapped provider" do
-      expect(wrapped_provider).to respond_to(:chat_completion)
-      expect(wrapped_provider.respond_to?(:chat_completion)).to be(true)
-    end
-  end
-
-  describe "error handling" do
-    it "handles retryable exceptions" do
-      exceptions = [
-        Errno::ECONNRESET,
-        Errno::ECONNREFUSED,
-        Errno::ETIMEDOUT,
-        Net::ReadTimeout,
-        Net::WriteTimeout,
-        Net::OpenTimeout
-      ]
-
-      exceptions.each do |exception_class|
-        provider = Class.new do
-          include RAAF::Models::RetryableProvider
-
-          def test_method(exception_class)
-            raise exception_class, "Test error"
-          end
-        end.new
-
-        provider.configure_retry(max_attempts: 1) # Fail immediately
-
-        expect do
-          provider.with_retry do
-            provider.test_method(exception_class)
-          end
-        end.to raise_error(exception_class)
+        def supported_models = ["custom-model"]
+        def provider_name = "CustomProvider"
       end
     end
-  end
 
-  describe "delay calculation" do
-    it "calculates exponential backoff delays" do
-      provider = mock_provider
-      provider.configure_retry(
-        base_delay: 1.0,
-        multiplier: 2.0,
-        max_delay: 10.0,
-        jitter: 0.0 # No jitter for predictable testing
-      )
+    it "retries on Errno::ECONNRESET" do
+      provider = custom_provider_class.new([Errno::ECONNRESET.new("Connection reset")])
+      allow(provider).to receive(:sleep)
 
-      # Access private method for testing
-      delay1 = provider.send(:calculate_delay, 1)
-      delay2 = provider.send(:calculate_delay, 2)
-      delay3 = provider.send(:calculate_delay, 3)
-
-      expect(delay1).to eq(1.0)  # base_delay * 2^0
-      expect(delay2).to eq(2.0)  # base_delay * 2^1
-      expect(delay3).to eq(4.0)  # base_delay * 2^2
+      provider.chat_completion(messages: [], model: "custom-model")
+      expect(provider.call_count).to eq(2) # 1 failure + 1 success
     end
 
-    it "respects max_delay configuration" do
-      provider = mock_provider
-      provider.configure_retry(
-        base_delay: 1.0,
-        multiplier: 2.0,
-        max_delay: 3.0,
-        jitter: 0.0
-      )
+    it "retries on Net::ReadTimeout" do
+      provider = custom_provider_class.new([Net::ReadTimeout.new("Read timeout")])
+      allow(provider).to receive(:sleep)
 
-      delay4 = provider.send(:calculate_delay, 4) # Would be 8.0 without cap
-      expect(delay4).to eq(3.0) # Capped at max_delay
+      provider.chat_completion(messages: [], model: "custom-model")
+      expect(provider.call_count).to eq(2)
+    end
+
+    it "retries on Net::WriteTimeout" do
+      provider = custom_provider_class.new([Net::WriteTimeout.new("Write timeout")])
+      allow(provider).to receive(:sleep)
+
+      provider.chat_completion(messages: [], model: "custom-model")
+      expect(provider.call_count).to eq(2)
+    end
+
+    it "doesn't retry on non-retryable exceptions" do
+      provider = custom_provider_class.new([ArgumentError.new("Invalid argument")])
+
+      expect do
+        provider.chat_completion(messages: [], model: "custom-model")
+      end.to raise_error(ArgumentError, "Invalid argument")
+
+      expect(provider.call_count).to eq(1) # No retry
+    end
+  end
+
+  describe "retry delay calculation" do
+    it "calculates exponential backoff with jitter" do
+      # Test the private method via a test provider
+      delays = []
+
+      # Mock sleep to capture delay values
+      allow(test_provider).to receive(:sleep) do |delay|
+        delays << delay
+      end
+
+      test_provider.configure_retry(base_delay: 1.0, multiplier: 2.0, jitter: 0.0) # No jitter for predictable testing
+
+      expect do
+        test_provider.chat_completion(messages: [], model: "test-model")
+      end.not_to raise_error
+
+      # Should have 2 delays (for the 2 failed attempts)
+      expect(delays.length).to eq(2)
+
+      # First delay should be base_delay * multiplier^0 = 1.0
+      expect(delays[0]).to be_within(0.1).of(1.0)
+
+      # Second delay should be base_delay * multiplier^1 = 2.0
+      expect(delays[1]).to be_within(0.1).of(2.0)
+    end
+
+    it "caps delay at max_delay" do
+      delays = []
+
+      allow(test_provider).to receive(:sleep) do |delay|
+        delays << delay
+      end
+
+      test_provider.configure_retry(base_delay: 10.0, max_delay: 5.0, jitter: 0.0)
+
+      expect do
+        test_provider.chat_completion(messages: [], model: "test-model")
+      end.not_to raise_error
+
+      # All delays should be capped at max_delay
+      expect(delays).to all(be <= 5.0)
+    end
+  end
+
+  describe "retryable error detection" do
+    let(:error_provider_class) do
+      Class.new(RAAF::Models::ModelInterface) do
+        def initialize(error_message)
+          super()
+          @error_message = error_message
+          @call_count = 0
+        end
+
+        attr_reader :call_count
+
+        def perform_chat_completion(messages:, model:, **_kwargs)
+          @call_count += 1
+
+          raise StandardError, @error_message if @call_count == 1
+
+          { "choices" => [{ "message" => { "role" => "assistant", "content" => "success" } }] }
+        end
+
+        def supported_models = ["error-model"]
+        def provider_name = "ErrorProvider"
+      end
+    end
+
+    it "retries on rate limit error messages" do
+      provider = error_provider_class.new("Rate limit exceeded")
+      allow(provider).to receive(:sleep)
+
+      provider.chat_completion(messages: [], model: "error-model")
+      expect(provider.call_count).to eq(2) # 1 failure + 1 success
+    end
+
+    it "retries on 'too many requests' error messages" do
+      provider = error_provider_class.new("Too many requests")
+      allow(provider).to receive(:sleep)
+
+      provider.chat_completion(messages: [], model: "error-model")
+      expect(provider.call_count).to eq(2)
+    end
+
+    it "doesn't retry on non-retryable error messages" do
+      provider = error_provider_class.new("Invalid API key")
+
+      expect do
+        provider.chat_completion(messages: [], model: "error-model")
+      end.to raise_error(StandardError, "Invalid API key")
+
+      expect(provider.call_count).to eq(1) # No retry
+    end
+  end
+
+  describe "logging" do
+    it "logs retry attempts" do
+      allow(test_provider).to receive(:sleep)
+      expect(test_provider).to receive(:log_warn).at_least(:once)
+
+      test_provider.chat_completion(messages: [], model: "test-model")
+    end
+
+    it "logs final failure" do
+      failing_provider = Class.new(RAAF::Models::ModelInterface) do
+        def perform_chat_completion(messages:, model:, **_kwargs)
+          raise Errno::ECONNRESET, "Always fails"
+        end
+
+        def supported_models = ["fail-model"]
+        def provider_name = "FailProvider"
+      end.new
+
+      allow(failing_provider).to receive(:sleep)
+      expect(failing_provider).to receive(:log_error).once
+
+      expect do
+        failing_provider.chat_completion(messages: [], model: "fail-model")
+      end.to raise_error(Errno::ECONNRESET)
     end
   end
 end

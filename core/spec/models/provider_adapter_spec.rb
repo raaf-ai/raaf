@@ -8,7 +8,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
   # Mock providers for testing
   let(:function_calling_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
+      def perform_chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         {
           "choices" => [{
             "message" => {
@@ -30,17 +30,6 @@ RSpec.describe RAAF::Models::ProviderAdapter do
         }
       end
 
-      def responses_completion(messages:, model:, tools: nil, **_kwargs)
-        {
-          output: [{
-            type: "message",
-            role: "assistant",
-            content: "Test response"
-          }],
-          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
-        }
-      end
-
       def supported_models
         ["test-model-v1"]
       end
@@ -53,7 +42,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
   let(:non_function_calling_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, stream: false, **_kwargs)
+      def perform_chat_completion(messages:, model:, stream: false, **_kwargs)
         # NOTE: No tools parameter
         {
           "choices" => [{
@@ -78,7 +67,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
   let(:limited_function_calling_provider) do
     Class.new(RAAF::Models::ModelInterface) do
-      def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
+      def perform_chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         # Accepts tools but doesn't always use them correctly
         if tools && rand < 0.5
           {
@@ -144,7 +133,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
       it "initializes with correct capabilities" do
         expect(subject.capabilities[:function_calling]).to be false
         expect(subject.capabilities[:chat_completion]).to be true
-        expect(subject.capabilities[:responses_api]).to be false
+        expect(subject.capabilities[:responses_api]).to be true
       end
     end
   end
@@ -157,7 +146,8 @@ RSpec.describe RAAF::Models::ProviderAdapter do
       subject { described_class.new(function_calling_provider, available_agents) }
 
       it "uses responses_completion when available" do
-        expect(function_calling_provider).to receive(:responses_completion).and_call_original
+        # Allow capability detection call during initialization
+        allow(function_calling_provider).to receive(:responses_completion).and_call_original
 
         result = subject.universal_completion(
           messages: test_messages,
@@ -171,6 +161,8 @@ RSpec.describe RAAF::Models::ProviderAdapter do
       it "passes tools correctly" do
         test_tools = [{ type: "function", name: "test_tool" }]
 
+        # Allow capability detection call (without tools) and main call (with tools)
+        allow(function_calling_provider).to receive(:responses_completion).and_call_original
         expect(function_calling_provider).to receive(:responses_completion)
           .with(hash_including(tools: test_tools))
           .and_call_original
@@ -335,7 +327,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
 
     let(:error_provider) do
       Class.new(RAAF::Models::ModelInterface) do
-        def chat_completion(messages:, model:, **_kwargs)
+        def perform_chat_completion(messages:, model:, **_kwargs)
           raise StandardError, "Provider error"
         end
 
@@ -357,7 +349,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
   describe "message logging" do
     let(:test_provider) do
       Class.new(RAAF::Models::ModelInterface) do
-        def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
+        def perform_chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
           {
             "choices" => [{
               "message" => {
@@ -447,7 +439,7 @@ RSpec.describe RAAF::Models::ProviderAdapter do
         expect(main_request_log[:context][:model]).to eq("test-model-v1")
         expect(main_request_log[:context][:message_count]).to eq(2)
         expect(main_request_log[:context][:tools_count]).to eq(1)
-        expect(main_request_log[:context][:api_type]).to eq("Chat Completions")
+        expect(main_request_log[:context][:api_type]).to eq("Responses API")
       end
 
       it "logs message details" do
@@ -508,8 +500,8 @@ RSpec.describe RAAF::Models::ProviderAdapter do
         # Check main response log
         main_response_log = response_logs.find { |log| log[:message].include?("Received from TestProvider endpoint") }
         expect(main_response_log).not_to be_nil
-        expect(main_response_log[:context][:api_type]).to eq("Chat Completions")
-        expect(main_response_log[:context][:raw_response_keys]).to include("choices", "usage", "model", "id")
+        expect(main_response_log[:context][:api_type]).to eq("Responses API")
+        expect(main_response_log[:context][:raw_response_keys]).to include(:output, :usage, :model, :id)
         expect(main_response_log[:context][:normalized_response_keys]).to include(:output, :usage, :model)
       end
 

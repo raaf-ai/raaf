@@ -264,13 +264,20 @@ module RAAF
     #   # }
     #
     def to_h
+      # Create a copy of parameters with string keys for API compliance
+      api_parameters = @parameters.dup
+      if api_parameters && api_parameters[:required]
+        api_parameters = api_parameters.dup
+        api_parameters[:required] = api_parameters[:required].map(&:to_s)
+      end
+
       result = {
         type: "function",
         name: @name,
         function: {
           name: @name,
           description: @description,
-          parameters: @parameters
+          parameters: api_parameters
         }
       }
 

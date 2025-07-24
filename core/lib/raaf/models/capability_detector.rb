@@ -351,7 +351,7 @@ module RAAF
         unless @capabilities[:handoffs]
           @recommendations << {
             type: :info,
-            message: "Provider doesn't support handoffs. Consider extending from EnhancedModelInterface."
+            message: "Provider doesn't support handoffs. Function calling support is automatically available in ModelInterface."
           }
         end
 

@@ -179,7 +179,7 @@ RSpec.describe "Structured Output Integration" do
 
       it "passes response_format directly to OpenAI Chat Completions API" do
         expect(openai_provider)
-          .to receive(:complete) do |**kwargs|
+          .to receive(:chat_completion) do |**kwargs|
             expect(kwargs).to have_key(:response_format)
             response_format = kwargs[:response_format]
             expect(response_format[:type]).to eq("json_schema")
@@ -220,7 +220,7 @@ RSpec.describe "Structured Output Integration" do
 
       it "passes response_format directly to OpenAI without modification" do
         expect(openai_provider)
-          .to receive(:complete) do |**kwargs|
+          .to receive(:chat_completion) do |**kwargs|
             expect(kwargs[:response_format]).to be_truthy
             expect(kwargs[:response_format][:type]).to eq("json_schema")
             expect(kwargs[:response_format][:json_schema][:strict]).to be true
@@ -623,18 +623,18 @@ RSpec.describe "Structured Output Integration" do
         let(:runner) { RAAF::Runner.new(agent: agent_with_response_format, provider: openai_provider) }
 
         before do
-          allow(openai_provider).to receive(:complete).and_return({
-                                                                    "choices" => [{
-                                                                      "message" => {
-                                                                        "role" => "assistant",
-                                                                        "content" => '{"name": "Bob", "age": 30}'
-                                                                      }
-                                                                    }]
-                                                                  })
+          allow(openai_provider).to receive(:chat_completion).and_return({
+                                                                           "choices" => [{
+                                                                             "message" => {
+                                                                               "role" => "assistant",
+                                                                               "content" => '{"name": "Bob", "age": 30}'
+                                                                             }
+                                                                           }]
+                                                                         })
         end
 
         it "passes direct response_format to OpenAI API" do
-          expect(openai_provider).to receive(:complete) do |**kwargs|
+          expect(openai_provider).to receive(:chat_completion) do |**kwargs|
             expect(kwargs[:response_format]).to be_truthy
             expect(kwargs[:response_format][:type]).to eq("json_schema")
             expect(kwargs[:response_format][:json_schema][:name]).to eq("user_info")

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 env:
-  RUBY_VERSION: '3.2'
+  RUBY_VERSION: '3.4.5'
 
 jobs:
   # Comprehensive test matrix
@@ -18,7 +18,7 @@ jobs:
       fail-fast: false  # Don't stop other matrix jobs if one fails
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        ruby-version: ['3.2', '3.3', '3.4', 'ruby-head']
+        ruby-version: ['3.2', '3.3', '3.4.5', 'ruby-head']
         exclude:
           # Exclude some combinations to reduce matrix size
           - os: macos-latest

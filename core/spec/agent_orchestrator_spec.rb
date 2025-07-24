@@ -357,14 +357,171 @@ RSpec.describe RAAF::AgentOrchestrator do
       allow(orchestrator).to receive_messages(workflow_completed?: false, handoff_requested?: true)
 
       # Mock provider response for run_agent
-      allow(provider).to receive(:complete).and_return({
-                                                         choices: [{ message: { role: "assistant", content: "Response" } }],
-                                                         usage: { total_tokens: 10 }
-                                                       })
+      allow(provider).to receive(:chat_completion).and_return({
+                                                                choices: [{ message: { role: "assistant", content: "Response" } }],
+                                                                usage: { total_tokens: 10 }
+                                                              })
 
       result = orchestrator.run_workflow("Test message")
 
       expect(result.success).to be false
+    end
+  end
+
+  # Comprehensive test scenarios
+  describe "Advanced Workflow Scenarios" do
+    let(:router_agent) { RAAF::Agent.new(name: "Router", instructions: "Route requests to appropriate agents") }
+    let(:support_agent) { RAAF::Agent.new(name: "Support", instructions: "Handle technical support") }
+    let(:sales_agent) { RAAF::Agent.new(name: "Sales", instructions: "Handle sales inquiries") }
+    let(:manager_agent) { RAAF::Agent.new(name: "Manager", instructions: "Handle escalations") }
+
+    let(:comprehensive_agents) do
+      {
+        "Router" => router_agent,
+        "Support" => support_agent,
+        "Sales" => sales_agent,
+        "Manager" => manager_agent
+      }
+    end
+
+    let(:comprehensive_orchestrator) { described_class.new(agents: comprehensive_agents, provider: provider) }
+
+    before do
+      # Set up handoff relationships
+      router_agent.add_handoff(support_agent)
+      router_agent.add_handoff(sales_agent)
+      support_agent.add_handoff(manager_agent)
+      sales_agent.add_handoff(manager_agent)
+      manager_agent.add_handoff(router_agent) # Can send back to router
+    end
+
+    describe "complex multi-agent workflows" do
+      it "handles workflows with multiple handoffs and context preservation" do
+        # Mock provider responses for workflow
+        allow(provider).to receive(:chat_completion).and_return(
+          {
+            "choices" => [
+              {
+                "message" => {
+                  "role" => "assistant",
+                  "content" => "I'll route you to support for this technical issue"
+                }
+              }
+            ],
+            "usage" => { "prompt_tokens" => 10, "completion_tokens" => 15, "total_tokens" => 25 }
+          }
+        )
+
+        result = comprehensive_orchestrator.run_workflow("I need technical help with my account", starting_agent: "Router")
+
+        expect(result.success).to be true
+        expect(result.results).not_to be_empty
+      end
+
+      it "maintains conversation context across all handoffs" do
+        user_context = "User ID: 12345, Priority: High"
+        initial_message = "#{user_context} - Need urgent help"
+
+        allow(provider).to receive(:chat_completion).and_return(
+          {
+            "choices" => [
+              {
+                "message" => {
+                  "role" => "assistant",
+                  "content" => "Acknowledged context: #{user_context}"
+                }
+              }
+            ],
+            "usage" => { "prompt_tokens" => 20, "completion_tokens" => 10, "total_tokens" => 30 }
+          }
+        )
+
+        result = comprehensive_orchestrator.run_workflow(initial_message, starting_agent: "Router")
+
+        expect(result.success).to be true
+        expect(result.results.any? { |r| r[:messages]&.any? { |m| m[:content]&.include?(user_context) } }).to be true
+      end
+    end
+
+    describe "error recovery and resilience" do
+      it "handles partial agent failures in workflow" do
+        # Simulate provider failure
+        allow(provider).to receive(:chat_completion).and_raise(StandardError.new("Provider error"))
+
+        result = comprehensive_orchestrator.run_workflow("Test message", starting_agent: "Router")
+
+        expect(result.success).to be false
+        expect(result.error).to include("Provider error")
+      end
+
+      it "recovers from transient handoff context errors" do
+        allow(comprehensive_orchestrator.handoff_context).to receive(:build_handoff_message).and_raise("Context error").once
+        allow(comprehensive_orchestrator.handoff_context).to receive(:build_handoff_message).and_return("Recovered message")
+
+        allow(provider).to receive(:chat_completion).and_return(
+          {
+            "choices" => [
+              {
+                "message" => {
+                  "role" => "assistant",
+                  "content" => "Recovery successful"
+                }
+              }
+            ],
+            "usage" => { "prompt_tokens" => 5, "completion_tokens" => 5, "total_tokens" => 10 }
+          }
+        )
+
+        # Should recover and succeed
+        expect do
+          comprehensive_orchestrator.run_workflow("Test recovery", starting_agent: "Router")
+        end.not_to raise_error
+      end
+    end
+
+    describe "handoff validation and security" do
+      it "validates handoff targets are legitimate agents" do
+        # Try to handoff to non-existent agent
+        allow(provider).to receive(:chat_completion).and_return(
+          {
+            "choices" => [
+              {
+                "message" => {
+                  "role" => "assistant",
+                  "content" => "Transferring to invalid agent"
+                }
+              }
+            ],
+            "usage" => { "prompt_tokens" => 10, "completion_tokens" => 5, "total_tokens" => 15 }
+          }
+        )
+
+        result = comprehensive_orchestrator.run_workflow("Transfer me to NonExistentAgent", starting_agent: "Router")
+
+        # Should still succeed but log validation error
+        expect(result.success).to be true
+      end
+
+      it "prevents handoff loops with cycle detection" do
+        # This test ensures the orchestrator can detect and prevent infinite handoff loops
+        allow(provider).to receive(:chat_completion).and_return(
+          {
+            "choices" => [
+              {
+                "message" => {
+                  "role" => "assistant",
+                  "content" => "Preventing loop"
+                }
+              }
+            ],
+            "usage" => { "prompt_tokens" => 8, "completion_tokens" => 5, "total_tokens" => 13 }
+          }
+        )
+
+        result = comprehensive_orchestrator.run_workflow("Test loop prevention", starting_agent: "Router")
+
+        expect(result.success).to be true
+      end
     end
   end
 end

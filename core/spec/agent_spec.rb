@@ -1096,4 +1096,143 @@ RSpec.describe RAAF::Agent do
       end.to raise_error(RAAF::ToolError, /Tool execution failed:.*Internal error/)
     end
   end
+
+  # Edge cases and boundary conditions
+  describe "boundary conditions" do
+    context "agent name limits" do
+      it "handles extremely long agent names" do
+        long_name = "Agent#{"X" * 1000}"
+        agent = described_class.new(name: long_name, instructions: "Test agent")
+
+        expect(agent.name).to eq(long_name)
+        expect(agent.name.length).to eq(1005)
+      end
+
+      it "handles empty agent names" do
+        agent = described_class.new(name: "", instructions: "Test agent")
+        expect(agent.name).to eq("")
+      end
+
+      it "handles agent names with special characters" do
+        special_names = [
+          "Agent-With-Dashes",
+          "Agent_With_Underscores",
+          "Agent With Spaces",
+          "Agent\tWith\tTabs",
+          "Agent\nWith\nNewlines",
+          "Agent🚀With🎭Emojis",
+          "Agent<>With<>Brackets",
+          "Agent\"With\"Quotes",
+          "Agent'With'Apostrophes"
+        ]
+
+        special_names.each do |name|
+          agent = described_class.new(name: name, instructions: "Test")
+          expect(agent.name).to eq(name)
+        end
+      end
+    end
+
+    context "instructions boundary conditions" do
+      it "handles extremely long instructions" do
+        long_instructions = "You are a helpful assistant. " * 10_000
+        agent = described_class.new(name: "TestAgent", instructions: long_instructions)
+
+        expect(agent.instructions.length).to be > 250_000
+        expect(agent.instructions).to eq(long_instructions)
+      end
+
+      it "handles nil instructions" do
+        agent = described_class.new(name: "TestAgent", instructions: nil)
+        expect(agent.instructions).to be_nil
+      end
+
+      it "handles empty string instructions" do
+        agent = described_class.new(name: "TestAgent", instructions: "")
+        expect(agent.instructions).to eq("")
+      end
+
+      it "handles instructions with Unicode and special encoding" do
+        unicode_instructions = "You are 🤖 an AI assistant. Помогайте пользователям. 你是一个助手。 العربية"
+        agent = described_class.new(name: "UnicodeAgent", instructions: unicode_instructions)
+
+        expect(agent.instructions).to eq(unicode_instructions)
+        expect(agent.instructions.encoding).to eq(Encoding::UTF_8)
+      end
+    end
+
+    context "max_turns boundary conditions" do
+      it "handles zero max_turns" do
+        agent = described_class.new(name: "ZeroTurns", max_turns: 0)
+        expect(agent.max_turns).to eq(0)
+      end
+
+      it "handles negative max_turns" do
+        agent = described_class.new(name: "NegativeTurns", max_turns: -1)
+        expect(agent.max_turns).to eq(-1)
+      end
+
+      it "handles extremely large max_turns" do
+        large_turns = (2**31) - 1 # Max 32-bit integer
+        agent = described_class.new(name: "LargeTurns", max_turns: large_turns)
+        expect(agent.max_turns).to eq(large_turns)
+      end
+    end
+  end
+
+  # Regression cases - previously reported bugs
+  describe "regression cases" do
+    context "agent initialization issues" do
+      it "allows agent creation with duplicate tool names (documented behavior)" do
+        agent = described_class.new(name: "DuplicateToolAgent")
+
+        # Add tool with same name twice
+        tool1 = RAAF::FunctionTool.new(proc { "first" }, name: "duplicate_tool")
+        tool2 = RAAF::FunctionTool.new(proc { "second" }, name: "duplicate_tool")
+
+        agent.add_tool(tool1)
+        agent.add_tool(tool2)
+
+        # Currently allows duplicate tool names - this documents the behavior
+        # In the future, we might want to prevent duplicates or warn about them
+        tool_names = agent.tools.map(&:name)
+        expect(tool_names).to include("duplicate_tool")
+        expect(tool_names.count("duplicate_tool")).to eq(2) # Both tools are added
+      end
+
+      it "handles agent creation with nil model parameter" do
+        # This was causing issues in early versions
+        agent = described_class.new(name: "NilModelAgent", model: nil)
+
+        expect(agent.model).to eq("gpt-4") # Agent defaults to gpt-4 when nil is passed
+      end
+
+      it "prevents memory leak in agent tool storage" do
+        agent = described_class.new(name: "MemoryLeakAgent")
+
+        # Add and remove many tools
+        1000.times do |i|
+          tool = RAAF::FunctionTool.new(
+            proc { "temp tool #{i}" },
+            name: "temp_tool_#{i}"
+          )
+          agent.add_tool(tool)
+        end
+
+        # Force garbage collection
+        GC.start
+        initial_objects = ObjectSpace.count_objects[:TOTAL]
+
+        # Remove all tools by creating new agent
+        agent = described_class.new(name: "CleanAgent")
+
+        # Force garbage collection again
+        GC.start
+        final_objects = ObjectSpace.count_objects[:TOTAL]
+
+        # Should not have significantly more objects (allowing some variation)
+        expect(final_objects - initial_objects).to be < 100
+      end
+    end
+  end
 end

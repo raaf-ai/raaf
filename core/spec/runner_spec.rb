@@ -920,7 +920,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 10, output_tokens: 15 }
         }
 
-        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
+        allow(mock_provider).to receive_messages(chat_completion: chat_response, responses_completion: responses_response)
 
         result = runner_with_provider.run(mixed_messages)
         expect(result).to be_a(RAAF::RunResult)
@@ -953,7 +953,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 100, output_tokens: 10 }
         }
 
-        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
+        allow(mock_provider).to receive_messages(chat_completion: chat_response, responses_completion: responses_response)
 
         result = runner_with_provider.run(large_input)
         expect(result).to be_a(RAAF::RunResult)
@@ -992,7 +992,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 10, output_tokens: 5 }
         }
 
-        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
+        allow(mock_provider).to receive_messages(chat_completion: chat_response, responses_completion: responses_response)
 
         result = runner_with_handoffs.run("Test handoff setup")
         expect(result).to be_a(RAAF::RunResult)
@@ -1027,7 +1027,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 10, output_tokens: 5 }
         }
 
-        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
+        allow(mock_provider).to receive_messages(chat_completion: chat_response, responses_completion: responses_response)
 
         conversation_history = [{ role: "user", content: "Previous message" }]
         result = runner_with_mock.run(conversation_history + [{ role: "user", content: "Current message" }])
@@ -1060,7 +1060,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 100, output_tokens: 10 }
         }
 
-        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
+        allow(mock_provider).to receive_messages(chat_completion: chat_response, responses_completion: responses_response)
 
         # Create a reasonable conversation history
         conversation_history = Array.new(10) do |i|
@@ -1120,7 +1120,7 @@ RSpec.describe RAAF::Runner do
           usage: { input_tokens: 10, output_tokens: 5 }
         }
 
-        allow(mock_provider).to receive_messages(complete: chat_response, responses_completion: responses_response)
+        allow(mock_provider).to receive_messages(chat_completion: chat_response, responses_completion: responses_response)
 
         result = basic_runner.run("Test with no tools")
         expect(result).to be_a(RAAF::RunResult)
@@ -1224,6 +1224,132 @@ RSpec.describe RAAF::Runner do
       # All requests should complete successfully
       expect(results.length).to eq(5)
       expect(results).to all(be_a(RAAF::RunResult))
+    end
+  end
+
+  # Boundary conditions and edge cases
+  describe "message boundary conditions" do
+    let(:mock_provider) { create_mock_provider }
+
+    context "message content boundaries" do
+      it "handles messages with zero-length content" do
+        agent = create_test_agent(name: "EmptyContentAgent")
+        mock_provider.add_response("Handled empty content")
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        result = runner.run("")
+        expect(result.messages).not_to be_empty
+        # Find the user message in the messages array
+        user_message = result.messages.find { |m| m[:role] == "user" }
+        expect(user_message).not_to be_nil
+        expect(user_message[:content]).to eq("")
+      end
+
+      it "handles messages with extremely long content" do
+        agent = create_test_agent(name: "LongContentAgent")
+        mock_provider.add_response("Handled long content")
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        long_content = "Long message content. " * 100_000 # ~2MB message
+
+        result = runner.run(long_content)
+        # Find the user message in the messages array
+        user_message = result.messages.find { |m| m[:role] == "user" }
+        expect(user_message).not_to be_nil
+        expect(user_message[:content]).to eq(long_content)
+      end
+
+      it "handles messages with various whitespace patterns" do
+        whitespace_messages = [
+          "\n\n\n",      # Multiple newlines
+          "\t\t\t",      # Multiple tabs
+          "   \t\n  ",   # Mixed whitespace
+          " " * 1000     # Lots of spaces
+        ]
+
+        agent = create_test_agent(name: "WhitespaceAgent")
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        whitespace_messages.each do |msg|
+          mock_provider.add_response("Handled whitespace")
+          result = runner.run(msg)
+          # Find the user message in the messages array
+          user_message = result.messages.find { |m| m[:role] == "user" }
+          expect(user_message).not_to be_nil
+          expect(user_message[:content]).to eq(msg)
+        end
+      end
+
+      it "handles messages with control characters" do
+        control_chars = [
+          "\u0000",      # Null character
+          "\u001B",      # Escape character
+          "\u007F",      # Delete character
+          "\u{200B}",    # Zero-width space
+          "\u{FEFF}"     # Byte order mark
+        ]
+
+        agent = create_test_agent(name: "ControlCharAgent")
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        control_chars.each do |char|
+          mock_provider.add_response("Handled control char")
+
+          # Should not crash, though content might be sanitized
+          expect { runner.run(char) }.not_to raise_error
+        end
+      end
+    end
+
+    context "message history boundaries" do
+      it "handles empty message history" do
+        agent = create_test_agent(name: "EmptyHistoryAgent")
+        mock_provider.add_response("No history response")
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        # Pass empty array as messages
+        result = runner.run([])
+        expect(result.messages).not_to be_empty
+        # Should have system message and assistant response
+        expect(result.messages.any? { |m| m[:role] == "assistant" }).to be true
+      end
+
+      it "handles single message in history" do
+        agent = create_test_agent(name: "SingleHistoryAgent")
+        mock_provider.add_response("Single history response")
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        # Pass messages array with history
+        messages = [
+          { role: "user", content: "Previous message" },
+          { role: "assistant", content: "Previous response" },
+          { role: "user", content: "New message" }
+        ]
+        result = runner.run(messages)
+
+        expect(result.messages).not_to be_empty
+        expect(result.messages.length).to be >= 3
+      end
+
+      it "handles alternating role message history" do
+        agent = create_test_agent(name: "AlternatingAgent")
+        mock_provider.add_response("Alternating response")
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        # Create alternating user/assistant history
+        history = 100.times.map do |i|
+          {
+            role: i.even? ? "user" : "assistant",
+            content: "Message #{i}"
+          }
+        end
+
+        # Add final user message
+        history << { role: "user", content: "Final message" }
+
+        result = runner.run(history)
+        expect(result.messages).not_to be_empty
+      end
     end
   end
 end
