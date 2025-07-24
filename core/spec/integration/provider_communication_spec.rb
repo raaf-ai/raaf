@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe "Provider Communication", :integration do
   let(:agent) { create_test_agent(name: "IntegrationTestAgent") }
-  let(:runner) { RAAF::Runner.new(agent: agent) }
+  let(:runner) { RAAF::Runner.new(agent: agent, provider: create_mock_provider) }
 
   describe "OpenAI Responses API integration" do
     it "successfully communicates with provider" do

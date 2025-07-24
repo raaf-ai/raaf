@@ -16,7 +16,7 @@ RSpec.describe "Handoff System Integration", :integration do
   end
 
   describe "automatic handoff instructions in Runner" do
-    let(:runner) { RAAF::Runner.new(agent: source_agent) }
+    let(:runner) { RAAF::Runner.new(agent: source_agent, provider: create_mock_provider) }
 
     context "when agent has handoffs" do
       before do
@@ -40,7 +40,7 @@ RSpec.describe "Handoff System Integration", :integration do
         )
         agent_with_handoff_instructions.add_handoff(target_agent)
 
-        test_runner = RAAF::Runner.new(agent: agent_with_handoff_instructions)
+        test_runner = RAAF::Runner.new(agent: agent_with_handoff_instructions, provider: create_mock_provider)
         result = test_runner.send(:build_system_prompt, agent_with_handoff_instructions)
 
         # Should only contain the handoff instructions once
@@ -51,7 +51,7 @@ RSpec.describe "Handoff System Integration", :integration do
 
     context "when agent has no handoffs" do
       let(:no_handoff_agent) { RAAF::Agent.new(name: "NoHandoffAgent", instructions: "You are a simple agent") }
-      let(:no_handoff_runner) { RAAF::Runner.new(agent: no_handoff_agent) }
+      let(:no_handoff_runner) { RAAF::Runner.new(agent: no_handoff_agent, provider: create_mock_provider) }
 
       it "doesn't add handoff instructions to system prompt" do
         result = no_handoff_runner.send(:build_system_prompt, no_handoff_agent)
@@ -64,7 +64,7 @@ RSpec.describe "Handoff System Integration", :integration do
 
     context "when agent has empty instructions" do
       let(:empty_instructions_agent) { RAAF::Agent.new(name: "EmptyAgent", instructions: nil) }
-      let(:empty_runner) { RAAF::Runner.new(agent: empty_instructions_agent) }
+      let(:empty_runner) { RAAF::Runner.new(agent: empty_instructions_agent, provider: create_mock_provider) }
 
       it "handles nil instructions gracefully" do
         empty_instructions_agent.add_handoff(target_agent)
@@ -78,7 +78,7 @@ RSpec.describe "Handoff System Integration", :integration do
   end
 
   describe "Tool-based Handoffs" do
-    let(:runner) { RAAF::Runner.new(agent: source_agent) }
+    let(:runner) { RAAF::Runner.new(agent: source_agent, provider: create_mock_provider) }
     let(:mock_provider) { instance_double(RAAF::Models::ResponsesProvider) }
 
     before do
@@ -193,7 +193,7 @@ RSpec.describe "Handoff System Integration", :integration do
   end
 
   describe "Integration with process_response" do
-    let(:runner) { RAAF::Runner.new(agent: source_agent) }
+    let(:runner) { RAAF::Runner.new(agent: source_agent, provider: create_mock_provider) }
 
     describe "multiple handoff detection" do
       it "handles multiple tool-based handoffs correctly" do
@@ -516,7 +516,7 @@ RSpec.describe "Handoff System Integration", :integration do
       end
 
       it "handles multi-step handoff chains" do
-        runner = RAAF::Runner.new(agent: researcher)
+        runner = RAAF::Runner.new(agent: researcher, provider: create_mock_provider)
 
         # Mock API responses for the entire handoff chain using function calls
         mock_responses = [
@@ -605,7 +605,7 @@ RSpec.describe "Handoff System Integration", :integration do
     end
 
     describe "Assistant Content Extraction" do
-      let(:test_runner) { RAAF::Runner.new(agent: source_agent) }
+      let(:test_runner) { RAAF::Runner.new(agent: source_agent, provider: create_mock_provider) }
 
       it "extracts content from single output_text item" do
         response = {

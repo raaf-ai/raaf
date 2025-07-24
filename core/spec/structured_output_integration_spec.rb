@@ -65,7 +65,7 @@ RSpec.describe "Structured Output Integration" do
     let(:messages) { [{ role: "user", content: "Extract info for Alice, age 25" }] }
 
     context "with ResponsesProvider (default)" do
-      let(:runner) { RAAF::Runner.new(agent: agent) }
+      let(:runner) { RAAF::Runner.new(agent: agent, provider: create_mock_provider) }
 
       let(:responses_api_response) do
         {
@@ -272,7 +272,7 @@ RSpec.describe "Structured Output Integration" do
       )
     end
 
-    let(:runner) { RAAF::Runner.new(agent: agent) }
+    let(:runner) { RAAF::Runner.new(agent: agent, provider: create_mock_provider) }
     let(:messages) { [{ role: "user", content: "Create user with orders" }] }
 
     let(:complex_response) do
@@ -325,7 +325,7 @@ RSpec.describe "Structured Output Integration" do
       )
     end
 
-    let(:runner) { RAAF::Runner.new(agent: agent) }
+    let(:runner) { RAAF::Runner.new(agent: agent, provider: create_mock_provider) }
     let(:messages) { [{ role: "user", content: "Test input" }] }
 
     context "when provider fails" do
@@ -397,7 +397,7 @@ RSpec.describe "Structured Output Integration" do
       )
     end
 
-    let(:runner) { RAAF::Runner.new(agent: agent) }
+    let(:runner) { RAAF::Runner.new(agent: agent, provider: create_mock_provider) }
 
     it "works with builder-created schemas" do
       schema = agent.response_format[:json_schema][:schema]
@@ -584,7 +584,7 @@ RSpec.describe "Structured Output Integration" do
       end
 
       context "with ResponsesProvider" do
-        let(:runner) { RAAF::Runner.new(agent: agent_with_response_format) }
+        let(:runner) { RAAF::Runner.new(agent: agent_with_response_format, provider: create_mock_provider) }
 
         before do
           allow_any_instance_of(RAAF::Models::ResponsesProvider)
