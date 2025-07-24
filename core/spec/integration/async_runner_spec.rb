@@ -328,6 +328,306 @@ RSpec.describe RAAF::Async::Runner do
     end
   end
 
+  describe "process_async method" do
+    let(:runner) { described_class.new(agent: agent) }
+
+    before do
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
+        .to receive(:chat_completion).and_return(mock_response)
+    end
+
+    it "returns a task ID" do
+      task_id = runner.process_async(agent, "test message")
+      expect(task_id).to be_a(String)
+      expect(task_id).to include("task_")
+    end
+
+    it "stores task information" do
+      task_id = runner.process_async(agent, "test message")
+
+      active_tasks = runner.instance_variable_get(:@active_tasks)
+      expect(active_tasks).to have_key(task_id)
+
+      task = active_tasks[task_id]
+      expect(task[:agent]).to eq(agent)
+      expect(task[:message]).to eq("test message")
+      expect(task[:status]).to eq(:queued)
+    end
+
+    it "accepts completion block" do
+      completed_results = []
+      completion_block = proc { |result| completed_results << result }
+
+      task_id = runner.process_async(agent, "test message", &completion_block)
+
+      # Wait briefly for async execution
+      sleep(0.1)
+
+      expect(runner.instance_variable_get(:@active_tasks)[task_id][:block]).to eq(completion_block)
+    end
+  end
+
+  describe "process_concurrent method" do
+    let(:agents) { [agent, RAAF::Agent.new(name: "Agent2", instructions: "Second agent")] }
+    let(:runner) { described_class.new(agent: agent) }
+
+    before do
+      allow_any_instance_of(RAAF::Models::ResponsesProvider)
+        .to receive(:chat_completion).and_return(mock_response)
+    end
+
+    it "returns array of task IDs" do
+      task_ids = runner.process_concurrent(agents, "test message")
+      expect(task_ids).to be_an(Array)
+      expect(task_ids.size).to eq(2)
+      expect(task_ids).to all(be_a(String))
+    end
+
+    it "processes each agent" do
+      expect(runner).to receive(:process_async).twice.and_call_original
+      runner.process_concurrent(agents, "test message")
+    end
+
+    it "calls completion block for each agent" do
+      results = []
+      completion_block = proc { |agent_instance, result| results << [agent_instance, result] }
+
+      runner.process_concurrent(agents, "test message", &completion_block)
+
+      # Verify that tasks were created with the block
+      active_tasks = runner.instance_variable_get(:@active_tasks)
+      expect(active_tasks.size).to eq(2)
+    end
+  end
+
+  describe "task management methods" do
+    let(:runner) { described_class.new(agent: agent) }
+
+    before do
+      # Set up mock tasks
+      active_tasks = runner.instance_variable_get(:@active_tasks)
+      active_tasks["task_1"] = {
+        status: :completed,
+        result: "result_1",
+        started_at: Time.now - 1,
+        completed_at: Time.now
+      }
+      active_tasks["task_2"] = {
+        status: :running,
+        result: nil,
+        started_at: Time.now - 0.5
+      }
+      active_tasks["task_3"] = {
+        status: :queued,
+        started_at: Time.now
+      }
+    end
+
+    describe "#wait_for_tasks" do
+      it "returns results for completed tasks" do
+        results = runner.wait_for_tasks(["task_1"], timeout: 1)
+
+        expect(results.size).to eq(1)
+        expect(results[0][:task_id]).to eq("task_1")
+        expect(results[0][:result]).to eq("result_1")
+        expect(results[0][:duration]).to be_a(Numeric)
+      end
+
+      it "waits for running tasks up to timeout" do
+        start_time = Time.now
+        results = runner.wait_for_tasks(["task_2"], timeout: 0.2)
+        end_time = Time.now
+
+        expect(results).to be_empty
+        expect(end_time - start_time).to be >= 0.2
+      end
+    end
+
+    describe "#cancel_task" do
+      it "cancels running tasks" do
+        expect(runner.cancel_task("task_2")).to be true
+
+        active_tasks = runner.instance_variable_get(:@active_tasks)
+        expect(active_tasks["task_2"][:status]).to eq(:cancelled)
+      end
+
+      it "returns false for non-running tasks" do
+        expect(runner.cancel_task("task_1")).to be false
+      end
+
+      it "returns false for non-existent tasks" do
+        expect(runner.cancel_task("non_existent")).to be false
+      end
+    end
+
+    describe "#task_status" do
+      it "returns task status information" do
+        status = runner.task_status("task_1")
+
+        expect(status[:task_id]).to eq("task_1")
+        expect(status[:status]).to eq(:completed)
+        expect(status[:started_at]).to be_a(Time)
+        expect(status[:completed_at]).to be_a(Time)
+        expect(status[:duration]).to be_a(Numeric)
+      end
+
+      it "returns nil for non-existent tasks" do
+        expect(runner.task_status("non_existent")).to be_nil
+      end
+    end
+
+    describe "#active_tasks" do
+      it "returns only running task IDs" do
+        running_tasks = runner.active_tasks
+        expect(running_tasks).to contain_exactly("task_2")
+      end
+    end
+
+    describe "#stats" do
+      it "returns comprehensive statistics" do
+        # Set task counter
+        runner.instance_variable_set(:@task_counter, 10)
+
+        stats = runner.stats
+
+        expect(stats[:pool_size]).to eq(10)
+        expect(stats[:queue_size]).to eq(100)
+        expect(stats[:active_tasks]).to eq(1)
+        expect(stats[:queued_tasks]).to eq(1)
+        expect(stats[:completed_tasks]).to eq(1)
+        expect(stats[:failed_tasks]).to eq(0)
+        expect(stats[:total_tasks]).to eq(10)
+      end
+    end
+
+    describe "#job_count" do
+      it "returns number of active tasks" do
+        expect(runner.job_count).to eq(3)
+      end
+    end
+  end
+
+  describe "retry functionality" do
+    let(:runner) { described_class.new(agent: agent) }
+
+    describe "#process_with_retry" do
+      it "returns a task ID" do
+        task_id = runner.process_with_retry(agent, "test message")
+        expect(task_id).to be_a(String)
+      end
+
+      it "stores retry configuration" do
+        task_id = runner.process_with_retry(
+          agent,
+          "test message",
+          retry_count: 5,
+          retry_delay: 2.0
+        )
+
+        active_tasks = runner.instance_variable_get(:@active_tasks)
+        task = active_tasks[task_id]
+
+        expect(task[:retry_count]).to eq(5)
+        expect(task[:retry_delay]).to eq(2.0)
+        expect(task[:attempts]).to eq(0)
+      end
+    end
+  end
+
+  describe "streaming session" do
+    let(:runner) { described_class.new(agent: agent) }
+
+    describe "#create_streaming_session" do
+      it "creates an AsyncStreamingSession" do
+        session = runner.create_streaming_session(agent)
+        expect(session).to be_a(RAAF::Async::AsyncStreamingSession)
+        expect(session.agent).to eq(agent)
+        expect(session.runner).to eq(runner)
+      end
+
+      it "passes options to session" do
+        expect(RAAF::Async::AsyncStreamingSession).to receive(:new).with(
+          agent: agent,
+          runner: runner,
+          custom_option: "value"
+        )
+
+        runner.create_streaming_session(agent, custom_option: "value")
+      end
+    end
+  end
+
+  describe "shutdown functionality" do
+    let(:runner) { described_class.new(agent: agent) }
+
+    describe "#shutdown" do
+      it "marks runner as shutdown" do
+        runner.shutdown
+        expect(runner.shutdown?).to be true
+      end
+
+      it "cancels all active tasks" do
+        active_tasks = runner.instance_variable_get(:@active_tasks)
+        active_tasks["task_1"] = { status: :running }
+        active_tasks["task_2"] = { status: :running }
+
+        runner.shutdown
+
+        expect(active_tasks["task_1"][:status]).to eq(:cancelled)
+        expect(active_tasks["task_2"][:status]).to eq(:cancelled)
+      end
+    end
+  end
+
+  describe "logging methods" do
+    let(:runner) { described_class.new(agent: agent) }
+
+    before do
+      # Test without RAAF::Logging defined
+      hide_const("RAAF::Logging") if defined?(RAAF::Logging)
+    end
+
+    describe "#log_info" do
+      it "outputs to puts when RAAF::Logging not available and debug level" do
+        ENV["RAAF_LOG_LEVEL"] = "debug"
+        expect { runner.log_info("test message", key: "value") }.to output(
+          "[INFO] test message {:key=>\"value\"}\n"
+        ).to_stdout
+      end
+
+      it "doesn't output when log level is not debug" do
+        ENV["RAAF_LOG_LEVEL"] = "info"
+        expect { runner.log_info("test message") }.not_to output.to_stdout
+      end
+    end
+
+    describe "#log_debug" do
+      it "outputs to puts when debug level" do
+        ENV["RAAF_LOG_LEVEL"] = "debug"
+        expect { runner.log_debug("debug message") }.to output(
+          "[DEBUG] debug message {}\n"
+        ).to_stdout
+      end
+    end
+
+    describe "#log_warn" do
+      it "outputs to puts when debug level" do
+        ENV["RAAF_LOG_LEVEL"] = "debug"
+        expect { runner.log_warn("warning message") }.to output(
+          "[WARN] warning message {}\n"
+        ).to_stdout
+      end
+    end
+
+    describe "#log_error" do
+      it "always outputs error messages" do
+        expect { runner.log_error("error message") }.to output(
+          "[ERROR] error message {}\n"
+        ).to_stdout
+      end
+    end
+  end
+
   describe "tracing support" do
     let(:tracer) { defined?(RAAF::Tracing) ? RAAF::Tracing::SpanTracer.new : double("MockTracer") }
     let(:runner) { described_class.new(agent: agent, tracer: tracer, disabled_tracing: false) }
