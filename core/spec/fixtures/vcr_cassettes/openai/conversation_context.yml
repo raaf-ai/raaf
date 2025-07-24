@@ -24,7 +24,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:41:14 GMT
+      - Thu, 24 Jul 2025 16:01:15 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -36,13 +36,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '920'
+      - '1091'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '926'
+      - '1140'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -56,39 +56,39 @@ http_interactions:
       X-Ratelimit-Reset-Tokens:
       - 0s
       X-Request-Id:
-      - req_7568a0e99aea72a9f9a29657383c1b65
+      - req_909d6be7eea91bc3d7fc32023948aaad
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=le.ZLssIgONVV4Hhk.oBggeMjfsq3Nhm56TUMOTuMgo-1753371674-1.0.1.1-eLVaUKWEm38mZ8RzuZA51AGl2S4QUOimfSIrYddgcqOEDtcAbb0Kr6tMC0WY97NkFVwLxOQsvGhcJDY83XAn1aJprW1WuKVsPZ1lJZfSy8o;
-        path=/; expires=Thu, 24-Jul-25 16:11:14 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=PHgVJ.aQS4C2dyJtxJZjv5IofSzhpOnRNcY2tiXuq5o-1753372875-1.0.1.1-tPrgKCzArI.fpwIhjbqHGKJ5K3QiQNCqYjC25SW4zChgpze0m9KYXsIq0sxL9t7nXOwVM6i_vqz4JUmwF1Vne1KHTLMVb1XKjiNYZ3YFqZA;
+        path=/; expires=Thu, 24-Jul-25 16:31:15 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=7obahXIv9ShlefuRTSL5tMWoEAxhDLuZY1zShKZvsPs-1753371674964-0.0.1.1-604800000;
+      - _cfuvid=7LMFx1hxNeXzY5lN7UOlhUI5M8zTnM5ViE3VRTVc53U-1753372875639-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964485411b14c0f7-AMS
+      - 9644a2907861e899-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwsME2rm2UYNrRaeTJ9b3c5WzUO69",
+          "id": "chatcmpl-BwsfatYTdDpEuDiSDVS2Ha6K29yX5",
           "object": "chat.completion",
-          "created": 1753371674,
+          "created": 1753372874,
           "model": "gpt-3.5-turbo-0125",
           "choices": [
             {
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "Blue is a calming and serene color that brings a sense of peace and tranquility. It's often associated with loyalty, trust, and stability. Blue can also evoke feelings of security and safety. It's a versatile color that can be both soothing and energizing, depending on the shade. Overall, blue is a timeless and classic color that can be incorporated into a variety of styles and designs.",
+                "content": ". Blue is a calming and soothing color that reminds me of the sky and the ocean. It symbolizes tranquility, stability, and trust. I find it to be a very versatile color that can be incorporated into many different aspects of my life, from clothing to home decor. Overall, blue is just a color that makes me feel happy and at peace.",
                 "refusal": null,
                 "annotations": []
               },
@@ -98,8 +98,8 @@ http_interactions:
           ],
           "usage": {
             "prompt_tokens": 12,
-            "completion_tokens": 79,
-            "total_tokens": 91,
+            "completion_tokens": 72,
+            "total_tokens": 84,
             "prompt_tokens_details": {
               "cached_tokens": 0,
               "audio_tokens": 0
@@ -114,19 +114,18 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Thu, 24 Jul 2025 15:41:14 GMT
+  recorded_at: Thu, 24 Jul 2025 16:01:15 GMT
 - request:
     method: post
     uri: https://api.openai.com/v1/chat/completions
     body:
       encoding: UTF-8
       string: '{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"My favorite
-        color is blue"},{"role":"assistant","content":"Blue is a calming and serene
-        color that brings a sense of peace and tranquility. It''s often associated
-        with loyalty, trust, and stability. Blue can also evoke feelings of security
-        and safety. It''s a versatile color that can be both soothing and energizing,
-        depending on the shade. Overall, blue is a timeless and classic color that
-        can be incorporated into a variety of styles and designs.","refusal":null,"annotations":[]},{"role":"user","content":"What''s
+        color is blue"},{"role":"assistant","content":". Blue is a calming and soothing
+        color that reminds me of the sky and the ocean. It symbolizes tranquility,
+        stability, and trust. I find it to be a very versatile color that can be incorporated
+        into many different aspects of my life, from clothing to home decor. Overall,
+        blue is just a color that makes me feel happy and at peace.","refusal":null,"annotations":[]},{"role":"user","content":"What''s
         my favorite color?"}],"stream":false}'
     headers:
       Accept-Encoding:
@@ -145,7 +144,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:41:16 GMT
+      - Thu, 24 Jul 2025 16:01:16 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -157,13 +156,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '1297'
+      - '566'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '1305'
+      - '574'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -171,45 +170,45 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '3999886'
+      - '3999900'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
       - 1ms
       X-Request-Id:
-      - req_c335cbde5ee2f67e80c8b1d76ddb3b95
+      - req_9417ad8a71b2060ef920f88eed6bcce1
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=4jgYVpHjO_ASArx_V_C7E2kNMLux.lY95asPgBo0grU-1753371676-1.0.1.1-.VLivSxKMXI4YV6W1J2H239och6Dx8Xugs2nhSniC2shsxnZk.59tOr7_xQ6KzKlE.wEt4sU5DPfbz6hGND1WiYfo9v_5W2AQCz4dheXXk4;
-        path=/; expires=Thu, 24-Jul-25 16:11:16 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=8lmfBsBqV0nH5MHqdysTFEexC5e581qbm3sAtJI8fkw-1753372876-1.0.1.1-l54U_v9oK7F7oWPnReFSy9O3N3o.s4.vSq1LKtWPeKn.OxE.fuWXcIGUeDrYXd9g8ap8esF8yVi669.OsutbIcDuuJteRRnXsT6TPsIZKXg;
+        path=/; expires=Thu, 24-Jul-25 16:31:16 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=qKhWBbUCG9xz5brjvACQS9BeoqleHXEeX8D6qXLYFic-1753371676510-0.0.1.1-604800000;
+      - _cfuvid=kEhxyMeO02OqddrBEeJntqu1xqJkxarHPznqr7a8GrQ-1753372876442-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 96448548adb8d8cc-AMS
+      - 9644a298e805e00a-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwsMFKa23W45JeJ05ToXUafTamTu9",
+          "id": "chatcmpl-BwsfbG2d6xyj5YT0eOQQqxbDMAbv4",
           "object": "chat.completion",
-          "created": 1753371675,
+          "created": 1753372875,
           "model": "gpt-3.5-turbo-0125",
           "choices": [
             {
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "I'm sorry, I don't have access to personal information about you, so I can't determine your favorite color. If you'd like, you can share your favorite color with me and I can provide some information about it!",
+                "content": "I'm not sure what your favorite color is. Can you please tell me?",
                 "refusal": null,
                 "annotations": []
               },
@@ -218,9 +217,9 @@ http_interactions:
             }
           ],
           "usage": {
-            "prompt_tokens": 105,
-            "completion_tokens": 46,
-            "total_tokens": 151,
+            "prompt_tokens": 98,
+            "completion_tokens": 16,
+            "total_tokens": 114,
             "prompt_tokens_details": {
               "cached_tokens": 0,
               "audio_tokens": 0
@@ -235,5 +234,5 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Thu, 24 Jul 2025 15:41:16 GMT
+  recorded_at: Thu, 24 Jul 2025 16:01:16 GMT
 recorded_with: VCR 6.3.1

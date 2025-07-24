@@ -27,7 +27,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:00 GMT
+      - Thu, 24 Jul 2025 16:05:58 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -53,34 +53,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_164e56a4f0591922ced787a35e9aad7b
+      - req_dccf26f9d838b3ab8264a3c4e80dfc10
       Openai-Processing-Ms:
-      - '8190'
+      - '6716'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=_NnNmy_GJP8h_gUvv1StuxbjyD6uIlPRDpHblz.l2vM-1753371600-1.0.1.1-MEtYXSkV37gBcf4l76Y4FfFRVO5bKLUk.r.Fvt6_lHMU085UO8mNNs1UTtQnBe6I.JsNNAmKbiQbmKoXAY0i.1fxNATznSUn4kWSdZ8uCoc;
-        path=/; expires=Thu, 24-Jul-25 16:10:00 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=K_audDgN89Dq3qT09YE5OOZA7fAMpaUwB459W2_5bmw-1753373158-1.0.1.1-GLzSv3.Dih0icZtw8aqO4zND7H0QLLUhhoIA56lF93C54gcuAJ3vZM.1eYp42CMZwQG6xiccqPoQBsPDns6h2HIa4Mj.EuSexzOxHQSqwZU;
+        path=/; expires=Thu, 24-Jul-25 16:35:58 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=QKFtyTFCGU3GP0UNuTtD8nlJxm4EDRAYPisa2kbPG7o-1753371600318-0.0.1.1-604800000;
+      - _cfuvid=HcYzK4597KSVcKJITuI6OoFFuVKhpHaNpjoRwWoJmyc-1753373158366-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964483420b570e30-AMS
+      - 9644a9550a9f9fa5-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253c815c4819d896bbe639013a3320576fe36155d3129",
+          "id": "resp_688259df9aa881a1af8a3c5c8157feb1038ae9745015318a",
           "object": "response",
-          "created_at": 1753371592,
+          "created_at": 1753373151,
           "status": "completed",
           "background": false,
           "error": null,
@@ -91,7 +91,7 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_688253c9a89c819d8045d1e295d37bf00576fe36155d3129",
+              "id": "msg_688259e0d72881a19231d332cf577040038ae9745015318a",
               "type": "message",
               "status": "completed",
               "content": [
@@ -99,7 +99,7 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "In a small town lived a kind baker, known for his magical bread. Humble and hardworking, he found joy in simple things. Famed for the aroma that charmed the town each morning, many savored his bread\u2019s unsurpassed taste. Secretly, he possessed an age-old recipe passed through generations. One day, a sinister man discovered his secret and coveted it. Testing his bravery, the baker faced deceit, danger, and devastation. Through sheer determination and a noble heart, he protected his legacy. By revealing the man\u2019s treachery, he became a celebrated hero. His simple bread, baked with love and courage, engendered cherished tales of valor."
+                  "text": "In a tranquil village, dwelled an enchanting girl, Lyla. Whispers spread about her mysterious, crimson eyes that beheld captivating tales. Her eyes, however, held a solemn secret. Unlike others, she could perceive people's truest feelings. These precise insights gave her wisdom beyond her years. It was a gift, but also a curse she endured silently. One day, the mischievous wind carried a sorrowful sigh to her. Following it, she found a desolate boy. Witnessing his melancholy, she decided to share his burden, giving him solace. Through her empathetic heart, Lyla not just viewed emotions, she helped in healing them, carving her legacy in their hearts."
                 }
               ],
               "role": "assistant"
@@ -131,14 +131,14 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 139,
+            "output_tokens": 147,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 167
+            "total_tokens": 175
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:00 GMT
+  recorded_at: Thu, 24 Jul 2025 16:05:58 GMT
 recorded_with: VCR 6.3.1

@@ -25,7 +25,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:41:08 GMT
+      - Thu, 24 Jul 2025 16:01:14 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -37,13 +37,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '475'
+      - '391'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '509'
+      - '395'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -57,32 +57,32 @@ http_interactions:
       X-Ratelimit-Reset-Tokens:
       - 0s
       X-Request-Id:
-      - req_1dd0282e38da5cea6d20a825ada4e93e
+      - req_07a49270ca4295797d9b25464faacce0
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=9aV0tvrZhElpO_32KIlDMFNQDWmMyWgQ69xKV3gP3YM-1753371668-1.0.1.1-t9JJvdtwkB_itHl5zinChL7RbvtexVKHLvuR_ZVhU.G1mlOSAyTDUgkzYNheiVZbseeNW1T9D.PUr9dqjuNtTQTO56kzuR2XGPA0AP7fZDI;
-        path=/; expires=Thu, 24-Jul-25 16:11:08 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=iwvTRoL4T5Vw.uZ858_66YXTV7_lqBW4clgbu54o6F0-1753372874-1.0.1.1-theXZ7qpqRkNgEdHLoa3MxvzIOcyRjQYlUMC2zvGUT258dQKZp6B9kzblGTXJrSMcg1Nms1ZWW0X9lAfmqU.PN6OltPEp4PiaSs9CaSavwo;
+        path=/; expires=Thu, 24-Jul-25 16:31:14 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=0PT.5HCv1kjx44QbPE2JMh8bUdMm8vKePv1BJWCXipU-1753371668928-0.0.1.1-604800000;
+      - _cfuvid=baHowIK6JVE9DML2VvHtrXeoo.7jntsZKAK_rexjmC8-1753372874295-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 9644851dfd909fd0-AMS
+      - 9644a28c7a56b823-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwsM8CXr1RzO0wKxGaaC5vXc7m2c9",
+          "id": "chatcmpl-BwsfZQgAevlc0iSxgbTpBWiKgKEWX",
           "object": "chat.completion",
-          "created": 1753371668,
+          "created": 1753372873,
           "model": "gpt-3.5-turbo-0125",
           "choices": [
             {
@@ -92,7 +92,7 @@ http_interactions:
                 "content": null,
                 "tool_calls": [
                   {
-                    "id": "call_hJyab0I97eNNrISKxnr0XLiS",
+                    "id": "call_stbUri4nxBXXo6Qa2nJKK1sY",
                     "type": "function",
                     "function": {
                       "name": "get_current_time",
@@ -125,5 +125,5 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Thu, 24 Jul 2025 15:41:08 GMT
+  recorded_at: Thu, 24 Jul 2025 16:01:14 GMT
 recorded_with: VCR 6.3.1

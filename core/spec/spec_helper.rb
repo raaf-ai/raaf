@@ -28,8 +28,23 @@ SimpleCov.start do
   add_group "Tools", "lib/raaf/tools"
 
   # Set minimum coverage threshold based on test context
-  # Disable coverage requirements for specialized test types
-  if ENV["RUN_ACCEPTANCE_TESTS"] || ENV["RUN_COMPLIANCE_TESTS"] || ENV["RUN_PERFORMANCE_TESTS"] || ENV["RUN_COST_TESTS"] || ENV["RUN_INTEGRATION_TESTS"]
+  # Check if we're running specialized tests by looking at RSpec filters
+  # This works with both --tag and file path-based test selection
+  specialized_test_tags = %i[compliance acceptance performance cost integration]
+  running_specialized_tests = false
+
+  # Check ARGV for tag-based execution (e.g., --tag compliance)
+  ARGV.each_with_index do |arg, i|
+    if arg == "--tag" && ARGV[i + 1] && specialized_test_tags.include?(ARGV[i + 1].to_sym)
+      running_specialized_tests = true
+      break
+    end
+  end
+
+  # Check if we're running path-based specialized tests (e.g., spec/compliance/)
+  running_specialized_tests = true if ARGV.any? { |arg| arg =~ %r{spec/(compliance|acceptance|performance|cost|integration)/} }
+
+  if running_specialized_tests
     # These test types don't contribute to coverage - disable minimum threshold
     minimum_coverage 0
   else
@@ -171,20 +186,19 @@ RSpec.configure do |config|
     metadata[:acceptance] = true
   end
 
-  # Skip integration tests by default unless explicitly requested
-  config.filter_run_excluding :integration unless ENV["RUN_INTEGRATION_TESTS"]
+  # Determine if we're running specialized tests by checking command line arguments
+  running_integration = ARGV.any? { |arg| arg =~ /--tag.*integration/ || arg =~ %r{spec/integration/} }
+  running_performance = ARGV.any? { |arg| arg =~ /--tag.*performance/ || arg =~ %r{spec/performance/} }
+  running_cost = ARGV.any? { |arg| arg =~ /--tag.*cost/ || arg =~ %r{spec/cost/} }
+  running_acceptance = ARGV.any? { |arg| arg =~ /--tag.*acceptance/ || arg =~ %r{spec/acceptance/} }
+  running_compliance = ARGV.any? { |arg| arg =~ /--tag.*compliance/ || arg =~ %r{spec/compliance/} }
 
-  # Skip performance tests by default unless explicitly requested
-  config.filter_run_excluding :performance unless ENV["RUN_PERFORMANCE_TESTS"]
-
-  # Skip cost tests by default unless explicitly requested
-  config.filter_run_excluding :cost unless ENV["RUN_COST_TESTS"]
-
-  # Skip acceptance tests by default unless explicitly requested
-  config.filter_run_excluding :acceptance unless ENV["RUN_ACCEPTANCE_TESTS"]
-
-  # Skip compliance tests by default unless explicitly requested
-  config.filter_run_excluding :compliance unless ENV["RUN_COMPLIANCE_TESTS"]
+  # Tag-based filtering - exclude specialized tests unless explicitly requested
+  config.filter_run_excluding :integration unless running_integration
+  config.filter_run_excluding :performance unless running_performance
+  config.filter_run_excluding :cost unless running_cost
+  config.filter_run_excluding :acceptance unless running_acceptance
+  config.filter_run_excluding :compliance unless running_compliance
 
   # Configuration for integration tests
   config.before(:each, :integration) do

@@ -37,7 +37,7 @@ http_interactions:
       message: Internal Server Error
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:17 GMT
+      - Thu, 24 Jul 2025 16:06:41 GMT
       Content-Type:
       - application/json
       Content-Length:
@@ -63,25 +63,25 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_086c0e99d28463ef1b7a4a1b9a66f258
+      - req_6faa1732c9ad9d1c72573cdf2aad3a74
       Openai-Processing-Ms:
-      - '6141'
+      - '4442'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=IPh8M4E6caGe62B9z1NZZyE3gpuUwq.jpqqfSDGMqYQ-1753371617-1.0.1.1-4MCbWPtZaf65onx5BwRuGg2oLxkcxB1_KzkOalQV_LVx13BD85dfcWIDmQXiP6ko06dzOivMZkxBhhq5LlPUZNrTC7CDowGNJeK5bbOnt14;
-        path=/; expires=Thu, 24-Jul-25 16:10:17 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=UV5FZIaEW7xxMEAAacqONyeZ_aQzJfok3CT2dY9vo20-1753373201-1.0.1.1-t3JObXxRluTyntbEnhni_Od3i63uiNWx8TPnAGs0o_INL_L0XnM0uNjEuZBcIG4gq4PjARhI6rLS5xWoVtWQAr1ucfeVuTE6h5u58R9QiZo;
+        path=/; expires=Thu, 24-Jul-25 16:36:41 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=ODdzVW66qbds_mTtZjKi9Vuu6iOblmg09uyqpQZY4hE-1753371617343-0.0.1.1-604800000;
+      - _cfuvid=yAccFzIy08yoBg.vc2GfYzOTgFDz9Cc2sVwdgd5iokw-1753373201586-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964483b92c851afc-AMS
+      - 9644aa713e320e84-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
@@ -89,11 +89,11 @@ http_interactions:
       string: |-
         {
           "error": {
-            "message": "An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_086c0e99d28463ef1b7a4a1b9a66f258 in your message.",
+            "message": "An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_6faa1732c9ad9d1c72573cdf2aad3a74 in your message.",
             "type": "server_error",
             "param": null,
             "code": "server_error"
           }
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:17 GMT
+  recorded_at: Thu, 24 Jul 2025 16:06:41 GMT
 recorded_with: VCR 6.3.1

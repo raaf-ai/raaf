@@ -27,7 +27,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:26 GMT
+      - Thu, 24 Jul 2025 16:06:54 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -41,11 +41,11 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '79733'
+      - '79754'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
-      - 199ms
+      - 184ms
       Openai-Version:
       - '2020-10-01'
       Openai-Organization:
@@ -53,34 +53,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_c4a3c796e7c202dc09b959075cbd51b8
+      - req_9757fd0218e7c0a399b112600b09f586
       Openai-Processing-Ms:
-      - '8774'
+      - '12411'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=v0WnLltA3mcKtmn.lKq2TjvnvcgX80Nap6AdxiY5kt8-1753371626-1.0.1.1-Y9STvWoBh4taCDq8gdHSAqGD5082GbBx.r96EdNZsiBKjQtBIVf7Vog1PeNtX7KyW1KJJT7zAsMUtSVt.rSMn5Ko6R.P1ZI3IZFc0RKabRQ;
-        path=/; expires=Thu, 24-Jul-25 16:10:26 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=vn_VhG.MDtIaMu9gWQdvO8QiAa_sRkQPwhm4PoUhK8Y-1753373214-1.0.1.1-3dzerBdWk1SwFq.dk5mohEoQuIg.I6e90ceIJr1GgL5mXk57fYPrfzt6ED_0eAbWNPsjc5EAjpquLBTtXfhcNR9_hxf5cSUG930oLSmCV6o;
+        path=/; expires=Thu, 24-Jul-25 16:36:54 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=AgXO_JcdHG2.z0NC6g0MyoSlKnz_aPUGnIpSxF7kGts-1753371626308-0.0.1.1-604800000;
+      - _cfuvid=ZXGUaxvSm4vIS6G1EPNWwIMmWkRoaEKjKsQMTsPd2JI-1753373214194-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964483e0c9ad6668-AMS
+      - 9644aa8e6f256686-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253e17c4081a3bc85645546a3c1ec000f512261becd8f",
+          "id": "resp_68825a11be788192a3f07e502a116e900419cfacb1e4d810",
           "object": "response",
-          "created_at": 1753371617,
+          "created_at": 1753373201,
           "status": "completed",
           "background": false,
           "error": null,
@@ -91,7 +91,7 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_688253e2aca481a3a1c6827bc386f09a000f512261becd8f",
+              "id": "msg_68825a1368988192b068b18bc062c64a0419cfacb1e4d810",
               "type": "message",
               "status": "completed",
               "content": [
@@ -99,7 +99,7 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "{\n  \"Personal Information\": {\n    \"First Name\": \"John\",\n    \"Last Name\": \"Doe\",\n    \"Age\": 35,\n    \"Gender\": \"Male\",\n    \"Date of Birth\": \"1986-07-01\"\n  },\n  \"Contact Information\": {\n    \"Email\": \"johndoe@example.com\",\n    \"Phone\": \"+1-123-456-7890\",\n    \"Address\": \"123 Main St, Some City, Some State, 11111\"\n  },\n  \"Employment\": {\n    \"Current Position\": \"Software Engineer\",\n    \"Company\": \"XYZ Corporation\",\n    \"Years of Experience\": 10\n  },\n  \"Education\": {\n    \"Highest Degree\": \"Master's in Computer Science\",\n    \"University\": \"ABC University\",\n    \"Graduation Year\": 2009\n  },\n  \"Skills\": [\"Java\", \"Python\", \"SQL\", \"JavaScript\", \"HTML/CSS\"],\n  \"Hobbies\": [\"Reading\", \"Traveling\", \"Photography\", \"Hiking\"]\n}"
+                  "text": "{\n  \"FullName\": \"John Doe\",\n  \"Gender\": \"Male\",\n  \"Age\": 32,\n  \"DateOfBirth\": \"1989-12-23\",\n  \"ContactInfo\": {\n    \"Email\": \"johndoe@email.com\",\n    \"Phone\": \"555-325-888\",\n    \"Address\": \"123 Main St., Anytown, USA\"\n  },\n  \"Occupation\": \"Software Developer\",\n  \"Education\": {\n    \"Degree\": \"Bachelor's of Science in Computer Science\",\n    \"Institution\": \"Stanford University\",\n    \"Year\": 2012\n  },\n  \"Skills\": [\"Python\", \"Java\", \"C#\", \"SQL\"],\n  \"Languages\": [\"English\", \"Spanish\"],\n  \"Hobbies\": [\"Cycling\", \"Reading\", \"Photography\"]\n}"
                 }
               ],
               "role": "assistant"
@@ -131,14 +131,14 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 222,
+            "output_tokens": 173,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 247
+            "total_tokens": 198
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:26 GMT
+  recorded_at: Thu, 24 Jul 2025 16:06:54 GMT
 recorded_with: VCR 6.3.1

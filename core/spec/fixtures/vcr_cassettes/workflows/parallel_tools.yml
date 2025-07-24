@@ -32,7 +32,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:58 GMT
+      - Thu, 24 Jul 2025 16:06:02 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -46,11 +46,11 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '79211'
+      - '79677'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
-      - 591ms
+      - 242ms
       Openai-Version:
       - '2020-10-01'
       Openai-Organization:
@@ -58,34 +58,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_9f95ebc8779990e3d1107a12bffc6beb
+      - req_e2ecbd57f0b161906f9b60f9109eecbc
       Openai-Processing-Ms:
-      - '4720'
+      - '3544'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=pYAH2i_BogjFV40UNMQeDP02Ir5sac86cTeN0PvbSU4-1753371658-1.0.1.1-4jpahnB7BdotKTwTcYxjYbG10gRP8cQ9Bvts47jPIfpGeUl8lezngjL09H8JrDO61ayF6Q5bEdaTD073HD.5voyohd4bcYwL2X4fii5xHlQ;
-        path=/; expires=Thu, 24-Jul-25 16:10:58 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=LZgRor.aXVZF6.QzNpB9m4x0XPQcnwDMQFwS3jk4ZwY-1753373162-1.0.1.1-FhWBjulrd3y_.4RHs8zqR9_cVrggAF9lcV46X4Ztdh8kmSYbI.evCPb6o.cAndMGxlTsa_n_QMJyqvJBYW9f9DpWkMSOFIJ4jwM8wZzJgpk;
+        path=/; expires=Thu, 24-Jul-25 16:36:02 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=64sJy3QMHGoIXVem.WL5Okmmsj409Q95uAtVEwHZY28-1753371658179-0.0.1.1-604800000;
+      - _cfuvid=XUeGgcQJbLDrRl8GHABmBiyi1LoUYaaljHGDoGsfn2k-1753373162097-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964484c16916f5c1-AMS
+      - 9644a9800984febb-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688254056b4c819f82ed72c10f77a1a40dc99ac9176e2bb8",
+          "id": "resp_688259e682c0819ea361e2db3eeeedee0688bd55f4e5d4cd",
           "object": "response",
-          "created_at": 1753371653,
+          "created_at": 1753373158,
           "status": "completed",
           "background": false,
           "error": null,
@@ -96,19 +96,19 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "fc_68825407cc44819f915ac508af2c24880dc99ac9176e2bb8",
+              "id": "fc_688259e82e30819eb307d4ee5c2350d50688bd55f4e5d4cd",
               "type": "function_call",
               "status": "completed",
               "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
-              "call_id": "call_83d0ePb65Hm8YmZfZrdRd7BK",
+              "call_id": "call_ruV8syVGxvQSK0iBOCSw08La",
               "name": "web_search"
             },
             {
-              "id": "fc_688254095b5c819fa7a43f628d9bf2c20dc99ac9176e2bb8",
+              "id": "fc_688259e954c8819ea2c85782d9ef54a70688bd55f4e5d4cd",
               "type": "function_call",
               "status": "completed",
               "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
-              "call_id": "call_6up3fOVnwvXN5lM6XC7AB49B",
+              "call_id": "call_TNApfHaQPMlefo2pw7nJUOjr",
               "name": "database_query"
             }
           ],
@@ -186,16 +186,16 @@ http_interactions:
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:58 GMT
+  recorded_at: Thu, 24 Jul 2025 16:06:02 GMT
 - request:
     method: post
     uri: https://api.openai.com/v1/responses
     body:
       encoding: UTF-8
       string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
-        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_83d0ePb65Hm8YmZfZrdRd7BK","output":"Search
-        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_6up3fOVnwvXN5lM6XC7AB49B","output":"Database
-        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688254056b4c819f82ed72c10f77a1a40dc99ac9176e2bb8","instructions":"Name:
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259e682c0819ea361e2db3eeeedee0688bd55f4e5d4cd","instructions":"Name:
         ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
         web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
         the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
@@ -221,7 +221,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:41:08 GMT
+      - Thu, 24 Jul 2025 16:06:06 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -247,34 +247,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_179cd68ad7bf30ade7fa399fe310717e
+      - req_8ecf3e2f0f9a928a49d2f8d41ad1d910
       Openai-Processing-Ms:
-      - '9785'
+      - '3807'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=oWwT_CLVbIfyREkm8SzsJ7FMTk8LwSHvT6X9eifqAQ8-1753371668-1.0.1.1-2AggDMGm5oQAQ0kaxkEkfvJKSmqEQGfOsIsBZjRqB1VFhA6DMtzNaHlDkwHyAIyf6P.Dm4sDoQUuA9hYAo7B75dPvNrh0GqarnkLyNSN4TE;
-        path=/; expires=Thu, 24-Jul-25 16:11:08 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=PwBfBw1SDhmL0a26NtsQWs5vQRvRZtCSp0BD5GVpb88-1753373166-1.0.1.1-z9o2MFC5ck6OBAJMk7wod.TOg.EhQid1XBtiIC43lvLWHTJJhFGOpKiSUX1vYPZIy6VdZlcUy_l9SOc.XRyDJhFGutfeCkwbrH.PLodXle8;
+        path=/; expires=Thu, 24-Jul-25 16:36:06 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=RLCnT5MhgI77spD2uJnVMnhKGYU.PJlgGP3LzlFABk8-1753371668104-0.0.1.1-604800000;
+      - _cfuvid=XOyFOOt9FOTQ1xlHPW_57ModMzk8yINW7Flf1fKm5Ro-1753373166164-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964484dfbea2a462-AMS
+      - 9644a997e9440b73-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_6882540a4700819fb671f190cdc2b14a0dc99ac9176e2bb8",
+          "id": "resp_688259ea5178819e99a94ff1e6aaeb120688bd55f4e5d4cd",
           "object": "response",
-          "created_at": 1753371658,
+          "created_at": 1753373162,
           "status": "completed",
           "background": false,
           "error": null,
@@ -285,22 +285,24 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_6882540b3f8c819fa10439cacf5e573b0dc99ac9176e2bb8",
-              "type": "message",
+              "id": "fc_688259ec2bac819ea7a88d8df24bca370688bd55f4e5d4cd",
+              "type": "function_call",
               "status": "completed",
-              "content": [
-                {
-                  "type": "output_text",
-                  "annotations": [],
-                  "logprobs": [],
-                  "text": "I found some information on 'Ruby on Rails best practices'.\n\nWeb Search Results:\n1. [Ruby on Rails Best Practices](https://www.toptal.com/ruby-on-rails/rails-service-objects-tutorial)\n2. [Top 7 Ruby on Rails best practices](https://dzone.com/articles/top-7-ruby-on-rails-best-practices)\n3. [Best Practices for Working with Ruby on Rails](https://www.airpair.com/ruby-on-rails/posts/best-practices-for-working-with-ruby-on-rails)\n\nDatabase Results:\n1. Document 'Best Practices for Ruby on Rails Development' (Internal)\n2. Article 'Implementing Clean Code in Ruby on Rails' (Internal)\n3. Guidelines 'Ruby on Rails Code Standards and Best Practices' (Internal)\n\nPlease let me know what to do next!"
-                }
-              ],
-              "role": "assistant"
+              "arguments": "{\n                        \"query\": \"Ruby on Rails best practices\"\n                  }",
+              "call_id": "call_slqFoKEKDlutGaoDQxxTofyc",
+              "name": "web_search"
+            },
+            {
+              "id": "fc_688259ed7d50819e88e57f809ea23f120688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n                        \"query\": \"Ruby on Rails best practices\"\n                  }",
+              "call_id": "call_sch4eaVOwOcYwwlgCvMwFpD0",
+              "name": "database_query"
             }
           ],
           "parallel_tool_calls": true,
-          "previous_response_id": "resp_688254056b4c819f82ed72c10f77a1a40dc99ac9176e2bb8",
+          "previous_response_id": "resp_688259e682c0819ea361e2db3eeeedee0688bd55f4e5d4cd",
           "prompt_cache_key": null,
           "reasoning": {
             "effort": null,
@@ -364,14 +366,1521 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 173,
+            "output_tokens": 82,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 387
+            "total_tokens": 296
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:41:07 GMT
+  recorded_at: Thu, 24 Jul 2025 16:06:06 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259ea5178819e99a94ff1e6aaeb120688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:10 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79453'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 410ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_8a8af7728c2eb57e678c1d7160223423
+      Openai-Processing-Ms:
+      - '4047'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=HlrkfYDvK9e6pr.vS4nySPhVEw9SOUI5KI7TcxDTpOY-1753373170-1.0.1.1-XIECmx6RwNKkO7VggIVxtRnfJc8inYFNdoGqMLAP5bhoBT3ogsmL4NeUNC8IoQFXIY4QQ8huasBPUAzrbuPfuNONAA8HfBszPVJuiB7H6gU;
+        path=/; expires=Thu, 24-Jul-25 16:36:10 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=o7_ElzCqmS6GcTJCN1zjQ4RgGhJLGWQT9TO49m..L3k-1753373170398-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644a9b0ee4566e1-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259ee4e44819ea09b9eb5c42c60080688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373166,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259f069ac819e916599f58dab6e0c0688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_bd69jaBePsD1au2qfnbGAJ2d",
+              "name": "web_search"
+            },
+            {
+              "id": "fc_688259f19c10819e850c27b4a5def28b0688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_bqh6qmDQTdfpXlodEqBSxhFM",
+              "name": "database_query"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259ea5178819e99a94ff1e6aaeb120688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 340,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 82,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 422
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:10 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bd69jaBePsD1au2qfnbGAJ2d","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bqh6qmDQTdfpXlodEqBSxhFM","output":"Database
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259ee4e44819ea09b9eb5c42c60080688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:11 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79296'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 528ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_7599e2319440c990fd526cefb37961b0
+      Openai-Processing-Ms:
+      - '1230'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=GUJg3vvXjKh.UxeyfQIVN8sfvQltSMiUz5ACQ3mteew-1753373171-1.0.1.1-RbSZCGDKNLSz6_GVO51hOC0IpcWwjbdZBtXhb3_l.VK9Rdhe_FIDXl4FxQ9mJP4WVYlJrn4yzeF3znEw0JFNzV1KrOVztPXGUmW.RdI37zo;
+        path=/; expires=Thu, 24-Jul-25 16:36:11 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=V45Nog.MthEJ1_.lGQ8hRChNwT7bzrmnjzfQcGSHxDY-1753373171823-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644a9cb2f7566c2-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259f28db4819e8f7b43b74d38dd320688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373170,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259f34d78819e804008d70b2267c90688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_XpIYKykRdnCDRX1cbJx5ZkXp",
+              "name": "web_search"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259ee4e44819ea09b9eb5c42c60080688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 498,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 21,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 519
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:11 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bd69jaBePsD1au2qfnbGAJ2d","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bqh6qmDQTdfpXlodEqBSxhFM","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_XpIYKykRdnCDRX1cbJx5ZkXp","output":"Search
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259f28db4819e8f7b43b74d38dd320688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:13 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '79147'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 639ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_7515f51f80589d536599fa43132669b1
+      Openai-Processing-Ms:
+      - '1741'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=fuQvUIszWZrAgoy1PQo5NmQHmBwUvKBq8T9FqUGneAQ-1753373173-1.0.1.1-8h0ExdxlsVaQIpGgCQ55tiLHtr0IPx8THSII7ZaRzm0AjTWaYHhU5ygpbxxPfjm_SAGob8o4ykuvt6NaqgC4hxP4nOb8Q92EUtECVAKwA3w;
+        path=/; expires=Thu, 24-Jul-25 16:36:13 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=MoTOSgfXPtyr_lxiYL9i1u3edF3aRKdAPyOTUGjBtIE-1753373173712-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644a9d408a8c73c-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259f3ede8819e95018002cbc8cd1e0688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373172,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259f4becc819e99e95068c4e55bac0688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_1eCru29mUIItKXve0uU9CPZB",
+              "name": "database_query"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259f28db4819e8f7b43b74d38dd320688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 647,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 21,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 668
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:13 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bd69jaBePsD1au2qfnbGAJ2d","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bqh6qmDQTdfpXlodEqBSxhFM","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_XpIYKykRdnCDRX1cbJx5ZkXp","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_1eCru29mUIItKXve0uU9CPZB","output":"Database
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259f3ede8819e95018002cbc8cd1e0688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:15 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '78983'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 762ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_7cbaedf3a14a4b9f3fb66c7cc98e3427
+      Openai-Processing-Ms:
+      - '1821'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=UuxyvYgwMrNtqzNia4J1zu1hdItZ5VnEVhpraYw.Q8s-1753373175-1.0.1.1-7XU877FfokyzLspy1eWIVP6LNCPofemjQ9rV9VaiSdWMCejwjpSBHF6nESNUuyOzmFfyYaMFcyH3FuRTW0mzZPoosZOCqn8ropWfzy2DDtM;
+        path=/; expires=Thu, 24-Jul-25 16:36:15 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=aQspSWM7y1iimy4HMpr6790Qh44g6qqTLax9d_CrgFE-1753373175747-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644a9e03e977a96-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259f5e0d0819e89d252e2f675331e0688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373173,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259f71b24819e8981c6c7113cac370688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_Hwzy3rwXVVwEdxfq2YZ5SSJd",
+              "name": "web_search"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259f3ede8819e95018002cbc8cd1e0688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 811,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 21,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 832
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:15 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bd69jaBePsD1au2qfnbGAJ2d","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bqh6qmDQTdfpXlodEqBSxhFM","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_XpIYKykRdnCDRX1cbJx5ZkXp","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_1eCru29mUIItKXve0uU9CPZB","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_Hwzy3rwXVVwEdxfq2YZ5SSJd","output":"Search
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259f5e0d0819e89d252e2f675331e0688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:17 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '78804'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 897ms
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_fe8c479c60026520b33ade29bfdd53e8
+      Openai-Processing-Ms:
+      - '1123'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=ExbB2L8.d.fs3_p5z6xpaS.yrvEQYKLkqZNpcnOMkCI-1753373177-1.0.1.1-nBXkGRCgkVBdYkxkI4DtrAqFPKwLa5jYOL3aRv7afrNFx82imUZ1abMLZgFnkTqGLWaiOynwNI_V1j6NZkpLDkoqSrf.Yh41COL503Tcj00;
+        path=/; expires=Thu, 24-Jul-25 16:36:17 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=EsgkJYYEqcodcjdRnBDwLCSTvtgc1w6XOAz9Ut2Nug0-1753373177009-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644a9ec8f4efb87-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259f7d750819e9a6d1317da979d2e0688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373175,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259f88808819eb59f2c972be13d6b0688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_S4VnEYIKvUuEYrnfMGqyCO8F",
+              "name": "database_query"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259f5e0d0819e89d252e2f675331e0688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 990,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 21,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 1011
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:16 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bd69jaBePsD1au2qfnbGAJ2d","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bqh6qmDQTdfpXlodEqBSxhFM","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_XpIYKykRdnCDRX1cbJx5ZkXp","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_1eCru29mUIItKXve0uU9CPZB","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_Hwzy3rwXVVwEdxfq2YZ5SSJd","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_S4VnEYIKvUuEYrnfMGqyCO8F","output":"Database
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259f7d750819e9a6d1317da979d2e0688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:18 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '78610'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 1.042s
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_bb6f5cd262f1d0e4ae0b7ed7a5febc5a
+      Openai-Processing-Ms:
+      - '1748'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=_2ejcYVUd5ig9VYoWPO0JjMaUkeNgYjb844jsS52NLA-1753373178-1.0.1.1-B1JFmfjE4tixIpmGqkTIEO8YNVQZAt94kmHqO3GES_D06xIs2Ar8Pa5O7X3JMla_8Cje7no.Ofh0vv8N6nhkYtmxw8u9nl9efr9XHMrbyIE;
+        path=/; expires=Thu, 24-Jul-25 16:36:18 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=t943gyMxog1i_S4AKH3A0b.nE9qtliN3J6kkDZ3FEGk-1753373178910-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644a9f47faf199c-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259f91b74819ea4a57b92d389fb750688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373177,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259fa58cc819ebdaff351b75925d10688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_rXjxmIyzKjpkKvNadIFx2cg1",
+              "name": "web_search"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259f7d750819e9a6d1317da979d2e0688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 1184,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 21,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 1205
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:18 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bd69jaBePsD1au2qfnbGAJ2d","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bqh6qmDQTdfpXlodEqBSxhFM","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_XpIYKykRdnCDRX1cbJx5ZkXp","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_1eCru29mUIItKXve0uU9CPZB","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_Hwzy3rwXVVwEdxfq2YZ5SSJd","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_S4VnEYIKvUuEYrnfMGqyCO8F","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_rXjxmIyzKjpkKvNadIFx2cg1","output":"Search
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259f91b74819ea4a57b92d389fb750688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:21 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '78401'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 1.199s
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_a6bf24939bbb662db58ca17c7ffa48ae
+      Openai-Processing-Ms:
+      - '2467'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=7ZJEE7FBwElGlYNFrp.eGAxzMbvxTT9O9C7i9sZLJh8-1753373181-1.0.1.1-DcQKSXiBe5FY8GADIdYewMWGaf52_v4WTnivWd8n8g2Qustn5D.JfvUXrxGoAquadu0LQHf90ym.HG2osG_TSiJ0Blwj1UP28zyQwt_Hcm0;
+        path=/; expires=Thu, 24-Jul-25 16:36:21 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=tTY1jfJFneqfnCRBGVtvHJwNI0YQiohXqp2XY6IGs50-1753373181534-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644aa0058f2b2aa-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259fb0354819e8ef84571c02fbeac0688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373180,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259fcfa94819ea5357504ea3866090688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_qgraDpZofQepCakGWCtWXUhS",
+              "name": "database_query"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259f91b74819ea4a57b92d389fb750688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 1393,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 21,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 1414
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:21 GMT
+- request:
+    method: post
+    uri: https://api.openai.com/v1/responses
+    body:
+      encoding: UTF-8
+      string: '{"model":"gpt-4","input":[{"role":"user","content":"Search for ''Ruby
+        on Rails best practices'' on the web and in our database simultaneously"},{"type":"function_call_output","call_id":"call_ruV8syVGxvQSK0iBOCSw08La","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_TNApfHaQPMlefo2pw7nJUOjr","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_slqFoKEKDlutGaoDQxxTofyc","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_sch4eaVOwOcYwwlgCvMwFpD0","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bd69jaBePsD1au2qfnbGAJ2d","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_bqh6qmDQTdfpXlodEqBSxhFM","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_XpIYKykRdnCDRX1cbJx5ZkXp","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_1eCru29mUIItKXve0uU9CPZB","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_Hwzy3rwXVVwEdxfq2YZ5SSJd","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_S4VnEYIKvUuEYrnfMGqyCO8F","output":"Database
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_rXjxmIyzKjpkKvNadIFx2cg1","output":"Search
+        results for: Ruby on Rails best practices"},{"type":"function_call_output","call_id":"call_qgraDpZofQepCakGWCtWXUhS","output":"Database
+        results for: Ruby on Rails best practices"}],"previous_response_id":"resp_688259fb0354819e8ef84571c02fbeac0688bd55f4e5d4cd","instructions":"Name:
+        ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n-
+        web_search: Search the web\n- database_query: Query internal database","tools":[{"type":"function","name":"web_search","description":"Search
+        the web","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true},{"type":"function","name":"database_query","description":"Query
+        internal database","parameters":{"type":"object","properties":{"query":{"type":"string","description":"query
+        parameter"}},"required":["query"],"additionalProperties":false},"strict":true}]}'
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Agents/Ruby 0.1.0
+      Host:
+      - api.openai.com
+      Authorization:
+      - Bearer <OPENAI_API_KEY>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 24 Jul 2025 16:06:24 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      X-Ratelimit-Limit-Requests:
+      - '5000'
+      X-Ratelimit-Limit-Tokens:
+      - '80000'
+      X-Ratelimit-Remaining-Requests:
+      - '4999'
+      X-Ratelimit-Remaining-Tokens:
+      - '78177'
+      X-Ratelimit-Reset-Requests:
+      - 12ms
+      X-Ratelimit-Reset-Tokens:
+      - 1.367s
+      Openai-Version:
+      - '2020-10-01'
+      Openai-Organization:
+      - user-idizs1jhrfthcfbqdipeztfe
+      Openai-Project:
+      - proj_EQ0MM69HOfMRGCvSGPjdnO8V
+      X-Request-Id:
+      - req_c30d9dccb03a95d2c187b114ed336328
+      Openai-Processing-Ms:
+      - '2348'
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=g.Gn3p50bTj67s4mozF5CzwxPGDEC9N6C6khFwrEBW4-1753373184-1.0.1.1-5jgWIvUIzisvEcQbM9GUNSB7GaWJtfxv1djEmnjuPd0B1r3vCPqF8wrlSnSfr5peTES8H8zluaooBsYgtG9LWuqV2YkAMN8j92mR.sq750M;
+        path=/; expires=Thu, 24-Jul-25 16:36:24 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=ziXae6cqAG_h4LseU7U_PhGxum.JoPIVAYl.wSJNf4M-1753373184075-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9644aa10c99a96e6-AMS
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: |-
+        {
+          "id": "resp_688259fdaa64819eab028245430549ec0688bd55f4e5d4cd",
+          "object": "response",
+          "created_at": 1753373181,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: ParallelAgent\nInstructions: You execute tools in parallel\n\nAvailable tools:\n- web_search: Search the web\n- database_query: Query internal database",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "fc_688259ff60ec819e896cc3c9eb6d28c90688bd55f4e5d4cd",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"query\": \"Ruby on Rails best practices\"\n      }",
+              "call_id": "call_IBHjIEFerIPq49QTtpSWHIPb",
+              "name": "web_search"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_688259fb0354819e8ef84571c02fbeac0688bd55f4e5d4cd",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Search the web",
+              "name": "web_search",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Query internal database",
+              "name": "database_query",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "query parameter"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 1617,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 21,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 1638
+          },
+          "user": null,
+          "metadata": {}
+        }
+  recorded_at: Thu, 24 Jul 2025 16:06:24 GMT
 recorded_with: VCR 6.3.1

@@ -29,7 +29,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:32 GMT
+      - Thu, 24 Jul 2025 16:06:59 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -55,34 +55,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_ac38a12ab7ef0d61fa7707a081c8b9c2
+      - req_b2375dca98b187f908787f714eaee68a
       Openai-Processing-Ms:
-      - '1801'
+      - '2481'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=0HrWupW6PX_hfWdJTK5qn4PY7KXP27y896iY.VsXFZY-1753371632-1.0.1.1-DEW.hho56Rm_H4ZELHNyTCyDJAxv.vCeOHFfnG7sJtcsXal3jkBJsdqB.1OVqWiWy07f2UnL.KyKdXBeREvvT7ArU9NtTbxDtirTUna3TIA;
-        path=/; expires=Thu, 24-Jul-25 16:10:32 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=xDNNjy7eU0lzEcED0oC0r.2OE3NqhqRP_0nX9O4G2B4-1753373219-1.0.1.1-ubBQqE8DVFxYUCGyBryOjoaN0Bf27N11X4IvpDbVJnquJLk9Qu.IObaMs26H3ly6chMdAi.ZQmAbIRaOqyjM0iivA72gnp1TP_l1G5X2gJM;
+        path=/; expires=Thu, 24-Jul-25 16:36:59 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=EOzgGnqoJD4gWE_4p.lL3kRXDxqifaebXeQ7ZpOHWWk-1753371632032-0.0.1.1-604800000;
+      - _cfuvid=dL2pK7DXnALytSQ7hislgTeOpN9F_7_eG0Lh3cD6_bo-1753373219980-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964484303b3e667f-AMS
+      - 9644aaf06e482409-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253ee3058819f8624f84cd4e72a6c0ba4c745ee15c502",
+          "id": "resp_68825a21741081a184a6e63825f6da3b038fc505a39dd038",
           "object": "response",
-          "created_at": 1753371630,
+          "created_at": 1753373217,
           "status": "completed",
           "background": false,
           "error": null,
@@ -93,11 +93,11 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "fc_688253ef6248819f9a1e9dd35d32fed20ba4c745ee15c502",
+              "id": "fc_68825a22839c81a1a9d10ecdddf89baa038fc505a39dd038",
               "type": "function_call",
               "status": "completed",
               "arguments": "{\n  \"expression\": \"15 * 23 + 47\"\n}",
-              "call_id": "call_KUlkr6BNdrGqAZK8lQlrfm1z",
+              "call_id": "call_m9BpTeiqvbQgKmuVc2dGYRW2",
               "name": "calculator"
             }
           ],
@@ -156,14 +156,14 @@ http_interactions:
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:31 GMT
+  recorded_at: Thu, 24 Jul 2025 16:07:00 GMT
 - request:
     method: post
     uri: https://api.openai.com/v1/responses
     body:
       encoding: UTF-8
       string: '{"model":"gpt-4","input":[{"role":"user","content":"What is 15 * 23
-        + 47?"},{"type":"function_call_output","call_id":"call_KUlkr6BNdrGqAZK8lQlrfm1z","output":"392"}],"previous_response_id":"resp_688253ee3058819f8624f84cd4e72a6c0ba4c745ee15c502","instructions":"Name:
+        + 47?"},{"type":"function_call_output","call_id":"call_m9BpTeiqvbQgKmuVc2dGYRW2","output":"392"}],"previous_response_id":"resp_68825a21741081a184a6e63825f6da3b038fc505a39dd038","instructions":"Name:
         Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- calculator:
         Evaluate mathematical expressions","tools":[{"type":"function","name":"calculator","description":"Evaluate
         mathematical expressions","parameters":{"type":"object","properties":{"expression":{"type":"string","description":"expression
@@ -187,7 +187,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:34 GMT
+      - Thu, 24 Jul 2025 16:07:01 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -213,34 +213,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_d14f18a1813d750c37dfd8284074a8d8
+      - req_04cde6be46542247c7e3cceed1d8bf32
       Openai-Processing-Ms:
-      - '1966'
+      - '1748'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=jFuyjcLsBc90N4UwyDC1VSvHqw9Pj2bbwcm44to4_YQ-1753371634-1.0.1.1-CcHvkym.A7pxzlIgk0nqwRhyJupQFoZMV.1tD8hI8nBM.Bgy4CDmLQI8_Dz_i7hDsGCYUud2jUunnNsZj.ryZJl_H7dxxtp0rCTeOtRKSrg;
-        path=/; expires=Thu, 24-Jul-25 16:10:34 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=o0dWTLRtBMoeAOJqL8RimIsW2oUAri1eYzpeqsj8tY0-1753373221-1.0.1.1-W7no4MsewYrOFCoMBFhqUHwmAIaxkDUrRD9TOoo6lkn5lbWvnzg5Khj3MZ.kkSA8qIxyD_deHSYbqa4QcxBMVnMugbBTRCVMJyLE2gSzgvs;
+        path=/; expires=Thu, 24-Jul-25 16:37:01 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=FH9Uft_rlA4Burzkcaw_vrlnKeG0NMNg4HhMGGJPqG8-1753371634371-0.0.1.1-604800000;
+      - _cfuvid=gZDlAbzrYTEVbNeqXe.yu1g1ulBIJMLkYnYWJGhQnWg-1753373221950-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 9644843c5eca9e3c-AMS
+      - 9644ab018af19717-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253f06480819fae22727a16fa7dbf0ba4c745ee15c502",
+          "id": "resp_68825a24299481a195599c293f17e7a8038fc505a39dd038",
           "object": "response",
-          "created_at": 1753371632,
+          "created_at": 1753373220,
           "status": "completed",
           "background": false,
           "error": null,
@@ -251,7 +251,7 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_688253f17950819fad072c6c4a0a8b9e0ba4c745ee15c502",
+              "id": "msg_68825a25c88481a18170f66314b9b839038fc505a39dd038",
               "type": "message",
               "status": "completed",
               "content": [
@@ -259,14 +259,14 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "The result of the calculation 15 * 23 + 47 is 392."
+                  "text": "The result is 392."
                 }
               ],
               "role": "assistant"
             }
           ],
           "parallel_tool_calls": true,
-          "previous_response_id": "resp_688253ee3058819f8624f84cd4e72a6c0ba4c745ee15c502",
+          "previous_response_id": "resp_68825a21741081a184a6e63825f6da3b038fc505a39dd038",
           "prompt_cache_key": null,
           "reasoning": {
             "effort": null,
@@ -311,14 +311,14 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 19,
+            "output_tokens": 8,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 139
+            "total_tokens": 128
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:34 GMT
+  recorded_at: Thu, 24 Jul 2025 16:07:01 GMT
 recorded_with: VCR 6.3.1

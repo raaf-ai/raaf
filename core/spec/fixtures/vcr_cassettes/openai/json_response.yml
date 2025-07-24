@@ -24,7 +24,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:41:21 GMT
+      - Thu, 24 Jul 2025 16:01:20 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -36,13 +36,13 @@ http_interactions:
       Openai-Organization:
       - user-idizs1jhrfthcfbqdipeztfe
       Openai-Processing-Ms:
-      - '784'
+      - '835'
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       Openai-Version:
       - '2020-10-01'
       X-Envoy-Upstream-Service-Time:
-      - '802'
+      - '840'
       X-Ratelimit-Limit-Requests:
       - '5000'
       X-Ratelimit-Limit-Tokens:
@@ -56,39 +56,39 @@ http_interactions:
       X-Ratelimit-Reset-Tokens:
       - 0s
       X-Request-Id:
-      - req_0739d97d843e3a73b0c1ab4e86b7e305
+      - req_d27aae3e317ac61a1463c396af367bf8
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=6qwm_amYxinRoRUmUl5VZl.I8MxZ.n.9USI5u2xJBPQ-1753371681-1.0.1.1-t5dt.5mag15zUFcnTqHS10_M3AQXt795s5HRlcw9dm9O03jYuV6DsLeaeFbV1Q3vcB04L5VFPtj386Is6xLbXsH34K.yb0NaAVVkv3U5qf8;
-        path=/; expires=Thu, 24-Jul-25 16:11:21 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=WxujRRhWMLFYzAJCy1vVeFpDaWDQEvGuguLdFsK96w8-1753372880-1.0.1.1-.kGutpPiR5gYHzwQm2N5qLXQbRGiGyfgSO085xG5dQ1WFGxOv13sUYHAAATq6budukeEaKewsp6hAKpckPyjr4mXXLA6de_WUAgd9F5sBz0;
+        path=/; expires=Thu, 24-Jul-25 16:31:20 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=fFRYBZljcWGzPvu6hjakgX99W6ZssMfRD8BxCFscYbw-1753371681091-0.0.1.1-604800000;
+      - _cfuvid=oAOmNbf8B_j4Gnh0Q7TYRHkNAW4sifz3xE4R1LZ8Afc-1753372880047-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964485689f12f5d1-AMS
+      - 9644a2add9ca6563-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |
         {
-          "id": "chatcmpl-BwsMK8fBlwrpfRblcLFfXdaS7ZpHD",
+          "id": "chatcmpl-Bwsff3cu6r5I9AiBCOCglmJANrhJP",
           "object": "chat.completion",
-          "created": 1753371680,
+          "created": 1753372879,
           "model": "gpt-4o-mini-2024-07-18",
           "choices": [
             {
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "{\n  \"name\": \"Alice Johnson\",\n  \"age\": 28\n}",
+                "content": "{\n  \"name\": \"Alice Johnson\",\n  \"age\": 29\n}",
                 "refusal": null,
                 "annotations": []
               },
@@ -114,5 +114,5 @@ http_interactions:
           "service_tier": "default",
           "system_fingerprint": null
         }
-  recorded_at: Thu, 24 Jul 2025 15:41:20 GMT
+  recorded_at: Thu, 24 Jul 2025 16:01:20 GMT
 recorded_with: VCR 6.3.1

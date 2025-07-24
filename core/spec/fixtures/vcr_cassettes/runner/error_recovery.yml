@@ -30,7 +30,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:09 GMT
+      - Thu, 24 Jul 2025 16:07:04 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -56,34 +56,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_5af4e6cfd48dbc70705f5c0156ee8651
+      - req_108c9ec8d7875bc4b286e55bcfdbc4f7
       Openai-Processing-Ms:
-      - '1590'
+      - '2406'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=xynTKx4CGZieeUL46PlOH6kXQBXYujXicnwNGJHwj4Q-1753371609-1.0.1.1-DJ2QJaH9h1EgvkzcLsK5ibuni0M_MsLqkFytUq0LMCqgcxWHPGg4TjfiVAMZapy.eYrDF3WZL4WHb4FwRvdT__r5fY2PzZWOvWdW4aZj8wk;
-        path=/; expires=Thu, 24-Jul-25 16:10:09 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=H905tzUeZixCAzQByXLcmfcb7IXsOJ7WU_1bfD3pMuU-1753373224-1.0.1.1-SR5GyhcGCRW91e47N2Z6VKRzeBCMUJkPFciRv0tT5ANO6pbkGcotaMgZDbVXz53EPkdfEWAbEVY0EuU9XgkWYY3LGC5ULEpRDdlz50C8Dcg;
+        path=/; expires=Thu, 24-Jul-25 16:37:04 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=_tCi9bETFgoDj5_Tx4G7i_xfzUwtN28qOJ6Z9Fge6Sg-1753371609322-0.0.1.1-604800000;
+      - _cfuvid=fLoai9gZsWjWIaPWBnGXfRH6mA.cjrFY81Vty54DZLc-1753373224563-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964483a39fd0b1fb-AMS
+      - 9644ab0dcfccfece-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253d7b0b081a38645c270734270eb03273476f1c85574",
+          "id": "resp_68825a26201881a1b3f581a3eb88ea8b073783c23d6fb8bb",
           "object": "response",
-          "created_at": 1753371607,
+          "created_at": 1753373222,
           "status": "completed",
           "background": false,
           "error": null,
@@ -94,11 +94,11 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "fc_688253d8fcbc81a39810efc18a178db303273476f1c85574",
+              "id": "fc_68825a2834bc81a1a06ff7464be59c0f073783c23d6fb8bb",
               "type": "function_call",
               "status": "completed",
               "arguments": "{\n  \"action\": \"test\"\n}",
-              "call_id": "call_n92wRnVGUKaxqkXzgdPfbjDV",
+              "call_id": "call_KmpDdI3DhLcRrGj8fyD5fFrw",
               "name": "risky_operation"
             }
           ],
@@ -157,15 +157,15 @@ http_interactions:
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:09 GMT
+  recorded_at: Thu, 24 Jul 2025 16:07:04 GMT
 - request:
     method: post
     uri: https://api.openai.com/v1/responses
     body:
       encoding: UTF-8
       string: '{"model":"gpt-4","input":[{"role":"user","content":"Try the risky operation
-        with action ''test''"},{"type":"function_call_output","call_id":"call_n92wRnVGUKaxqkXzgdPfbjDV","output":"Success:
-        test"}],"previous_response_id":"resp_688253d7b0b081a38645c270734270eb03273476f1c85574","instructions":"Name:
+        with action ''test''"},{"type":"function_call_output","call_id":"call_KmpDdI3DhLcRrGj8fyD5fFrw","output":"Success:
+        test"}],"previous_response_id":"resp_68825a26201881a1b3f581a3eb88ea8b073783c23d6fb8bb","instructions":"Name:
         Assistant\nInstructions: You are helpful\n\nAvailable tools:\n- risky_operation:
         Perform an operation that might fail","tools":[{"type":"function","name":"risky_operation","description":"Perform
         an operation that might fail","parameters":{"type":"object","properties":{"action":{"type":"string","description":"action
@@ -189,7 +189,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:11 GMT
+      - Thu, 24 Jul 2025 16:07:06 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -215,34 +215,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_f03fc5c0b151a785d29be3cce219d86b
+      - req_765001cdfa07ca20311c56a3ef8c6717
       Openai-Processing-Ms:
-      - '1579'
+      - '1615'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=J2xypOzPNeNBgszhBMlOoO7nZa2K3iwNVbCFEZDBMdw-1753371611-1.0.1.1-F6G1U_o1bSyk6c5QcLqHekA2I5z2.FHWwVRrKChhPfEdPuGWmORXC09iI_Od5_M1c6CpN6eGXwoSM_df3XphPN7PcaGHOKr.3SkgVDKyXpk;
-        path=/; expires=Thu, 24-Jul-25 16:10:11 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=xIi2djx3VWUaS9D.74xTWx0bMaXFNQgcwPtp0x2u.Zs-1753373226-1.0.1.1-P7p9WPYY5ox6bFH_yfmMJtPRgyh1yav5FwvRXvM.JCjAB7lBuAVkqZ0ykgf0jMGM1.YqlZKZXkCBB2kWA_tNs9b.O3R0StG7q2BfBTvrV7I;
+        path=/; expires=Thu, 24-Jul-25 16:37:06 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=.4HKzGbGUAdrKLhhDQbuwJWy2JAhXOqqcCeD1AM_Be4-1753371611038-0.0.1.1-604800000;
+      - _cfuvid=dmnydnypsTdixNrhmjyzuyIwrH_5h.N3V0TlBg82chg-1753373226330-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964483ae6c109085-AMS
+      - 9644ab1db9c69718-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253d969a481a38a724bb2db6d680f03273476f1c85574",
+          "id": "resp_68825a28ac3c81a194b9ce14e654840b073783c23d6fb8bb",
           "object": "response",
-          "created_at": 1753371609,
+          "created_at": 1753373224,
           "status": "completed",
           "background": false,
           "error": null,
@@ -253,7 +253,7 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "msg_688253dab8d481a3b7d36000fe54d3f903273476f1c85574",
+              "id": "msg_68825a29be6481a1a1f94ea79d89423b073783c23d6fb8bb",
               "type": "message",
               "status": "completed",
               "content": [
@@ -261,14 +261,14 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "The risky operation with action 'test' was successful."
+                  "text": "The risky operation completed successfully with the action 'test'."
                 }
               ],
               "role": "assistant"
             }
           ],
           "parallel_tool_calls": true,
-          "previous_response_id": "resp_688253d7b0b081a38645c270734270eb03273476f1c85574",
+          "previous_response_id": "resp_68825a26201881a1b3f581a3eb88ea8b073783c23d6fb8bb",
           "prompt_cache_key": null,
           "reasoning": {
             "effort": null,
@@ -322,5 +322,5 @@ http_interactions:
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:10 GMT
+  recorded_at: Thu, 24 Jul 2025 16:07:06 GMT
 recorded_with: VCR 6.3.1

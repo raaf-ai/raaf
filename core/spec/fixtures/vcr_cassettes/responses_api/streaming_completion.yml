@@ -28,7 +28,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:05 GMT
+      - Thu, 24 Jul 2025 16:07:09 GMT
       Content-Type:
       - text/event-stream; charset=utf-8
       Transfer-Encoding:
@@ -42,96 +42,117 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_54a487bd186e19ebb8c2587c88b9d4ba
+      - req_b928536de1302e227c21e0ee4eaa72d4
       Openai-Processing-Ms:
-      - '23'
+      - '20'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=O9z4F5up8SvdON9j0bf_.crlIFZVolryRyEGyIXLkIM-1753371605-1.0.1.1-CV.4cBDFI2Lma_54DDxsP5N3ePe5kmMLPJJE2A_D2k5R7PUmpwUzj9v4PyB0LFzQ9MXY9SLDXXUgxtLL8MQNhvrQ0Da2X42xK6ygGhZunQo;
-        path=/; expires=Thu, 24-Jul-25 16:10:05 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=4Sd70FAGDz5ZOcECJunmSScFCRcXmLidlzsVIjLvFKk-1753373229-1.0.1.1-wlUmmvSbfaVjFAIsGUt4Pctt_zIbXrvojffPHUaUFcxMerXe6gy9T_zHk8c3l15yvJgHO.MvdKq.v5aX9Jh9rEX6ZdiK.._k.82Dgk22rLM;
+        path=/; expires=Thu, 24-Jul-25 16:37:09 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=kctivZn4o7UrxfwO4j92shM8qd5ZeE5LIJl3swOcOmk-1753371605620-0.0.1.1-604800000;
+      - _cfuvid=A3zCJ9WpGT1mr04XNsJa1XsbQjtUQLFBGEQev3nymbc-1753373229237-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964483961e7d9713-AMS
+      - 9644ab39bec3bccf-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: UTF-8
       string: |+
         event: response.created
-        data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_688253d58d6c819da08e88d68cc193e10ec4a2a02efbd9bb","object":"response","created_at":1753371605,"status":"in_progress","background":false,"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":null,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":null,"user":null,"metadata":{}}}
+        data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_68825a2d2ba0819ebf3d87cf211371fd008833c24fd06e48","object":"response","created_at":1753373229,"status":"in_progress","background":false,"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":null,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":null,"user":null,"metadata":{}}}
 
         event: response.in_progress
-        data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_688253d58d6c819da08e88d68cc193e10ec4a2a02efbd9bb","object":"response","created_at":1753371605,"status":"in_progress","background":false,"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":null,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":null,"user":null,"metadata":{}}}
+        data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_68825a2d2ba0819ebf3d87cf211371fd008833c24fd06e48","object":"response","created_at":1753373229,"status":"in_progress","background":false,"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":null,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":null,"user":null,"metadata":{}}}
 
         event: response.output_item.added
-        data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","type":"message","status":"in_progress","content":[],"role":"assistant"}}
+        data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","type":"message","status":"in_progress","content":[],"role":"assistant"}}
 
         event: response.content_part.added
-        data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"part":{"type":"output_text","annotations":[],"logprobs":[],"text":""}}
+        data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"part":{"type":"output_text","annotations":[],"logprobs":[],"text":""}}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":"1","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":"Sure","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":5,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":",","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":5,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":"!","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":6,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":6,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" Here","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":7,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":"2","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":7,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" you","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":8,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":",","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":8,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" go","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":9,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":9,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":":","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":10,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":"3","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":10,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":11,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":",","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":11,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":"1","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":12,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":12,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":",","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":13,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":"4","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":13,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":14,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":",","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":14,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":"2","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":15,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":15,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":",","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":16,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":"5","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":16,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
 
         event: response.output_text.delta
-        data: {"type":"response.output_text.delta","sequence_number":17,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"delta":".","logprobs":[]}
+        data: {"type":"response.output_text.delta","sequence_number":17,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":"3","logprobs":[]}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":18,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":",","logprobs":[]}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":19,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":20,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":"4","logprobs":[]}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":21,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":",","logprobs":[]}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":22,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":" ","logprobs":[]}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":23,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":"5","logprobs":[]}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":24,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"delta":".","logprobs":[]}
 
         event: response.output_text.done
-        data: {"type":"response.output_text.done","sequence_number":18,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"text":"1, 2, 3, 4, 5.","logprobs":[]}
+        data: {"type":"response.output_text.done","sequence_number":25,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"text":"Sure! Here you go: 1, 2, 3, 4, 5.","logprobs":[]}
 
         event: response.content_part.done
-        data: {"type":"response.content_part.done","sequence_number":19,"item_id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","output_index":0,"content_index":0,"part":{"type":"output_text","annotations":[],"logprobs":[],"text":"1, 2, 3, 4, 5."}}
+        data: {"type":"response.content_part.done","sequence_number":26,"item_id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","output_index":0,"content_index":0,"part":{"type":"output_text","annotations":[],"logprobs":[],"text":"Sure! Here you go: 1, 2, 3, 4, 5."}}
 
         event: response.output_item.done
-        data: {"type":"response.output_item.done","sequence_number":20,"output_index":0,"item":{"id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":"1, 2, 3, 4, 5."}],"role":"assistant"}}
+        data: {"type":"response.output_item.done","sequence_number":27,"output_index":0,"item":{"id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":"Sure! Here you go: 1, 2, 3, 4, 5."}],"role":"assistant"}}
 
         event: response.completed
-        data: {"type":"response.completed","sequence_number":21,"response":{"id":"resp_688253d58d6c819da08e88d68cc193e10ec4a2a02efbd9bb","object":"response","created_at":1753371605,"status":"completed","background":false,"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":null,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[{"id":"msg_688253d5c550819d8048741d9f9ca9700ec4a2a02efbd9bb","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":"1, 2, 3, 4, 5."}],"role":"assistant"}],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"default","store":true,"temperature":1.0,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":{"input_tokens":14,"input_tokens_details":{"cached_tokens":0},"output_tokens":15,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":29},"user":null,"metadata":{}}}
+        data: {"type":"response.completed","sequence_number":28,"response":{"id":"resp_68825a2d2ba0819ebf3d87cf211371fd008833c24fd06e48","object":"response","created_at":1753373229,"status":"completed","background":false,"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":null,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[{"id":"msg_68825a2d75e4819ea548622126d63665008833c24fd06e48","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":"Sure! Here you go: 1, 2, 3, 4, 5."}],"role":"assistant"}],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"default","store":true,"temperature":1.0,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":{"input_tokens":14,"input_tokens_details":{"cached_tokens":0},"output_tokens":22,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":36},"user":null,"metadata":{}}}
 
-  recorded_at: Thu, 24 Jul 2025 15:40:05 GMT
+  recorded_at: Thu, 24 Jul 2025 16:07:09 GMT
 recorded_with: VCR 6.3.1
 ...

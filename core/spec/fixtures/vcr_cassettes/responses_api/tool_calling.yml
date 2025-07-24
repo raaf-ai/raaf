@@ -28,7 +28,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:06 GMT
+      - Thu, 24 Jul 2025 16:07:08 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -54,34 +54,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_b685e8da32a313b6174c1aafebeaab2e
+      - req_89aad386645541b3ee11e70c8e8187b2
       Openai-Processing-Ms:
-      - '581'
+      - '641'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=_Efqll8fd3M.9QVnUo0boy9NYrqI3MnRfaSm53d823M-1753371606-1.0.1.1-gafC096vQMVJtraDismhJ6v4kZLbSSMPV9fDqYCFcRxJbRgDQKeIsG6yebcHEZ.u1vgzykvOqNs20gvq3i2UigRVxXPHpvseEk1MWEGXa4o;
-        path=/; expires=Thu, 24-Jul-25 16:10:06 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=qrI6WzRfzkSsYudjqfxfVYy.GdKETRfwAqtfxF4Of2E-1753373228-1.0.1.1-q7KOfR5b11FnMfbYKFUnlQroOIXJ1qKh2l_0F5YIWNIeh9gBn8gHprPw0AedOe7W0nwvB2IocZ5kFg7LzfvRTT0xJ5cgDPs1roVdPPKtrgg;
+        path=/; expires=Thu, 24-Jul-25 16:37:08 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=ABxAsASMg3XM7sz0X4dXdrzsgf7ddRNMfWA8gSOCopE-1753371606844-0.0.1.1-604800000;
+      - _cfuvid=.hFDmM7WuEIg8o3kJz_rJjMOkGSYrEARuwNc6nfQ.E4-1753373228936-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 9644839a6f59fea7-AMS
+      - 9644ab3419509fa5-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253d6385c81a0a260c2b570c5c4730b7a11111d28a6ee",
+          "id": "resp_68825a2c401081a2ba2053bd0ac7f99700c49b794c35155c",
           "object": "response",
-          "created_at": 1753371606,
+          "created_at": 1753373228,
           "status": "completed",
           "background": false,
           "error": null,
@@ -92,11 +92,11 @@ http_interactions:
           "model": "gpt-4o-mini-2024-07-18",
           "output": [
             {
-              "id": "fc_688253d6b5ec81a0ae653692ff20dab30b7a11111d28a6ee",
+              "id": "fc_68825a2cc43081a2a855b5cd05673fbc00c49b794c35155c",
               "type": "function_call",
               "status": "completed",
               "arguments": "{}",
-              "call_id": "call_VQLUR2ZbDRXz6fZSAAnPCVkH",
+              "call_id": "call_xeAw5S2aLunfy08KIVvGpfcz",
               "name": "get_weather"
             }
           ],
@@ -146,5 +146,5 @@ http_interactions:
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:06 GMT
+  recorded_at: Thu, 24 Jul 2025 16:07:08 GMT
 recorded_with: VCR 6.3.1

@@ -44,7 +44,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:43 GMT
+      - Thu, 24 Jul 2025 16:06:29 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -70,34 +70,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_8ee140abfc64b55320b4119e734f7aeb
+      - req_4051fa7d75b9d183fbc2aa479f1f7057
       Openai-Processing-Ms:
-      - '8456'
+      - '5553'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=JNsH_1T3O9RxZ0vbCAKgS5.2uo6UXR0DZKWuFHaAFvw-1753371643-1.0.1.1-wqaZjdxeodubqFItQ.CIL_erJx.FaUx9yWsybhDUklbEyuw0rWcDDGJIldunN_zcPYeoboOm3u3T2X1vY4jMR4ucyTaGmd.R9CsbINqNnvQ;
-        path=/; expires=Thu, 24-Jul-25 16:10:43 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=532sV1Hlacz42ffob.FlsR6VhOlw6iy0TFtGvjRmisI-1753373189-1.0.1.1-U1Mo0NHTbwCYiimo2YeTZRoNEHcS2Tbq6Z0OJP7vbMacRiG1D.6ttslaIpyK8godnaBmDoF1sSvEdPhW9ZLUO4E_bXpAEQp7_EKwK8aRuAw;
+        path=/; expires=Thu, 24-Jul-25 16:36:29 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=DjpQcsPG2iLNoeAzpM4eT3lLgi0EofNAw.FwW7qFcKs-1753371643088-0.0.1.1-604800000;
+      - _cfuvid=iUDqzPyBL7NWS.S_x1jb5LiL7kLpUCjJYvV0MU6BiiI-1753373189904-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 9644844baff39fb1-AMS
+      - 9644aa210bbcfba5-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253f298c481928663a7aaeac8bb4d0e6fec800e1ebadb",
+          "id": "resp_68825a004000819e9945c681abffabb10b695aec65d3e110",
           "object": "response",
-          "created_at": 1753371634,
+          "created_at": 1753373184,
           "status": "completed",
           "background": false,
           "error": null,
@@ -108,27 +108,27 @@ http_interactions:
           "model": "gpt-4-0613",
           "output": [
             {
-              "id": "fc_688253f536f881928431b063dcc2b6260e6fec800e1ebadb",
+              "id": "fc_68825a025548819ea82f93817d6439110b695aec65d3e110",
               "type": "function_call",
               "status": "completed",
-              "arguments": "{\n        \"input\": \"Research current AI trends\"\n      }",
-              "call_id": "call_bXfgA9XzesgrBxVWwrWLJHGB",
+              "arguments": "{\n        \"input\": \"current AI trends\"\n      }",
+              "call_id": "call_ibGDjE0K3lR483u5mIj4tL4T",
               "name": "transfer_to_researcher"
             },
             {
-              "id": "fc_688253f6ec2081928201ed6df699d5150e6fec800e1ebadb",
+              "id": "fc_68825a03a768819ebb2448d54651b8ab0b695aec65d3e110",
               "type": "function_call",
               "status": "completed",
-              "arguments": "{\n        \"input\": \"Analyze the impact of current AI trends on software development\"\n      }",
-              "call_id": "call_ZLQiFn21No2VvB2KGU4wzFnN",
+              "arguments": "{\n        \"input\": \"impact of current AI trends on software development\"\n      }",
+              "call_id": "call_QZD015rk9I2b9asQFKZTnJ1S",
               "name": "transfer_to_analyst"
             },
             {
-              "id": "fc_688253f93dec8192ba82c57863a9de9e0e6fec800e1ebadb",
+              "id": "fc_68825a04d3f0819ea1e8dbe51a64a53c0b695aec65d3e110",
               "type": "function_call",
               "status": "completed",
-              "arguments": "{\n        \"input\": \"Create a brief report on the current AI trends and their impact on software development\"\n      }",
-              "call_id": "call_7rsLtes9uYSO5gXpGTvToImm",
+              "arguments": "{\n        \"input\": \"brief report on current AI trends and their impact on software development\"\n      }",
+              "call_id": "call_WZEYyC0sod9jDzDfe0S0yuSI",
               "name": "transfer_to_reporter"
             }
           ],
@@ -216,16 +216,16 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 138,
+            "output_tokens": 129,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 471
+            "total_tokens": 462
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:42 GMT
+  recorded_at: Thu, 24 Jul 2025 16:06:29 GMT
 - request:
     method: post
     uri: https://api.openai.com/v1/responses
@@ -233,9 +233,9 @@ http_interactions:
       encoding: UTF-8
       string: '{"model":"gpt-4","input":[{"role":"user","content":"Research current
         AI trends, analyze their impact on software development, and create a brief
-        report"},{"type":"function_call_output","call_id":"call_ZLQiFn21No2VvB2KGU4wzFnN","output":"Multiple
-        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_7rsLtes9uYSO5gXpGTvToImm","output":"Multiple
-        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_bXfgA9XzesgrBxVWwrWLJHGB","output":"{\"assistant\":\"Researcher\"}"}],"previous_response_id":"resp_688253f298c481928663a7aaeac8bb4d0e6fec800e1ebadb","instructions":"Name:
+        report"},{"type":"function_call_output","call_id":"call_QZD015rk9I2b9asQFKZTnJ1S","output":"Multiple
+        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_WZEYyC0sod9jDzDfe0S0yuSI","output":"Multiple
+        handoffs detected, ignoring this one."},{"type":"function_call_output","call_id":"call_ibGDjE0K3lR483u5mIj4tL4T","output":"{\"assistant\":\"Researcher\"}"}],"previous_response_id":"resp_68825a004000819e9945c681abffabb10b695aec65d3e110","instructions":"Name:
         Researcher\nInstructions: # System context\nYou are part of a multi-agent
         system called the Agents SDK, designed to make agent coordination and execution
         easy. Agents uses two primary abstraction: **Agents** and **Handoffs**. An
@@ -265,15 +265,15 @@ http_interactions:
       - application/json
   response:
     status:
-      code: 500
-      message: Internal Server Error
+      code: 200
+      message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:53 GMT
+      - Thu, 24 Jul 2025 16:06:36 GMT
       Content-Type:
       - application/json
-      Content-Length:
-      - '353'
+      Transfer-Encoding:
+      - chunked
       Connection:
       - keep-alive
       X-Ratelimit-Limit-Requests:
@@ -283,11 +283,11 @@ http_interactions:
       X-Ratelimit-Remaining-Requests:
       - '4999'
       X-Ratelimit-Remaining-Tokens:
-      - '79359'
+      - '79366'
       X-Ratelimit-Reset-Requests:
       - 12ms
       X-Ratelimit-Reset-Tokens:
-      - 480ms
+      - 475ms
       Openai-Version:
       - '2020-10-01'
       Openai-Organization:
@@ -295,37 +295,155 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_aad87e324f81209b646da0024b0b17b2
+      - req_203e74fad2d65df9d2b34ae18889830f
       Openai-Processing-Ms:
-      - '10034'
+      - '6911'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=XgP2OOQiqv8AC7Eb_gaf3XKnAS2xKD4_v.P6R1oI4RM-1753371653-1.0.1.1-672ajEECZW7Cb1zshwdeD9oX3BQ.1sTF0stKqDoMXJ1CEZfyEu_AjvRVX57gyWH6_DKPUWHD1VzioB11i5D00Jc3LQEGeD3nw0ES0qeKWVE;
-        path=/; expires=Thu, 24-Jul-25 16:10:53 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=23126KTv0PRJVv.Uo7lnfWC29S7i1MCSbcbttCPzce4-1753373196-1.0.1.1-9dPUhtMbR1oCQTv7yh7CqFasNQgWCiMiqri.dJCAxEKx9zxikD.Rog.ejylwUxYRAVVuS4R5qK8mPkcMCP_GSGFTLK99hFlrLqBJNJCTF70;
+        path=/; expires=Thu, 24-Jul-25 16:36:36 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=VRqJDImVmPf8cC78Dc78fsJLOTYfv_Um1elMAeu2_k0-1753371653264-0.0.1.1-604800000;
+      - _cfuvid=ilPXZz97hYaL30FQBs7_m7MuNpw7FEZJmr.8ddKPZeo-1753373196969-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 96448481882795ab-AMS
+      - 9644aa450eb90ba4-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
-      encoding: UTF-8
+      encoding: ASCII-8BIT
       string: |-
         {
-          "error": {
-            "message": "An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_aad87e324f81209b646da0024b0b17b2 in your message.",
-            "type": "server_error",
-            "param": null,
-            "code": "server_error"
-          }
+          "id": "resp_68825a060be0819ea30f4090e594c86e0b695aec65d3e110",
+          "object": "response",
+          "created_at": 1753373190,
+          "status": "completed",
+          "background": false,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": "Name: Researcher\nInstructions: # System context\nYou are part of a multi-agent system called the Agents SDK, designed to make agent coordination and execution easy. Agents uses two primary abstraction: **Agents** and **Handoffs**. An agent encompasses instructions and tools and can hand off a conversation to another agent when appropriate. Handoffs are achieved by calling a handoff function, generally named `transfer_to_<agent_name>`. Transfers between agents are handled seamlessly in the background; do not mention or draw attention to these transfers in your conversation with the user.\n\nYou research information\n\nAvailable tools:\n- transfer_to_analyst: Handoff to the Analyst agent to handle the request.",
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4-0613",
+          "output": [
+            {
+              "id": "msg_68825a07a4f4819ea56dd351e8a45be20b695aec65d3e110",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "Sure, I will start with researching the current AI trends."
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "id": "fc_68825a092a90819e997c71edf6e9fcd20b695aec65d3e110",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"input\": \"current AI trends\"\n      }",
+              "call_id": "call_F48DFo8Gkb576ugZA8CpFRyx",
+              "name": "transfer_to_researcher"
+            },
+            {
+              "id": "fc_68825a0ad930819ea1b5a77b4d9a77a40b695aec65d3e110",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"input\": \"impact of current AI trends on software development\"\n      }",
+              "call_id": "call_7sFqhCSX9FuGwEr9ZZZ1ZSAC",
+              "name": "transfer_to_analyst"
+            },
+            {
+              "id": "fc_68825a0c3c38819e9d51671befb8efb40b695aec65d3e110",
+              "type": "function_call",
+              "status": "completed",
+              "arguments": "{\n        \"input\": \"brief report on current AI trends and their impact on software development\"\n      }",
+              "call_id": "call_GVoItcyAoC7ebOkjh3zrAzU5",
+              "name": "transfer_to_reporter"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "previous_response_id": "resp_68825a004000819e9945c681abffabb10b695aec65d3e110",
+          "prompt_cache_key": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1.0,
+          "text": {
+            "format": {
+              "type": "text"
+            }
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "type": "function",
+              "description": "Handoff to the Analyst agent to handle the request.",
+              "name": "transfer_to_analyst",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the Analyst agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            },
+            {
+              "type": "function",
+              "description": "Handoff to the Reporter agent to handle the request.",
+              "name": "transfer_to_reporter",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Input text to send to the Reporter agent"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1.0,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 412,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 143,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 555
+          },
+          "user": null,
+          "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:53 GMT
+  recorded_at: Thu, 24 Jul 2025 16:06:36 GMT
 recorded_with: VCR 6.3.1

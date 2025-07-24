@@ -25,7 +25,7 @@ http_interactions:
       message: OK
     headers:
       Date:
-      - Thu, 24 Jul 2025 15:40:01 GMT
+      - Thu, 24 Jul 2025 16:07:13 GMT
       Content-Type:
       - application/json
       Transfer-Encoding:
@@ -51,34 +51,34 @@ http_interactions:
       Openai-Project:
       - proj_EQ0MM69HOfMRGCvSGPjdnO8V
       X-Request-Id:
-      - req_27b88f99f1141be265e4cd60f1e732fc
+      - req_49bddb8ec78848c937d3663b4b8c4381
       Openai-Processing-Ms:
-      - '993'
+      - '1035'
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       Cf-Cache-Status:
       - DYNAMIC
       Set-Cookie:
-      - __cf_bm=JYyfbXc4TucBRzGzVTm3RdCNyes8YamXrpR8iy4b3Cc-1753371601-1.0.1.1-cb8OE8C1X9MN7.tBIKKGwDM7EbXrSfDveFTea3yIPgmM9cH1EX_f7088xc6CBo81MjO9x.jS2MmaipV0vlr0fAZX.rkjjjC5rU90zPd9whs;
-        path=/; expires=Thu, 24-Jul-25 16:10:01 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=MJsHtQDVhQq2z4JHtuOwJIgdx.72NtCBZX3ajS388b0-1753373233-1.0.1.1-PpHG3KojFCjdlgZoQRlXWA9eI2trzr8Kgzpo85xxdUNxGJpUP9vEJBOfMgzd21ZV1vPFCTtsfJV9IXahlnS6GapOAWVvBRy.fQjW.IctAYY;
+        path=/; expires=Thu, 24-Jul-25 16:37:13 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=mF6FpM48z__nYeK7vItZabXvcZ_y9IpSWPBk4R4SXwY-1753371601470-0.0.1.1-604800000;
+      - _cfuvid=JqwQ2ixpW1s_LAnS_LXDjapgcvisdjItsGfDL_Jdlrc-1753373233396-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       Server:
       - cloudflare
       Cf-Ray:
-      - 964483764802fffb-AMS
+      - 9644ab4d8cb6a419-AMS
       Alt-Svc:
       - h3=":443"; ma=86400
     body:
       encoding: ASCII-8BIT
       string: |-
         {
-          "id": "resp_688253d06e1c819da488c81074b40b1206856c6699a5591d",
+          "id": "resp_68825a3050cc819e865ed8535a4ac27109ce6f90cb143138",
           "object": "response",
-          "created_at": 1753371600,
+          "created_at": 1753373232,
           "status": "completed",
           "background": false,
           "error": null,
@@ -89,7 +89,7 @@ http_interactions:
           "model": "gpt-4o-mini-2024-07-18",
           "output": [
             {
-              "id": "msg_688253d0c58c819daadff3adc9dfd9f606856c6699a5591d",
+              "id": "msg_68825a30ccac819eac340836aa93212809ce6f90cb143138",
               "type": "message",
               "status": "completed",
               "content": [
@@ -97,7 +97,7 @@ http_interactions:
                   "type": "output_text",
                   "annotations": [],
                   "logprobs": [],
-                  "text": "It seems like you haven't entered any text. How can I assist you today?"
+                  "text": "It seems like your message might have been empty. How can I assist you today?"
                 }
               ],
               "role": "assistant"
@@ -129,14 +129,14 @@ http_interactions:
             "input_tokens_details": {
               "cached_tokens": 0
             },
-            "output_tokens": 17,
+            "output_tokens": 18,
             "output_tokens_details": {
               "reasoning_tokens": 0
             },
-            "total_tokens": 24
+            "total_tokens": 25
           },
           "user": null,
           "metadata": {}
         }
-  recorded_at: Thu, 24 Jul 2025 15:40:01 GMT
+  recorded_at: Thu, 24 Jul 2025 16:07:13 GMT
 recorded_with: VCR 6.3.1

@@ -5,6 +5,7 @@ require "fileutils"
 require "json"
 require "timeout"
 require "open3"
+require "shellwords"
 
 # Core example validation script for RAAF Core gem
 class CoreExampleValidator
@@ -59,6 +60,14 @@ class CoreExampleValidator
       # Test mode - use dummy API key and mock responses
       test_mode: ENV.fetch("RAAF_TEST_MODE", "false") == "true",
 
+      # Examples that require real API calls (skip in test mode)
+      api_required_files: [
+        "basic_example.rb",
+        "handoff_objects_example.rb",
+        "message_flow_example.rb",
+        "structured_output_example.rb"
+      ],
+
       # Expected success patterns in output
       success_patterns: [
         /works!/i,
@@ -72,7 +81,8 @@ class CoreExampleValidator
         /test mode/i,
         /demo mode/i,
         /schema creation/i,
-        /configuration/i
+        /configuration/i,
+        /demonstrating schema creation/i
       ],
 
       # Acceptable failure patterns (missing deps, etc.)
@@ -159,7 +169,9 @@ class CoreExampleValidator
     end
 
     # Determine validation type
-    syntax_only = @config[:syntax_only_files].include?(filename)
+    # In test mode, API-required files get syntax validation only
+    syntax_only = @config[:syntax_only_files].include?(filename) ||
+                  (@config[:test_mode] && @config[:api_required_files].include?(filename))
 
     result = if syntax_only
                validate_syntax(file_path, filename)
@@ -191,25 +203,32 @@ class CoreExampleValidator
 
   def validate_syntax(file_path, filename)
     Timeout.timeout(10) do
+      # First check basic Ruby syntax
       _, stderr, status = Open3.capture3(
         "ruby -c #{filename}",
         chdir: File.dirname(file_path)
       )
 
-      if status.success?
-        {
-          status: :passed,
-          file: filename,
-          message: "Syntax check passed"
-        }
-      else
-        {
+      unless status.success?
+        return {
           status: :failed,
           file: filename,
           message: "Syntax errors found",
           error: stderr.strip
         }
       end
+
+      # For test mode, also validate constants are defined
+      if @config[:test_mode] && @config[:api_required_files].include?(filename)
+        validation_result = validate_constants(file_path, filename)
+        return validation_result unless validation_result[:status] == :passed
+      end
+
+      {
+        status: :passed,
+        file: filename,
+        message: "Syntax check passed#{" (constants validated)" if @config[:test_mode]}"
+      }
     end
   rescue Timeout::Error
     {
@@ -223,6 +242,87 @@ class CoreExampleValidator
       status: :failed,
       file: filename,
       message: "Syntax check failed",
+      error: e.message
+    }
+  end
+
+  def validate_constants(file_path, filename)
+    # Create a test script that loads the example and checks for NameErrors
+    test_script = <<~RUBY
+      begin
+        # Load RAAF core first
+        require_relative "../lib/raaf-core"
+      #{"  "}
+        # Set test mode environment
+        ENV["RAAF_TEST_MODE"] = "true"
+        ENV["OPENAI_API_KEY"] = "test-key"
+      #{"  "}
+        # Load the example file but catch NameErrors
+        begin
+          load "#{File.basename(file_path)}"
+        rescue SystemExit
+          # Examples may call exit, which is fine
+        rescue => e
+          if e.is_a?(NameError) && e.message.include?("uninitialized constant")
+            puts "CONSTANT_ERROR: \#{e.message}"
+            exit 1
+          elsif e.is_a?(RAAF::Models::AuthenticationError)
+            # This is expected in test mode
+            exit 0
+          else
+            # Re-raise other errors
+            raise
+          end
+        end
+      #{"  "}
+        puts "CONSTANTS_OK"
+      rescue => e
+        puts "LOAD_ERROR: \#{e.class}: \#{e.message}"
+        exit 2
+      end
+    RUBY
+
+    # Run the test script
+    stdout, stderr, status = Open3.capture3(
+      "bundle exec ruby -e #{test_script.shellescape}",
+      chdir: File.dirname(file_path)
+    )
+
+    combined_output = "#{stdout}\n#{stderr}".strip
+
+    if combined_output.include?("CONSTANT_ERROR:")
+      {
+        status: :failed,
+        file: filename,
+        message: "Undefined constants found",
+        error: combined_output.lines.grep(/CONSTANT_ERROR:/).first&.strip
+      }
+    elsif combined_output.include?("LOAD_ERROR:")
+      {
+        status: :failed,
+        file: filename,
+        message: "Failed to load example",
+        error: combined_output.lines.grep(/LOAD_ERROR:/).first&.strip
+      }
+    elsif status.success? || combined_output.include?("CONSTANTS_OK")
+      {
+        status: :passed,
+        file: filename,
+        message: "Constants validation passed"
+      }
+    else
+      {
+        status: :failed,
+        file: filename,
+        message: "Constant validation failed",
+        error: combined_output.lines.first(3).join.strip
+      }
+    end
+  rescue StandardError => e
+    {
+      status: :failed,
+      file: filename,
+      message: "Constant validation error",
       error: e.message
     }
   end
