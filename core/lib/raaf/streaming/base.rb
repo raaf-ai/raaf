@@ -41,7 +41,7 @@ module RAAF
       def with_concurrency_limit(limit, &)
         semaphore = ::Async::Semaphore.new(limit)
         Async do
-          semaphore.async(&)
+          semaphore.async(&).wait
         end
       end
 
@@ -57,7 +57,7 @@ module RAAF
 
       # Check if we're in an async context
       def in_async_context?
-        ::Async::Task.current?
+        !!::Async::Task.current?
       rescue StandardError
         false
       end
