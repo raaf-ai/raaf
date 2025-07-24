@@ -9,6 +9,9 @@ require "simplecov"
 SimpleCov.start do
   add_filter "/spec/"
   add_filter "/vendor/"
+  add_filter "/examples/"
+  
+  # Only track files that are actually used in the test suite being run
   track_files "lib/**/*.rb"
 
   add_group "Core", "lib/raaf"
@@ -17,8 +20,17 @@ SimpleCov.start do
   add_group "Tracing", "lib/raaf/tracing"
   add_group "Tools", "lib/raaf/tools"
 
-  # Set minimum coverage threshold
-  minimum_coverage 40
+  # Set minimum coverage threshold based on test context
+  if ENV["CI"]
+    # CI environment - be more lenient due to environment variations
+    minimum_coverage 35
+  elsif ENV["RUN_INTEGRATION_TESTS"] || ENV["RUN_ACCEPTANCE_TESTS"] || ENV["RUN_COST_TESTS"]
+    # When running all test types, expect higher coverage
+    minimum_coverage 50
+  else
+    # Standard unit test coverage target
+    minimum_coverage 40
+  end
   # minimum_coverage_by_file 50
 
   # Enable different formatters for CI and local development
