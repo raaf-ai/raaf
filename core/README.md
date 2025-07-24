@@ -1,20 +1,13 @@
 # RAAF Core
 
 [![Gem Version](https://badge.fury.io/rb/raaf-core.svg)](https://badge.fury.io/rb/raaf-core)
+[![Tests](https://github.com/raaf-ai/ruby-ai-agents-factory/actions/workflows/core-ci.yml/badge.svg)](https://github.com/raaf-ai/ruby-ai-agents-factory/actions/workflows/core-ci.yml)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.0-ruby.svg)](https://www.ruby-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Maintainability](https://api.codeclimate.com/v1/badges/[hash]/maintainability)](https://codeclimate.com/github/raaf-ai/ruby-ai-agents-factory/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/[hash]/test_coverage)](https://codeclimate.com/github/raaf-ai/ruby-ai-agents-factory/test_coverage)
 
-The **RAAF Core** gem provides the foundational components for the Ruby AI Agents Factory (RAAF) ecosystem. This gem contains the essential building blocks that all other RAAF gems depend on, including base classes, interfaces, utilities, and core abstractions.
-
-## Overview
-
-RAAF (Ruby AI Agents Factory) Core serves as the foundation layer for the entire Ruby AI Agents Factory mono-repo. It provides:
-
-- **Base Agent Classes** - Abstract base classes for all AI agents
-- **Core Interfaces** - Standard interfaces for providers, tools, and components
-- **Utility Classes** - Common utilities used across the ecosystem
-- **Configuration Management** - Base configuration handling
-- **Error Handling** - Standardized exception classes
-- **Type System** - Ruby type definitions and validation
+The **RAAF Core** gem provides the foundational agent implementation and execution engine for the Ruby AI Agents Factory (RAAF). This is the core gem that enables creating and running AI agents with multi-agent handoffs, tool integration, and structured output capabilities.
 
 ## Installation
 
@@ -41,7 +34,7 @@ gem install raaf-core
 ```ruby
 require 'raaf-core'
 
-# Create an agent
+# Create an agent with default ResponsesProvider
 agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant",
@@ -63,15 +56,14 @@ The main class for creating AI agents with specific instructions and capabilitie
 
 ```ruby
 agent = RAAF::Agent.new(
-  name: "Customer Support",
+  name: "CustomerSupport",
   instructions: "You help customers with their questions",
-  model: "gpt-4o",
-  max_turns: 10
+  model: "gpt-4o"
 )
 ```
 
 ### Runner  
-The execution engine that handles agent conversations, tool calls, and response processing.
+The execution engine that handles agent conversations, tool calls, and multi-agent handoffs.
 
 ```ruby
 runner = RAAF::Runner.new(agent: agent)
@@ -82,129 +74,220 @@ result = runner.run("What services do you offer?")
 Framework for integrating custom tools and functions into agents.
 
 ```ruby
-def get_weather(city)
+def get_weather(city:)
   "The weather in #{city} is sunny and 22°C"
 end
 
 agent.add_tool(method(:get_weather))
 ```
 
-### Default Providers
-RAAF Core includes two OpenAI providers:
-
-- **ResponsesProvider** (default) - Modern OpenAI Responses API
-- **OpenAIProvider** - Legacy Chat Completions API
+### Built-in Retry Logic
+All providers inherit robust retry logic from ModelInterface with exponential backoff.
 
 ```ruby
-# Using default ResponsesProvider
+# Retry is built-in - no wrapper needed
+agent = RAAF::Agent.new(name: "Assistant", model: "gpt-4o")
 runner = RAAF::Runner.new(agent: agent)
 
-# Using legacy OpenAIProvider explicitly
+# Customize retry behavior
+provider = RAAF::Models::ResponsesProvider.new
+provider.configure_retry(max_attempts: 5, base_delay: 2.0, max_delay: 60.0)
+runner = RAAF::Runner.new(agent: agent, provider: provider)
+```
+
+### Default Providers
+RAAF Core includes OpenAI providers with built-in retry:
+
+- **ResponsesProvider** (default) - Modern OpenAI Responses API with retry
+- **OpenAIProvider** (deprecated) - Legacy Chat Completions API
+
+```ruby
+# Using default ResponsesProvider (recommended)
+runner = RAAF::Runner.new(agent: agent)
+
+# Using legacy OpenAIProvider (deprecated)
 runner = RAAF::Runner.new(
   agent: agent,
   provider: RAAF::Models::OpenAIProvider.new
 )
 ```
 
+## Multi-Agent Handoffs
+
+Create specialized agents that can hand off conversations to each other:
+
+```ruby
+# Create specialized agents
+research_agent = RAAF::Agent.new(
+  name: "Researcher",
+  instructions: "Research topics thoroughly",
+  model: "gpt-4o"
+)
+
+writer_agent = RAAF::Agent.new(
+  name: "Writer",
+  instructions: "Write compelling content", 
+  model: "gpt-4o"
+)
+
+# Enable handoffs between agents
+research_agent.add_handoff(writer_agent)
+
+# Run with multiple agents
+runner = RAAF::Runner.new(
+  agent: research_agent,
+  agents: [research_agent, writer_agent]
+)
+
+result = runner.run("Research and write about Ruby programming")
+```
+
+## Structured Output
+
+Define and validate structured responses using JSON schemas:
+
+```ruby
+# Define a schema
+schema = RAAF::StructuredOutput::ObjectSchema.build do
+  string :name, required: true
+  number :price, minimum: 0
+  array :features, items: { type: "string" }
+  boolean :in_stock, required: true
+end
+
+# Use with agent (requires API key)
+agent = RAAF::Agent.new(
+  name: "ProductAgent",
+  instructions: "Generate product information",
+  model: "gpt-4o"
+)
+
+# Schema validation happens automatically
+result = runner.run("Create product info for iPhone", schema: schema)
+```
+
 ## Configuration
 
-Set your OpenAI API key:
+### Environment Variables
 
 ```bash
 export OPENAI_API_KEY="your-openai-api-key"
+export RAAF_LOG_LEVEL="info"
+export RAAF_DEBUG_CATEGORIES="api,tracing"
 ```
 
-## Relationship with Other Gems
-
-### Direct Dependencies
-
-RAAF Core is the foundation that **all other gems** depend on:
-
-- **raaf-logging** - Extends core logging capabilities
-- **raaf-configuration** - Builds on core config management
-- **raaf-providers** - Implements provider interfaces
-- **raaf-dsl** - Uses core agent classes for DSL
-- **raaf-tools-basic** - Extends core tool system
-- **raaf-tools-advanced** - Advanced tools using core interfaces
-
-### Core Abstractions Used By
-
-- **raaf-tracing** - Uses core agent lifecycle hooks
-- **raaf-memory** - Implements memory interfaces defined in core
-- **raaf-rails** - Integrates core agents with Rails
-- **raaf-guardrails** - Validates using core validation system
-- **raaf-testing** - Tests core agent functionality
-- **raaf-streaming** - Extends core response handling
-
-### Enterprise Integration
-
-- **raaf-compliance** - Uses core audit interfaces
-- **raaf-security** - Implements core security abstractions
-- **raaf-monitoring** - Monitors core agent metrics
-- **raaf-analytics** - Analyzes core agent performance
-- **raaf-deployment** - Deploys core agent systems
-
-## Architecture
-
-### Core Classes
-
-```
-RAAF::Core::
-├── Agent                    # Base agent class
-├── Provider                 # LLM provider interface
-├── Tool                     # Agent tool interface
-├── Message                  # Message handling
-├── Response                 # Response objects
-├── Configuration            # Configuration management
-├── Logger                   # Logging interface
-├── Error                    # Exception hierarchy
-└── Utils                    # Common utilities
-```
-
-### Extension Points
-
-The core gem provides several extension points:
-
-1. **Agent Lifecycle Hooks** - Before/after execution callbacks
-2. **Provider Interface** - Custom LLM provider implementations
-3. **Tool Interface** - Custom agent tools
-4. **Middleware System** - Request/response processing
-5. **Configuration Extensions** - Custom configuration options
-
-## Advanced Features
-
-### Middleware System
+### Production Configuration
 
 ```ruby
-# Custom middleware for request processing
-class LoggingMiddleware < RAAF::Core::Middleware
-  def call(request, response)
-    logger.info "Processing: #{request.input}"
-    yield
-    logger.info "Response: #{response.content}"
+# Create a configuration management system
+class ProductionConfig
+  def openai_api_key
+    ENV.fetch('OPENAI_API_KEY')
+  end
+  
+  def retry_max_attempts
+    ENV.fetch('RETRY_MAX_ATTEMPTS', '5').to_i
   end
 end
 
-agent.use(LoggingMiddleware)
+config = ProductionConfig.new
+
+# Configure provider
+provider = RAAF::Models::ResponsesProvider.new(api_key: config.openai_api_key)
+provider.configure_retry(max_attempts: config.retry_max_attempts)
+
+agent = RAAF::Agent.new(name: "Production", model: "gpt-4o")
+runner = RAAF::Runner.new(agent: agent, provider: provider)
 ```
 
-### Plugin Architecture
+## Architecture
 
-```ruby
-# Register custom plugins
-RAAF::Core::PluginManager.register(:custom_feature) do |agent|
-  agent.extend(CustomFeature)
-end
+### Key Classes
+
+- **`RAAF::Agent`** - Main agent class with tools and handoffs
+- **`RAAF::Runner`** - Execution engine (uses ResponsesProvider by default)
+- **`RAAF::Models::ModelInterface`** - Base class with built-in retry logic
+- **`RAAF::Models::ResponsesProvider`** - Modern OpenAI Responses API with retry
+- **`RAAF::FunctionTool`** - Tool wrapper for Ruby methods
+- **`RAAF::StructuredOutput`** - JSON schema validation system
+
+### Provider Architecture
+
+All providers inherit from `ModelInterface` which provides:
+
+- ✅ **Built-in retry logic** with exponential backoff
+- ✅ **Automatic error handling** for common network issues  
+- ✅ **Responses API compatibility** for Python SDK parity
+- ✅ **Tool calling support** for multi-agent handoffs
+- ✅ **Configurable retry behavior**
+
+### Agent Lifecycle
+
+1. **Agent Creation** - Define name, instructions, model
+2. **Tool Registration** - Add custom functions via `add_tool`
+3. **Handoff Configuration** - Enable agent-to-agent transfers
+4. **Execution** - Runner orchestrates conversation flow
+5. **Response Processing** - Extract messages, handle tool calls
+
+## Examples
+
+See the `examples/` directory for comprehensive examples:
+
+- **`basic_example.rb`** - Simple agent setup and conversation
+- **`multi_agent_example.rb`** - Multi-agent collaboration with handoffs
+- **`structured_output_example.rb`** - JSON schema validation
+- **`configuration_example.rb`** - Production configuration patterns
+
+Run examples:
+
+```bash
+# Set API key
+export OPENAI_API_KEY="your-key"
+
+# Run examples
+ruby examples/basic_example.rb
+ruby examples/multi_agent_example.rb
 ```
 
 ## Development
 
-After checking out the repo, run:
+After checking out the repo:
 
 ```bash
 bundle install
 bundle exec rspec
 ```
+
+### Running Tests
+
+```bash
+# Run all tests
+bundle exec rspec
+
+# Run specific test categories  
+bundle exec rspec spec/models/
+bundle exec rspec --tag integration
+```
+
+### Validation
+
+Examples are automatically validated in CI:
+
+```bash
+# Validate all examples
+ruby scripts/validate_examples.rb
+
+# Test mode (no API key needed)
+RAAF_TEST_MODE=true ruby scripts/validate_examples.rb
+```
+
+## Documentation
+
+- **[LLM Compatibility](LLM_COMPATIBILITY_MATRIX.md)** - Supported models and provider information
+- **[Handoff Implementation](UNIVERSAL_HANDOFF_IMPLEMENTATION_PLAN.md)** - Technical details on agent handoffs
+- **[Unified Processing](UNIFIED_PROCESSING.md)** - Internal step processing system
+- **[CI Testing](CI_TESTING.md)** - Example validation and testing without API keys
+- **[Contributing](CONTRIBUTING.md)** - Guidelines for contributing to the project
 
 ## Contributing
 

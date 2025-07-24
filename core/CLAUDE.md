@@ -24,7 +24,8 @@ puts result.messages.last[:content]
 
 - **Agent** (`lib/raaf/agent.rb`) - Main agent class with tools and handoffs
 - **Runner** (`lib/raaf/runner.rb`) - Execution engine (uses ResponsesProvider by default)
-- **ResponsesProvider** (`lib/raaf/models/responses_provider.rb`) - **DEFAULT** - OpenAI Responses API
+- **ModelInterface** (`lib/raaf/models/interface.rb`) - Base class with built-in retry logic
+- **ResponsesProvider** (`lib/raaf/models/responses_provider.rb`) - **DEFAULT** - OpenAI Responses API with retry
 - **OpenAIProvider** (`lib/raaf/models/openai_provider.rb`) - **DEPRECATED** - Legacy Chat Completions API
 - **FunctionTool** (`lib/raaf/function_tool.rb`) - Tool wrapper for Ruby methods
 
@@ -46,6 +47,21 @@ writer_agent = RAAF::Agent.new(name: "Writer", instructions: "Write content")
 
 # Handoff between agents
 result = runner.run("Research and write about Ruby", agents: [research_agent, writer_agent])
+```
+
+### Built-in Retry Logic
+
+All providers inherit robust retry logic from ModelInterface with exponential backoff:
+
+```ruby
+# Retry is built-in - no wrapper needed
+agent = RAAF::Agent.new(name: "Assistant", model: "gpt-4o")
+runner = RAAF::Runner.new(agent: agent)  # Uses ResponsesProvider with built-in retry
+
+# Customize retry behavior
+provider = RAAF::Models::ResponsesProvider.new
+provider.configure_retry(max_attempts: 5, base_delay: 2.0, max_delay: 60.0)
+runner = RAAF::Runner.new(agent: agent, provider: provider)
 ```
 
 ### Flexible Agent Identification
