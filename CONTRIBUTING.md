@@ -7,6 +7,9 @@ Thank you for your interest in contributing to RAAF (Ruby AI Agents Factory)! Th
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
+- [Intellectual Property and Licensing](#intellectual-property-and-licensing)
+  - [License Grant](#license-grant)
+  - [Developer Certificate of Origin (DCO)](#developer-certificate-of-origin-dco)
 - [Contributing Guidelines](#contributing-guidelines)
 - [Pull Request Process](#pull-request-process)
 - [Issue Reporting](#issue-reporting)
@@ -92,6 +95,69 @@ ruby examples/complete_features_showcase.rb
 # Run specific examples
 ruby examples/basic_agent_example.rb
 ```
+
+## Intellectual Property and Licensing
+
+### License Grant
+
+By contributing to RAAF (Ruby AI Agents Factory), you agree to the following terms:
+
+**Your Grant to Enterprise Modules:**
+- You grant Enterprise Modules a perpetual, worldwide, royalty-free, non-exclusive license to use, copy, modify, distribute, and create derivative works from your contribution
+- You grant Enterprise Modules the right to sublicense your contribution under any terms, including proprietary licenses
+- You grant Enterprise Modules the right to relicense the entire project, including your contribution, under different license terms
+
+**Your Representations:**
+- You own the intellectual property rights in your contribution, or have received permission from the copyright owner
+- Your contribution does not violate any third-party intellectual property rights
+- You have the legal authority to make these grants
+- Your contribution is submitted under the project's current license (MIT)
+
+**Irrevocable Grant:**
+- This license grant is irrevocable and will survive any termination of your participation in the project
+- Enterprise Modules may continue to use your contribution even if you later disagree with project direction or licensing decisions
+
+By submitting a pull request, issue, or any other contribution, you acknowledge that you have read and agree to these terms.
+
+### Developer Certificate of Origin (DCO)
+
+In addition to the license grant above, all contributions must be signed with a Developer Certificate of Origin (DCO). This certifies that you have the right to submit the contribution under the project's license.
+
+**DCO Requirement:**
+All commits must include a `Signed-off-by` line with your real name and email address. This indicates that you agree to the DCO terms below.
+
+**How to Sign Your Commits:**
+```bash
+# Sign a single commit
+git commit -s -m "your commit message"
+
+# Sign all commits in your branch
+git rebase --signoff HEAD~<number-of-commits>
+```
+
+**Developer Certificate of Origin 1.1:**
+```
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified it.
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution is maintained
+    indefinitely and may be redistributed consistent with this project
+    or the open source license(s) involved.
+```
+
+**Note:** Pull requests with unsigned commits will not be accepted. If you forget to sign your commits, you can add the signature retroactively using `git commit --amend --signoff` for the last commit or `git rebase --signoff` for multiple commits.
 
 ## Contributing Guidelines
 
