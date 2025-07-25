@@ -654,11 +654,56 @@ end
 - Verify token usage and cost tracking
 - Test streaming responses with proper event handling
 
+## 🤝 Contributing
+
+We welcome contributions from developers of all experience levels! Here's how to get involved:
+
+### 🏷️ Find Work to Do
+
+- **[Good First Issues](https://github.com/raaf-ai/raaf/labels/good%20first%20issue)** - Perfect for newcomers
+- **[Help Wanted](https://github.com/raaf-ai/raaf/labels/help%20wanted)** - Issues where we need community help
+- **[Documentation](https://github.com/raaf-ai/raaf/labels/documentation)** - Help improve our guides
+- **[Bug Reports](https://github.com/raaf-ai/raaf/labels/bug)** - Fix issues and improve stability
+
+### 🔍 Browse by Component
+
+- **[Core](https://github.com/raaf-ai/raaf/labels/core)** - Agent execution and runners
+- **[Tools](https://github.com/raaf-ai/raaf/labels/tools)** - Web search, files, and custom tools
+- **[Providers](https://github.com/raaf-ai/raaf/labels/providers)** - AI provider integrations
+- **[Memory](https://github.com/raaf-ai/raaf/labels/memory)** - Context persistence and vector storage
+- **[Rails](https://github.com/raaf-ai/raaf/labels/rails)** - Rails integration and dashboard
+
+### 📋 Contribution Resources
+
+- **[Contributing Guide](CONTRIBUTING.md)** - Detailed contribution guidelines
+- **[Project Boards](https://github.com/raaf-ai/raaf/projects)** - Current roadmap and priorities
+- **[GitHub Discussions](https://github.com/raaf-ai/raaf/discussions)** - Ideas, questions, and collaboration
+
+### 🚀 Quick Contribution Steps
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Make** your changes with tests
+4. **Commit** with a descriptive message
+5. **Push** to your branch (`git push origin feature/amazing-feature`)
+6. **Open** a Pull Request
+
+### 💡 Contribution Ideas
+
+- **Add new tools** - Web scraping, databases, APIs
+- **Improve documentation** - Examples, guides, API docs
+- **Enhance testing** - Unit tests, integration tests, examples
+- **Provider integrations** - New AI providers and models
+- **Performance optimization** - Memory usage, speed improvements
+- **Security enhancements** - Guardrails, compliance features
+
+Every contribution makes RAAF better for the entire community!
+
 ## 🤝 Community & Support
 
 - **GitHub Issues** - Bug reports and feature requests
 - **Documentation** - Comprehensive guides and examples
-- **Contributing** - Join our growing community
+- **GitHub Discussions** - Community conversations and support
 
 ## 📄 License
 

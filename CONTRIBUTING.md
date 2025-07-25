@@ -6,6 +6,7 @@ Thank you for your interest in contributing to RAAF (Ruby AI Agents Factory)! Th
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
+- [How to Find Work](#how-to-find-work)
 - [Development Setup](#development-setup)
 - [Intellectual Property and Licensing](#intellectual-property-and-licensing)
   - [License Grant](#license-grant)
@@ -50,6 +51,65 @@ This project adheres to a code of conduct that we expect all contributors to fol
    ```bash
    git remote add upstream https://github.com/enterprisemodules/raaf.git
    ```
+
+## How to Find Work
+
+Looking for ways to contribute? Here are the best places to find work that needs to be done:
+
+### 🏷️ Browse Issues by Label
+
+- **[Good First Issues](https://github.com/raaf-ai/raaf/labels/good%20first%20issue)** - Perfect for newcomers to the project
+- **[Help Wanted](https://github.com/raaf-ai/raaf/labels/help%20wanted)** - Issues where we especially need community help
+- **[Documentation](https://github.com/raaf-ai/raaf/labels/documentation)** - Help improve our docs and guides
+- **[Bug](https://github.com/raaf-ai/raaf/labels/bug)** - Fix something that's not working correctly
+- **[Enhancement](https://github.com/raaf-ai/raaf/labels/enhancement)** - Add new features or improve existing ones
+
+### 🔍 Browse by Component
+
+Find work in areas that interest you:
+
+- **[Core](https://github.com/raaf-ai/raaf/labels/core)** - Agent execution, runners, and core functionality
+- **[Tools](https://github.com/raaf-ai/raaf/labels/tools)** - Web search, file operations, and custom tools
+- **[Providers](https://github.com/raaf-ai/raaf/labels/providers)** - OpenAI, Anthropic, and other AI provider integrations
+- **[Memory](https://github.com/raaf-ai/raaf/labels/memory)** - Context persistence and vector storage
+- **[Rails](https://github.com/raaf-ai/raaf/labels/rails)** - Rails integration and dashboard
+
+### 📋 Check Project Boards
+
+- **[Project Roadmap](https://github.com/raaf-ai/raaf/projects)** - See planned features and current priorities
+- **[Community Contributions](https://github.com/raaf-ai/raaf/projects)** - Track community-driven initiatives
+
+### 💬 Join Discussions
+
+- **[GitHub Discussions](https://github.com/raaf-ai/raaf/discussions)** - Share ideas, ask questions, and find collaboration opportunities
+- **[Ideas Category](https://github.com/raaf-ai/raaf/discussions/categories/ideas)** - Propose new features and improvements
+- **[Help Wanted Category](https://github.com/raaf-ai/raaf/discussions/categories/help-wanted)** - Find ongoing initiatives that need contributors
+
+### 🚀 Priority Levels
+
+Issues are tagged with priority to help you understand urgency:
+
+- **[High Priority](https://github.com/raaf-ai/raaf/labels/priority%3Ahigh)** - Critical issues and important features
+- **[Medium Priority](https://github.com/raaf-ai/raaf/labels/priority%3Amedium)** - Important but not urgent
+- **[Low Priority](https://github.com/raaf-ai/raaf/labels/priority%3Alow)** - Nice to have improvements
+
+### 🔬 Special Areas Needing Help
+
+- **[Needs Investigation](https://github.com/raaf-ai/raaf/labels/needs-investigation)** - Issues that need research or deep diving
+- **Testing** - Help expand our test coverage across the mono-repo
+- **Examples** - Create more examples showing RAAF capabilities
+- **Performance** - Help optimize performance and memory usage
+
+### 💡 Can't Find Something?
+
+If you don't see work that matches your interests or skills:
+
+1. **Browse all open issues** to get a feel for the project
+2. **Start a discussion** in our Ideas category with suggestions
+3. **Ask in Discussions** what areas need the most help
+4. **Review recent pull requests** to understand current work patterns
+
+Remember: Every contribution matters, whether it's code, documentation, testing, or ideas!
 
 ## Development Setup
 
