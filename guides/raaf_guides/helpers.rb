@@ -48,7 +48,7 @@ module RailsGuides
     end
 
     def canonical_url(path)
-      url = "https://guides.raaf.dev/"
+      url = "https://guides.raaf-ai.dev/"
       url += path unless path == "index.html"
       url
     end

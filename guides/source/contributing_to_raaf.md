@@ -47,6 +47,8 @@ This transparency about our development process is important because it helps se
 As mentioned in [RAAF's
 README](https://github.com/raaf-ai/raaf/blob/main/README.md), everyone interacting in RAAF and its sub-projects' codebases, issue trackers, chat rooms, discussion boards, and mailing lists is expected to follow the RAAF [code of conduct](https://github.com/raaf-ai/raaf/blob/main/CODE_OF_CONDUCT.md).
 
+Before contributing, please review our comprehensive [Contributing Guidelines](https://github.com/raaf-ai/raaf/blob/main/CONTRIBUTING.md) which includes important information about intellectual property licensing, contributor requirements, and the Developer Certificate of Origin (DCO).
+
 --------------------------------------------------------------------------------
 
 Reporting an Issue
@@ -355,7 +357,7 @@ Ruby VM might render certain optimizations unnecessary.)
 When optimizing for a specific scenario that you care about, it is easy to
 regress performance for other common cases.
 Therefore, you should test your change against a list of representative
-scenarios, ideally extracted from real-world production applications.
+scenarios, ideally based on realistic use cases.
 
 You can use the [benchmark template](https://github.com/raaf-ai/raaf/blob/main/guides/bug_report_templates/benchmark.rb)
 as a starting point. It includes the boilerplate code to set up a benchmark

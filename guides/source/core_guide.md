@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf.dev>.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf-ai.dev>.**
 
 RAAF Core Guide
 ===============
@@ -3704,7 +3704,7 @@ class ParallelCustomerAnalyzer
 end
 ```
 
-**Gotchas We Learned the Hard Way**:
+**Common Gotchas**:
 
 - Some tools have dependencies (fetch auth token → use token)
 - Database connection pools need sizing for parallel queries

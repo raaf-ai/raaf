@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf.dev>.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf-ai.dev>.**
 
 RAAF Best Practices Guide
 =========================
@@ -557,4 +557,4 @@ Following these best practices will help you build robust, secure, and maintaina
 6. **Optimize performance** and costs
 7. **Deploy with confidence** using proper configuration management
 
-These patterns have been proven in production environments and will serve as a solid foundation for your RAAF applications.
+These patterns follow established best practices and can serve as a solid foundation for your RAAF applications.

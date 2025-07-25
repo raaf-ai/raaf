@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf.dev>.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf-ai.dev>.**
 
 Ruby AI Agents Factory (RAAF) Overview
 ==========================================
@@ -32,7 +32,7 @@ Core Philosophy
 
 When we started building RAAF, we asked ourselves: "What if AI agents were as easy to build and deploy as Rails applications?" This question shaped everything that followed.
 
-Let's be honest—the AI development landscape is intimidating. You're dealing with rapidly evolving APIs, vendor lock-in fears, security concerns, and the pressure to ship something that actually works. We've been there. That's why RAAF exists.
+The AI development landscape presents many challenges: rapidly evolving APIs, vendor lock-in concerns, security requirements, and the complexity of building reliable systems. RAAF aims to address these challenges.
 
 RAAF is built on several key principles that address these real-world challenges:
 
@@ -40,7 +40,7 @@ RAAF is built on several key principles that address these real-world challenges
 
 Remember when you first learned Rails? You didn't need to understand every component on day one. RAAF works the same way.
 
-We've seen too many AI frameworks that force you to adopt their entire ecosystem from the start. That's backwards. You should be able to start with a simple agent and add capabilities as your needs grow. That's why RAAF provides a coherent set of loosely coupled gems:
+Many AI frameworks require adopting their entire ecosystem from the start. RAAF takes a different approach - you can start with a simple agent and add capabilities as your needs grow. RAAF provides a coherent set of loosely coupled gems:
 
 <!-- VALIDATION_FAILED: overview.md:46 -->
 WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
@@ -61,7 +61,7 @@ The modular approach also means faster deployments. A simple chatbot doesn't nee
 
 ### Provider Agnostic: Your Insurance Against the Future
 
-Here's a scenario that keeps CTOs up at night: You build your entire product on GPT-4, and then OpenAI doubles their prices. Or worse, they deprecate the model you're using. We've seen it happen.
+Consider this scenario: You build your entire product on GPT-4, and then OpenAI doubles their prices. Or worse, they deprecate the model you're using. This has happened before in the AI space.
 
 Provider lock-in isn't just a technical problem—it's a business risk. RAAF's provider abstraction isn't about being clever with interfaces. It's about protecting your investment. Write your agent logic once, and run it on any AI provider:
 
@@ -78,11 +78,11 @@ agent = RAAF::Agent.new(model: "bedrock/claude-3")
 
 Notice what's missing? No provider-specific configuration. No adapter classes. No factory patterns. Just change the model name and everything else stays the same. Your tools work. Your conversation history works. Your monitoring works.
 
-This design decision has saved our users millions in migration costs. When [Anthropic](https://www.anthropic.com) releases a new model that's better for your use case, switching takes minutes, not months. When you need to run sensitive operations on-premise, the same code works with local models. That's real flexibility.
+This design can potentially save significant migration costs. When [Anthropic](https://www.anthropic.com) releases a new model that's better for your use case, switching can take minutes, not months. When you need to run sensitive operations on-premise, the same code works with local models.
 
 ### Ruby Idiomatic: Because Context Switching Kills Productivity
 
-Most AI frameworks feel like they were designed by people who've never shipped production Ruby code. They force you to think in Python patterns, or worse, invent their own DSLs that feel alien to Rubyists.
+Many AI frameworks feel disconnected from Ruby development patterns. They often force you to think in Python patterns, or invent their own DSLs that feel unfamiliar to Rubyists.
 
 We believe your AI code should feel like Ruby code. Why? Because context switching between "AI mode" and "Ruby mode" slows you down. When everything feels familiar, you can focus on solving problems instead of translating concepts.
 
@@ -114,7 +114,7 @@ Here's what usually happens: You build a cool AI prototype. It demos well. Every
 
 Suddenly your neat little prototype needs a complete rewrite.
 
-We've lived through this cycle too many times. That's why RAAF includes production features from day one. Not as afterthoughts or plugins, but as first-class citizens in the framework.
+This cycle is common in AI development. That's why RAAF includes production features from day one. Not as afterthoughts or plugins, but as first-class citizens in the framework.
 
 #### The Hidden Costs of "Simple" AI Frameworks
 
@@ -214,9 +214,9 @@ runner = RAAF::Runner.new(
 
 **Compliance**: Full audit trails with encryption. When GDPR auditors show up, you can prove data handling compliance. When HIPAA asks about health information, you have the logs. When SOC2 wants security controls, they're already implemented.
 
-**Resilience**: Providers fail. Networks hiccup. Rate limits hit. Your app keeps running. Circuit breakers prevent cascade failures. Retries handle transient errors. Queues smooth out traffic spikes. This isn't theoretical—it's based on real outages we've survived.
+**Resilience**: Providers fail. Networks hiccup. Rate limits hit. Your app keeps running. Circuit breakers prevent cascade failures. Retries handle transient errors. Queues smooth out traffic spikes. These patterns address common failure scenarios in distributed systems.
 
-#### Real Production Scenarios We've Solved
+#### Common AI System Scenarios
 
 **The $47,000 Monday Morning**
 
@@ -261,9 +261,9 @@ runner.run(prompt)  # Seamlessly switches to Anthropic
 # Result: Users never notice
 ```
 
-These aren't hypothetical. They're war stories from real production systems. Every safeguard in RAAF exists because someone learned the hard way.
+These scenarios are based on common challenges encountered in AI system development. RAAF's safeguards are designed to address these well-known issues.
 
-### Production-First Design: Learn from Our Scars
+### Production-First Design
 
 We believe the best time to think about production is before you write your first line of code. That's why even our simplest examples include proper error handling, timeouts, and monitoring hooks. It's why our documentation covers failure modes, not just happy paths.
 
@@ -274,7 +274,7 @@ This philosophy extends to our architecture decisions:
 - **Fail gracefully**: When providers go down (and they will), your application degrades gracefully
 - **Monitor everything**: If you can't measure it, you can't improve it
 
-The goal isn't to scare you with complexity. It's to give you confidence that when you build on RAAF, you're building on a foundation that's already been battle-tested in production environments.
+The goal isn't to overwhelm you with complexity. It's to provide a foundation designed with production considerations in mind.
 
 ## Architecture Overview
 

@@ -4,7 +4,7 @@ This directory contains the documentation for Ruby AI Agents Factory (RAAF), bui
 
 ## 🚀 Live Documentation
 
-The documentation is automatically deployed to GitHub Pages at: **https://raaf-ai.github.io/raaf/**
+The documentation is automatically deployed to GitHub Pages at: **https://guides.raaf-ai.dev/**
 
 [![📚 Guides Build & Deploy](https://github.com/raaf-ai/raaf/actions/workflows/guides-build-deploy.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/guides-build-deploy.yml)
 

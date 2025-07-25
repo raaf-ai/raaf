@@ -1,4 +1,4 @@
-**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf.dev>.**
+**DO NOT READ THIS FILE ON GITHUB, GUIDES ARE PUBLISHED ON <https://guides.raaf-ai.dev>.**
 
 Maintenance Policy for RAAF
 ===========================
@@ -188,7 +188,7 @@ Getting Help
 
 For help with RAAF versions and support:
 
-* **Documentation** - Check the [official guides](https://guides.raaf.dev)
+* **Documentation** - Check the [official guides](https://guides.raaf-ai.dev)
 * **GitHub Issues** - Report bugs and request features
 * **GitHub Discussions** - Ask questions and get community help
 * **Security Issues** - Use the security reporting process
