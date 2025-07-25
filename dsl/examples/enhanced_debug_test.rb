@@ -10,7 +10,6 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 # Mock Rails logger for testing
 class MockRailsLogger
-
   def info(msg)
     puts "[INFO] #{msg}"
   end
@@ -22,12 +21,10 @@ class MockRailsLogger
   def error(msg)
     puts "[ERROR] #{msg}"
   end
-
 end
 
 # Mock Rails module for testing
 module Rails
-
   def self.logger
     @logger ||= MockRailsLogger.new
   end
@@ -39,12 +36,10 @@ module Rails
   def self.respond_to?(method)
     %i[logger env].include?(method)
   end
-
 end
 
 # Mock Rails env for testing
 class MockRailsEnv
-
   def development?
     true
   end
@@ -56,12 +51,10 @@ class MockRailsEnv
   def production?
     false
   end
-
 end
 
 # Test agent that includes the enhanced debugging capabilities
 class TestAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "TestAgent"
@@ -82,7 +75,6 @@ class TestAgent < RAAF::DSL::Agents::Base
       additionalProperties: false
     }
   end
-
 end
 
 # Test the enhanced debugging capabilities
@@ -119,7 +111,7 @@ puts
 puts "🔍 Testing debug_context_summary:"
 puts "-" * 40
 summary = agent.debug_context_summary
-puts "Summary keys: #{summary.keys.join(", ")}"
+puts "Summary keys: #{summary.keys.join(', ')}"
 puts "Agent info: #{summary[:agent_info]}"
 puts
 

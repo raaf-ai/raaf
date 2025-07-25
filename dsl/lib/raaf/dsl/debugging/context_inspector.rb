@@ -3,13 +3,9 @@
 # ContextInspector provides debugging capabilities for context inspection
 # by displaying formatted context variables and summaries
 module RAAF
-
   module DSL
-
     module Debugging
-
       class ContextInspector
-
         attr_reader :logger
 
         def initialize(logger: Rails.logger)
@@ -21,12 +17,12 @@ module RAAF
           return unless agent_instance.respond_to?(:debug_enabled) && agent_instance.debug_enabled
 
           logger.info "   🔍 CONTEXT INSPECTION:"
-          logger.info "   #{"=" * 80}"
+          logger.info "   #{'=' * 80}"
 
           display_context_variables(agent_instance)
           display_context_summary(agent_instance)
 
-          logger.info "   #{"=" * 80}"
+          logger.info "   #{'=' * 80}"
         end
 
         # Generate a summary of the current context state
@@ -88,11 +84,7 @@ module RAAF
 
           "completed"
         end
-
       end
-
     end
-
   end
-
 end

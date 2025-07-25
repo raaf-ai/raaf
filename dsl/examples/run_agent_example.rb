@@ -24,7 +24,6 @@ puts "\n=== Demonstrating error when no prompt class is configured ==="
 
 # Example of what happens when no prompt class is configured
 class BadAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "bad_agent"
@@ -37,7 +36,6 @@ class BadAgent < RAAF::DSL::Agents::Base
   def build_schema
     { type: "object", properties: {}, additionalProperties: false }
   end
-
 end
 
 bad_agent = BadAgent.new(context: context, processing_params: processing_params)
@@ -55,7 +53,7 @@ puts <<~USAGE
     def system
       "You are a helpful assistant."
     end
-  #{"  "}
+  #{'  '}
     def user
       "Hello there!"
     end
@@ -64,7 +62,7 @@ puts <<~USAGE
   # 2. Configure the agent to use the prompt class:
   class MyAgent < RAAF::DSL::Agents::Base
     include RAAF::DSL::AgentDsl
-  #{"  "}
+  #{'  '}
     prompt_class MyPrompt
   end
 

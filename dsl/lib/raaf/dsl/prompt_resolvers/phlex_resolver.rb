@@ -3,16 +3,12 @@
 require_relative "../prompt_resolver"
 
 module RAAF
-
   module DSL
-
     module PromptResolvers
-
       ##
       # Resolver for Phlex-style prompt classes from RAAF::DSL
       #
       class PhlexResolver < PromptResolver
-
         def initialize(**options)
           super(name: :phlex, **options)
         end
@@ -118,11 +114,7 @@ module RAAF
 
           vars
         end
-
       end
-
     end
-
   end
-
 end

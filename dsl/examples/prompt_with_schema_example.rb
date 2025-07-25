@@ -10,7 +10,6 @@ require_relative "../lib/ai_agent_dsl"
 
 # Example 1: Simple prompt with basic schema
 class UserExtractionPrompt < RAAF::DSL::Prompts::Base
-
   requires :text_content
 
   # Define schema using the same DSL as agents
@@ -34,12 +33,10 @@ class UserExtractionPrompt < RAAF::DSL::Prompts::Base
       #{text_content}
     USER
   end
-
 end
 
 # Example 2: Complex nested schema for company analysis
 class CompanyAnalysisPrompt < RAAF::DSL::Prompts::Base
-
   requires :company_name, :analysis_criteria
 
   # Complex nested schema with objects and arrays
@@ -99,12 +96,10 @@ class CompanyAnalysisPrompt < RAAF::DSL::Prompts::Base
       Provide detailed analysis with scoring and evidence.
     USER
   end
-
 end
 
 # Example 3: Agent using prompt with schema
 class CompanyAnalysisAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "CompanyAnalyst"
@@ -117,12 +112,10 @@ class CompanyAnalysisAgent < RAAF::DSL::Agents::Base
   def initialize(context: {}, processing_params: {})
     super
   end
-
 end
 
 # Example 4: Demonstration of schema conflict detection
 class ConflictingAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "ConflictingAgent"
@@ -136,7 +129,6 @@ class ConflictingAgent < RAAF::DSL::Agents::Base
   def initialize(context: {}, processing_params: {})
     super
   end
-
 end
 
 # Demo the functionality

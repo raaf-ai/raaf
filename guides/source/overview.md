@@ -396,7 +396,7 @@ puts result.messages.last[:content]
 ## Community and Support
 
 * **GitHub Repository**: [https://github.com/raaf-ai/raaf](https://github.com/raaf-ai/raaf)
-* **Documentation**: [https://raaf.dev](https://raaf.dev)
-* **Community Forum**: [https://discuss.raaf.dev](https://discuss.raaf.dev)
+* **Documentation**: [https://raaf-ai.dev](https://raaf-ai.dev)
+* **Community Forum**: [https://discuss.raaf-ai.dev](https://discuss.raaf-ai.dev)
 
 RAAF makes Ruby a first-class language for AI agent development. Whether you're building a simple chatbot or a complex multi-agent system, RAAF provides the tools, security, and scalability you need to succeed.

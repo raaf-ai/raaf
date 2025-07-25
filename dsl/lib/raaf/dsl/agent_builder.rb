@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     ##
     # Agent builder for DSL-based agent construction
     #
@@ -11,7 +9,6 @@ module RAAF
     # Supports declarative agent definition with tools, configurations, and behaviors.
     #
     class AgentBuilder
-
       include RAAF::Logging
 
       @@count = 0
@@ -530,14 +527,12 @@ module RAAF
           agent.add_condition(condition_def[:condition], &condition_def[:action])
         end
       end
-
     end
 
     ##
     # If-then-else builder for conditional logic
     #
     class IfThenBuilder
-
       def initialize(agent_builder, condition)
         @agent_builder = agent_builder
         @condition = condition
@@ -557,9 +552,6 @@ module RAAF
         @agent_builder.when(@condition, &@then_block)
         @agent_builder.when(->(context) { !@condition.call(context) }, &@else_block) if @else_block
       end
-
     end
-
   end
-
 end

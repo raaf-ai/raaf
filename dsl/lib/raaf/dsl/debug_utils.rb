@@ -1,15 +1,11 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     module DebugUtils
-
       VALID_LEVELS = %w[debug info warn error fatal].freeze
 
       class << self
-
         def enabled?
           ENV.fetch("DEBUG", "false").downcase == "true"
         end
@@ -129,11 +125,7 @@ module RAAF
           FileUtils.mkdir_p(File.dirname(log_file))
           File.open(log_file, "a") { |f| f.puts message }
         end
-
       end
-
     end
-
   end
-
 end

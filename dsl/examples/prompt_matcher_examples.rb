@@ -7,7 +7,6 @@ require_relative "../spec/spec_helper"
 
 # Example prompt class for testing
 class DocumentAnalysisPrompt < RAAF::DSL::Prompts::Base
-
   required :document_name, :analysis_type
   optional :urgency_level
   required :document_path, path: %i[document file_path]
@@ -36,7 +35,6 @@ class DocumentAnalysisPrompt < RAAF::DSL::Prompts::Base
       Focus on key insights and actionable recommendations.
     USER
   end
-
 end
 
 # Example test class demonstrating all matcher capabilities

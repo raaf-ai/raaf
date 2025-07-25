@@ -1,11 +1,17 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
+
+# Require core gem first for logging and other dependencies
+require "raaf-core"
 require "raaf-dsl"
 require "raaf/dsl/rspec"
 require "rspec"
 require "tempfile"
 require "tmpdir"
+
+# Require raaf-testing for prompt matchers (mandatory development gem)
+# require "raaf-testing"  # Temporarily disabled
 
 # Load support files (excluding the old prompt_matchers which are now in the gem)
 Dir[File.expand_path("support/**/*.rb", __dir__)].each do |f|
@@ -51,6 +57,9 @@ RSpec.configure do |config|
 
   # Configure shared context and examples
   config.shared_context_metadata_behavior = :apply_to_host_groups
+
+  # Include testing matchers
+  # config.include RAAF::Testing::Matchers  # Temporarily disabled
 
   # Clear configuration between tests
   config.before do

@@ -1014,6 +1014,6 @@ guardrails = RAAF::ParallelGuardrails.new([
 * **[API Documentation](api_reference.html)** - Complete API reference
 * **[Troubleshooting Guide](troubleshooting.html)** - Common issues and solutions
 * **[Examples Repository](https://github.com/raaf-ai/raaf/tree/main/examples)** - Working code examples
-* **[Community Forum](https://discuss.raaf.dev)** - Get help from the community
+* **[Community Forum](https://discuss.raaf-ai.dev)** - Get help from the community
 
 You're now ready to build sophisticated AI agent systems with RAAF! Start simple and gradually add more advanced features as your needs grow.

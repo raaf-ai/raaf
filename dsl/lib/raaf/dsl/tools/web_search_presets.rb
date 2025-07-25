@@ -18,13 +18,9 @@
 #   end
 #
 module RAAF
-
   module DSL
-
     module Tools
-
       module WebSearchPresets
-
         # Quick search configuration for simple queries and fact-checking
         # Uses low context size for faster responses
         def self.quick_search(user_location: nil)
@@ -51,11 +47,7 @@ module RAAF
             search_context_size: "high"
           }
         end
-
       end
-
     end
-
   end
-
 end

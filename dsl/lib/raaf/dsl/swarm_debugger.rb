@@ -37,11 +37,8 @@ require "json"
 # @since 0.2.0
 #
 module RAAF
-
   module DSL
-
     class SwarmDebugger
-
       # @return [Boolean] Whether debugging is enabled
       attr_reader :enabled
 
@@ -113,7 +110,7 @@ module RAAF
 
         session_duration = Time.current - @session_start_time
 
-        debug_output("\n#{"=" * 80}")
+        debug_output("\n#{'=' * 80}")
         debug_output("🏁 SWARM DEBUG SESSION ENDED")
         debug_output("=" * 80)
         debug_output("Workflow: #{@current_session[:workflow_name]}")
@@ -155,7 +152,7 @@ module RAAF
         debug_output("Agent: #{agent.class.name} (#{agent.agent_name})")
         debug_output("Model: #{agent.model_name}")
         debug_output("Max Turns: #{agent.max_turns}")
-        debug_output("Tools: #{agent.tools.map(&:tool_name).join(", ")}") if agent.tools.any?
+        debug_output("Tools: #{agent.tools.map(&:tool_name).join(', ')}") if agent.tools.any?
         debug_output("Start Time: #{start_time}")
 
         # Show context variables
@@ -194,8 +191,8 @@ module RAAF
           debug_output(("-" * 60).to_s)
           debug_output("Execution ID: #{execution_id}")
           debug_output("Duration: #{format_duration(execution_time)}")
-          debug_output("Status: #{result[:workflow_status] || "unknown"}")
-          debug_output("Success: #{result[:success] || "unknown"}")
+          debug_output("Status: #{result[:workflow_status] || 'unknown'}")
+          debug_output("Success: #{result[:success] || 'unknown'}")
 
           # Show result
           if result[:results]
@@ -231,7 +228,7 @@ module RAAF
           debug_output("Execution ID: #{execution_id}")
           debug_output("Duration: #{format_duration(execution_time)}")
           debug_output("Error: #{e.class.name}: #{e.message}")
-          debug_output("Backtrace: #{e.backtrace.first(3).join(", ")}")
+          debug_output("Backtrace: #{e.backtrace.first(3).join(', ')}")
           debug_output(("-" * 60).to_s)
           debug_output("")
 
@@ -259,15 +256,15 @@ module RAAF
         debug_output("From Agent: #{from_agent.class.name} (#{from_agent.agent_name})")
         debug_output("To Agent: #{to_agent.class.name} (#{to_agent.agent_name})")
         debug_output("Timestamp: #{timestamp}")
-        debug_output("Reason: #{reason || "Not specified"}")
+        debug_output("Reason: #{reason || 'Not specified'}")
 
         debug_output("\n📋 CONTEXT VARIABLES AT HANDOFF:")
         pretty_print_context(context_variables)
 
         # Analyze handoff logic
         debug_output("\n🧠 HANDOFF ANALYSIS:")
-        debug_output("From Agent Tools: #{from_agent.tools.map(&:tool_name).join(", ")}")
-        debug_output("To Agent Tools: #{to_agent.tools.map(&:tool_name).join(", ")}")
+        debug_output("From Agent Tools: #{from_agent.tools.map(&:tool_name).join(', ')}")
+        debug_output("To Agent Tools: #{to_agent.tools.map(&:tool_name).join(', ')}")
         debug_output("Context Variables: #{context_variables.size} variables")
 
         # Track handoff
@@ -289,7 +286,7 @@ module RAAF
 
         debug_output("📈 CONTEXT EVOLUTION: #{title}")
         debug_output(("-" * 60).to_s)
-        debug_output("Operation: #{operation || "Unknown"}") if operation
+        debug_output("Operation: #{operation || 'Unknown'}") if operation
         debug_output("Timestamp: #{Time.current}")
 
         # Calculate and show diff
@@ -411,7 +408,7 @@ module RAAF
 
       # Generate unique session ID
       def generate_session_id
-        "swarm-#{Time.current.strftime("%Y%m%d-%H%M%S")}-#{SecureRandom.hex(4)}"
+        "swarm-#{Time.current.strftime('%Y%m%d-%H%M%S')}-#{SecureRandom.hex(4)}"
       end
 
       # Format duration in human-readable format
@@ -588,7 +585,7 @@ module RAAF
 
         lines = []
         lines << "Workflow: #{@current_session[:workflow_name]}"
-        lines << "Agents: #{@current_session[:agents_executed].map { |a| a[:agent_name] }.uniq.join(", ")}"
+        lines << "Agents: #{@current_session[:agents_executed].map { |a| a[:agent_name] }.uniq.join(', ')}"
         lines << "Handoffs: #{@current_session[:handoffs_performed].size}"
         lines << "Context Changes: #{@current_session[:context_evolution].size}"
 
@@ -650,7 +647,7 @@ module RAAF
         else
           debug_output("Execution Trace (#{@execution_trace.size} entries):")
           @execution_trace.last(10).each_with_index do |entry, i|
-            debug_output("  #{i + 1}. #{entry[:timestamp].strftime("%H:%M:%S")} - #{entry[:type]}: #{entry[:summary]}")
+            debug_output("  #{i + 1}. #{entry[:timestamp].strftime('%H:%M:%S')} - #{entry[:type]}: #{entry[:summary]}")
           end
           debug_output("  (showing last 10 entries)") if @execution_trace.size > 10
         end
@@ -665,9 +662,6 @@ module RAAF
         end
         @output.flush
       end
-
     end
-
   end
-
 end

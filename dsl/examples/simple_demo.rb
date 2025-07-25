@@ -6,7 +6,6 @@ require_relative "../lib/ai_agent_dsl/prompts/base"
 
 # Create a simple prompt class
 class DemoPrompt < RAAF::DSL::Prompts::Base
-
   def system
     "You are a helpful assistant."
   end
@@ -14,12 +13,10 @@ class DemoPrompt < RAAF::DSL::Prompts::Base
   def user
     "Hello there!"
   end
-
 end
 
 # Create an agent that uses the prompt class
 class DemoAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "demo_agent"
@@ -39,7 +36,6 @@ class DemoAgent < RAAF::DSL::Agents::Base
       additionalProperties: false
     }
   end
-
 end
 
 # Demonstrate the implementation
@@ -65,7 +61,6 @@ puts
 puts "=== Error Demonstration ==="
 
 class BadAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "bad_agent"
@@ -77,7 +72,6 @@ class BadAgent < RAAF::DSL::Agents::Base
   def build_schema
     { type: "object", properties: {}, additionalProperties: false }
   end
-
 end
 
 bad_agent = BadAgent.new(context: context, processing_params: processing_params)

@@ -58,11 +58,8 @@
 #   end
 #
 module RAAF
-
   module DSL
-
     module ToolDsl
-
       extend ActiveSupport::Concern
 
       included do
@@ -269,7 +266,6 @@ module RAAF
 
       # Helper class for building nested parameter structures
       class NestedParameterBuilder
-
         attr_reader :properties
 
         def initialize
@@ -292,11 +288,7 @@ module RAAF
             **options
           }
         end
-
       end
-
     end
-
   end
-
 end

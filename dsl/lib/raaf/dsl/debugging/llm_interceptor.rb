@@ -3,13 +3,9 @@
 # LLMInterceptor provides debugging capabilities for LLM API calls
 # by intercepting and logging OpenAI API requests and responses
 module RAAF
-
   module DSL
-
     module Debugging
-
       class LLMInterceptor
-
         attr_reader :logger
 
         def initialize(logger: Rails.logger)
@@ -59,24 +55,24 @@ module RAAF
         end
 
         def log_openai_request(parameters)
-          logger.info "   #{"=" * 80}"
+          logger.info "   #{'=' * 80}"
           logger.info "   🚀 COMPLETE OPENAI API REQUEST:"
-          logger.info "   📋 Model: #{parameters[:model] || "unknown"}"
-          logger.info "   🌡️  Temperature: #{parameters[:temperature] || "default"}"
-          logger.info "   🔄 Max Tokens: #{parameters[:max_tokens] || "unlimited"}"
+          logger.info "   📋 Model: #{parameters[:model] || 'unknown'}"
+          logger.info "   🌡️  Temperature: #{parameters[:temperature] || 'default'}"
+          logger.info "   🔄 Max Tokens: #{parameters[:max_tokens] || 'unlimited'}"
 
           log_tools_configuration(parameters[:tools])
           log_tool_choice(parameters[:tool_choice])
           log_messages(parameters[:messages])
 
-          logger.info "   #{"=" * 80}"
+          logger.info "   #{'=' * 80}"
         end
 
         def log_tools_configuration(tools)
           if tools && !tools.empty?
             logger.info "   🛠️  TOOLS CONFIGURED:"
             tools.each_with_index do |tool, idx|
-              logger.info "   │ #{idx + 1}. Type: #{tool[:type] || tool["type"]}"
+              logger.info "   │ #{idx + 1}. Type: #{tool[:type] || tool['type']}"
 
               case tool[:type] || tool["type"]
               when "function"
@@ -110,8 +106,8 @@ module RAAF
         end
 
         def log_web_search_tool(tool)
-          logger.info "   │    User Location: #{tool[:user_location] || tool["user_location"]}"
-          logger.info "   │    Search Context Size: #{tool[:search_context_size] || tool["search_context_size"]}"
+          logger.info "   │    User Location: #{tool[:user_location] || tool['user_location']}"
+          logger.info "   │    Search Context Size: #{tool[:search_context_size] || tool['search_context_size']}"
         end
 
         def log_tool_choice(tool_choice)
@@ -137,14 +133,14 @@ module RAAF
               logger.info "   │ 🛠️  TOOL CALLS: #{tool_calls.length}"
               tool_calls.each do |call|
                 logger.info "   │   - #{begin
-                  call["function"]["name"]
+                  call['function']['name']
                 rescue StandardError
                   call.inspect
                 end}"
               end
             end
 
-            logger.info "   #{"-" * 40}"
+            logger.info "   #{'-' * 40}"
           end
         end
 
@@ -162,19 +158,15 @@ module RAAF
             tool_calls = response.dig("choices", 0, "message", "tool_calls")
             logger.info "   │ 🛠️  Tool calls in response: #{tool_calls.length}"
             tool_calls.each do |call|
-              logger.info "   │   - Function: #{call["function"]["name"]}"
-              logger.info "   │     Args: #{call["function"]["arguments"][0..100]}..."
+              logger.info "   │   - Function: #{call['function']['name']}"
+              logger.info "   │     Args: #{call['function']['arguments'][0..100]}..."
             end
           else
             logger.info "   │ ❌ No tool calls in response"
           end
-          logger.info "   #{"=" * 80}"
+          logger.info "   #{'=' * 80}"
         end
-
       end
-
     end
-
   end
-
 end

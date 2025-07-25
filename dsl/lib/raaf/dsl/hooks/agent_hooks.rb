@@ -23,13 +23,9 @@
 #   end
 #
 module RAAF
-
   module DSL
-
     module Hooks
-
       module AgentHooks
-
         extend ActiveSupport::Concern
 
         # Event types supported by the agent hooks system
@@ -169,7 +165,7 @@ module RAAF
           #
           def register_agent_hook(hook_type, method_name = nil, &block)
             unless HOOK_TYPES.include?(hook_type)
-              raise ArgumentError, "Invalid hook type: #{hook_type}. Must be one of: #{HOOK_TYPES.join(", ")}"
+              raise ArgumentError, "Invalid hook type: #{hook_type}. Must be one of: #{HOOK_TYPES.join(', ')}"
             end
 
             raise ArgumentError, "Either method_name or block must be provided" if method_name.nil? && block.nil?
@@ -206,11 +202,7 @@ module RAAF
 
           combined.empty? ? nil : combined
         end
-
       end
-
     end
-
   end
-
 end

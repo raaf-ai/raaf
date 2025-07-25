@@ -3,13 +3,9 @@
 # PromptInspector provides debugging capabilities for prompt inspection
 # by displaying formatted prompts with substituted context variables
 module RAAF
-
   module DSL
-
     module Debugging
-
       class PromptInspector
-
         attr_reader :logger
 
         def initialize(logger: Rails.logger)
@@ -21,7 +17,7 @@ module RAAF
           return unless agent_instance.respond_to?(:debug_enabled) && agent_instance.debug_enabled
 
           logger.info "   📝 PROMPT INSPECTION:"
-          logger.info "   #{"=" * 80}"
+          logger.info "   #{'=' * 80}"
 
           begin
             # Try to get and display actual prompts with substituted values
@@ -35,14 +31,14 @@ module RAAF
               display_actual_prompts(prompt_klass, agent_instance)
             else
               logger.info "   ⚠️ No prompt class defined for #{agent_instance.class.name}"
-              logger.debug "   Available class methods: #{agent_instance.class.methods.grep(/prompt/).join(", ")}"
+              logger.debug "   Available class methods: #{agent_instance.class.methods.grep(/prompt/).join(', ')}"
             end
           rescue StandardError => e
             logger.info "   ⚠️ Prompt debug error: #{e.class.name}: #{e.message}"
-            logger.debug "   Stack: #{e.backtrace.first(3).join(", ")}"
+            logger.debug "   Stack: #{e.backtrace.first(3).join(', ')}"
           end
 
-          logger.info "   #{"=" * 80}"
+          logger.info "   #{'=' * 80}"
         end
 
         private
@@ -50,7 +46,11 @@ module RAAF
         def display_actual_prompts(prompt_klass, agent_instance)
           # Try to manually instantiate the prompt class to show actual content
           # Create a basic instance with proper context variables
-          context_variables = agent_instance.respond_to?(:context_variables) ? agent_instance.context_variables.to_h : {}
+          context_variables = if agent_instance.respond_to?(:context_variables)
+                                agent_instance.context_variables.to_h
+                              else
+                                {}
+                              end
           processing_params = { num_prospects: 5 }
           class_name = agent_instance.class.name || "UnknownAgent"
 
@@ -67,13 +67,13 @@ module RAAF
         rescue StandardError => e
           logger.info "   ⚠️ Could not instantiate prompt class: #{e.message}"
           logger.info "   📋 Prompt class: #{prompt_klass.name}"
-          logger.info "   📝 Available methods: #{prompt_klass.instance_methods(false).join(", ")}"
+          logger.info "   📝 Available methods: #{prompt_klass.instance_methods(false).join(', ')}"
         end
 
         def display_system_prompt(prompt_instance)
           return unless prompt_instance.respond_to?(:system)
 
-          logger.info "   #{"-" * 60}"
+          logger.info "   #{'-' * 60}"
           logger.info "   🔧 SYSTEM PROMPT (with substitutions):"
           begin
             system_prompt = prompt_instance.system
@@ -86,7 +86,7 @@ module RAAF
         def display_user_prompt(prompt_instance)
           return unless prompt_instance.respond_to?(:user)
 
-          logger.info "   #{"-" * 60}"
+          logger.info "   #{'-' * 60}"
           logger.info "   👤 USER PROMPT (with substitutions):"
           begin
             user_prompt = prompt_instance.user
@@ -108,11 +108,7 @@ module RAAF
 
           logger.info "#{prefix}... (#{lines.length - 20} more lines)" if lines.length > 20
         end
-
       end
-
     end
-
   end
-
 end

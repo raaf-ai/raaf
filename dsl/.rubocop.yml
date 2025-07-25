@@ -1,10 +1,9 @@
 # Minimal RuboCop configuration for raaf-dsl
-inherit_from: ~ # Don't inherit from any parent configs
-
-require:
-  - rubocop-rspec
+# Explicitly do not inherit from parent configs
+inherit_from: []
 
 plugins:
+  - rubocop-rspec
   - rubocop-rake
 
 AllCops:
@@ -127,7 +126,7 @@ RSpec/MultipleExpectations:
 RSpec/DescribeClass:
   Enabled: false
 
-RSpec/FilePath:
+RSpec/SpecFilePathSuffix:
   Enabled: false  # Provider specs don't follow deep directory structure
 
 RSpec/SpecFilePathFormat:
@@ -181,68 +180,5 @@ RSpec/MultipleMemoizedHelpers:
   Enabled: false  # Allow many helpers for complex test setups
 
 # Disable problematic/deprecated cops
-Capybara/RSpec/PredicateMatcher:
-  Enabled: false
-
-# Modern Capybara cops (replace deprecated RSpec/Capybara/* ones)
-Capybara/CurrentPathExpectation:
-  Enabled: false
-
-Capybara/MatchStyle:
-  Enabled: false
-
-Capybara/NegationMatcher:
-  Enabled: false
-
-Capybara/SpecificActions:
-  Enabled: false
-
-Capybara/SpecificFinders:
-  Enabled: false
-
-Capybara/SpecificMatcher:
-  Enabled: false
-
-Capybara/VisibilityMatcher:
-  Enabled: false
-
-# Modern FactoryBot cops (replace deprecated RSpec/FactoryBot/* ones)
-FactoryBot/AttributeDefinedStatically:
-  Enabled: false
-
-FactoryBot/ConsistentParenthesesStyle:
-  Enabled: false
-
-FactoryBot/CreateList:
-  Enabled: false
-
-FactoryBot/FactoryClassName:
-  Enabled: false
-
-FactoryBot/FactoryNameStyle:
-  Enabled: false
-
-FactoryBot/SyntaxMethods:
-  Enabled: false
-
-# Modern RSpecRails cops (replace deprecated RSpec/Rails/* ones)
-RSpecRails/AvoidSetupHook:
-  Enabled: false
-
-RSpecRails/HaveHttpStatus:
-  Enabled: false
-
-RSpecRails/HttpStatus:
-  Enabled: false
-
-RSpecRails/InferredSpecType:
-  Enabled: false
-
-RSpecRails/MinitestAssertions:
-  Enabled: false
-
-RSpecRails/NegationBeValid:
-  Enabled: false
-
-RSpecRails/TravelAround:
+RSpec/PredicateMatcher:
   Enabled: false

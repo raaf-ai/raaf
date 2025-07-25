@@ -41,11 +41,8 @@ require "rails/railtie"
 # @since 0.1.0
 #
 module RAAF
-
   module DSL
-
     class Railtie < ::Rails::Railtie
-
       # Set the railtie name for Rails integration
       # This name is used in Rails configuration and logging
       railtie_name :ai_agent_dsl
@@ -108,9 +105,6 @@ module RAAF
       # @note This is particularly important for AI agent classes that may
       #       be dynamically referenced through configuration
       config.eager_load_namespaces << RAAF::DSL
-
     end
-
   end
-
 end

@@ -3,7 +3,6 @@
 require "raaf-core"
 require_relative "../config"
 require_relative "../context_variables"
-require_relative "../logging"
 
 # Base class for all AI agents in the AI Agent DSL framework
 #
@@ -48,14 +47,10 @@ require_relative "../logging"
 # @since 0.1.0
 #
 module RAAF
-
   module DSL
-
     module Agents
-
       class Base
-
-        include RAAF::DSL::Logging
+        include RAAF::Logger
 
         # @return [Hash] Processing parameters that control agent behavior
         attr_reader :processing_params
@@ -94,10 +89,9 @@ module RAAF
 
           return unless @debug_enabled
 
-          log_debug("Agent configuration initialized", {
-                      agent_class: self.class.name,
-                      context_size: @context.size
-                    })
+          log_debug("Agent configuration initialized",
+                    agent_class: self.class.name,
+                    context_size: @context.size)
         end
 
         # Creates and returns an OpenAI Agent instance for API communication
@@ -109,13 +103,12 @@ module RAAF
         # @return [RAAF::Agent] Configured OpenAI agent instance ready for execution
         #
         def create_agent
-          log_debug("Creating OpenAI agent instance", {
-                      agent_name: agent_name,
-                      model: model_name,
-                      max_turns: max_turns,
-                      tools_count: tools.length,
-                      handoffs_count: handoffs.length
-                    })
+          log_debug("Creating OpenAI agent instance",
+                    agent_name: agent_name,
+                    model: model_name,
+                    max_turns: max_turns,
+                    tools_count: tools.length,
+                    handoffs_count: handoffs.length)
 
           create_openai_agent_instance
         end
@@ -257,19 +250,17 @@ module RAAF
 
           # Log tools if debug is enabled
           if @debug_enabled
-            log_debug_tools("Agent tools loaded", {
-                              agent_name: agent_name,
-                              tool_count: tool_list.length,
-                              tool_names: tool_list.map(&:name)
-                            })
+            log_debug_tools("Agent tools loaded",
+                            agent_name: agent_name,
+                            tool_count: tool_list.length,
+                            tool_names: tool_list.map(&:name))
 
             tool_list.each_with_index do |tool, idx|
-              log_debug_tools("Tool details", {
-                                tool_index: idx + 1,
-                                tool_class: tool.class.name,
-                                tool_name: tool.respond_to?(:name) ? tool.name : "unnamed",
-                                has_parameters: tool.respond_to?(:parameters)
-                              })
+              log_debug_tools("Tool details",
+                              tool_index: idx + 1,
+                              tool_class: tool.class.name,
+                              tool_name: tool.respond_to?(:name) ? tool.name : "unnamed",
+                              has_parameters: tool.respond_to?(:parameters))
             end
           end
 
@@ -428,11 +419,7 @@ module RAAF
 
           combined_hooks_config
         end
-
       end
-
     end
-
   end
-
 end

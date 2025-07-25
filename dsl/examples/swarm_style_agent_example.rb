@@ -20,7 +20,6 @@ puts
 
 # Example tool that analyzes requests and updates context
 class AnalyzeRequestTool < RAAF::DSL::Tools::Base
-
   def tool_name
     "analyze_request"
   end
@@ -102,12 +101,10 @@ class AnalyzeRequestTool < RAAF::DSL::Tools::Base
     important_words = words.select { |w| w.length > 4 }
     important_words.first(5)
   end
-
 end
 
 # Example tool that routes to appropriate specialist
 class RouteToSpecialistTool < RAAF::DSL::Tools::Base
-
   def tool_name
     "route_to_specialist"
   end
@@ -159,7 +156,6 @@ class RouteToSpecialistTool < RAAF::DSL::Tools::Base
       }
     }
   end
-
 end
 
 # ========================================
@@ -168,7 +164,6 @@ end
 
 # Triage agent that analyzes requests and routes them
 class TriageAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "TriageAgent"
@@ -202,12 +197,10 @@ class TriageAgent < RAAF::DSL::Agents::Base
       Please analyze this request and route the customer appropriately.
     PROMPT
   end
-
 end
 
 # Specialist agent that handles routed requests
 class SpecialistAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "SpecialistAgent"
@@ -234,7 +227,6 @@ class SpecialistAgent < RAAF::DSL::Agents::Base
       Provide appropriate assistance based on the triage analysis.
     PROMPT
   end
-
 end
 
 # ========================================
@@ -250,7 +242,7 @@ def run_swarm_demo
 
   # Start debugging session
   initial_context = RAAF::DSL::ContextVariables.new({
-                                                      session_id: "demo-#{Time.current.strftime("%H%M%S")}",
+                                                      session_id: "demo-#{Time.current.strftime('%H%M%S')}",
                                                       customer_name: "Alice Johnson",
                                                       customer_tier: "premium",
                                                       workflow_step: "triage"
@@ -341,7 +333,7 @@ def run_swarm_demo
     puts final_context.debug_info(include_history: true)
   rescue StandardError => e
     puts "\n❌ DEMO ERROR: #{e.message}"
-    puts "Backtrace: #{e.backtrace.first(3).join(", ")}"
+    puts "Backtrace: #{e.backtrace.first(3).join(', ')}"
   ensure
     # End debugging session
     debugger.end_workflow_session
@@ -439,9 +431,9 @@ if __FILE__ == $PROGRAM_NAME
       show_context_features_demo
     when "4"
       run_swarm_demo
-      puts "\n#{"=" * 70}"
+      puts "\n#{'=' * 70}"
       run_interactive_demo
-      puts "\n#{"=" * 70}"
+      puts "\n#{'=' * 70}"
       show_context_features_demo
     else
       puts "Invalid choice, running full demo..."

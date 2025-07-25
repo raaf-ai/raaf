@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "raaf-core"
 require_relative "raaf/dsl/version"
 require_relative "raaf/dsl/hash_utils"
 require "active_support/all"
@@ -61,9 +62,7 @@ require "active_support/all"
 #         tool_choice: { type: "function", function: { name: "web_search" } }
 #
 module RAAF
-
   module DSL
-
     # Base error class for all AI Agent DSL related errors
     #
     # This error class serves as the parent for all custom exceptions raised
@@ -113,9 +112,7 @@ module RAAF
     #   end
     #
     module Agents
-
       autoload :Base, "raaf/dsl/agents/base"
-
     end
 
     # Prompt building and template system
@@ -134,9 +131,7 @@ module RAAF
     #   end
     #
     module Prompts
-
       autoload :Base, "raaf/dsl/prompts/base"
-
     end
 
     # Prompt resolvers for different formats
@@ -150,10 +145,8 @@ module RAAF
     #   prompt = RAAF::DSL::Prompt.resolve("template.md.erb", name: "John")
     #
     module PromptResolvers
-
       autoload :PhlexResolver, "raaf/dsl/prompt_resolvers/phlex_resolver"
       autoload :FileResolver, "raaf/dsl/prompt_resolvers/file_resolver"
-
     end
 
     # Tool integration and execution framework
@@ -170,12 +163,10 @@ module RAAF
     #   end
     #
     module Tools
-
       autoload :Base, "raaf/dsl/tools/base"
       autoload :WebSearch, "raaf/dsl/tools/web_search"
       autoload :WebSearchPresets, "raaf/dsl/tools/web_search_presets"
       autoload :TavilySearch, "raaf/dsl/tools/tavily_search"
-
     end
 
     # Debugging and inspection capabilities
@@ -192,11 +183,9 @@ module RAAF
     #   end
     #
     module Debugging
-
       autoload :LLMInterceptor, "raaf/dsl/debugging/llm_interceptor"
       autoload :PromptInspector, "raaf/dsl/debugging/prompt_inspector"
       autoload :ContextInspector, "raaf/dsl/debugging/context_inspector"
-
     end
 
     # Callback system for agent lifecycle events
@@ -219,10 +208,8 @@ module RAAF
     #   end
     #
     module Hooks
-
       autoload :RunHooks, "raaf/dsl/hooks/run_hooks"
       autoload :AgentHooks, "raaf/dsl/hooks/agent_hooks"
-
     end
 
     # Execution layer for agent runtime
@@ -238,9 +225,7 @@ module RAAF
     #   result = runner.run(input)
     #
     module Execution
-
       autoload :Runner, "raaf/dsl/execution/runner"
-
     end
 
     # Rails generators for scaffolding AI agents and configuration
@@ -255,10 +240,8 @@ module RAAF
     #   rails generate ai_agent_dsl:config
     #
     module Generators
-
       autoload :AgentGenerator, "raaf/dsl/generators/agent_generator"
       autoload :ConfigGenerator, "raaf/dsl/generators/config_generator"
-
     end
 
     # RSpec integration and custom matchers for testing
@@ -278,9 +261,7 @@ module RAAF
     #   end
     #
     module RSpec
-
       autoload :PromptMatchers, "raaf/dsl/rspec/prompt_matchers"
-
     end
 
     # Configure the gem with a block
@@ -332,7 +313,6 @@ module RAAF
 
     # Configuration object for the gem
     class Configuration
-
       attr_accessor :config_file, :default_model, :default_max_turns, :default_temperature, :default_tool_choice,
                     :debug_enabled, :debug_level, :debug_output, :logging_level, :structured_logging, :enable_tracing
 
@@ -349,11 +329,8 @@ module RAAF
         @structured_logging = true # Enable structured logging format
         @enable_tracing = nil # nil = auto-detect, true/false = force enable/disable
       end
-
     end
-
   end
-
 end
 
 # Rails integration

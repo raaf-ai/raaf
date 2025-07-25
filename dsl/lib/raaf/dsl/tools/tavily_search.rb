@@ -23,13 +23,9 @@
 #   end
 #
 module RAAF
-
   module DSL
-
     module Tools
-
       class TavilySearch < Base
-
         # Valid search depth options
         VALID_SEARCH_DEPTHS = %w[basic advanced].freeze
 
@@ -102,7 +98,7 @@ module RAAF
         def validate_options!
           if options[:search_depth] && !VALID_SEARCH_DEPTHS.include?(options[:search_depth])
             raise ArgumentError,
-                  "Invalid search_depth: #{options[:search_depth]}. Must be one of: #{VALID_SEARCH_DEPTHS.join(", ")}"
+                  "Invalid search_depth: #{options[:search_depth]}. Must be one of: #{VALID_SEARCH_DEPTHS.join(', ')}"
           end
 
           return unless options[:max_results] && (options[:max_results] < 1 || options[:max_results] > 20)
@@ -123,11 +119,7 @@ module RAAF
 
           metadata
         end
-
       end
-
     end
-
   end
-
 end

@@ -2,13 +2,14 @@
 
 require_relative "raaf/testing/version"
 require_relative "raaf/testing/matchers"
-require_relative "raaf/testing/helpers"
-require_relative "raaf/testing/mock_provider"
-require_relative "raaf/testing/factories"
-require_relative "raaf/testing/fixtures"
-require_relative "raaf/testing/vcr_config"
-require_relative "raaf/testing/conversation_helper"
-require_relative "raaf/testing/response_validator"
+require_relative "raaf/testing/prompt_matchers"
+
+# Only require mock_provider if RAAF core is available
+begin
+  require_relative "raaf/testing/mock_provider"
+rescue NameError, LoadError
+  # Skip mock_provider if dependencies aren't available
+end
 
 module RAAF
   ##

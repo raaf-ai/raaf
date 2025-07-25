@@ -5,11 +5,8 @@ require "yaml"
 require "erb"
 
 module RAAF
-
   module DSL
-
     module PromptResolvers
-
       ##
       # Unified resolver for file-based prompts (Markdown, ERB templates, etc.)
       #
@@ -60,7 +57,6 @@ module RAAF
       #   end
       #
       class FileResolver < PromptResolver
-
         ##
         # Initialize a new file resolver
         #
@@ -377,7 +373,6 @@ module RAAF
         #   <%= if_present(value, "Value: ") %>
         #
         class ErbContext
-
           def initialize(variables = {})
             @variables = variables
 
@@ -453,11 +448,11 @@ module RAAF
           # @return [String] formatted markdown table
           #
           def table(headers, rows)
-            header_row = "| #{headers.join(" | ")} |"
+            header_row = "| #{headers.join(' | ')} |"
             separator = "| " + headers.map { |h| "-" * h.length }.join(" | ") + " |"
 
             data_rows = rows.map do |row|
-              "| #{row.map(&:to_s).join(" | ")} |"
+              "| #{row.map(&:to_s).join(' | ')} |"
             end
 
             [header_row, separator, *data_rows].join("\n")
@@ -501,13 +496,8 @@ module RAAF
           def wrap(text, width = 80)
             text.scan(/.{1,#{width}}(?:\s|$)/).join("\n")
           end
-
         end
-
       end
-
     end
-
   end
-
 end

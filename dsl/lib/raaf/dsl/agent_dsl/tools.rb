@@ -1,14 +1,10 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     module AgentDsl
-
       # Tool configuration methods for agent DSL
       module Tools
-
         extend ActiveSupport::Concern
 
         class_methods do
@@ -33,11 +29,7 @@ module RAAF
             uses_tool(tool_name, options) if condition
           end
         end
-
       end
-
     end
-
   end
-
 end

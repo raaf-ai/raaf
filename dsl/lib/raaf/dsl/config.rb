@@ -65,13 +65,9 @@ require "active_support/core_ext/string/inflections"
 # @since 0.1.0
 #
 module RAAF
-
   module DSL
-
     class Config
-
       class << self
-
         # Get configuration for a specific agent
         def for_agent(agent_name, environment: current_environment)
           agent_key = normalize_agent_name(agent_name)
@@ -225,7 +221,6 @@ module RAAF
         def normalize_agent_name(agent_name)
           agent_name.to_s.underscore
         end
-
       end
 
       # Instance methods for backward compatibility
@@ -260,9 +255,6 @@ module RAAF
       private
 
       attr_reader :environment
-
     end
-
   end
-
 end

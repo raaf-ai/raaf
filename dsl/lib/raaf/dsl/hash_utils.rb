@@ -17,11 +17,8 @@
 # @since 0.2.0
 #
 module RAAF
-
   module DSL
-
     module HashUtils
-
       # Convert hash keys to symbols recursively
       #
       # @param hash [Hash, Array, Object] The object to convert
@@ -148,9 +145,6 @@ module RAAF
       def self.normalize_context_variables(variables)
         ensure_symbol_keys(variables, strict: false)
       end
-
     end
-
   end
-
 end

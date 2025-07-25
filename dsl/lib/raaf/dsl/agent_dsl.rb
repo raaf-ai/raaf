@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     # DSL for defining AI agents in a declarative way
     #
     # Provides a clean, readable interface for configuring agents with
@@ -32,7 +30,6 @@ module RAAF
     #   end
     #
     module AgentDsl
-
       extend ActiveSupport::Concern
 
       included do
@@ -1168,7 +1165,7 @@ module RAAF
           next
         end
 
-        raise "Unknown tool: #{tool_name}. Tried: #{candidates.join(", ")}"
+        raise "Unknown tool: #{tool_name}. Tried: #{candidates.join(', ')}"
       end
 
       def build_prompt_instance
@@ -1184,12 +1181,10 @@ module RAAF
 
         prompt_class.new(**prompt_context)
       end
-
     end
 
     # Helper class for building JSON schemas
     class SchemaBuilder
-
       def initialize
         @schema = {
           type: "object",
@@ -1355,12 +1350,10 @@ module RAAF
         schema[:description] = options[:description] if options[:description]
         schema[:default] = options[:default] if options.key?(:default)
       end
-
     end
 
     # Helper class for building workflow sequences with DSL
     class WorkflowBuilder
-
       attr_reader :agents
 
       def initialize
@@ -1459,9 +1452,6 @@ module RAAF
       def respond_to_missing?(_method_name, _include_private = false)
         true
       end
-
     end
-
   end
-
 end

@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     ##
     # Tool builder for DSL-based tool construction
     #
@@ -11,7 +9,6 @@ module RAAF
     # with support for parameters, validation, and advanced tool features.
     #
     class ToolBuilder
-
       include RAAF::Logging
 
       @@count = 0
@@ -499,9 +496,6 @@ module RAAF
           tool.use_middleware(middleware)
         end
       end
-
     end
-
   end
-
 end

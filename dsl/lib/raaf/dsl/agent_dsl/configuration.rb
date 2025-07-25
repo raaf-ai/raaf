@@ -1,14 +1,10 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     module AgentDsl
-
       # Configuration methods for agent DSL
       module Configuration
-
         extend ActiveSupport::Concern
 
         class_methods do
@@ -85,7 +81,8 @@ module RAAF
                 _agent_config[:output_format] = :structured
               else
                 raise ArgumentError,
-                      "Invalid output format: #{format}. Use :text, :plain, :unstructured, :json, :structured, or :schema"
+                      "Invalid output format: #{format}. Use :text, :plain, :unstructured, " \
+                      ":json, :structured, or :schema"
               end
             end
           end
@@ -133,11 +130,7 @@ module RAAF
             class_path.underscore.gsub("/", "_")
           end
         end
-
       end
-
     end
-
   end
-
 end

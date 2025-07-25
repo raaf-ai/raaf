@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     ##
     # Workflow builder for DSL-based workflow construction
     #
@@ -12,8 +10,7 @@ module RAAF
     # execution, and advanced workflow patterns.
     #
     class WorkflowBuilder
-
-      include RAAF::Logging
+      include RAAF::Logger
 
       @@count = 0
 
@@ -328,14 +325,12 @@ module RAAF
 
         raise DSL::ValidationError, errors.join(", ") if errors.any?
       end
-
     end
 
     ##
     # Flow builder for defining workflow flows
     #
     class FlowBuilder
-
       attr_reader :flows
 
       def initialize(workflow_builder)
@@ -398,14 +393,12 @@ module RAAF
           options: options
         }
       end
-
     end
 
     ##
     # Fork builder for parallel execution branches
     #
     class ForkBuilder
-
       attr_reader :branches
 
       def initialize
@@ -417,14 +410,12 @@ module RAAF
         branch_builder.instance_eval(&block)
         @branches << branch_builder.build
       end
-
     end
 
     ##
     # Branch builder for individual parallel branches
     #
     class BranchBuilder
-
       def initialize(name)
         @name = name
         @steps = []
@@ -443,14 +434,12 @@ module RAAF
           steps: @steps
         }
       end
-
     end
 
     ##
     # Conditional builder for conditional execution
     #
     class ConditionalBuilder
-
       def initialize(condition, options)
         @condition = condition
         @options = options
@@ -479,14 +468,12 @@ module RAAF
           options: @options
         }
       end
-
     end
 
     ##
     # Conditional step builder
     #
     class ConditionalStepBuilder
-
       attr_reader :steps
 
       def initialize
@@ -516,14 +503,12 @@ module RAAF
           options: options
         }
       end
-
     end
 
     ##
     # Loop builder for loop execution
     #
     class LoopBuilder
-
       def initialize(condition, options)
         @condition = condition
         @options = options
@@ -561,9 +546,6 @@ module RAAF
           options: @options
         }
       end
-
     end
-
   end
-
 end

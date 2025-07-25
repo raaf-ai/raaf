@@ -8,7 +8,6 @@ if defined?(Rails::Generators)
     require "rails/generators/test_case"
 
     class AgentGeneratorTest < Rails::Generators::TestCase
-
       tests RAAF::DSL::Generators::AgentGenerator
       destination File.expand_path("../../../tmp", __dir__)
 
@@ -47,7 +46,6 @@ if defined?(Rails::Generators)
           expect(content).to match(/class AnalysisAgent < RAAF::DSL::Prompts::Base/)
         end
       end
-
     end
   rescue LoadError
     # Rails generators not available

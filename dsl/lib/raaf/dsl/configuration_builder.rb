@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     ##
     # Configuration builder for DSL-based configuration management
     #
@@ -11,7 +9,6 @@ module RAAF
     # syntax with support for nested configurations, validation, and templates.
     #
     class ConfigurationBuilder
-
       include RAAF::Logging
 
       # @return [Hash] Configuration data
@@ -343,7 +340,7 @@ module RAAF
           errors << "Validator '#{validator[:name]}' failed: #{e.message}"
         end
 
-        raise DSL::ValidationError, "Configuration validation failed: #{errors.join(", ")}" if errors.any?
+        raise DSL::ValidationError, "Configuration validation failed: #{errors.join(', ')}" if errors.any?
 
         errors
       end
@@ -451,14 +448,12 @@ module RAAF
           value
         end
       end
-
     end
 
     ##
     # Nested configuration builder
     #
     class NestedConfigBuilder
-
       attr_reader :config
 
       def initialize
@@ -510,9 +505,6 @@ module RAAF
           end
         end
       end
-
     end
-
   end
-
 end

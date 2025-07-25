@@ -44,6 +44,7 @@ Gem::Specification.new do |spec|
   # Development dependencies
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "parser"
+  # spec.add_development_dependency "raaf-testing", "~> 0.1"  # Temporarily disabled
   spec.add_development_dependency "rails", "~> 8.0"
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"

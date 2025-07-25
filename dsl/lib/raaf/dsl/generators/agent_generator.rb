@@ -28,11 +28,9 @@ unless AGENT_GENERATOR_RAILS_AVAILABLE
   # Minimal Rails module stub for non-Rails environments
   # @api private
   module Rails
-
     # Minimal Generators module stub
     # @api private
     module Generators
-
       # Returns empty array when Rails generators are not available
       # @api private
       def self.subclasses
@@ -48,7 +46,6 @@ unless AGENT_GENERATOR_RAILS_AVAILABLE
       # Minimal NamedBase stub for testing without Rails
       # @api private
       class NamedBase
-
         # Stub implementation for source_root class method
         # @api private
         def self.source_root(path = nil)
@@ -67,7 +64,7 @@ unless AGENT_GENERATOR_RAILS_AVAILABLE
         # @api private
         def self.namespace(name = nil)
           @namespace = name if name
-          @namespace || "ai_agent_dsl:agent"
+          @namespace || "raaf/dsl:agent"
         end
 
         # Stub implementation for inherited callback
@@ -78,20 +75,14 @@ unless AGENT_GENERATOR_RAILS_AVAILABLE
         def initialize(*args)
           # Minimal implementation for testing
         end
-
       end
-
     end
-
   end
 end
 
 module RAAF
-
   module DSL
-
     module Generators
-
       # Rails generator for creating AI agent classes and their corresponding prompt classes
       #
       # This generator creates two files for each AI agent:
@@ -117,19 +108,19 @@ module RAAF
       # ## Usage Examples
       #
       # @example Simple agent generation
-      #   rails generate ai_agent_dsl:agent MarketResearch
+      #   rails generate raaf/dsl:agent MarketResearch
       #   # Creates:
       #   # - app/ai/agents/market_research.rb (class MarketResearch)
       #   # - app/ai/prompts/market_research.rb (class MarketResearch)
       #
       # @example Namespaced agent generation
-      #   rails generate ai_agent_dsl:agent company/discovery
+      #   rails generate raaf/dsl:agent company/discovery
       #   # Creates:
       #   # - app/ai/agents/company/discovery.rb (class Company::Discovery)
       #   # - app/ai/prompts/company/discovery.rb (class Company::Discovery)
       #
       # @example Multi-level namespacing
-      #   rails generate ai_agent_dsl:agent sales/prospect/discovery
+      #   rails generate raaf/dsl:agent sales/prospect/discovery
       #   # Creates:
       #   # - app/ai/agents/sales/prospect/discovery.rb (class Sales::Prospect::Discovery)
       #   # - app/ai/prompts/sales/prospect/discovery.rb (class Sales::Prospect::Discovery)
@@ -143,7 +134,6 @@ module RAAF
       # @since 0.1.0
       #
       class AgentGenerator < Rails::Generators::NamedBase
-
         # Set the template directory for the generator
         # Templates are located in the same directory as this generator file
         source_root File.expand_path("templates", __dir__)
@@ -244,11 +234,7 @@ module RAAF
         def agent_class_name
           name.split("/").last.classify
         end
-
       end
-
     end
-
   end
-
 end

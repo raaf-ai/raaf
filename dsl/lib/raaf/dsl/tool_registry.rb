@@ -6,13 +6,9 @@
 # and resolved to their actual implementation classes at runtime.
 #
 module RAAF
-
   module DSL
-
     class ToolRegistry
-
       class << self
-
         def registry
           @registry ||= {}
         end
@@ -57,11 +53,7 @@ module RAAF
         def names
           registry.keys
         end
-
       end
-
     end
-
   end
-
 end

@@ -7,7 +7,6 @@ require_relative "../lib/ai_agent_dsl"
 
 # Agent with explicit prompt class
 class ExplicitPromptAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "explicit_prompt_agent"
@@ -18,12 +17,10 @@ class ExplicitPromptAgent < RAAF::DSL::Agents::Base
   def agent_name
     "Explicit Prompt Agent"
   end
-
 end
 
 # Agent that uses inference (expects RAAF::DSL::Prompts::InferredPromptAgent)
 class InferredPromptAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "inferred_prompt_agent"
@@ -31,12 +28,10 @@ class InferredPromptAgent < RAAF::DSL::Agents::Base
   def agent_name
     "Inferred Prompt Agent"
   end
-
 end
 
 # Agent using legacy template system
 class LegacyTemplateAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "legacy_template_agent"
@@ -51,12 +46,10 @@ class LegacyTemplateAgent < RAAF::DSL::Agents::Base
   def agent_name
     "Legacy Template Agent"
   end
-
 end
 
 # Agent using static instructions
 class StaticInstructionAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "static_instruction_agent"
@@ -66,12 +59,10 @@ class StaticInstructionAgent < RAAF::DSL::Agents::Base
   def agent_name
     "Static Instruction Agent"
   end
-
 end
 
 # Agent with no configuration (uses defaults)
 class DefaultAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "default_agent"
@@ -79,7 +70,6 @@ class DefaultAgent < RAAF::DSL::Agents::Base
   def agent_name
     "Default Agent"
   end
-
 end
 
 # Demonstration script
@@ -96,7 +86,7 @@ agents = [
 ]
 
 agents.each do |agent_class|
-  puts "\n#{"=" * 80}"
+  puts "\n#{'=' * 80}"
   puts "Testing #{agent_class.name}"
   puts "=" * 80
 

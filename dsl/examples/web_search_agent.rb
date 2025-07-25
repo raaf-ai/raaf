@@ -5,7 +5,6 @@ require_relative "web_search_prompt"
 
 # Example agent demonstrating web search capabilities
 class WebSearchAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "web_search_agent"
@@ -34,12 +33,10 @@ class WebSearchAgent < RAAF::DSL::Agents::Base
       additionalProperties: false
     }
   end
-
 end
 
 # Example agent with custom web search configuration
 class NewsAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "news_agent"
@@ -66,12 +63,10 @@ class NewsAgent < RAAF::DSL::Agents::Base
       Provide comprehensive analysis based on multiple sources when possible.
     INSTRUCTIONS
   end
-
 end
 
 # Example agent using preset configurations
 class TechAgent < RAAF::DSL::Agents::Base
-
   include RAAF::DSL::AgentDsl
 
   agent_name "tech_agent"
@@ -85,7 +80,7 @@ class TechAgent < RAAF::DSL::Agents::Base
 
   def build_instructions(_context = {})
     <<~INSTRUCTIONS
-      You are a technology research assistant focused on the latest developments#{" "}
+      You are a technology research assistant focused on the latest developments#{' '}
       in the tech industry.
 
       Search for information about:
@@ -98,5 +93,4 @@ class TechAgent < RAAF::DSL::Agents::Base
       Provide technical insights and analysis based on current information.
     INSTRUCTIONS
   end
-
 end

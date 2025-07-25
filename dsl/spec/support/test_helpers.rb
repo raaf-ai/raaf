@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module TestHelpers
-
   # Create a temporary YAML configuration file
   def create_test_config_file(config_hash, filename = "ai_agents.yml")
     config_path = File.join(temp_dir, filename)
@@ -117,8 +116,8 @@ module TestHelpers
                                                       "text" => "Mocked OpenAI Responses API response"
                                                     })
 
-    # Mock OpenAI::Client.new to return our mock
-    allow(OpenAI::Client).to receive(:new).and_return(client)
+    # Mock OpenAI::Client.new to return our mock if OpenAI is available
+    allow(OpenAI::Client).to receive(:new).and_return(client) if defined?(OpenAI::Client)
 
     client
   end
@@ -189,7 +188,6 @@ module TestHelpers
   ensure
     allow(Rails).to receive(:logger).and_return(original_logger) if defined?(Rails) && original_logger
   end
-
 end
 
 # Include helpers in RSpec

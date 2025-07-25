@@ -37,7 +37,7 @@ time_aware_agent = RAAF::Agent.new(
     # Build dynamic instruction string
     "#{greeting}! You are a helpful assistant. " \
       "This is message ##{message_count + 1} in our conversation. " \
-      "Current time: #{Time.now.strftime("%I:%M %p")}. " \
+      "Current time: #{Time.now.strftime('%I:%M %p')}. " \
       "Provide time-appropriate responses."
   },
   model: "gpt-4o-mini"

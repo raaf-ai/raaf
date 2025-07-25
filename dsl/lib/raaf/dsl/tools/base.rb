@@ -52,13 +52,9 @@
 # @since 0.1.0
 #
 module RAAF
-
   module DSL
-
     module Tools
-
       class Base
-
         attr_reader :options
 
         # Initialize a tool configuration
@@ -117,6 +113,19 @@ module RAAF
           raise NotImplementedError, "Subclasses must implement #build_tool_definition"
         end
 
+        # Processes the tool execution result
+        #
+        # This method can be overridden by subclasses to modify or transform
+        # the result before it's returned to the agent. By default, it returns
+        # the result unchanged.
+        #
+        # @param result [Object] The result from tool execution
+        # @return [Object] The processed result
+        #
+        def process_result(result)
+          result
+        end
+
         private
 
         # Override in subclasses to provide application-specific metadata
@@ -126,11 +135,7 @@ module RAAF
         def application_metadata
           {}
         end
-
       end
-
     end
-
   end
-
 end

@@ -3,9 +3,7 @@
 require_relative "prompt_configuration"
 
 module RAAF
-
   module DSL
-
     ##
     # Prompt configuration for interacting with OpenAI models
     #
@@ -52,7 +50,6 @@ module RAAF
     # @see DynamicPromptFunction For dynamic prompt generation
     # @see PromptUtil For prompt conversion utilities
     class Prompt
-
       # Additional attributes for enhanced prompt support
       attr_accessor :messages, :schema, :metadata
 
@@ -160,7 +157,6 @@ module RAAF
           variables: hash[:variables] || hash["variables"]
         )
       end
-
     end
 
     ##
@@ -194,7 +190,6 @@ module RAAF
     # @since 0.1.0
     # @see DynamicPromptFunction For usage in dynamic prompts
     class DynamicPromptData
-
       # @return [RunContextWrapper] execution context with conversation state
       attr_reader :context
 
@@ -213,7 +208,6 @@ module RAAF
         @context = context
         @agent = agent
       end
-
     end
 
     ##
@@ -265,7 +259,6 @@ module RAAF
     # @since 0.1.0
     # @see DynamicPromptData For available context data
     class DynamicPromptFunction
-
       # @return [#call] the wrapped function that generates prompts
       attr_reader :function
 
@@ -316,7 +309,6 @@ module RAAF
           raise TypeError, "Dynamic prompt function must return a Prompt or Hash, got #{result.class}"
         end
       end
-
     end
 
     ##
@@ -354,7 +346,6 @@ module RAAF
     # @author RAAF (Ruby AI Agents Factory) Team
     # @since 0.1.0
     module PromptUtil
-
       ##
       # Convert a prompt to model input format
       #
@@ -407,7 +398,6 @@ module RAAF
           variables: resolved_prompt.variables
         }.compact
       end
-
     end
 
     ##
@@ -434,7 +424,6 @@ module RAAF
     #
     # @see DynamicInstructions For the wrapper class implementation
     class Agent
-
       ##
       # Dynamic instructions generator
       #
@@ -475,7 +464,6 @@ module RAAF
       # @author RAAF (Ruby AI Agents Factory) Team
       # @since 0.1.0
       class DynamicInstructions
-
         # @return [#call] the function that generates instructions
         attr_reader :function
 
@@ -515,7 +503,6 @@ module RAAF
 
           result
         end
-
       end
 
       ##
@@ -624,9 +611,6 @@ module RAAF
                           end
                         end
       end
-
     end
-
   end
-
 end

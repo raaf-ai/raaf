@@ -23,13 +23,9 @@
 #   end
 #
 module RAAF
-
   module DSL
-
     module Tools
-
       class WebSearch < Base
-
         # Valid search context size options
         VALID_CONTEXT_SIZES = %w[low medium high].freeze
 
@@ -82,7 +78,7 @@ module RAAF
           return unless options[:search_context_size] && !VALID_CONTEXT_SIZES.include?(options[:search_context_size])
 
           raise ArgumentError,
-                "Invalid search_context_size: #{options[:search_context_size]}. Must be one of: #{VALID_CONTEXT_SIZES.join(", ")}"
+                "Invalid search_context_size: #{options[:search_context_size]}. Must be one of: #{VALID_CONTEXT_SIZES.join(', ')}"
         end
 
         # Application metadata for enhanced tool definition
@@ -94,11 +90,7 @@ module RAAF
           metadata[:search_context_size] = options[:search_context_size]
           metadata
         end
-
       end
-
     end
-
   end
-
 end

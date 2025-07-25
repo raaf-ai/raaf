@@ -20,13 +20,9 @@
 #   RAAF::DSL::Hooks::RunHooks.on_agent_start { |agent| puts "Third handler" }
 #
 module RAAF
-
   module DSL
-
     module Hooks
-
       module RunHooks
-
         # Event types supported by the global hooks system
         HOOK_TYPES = %i[
           on_agent_start
@@ -42,7 +38,6 @@ module RAAF
         @mutex = Mutex.new
 
         class << self
-
           # Register a global callback for when any agent starts
           #
           # @param method_name [Symbol, nil] Method name to call as callback
@@ -164,7 +159,7 @@ module RAAF
           #
           def register_hook(hook_type, method_name = nil, &block)
             unless HOOK_TYPES.include?(hook_type)
-              raise ArgumentError, "Invalid hook type: #{hook_type}. Must be one of: #{HOOK_TYPES.join(", ")}"
+              raise ArgumentError, "Invalid hook type: #{hook_type}. Must be one of: #{HOOK_TYPES.join(', ')}"
             end
 
             raise ArgumentError, "Either method_name or block must be provided" if method_name.nil? && block.nil?
@@ -178,13 +173,8 @@ module RAAF
               @hooks[hook_type] << hook
             end
           end
-
         end
-
       end
-
     end
-
   end
-
 end

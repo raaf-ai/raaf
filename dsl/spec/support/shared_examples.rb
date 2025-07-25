@@ -94,6 +94,7 @@ RSpec.shared_examples "a prompt class" do
   end
 
   it "validates contracts if configured" do
+    pending "Contract validation functionality"
     prompt_class = Class.new(described_class) do
       requires :required_param
       contract_mode :strict

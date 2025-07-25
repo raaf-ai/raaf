@@ -8,7 +8,6 @@ if defined?(Rails::Generators)
     require "rails/generators/test_case"
 
     class ConfigGeneratorTest < Rails::Generators::TestCase
-
       tests RAAF::DSL::Generators::ConfigGenerator
       destination File.expand_path("../../../tmp", __dir__)
 
@@ -32,7 +31,6 @@ if defined?(Rails::Generators)
           expect(content).to match(/RAAF::DSL\.configure do \|config\|/)
         end
       end
-
     end
   rescue LoadError
     # Rails generators not available

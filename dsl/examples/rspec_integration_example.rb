@@ -13,7 +13,6 @@ require "ai_agent_dsl/rspec"
 
 # Example prompt class for a document processing application
 class ReportAnalysisPrompt < RAAF::DSL::Prompts::Base
-
   required :report_name, :analysis_type
   optional :urgency, :department
   required :file_path, path: %i[document path]
@@ -43,7 +42,6 @@ class ReportAnalysisPrompt < RAAF::DSL::Prompts::Base
     prompt += " Focus on #{context[:department]} concerns." if context[:department]
     prompt
   end
-
 end
 
 # Test suite demonstrating all matcher capabilities

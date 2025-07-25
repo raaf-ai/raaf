@@ -5,15 +5,12 @@ require_relative "prompt_resolvers/phlex_resolver"
 require_relative "prompt_resolvers/file_resolver"
 
 module RAAF
-
   module DSL
-
     ##
     # Configuration for prompt resolution system
     #
     class PromptConfiguration
-
-      include Logger
+      include RAAF::Logger
 
       attr_reader :paths, :resolvers, :default_format
 
@@ -184,14 +181,12 @@ module RAAF
           resolver.instance_variable_set(:@paths, @paths)
         end
       end
-
     end
 
     ##
     # Global prompt configuration
     #
     class << self
-
       def prompt_configuration
         @prompt_configuration ||= PromptConfiguration.new
       end
@@ -199,9 +194,6 @@ module RAAF
       def configure_prompts(&block)
         PromptConfiguration.configure(&block)
       end
-
     end
-
   end
-
 end

@@ -35,11 +35,8 @@
 #
 # @since 0.1.0
 module RAAF
-
   module DSL
-
     module Logging
-
       extend ActiveSupport::Concern
 
       # Log levels matching standard logging conventions
@@ -57,7 +54,6 @@ module RAAF
       end
 
       module ClassMethods
-
         # Configure logging for this class
         #
         # @param options [Hash] Logging configuration options
@@ -100,11 +96,9 @@ module RAAF
                                                    ))
           end
         end
-
       end
 
       module InstanceMethods
-
         # Instance-level logging methods with automatic context enrichment
         LOG_LEVELS.each_key do |level|
           define_method("log_#{level}") do |message, metadata = {}|
@@ -265,12 +259,10 @@ module RAAF
           class_defaults = self.class.logging_config[:default_metadata]
           base_metadata.merge(class_defaults).merge(metadata)
         end
-
       end
 
       # Module-level logging methods for standalone usage
       class << self
-
         # Main logging method that handles output routing
         #
         # @param level [Symbol] Log level (:debug, :info, :warn, :error, :fatal)
@@ -336,7 +328,7 @@ module RAAF
           if global_config[:structured] && metadata.any?
             # Structured format with metadata
             metadata_str = metadata.map { |k, v| "#{k}=#{format_value(v)}" }.join(" ")
-            "[#{metadata[:component] || "RAAF::DSL"}] #{message} #{metadata_str}"
+            "[#{metadata[:component] || 'RAAF::DSL'}] #{message} #{metadata_str}"
           else
             # Simple format
             component = metadata[:component] || "RAAF::DSL"
@@ -352,7 +344,7 @@ module RAAF
           when Hash
             value.to_json
           when Array
-            "[#{value.join(",")}]"
+            "[#{value.join(',')}]"
           when Time
             value.iso8601
           else
@@ -369,11 +361,7 @@ module RAAF
         def default_format
           "%<timestamp>s [%<level>s] [%<component>s] %<message>s %<metadata>s"
         end
-
       end
-
     end
-
   end
-
 end

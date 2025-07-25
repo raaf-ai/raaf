@@ -1,14 +1,10 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     module AgentDsl
-
       # Context storage configuration methods for agent DSL
       module Context
-
         extend ActiveSupport::Concern
 
         class_methods do
@@ -32,11 +28,7 @@ module RAAF
             _agent_config[:context_storage_keys] || []
           end
         end
-
       end
-
     end
-
   end
-
 end

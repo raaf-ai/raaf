@@ -28,11 +28,9 @@ unless CONFIG_GENERATOR_RAILS_AVAILABLE
   # Minimal Rails module stub for non-Rails environments (config generator specific)
   # @api private
   module Rails
-
     # Minimal Generators module stub for config generator
     # @api private
     module Generators
-
       # Returns empty array when Rails generators are not available
       # @api private
       def self.subclasses
@@ -48,7 +46,6 @@ unless CONFIG_GENERATOR_RAILS_AVAILABLE
       # Minimal Base stub for config generator testing without Rails
       # @api private
       class Base
-
         # Stub implementation for source_root class method
         # @api private
         def self.source_root(path = nil)
@@ -67,7 +64,7 @@ unless CONFIG_GENERATOR_RAILS_AVAILABLE
         # @api private
         def self.namespace(name = nil)
           @namespace = name if name
-          @namespace || "ai_agent_dsl:config"
+          @namespace || "raaf/dsl:config"
         end
 
         # Stub implementation for inherited callback
@@ -78,20 +75,14 @@ unless CONFIG_GENERATOR_RAILS_AVAILABLE
         def initialize(*args)
           # Minimal implementation for testing
         end
-
       end
-
     end
-
   end
 end
 
 module RAAF
-
   module DSL
-
     module Generators
-
       # Rails generator for creating AI agent configuration files
       #
       # This generator creates the necessary configuration files to get started
@@ -144,7 +135,7 @@ module RAAF
       # ## Usage Examples
       #
       # @example Basic configuration generation
-      #   rails generate ai_agent_dsl:config
+      #   rails generate raaf/dsl:config
       #   # Creates:
       #   # - config/ai_agents.yml
       #   # - config/initializers/ai_config.rb
@@ -172,7 +163,6 @@ module RAAF
       # @since 0.1.0
       #
       class ConfigGenerator < Rails::Generators::Base
-
         # Set the template directory for the generator
         # Templates are located in the same directory as this generator file
         source_root File.expand_path("templates", __dir__)
@@ -237,11 +227,7 @@ module RAAF
         def create_initializer
           template "ai_config.rb.erb", "config/initializers/ai_config.rb"
         end
-
       end
-
     end
-
   end
-
 end

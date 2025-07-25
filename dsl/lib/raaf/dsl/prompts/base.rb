@@ -1,13 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
-
 module RAAF
-
   module DSL
-
     module Prompts
-
       # Variable contract validation error
       #
       # Raised when prompt classes violate their variable contracts, such as:
@@ -95,8 +90,7 @@ module RAAF
       # @since 0.1.0
       #
       class Base
-
-        include RAAF::DSL::Logging
+        include RAAF::Logger
 
         # Sets up variable contract configuration for subclasses
         #
@@ -121,10 +115,8 @@ module RAAF
         end
 
         class << self
-
           # @api private
           attr_writer :_required_variables
-
         end
 
         # @api private
@@ -133,10 +125,8 @@ module RAAF
         end
 
         class << self
-
           # @api private
           attr_writer :_optional_variables
-
         end
 
         # @api private
@@ -145,10 +135,8 @@ module RAAF
         end
 
         class << self
-
           # @api private
           attr_writer :_contract_mode
-
         end
 
         # @api private
@@ -157,10 +145,8 @@ module RAAF
         end
 
         class << self
-
           # @api private
           attr_writer :_context_mappings
-
         end
 
         # @api private
@@ -169,10 +155,8 @@ module RAAF
         end
 
         class << self
-
           # @api private
           attr_writer :_schema_config
-
         end
 
         # Contract DSL methods
@@ -431,7 +415,8 @@ module RAAF
           # If value is nil and no default, provide clear error
           if value.nil? && default_value.nil? && mapping[:required]
             # Enhanced error message with context debugging
-            error_msg = "Context path #{path.join(" -> ")} not found for required variable '#{variable_name}' in #{self.class.name}"
+            error_msg = "Context path #{path.join(' -> ')} not found for required variable " \
+                        "'#{variable_name}' in #{self.class.name}"
             if @context
               actual_context = @context[:context] || @context
               error_msg += "\nAvailable context keys: #{actual_context.keys.inspect}"
@@ -470,7 +455,7 @@ module RAAF
           missing_required = required_variables - provided_variables
           if missing_required.any?
             raise VariableContractError,
-                  "Missing required variables for #{self.class.name}: #{missing_required.join(", ")}"
+                  "Missing required variables for #{self.class.name}: #{missing_required.join(', ')}"
           end
 
           # Check for unused variables (only in strict or warn mode)
@@ -485,16 +470,15 @@ module RAAF
           unused_variables = provided_variables - legitimately_used
           return unless unused_variables.any?
 
-          message = "Unused variables provided to #{self.class.name}: #{unused_variables.join(", ")}"
+          message = "Unused variables provided to #{self.class.name}: #{unused_variables.join(', ')}"
 
           raise VariableContractError, message if self.class._contract_mode == :strict
 
           # warn mode
-          log_warn("Variable contract warning", {
-                     message: message,
-                     unused_variables: unused_variables,
-                     prompt_class: self.class.name
-                   })
+          log_warn("Variable contract warning",
+                   message: message,
+                   unused_variables: unused_variables,
+                   prompt_class: self.class.name)
         end
 
         # Validate that context paths exist for required context-mapped variables
@@ -516,20 +500,16 @@ module RAAF
             value = nil if value.is_a?(String) && value.strip.empty?
 
             if value.nil? && mapping[:default].nil?
-              missing_paths << "#{variable_name} (context path: #{path.join(" -> ")})"
+              missing_paths << "#{variable_name} (context path: #{path.join(' -> ')})"
             end
           end
 
           return unless missing_paths.any?
 
           raise VariableContractError,
-                "Missing required context paths for #{self.class.name}: #{missing_paths.join(", ")}"
+                "Missing required context paths for #{self.class.name}: #{missing_paths.join(', ')}"
         end
-
       end
-
     end
-
   end
-
 end

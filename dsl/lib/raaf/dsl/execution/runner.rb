@@ -39,13 +39,9 @@ require "raaf"
 # @since 0.1.0
 #
 module RAAF
-
   module DSL
-
     module Execution
-
       class Runner
-
         # @!attribute [r] openai_agent
         #   @return [RAAF::Agent] The configured OpenAI agent instance
         # @!attribute [r] openai_runner
@@ -180,11 +176,7 @@ module RAAF
             [{ role: "user", content: input.to_s }]
           end
         end
-
       end
-
     end
-
   end
-
 end

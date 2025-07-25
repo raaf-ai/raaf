@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
-
   module DSL
-
     ##
     # Base class for prompt resolvers. Each resolver handles a specific
     # prompt format (e.g., Phlex classes, Markdown files, ERB templates).
@@ -11,7 +9,6 @@ module RAAF
     # @abstract Subclass and implement {#resolve} to create a custom resolver
     #
     class PromptResolver
-
       # @return [Symbol] unique identifier for this resolver
       attr_reader :name
 
@@ -58,15 +55,13 @@ module RAAF
       def priority
         options[:priority] || 0
       end
-
     end
 
     ##
     # Registry for managing prompt resolvers
     #
     class PromptResolverRegistry
-
-      include Logger
+      include RAAF::Logger
 
       def initialize
         @resolvers = []
@@ -164,20 +159,15 @@ module RAAF
         log_debug("No resolver found for prompt specification", spec_class: prompt_spec.class.name)
         nil
       end
-
     end
 
     ##
     # Global prompt resolver registry
     #
     class << self
-
       def prompt_resolvers
         @prompt_resolvers ||= PromptResolverRegistry.new
       end
-
     end
-
   end
-
 end

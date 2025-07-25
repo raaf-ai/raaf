@@ -2,6 +2,7 @@
 
 RSpec.describe RAAF::DSL do
   it_behaves_like "a configurable class"
+  # pending "Shared example requires implementation"
 
   describe "module constants" do
     it "defines VERSION constant" do

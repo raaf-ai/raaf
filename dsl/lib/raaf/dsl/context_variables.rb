@@ -26,11 +26,8 @@
 # @since 0.2.0
 #
 module RAAF
-
   module DSL
-
     class ContextVariables
-
       # Error raised when context variable operations fail
       class ContextError < StandardError; end
 
@@ -414,9 +411,6 @@ module RAAF
         estimated_size = @variables.inspect.bytesize + @change_history.inspect.bytesize
         "~#{estimated_size} bytes"
       end
-
     end
-
   end
-
 end
