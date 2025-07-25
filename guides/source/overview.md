@@ -70,8 +70,8 @@ agent = RAAF::Agent.new(model: "gpt-4o")
 # Switch to Anthropic with no code changes
 agent = RAAF::Agent.new(model: "claude-3-5-sonnet-20241022")
 
-# Or use local models
-agent = RAAF::Agent.new(model: "llama3:8b")
+# Or use LiteLLM for broad provider access
+agent = RAAF::Agent.new(model: "bedrock/claude-3")
 ```
 
 Notice what's missing? No provider-specific configuration. No adapter classes. No factory patterns. Just change the model name and everything else stays the same. Your tools work. Your conversation history works. Your monitoring works.
@@ -266,7 +266,7 @@ The goal isn't to scare you with complexity. It's to give you confidence that wh
 
 ## Architecture Overview
 
-RAAF consists of 11 main components:
+RAAF consists of 13 gems organized into focused components:
 
 ### Core Components
 
@@ -278,7 +278,7 @@ RAAF consists of 11 main components:
 
 * **[raaf-tools](tools_guide.html)** - Comprehensive tool ecosystem
 * **[raaf-memory](memory_guide.html)** - Memory management and context persistence
-* **[raaf-streaming](streaming_guide.html)** - Real-time streaming and async processing
+* **Streaming** (integrated in core) - Real-time streaming and async processing via [streaming guide](streaming_guide.html)
 
 ### Enterprise Features
 
@@ -290,6 +290,10 @@ RAAF consists of 11 main components:
 
 * **[raaf-rails](rails_guide.html)** - Rails integration with web dashboard
 * **[raaf-testing](testing_guide.html)** - Testing utilities and mocks
+* **raaf-debug** - Interactive debugging and profiling tools
+* **raaf-analytics** - Usage tracking and analytics
+* **raaf-misc** - Extensions including multimodal, voice workflow, and data pipeline features
+* **raaf-mcp** - Model Context Protocol support
 
 ## Quick Start Example
 

@@ -101,7 +101,7 @@ RAAF::Errors::ProviderError: Unknown provider 'custom_provider'
 
    ```ruby
    # Correct
-   provider = RAAF::Models::OpenAIProvider.new
+   provider = RAAF::Models::ResponsesProvider.new
    
    # Incorrect
    provider = RAAF::Models::OpenAiProvider.new  # Wrong case
@@ -162,7 +162,7 @@ Runtime Issues
 3. **Verify model availability:**
 
    ```ruby
-   provider = RAAF::Models::OpenAIProvider.new
+   provider = RAAF::Models::ResponsesProvider.new
    begin
      models = provider.list_models
      puts "Available models: #{models}"
@@ -442,7 +442,7 @@ RAAF::Errors::RateLimitError: Rate limit exceeded
 1. **Implement exponential backoff:**
 
    ```ruby
-   provider = RAAF::Models::OpenAIProvider.new(
+   provider = RAAF::Models::ResponsesProvider.new(
      max_retries: 5,
      retry_backoff: :exponential,
      retry_jitter: true

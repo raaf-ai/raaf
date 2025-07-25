@@ -263,11 +263,11 @@ agent = RAAF::Agent.new(model: "claude-3-5-sonnet-20241022")  # Excellent reason
 # Groq models
 agent = RAAF::Agent.new(model: "mixtral-8x7b-32768")  # Fast inference, good for simple tasks
 
-# Local models via Ollama
-agent = RAAF::Agent.new(model: "llama3:8b")     # No API costs, runs locally
+# LiteLLM universal access
+agent = RAAF::Agent.new(model: "bedrock/claude-3")  # Access to AWS Bedrock models
 ```
 
-The model choice isn't just about capabilities—it's about trade-offs. GPT-4o gives you the best reasoning but costs more per token. GPT-4o-mini is fast and cheap but might struggle with complex logic. Local models give you complete control but require infrastructure.
+The model choice isn't just about capabilities—it's about trade-offs. GPT-4o gives you the best reasoning but costs more per token. GPT-4o-mini is fast and cheap but might struggle with complex logic. LiteLLM provides access to diverse providers and models through a universal interface.
 
 Here's a practical approach: start with a premium model like GPT-4o during development. Once you understand your requirements, you can optimize by using cheaper models for simple tasks and reserving premium models for complex reasoning. RAAF's provider abstraction makes this kind of optimization trivial to implement.
 
@@ -3508,7 +3508,7 @@ The trick is optimizing what you can control.
 class NaiveAgent
   def process_request(prompt)
     # This constructor makes 3 HTTP calls!
-    provider = RAAF::Models::OpenAIProvider.new(
+    provider = RAAF::Models::ResponsesProvider.new(
       api_key: ENV['OPENAI_API_KEY']
     )
     runner = RAAF::Runner.new(agent: self, provider: provider)
@@ -3526,7 +3526,7 @@ end
 class ProductionAgent
   def initialize
     # Connection pool configuration based on real metrics
-    @provider = RAAF::Models::OpenAIProvider.new(
+    @provider = RAAF::Models::ResponsesProvider.new(
       api_key: ENV['OPENAI_API_KEY'],
       
       # Pool size = expected concurrent requests + buffer

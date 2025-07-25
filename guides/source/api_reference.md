@@ -265,14 +265,14 @@ RAAF::Models::ResponsesProvider.new(
 )
 ```
 
-### RAAF::Models::OpenAIProvider
+### RAAF::Models::ResponsesProvider
 
 Direct OpenAI API integration.
 
 #### Constructor
 
 ```ruby
-RAAF::Models::OpenAIProvider.new(
+RAAF::Models::ResponsesProvider.new(
   api_key: String = ENV['OPENAI_API_KEY'],
   organization: String = ENV['OPENAI_ORG_ID'],
   base_url: String = "https://api.openai.com/v1",
@@ -750,7 +750,7 @@ Configuration
 
 ```ruby
 RAAF.configure do |config|
-  config.default_provider = RAAF::Models::OpenAIProvider.new
+  config.default_provider = RAAF::Models::ResponsesProvider.new
   config.default_model = "gpt-4o"
   config.max_retries = 3
   config.timeout = 30

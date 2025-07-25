@@ -1506,7 +1506,7 @@ if Rails.env.production?
   # Configure provider routing
   router = RAAF::Performance::ProviderRouter.new
   router.register_provider(:openai_primary, 
-    RAAF::Models::OpenAIProvider.new, 
+    RAAF::Models::ResponsesProvider.new, 
     weight: 3, priority: 1)
   router.register_provider(:anthropic_backup, 
     RAAF::Models::AnthropicProvider.new, 

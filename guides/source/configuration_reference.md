@@ -494,7 +494,7 @@ Advanced Configuration
 # Custom provider with specific settings
 RAAF.configure do |config|
   config.providers = {
-    primary: RAAF::Models::OpenAIProvider.new(
+    primary: RAAF::Models::ResponsesProvider.new(
       api_key: ENV['OPENAI_API_KEY'],
       timeout: 30,
       max_retries: 3,
@@ -780,7 +780,7 @@ end
 # Error: RAAF::Errors::ModelNotAvailableError: Model 'gpt-5' not found
 
 # Solution: Check model name and provider support
-provider = RAAF::Models::OpenAIProvider.new
+provider = RAAF::Models::ResponsesProvider.new
 available_models = provider.list_models
 puts "Available models: #{available_models}"
 
@@ -801,7 +801,7 @@ RAAF.configure do |config|
 end
 
 # Test connectivity
-provider = RAAF::Models::OpenAIProvider.new
+provider = RAAF::Models::ResponsesProvider.new
 begin
   provider.list_models
   puts "Connection successful"

@@ -107,7 +107,7 @@ Basic Streaming Setup
 ### Streaming Agent Responses
 
 ```ruby
-require 'raaf-streaming'
+require 'raaf-core'
 
 agent = RAAF::Agent.new(
   name: "StreamingAssistant",
@@ -115,7 +115,7 @@ agent = RAAF::Agent.new(
   model: "gpt-4o"
 )
 
-runner = RAAF::Streaming::Runner.new(agent: agent)
+runner = RAAF::Streaming::AsyncRunner.new(agent: agent)
 
 # Stream responses chunk by chunk
 runner.run_and_stream("Tell me a story") do |chunk|
@@ -466,7 +466,7 @@ class StreamingAgentJob < ApplicationJob
   def perform(user_id, message, session_id, context = {})
     user = User.find(user_id)
     agent = build_agent_for_user(user)
-    runner = RAAF::Streaming::Runner.new(agent: agent)
+    runner = RAAF::Streaming::AsyncRunner.new(agent: agent)
     
     # Stream to user via ActionCable
     runner.run_and_stream(message, context: context) do |chunk|
@@ -537,7 +537,7 @@ class AsyncAgentService
   
   def stream_sync_chat(message, context: {}, &block)
     agent = build_agent
-    runner = RAAF::Streaming::Runner.new(agent: agent)
+    runner = RAAF::Streaming::AsyncRunner.new(agent: agent)
     
     runner.run_and_stream(message, context: context) do |chunk|
       # Add session context to chunk
@@ -647,7 +647,7 @@ class AgentOrchestrator
     @agents.each do |name, agent|
       emit_event(:agent_starting, agent: name, message: current_message)
       
-      runner = RAAF::Streaming::Runner.new(agent: agent)
+      runner = RAAF::Streaming::AsyncRunner.new(agent: agent)
       
       result = runner.run_and_stream(current_message) do |chunk|
         emit_event(:agent_chunk, 
@@ -678,7 +678,7 @@ class AgentOrchestrator
     
     @agents.each do |name, agent|
       threads << Thread.new do
-        runner = RAAF::Streaming::Runner.new(agent: agent)
+        runner = RAAF::Streaming::AsyncRunner.new(agent: agent)
         
         result = runner.run_and_stream(message) do |chunk|
           emit_event(:agent_chunk, 
@@ -849,7 +849,7 @@ class CollaborativeAgentService
       other_participants: @participants.reject { |p| p == item[:user] }.map(&:name)
     }
     
-    runner = RAAF::Streaming::Runner.new(agent: @agent)
+    runner = RAAF::Streaming::AsyncRunner.new(agent: @agent)
     
     runner.run_and_stream(item[:message], context: context) do |chunk|
       broadcast_chunk(chunk, item[:user])

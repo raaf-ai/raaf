@@ -87,8 +87,9 @@ RAAF abstracts away provider differences while preserving their unique capabilit
 * **[Cohere](https://cohere.com)** - Command models
 * **[Groq](https://groq.com)** - High-speed inference for Llama, Mixtral
 * **[Together AI](https://www.together.ai)** - Open source models
-* **[Ollama](https://ollama.com)** - Local model deployment
 * **[LiteLLM](https://github.com/BerriAI/litellm)** - Universal gateway to 100+ providers
+
+NOTE: **All supported providers must have tool/function calling capabilities.** Providers that don't support tool calling have been removed to ensure consistent handoff behavior across all deployments.
 
 ### Universal Interface
 
@@ -109,8 +110,8 @@ agent = RAAF::Agent.new(model: "claude-3-5-sonnet-20241022")
 # Groq
 agent = RAAF::Agent.new(model: "mixtral-8x7b-32768")
 
-# Local with Ollama
-agent = RAAF::Agent.new(model: "llama3:8b")
+# LiteLLM with universal access
+agent = RAAF::Agent.new(model: "bedrock/claude-3")
 ```
 
 ### Automatic Provider Detection
@@ -120,7 +121,7 @@ The model selection examples demonstrate RAAF's provider-agnostic approach. Mode
 **OpenAI Models**: Names like "gpt-4o" automatically route to OpenAI services
 **Anthropic Models**: Names like "claude-3-5-sonnet-20241022" route to Anthropic services
 **Groq Models**: Names like "mixtral-8x7b-32768" route to Groq services
-**Local Models**: Names like "llama3:8b" route to local Ollama deployments
+**LiteLLM Models**: Prefixed names like "bedrock/claude-3" route through LiteLLM
 
 This automatic detection eliminates explicit provider configuration in most cases, reducing code complexity and improving maintainability.
 
@@ -159,7 +160,7 @@ require 'raaf-providers'
 ENV['OPENAI_API_KEY'] = 'your-openai-key'
 
 # Or explicit configuration
-provider = RAAF::Models::OpenAIProvider.new(
+provider = RAAF::Models::ResponsesProvider.new(
   api_key: 'your-openai-key',
   base_url: 'https://api.openai.com/v1',  # Custom endpoint
   timeout: 30,
@@ -520,61 +521,41 @@ agent = RAAF::Agent.new(model: "codellama/CodeLlama-34b-Instruct-hf")
 agent = RAAF::Agent.new(model: "WizardLM/WizardCoder-Python-34B-V1.0")
 ```
 
-Ollama Provider (Local Models)
-------------------------------
+Cohere Provider
+---------------
 
-### Why Local Models Are the Future (And Present) of Enterprise AI
+### Why Cohere Excels at Enterprise Text Processing
 
-True story: Our client was a healthcare company. They loved our AI agent. Legal killed it.
+Cohere specializes in enterprise-grade language processing with strong performance in:
 
-"Patient data can't leave our network."
-"But it's encrypted!"
-"Doesn't matter. No external APIs. Period."
-
-Enter Ollama and local models. Same AI capabilities, zero data leakage.
-
-The revelation:
-
-- **No API costs**: After hardware investment, inference is free
-- **No rate limits**: Run 10,000 requests per second if your hardware allows
-- **Complete privacy**: Data never leaves your servers
-- **Predictable latency**: No network hops, no provider outages
-
-The reality check:
-
-- **Hardware requirements**: Good models need good GPUs
-- **Model quality gap**: Local models are improving but still behind GPT-4
-- **Maintenance overhead**: You're now running AI infrastructure
+- **Classification tasks**: Superior text categorization and sentiment analysis
+- **Retrieval augmented generation**: Excellent at working with document search
+- **Multilingual support**: Strong performance across many languages
+- **Enterprise features**: Built-in safety and bias mitigation
 
 Perfect for:
 
-- Sensitive data (healthcare, finance, legal)
-- High-volume applications (millions of requests)
-- Offline environments
-- Cost-sensitive deployments at scale
+- Content moderation and classification
+- Document analysis and summarization
+- Customer support automation
+- Multilingual applications
 
-### Setup and Configuration
-
-```bash
-# Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# Pull models
-ollama pull llama3:8b
-ollama pull llama3:70b
-ollama pull codellama:13b
-ollama pull mistral:7b
-```
+### Configuration
 
 ```ruby
-# Configure Ollama provider
-provider = RAAF::Models::OllamaProvider.new(
-  base_url: 'http://localhost:11434',
-  timeout: 120  # Local models may be slower
+# Environment variable
+ENV['COHERE_API_KEY'] = 'your-cohere-key'
+
+# Explicit configuration
+provider = RAAF::Models::CohereProvider.new(
+  api_key: 'your-cohere-key',
+  base_url: 'https://api.cohere.ai/v1',
+  timeout: 30,
+  max_retries: 3
 )
 
 agent = RAAF::Agent.new(
-  model: "llama3:8b",
+  model: "command-r-plus",
   provider: provider
 )
 ```
@@ -582,52 +563,31 @@ agent = RAAF::Agent.new(
 ### Available Models
 
 ```ruby
-# Llama 3 models (best general purpose)
-agent = RAAF::Agent.new(model: "llama3:8b")     # Fast, good quality
-agent = RAAF::Agent.new(model: "llama3:70b")    # Higher quality, slower
-
-# Code-specific models
-agent = RAAF::Agent.new(model: "codellama:13b")  # Code generation
-agent = RAAF::Agent.new(model: "codellama:34b")  # Better code quality
+# Command models (latest generation)
+agent = RAAF::Agent.new(model: "command-r-plus")    # Most capable
+agent = RAAF::Agent.new(model: "command-r")         # Balanced performance
+agent = RAAF::Agent.new(model: "command-light")     # Fast and efficient
 
 # Specialized models
-agent = RAAF::Agent.new(model: "mistral:7b")     # Fast and efficient
-agent = RAAF::Agent.new(model: "gemma:7b")       # Google's model
-agent = RAAF::Agent.new(model: "neural-chat:7b") # Conversation-tuned
+agent = RAAF::Agent.new(model: "command-nightly")   # Latest experimental features
 ```
 
-### Local Deployment Benefits
+### Cohere-Specific Features
 
 ```ruby
-class LocalAISystem
-  def initialize
-    @local_provider = RAAF::Models::OllamaProvider.new
-    @privacy_agent = create_privacy_agent
-    @cost_effective_agent = create_cost_effective_agent
-  end
-  
-  private
-  
-  def create_privacy_agent
-    # For sensitive data that cannot leave premises
-    RAAF::Agent.new(
-      name: "PrivacyAgent",
-      instructions: "Handle sensitive customer data with privacy compliance",
-      model: "llama3:8b",  # Runs locally, data never leaves
-      provider: @local_provider
-    )
-  end
-  
-  def create_cost_effective_agent
-    # For high-volume, cost-sensitive tasks
-    RAAF::Agent.new(
-      name: "BulkProcessor",
-      instructions: "Process large volumes of simple tasks",
-      model: "mistral:7b",  # No API costs
-      provider: @local_provider
-    )
-  end
-end
+# Text classification
+agent = RAAF::Agent.new(
+  model: "command-r",
+  task_type: "classify",
+  categories: ["positive", "negative", "neutral"]
+)
+
+# Retrieval augmented generation
+agent = RAAF::Agent.new(
+  model: "command-r-plus",
+  retrieval_enabled: true,
+  max_tokens: 4096
+)
 ```
 
 LiteLLM Universal Provider
@@ -715,10 +675,10 @@ This analysis informed our routing strategy:
 class CostOptimizedRouting
   def initialize
     @providers = {
-      openai: RAAF::Models::OpenAIProvider.new,
+      openai: RAAF::Models::ResponsesProvider.new,
       anthropic: RAAF::Models::AnthropicProvider.new,
       groq: RAAF::Models::GroqProvider.new,
-      ollama: RAAF::Models::OllamaProvider.new
+      litellm: RAAF::Models::LiteLLMProvider.new
     }
     
     # Cost per 1M tokens (input/output)
@@ -726,7 +686,7 @@ class CostOptimizedRouting
       'gpt-4o-mini' => [0.15, 0.60],
       'claude-3-haiku' => [0.25, 1.25],
       'mixtral-8x7b-32768' => [0.27, 0.27],  # Groq
-      'llama3:8b' => [0, 0]  # Local is free
+      'command-light' => [0.15, 0.15]  # Cohere
     }
   end
   
@@ -744,7 +704,7 @@ class CostOptimizedRouting
     elsif suitable_models.include?('mixtral-8x7b-32768')
       ['mixtral-8x7b-32768', @providers[:groq]]
     else
-      ['llama3:8b', @providers[:ollama]]  # Always free fallback
+      ['command-light', @providers[:litellm]]  # Cost-effective fallback
     end
   end
 end
@@ -752,7 +712,7 @@ end
 
 This cost-optimized routing system demonstrates intelligent budget management across multiple providers. The system tracks cost per million tokens for both input and output, enabling precise budget calculations. The routing logic balances task complexity with cost constraints, automatically selecting the most capable model that fits within your budget.
 
-The fallback cascade ensures that you always have a viable option. If high-complexity tasks exceed your budget for premium models, the system steps down to more affordable alternatives. The local Ollama option provides a zero-cost fallback for budget-constrained scenarios, ensuring your application can continue functioning even when external API budgets are exhausted. This approach can reduce costs by 60-80% while maintaining appropriate quality levels for each task type.
+The fallback cascade ensures that you always have a viable option. If high-complexity tasks exceed your budget for premium models, the system steps down to more affordable alternatives. The LiteLLM option provides access to cost-effective providers and models through a universal interface, ensuring your application can continue functioning even when primary providers are unavailable or over budget. This approach can reduce costs by 60-80% while maintaining appropriate quality levels for each task type.
 
 ### Load Balancing
 
@@ -760,7 +720,7 @@ The fallback cascade ensures that you always have a viable option. If high-compl
 class LoadBalancedProvider
   def initialize
     @providers = [
-      RAAF::Models::OpenAIProvider.new,
+      RAAF::Models::ResponsesProvider.new,
       RAAF::Models::AnthropicProvider.new,
       RAAF::Models::GroqProvider.new
     ]
@@ -791,9 +751,9 @@ class LoadBalancedProvider
   
   def select_model_for_provider(provider, model_type)
     case [provider.class.name, model_type]
-    when ['OpenAIProvider', :fast]
+    when ['ResponsesProvider', :fast]
       'gpt-4o-mini'
-    when ['OpenAIProvider', :quality]
+    when ['ResponsesProvider', :quality]
       'gpt-4o'
     when ['AnthropicProvider', :fast]
       'claude-3-haiku'
@@ -813,9 +773,9 @@ end
 ```ruby
 class ResilientProvider
   def initialize
-    @primary_provider = RAAF::Models::OpenAIProvider.new
+    @primary_provider = RAAF::Models::ResponsesProvider.new
     @secondary_provider = RAAF::Models::AnthropicProvider.new
-    @fallback_provider = RAAF::Models::OllamaProvider.new
+    @fallback_provider = RAAF::Models::LiteLLMProvider.new
     
     @circuit_breakers = {}
   end
@@ -880,7 +840,7 @@ Performance Optimization
 class PooledProviderManager
   def initialize
     @openai_pool = ConnectionPool.new(size: 10, timeout: 5) do
-      RAAF::Models::OpenAIProvider.new(
+      RAAF::Models::ResponsesProvider.new(
         api_key: ENV['OPENAI_API_KEY'],
         timeout: 30
       )
@@ -956,7 +916,7 @@ end
 
 # Usage
 cached_openai = CachedProviderResponses.new(
-  RAAF::Models::OpenAIProvider.new
+  RAAF::Models::ResponsesProvider.new
 )
 
 agent = RAAF::Agent.new(
@@ -995,7 +955,7 @@ agent = RAAF::Agent.new(
 # Batch requests for efficiency
 class OpenAIBatcher
   def initialize
-    @provider = RAAF::Models::OpenAIProvider.new
+    @provider = RAAF::Models::ResponsesProvider.new
     @batch_requests = []
   end
   
@@ -1082,7 +1042,7 @@ Testing Multi-Provider Systems
 RSpec.describe 'Multi-Provider Agent System' do
   let(:providers) do
     {
-      openai: RAAF::Models::OpenAIProvider.new,
+      openai: RAAF::Models::ResponsesProvider.new,
       anthropic: RAAF::Models::AnthropicProvider.new,
       groq: RAAF::Models::GroqProvider.new
     }

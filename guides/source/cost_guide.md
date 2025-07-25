@@ -605,7 +605,7 @@ class CostAwareAgentService
     when 'groq'
       RAAF::Models::GroqProvider.new
     else
-      RAAF::Models::OpenAIProvider.new
+      RAAF::Models::ResponsesProvider.new
     end
   end
   
