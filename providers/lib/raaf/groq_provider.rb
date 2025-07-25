@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "interface"
-require_relative "retryable_provider"
-require_relative "../http_client"
+require "net/http"
+require "uri"
+# Interface is required from raaf-core gem
 
 module RAAF
   module Models
@@ -42,8 +42,6 @@ module RAAF
     #   )
     #
     class GroqProvider < ModelInterface
-      include RetryableProvider
-
       # Groq API base URL
       API_BASE = "https://api.groq.com/openai/v1"
 
@@ -80,10 +78,7 @@ module RAAF
 
         raise AuthenticationError, "Groq API key is required" unless @api_key
 
-        @http_client = HTTPClient.new(default_headers: {
-                                        "Authorization" => "Bearer #{@api_key}",
-                                        "Content-Type" => "application/json"
-                                      })
+        # HTTP client initialization removed - using Net::HTTP directly for Groq API
       end
 
       ##
@@ -101,7 +96,7 @@ module RAAF
       # @raise [ModelNotFoundError] if model is not supported
       # @raise [APIError] if the API request fails
       #
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def perform_chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
         body = {
@@ -139,13 +134,7 @@ module RAAF
           stream_response(body, &block)
         else
           with_retry("chat_completion") do
-            response = @http_client.post("#{@api_base}/chat/completions", body: body)
-
-            if response.success?
-              response.parsed_body
-            else
-              handle_api_error(response, "Groq")
-            end
+            make_request(body)
           end
         end
       end
@@ -162,16 +151,15 @@ module RAAF
       # @yield [Hash] Yields streaming chunks
       # @return [Hash] Final accumulated response
       #
-      def stream_completion(messages:, model:, tools: nil, **kwargs)
-        chat_completion(
+      def perform_stream_completion(messages:, model:, tools: nil, **kwargs, &block)
+        perform_chat_completion(
           messages: messages,
           model: model,
           tools: tools,
           stream: true,
-          **kwargs
-        ) do |chunk|
-          yield chunk if block_given?
-        end
+          **kwargs,
+          &block
+        )
       end
 
       ##
@@ -212,7 +200,7 @@ module RAAF
           accumulated_content = ""
           accumulated_tool_calls = []
 
-          @http_client.post_stream("#{@api_base}/chat/completions", body: body) do |chunk|
+          make_streaming_request(body) do |chunk|
             # Parse SSE chunk
             if chunk.start_with?("data: ")
               data = chunk[6..].strip
@@ -281,6 +269,59 @@ module RAAF
             content: accumulated_content,
             tool_calls: accumulated_tool_calls
           }
+        end
+      end
+
+      ##
+      # Makes a request to the Groq API
+      #
+      # @param body [Hash] Request body
+      # @return [Hash] Parsed response
+      # @raise [APIError] on request failure
+      #
+      def make_request(body)
+        uri = URI("#{@api_base}/chat/completions")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+
+        request = Net::HTTP::Post.new(uri)
+        request["Authorization"] = "Bearer #{@api_key}"
+        request["Content-Type"] = "application/json"
+        request.body = body.to_json
+
+        response = http.request(request)
+
+        handle_api_error(response, "Groq") unless response.code.start_with?("2")
+
+        JSON.parse(response.body)
+      end
+
+      ##
+      # Makes a streaming request to the Groq API
+      #
+      # @param body [Hash] Request body
+      # @yield [String] Yields raw SSE chunks
+      #
+      def make_streaming_request(body)
+        body[:stream] = true
+        uri = URI("#{@api_base}/chat/completions")
+
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true) do |http|
+          request = Net::HTTP::Post.new(uri)
+          request["Authorization"] = "Bearer #{@api_key}"
+          request["Content-Type"] = "application/json"
+          request["Accept"] = "text/event-stream"
+          request.body = body.to_json
+
+          http.request(request) do |response|
+            handle_api_error(response, "Groq") unless response.code.start_with?("2")
+
+            response.read_body do |chunk|
+              chunk.split("\n").each do |line|
+                yield line if block_given?
+              end
+            end
+          end
         end
       end
 

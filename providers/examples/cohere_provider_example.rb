@@ -37,12 +37,12 @@ response = provider.chat_completion(
   messages: [
     { role: "user", content: "What are the main differences between Ruby and Python?" }
   ],
-  model: "command-r"  # Cohere's conversational AI model
+  model: "command-r" # Cohere's conversational AI model
 )
 
 # Extract response using OpenAI's response structure
 # Cohere's response is normalized to match OpenAI's format
-puts "Response: #{response.dig("choices", 0, "message", "content")}"
+puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
 puts
 
 # Example 2: Using tools with Cohere
@@ -66,17 +66,17 @@ def get_weather(location:, unit: "celsius")
   temp_value = unit == "celsius" ? temp[:celsius] : temp[:fahrenheit]
 
   # Return formatted weather information
-  "The current temperature in #{location} is #{temp_value}°#{unit == "celsius" ? "C" : "F"}"
+  "The current temperature in #{location} is #{temp_value}°#{unit == 'celsius' ? 'C' : 'F'}"
 end
 
 # Create an agent configured to use Cohere's Command R model
 # The agent abstraction works identically across providers
 weather_agent = RAAF::Agent.new(
   name: "WeatherAssistant",
-  
+
   # Instructions guide the model's behavior and tool usage
   instructions: "You are a helpful weather assistant. Use the weather tool to provide current temperatures.",
-  
+
   # Specify Cohere model - agent is provider-agnostic
   model: "command-r"
 )
@@ -95,7 +95,7 @@ weather_agent.add_tool(
 # The runner manages conversation flow and tool execution
 runner = RAAF::Runner.new(
   agent: weather_agent,
-  provider: provider  # Use Cohere instead of default OpenAI
+  provider: provider # Use Cohere instead of default OpenAI
 )
 
 # Test tool usage with multiple location query
@@ -119,21 +119,21 @@ puts "3. Multi-provider agent handoff:"
 # Cohere excels at factual analysis and reasoning
 cohere_agent = RAAF::Agent.new(
   name: "CohereAnalyst",
-  
+
   # Instructions include handoff trigger for creative tasks
   instructions: "You are an analyst using Cohere's Command R model. When asked about creative writing, handoff to CreativeWriter.",
-  
-  model: "command-r"  # Cohere's model
+
+  model: "command-r" # Cohere's model
 )
 
 # Create an OpenAI-powered creative agent
 # GPT-4 excels at creative and nuanced writing
 openai_agent = RAAF::Agent.new(
   name: "CreativeWriter",
-  
+
   instructions: "You are a creative writer using GPT-4. Write engaging stories and poems.",
-  
-  model: "gpt-4"  # OpenAI's model
+
+  model: "gpt-4" # OpenAI's model
 )
 
 # Configure handoff capability from Cohere to OpenAI agent
@@ -144,7 +144,7 @@ cohere_agent.add_handoff(openai_agent)
 # The runner will switch providers automatically during handoff
 runner2 = RAAF::Runner.new(
   agent: cohere_agent,
-  provider: provider  # Initial provider is Cohere
+  provider: provider # Initial provider is Cohere
 )
 
 # Request triggers handoff from analytical to creative agent
@@ -178,7 +178,7 @@ provider.stream_completion(
   if chunk["choices"] && chunk["choices"][0]["delta"]["content"]
     # Print immediately for real-time display
     print chunk["choices"][0]["delta"]["content"]
-    $stdout.flush  # Ensure immediate output
+    $stdout.flush # Ensure immediate output
   end
 end
 puts "\n"
@@ -204,7 +204,7 @@ response = retryable_provider.chat_completion(
 )
 
 # Response is identical but with added reliability
-puts "Response with retry wrapper: #{response.dig("choices", 0, "message", "content")}"
+puts "Response with retry wrapper: #{response.dig('choices', 0, 'message', 'content')}"
 puts
 
 # Summary of Cohere integration capabilities

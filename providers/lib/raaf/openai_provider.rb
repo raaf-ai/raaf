@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
-# NOTE FOR CLAUDE: This file is DEPRECATED and should NOT be modified except for critical bug fixes.
+# NOTE: FOR CLAUDE: This file is DEPRECATED and should NOT be modified except for critical bug fixes.
 # DO NOT update this file for new features or improvements. Use ResponsesProvider instead.
 # This provider is maintained only for backwards compatibility and streaming support.
 
-require_relative "interface"
-require_relative "responses_provider"
+# Interface and ResponsesProvider are required from raaf-core gem
 require_relative "../http_client"
 
 module RAAF
@@ -21,8 +20,7 @@ module RAAF
         o1-preview o1-mini
       ].freeze
 
-      # rubocop:disable Lint/MissingSuper
-      def initialize(api_key: nil, api_base: nil, **)
+      def initialize(api_key: nil, api_base: nil, **kwargs)
         # Issue deprecation warning
         warn "DEPRECATION WARNING: OpenAIProvider is deprecated and will be removed in a future version. " \
              "Use ResponsesProvider instead (it's the default). OpenAIProvider is maintained only for " \
@@ -36,17 +34,17 @@ module RAAF
         @client = HTTPClient::Client.new(
           api_key: @api_key,
           base_url: @api_base,
-          **
+          **kwargs
         )
       end
       # rubocop:enable Lint/MissingSuper
 
-      def chat_completion(messages:, model:, tools: nil, stream: false, **)
+      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
         # For now, fall back to standard completion to avoid breaking the runner
         # TODO: Implement full Responses API integration
-        standard_completion(messages: messages, model: model, tools: tools, stream: stream, **)
+        standard_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
       end
 
       def responses_completion(messages:, model:, tools: nil, **kwargs)
@@ -88,9 +86,9 @@ module RAAF
         "OpenAI"
       end
 
-      def stream_completion(messages:, model:, tools: nil, **)
+      def stream_completion(messages:, model:, tools: nil, **kwargs)
         validate_model(model)
-        standard_completion(messages: messages, model: model, tools: tools, stream: true, **)
+        standard_completion(messages: messages, model: model, tools: tools, stream: true, **kwargs)
       end
 
       private
@@ -142,32 +140,30 @@ module RAAF
           # Debug log the final parameters being sent to OpenAI
           if parameters[:tools]
             log_debug_tools("📤 FINAL PARAMETERS SENT TO OPENAI API",
-              tools_count: parameters[:tools].length,
-              tools_json: parameters[:tools].to_json
-            )
-            
+                            tools_count: parameters[:tools].length,
+                            tools_json: parameters[:tools].to_json)
+
             # Check each tool for array parameters
             parameters[:tools].each do |tool|
-              if tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
-                tool[:function][:parameters][:properties].each do |prop_name, prop_def|
-                  if prop_def[:type] == "array"
-                    log_debug_tools("🔍 FINAL ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
-                      has_items: prop_def.key?(:items),
-                      items_value: prop_def[:items].inspect
-                    )
-                  end
-                end
+              next unless tool[:function] && tool[:function][:parameters] && tool[:function][:parameters][:properties]
+
+              tool[:function][:parameters][:properties].each do |prop_name, prop_def|
+                next unless prop_def[:type] == "array"
+
+                log_debug_tools("🔍 FINAL ARRAY PROPERTY #{prop_name} SENT TO OPENAI",
+                                has_items: prop_def.key?(:items),
+                                items_value: prop_def[:items].inspect)
               end
             end
           end
-          
+
           @client.chat.completions.create(**parameters)
         rescue HTTPClient::Error => e
           handle_openai_error(e)
         end
       end
 
-      def has_hosted_tools?(tools)
+      def hosted_tools?(tools)
         return false unless tools.respond_to?(:any?)
 
         tools.any? do |tool|
@@ -217,15 +213,15 @@ module RAAF
         data["text"] || "No content returned"
       end
 
-      def process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &)
+      def process_openai_chunk(chunk, accumulated_content, accumulated_tool_calls, &block)
         return if chunk.nil? || chunk.empty?
 
         delta = chunk.dig("choices", 0, "delta")
         return unless delta
 
-        process_content_delta(delta, accumulated_content, &)
-        process_tool_call_delta(delta, accumulated_tool_calls, &)
-        process_finish_reason(chunk, accumulated_content, accumulated_tool_calls, &)
+        process_content_delta(delta, accumulated_content, &block)
+        process_tool_call_delta(delta, accumulated_tool_calls, &block)
+        process_finish_reason(chunk, accumulated_content, accumulated_tool_calls, &block)
       end
 
       def process_content_delta(delta, accumulated_content)

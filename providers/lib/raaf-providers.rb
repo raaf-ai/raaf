@@ -1,13 +1,12 @@
 # frozen_string_literal: true
 
 require "raaf-core"
-require_relative "raaf/models/anthropic_provider"
-require_relative "raaf/models/cohere_provider"
-require_relative "raaf/models/groq_provider"
-require_relative "raaf/models/together_provider"
-require_relative "raaf/models/multi_provider"
-require_relative "raaf/models/retryable_provider"
-require_relative "raaf/models/litellm_provider"
+require_relative "raaf/anthropic_provider"
+require_relative "raaf/cohere_provider"
+require_relative "raaf/groq_provider"
+require_relative "raaf/together_provider"
+require_relative "raaf/multi_provider"
+require_relative "raaf/litellm_provider"
 
 ##
 # RAAF Providers - Additional LLM provider integrations
@@ -24,7 +23,8 @@ require_relative "raaf/models/litellm_provider"
 # * Together - Open-source model hosting
 # * LiteLLM - Universal LLM proxy
 # * Multi-provider - Load balancing and failover
-# * Retryable - Automatic retry logic
+#
+# All providers include built-in retry logic with exponential backoff.
 #
 # == Usage
 #
@@ -69,7 +69,6 @@ require_relative "raaf/models/litellm_provider"
 # @since 1.0.0
 module RAAF
   module Providers
-    # Providers gem version
-    VERSION = "0.1.0"
+    # Load version from separate file to avoid duplication
   end
 end

@@ -3,8 +3,8 @@
 require "net/http"
 require "json"
 require "uri"
-require_relative "interface"
-require_relative "../errors"
+# Interface is required from raaf-core gem
+# errors will be available through raaf-core dependency
 
 module RAAF
   module Models
@@ -88,7 +88,8 @@ module RAAF
       #
       # @param model [String] Model name with provider prefix (e.g., "openai/gpt-4", "anthropic/claude-3-opus")
       # @param base_url [String, nil] LiteLLM proxy URL (defaults to LITELLM_BASE_URL env var or http://localhost:8000)
-      # @param api_key [String, nil] API key for the provider or LiteLLM proxy (defaults to LITELLM_API_KEY or OPENAI_API_KEY)
+      # @param api_key [String, nil] API key for the provider or LiteLLM proxy
+      #                             (defaults to LITELLM_API_KEY or OPENAI_API_KEY)
       #
       # @example
       #   provider = LitellmProvider.new(
@@ -112,10 +113,16 @@ module RAAF
       # @return [String] Provider name (e.g., "OpenAI", "Anthropic", "Google Gemini")
       #
       def provider_name
-        PROVIDER_PREFIXES.each do |prefix, name|
-          return name if @model.start_with?(prefix)
-        end
-        "Unknown Provider"
+        "LiteLLM"
+      end
+
+      ##
+      # Returns supported models (delegate to LiteLLM.available_models)
+      #
+      # @return [Array<String>] List of supported model keys
+      #
+      def supported_models
+        LiteLLM.available_models.keys.map(&:to_s)
       end
 
       ##
@@ -135,7 +142,7 @@ module RAAF
       # @return [Hash] Response in OpenAI format
       # @raise [APIError] if the request fails
       #
-      def chat_completion(messages:, model: nil, tools: nil, stream: false, **kwargs)
+      def perform_chat_completion(messages:, model: nil, tools: nil, stream: false, **kwargs)
         model ||= @model
 
         # LiteLLM uses the standard OpenAI-compatible API format
@@ -497,9 +504,9 @@ module RAAF
       #   provider = LiteLLM.provider(:claude3_opus, api_key: "your-key")
       #   provider = LiteLLM.provider("custom/model-name")
       #
-      def self.provider(model_key_or_name, **)
+      def self.provider(model_key_or_name, **kwargs)
         model_name = MODELS[model_key_or_name] || model_key_or_name.to_s
-        LitellmProvider.new(model: model_name, **)
+        LitellmProvider.new(model: model_name, **kwargs)
       end
 
       ##

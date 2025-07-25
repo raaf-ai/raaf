@@ -3,7 +3,7 @@
 require "net/http"
 require "json"
 require "uri"
-require_relative "interface"
+# Interface is required from raaf-core gem
 
 module RAAF
   module Models
@@ -62,13 +62,12 @@ module RAAF
       # @param options [Hash] Additional options for the provider
       # @raise [AuthenticationError] if API key is not provided
       #
-      # rubocop:disable Lint/MissingSuper
       def initialize(api_key: nil, api_base: nil, **options)
         @api_key = api_key || ENV.fetch("ANTHROPIC_API_KEY", nil)
         @api_base = api_base || ENV["ANTHROPIC_API_BASE"] || DEFAULT_API_BASE
         @options = options
 
-        raise AuthenticationError, "Anthropic API key is required" unless @api_key
+        raise RAAF::AuthenticationError, "Anthropic API key is required" if @api_key.nil? || @api_key.empty?
       end
       # rubocop:enable Lint/MissingSuper
 

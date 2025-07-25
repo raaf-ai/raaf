@@ -363,7 +363,7 @@ module RAAF
       def prepare_tools(tools)
         return nil if tools.nil? || tools.empty?
 
-        tools.map do |tool|
+        prepared = tools.map do |tool|
           case tool
           when Hash
             tool
@@ -376,6 +376,17 @@ module RAAF
                             has_parameters: !tool_hash.dig(:function, :parameters).nil?,
                             properties_count: tool_hash.dig(:function, :parameters, :properties)&.keys&.length || 0,
                             required_count: tool_hash.dig(:function, :parameters, :required)&.length || 0)
+
+            # Enhanced logging for array parameters to debug "items" property
+            tool_hash.dig(:function, :parameters, :properties)&.each do |prop_name, prop_def|
+              next unless prop_def[:type] == "array"
+
+              log_debug_tools("Array property debug for #{prop_name}",
+                              full_property_definition: prop_def.inspect,
+                              has_items_property: prop_def.key?(:items),
+                              items_value: prop_def[:items].inspect)
+              log_error("Array property '#{prop_name}' has nil items - this will cause API errors!") if prop_def[:items].nil?
+            end
 
             tool_hash
           else
@@ -391,6 +402,13 @@ module RAAF
             end
           end
         end
+
+        # DEBUG: Log the final prepared tools
+        log_debug_tools("Final tools prepared for API",
+                        tools_count: prepared.length,
+                        tool_names: prepared.map { |t| t.dig(:function, :name) || t[:type] }.compact)
+
+        prepared
       end
 
       ##

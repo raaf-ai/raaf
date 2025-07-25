@@ -38,8 +38,8 @@ puts "1. Model diversity showcase:"
 
 # Together AI offers many different model families
 together_models = [
-  { 
-    model: "meta-llama/Llama-3-8b-chat-hf", 
+  {
+    model: "meta-llama/Llama-3-8b-chat-hf",
     name: "Llama 3 8B Chat",
     specialty: "General conversation and reasoning"
   },
@@ -71,9 +71,9 @@ together_models.each do |model_info|
       model: model_info[:model]
     )
     elapsed = Time.now - start_time
-    
+
     puts "Time: #{elapsed.round(3)}s"
-    puts "Response: #{response.dig("choices", 0, "message", "content")}"
+    puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
   rescue StandardError => e
     puts "Error with #{model_info[:name]}: #{e.message}"
   end
@@ -154,7 +154,7 @@ multilingual_tests.each do |test|
       ],
       model: "meta-llama/Llama-3-8b-chat-hf"
     )
-    puts "Translation: #{response.dig("choices", 0, "message", "content")}"
+    puts "Translation: #{response.dig('choices', 0, 'message', 'content')}"
   rescue StandardError => e
     puts "Error: #{e.message}"
   end
@@ -205,16 +205,16 @@ batch_tasks.each_with_index do |task, index|
   start_time = Time.now
   response = provider.chat_completion(
     messages: [{ role: "user", content: task }],
-    model: "togethercomputer/RedPajama-INCITE-Chat-3B-v1"  # Fast, cost-effective model
+    model: "togethercomputer/RedPajama-INCITE-Chat-3B-v1" # Fast, cost-effective model
   )
   elapsed = Time.now - start_time
-  
+
   result = response.dig("choices", 0, "message", "content")
   tokens = response.dig("usage", "total_tokens") || 0
   total_tokens += tokens
-  
+
   puts "#{index + 1}. #{task} (#{elapsed.round(3)}s, #{tokens} tokens)"
-  puts "   #{result[0..100]}#{"..." if result.length > 100}"
+  puts "   #{result[0..100]}#{'...' if result.length > 100}"
 end
 
 batch_total = Time.now - batch_start
@@ -259,13 +259,13 @@ specialized_tasks.each do |task_info|
   puts "\nTask: #{task_info[:task]}"
   puts "Selected model: #{task_info[:model]}"
   puts "Reason: #{task_info[:reason]}"
-  
+
   begin
     response = provider.chat_completion(
       messages: [{ role: "user", content: task_info[:task] }],
       model: task_info[:model]
     )
-    puts "Response: #{response.dig("choices", 0, "message", "content")[0..200]}..."
+    puts "Response: #{response.dig('choices', 0, 'message', 'content')[0..200]}..."
   rescue StandardError => e
     puts "Error: #{e.message}"
   end
@@ -293,22 +293,22 @@ if ENV["OPENAI_API_KEY"]
     instructions: "You are an advanced reasoning agent using GPT-4. Handle complex analytical tasks.",
     model: "gpt-4o"
   )
-  
+
   # Configure handoff
   together_agent.add_handoff(openai_agent)
-  
+
   # Create runner starting with Together
   handoff_runner = RAAF::Runner.new(
     agent: together_agent,
     provider: provider
   )
-  
+
   # Request that might trigger handoff
   handoff_messages = [{
     role: "user",
     content: "I need help with a complex business strategy analysis involving multiple stakeholders and market dynamics."
   }]
-  
+
   handoff_result = handoff_runner.run(handoff_messages)
   puts "Handoff result from #{handoff_result.agent_name}: #{handoff_result.final_output}"
 else
@@ -342,10 +342,10 @@ models_to_test.each do |model_info|
       model: model_info[:model]
     )
     elapsed = Time.now - start_time
-    
+
     content = response.dig("choices", 0, "message", "content")
     tokens = response.dig("usage", "total_tokens") || 0
-    
+
     puts "  Time: #{elapsed.round(3)}s"
     puts "  Tokens: #{tokens}"
     puts "  Response length: #{content.length} chars"

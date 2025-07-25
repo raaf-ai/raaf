@@ -42,12 +42,12 @@ test_prompt = "Explain what makes Groq different from other AI providers in one 
 start_time = Time.now
 response = provider.chat_completion(
   messages: [{ role: "user", content: test_prompt }],
-  model: "llama3-8b-8192"  # Groq's optimized Llama 3 model
+  model: "llama3-8b-8192" # Groq's optimized Llama 3 model
 )
 end_time = Time.now
 
 puts "Response time: #{(end_time - start_time).round(3)} seconds"
-puts "Response: #{response.dig("choices", 0, "message", "content")}"
+puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
 puts
 
 # ============================================================================
@@ -75,9 +75,9 @@ groq_models.each do |model_info|
       model: model_info[:model]
     )
     elapsed = Time.now - start_time
-    
+
     puts "Time: #{elapsed.round(3)}s"
-    puts "Response: #{response.dig("choices", 0, "message", "content")}"
+    puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
   rescue StandardError => e
     puts "Error with #{model_info[:name]}: #{e.message}"
   end
@@ -94,16 +94,15 @@ puts "3. High-throughput agent for rapid responses:"
 # Define fast utility tools for quick operations
 def quick_calculation(expression:)
   # Simple calculator optimized for speed
-  begin
-    # Security check
-    return "Invalid expression" unless expression.match?(/^[\d\s+\-*\/().]+$/)
-    
-    # Safe evaluation
-    result = eval(expression)
-    "#{expression} = #{result}"
-  rescue StandardError => e
-    "Error: #{e.message}"
-  end
+
+  # Security check
+  return "Invalid expression" unless expression.match?(%r{^[\d\s+\-*/().]+$})
+
+  # Safe evaluation
+  result = eval(expression)
+  "#{expression} = #{result}"
+rescue StandardError => e
+  "Error: #{e.message}"
 end
 
 def quick_word_count(text:)
@@ -117,7 +116,7 @@ end
 speed_agent = RAAF::Agent.new(
   name: "GroqSpeedAgent",
   instructions: "You are a high-speed utility assistant. Provide quick, concise responses. Use tools for calculations and analysis.",
-  model: "llama3-8b-8192"  # Fast model for utility tasks
+  model: "llama3-8b-8192" # Fast model for utility tasks
 )
 
 # Add utility tools
@@ -189,10 +188,10 @@ batch_requests.each_with_index do |request, index|
     model: "llama3-8b-8192"
   )
   elapsed = Time.now - start_time
-  
+
   result = response.dig("choices", 0, "message", "content")
   batch_responses << { request: request, response: result, time: elapsed }
-  
+
   puts "#{index + 1}. #{request} (#{elapsed.round(3)}s)"
   puts "   #{result}"
 end
@@ -209,7 +208,7 @@ puts
 puts "6. Long context demonstration with Mixtral:"
 
 # Create a long context for testing
-long_context = """
+long_context = "
 This is a comprehensive document about artificial intelligence systems.
 It covers various aspects including machine learning, natural language processing,
 computer vision, robotics, and ethical considerations. The document discusses
@@ -218,10 +217,10 @@ to solve real-world problems. It also covers the challenges and limitations
 of current AI technology, including issues with bias, interpretability, and
 safety. The document concludes with recommendations for responsible AI development
 and deployment practices.
-"""
+"
 
 # Add more context to test the model's ability to handle long inputs
-extended_context = long_context * 10  # Repeat to create longer context
+extended_context = long_context * 10 # Repeat to create longer context
 
 long_context_messages = [
   { role: "user", content: "Here's a document about AI: #{extended_context}" },
@@ -231,10 +230,10 @@ long_context_messages = [
 begin
   long_response = provider.chat_completion(
     messages: long_context_messages,
-    model: "mixtral-8x7b-32768"  # Model with large context window
+    model: "mixtral-8x7b-32768" # Model with large context window
   )
-  
-  puts "Long context response: #{long_response.dig("choices", 0, "message", "content")}"
+
+  puts "Long context response: #{long_response.dig('choices', 0, 'message', 'content')}"
 rescue StandardError => e
   puts "Long context error: #{e.message}"
 end
@@ -267,7 +266,7 @@ analysis_agent.add_handoff(groq_agent)
 # Create runner starting with analysis agent
 handoff_runner = RAAF::Runner.new(
   agent: analysis_agent,
-  provider: RAAF::Models::OpenAIProvider.new  # Start with OpenAI
+  provider: RAAF::Models::OpenAIProvider.new # Start with OpenAI
 )
 
 # Request that triggers handoff to Groq
@@ -320,7 +319,7 @@ puts
 
 puts "=== Groq Provider Configuration ==="
 puts "Provider: #{provider.class.name}"
-puts "Available models: #{provider.supported_models.join(", ")}"
+puts "Available models: #{provider.supported_models.join(', ')}"
 puts "Agent configuration: #{speed_agent.to_h.inspect}"
 
 # ============================================================================

@@ -34,7 +34,7 @@ puts "=== Example 1: Basic LiteLLM Usage ==="
 litellm_agent = RAAF::Agent.new(
   name: "LiteLLMAssistant",
   instructions: "You are a helpful assistant powered by LiteLLM.",
-  
+
   # Model name as understood by LiteLLM
   # LiteLLM routes this to the appropriate provider based on configuration
   model: "gpt-3.5-turbo"
@@ -44,7 +44,7 @@ litellm_agent = RAAF::Agent.new(
 # This provider communicates with the LiteLLM proxy server
 litellm_provider = RAAF::Models::LitellmProvider.new(
   model: "gpt-3.5-turbo",
-  
+
   # URL where LiteLLM proxy is running
   # Default port 8000 is standard for LiteLLM
   base_url: "http://localhost:8000"
@@ -145,9 +145,9 @@ puts "\n=== Example 3: LiteLLM Convenience Methods ==="
 
 # Convenience methods create pre-configured providers
 # These shortcuts make code more readable and reduce errors
-gpt4_provider = RAAF::Models::LiteLLM.provider(:gpt4)
-claude_provider = RAAF::Models::LiteLLM.provider(:claude3_opus)
-llama_provider = RAAF::Models::LiteLLM.provider(:llama2_70b)
+RAAF::Models::LiteLLM.provider(:gpt4)
+RAAF::Models::LiteLLM.provider(:claude3_opus)
+RAAF::Models::LiteLLM.provider(:llama2_70b)
 
 # Display all available model shortcuts
 # These shortcuts are maintained for popular models across providers
@@ -179,7 +179,7 @@ end
 tool_agent = RAAF::Agent.new(
   name: "WeatherAssistant",
   instructions: "You help with weather queries.",
-  model: "gpt-3.5-turbo"  # OpenAI models have full tool support
+  model: "gpt-3.5-turbo" # OpenAI models have full tool support
 )
 
 # Add the tool to the agent
@@ -218,7 +218,7 @@ puts "\n=== Example 5: Multi-Agent System with Different Models ==="
 research_agent = RAAF::Agent.new(
   name: "Researcher",
   instructions: "You research topics in depth. For coding questions, handoff to the Coder.",
-  
+
   # Full model path for clarity
   # LiteLLM knows this is an OpenAI model
   model: "openai/gpt-4"
@@ -229,7 +229,7 @@ research_agent = RAAF::Agent.new(
 coding_agent = RAAF::Agent.new(
   name: "Coder",
   instructions: "You write code. For general questions, handoff to the Researcher.",
-  
+
   # Anthropic's Claude 3 Sonnet model
   # LiteLLM handles the API translation
   model: "anthropic/claude-3-sonnet-20240229"
@@ -244,7 +244,7 @@ coding_agent.add_handoff(research_agent)
 # Each agent can use a different provider through LiteLLM
 research_runner = RAAF::Runner.new(
   agent: research_agent,
-  
+
   # Use the convenience method for cleaner code
   provider: RAAF::Models::LiteLLM.provider("openai/gpt-4")
 )

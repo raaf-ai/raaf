@@ -33,7 +33,7 @@ providers_config.each do |provider, config|
   end
 end
 
-puts "\nAvailable providers: #{available_providers.join(", ")}"
+puts "\nAvailable providers: #{available_providers.join(', ')}"
 puts
 
 # Example 1: Using different providers directly
@@ -46,7 +46,7 @@ if available_providers.include?(:openai)
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "gpt-4o"
   )
-  puts "Response: #{response.dig("choices", 0, "message", "content")}"
+  puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
 end
 
 if available_providers.include?(:anthropic)
@@ -56,7 +56,7 @@ if available_providers.include?(:anthropic)
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "claude-3-opus-20240229"
   )
-  puts "Response: #{response.dig("choices", 0, "message", "content")}"
+  puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
 end
 
 if available_providers.include?(:groq)
@@ -66,7 +66,7 @@ if available_providers.include?(:groq)
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "llama3-8b-8192"
   )
-  puts "Response: #{response.dig("choices", 0, "message", "content")}"
+  puts "Response: #{response.dig('choices', 0, 'message', 'content')}"
 end
 
 # Example 2: Together for open-source models
@@ -77,7 +77,7 @@ if ENV["TOGETHER_API_KEY"]
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     model: "meta-llama/Llama-2-7b-chat-hf"
   )
-  puts "Together response: #{response.dig("choices", 0, "message", "content")}"
+  puts "Together response: #{response.dig('choices', 0, 'message', 'content')}"
 else
   puts "Set TOGETHER_API_KEY to use Together models"
 end
@@ -229,7 +229,7 @@ if available_providers.include?(:groq)
     RAAF::Models::GroqProvider.new,
     max_attempts: 3,
     base_delay: 1.0,
-    logger: ::Logger.new($stdout)  # Log retry attempts
+    logger: Logger.new($stdout) # Log retry attempts
   )
 
   puts "Testing retry logic with rapid requests..."

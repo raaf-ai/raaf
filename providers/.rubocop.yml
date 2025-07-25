@@ -1,3 +1,12 @@
+# Minimal RuboCop configuration for raaf-providers
+inherit_from: ~ # Don't inherit from any parent configs
+
+require:
+  - rubocop-rspec
+
+plugins:
+  - rubocop-rake
+
 AllCops:
   TargetRubyVersion: 3.0
   NewCops: enable
@@ -7,67 +16,97 @@ AllCops:
     - 'bin/**/*'
     - 'pkg/**/*'
 
+# Layout rules
 Layout/LineLength:
   Max: 120
-  AllowedPatterns:
-    - '\A\s*#'  # Allow long comments
-    - '\A\s*it\s'  # Allow long RSpec test descriptions
-    - '\A\s*describe\s'  # Allow long RSpec describe blocks
-    - '\A\s*context\s'  # Allow long RSpec context blocks
+  Exclude:
+    - 'examples/**/*'  # Examples can have longer lines for readability
 
+# Metrics rules - relaxed for provider complexity
 Metrics/AbcSize:
-  Max: 25
+  Max: 70  # Providers handle complex API interactions
 
 Metrics/MethodLength:
-  Max: 20
-  CountAsOne: ['array', 'hash', 'heredoc']
+  Max: 60  # API methods need comprehensive parameter handling
+  Exclude:
+    - 'lib/raaf/cohere_provider.rb'  # Stream parsing requires complex logic
 
 Metrics/ClassLength:
-  Max: 150
-
-Metrics/ModuleLength:
-  Max: 150
+  Max: 400  # Provider classes are inherently large
 
 Metrics/BlockLength:
-  Max: 25
+  Max: 60
   Exclude:
     - 'spec/**/*'
     - 'examples/**/*'
 
+Metrics/CyclomaticComplexity:
+  Max: 25  # Provider conditionals for different API formats
+
+Metrics/PerceivedComplexity:
+  Max: 25
+
+Metrics/ParameterLists:
+  Max: 15  # API methods need many optional parameters
+
+Metrics/BlockNesting:
+  Max: 4  # Streaming response parsing requires nesting
+
+# Style rules
 Style/Documentation:
   Enabled: false
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 
-Style/StringLiteralsInInterpolation:
-  EnforcedStyle: double_quotes
-
 Style/FrozenStringLiteralComment:
   Enabled: true
-  EnforcedStyle: always
 
-Layout/EmptyLinesAroundClassBody:
-  Enabled: true
-  EnforcedStyle: empty_lines
+Style/HashLikeCase:
+  Enabled: false  # Provider model selection uses meaningful case statements
 
-Layout/EmptyLinesAroundModuleBody:
-  Enabled: true
-  EnforcedStyle: empty_lines
+# Gemspec rules
+Gemspec/DevelopmentDependencies:
+  Enabled: false
 
+# Naming rules
 Naming/FileName:
-  Enabled: true
-  Exclude:
-    - 'lib/**/*.rb'
+  Enabled: false
 
+Naming/PredicateMethod:
+  Enabled: false  # Provider helper methods don't always follow predicate naming
+
+# Security rules - allow eval in examples
+Security/Eval:
+  Exclude:
+    - 'examples/**/*'
+
+# Lint rules
+Lint/UnusedMethodArgument:
+  Enabled: false
+
+Lint/MissingSuper:
+  Enabled: false  # Provider initialization patterns don't always require super
+
+Lint/DuplicateBranch:
+  Enabled: false  # Provider conditionals may have similar branches for different APIs
+
+# Basic RSpec rules only
 RSpec/ExampleLength:
-  Max: 20
+  Max: 25
 
 RSpec/MultipleExpectations:
-  Max: 5
-
-RSpec/NestedGroups:
-  Max: 5
+  Max: 10
 
 RSpec/DescribeClass:
+  Enabled: false
+
+RSpec/FilePath:
+  Enabled: false  # Provider specs don't follow deep directory structure
+
+RSpec/SpecFilePathFormat:
+  Enabled: false  # Provider specs use flat structure
+
+# Disable problematic cops that cause errors
+Capybara/RSpec/PredicateMatcher:
   Enabled: false

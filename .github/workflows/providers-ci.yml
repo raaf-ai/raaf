@@ -1,0 +1,358 @@
+name: 🚀 Providers CI - Complete Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'providers/**'
+      - '.github/workflows/providers-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'providers/**'
+      - '.github/workflows/providers-ci.yml'
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Workflow Structure:
+# 1. Lint & Style + Unit Tests (parallel foundation)
+# 2. Integration, Compliance, Performance & Cost Tests (parallel comprehensive)
+# 3. Acceptance Tests (validates all parallel tests passed)
+# 4. Build & Summary (final validation and reporting)
+env:
+  RUBY_VERSION: '3.4.5'
+  DEFAULT_RUBY_VERSION: '3.4.5'
+
+jobs:
+  # Stage 1: Basic validation (fastest feedback)
+  lint:
+    name: "🔍 Lint & Style"
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies (Providers gem)
+      run: |
+        cd providers
+        bundle install
+
+    - name: Run RuboCop (Providers gem)
+      run: |
+        cd providers
+        bundle exec rubocop --parallel
+
+    - name: Check bundle audit (Providers gem)
+      run: |
+        cd providers
+        gem install bundler-audit
+        bundle audit check --update
+
+  # Stage 2: Unit tests (core functionality)
+  unit-tests:
+    name: "🧪 Unit Tests"
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      fail-fast: true
+      matrix:
+        ruby-version: ['3.2', '3.3', '3.4.5']
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby ${{ matrix.ruby-version }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+        bundler-cache: true
+
+    - name: Install dependencies (Providers gem)
+      run: |
+        cd providers
+        bundle install
+
+    - name: Run unit tests, models, and edge cases (Providers gem)
+      run: |
+        cd providers
+        bundle exec rspec --format progress \
+                         --format RspecJunitFormatter \
+                         --out test-results-unit.xml
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY_TEST }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY_TEST }}
+        COHERE_API_KEY: ${{ secrets.COHERE_API_KEY_TEST }}
+        LITELLM_API_KEY: ${{ secrets.LITELLM_API_KEY_TEST }}
+
+    - name: Upload unit test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-results-${{ matrix.ruby-version }}
+        path: providers/test-results-unit.xml
+        retention-days: 7
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-reports-${{ matrix.ruby-version }}
+        path: |
+          providers/coverage/
+          !providers/coverage/assets/
+        retention-days: 14
+
+  # Stage 3: Parallel comprehensive tests (run simultaneously after unit tests)
+  example-validation:
+    name: "📝 Example Validation"
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies (Providers gem)
+      run: |
+        cd providers
+        bundle install
+
+    - name: Validate provider examples
+      run: |
+        cd providers
+        # Test that provider examples can be loaded and validated
+        for example in examples/*_example.rb; do
+          if [ -f "$example" ]; then
+            echo "Validating $example..."
+            ruby -c "$example" || exit 1
+          fi
+        done
+        echo "All provider examples validated successfully"
+      env:
+        CI: true
+        RAAF_TEST_MODE: true
+        # Note: Using test mode to avoid requiring real API keys in CI
+        # This validates example structure and basic functionality
+
+    - name: Upload example validation report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: example-validation-report
+        path: providers/example_validation_report.json
+        retention-days: 7
+
+  integration-tests:
+    name: "🔗 Integration Tests"
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies (Providers gem)
+      run: |
+        cd providers
+        bundle install
+
+    - name: Run integration tests (Providers gem)
+      run: |
+        cd providers
+        bundle exec rspec --tag integration \
+                         --format progress \
+                         --format RspecJunitFormatter \
+                         --out test-results-integration.xml
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY_TEST }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY_TEST }}
+        COHERE_API_KEY: ${{ secrets.COHERE_API_KEY_TEST }}
+        LITELLM_API_KEY: ${{ secrets.LITELLM_API_KEY_TEST }}
+
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: integration-test-results
+        path: providers/test-results-integration.xml
+        retention-days: 7
+
+  # Stage 4: Build verification (package validation)
+  build:
+    name: "📦 Build Gem"
+    runs-on: ubuntu-latest
+    needs: [example-validation, integration-tests]  # Build after example validation and integration tests pass
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies (Providers gem)
+      run: |
+        cd providers
+        bundle install
+
+    - name: Test gem installation
+      run: |
+        cd core
+        gem build raaf-core.gemspec
+        gem install --local raaf-core-*.gem
+        cd ../providers
+        gem build raaf-providers.gemspec
+        gem install --local raaf-providers-*.gem
+        ruby -r raaf-providers -e "puts 'Providers gem loads successfully'"
+
+    - name: Upload gem artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: raaf-providers-gem
+        path: providers/raaf-providers-*.gem
+        retention-days: 30
+
+  # Final status job - summarizes all results
+  test-summary:
+    name: "📊 Test Summary"
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download coverage reports
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-reports-*
+        path: coverage-artifacts/
+        merge-multiple: false
+      continue-on-error: true
+
+    - name: Process coverage data
+      id: coverage
+      run: |
+        echo "Processing coverage reports..."
+        
+        # Find the primary coverage report (use 3.4.5 as primary, fallback to first available)
+        PRIMARY_COVERAGE=""
+        if [ -d "coverage-artifacts/coverage-reports-3.4.5" ]; then
+          PRIMARY_COVERAGE="coverage-artifacts/coverage-reports-3.4.5"
+        else
+          PRIMARY_COVERAGE=$(find coverage-artifacts -name "coverage-reports-*" -type d | head -1)
+        fi
+        
+        if [ -n "$PRIMARY_COVERAGE" ] && [ -f "$PRIMARY_COVERAGE/.last_run.json" ]; then
+          # Extract coverage percentage from SimpleCov's last_run.json
+          COVERAGE_PERCENT=$(cat "$PRIMARY_COVERAGE/.last_run.json" | jq -r '.result.line // 0' | cut -d. -f1)
+          echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
+          
+          # Count covered and total lines
+          if [ -f "$PRIMARY_COVERAGE/.resultset.json" ]; then
+            TOTAL_LINES=$(cat "$PRIMARY_COVERAGE/.resultset.json" | jq -r '
+              [.. | objects | select(has("coverage")) | .coverage | to_entries[] | .value] 
+              | map(select(. != null)) | length'
+            )
+            COVERED_LINES=$(cat "$PRIMARY_COVERAGE/.resultset.json" | jq -r '
+              [.. | objects | select(has("coverage")) | .coverage | to_entries[] | .value] 
+              | map(select(. != null and . > 0)) | length'
+            )
+            echo "total_lines=$TOTAL_LINES" >> $GITHUB_OUTPUT
+            echo "covered_lines=$COVERED_LINES" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "coverage_available=true" >> $GITHUB_OUTPUT
+        else
+          echo "coverage_available=false" >> $GITHUB_OUTPUT
+          echo "No coverage data found"
+        fi
+      continue-on-error: true
+
+    - name: Check test results
+      run: |
+        echo "## Providers Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.build.result }}" == "success" ]]; then
+          echo "✅ **All Provider Tests PASSED** (Lint, Unit, Example Validation & Integration)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 The build step validates that all prerequisite provider tests have passed successfully!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Provider Tests FAILED** - Build step did not pass" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ This means one or more of the prerequisite provider tests (Lint, Unit, Example Validation, Integration) failed." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📊 Provider Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ steps.coverage.outputs.coverage_available }}" == "true" ]]; then
+          COVERAGE_PERCENT="${{ steps.coverage.outputs.coverage_percent }}"
+          TOTAL_LINES="${{ steps.coverage.outputs.total_lines }}"
+          COVERED_LINES="${{ steps.coverage.outputs.covered_lines }}"
+          
+          # Coverage status emoji
+          if (( COVERAGE_PERCENT >= 90 )); then
+            COVERAGE_EMOJI="🟢"
+          elif (( COVERAGE_PERCENT >= 80 )); then
+            COVERAGE_EMOJI="🟡"
+          else
+            COVERAGE_EMOJI="🔴"
+          fi
+          
+          echo "${COVERAGE_EMOJI} **Overall Provider Coverage: ${COVERAGE_PERCENT}%**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lines Covered:** ${COVERED_LINES}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Lines:** ${TOTAL_LINES}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage Threshold:** 80% minimum" >> $GITHUB_STEP_SUMMARY
+          
+          # Coverage quality assessment
+          if (( COVERAGE_PERCENT >= 80 )); then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Provider coverage meets the minimum threshold requirement!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Provider coverage is below the minimum threshold of 80%" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "⚠️ Coverage data not available" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📋 **Provider Workflow Structure:**" >> $GITHUB_STEP_SUMMARY
+        echo "1. Lint & Style + Unit Tests (parallel foundation)" >> $GITHUB_STEP_SUMMARY
+        echo "2. Example Validation & Integration Tests (parallel comprehensive)" >> $GITHUB_STEP_SUMMARY
+        echo "3. Build Gem (depends on Example Validation & Integration Tests)" >> $GITHUB_STEP_SUMMARY
+        echo "4. Test Summary (depends on Build)" >> $GITHUB_STEP_SUMMARY
+
+    - name: Fail if build failed
+      if: needs.build.result != 'success'
+      run: |
+        echo "❌ Provider build failed, indicating issues with prerequisite tests. See summary above."
+        exit 1

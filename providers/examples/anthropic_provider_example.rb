@@ -40,14 +40,15 @@ puts "1. Basic chat completion with Claude:"
 # The provider handles translation to Anthropic's API structure
 response = provider.chat_completion(
   messages: [
-    { role: "user", content: "Explain the concept of entropy in thermodynamics and information theory, highlighting the key differences." }
+    { role: "user",
+      content: "Explain the concept of entropy in thermodynamics and information theory, highlighting the key differences." }
   ],
-  model: "claude-3-opus-20240229"  # Anthropic's most capable model
+  model: "claude-3-opus-20240229" # Anthropic's most capable model
 )
 
 # Extract response using OpenAI's response structure
 # Anthropic's response is normalized to match OpenAI's format
-puts "Claude's response: #{response.dig("choices", 0, "message", "content")}"
+puts "Claude's response: #{response.dig('choices', 0, 'message', 'content')}"
 puts
 
 # ============================================================================
@@ -91,13 +92,13 @@ def analyze_text(text:, analysis_type: "sentiment")
   # Simulate text analysis - in production this would use actual NLP services
   case analysis_type.downcase
   when "sentiment"
-    sentiments = ["positive", "negative", "neutral"]
+    sentiments = %w[positive negative neutral]
     "Sentiment analysis of '#{text}': #{sentiments.sample}"
   when "complexity"
-    complexity = ["simple", "moderate", "complex"]
+    complexity = %w[simple moderate complex]
     "Complexity analysis of '#{text}': #{complexity.sample}"
   when "readability"
-    levels = ["elementary", "intermediate", "advanced"]
+    levels = %w[elementary intermediate advanced]
     "Readability analysis of '#{text}': #{levels.sample}"
   else
     "Analysis type '#{analysis_type}' not supported"
@@ -111,8 +112,8 @@ def research_topic(topic:, depth: "overview")
     "detailed" => "Comprehensive analysis with examples",
     "expert" => "Expert-level analysis with citations"
   }
-  
-  "Research on '#{topic}' (#{depth} level): #{depth_info[depth] || "Standard analysis"}"
+
+  "Research on '#{topic}' (#{depth} level): #{depth_info[depth] || 'Standard analysis'}"
 end
 
 # Create a Claude-powered research agent
@@ -120,7 +121,7 @@ end
 research_agent = RAAF::Agent.new(
   name: "ClaudeResearcher",
   instructions: "You are a research assistant powered by Claude. Use the available tools to provide thorough, well-researched responses. Always cite your analysis methods.",
-  model: "claude-3-sonnet-20240229"  # Balanced model for research tasks
+  model: "claude-3-sonnet-20240229" # Balanced model for research tasks
 )
 
 # Add research and analysis tools
@@ -153,7 +154,7 @@ puts "4. Demonstrating Claude's safety and reasoning:"
 safety_agent = RAAF::Agent.new(
   name: "SafetyExpert",
   instructions: "You are a safety expert. Provide balanced, thoughtful responses about sensitive topics. Always prioritize safety and ethical considerations.",
-  model: "claude-3-opus-20240229"  # Most capable model for nuanced responses
+  model: "claude-3-opus-20240229" # Most capable model for nuanced responses
 )
 
 safety_runner = RAAF::Runner.new(
@@ -239,7 +240,7 @@ puts "7. Using Claude with detailed system prompts:"
 # Claude excels with detailed, structured instructions
 detailed_agent = RAAF::Agent.new(
   name: "DetailedClaudeAgent",
-  instructions: """
+  instructions: "
 You are a Claude-powered assistant with the following characteristics:
 - Provide thorough, well-structured responses
 - Always explain your reasoning process
@@ -254,7 +255,7 @@ When answering questions:
 3. Provide the detailed response
 4. Summarize key points
 5. Offer to clarify or expand on any aspect
-""",
+",
   model: "claude-3-opus-20240229"
 )
 
@@ -278,7 +279,7 @@ puts
 
 puts "=== Claude Provider Configuration ==="
 puts "Provider: #{provider.class.name}"
-puts "Available models: #{provider.supported_models.join(", ")}"
+puts "Available models: #{provider.supported_models.join(', ')}"
 puts "Agent configuration: #{research_agent.to_h.inspect}"
 
 # ============================================================================

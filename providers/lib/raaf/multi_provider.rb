@@ -32,10 +32,10 @@ module RAAF
     # @example Automatic provider selection
     #   # Automatically selects AnthropicProvider
     #   provider = MultiProvider.auto_provider(model: "claude-3-sonnet")
-    #   
+    #
     #   # Automatically selects GeminiProvider
     #   provider = MultiProvider.auto_provider(model: "gemini-1.5-pro")
-    #   
+    #
     #   # Automatically selects GroqProvider for fast inference
     #   provider = MultiProvider.auto_provider(model: "llama-3-70b")
     #
@@ -169,7 +169,7 @@ module RAAF
       # @example Automatic provider selection
       #   # Automatically selects and creates AnthropicProvider
       #   provider = MultiProvider.auto_provider(model: "claude-3-sonnet")
-      #   
+      #
       #   # Automatically selects GroqProvider with custom options
       #   provider = MultiProvider.auto_provider(
       #     model: "llama-3-70b",
@@ -191,7 +191,7 @@ module RAAF
     #
     # @example Create Gemini provider
     #   provider = GeminiProvider.new(api_key: "your-gemini-key")
-    #   
+    #
     # @example Use with auto-detection
     #   provider = MultiProvider.auto_provider(model: "gemini-1.5-pro")
     #
@@ -203,7 +203,6 @@ module RAAF
         gemini-1.5-pro gemini-1.5-flash gemini-1.0-pro
       ].freeze
 
-      # rubocop:disable Lint/MissingSuper
       def initialize(api_key: nil, api_base: nil, **options)
         @api_key = api_key || ENV.fetch("GEMINI_API_KEY", nil)
         @api_base = api_base || ENV["GEMINI_API_BASE"] || DEFAULT_API_BASE
@@ -213,7 +212,6 @@ module RAAF
       end
       # rubocop:enable Lint/MissingSuper
 
-      # rubocop:disable Lint/UnusedMethodArgument
       def chat_completion(messages:, model:, tools: nil, stream: false, **_kwargs)
         validate_model(model)
 

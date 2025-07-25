@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "interface"
-require_relative "retryable_provider"
-require_relative "../http_client"
+require "net/http"
+require "uri"
+# Interface is required from raaf-core gem
 
 module RAAF
   module Models
@@ -45,8 +45,6 @@ module RAAF
     #   end
     #
     class CohereProvider < ModelInterface
-      include RetryableProvider
-
       # Cohere API v2 base URL
       API_BASE = "https://api.cohere.com/v2"
 
@@ -81,12 +79,7 @@ module RAAF
         super
         @api_key ||= ENV.fetch("COHERE_API_KEY", nil)
         @api_base ||= api_base || API_BASE
-        @http_client = HTTPClient.new(default_headers: {
-                                        "Authorization" => "Bearer #{@api_key}",
-                                        "Content-Type" => "application/json",
-                                        "Accept" => "application/json",
-                                        "X-Client-Name" => "openai-agents-ruby"
-                                      })
+        # HTTP client initialization removed - using Net::HTTP directly for Cohere API
       end
 
       ##
@@ -109,7 +102,7 @@ module RAAF
       # @raise [ModelNotFoundError] if model is not supported
       # @raise [APIError] if the API request fails
       #
-      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+      def perform_chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
         # Convert messages to Cohere format
@@ -156,13 +149,7 @@ module RAAF
           stream_completion(messages: messages, model: model, tools: tools, **kwargs)
         else
           with_retry("chat_completion") do
-            response = @http_client.post("#{@api_base}/chat", body: body)
-
-            if response.success?
-              convert_response(response.parsed_body)
-            else
-              handle_api_error(response, "Cohere")
-            end
+            make_request(body)
           end
         end
       end
@@ -179,7 +166,7 @@ module RAAF
       # @yield [Hash] Yields streaming chunks in OpenAI format
       # @return [void]
       #
-      def stream_completion(messages:, model:, tools: nil, **kwargs)
+      def perform_stream_completion(messages:, model:, tools: nil, **kwargs, &block)
         validate_model(model)
 
         # Convert messages to Cohere format
@@ -223,7 +210,7 @@ module RAAF
         end
 
         with_retry("stream_completion") do
-          @http_client.post_stream("#{@api_base}/chat", body: body) do |chunk|
+          make_streaming_request(body) do |chunk|
             # Parse SSE chunk and convert to OpenAI format
             if chunk.start_with?("data: ")
               data = chunk[6..].strip
