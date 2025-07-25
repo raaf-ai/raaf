@@ -2,14 +2,19 @@
 // Sticky Header Only
 // ---------------------------------------------------------------------------- */
 
-// Sticky header
+// Sticky header - only on desktop
 header#page-header {
-  position: sticky;
-  top: 0;
+  position: relative; // Default to non-sticky on mobile
   z-index: 100;
   background: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.3s ease;
+  
+  // Make header sticky only on desktop and larger screens
+  @include media(">desktop") {
+    position: sticky;
+    top: 0;
+  }
   
   &.scrolled {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
