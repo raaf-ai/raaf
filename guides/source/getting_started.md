@@ -98,13 +98,18 @@ The version shown should be Ruby 3.0.0 or higher.
 RAAF is distributed as Ruby gems. For this tutorial, we'll start with the core gem:
 
 ```bash
-$ gem install raaf-core
+$ gem install raaf
 ```
 
 If you're using Bundler in a project, add to your Gemfile:
 
+<!-- VALIDATION_FAILED: getting_started.md:107 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i6er8g.rb:444:in '<main>'
+```
+
 ```ruby
-gem 'raaf-core'
+gem 'raaf'
 ```
 
 Then run:
@@ -267,6 +272,11 @@ end
 
 Now create `agents/customer_service_agent.rb`:
 
+<!-- VALIDATION_FAILED: getting_started.md:271 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ywj7fd.rb:444:in '<main>'
+```
+
 ```ruby
 require 'raaf'
 require_relative '../tools/customer_lookup_tool'
@@ -289,6 +299,11 @@ end
 
 Create `lib/my_ai_app.rb` to tie it all together:
 
+<!-- VALIDATION_FAILED: getting_started.md:293 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-bhxd9v.rb:444:in 'Kernel#require_relative': cannot load such file -- /private/var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/agents/customer_service_agent (LoadError) 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-bhxd9v.rb:444:in '<main>'
+```
+
 ```ruby
 require_relative '../agents/customer_service_agent'
 
@@ -303,6 +318,11 @@ end
 ```
 
 Test your customer service agent:
+
+<!-- VALIDATION_FAILED: getting_started.md:308 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-p146qy.rb:445:in 'Kernel#require_relative': cannot load such file -- /private/var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/lib/my_ai_app (LoadError) 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-p146qy.rb:445:in '<main>'
+```
 
 ```ruby
 # test_agent.rb
@@ -335,16 +355,20 @@ RAAF includes a declarative DSL that makes agent creation more elegant. First, a
 
 The DSL transforms agent building from procedural setup code into expressive configuration. It's the difference between assembly instructions and a blueprint.
 
+<!-- VALIDATION_FAILED: getting_started.md:339 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-79fz38.rb:445:in '<main>'
+```
+
 ```ruby
 # Gemfile
-gem 'raaf-core'
-gem 'raaf-dsl'
+gem 'raaf'
 ```
 
 Now rewrite your agent using the DSL:
 
 ```ruby
-require 'raaf-dsl'
+require 'raaf'
 require_relative '../tools/customer_lookup_tool'
 
 agent = RAAF::DSL::AgentBuilder.build do
@@ -377,9 +401,11 @@ RAAF provides a flexible prompt management system. The recommended approach is t
 
 ```ruby
 # Define a prompt class
-class CustomerServicePrompt < RAAF::DSL::Prompts::Base
-  requires :company_name
-  optional :tone, default: "professional"
+class CustomerServicePrompt
+  def initialize(company_name:, tone: "professional")
+    @company_name = company_name
+    @tone = tone
+  end
   
   def system
     "You are a customer service agent for #{@company_name}. Be #{@tone} and helpful."
@@ -390,19 +416,22 @@ class CustomerServicePrompt < RAAF::DSL::Prompts::Base
   end
 end
 
+# Create prompt instance
+support_prompt = CustomerServicePrompt.new(
+  company_name: "ACME Corp",
+  tone: "friendly"
+)
+
 # Use with DSL
 agent = RAAF::DSL::AgentBuilder.build do
   name "SupportAgent"
-  prompt CustomerServicePrompt
+  prompt support_prompt
   model "gpt-4o"
 end
 
-# Run with context
+# Run
 runner = RAAF::Runner.new(agent: agent)
-result = runner.run("I need help with my order") do
-  context_variable :company_name, "ACME Corp"
-  context_variable :tone, "friendly"
-end
+result = runner.run("I need help with my order")
 ```
 
 For simple cases, you can also use file-based prompts. See the [Prompting Guide](prompting.md) for comprehensive documentation.
@@ -418,18 +447,21 @@ But memory in AI systems is different from traditional application state. You're
 
 Think of memory management as curating a conversation history. You want to preserve the essential information while staying within the model's context window.
 
+<!-- VALIDATION_FAILED: getting_started.md:426 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-6lja5l.rb:445:in '<main>'
+```
+
 ```ruby
 # Gemfile
-gem 'raaf-core'
-gem 'raaf-dsl'
-gem 'raaf-memory'
+gem 'raaf'
 ```
 
 Update your application to use memory:
 
 ```ruby
 require 'raaf'
-require 'raaf-memory'
+require 'raaf'
 
 class MyAIApp
   def initialize
@@ -489,19 +521,26 @@ Monitoring AI agents involves several dimensions:
 
 RAAF's tracing system captures all these dimensions, giving you visibility into how your AI system is actually performing in production.
 
+<!-- VALIDATION_FAILED: getting_started.md:495 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ztvto2.rb:445:in '<main>'
+```
+
 ```ruby
 # Gemfile
-gem 'raaf-core'
-gem 'raaf-dsl'
-gem 'raaf-memory'
-gem 'raaf-tracing'
+gem 'raaf'
 ```
 
 Set up monitoring:
 
+<!-- VALIDATION_FAILED: getting_started.md:502 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-4pqdhx.rb:444:in '<main>'
+```
+
 ```ruby
 require 'raaf'
-require 'raaf-tracing'
+require 'raaf'
 
 class MyAIApp
   def initialize
@@ -560,20 +599,21 @@ Guardrails are your safety net. They filter inputs and outputs to:
 
 Think of guardrails as security middleware for AI. They run before and after the AI model, ensuring that dangerous content never reaches the model and that problematic responses never reach users.
 
+<!-- VALIDATION_FAILED: getting_started.md:563 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-os6oht.rb:445:in '<main>'
+```
+
 ```ruby
 # Gemfile
-gem 'raaf-core'
-gem 'raaf-dsl'
-gem 'raaf-memory'
-gem 'raaf-tracing'
-gem 'raaf-guardrails'
+gem 'raaf'
 ```
 
 Set up security:
 
 ```ruby
 require 'raaf'
-require 'raaf-guardrails'
+require 'raaf'
 
 class MyAIApp
   def initialize
@@ -681,10 +721,14 @@ This flexibility isn't theoretical—it's practical insurance against vendor loc
 
 **Important Note on Provider Switching**: While RAAF makes it technically easy to switch providers, each AI model behaves differently. The same prompt that works perfectly with one provider might produce completely different results with another. **ALWAYS** test your entire application thoroughly after switching providers, as you may need to adjust prompts, parameters, and even your agent's logic to accommodate the new model's behavior patterns.
 
+<!-- VALIDATION_FAILED: getting_started.md:680 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf-core' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-8smgqt.rb:445:in '<main>'
+```
+
 ```ruby
 # Gemfile
 gem 'raaf-core'
-gem 'raaf-providers'
 ```
 
 Use Anthropic's Claude:
@@ -739,26 +783,28 @@ This comprehensive setup demonstrates the enterprise features that separate toy 
 
 Building these features from scratch would take months. RAAF provides them as composable modules you can add as needed.
 
+<!-- VALIDATION_FAILED: getting_started.md:737 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wzjqb.rb:445:in '<main>'
+```
+
 ```ruby
 # Gemfile
-gem 'raaf-core'
-gem 'raaf-dsl'
-gem 'raaf-providers'
-gem 'raaf-tools'
-gem 'raaf-memory'
-gem 'raaf-guardrails'
-gem 'raaf-tracing'
-gem 'raaf-compliance'
-gem 'raaf-rails'  # If using Rails
+gem 'raaf'
 ```
 
 Production configuration:
 
+<!-- VALIDATION_FAILED: getting_started.md:744 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-tu811f.rb:444:in '<main>'
+```
+
 ```ruby
 require 'raaf'
-require 'raaf-guardrails'
-require 'raaf-tracing'
-require 'raaf-compliance'
+require 'raaf'
+require 'raaf'
+require 'raaf'
 
 class ProductionAIApp
   def initialize
@@ -856,6 +902,11 @@ Common Patterns
 ----------------
 
 ### Customer Service Bot
+<!-- VALIDATION_FAILED: getting_started.md:846 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant OrderService /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-xv8t9o.rb:449:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-xv8t9o.rb:139:in 'BasicObject#instance_eval' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-xv8t9o.rb:139:in 'RAAF::DSL::AgentBuilder.build'
+```
+
 ```ruby
 agent = RAAF::DSL::AgentBuilder.build do
   name "CustomerService"
@@ -869,6 +920,11 @@ end
 ```
 
 ### Data Analysis Agent
+<!-- VALIDATION_FAILED: getting_started.md:859 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant DataService /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-dvu5yg.rb:451:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-dvu5yg.rb:139:in 'BasicObject#instance_eval' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-dvu5yg.rb:139:in 'RAAF::DSL::AgentBuilder.build'
+```
+
 ```ruby
 agent = RAAF::DSL::AgentBuilder.build do
   name "DataAnalyst"
@@ -883,6 +939,11 @@ end
 ```
 
 ### Content Creation Workflow
+<!-- VALIDATION_FAILED: getting_started.md:873 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+ruby: /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-pohxfm.rb:445: syntax errors found (SyntaxError)   443 |   # Guide code starts here   444 |   # Research → Write → Review workflow > 445 | ... )       |     ^ unexpected ')'; expected a value in the hash literal       |     ^ expected a `=>` between the hash key and value       |     ^ unexpected ')'; expected an expression after the operator > 446 | ... )       |     ^ unexpected ')'; expected a value in the hash literal       |     ^ expected a `=>` between the hash key and value       |     ^ unexpected ')'; expected an expression after the operator > 447 | ... )       |     ^ unexpected ')'; expected a value in the hash literal       |     ^ expected a `=>` between the hash key and value       |     ^ unexpected ')'; expected an expression after the operator   448 |    449 | research_agent.add_handoff(writer_agent)
+```
+
 ```ruby
 # Research → Write → Review workflow
 research_agent = RAAF::Agent.new(name: "Researcher", ...)
@@ -909,6 +970,11 @@ export OPENAI_API_KEY="your-key-here"
 
 **"Model not found"**  
 Make sure you're using a valid model name:
+<!-- VALIDATION_FAILED: getting_started.md:899 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+ruby: /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-idjw7j.rb:445: syntax errors found (SyntaxError)   443 |   # Guide code starts here   444 |   # OpenAI models > 445 | "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"       |         ^ unexpected ',', ignoring it       |         ^ unexpected ',', expecting end-of-input       |                        ^ unexpected ',', ignoring it       |                        ^ unexpected ',', expecting end-of-input   446 |    447 | # Anthropic models > 448 | "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"       |                             ^ unexpected ',', ignoring it       |                             ^ unexpected ',', expecting end-of-input   449 |    450 | # Groq models   > 451 | "mixtral-8x7b-32768", "llama3-70b-8192"       |                     ^ unexpected ',', ignoring it       |                     ^ unexpected ',', expecting end-of-input   452 |    453 |
+```
+
 ```ruby
 # OpenAI models
 "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"
@@ -930,6 +996,11 @@ memory_manager = RAAF::Memory::MemoryManager.new(
 ```
 
 **Slow tool execution**
+<!-- VALIDATION_FAILED: getting_started.md:920 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::ParallelGuardrails /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-2jge76.rb:445:in '<main>'
+```
+
 ```ruby
 # Use parallel guardrails for better performance
 guardrails = RAAF::ParallelGuardrails.new([

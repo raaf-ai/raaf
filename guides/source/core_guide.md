@@ -193,6 +193,11 @@ Instructions are the primary way to encode domain knowledge into AI agents. Vagu
 
 The difference between effective and ineffective instructions is specificity and context:
 
+<!-- VALIDATION_FAILED: core_guide.md:197 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+ruby: /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wxnxgq.rb:452: syntax errors found (SyntaxError)   450 | agent = RAAF::Agent.new(   451 |   name: "CustomerServicePro", > 452 |   instructions: <<~INSTRUCTIONS       |                    ^~~~~~~~~~~~ unterminated heredoc; can't find string "INSTRUCTIONS" anywhere before EOF   453 |     You are a senior customer service representative for TechCorp.   454 |        ~~~~~~~   490 |   puts e.backtrace.first(3).join("\n") if e.backtrace   491 |   exit 1 > 492 | end       |    ^ unexpected end-of-input, assuming it is closing the parent top level context       |    ^ unexpected end-of-input; expected a `)` to close the arguments > 493 |        | ^ expected an `end` to close the `begin` statement
+```
+
 ```ruby
 # Before: Vague and ineffective
 agent = RAAF::Agent.new(
@@ -516,6 +521,11 @@ The method returns a structured hash with status information, which the AI can u
 
 For more complex tools, use classes:
 
+<!-- VALIDATION_FAILED: core_guide.md:520 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-h1d0p5.rb:460:in '<main>'
+```
+
 ```ruby
 class DatabaseTool
   def initialize(connection)
@@ -543,6 +553,11 @@ The structured return value includes not just the query results, but also metada
 #### Lambda Tools
 
 For inline tools:
+
+<!-- VALIDATION_FAILED: core_guide.md:548 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-lwfnv1.rb:448:in '<main>'
+```
 
 ```ruby
 get_time = ->(timezone: 'UTC') do
@@ -720,8 +735,13 @@ We started simple—just kept everything in memory. Then our server restarted an
 
 **1. In-Memory Store: The Speed Demon**
 
+<!-- VALIDATION_FAILED: core_guide.md:724 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-yledm2.rb:444:in '<main>'
+```
+
 ```ruby
-require 'raaf-memory'
+require 'raaf'
 
 # Fast but forgetful
 memory_manager = RAAF::Memory::MemoryManager.new(
@@ -748,6 +768,11 @@ runner = RAAF::Runner.new(
 **The brutal truth**: In-memory is seductive because it's so fast. But the first time you lose a critical conversation, you'll wish you'd chosen differently.
 
 **2. File Store: The Reliable Workhorse**
+
+<!-- VALIDATION_FAILED: core_guide.md:753 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'join' for an instance of String /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-xmyeo0.rb:475:in '<main>'
+```
 
 ```ruby
 # The improved version we use in production
@@ -1358,6 +1383,11 @@ ShoppingCartSchema = {
 
 **Financial Transaction Schema**
 
+<!-- VALIDATION_FAILED: core_guide.md:1362 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'runner' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-anite9.rb:490:in '<main>'
+```
+
 ```ruby
 TransactionSchema = {
   type: 'object',
@@ -1410,6 +1440,11 @@ transaction = JSON.parse(result.messages.last[:content])
 ```
 
 **Customer Support Ticket Schema**
+
+<!-- VALIDATION_FAILED: core_guide.md:1415 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'runner' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-u3i0p5.rb:500:in '<main>'
+```
 
 ```ruby
 SupportTicketSchema = {
@@ -1734,6 +1769,11 @@ ItemObject = {
 ```
 
 **Layer 4: Complete Complex Schema**
+
+<!-- VALIDATION_FAILED: core_guide.md:1739 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ItemObject /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-x69il2.rb:455:in '<main>'
+```
 
 ```ruby
 # The full enterprise-grade order schema
@@ -3120,6 +3160,11 @@ Context scoping provides several benefits:
 
 Context has a lifecycle that must be managed to prevent memory leaks, maintain performance, and ensure data freshness.
 
+<!-- VALIDATION_FAILED: core_guide.md:3124 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'hour' for an instance of Integer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ifeltj.rb:459:in 'ContextManager#create_context' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ifeltj.rb:565:in '<main>'
+```
+
 ```ruby
 class ContextManager
   def initialize
@@ -3269,6 +3314,11 @@ Context lifecycle management ensures:
 
 Different applications require different context persistence strategies. RAAF supports multiple approaches to match your scalability and reliability requirements.
 
+<!-- VALIDATION_FAILED: core_guide.md:3273 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant Redis /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-97hls8.rb:449:in '<main>'
+```
+
 ```ruby
 # In-memory context (development/testing)
 memory_context = RAAF::Context::InMemoryStore.new
@@ -3311,6 +3361,11 @@ Each persistence strategy has different trade-offs:
 ### Context and Token Optimization
 
 Context directly impacts token usage and costs. Smart context management can reduce token consumption by 30-50% while maintaining conversation quality.
+
+<!-- VALIDATION_FAILED: core_guide.md:3316 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'map' for an instance of String /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-rb6gk0.rb:461:in 'TokenOptimizedContext#optimize_context' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-rb6gk0.rb:508:in '<main>'
+```
 
 ```ruby
 # Token-optimized context management
@@ -3437,6 +3492,11 @@ agent.add_tool(method(:unreliable_tool))
 ```
 
 ### Circuit Breaker Pattern
+
+<!-- VALIDATION_FAILED: core_guide.md:3442 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-nclqkk.rb:482:in '<main>'
+```
 
 ```ruby
 class CircuitBreakerTool
@@ -4004,6 +4064,11 @@ agent = RAAF::Agent.new(
 )
 ```
 
+<!-- VALIDATION_FAILED: core_guide.md:4008 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+ruby: /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wtjxd0.rb:447: syntax errors found (SyntaxError)   445 | customer_service_agent = RAAF::Agent.new(   446 |   name: "CustomerService", > 447 |   instructions: <<~INSTRUCTIONS       |                    ^~~~~~~~~~~~ unterminated heredoc; can't find string "INSTRUCTIONS" anywhere before EOF   448 |     You help customers with:   449 |    ~~~~~~~   470 |   puts e.backtrace.first(3).join("\n") if e.backtrace   471 |   exit 1 > 472 | end       |    ^ unexpected end-of-input, assuming it is closing the parent top level context       |    ^ unexpected end-of-input; expected a `)` to close the arguments > 473 |        | ^ expected an `end` to close the `begin` statement
+```
+
 ```ruby
 # Good: Focused agent with clear purpose
 customer_service_agent = RAAF::Agent.new(
@@ -4392,6 +4457,11 @@ end
 
 #### The Testing Pyramid for AI Systems
 
+<!-- VALIDATION_FAILED: core_guide.md:4396 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant Tools /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-svflnq.rb:445:in '<main>'
+```
+
 ```ruby
 # Level 1: Tool Unit Tests (Fast, Deterministic)
 RSpec.describe Tools::OrderLookup do
@@ -4510,6 +4580,11 @@ end
 ```
 
 #### Testing Anti-Patterns to Avoid
+
+<!-- VALIDATION_FAILED: core_guide.md:4515 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant OpenAI /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-f6ye7r.rb:446:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-f6ye7r.rb:334:in 'Object#it' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-f6ye7r.rb:445:in '<main>'
+```
 
 ```ruby
 # DON'T: Test implementation details

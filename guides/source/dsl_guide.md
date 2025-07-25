@@ -110,8 +110,13 @@ Basic Agent Builder
 
 ### Simple Agent Creation
 
+<!-- VALIDATION_FAILED: dsl_guide.md:114 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cgo28.rb:444:in '<main>'
+```
+
 ```ruby
-require 'raaf-dsl'
+require 'raaf'
 
 agent = RAAF::DSL::AgentBuilder.build do
   name "WeatherBot"
@@ -122,11 +127,11 @@ end
 # Use the agent
 runner = RAAF::Runner.new(agent: agent)
 result = runner.run("What's the weather like?")
+```
 
 **Minimal viable agent:** This example shows the absolute minimum needed to create a functional agent. Just three lines of configuration create a working AI agent with specific instructions and model selection.
 
 The DSL handles all the complexity—provider configuration, API communication, response formatting—while you focus on the agent's purpose. This is the power of good abstraction: complex systems become simple to use.
-```
 
 ### Agent Configuration Options
 
@@ -193,6 +198,7 @@ agent = RAAF::DSL::AgentBuilder.build do
     environment "production"
   end
 end
+```
 
 **Context as configuration:** Context variables bridge the gap between static agent definition and dynamic runtime behavior. They provide a way to inject environment-specific information without hardcoding it into the agent's instructions.
 
@@ -209,7 +215,6 @@ This pattern is particularly valuable for complex deployments where agents might
 **Security and context:** Context variables can contain sensitive information like API keys, user tokens, and access credentials. The DSL provides mechanisms to mark context variables as sensitive, ensuring they're not logged or exposed in debugging output.
 
 When designing context structures, separate public context (safe to log) from private context (contains secrets). This separation makes security reviews easier and reduces the risk of accidental exposure.
-```
 
 ### Prompt Management
 
@@ -217,9 +222,12 @@ The DSL includes a sophisticated prompt management system that supports multiple
 
 ```ruby
 # PREFERRED: Ruby prompt classes with validation
-class CustomerServicePrompt < RAAF::DSL::Prompts::Base
-  requires :company_name, :issue_type
-  optional :tone, default: "professional"
+class CustomerServicePrompt
+  def initialize(company_name:, issue_type:, tone: "professional")
+    @company_name = company_name
+    @issue_type = issue_type
+    @tone = tone
+  end
   
   def system
     "You are a customer service agent for #{@company_name}. Be #{@tone}."
@@ -230,9 +238,16 @@ class CustomerServicePrompt < RAAF::DSL::Prompts::Base
   end
 end
 
+# Create prompt instance
+support_prompt = CustomerServicePrompt.new(
+  company_name: "ACME Corp",
+  issue_type: "billing",
+  tone: "professional"
+)
+
 agent = RAAF::DSL::AgentBuilder.build do
   name "SupportAgent"
-  prompt CustomerServicePrompt  # Type-safe, testable
+  prompt support_prompt  # Type-safe, testable
   model "gpt-4o"
 end
 
@@ -254,6 +269,11 @@ end
 
 Configure prompt resolution:
 
+<!-- VALIDATION_FAILED: dsl_guide.md:268 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: ArgumentError: wrong number of arguments (given 1, expected 0) /Users/hajee/.rvm/gems/ruby-3.4.5/gems/ostruct-0.6.3/lib/ostruct.rb:240:in 'block (2 levels) in new_ostruct_member!' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-2r7mqn.rb:445:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-2r7mqn.rb:191:in 'RAAF::DSL.configure_prompts'
+```
+
 ```ruby
 RAAF::DSL.configure_prompts do |config|
   config.add_path "prompts"
@@ -268,6 +288,11 @@ Tool Definition DSL
 -------------------
 
 ### Inline Tool Definition
+
+<!-- VALIDATION_FAILED: dsl_guide.md:283 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+ruby: /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wiqtl1.rb:484: syntax errors found (SyntaxError)   482 | end   483 |  > 484 | **Tool definition patterns:** The DSL supports multiple patterns for defining tools, each optimized for different scenarios:       | ^~ unexpected **, ignoring it       |                            ^~ unexpected **, ignoring it       |                            ^~ unexpected **, expecting end-of-input       |                                                                              ^ expected an `in` after the index in a `for` statement       |                                                                                    ^ unexpected ',', ignoring it       |                                                                                    ^ unexpected ','; expected a 'do', newline, or ';' after the 'for' loop collection       |                                                                                                                  ^ expected a collection after the `in` in a `for` statement       |                                                                                                                  ^ expected an `in` after the index in a `for` statement       |                                                                                                                   ^~~~~~~~~~ unexpected label, ignoring it       |                                                                                                                   ^~~~~~~~~~ unexpected label; expected a 'do', newline, or ';' after the 'for' loop collection   485 |  > 486 | ... self-contained logic       |     ^~~~ Can't change the value of self       |         ^ unexpected '-', ignoring it       |         ^ unexpected '-'; expected a 'do', newline, or ';' after the 'for' loop collection       |         ^ expected a collection after the `in` in a `for` statement       |         ^ expected an `in` after the index in a `for` statement > 487 | ... Ruby's argument patterns       |     ^~~~ unexpected constant, expecting end-of-input   488 | 3. **Error handling** with standard Ruby exception mechanisms   489 | 4. **Structured responses** using hashes for complex data   ~~~~~~~   491 | The key insight is that tools are just Ruby methods with a specific signature. The DSL automatically handles the integration with the AI model, including parameter extraction, type conversion, and result formatting. You write normal Ruby code; RAAF handles the AI integration.   492 |  > 493 | ... s parameter syntax, reducing the gap between what the model ex ...       |     ^ unexpected local variable or method, expecting end-of-input       |                                  ^~~ unexpected local variable or method, expecting end-of-input   494 |  > 495 | ...  reliability. When models understand exactly what a tool does and what it returns, they can make better decisions about when and how to use it. Clear contract ...       |     ^ expected an `in` after the index in a `for` statement       |                                                                                             ^~~ unexpected local variable or method; expected a 'do', newline, or ';' after the 'for' loop collection       |                                                                                                                             ^~~~ unexpected 'when', ignoring it       |                                                                                                                             ^~~~ unexpected 'when', expecting end-of-input       |                                                                                                                                  ^~~ unexpected 'and', ignoring it   496 |  > 497 | **Tool granularity decisions:** The granularity of your tools significantly impacts agent effectiveness. Fine-grained tools (like `get_current_time`) are easy to understand and test but may require multiple model calls to accomplish complex tasks. Coarse-grained tools (like `generate_report`) are more efficient but harder for models to use appropriately.       |                              ^~ unexpected **, ignoring it       |                              ^~ unexpected **, expecting end-of-input       |                                                                                                                       ^~~~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                       ^~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                                                                                                                                        ^~~~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                                                                                                                                                                       ^~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                                                                                                                                                                                                               ^ expected an `in` after the index in a `for` statement   498 |  > 499 | ... 's role and the complexity of t ...       |     ^ unterminated string meets end of file   500 |    501 | **Parameter design philosophy:** Tool parameters should match how humans think about the task, not how the underlying system works. A temperature conversion tool should accept familiar units like "celsius" and "fahrenheit" rather than numeric codes. This human-centric design makes tools more intuitive for AI models to use correctly.   ~~~~~~~   516 |   exit 1   517 | end > 518 |        | ^ expected an `end` to close the `begin` statement        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ unexpected end-of-input, assuming it is closing the parent top level context        | ^ unexpected end-of-input; expected a 'do', newline, or ';' after the 'for' loop collection
+```
 
 ```ruby
 agent = RAAF::DSL::AgentBuilder.build do
@@ -389,6 +414,11 @@ This approach is particularly valuable for organizations with established codeba
 ```
 
 ### Class-Based Tools
+
+<!-- VALIDATION_FAILED: dsl_guide.md:404 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: private method 'method' called for an instance of DatabaseTool /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-bic4hr.rb:465:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-bic4hr.rb:139:in 'BasicObject#instance_eval' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-bic4hr.rb:139:in 'RAAF::DSL::AgentBuilder.build'
+```
 
 ```ruby
 class DatabaseTool
@@ -718,6 +748,11 @@ end
 
 ### Dynamic Tool Generation
 
+<!-- VALIDATION_FAILED: dsl_guide.md:732 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant User /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ebbk4i.rb:459:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ebbk4i.rb:139:in 'BasicObject#instance_eval' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ebbk4i.rb:139:in 'RAAF::DSL::AgentBuilder.build'
+```
+
 ```ruby
 agent = RAAF::DSL::AgentBuilder.build do
   name "DynamicAgent"
@@ -834,6 +869,11 @@ Configuration Management
 
 ### Environment-Based Configuration
 
+<!-- VALIDATION_FAILED: dsl_guide.md:848 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::DSL::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-emujnb.rb:480:in '<main>'
+```
+
 ```ruby
 # config/agents/customer_service.rb
 RAAF::DSL::ConfigurationBuilder.build do
@@ -925,8 +965,13 @@ Testing DSL-Based Agents
 
 ### RSpec Integration
 
+<!-- VALIDATION_FAILED: dsl_guide.md:939 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wuwll6.rb:444:in '<main>'
+```
+
 ```ruby
-require 'raaf-dsl/rspec'
+require 'raaf'
 
 RSpec.describe 'Customer Service Agent' do
   let(:agent) do
@@ -959,6 +1004,11 @@ end
 ```
 
 ### Custom Matchers
+
+<!-- VALIDATION_FAILED: dsl_guide.md:974 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'matcher' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-yri178.rb:446:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-yri178.rb:325:in 'RSpec.describe' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-yri178.rb:445:in '<main>'
+```
 
 ```ruby
 # spec/support/agent_matchers.rb
@@ -994,6 +1044,11 @@ end
 ```
 
 ### Testing Workflows
+
+<!-- VALIDATION_FAILED: dsl_guide.md:1009 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'execute' for an instance of OpenStruct /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-n1d4ye.rb:461:in 'block (2 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-n1d4ye.rb:334:in 'Object#it' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-n1d4ye.rb:460:in 'block in <main>'
+```
 
 ```ruby
 RSpec.describe 'Content Creation Workflow' do
@@ -1032,6 +1087,11 @@ end
 ```
 
 ### Mock Tool Testing
+
+<!-- VALIDATION_FAILED: dsl_guide.md:1047 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'before' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-64n8aa.rb:457:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-64n8aa.rb:325:in 'RSpec.describe' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-64n8aa.rb:444:in '<main>'
+```
 
 ```ruby
 RSpec.describe 'Agent with External Dependencies' do
@@ -1170,6 +1230,11 @@ Integration with Rails
 ---------------------
 
 ### Rails Engine Integration
+
+<!-- VALIDATION_FAILED: dsl_guide.md:1185 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'routes' for an instance of Rails::Application /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i1j87.rb:445:in '<main>'
+```
 
 ```ruby
 # config/routes.rb

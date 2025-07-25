@@ -29,11 +29,14 @@ Getting Started
 
 Add RAAF Rails to your Gemfile:
 
+<!-- VALIDATION_FAILED: rails_guide.md:33 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-2au0a.rb:445:in '<main>'
+```
+
 ```ruby
 # Gemfile
-gem 'raaf-rails'
-gem 'raaf-core'
-gem 'raaf-tracing'  # For dashboard functionality
+gem 'raaf'
 ```
 
 Install and generate configuration:
@@ -50,6 +53,11 @@ This creates:
 * Migration for tracing tables (if using database tracing)
 
 ### Basic Configuration
+
+<!-- VALIDATION_FAILED: rails_guide.md:53 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'env' for module Rails /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-tb8y2l.rb:447:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-tb8y2l.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-tb8y2l.rb:445:in '<main>'
+```
 
 ```ruby
 # config/initializers/raaf.rb
@@ -86,6 +94,11 @@ RAAF Rails includes a built-in engine with a comprehensive dashboard for monitor
 
 ### Mounting the Engine
 
+<!-- VALIDATION_FAILED: rails_guide.md:88 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'routes' for an instance of Rails::Application /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-j6u44e.rb:445:in '<main>'
+```
+
 ```ruby
 # config/routes.rb
 Rails.application.routes.draw do
@@ -108,6 +121,11 @@ The dashboard provides:
 ### Dashboard Authentication
 
 For production, secure the dashboard:
+
+<!-- VALIDATION_FAILED: rails_guide.md:111 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'dashboard_auth=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cwbja3.rb:446:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cwbja3.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cwbja3.rb:445:in '<main>'
+```
 
 ```ruby
 # config/initializers/raaf.rb
@@ -269,6 +287,11 @@ Real-time Features with ActionCable
 
 ### Streaming Responses
 
+<!-- VALIDATION_FAILED: rails_guide.md:271 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ApplicationCable /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-xdd19n.rb:445:in '<main>'
+```
+
 ```ruby
 # app/channels/agent_channel.rb
 class AgentChannel < ApplicationCable::Channel
@@ -341,6 +364,11 @@ Database Integration
 
 ### Agent Memory Storage
 
+<!-- VALIDATION_FAILED: rails_guide.md:343 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ActiveRecord::Migration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-5ei1u2.rb:445:in '<main>'
+```
+
 ```ruby
 # db/migrate/xxx_create_agent_memories.rb
 class CreateAgentMemories < ActiveRecord::Migration[7.0]
@@ -360,6 +388,11 @@ class CreateAgentMemories < ActiveRecord::Migration[7.0]
 end
 ```
 
+<!-- VALIDATION_FAILED: rails_guide.md:362 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ApplicationRecord /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-16nexq.rb:445:in '<main>'
+```
+
 ```ruby
 # app/models/agent_memory.rb
 class AgentMemory < ApplicationRecord
@@ -374,6 +407,11 @@ end
 ```
 
 ### Agent Interaction Analytics
+
+<!-- VALIDATION_FAILED: rails_guide.md:377 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ActiveRecord::Migration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-uuausb.rb:445:in '<main>'
+```
 
 ```ruby
 # db/migrate/xxx_create_agent_interactions.rb
@@ -404,6 +442,11 @@ end
 
 RAAF Rails automatically integrates with ActiveRecord for trace storage:
 
+<!-- VALIDATION_FAILED: rails_guide.md:406 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ApplicationRecord /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-tkt0tj.rb:445:in '<main>'
+```
+
 ```ruby
 # app/models/raaf_trace.rb
 class RaafTrace < ApplicationRecord
@@ -431,6 +474,11 @@ Middleware Integration
 ----------------------
 
 ### Request Context Middleware
+
+<!-- VALIDATION_FAILED: rails_guide.md:434 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'middleware' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-zqunbc.rb:469:in '<main>'
+```
 
 ```ruby
 # app/middleware/raaf_context_middleware.rb
@@ -493,6 +541,11 @@ Background Job Integration
 
 ### Async Agent Processing
 
+<!-- VALIDATION_FAILED: rails_guide.md:495 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ApplicationJob /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-k4za33.rb:445:in '<main>'
+```
+
 ```ruby
 # app/jobs/agent_processing_job.rb
 class AgentProcessingJob < ApplicationJob
@@ -529,6 +582,11 @@ end
 ```
 
 ### Batch Processing
+
+<!-- VALIDATION_FAILED: rails_guide.md:532 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ApplicationJob /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-np5atp.rb:445:in '<main>'
+```
 
 ```ruby
 # app/jobs/batch_agent_job.rb
@@ -653,6 +711,11 @@ Performance Monitoring
 
 ### Application Performance Monitoring
 
+<!-- VALIDATION_FAILED: rails_guide.md:655 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'env' for module Rails /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-rlj2ob.rb:445:in '<main>'
+```
+
 ```ruby
 # config/initializers/raaf_monitoring.rb
 if Rails.env.production?
@@ -720,6 +783,11 @@ Security Considerations
 
 ### API Key Management
 
+<!-- VALIDATION_FAILED: rails_guide.md:722 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'log_filter_params=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-sj5iru.rb:447:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-sj5iru.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-sj5iru.rb:445:in '<main>'
+```
+
 ```ruby
 # config/initializers/raaf.rb
 RAAF.configure do |config|
@@ -760,6 +828,11 @@ end
 ```
 
 ### Rate Limiting
+
+<!-- VALIDATION_FAILED: rails_guide.md:763 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ChatController::ActionController /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-gvoufh.rb:446:in '<class:ChatController>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-gvoufh.rb:445:in '<main>'
+```
 
 ```ruby
 # app/controllers/chat_controller.rb

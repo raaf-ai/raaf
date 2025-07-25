@@ -43,6 +43,7 @@ GEM
     drb (2.2.3)
     erubi (1.13.1)
     ffi (1.17.2-x86_64-darwin)
+    ffi (1.17.2-x86_64-linux-gnu)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
     kramdown (2.5.1)
@@ -65,9 +66,11 @@ GEM
       tomlrb
     mixlib-shellout (3.3.9)
       chef-utils
-    nokogiri (1.18.8-x86_64-darwin)
+    nokogiri (1.18.9-x86_64-darwin)
       racc (~> 1.4)
-    ostruct (0.6.2)
+    nokogiri (1.18.9-x86_64-linux-gnu)
+      racc (~> 1.4)
+    ostruct (0.6.3)
     racc (1.8.1)
     rack (3.1.16)
     rack-session (2.1.1)
@@ -88,7 +91,7 @@ GEM
       ffi (~> 1.0)
     redcarpet (3.6.1)
     rexml (3.4.1)
-    rouge (4.5.2)
+    rouge (4.6.0)
     rubyzip (2.4.1)
     sass (3.7.4)
       sass-listen (~> 4.0.0)
@@ -103,6 +106,7 @@ GEM
 
 PLATFORMS
   x86_64-darwin
+  x86_64-linux
 
 DEPENDENCIES
   actionpack (~> 7.0)

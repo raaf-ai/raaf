@@ -1413,6 +1413,11 @@ Cost Optimization Best Practices
 
 ### Cost Optimization Strategies
 
+<!-- VALIDATION_FAILED: cost_guide.md:1417 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'detailed_cost_analytics=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-pa7lxs.rb:448:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-pa7lxs.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-pa7lxs.rb:445:in '<main>'
+```
+
 ```ruby
 # config/initializers/raaf_cost_optimization.rb
 RAAF.configure do |config|

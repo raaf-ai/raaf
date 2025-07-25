@@ -48,6 +48,11 @@ Claude Code became our co-pilot in this ambitious undertaking. We used it to:
 
 Our development approach embraced AI-assisted coding while maintaining Ruby's core principles:
 
+<!-- VALIDATION_FAILED: origins.md:52 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'Agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-bt2w5p.rb:445:in '<main>'
+```
+
 ```ruby
 # Python approach (functional, explicit)
 agent = Agent(

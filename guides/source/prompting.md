@@ -32,13 +32,13 @@ Ruby prompt classes are the preferred way to define prompts in RAAF. They provid
 ### Basic Prompt Class
 
 ```ruby
-class CustomerServicePrompt < RAAF::DSL::Prompts::Base
-  # Define required variables
-  requires :company_name, :issue_type
-  
-  # Define optional variables with defaults
-  optional :tone, default: "professional"
-  optional :language, default: "English"
+class CustomerServicePrompt
+  def initialize(company_name:, issue_type:, tone: "professional", language: "English")
+    @company_name = company_name
+    @issue_type = issue_type
+    @tone = tone
+    @language = language
+  end
   
   def system
     <<~SYSTEM
@@ -56,28 +56,39 @@ end
 
 ### Using Ruby Prompts
 
+<!-- VALIDATION_FAILED: prompting.md:60 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant CustomerServicePrompt /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-e9rdd4.rb:445:in '<main>'
+```
+
 ```ruby
+# Create prompt instance
+support_prompt = CustomerServicePrompt.new(
+  company_name: "ACME Corp",
+  issue_type: "shipping",
+  tone: "friendly"
+)
+
 # With an agent
 agent = RAAF::DSL::AgentBuilder.build do
   name "SupportAgent"
-  prompt CustomerServicePrompt
+  prompt support_prompt
   model "gpt-4o"
 end
 
-# Run with context
-result = agent.run("Help me with my order") do
-  context_variable :company_name, "ACME Corp"
-  context_variable :issue_type, "shipping"
-  context_variable :tone, "friendly"
-end
+# Run
+result = agent.run("Help me with my order")
 ```
 
 ### Advanced Prompt Features
 
 ```ruby
-class AnalysisPrompt < RAAF::DSL::Prompts::Base
-  requires :data_type, :metrics
-  optional :format, default: "detailed"
+class AnalysisPrompt
+  def initialize(data_type:, metrics:, format: "detailed")
+    @data_type = data_type
+    @metrics = metrics
+    @format = format
+  end
   
   # Add metadata
   def prompt_id
@@ -117,8 +128,10 @@ end
 
 ```ruby
 # Base prompt with common behavior
-class BaseAssistantPrompt < RAAF::DSL::Prompts::Base
-  optional :personality, default: "helpful"
+class BaseAssistantPrompt
+  def initialize(personality: "helpful")
+    @personality = personality
+  end
   
   def base_instructions
     "You are a #{@personality} AI assistant."
@@ -127,7 +140,10 @@ end
 
 # Specialized prompts
 class TechnicalAssistantPrompt < BaseAssistantPrompt
-  requires :expertise_area
+  def initialize(expertise_area:, personality: "helpful")
+    super(personality: personality)
+    @expertise_area = expertise_area
+  end
   
   def system
     <<~SYSTEM
@@ -139,7 +155,10 @@ class TechnicalAssistantPrompt < BaseAssistantPrompt
 end
 
 class CreativeAssistantPrompt < BaseAssistantPrompt
-  requires :creative_style
+  def initialize(creative_style:, personality: "helpful")
+    super(personality: personality)
+    @creative_style = creative_style
+  end
   
   def system
     <<~SYSTEM
@@ -235,6 +254,11 @@ RAAF provides several helper methods for ERB templates:
 
 Configure how RAAF resolves prompts:
 
+<!-- VALIDATION_FAILED: prompting.md:253 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: ArgumentError: wrong number of arguments (given 1, expected 0) /Users/hajee/.rvm/gems/ruby-3.4.5/gems/ostruct-0.6.3/lib/ostruct.rb:240:in 'block (2 levels) in new_ostruct_member!' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-39qb7w.rb:449:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-39qb7w.rb:191:in 'RAAF::DSL.configure_prompts'
+```
+
 ```ruby
 # config/initializers/raaf_prompts.rb (Rails)
 # or at application startup
@@ -264,6 +288,11 @@ RAAF resolves prompts in the following order:
 1. **Direct Ruby Class**: If you pass a class, it's used directly
 2. **File Resolution**: Searches for files with configured extensions
 3. **Phlex Classes**: Searches for matching Phlex component classes
+
+<!-- VALIDATION_FAILED: prompting.md:283 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cdfpn1.rb:445:in '<main>'
+```
 
 ```ruby
 # Direct class (fastest)
@@ -308,7 +337,7 @@ app/
 ### 3. Version Your Prompts
 
 ```ruby
-class AnalysisPrompt < RAAF::DSL::Prompts::Base
+class AnalysisPrompt
   def version
     "2.1.0"  # Semantic versioning
   end
@@ -325,10 +354,13 @@ end
 
 ### 4. Test Your Prompts
 
+<!-- VALIDATION_FAILED: prompting.md:343 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant CustomerServicePrompt /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-odz6dk.rb:444:in '<main>'
+```
+
 ```ruby
 RSpec.describe CustomerServicePrompt do
-  subject(:prompt) { described_class.new(params) }
-  
   let(:params) do
     {
       company_name: "ACME Corp",
@@ -338,23 +370,35 @@ RSpec.describe CustomerServicePrompt do
   end
   
   it "generates appropriate system message" do
+    prompt = CustomerServicePrompt.new(**params)
+    
     expect(prompt.system).to include("ACME Corp")
     expect(prompt.system).to include("friendly")
   end
   
   it "requires company_name" do
-    params.delete(:company_name)
-    expect { prompt }.to raise_error(ArgumentError, /company_name is required/)
+    expect {
+      CustomerServicePrompt.new(issue_type: "billing")
+    }.to raise_error(ArgumentError)
   end
   
   it "uses default tone when not specified" do
-    params.delete(:tone)
+    prompt = CustomerServicePrompt.new(
+      company_name: "ACME Corp",
+      issue_type: "billing"
+    )
+    
     expect(prompt.system).to include("professional")
   end
 end
 ```
 
 ### 5. Use Context Variables Wisely
+
+<!-- VALIDATION_FAILED: prompting.md:379 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-x2ppjd.rb:445:in '<main>'
+```
 
 ```ruby
 # Good: Clear, specific context
@@ -374,8 +418,11 @@ end
 ### 6. Handle Dynamic Content
 
 ```ruby
-class AdaptivePrompt < RAAF::DSL::Prompts::Base
-  requires :user_level, :task_complexity
+class AdaptivePrompt
+  def initialize(user_level:, task_complexity:)
+    @user_level = user_level
+    @task_complexity = task_complexity
+  end
   
   def system
     instructions = base_instructions
@@ -407,6 +454,11 @@ end
 ## Creating Custom Resolvers
 
 You can extend the prompt system with custom resolvers:
+
+<!-- VALIDATION_FAILED: prompting.md:434 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::DSL::PromptResolver /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-8bzv23.rb:444:in '<main>'
+```
 
 ```ruby
 class DatabasePromptResolver < RAAF::DSL::PromptResolver
@@ -493,6 +545,11 @@ end
 
 ### DSL Builder Integration
 
+<!-- VALIDATION_FAILED: prompting.md:519 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ResearchPrompt /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-c16bz6.rb:448:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-c16bz6.rb:139:in 'BasicObject#instance_eval' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-c16bz6.rb:139:in 'RAAF::DSL::AgentBuilder.build'
+```
+
 ```ruby
 agent = RAAF::DSL::AgentBuilder.build do
   name "Assistant"
@@ -510,6 +567,11 @@ end
 ```
 
 ### Direct Integration
+
+<!-- VALIDATION_FAILED: prompting.md:537 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::DSL::Prompt /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-t0qwen.rb:445:in '<main>'
+```
 
 ```ruby
 # Resolve prompt manually
@@ -530,6 +592,11 @@ agent = RAAF::Agent.new(
 ## Prompt Library
 
 RAAF includes several built-in prompt templates you can extend:
+
+<!-- VALIDATION_FAILED: prompting.md:557 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::DSL::Prompts::ResearchTemplate /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-1sz8zz.rb:445:in '<main>'
+```
 
 ```ruby
 # Research assistant

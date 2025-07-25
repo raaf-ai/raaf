@@ -146,6 +146,11 @@ Here's what each backend is designed for:
 - Multi-day workflows requiring persistence
 - Systems requiring audit trails or compliance
 
+<!-- VALIDATION_FAILED: memory_guide.md:150 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'megabytes' for an instance of Integer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-44cmhe.rb:449:in '<main>'
+```
+
 ```ruby
 # Simple in-memory storage
 memory_store = RAAF::Memory::InMemoryStore.new
@@ -207,6 +212,11 @@ memory_manager = RAAF::Memory::MemoryManager.new(
 - Slower than in-memory (obviously)
 - Database migrations when schema changes
 - Connection pool exhaustion at scale
+
+<!-- VALIDATION_FAILED: memory_guide.md:212 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ConversationMemory::JSON /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-1dwau3.rb:446:in '<class:ConversationMemory>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-1dwau3.rb:445:in '<main>'
+```
 
 ```ruby
 # ActiveRecord integration
@@ -466,6 +476,11 @@ end
 
 Reduce storage space while preserving essential information:
 
+<!-- VALIDATION_FAILED: memory_guide.md:470 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Memory::CompressedStore /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-v3r97v.rb:444:in '<main>'
+```
+
 ```ruby
 compressed_store = RAAF::Memory::CompressedStore.new(
   backend_store: RAAF::Memory::FileStore.new(directory: './conversations'),
@@ -526,6 +541,11 @@ Multi-agent workflows require careful memory coordination to maintain context ac
 ### Shared Context: Making Agents Work as a Team
 
 Share context across agents in workflows:
+
+<!-- VALIDATION_FAILED: memory_guide.md:531 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Memory::SharedMemoryManager /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-v7e9wc.rb:445:in '<main>'
+```
 
 ```ruby
 # Shared memory for multi-agent workflow
@@ -632,6 +652,11 @@ Database connection establishment introduces significant latency (100-300ms per 
 
 For database-backed memory stores:
 
+<!-- VALIDATION_FAILED: memory_guide.md:636 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Memory::PooledDatabaseStore /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-iqwmzl.rb:445:in '<main>'
+```
+
 ```ruby
 # Connection pooled database store
 pooled_store = RAAF::Memory::PooledDatabaseStore.new(
@@ -645,6 +670,11 @@ pooled_store = RAAF::Memory::PooledDatabaseStore.new(
 ### Async Operations
 
 Non-blocking memory operations:
+
+<!-- VALIDATION_FAILED: memory_guide.md:650 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Memory::AsyncMemoryManager /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-fcs4vw.rb:444:in '<main>'
+```
 
 ```ruby
 async_memory = RAAF::Memory::AsyncMemoryManager.new(
@@ -671,6 +701,11 @@ For memory caching and optimization strategies, see the **[Performance Guide](pe
 ### Batch Operations
 
 Optimize bulk memory operations:
+
+<!-- VALIDATION_FAILED: memory_guide.md:676 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Memory::BatchMemoryManager /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-75ht1b.rb:444:in '<main>'
+```
 
 ```ruby
 batch_memory = RAAF::Memory::BatchMemoryManager.new(
@@ -727,6 +762,11 @@ end
 
 Use memory as knowledge base for retrieval-augmented generation:
 
+<!-- VALIDATION_FAILED: memory_guide.md:731 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Memory::RAGMemoryManager /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ilv2m8.rb:444:in '<main>'
+```
+
 ```ruby
 rag_memory = RAAF::Memory::RAGMemoryManager.new(
   store: RAAF::Memory::VectorStore.new,
@@ -773,6 +813,11 @@ Testing Memory Systems
 
 ### Unit Testing
 
+<!-- VALIDATION_FAILED: memory_guide.md:777 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'add_message' for an instance of RAAF::Memory::MemoryManager /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-47j6nx.rb:455:in 'block (2 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-47j6nx.rb:334:in 'Object#it' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-47j6nx.rb:454:in 'block in <main>'
+```
+
 ```ruby
 RSpec.describe 'Memory Management' do
   let(:memory_store) { RAAF::Memory::InMemoryStore.new }
@@ -816,6 +861,11 @@ end
 ```
 
 ### Integration Testing
+
+<!-- VALIDATION_FAILED: memory_guide.md:821 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'be' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-3klaz0.rb:469:in 'block (2 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-3klaz0.rb:334:in 'Object#it' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-3klaz0.rb:466:in 'block in <main>'
+```
 
 ```ruby
 RSpec.describe 'Memory in Agent Workflows' do
@@ -929,6 +979,11 @@ memory_manager = RAAF::Memory::MemoryManager.new(
 ```
 
 ### Configuration Guidelines
+
+<!-- VALIDATION_FAILED: memory_guide.md:934 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ConversationMemory /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-s2d7v0.rb:455:in '<main>'
+```
 
 ```ruby
 # Development configuration

@@ -283,12 +283,14 @@ $ bundle install
 
 In case you need to test your changes against a real application, you can use your local RAAF gems. First, in your application's Gemfile, point to your local RAAF mono-repo:
 
+<!-- VALIDATION_FAILED: contributing_to_raaf.md:287 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'raaf' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-yegqo9.rb:445:in '<main>'
+```
+
 ```ruby
 # In your application's Gemfile
 gem 'raaf', path: '/path/to/your/raaf'
-# Or for specific gems:
-gem 'raaf-core', path: '/path/to/your/raaf/core'
-gem 'raaf-tools', path: '/path/to/your/raaf/tools'
 ```
 
 Then run:
@@ -487,6 +489,11 @@ $ bundle exec rake test:integration
 To use an external debugger (pry, byebug, debug, etc), install the debugger and use it as normal.  
 
 For RSpec tests, you can add debugger breakpoints directly:
+
+<!-- VALIDATION_FAILED: contributing_to_raaf.md:489 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'pry' for an instance of Binding /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-218b0v.rb:445:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-218b0v.rb:334:in 'Object#it' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-218b0v.rb:444:in '<main>'
+```
 
 ```ruby
 it "creates an agent" do

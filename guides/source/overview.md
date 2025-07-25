@@ -42,18 +42,20 @@ Remember when you first learned Rails? You didn't need to understand every compo
 
 We've seen too many AI frameworks that force you to adopt their entire ecosystem from the start. That's backwards. You should be able to start with a simple agent and add capabilities as your needs grow. That's why RAAF provides a coherent set of loosely coupled gems:
 
-```ruby
-# Minimal setup
-require 'raaf-core'
-
-# Full enterprise stack
-require 'raaf-core'
-require 'raaf-guardrails'
-require 'raaf-compliance'
-require 'raaf-rails'
+<!-- VALIDATION_FAILED: overview.md:46 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-y0tj84.rb:445:in '<main>'
 ```
 
-This isn't about being minimal for minimalism's sake. It's about respecting your time and cognitive load. Every unnecessary dependency is a potential security vulnerability, a performance bottleneck, and another thing to understand. Start with `raaf-core`, get something working, then add what you actually need.
+```ruby
+# Minimal setup
+require 'raaf'
+
+# Full enterprise stack
+require 'raaf'
+```
+
+This isn't about being minimal for minimalism's sake. It's about respecting your time and cognitive load. Every unnecessary dependency is a potential security vulnerability, a performance bottleneck, and another thing to understand. Start with `raaf`, get something working, then add what you actually need.
 
 The modular approach also means faster deployments. A simple chatbot doesn't need compliance frameworks. A proof-of-concept doesn't need enterprise guardrails. But when you do need them, they're designed to slot in seamlessly without rewriting your existing code.
 
@@ -117,6 +119,11 @@ We've lived through this cycle too many times. That's why RAAF includes producti
 #### The Hidden Costs of "Simple" AI Frameworks
 
 Most AI frameworks show you this:
+
+<!-- VALIDATION_FAILED: overview.md:119 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'ai' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-rbbf5w.rb:444:in '<main>'
+```
 
 ```ruby
 response = ai.complete("Hello, how are you?")
@@ -239,6 +246,11 @@ RAFF::Guardrails::PIIDetector.new(redact: true)
 
 **The 3 AM Outage**
 
+<!-- VALIDATION_FAILED: overview.md:240 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'openai' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i3htlp.rb:445:in '<main>'
+```
+
 ```ruby
 # Without RAAF: OpenAI goes down
 response = openai.complete(prompt)  # Throws exception
@@ -270,30 +282,30 @@ RAAF consists of 13 gems organized into focused components:
 
 ### Core Components
 
-* **[raaf-core](core_guide.html)** - Essential agent runtime and execution engine
-* **[raaf-dsl](dsl_guide.html)** - Declarative configuration DSL
-* **[raaf-providers](providers_guide.html)** - Multi-provider support for 100+ LLMs
+* **[Core](core_guide.html)** - Essential agent runtime and execution engine
+* **[DSL](dsl_guide.html)** - Declarative configuration DSL
+* **[Providers](providers_guide.html)** - Multi-provider support for 100+ LLMs
 
 ### Capabilities
 
-* **[raaf-tools](tools_guide.html)** - Comprehensive tool ecosystem
-* **[raaf-memory](memory_guide.html)** - Memory management and context persistence
+* **[Tools](tools_guide.html)** - Comprehensive tool ecosystem
+* **[Memory](memory_guide.html)** - Memory management and context persistence
 * **Streaming** (integrated in core) - Real-time streaming and async processing via [streaming guide](streaming_guide.html)
 
 ### Enterprise Features
 
-* **[raaf-guardrails](guardrails_guide.html)** - Security and safety guardrails
-* **[raaf-compliance](compliance_guide.html)** - Enterprise compliance (GDPR, HIPAA, SOC2)
-* **[raaf-tracing](tracing_guide.html)** - Comprehensive monitoring with Python SDK compatibility
+* **[Guardrails](guardrails_guide.html)** - Security and safety guardrails
+* **[Compliance](compliance_guide.html)** - Enterprise compliance (GDPR, HIPAA, SOC2)
+* **[Tracing](tracing_guide.html)** - Comprehensive monitoring with Python SDK compatibility
 
 ### Integration & Development
 
-* **[raaf-rails](rails_guide.html)** - Rails integration with web dashboard
-* **[raaf-testing](testing_guide.html)** - Testing utilities and mocks
-* **raaf-debug** - Interactive debugging and profiling tools
-* **raaf-analytics** - Usage tracking and analytics
-* **raaf-misc** - Extensions including multimodal, voice workflow, and data pipeline features
-* **raaf-mcp** - Model Context Protocol support
+* **[Rails](rails_guide.html)** - Rails integration with web dashboard
+* **[Testing](testing_guide.html)** - Testing utilities and mocks
+* **Debug** - Interactive debugging and profiling tools
+* **Analytics** - Usage tracking and analytics
+* **Misc** - Extensions including multimodal, voice workflow, and data pipeline features
+* **MCP** - Model Context Protocol support
 
 ## Quick Start Example
 

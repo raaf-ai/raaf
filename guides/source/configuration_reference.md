@@ -45,7 +45,6 @@ RAAF.configure do |config|
   # Security
   config.api_key_validation = true
   config.rate_limiting_enabled = true
-  config.guardrails_enabled = true
 end
 ```
 
@@ -85,6 +84,11 @@ config.timeout = 60
 
 **Example:**
 
+<!-- VALIDATION_FAILED: configuration_reference.md:88 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'log_requests=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-mm7ybq.rb:447:in '<main>'
+```
+
 ```ruby
 config.log_level = :debug
 config.debug_categories = [:api, :agents, :tools, :memory, :tracing]
@@ -105,6 +109,11 @@ config.log_responses = false  # Don't log sensitive response data
 | `gc_optimization` | Symbol | `:balanced` | GC optimization mode (`:memory`, `:latency`, `:throughput`) |
 
 **Example:**
+
+<!-- VALIDATION_FAILED: configuration_reference.md:109 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'hour' for an instance of Integer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-px0adj.rb:447:in '<main>'
+```
 
 ```ruby
 config.connection_pool_size = 20
@@ -128,6 +137,11 @@ config.gc_optimization = :throughput
 | `audit_logging` | Boolean | `false` | Enable audit trail logging |
 
 **Example:**
+
+<!-- VALIDATION_FAILED: configuration_reference.md:132 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'guardrails_enabled=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-2fkezz.rb:447:in '<main>'
+```
 
 ```ruby
 config.api_key_validation = true
@@ -357,6 +371,11 @@ Configuration Patterns
 
 ### Development Environment
 
+<!-- VALIDATION_FAILED: configuration_reference.md:360 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'memory_store=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cvrzlm.rb:462:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cvrzlm.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cvrzlm.rb:445:in '<main>'
+```
+
 ```ruby
 # config/environments/development.rb
 RAAF.configure do |config|
@@ -369,9 +388,7 @@ RAAF.configure do |config|
   config.structured_logging = false  # Human-readable logs
   
   # Disable expensive features
-  config.tracing_enabled = false
   config.response_cache_enabled = false
-  config.guardrails_enabled = false
   
   # Lower limits for development
   config.max_concurrent_agents = 10
@@ -385,6 +402,11 @@ end
 
 ### Test Environment
 
+<!-- VALIDATION_FAILED: configuration_reference.md:386 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'memory_store=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-s1i46o.rb:461:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-s1i46o.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-s1i46o.rb:445:in '<main>'
+```
+
 ```ruby
 # config/environments/test.rb
 RAAF.configure do |config|
@@ -396,9 +418,7 @@ RAAF.configure do |config|
   config.structured_logging = false
   
   # Disable external dependencies
-  config.tracing_enabled = false
   config.response_cache_enabled = false
-  config.guardrails_enabled = false
   
   # Fast execution
   config.timeout = 5
@@ -412,6 +432,11 @@ end
 
 ### Staging Environment
 
+<!-- VALIDATION_FAILED: configuration_reference.md:411 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'memory_store=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-88cobw.rb:462:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-88cobw.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-88cobw.rb:445:in '<main>'
+```
+
 ```ruby
 # config/environments/staging.rb
 RAAF.configure do |config|
@@ -424,9 +449,7 @@ RAAF.configure do |config|
   config.debug_categories = [:errors]
   
   # Enable most features
-  config.tracing_enabled = true
   config.response_cache_enabled = true
-  config.guardrails_enabled = true
   
   # Production-like limits but lower
   config.max_concurrent_agents = 50
@@ -443,6 +466,11 @@ end
 
 ### Production Environment
 
+<!-- VALIDATION_FAILED: configuration_reference.md:440 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'audit_logging=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i28aqf.rb:456:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i28aqf.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i28aqf.rb:445:in '<main>'
+```
+
 ```ruby
 # config/environments/production.rb
 RAAF.configure do |config|
@@ -455,9 +483,7 @@ RAAF.configure do |config|
   config.debug_categories = []  # No debug in production
   
   # Enable all production features
-  config.tracing_enabled = true
   config.response_cache_enabled = true
-  config.guardrails_enabled = true
   config.audit_logging = true
   
   # Production limits
@@ -489,6 +515,11 @@ Advanced Configuration
 -----------------------
 
 ### Custom Provider Configuration
+
+<!-- VALIDATION_FAILED: configuration_reference.md:485 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'provider_routing=' for an instance of RAAF::Configuration /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-44vc83.rb:468:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-44vc83.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-44vc83.rb:445:in '<main>'
+```
 
 ```ruby
 # Custom provider with specific settings
@@ -542,6 +573,11 @@ end
 
 ### Tracing Configuration
 
+<!-- VALIDATION_FAILED: configuration_reference.md:537 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::DatadogProcessor /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cg2qkd.rb:454:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cg2qkd.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cg2qkd.rb:444:in '<main>'
+```
+
 ```ruby
 RAAF.configure do |config|
   config.tracer = RAAF::Tracing::SpanTracer.new(
@@ -568,6 +604,11 @@ Configuration Validation
 ### Built-in Validation
 
 RAAF includes built-in configuration validation:
+
+<!-- VALIDATION_FAILED: configuration_reference.md:564 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'validate_api_keys!' for module RAAF /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-52499m.rb:448:in '<main>'
+```
 
 ```ruby
 # This will raise an error if configuration is invalid
@@ -644,6 +685,11 @@ production:
 
 ### Loading Configuration Files
 
+<!-- VALIDATION_FAILED: configuration_reference.md:639 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'to_sym' for nil /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-iclh1j.rb:449:in 'block in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-iclh1j.rb:288:in 'RAAF.configure' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-iclh1j.rb:447:in '<main>'
+```
+
 ```ruby
 # config/initializers/raaf.rb
 raaf_config = Rails.application.config_for(:raaf)
@@ -697,6 +743,11 @@ end
 ```
 
 ### Environment Variable Validation
+
+<!-- VALIDATION_FAILED: configuration_reference.md:693 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'env' for module Rails /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-d8pvte.rb:495:in '<main>'
+```
 
 ```ruby
 # config/initializers/raaf_security.rb

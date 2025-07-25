@@ -93,6 +93,11 @@ NOTE: **All supported providers must have tool/function calling capabilities.** 
 
 ### Universal Interface
 
+<!-- VALIDATION_FAILED: providers_guide.md:97 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'model_name' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-2ym037.rb:448:in '<main>'
+```
+
 ```ruby
 # Same code works with any provider
 agent = RAAF::Agent.new(
@@ -153,8 +158,13 @@ But here's the catch—OpenAI knows this. They've raised prices twice in the las
 
 ### Configuration
 
+<!-- VALIDATION_FAILED: providers_guide.md:157 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-dwy88l.rb:444:in '<main>'
+```
+
 ```ruby
-require 'raaf-providers'
+require 'raaf'
 
 # Environment variable (recommended)
 ENV['OPENAI_API_KEY'] = 'your-openai-key'
@@ -328,6 +338,11 @@ agent = RAAF::Agent.new(model: "claude-3-haiku-20240307")     # Fast and cheap
 
 ### Anthropic-Specific Features
 
+<!-- VALIDATION_FAILED: providers_guide.md:332 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'agent_tools' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-sw2iau.rb:454:in '<main>'
+```
+
 ```ruby
 # Large context windows
 agent = RAAF::Agent.new(
@@ -492,16 +507,18 @@ Together AI Provider
 ### Configuration
 
 ```ruby
-ENV['TOGETHER_API_KEY'] = 'your-together-key'
-
-provider = RAAF::Models::TogetherProvider.new(
-  api_key: 'your-together-key',
-  base_url: 'https://api.together.xyz/v1'
+# Together.ai is supported through LiteLLM
+agent = RAAF::Agent.new(
+  model: "together_ai/meta-llama/Llama-2-70b-chat-hf"
 )
 
+# Or configure directly
+ENV['TOGETHER_API_KEY'] = 'your-together-key'
 agent = RAAF::Agent.new(
   model: "meta-llama/Llama-2-70b-chat-hf",
-  provider: provider
+  provider_config: {
+    api_base: 'https://api.together.xyz/v1'
+  }
 )
 ```
 
@@ -547,16 +564,11 @@ Perfect for:
 ENV['COHERE_API_KEY'] = 'your-cohere-key'
 
 # Explicit configuration
-provider = RAAF::Models::CohereProvider.new(
-  api_key: 'your-cohere-key',
-  base_url: 'https://api.cohere.ai/v1',
-  timeout: 30,
-  max_retries: 3
-)
+# Cohere is supported through standard configuration
+ENV['COHERE_API_KEY'] = 'your-cohere-key'
 
 agent = RAAF::Agent.new(
-  model: "command-r-plus",
-  provider: provider
+  model: "command-r-plus"
 )
 ```
 
@@ -595,9 +607,14 @@ LiteLLM Universal Provider
 
 ### Configuration
 
+<!-- VALIDATION_FAILED: providers_guide.md:596 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-h7xe24.rb:445:in '<main>'
+```
+
 ```ruby
 # LiteLLM provides access to 100+ providers
-require 'raaf-providers'
+require 'raaf'
 
 provider = RAAF::Models::LiteLLMProvider.new(
   # Automatically routes based on model name
@@ -879,6 +896,11 @@ end
 
 ### Caching
 
+<!-- VALIDATION_FAILED: providers_guide.md:880 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant CachedProviderResponses::ActiveSupport /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-vzlaux.rb:447:in 'CachedProviderResponses#initialize' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-vzlaux.rb:479:in 'Class#new' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-vzlaux.rb:479:in '<main>'
+```
+
 ```ruby
 class CachedProviderResponses
   def initialize(provider)
@@ -1038,6 +1060,11 @@ Testing Multi-Provider Systems
 
 ### Provider Testing
 
+<!-- VALIDATION_FAILED: providers_guide.md:1039 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'select_test_model' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-o65fto.rb:456:in 'block (3 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-o65fto.rb:454:in 'Hash#each' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-o65fto.rb:454:in 'block (2 levels) in <main>'
+```
+
 ```ruby
 RSpec.describe 'Multi-Provider Agent System' do
   let(:providers) do
@@ -1078,6 +1105,11 @@ end
 ```
 
 ### Mock Providers for Testing
+
+<!-- VALIDATION_FAILED: providers_guide.md:1080 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'eq' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-qwhu9n.rb:495:in 'block (2 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-qwhu9n.rb:334:in 'Object#it' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-qwhu9n.rb:491:in 'block in <main>'
+```
 
 ```ruby
 class MockProvider

@@ -107,7 +107,7 @@ Basic Streaming Setup
 ### Streaming Agent Responses
 
 ```ruby
-require 'raaf-core'
+require 'raaf'
 
 agent = RAAF::Agent.new(
   name: "StreamingAssistant",
@@ -221,6 +221,11 @@ The difference? WebSockets eliminate the "asking constantly" problem. The connec
 5. **Scalable**: 10,000 connections use fewer resources than 120,000 polls/minute
 
 ### Rails ActionCable Integration
+
+<!-- VALIDATION_FAILED: streaming_guide.md:226 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ApplicationCable /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-nktciv.rb:445:in '<main>'
+```
 
 ```ruby
 # app/channels/agent_channel.rb
@@ -458,6 +463,11 @@ Asynchronous processing enables scalable AI systems by decoupling request handli
 
 ### Background Agent Jobs
 
+<!-- VALIDATION_FAILED: streaming_guide.md:462 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ApplicationJob /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ijgriw.rb:445:in '<main>'
+```
+
 ```ruby
 # app/jobs/streaming_agent_job.rb
 class StreamingAgentJob < ApplicationJob
@@ -591,6 +601,11 @@ Event-Driven Multi-Agent Systems
 ---------------------------------
 
 ### Agent Orchestrator
+
+<!-- VALIDATION_FAILED: streaming_guide.md:596 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Streaming /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i9vvc8.rb:446:in '<class:AgentOrchestrator>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-i9vvc8.rb:445:in '<main>'
+```
 
 ```ruby
 # app/services/agent_orchestrator.rb
@@ -912,6 +927,11 @@ Performance Optimization
 ------------------------
 
 ### Streaming Optimizations
+
+<!-- VALIDATION_FAILED: streaming_guide.md:917 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Streaming /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-duqm4e.rb:445:in '<main>'
+```
 
 ```ruby
 # config/initializers/raaf_streaming.rb
@@ -1290,6 +1310,11 @@ Testing Streaming Features
 
 ### RSpec Streaming Tests
 
+<!-- VALIDATION_FAILED: streaming_guide.md:1294 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'configure' for module RSpec /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-xnw71e.rb:481:in '<main>'
+```
+
 ```ruby
 # spec/support/streaming_helpers.rb
 module StreamingHelpers
@@ -1334,6 +1359,11 @@ end
 ```
 
 ### Streaming Test Examples
+
+<!-- VALIDATION_FAILED: streaming_guide.md:1339 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant StreamingAgentService /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-nghcq5.rb:445:in '<main>'
+```
 
 ```ruby
 # spec/services/streaming_agent_service_spec.rb

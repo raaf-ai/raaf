@@ -1,8 +1,8 @@
 # Jekyll configuration for RAAF Guides
 title: "Ruby AI Agents Factory (RAAF) Documentation"
 description: "Comprehensive guides for building AI agents with Ruby"
-baseurl: "/guides" # Change this to match your repository name
-url: "https://your-username.github.io" # Change this to your GitHub Pages URL
+baseurl: "" # No baseurl needed for custom domain
+url: "https://guides.raaf-ai.dev" # Custom domain URL
 
 # Build settings
 markdown: kramdown

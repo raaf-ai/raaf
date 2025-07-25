@@ -99,6 +99,11 @@ RAAF::Errors::ProviderError: Unknown provider 'custom_provider'
 
 1. **Check provider spelling:**
 
+<!-- VALIDATION_FAILED: troubleshooting.md:103 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Models::OpenAiProvider /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-1yxsxb.rb:448:in '<main>'
+```
+
    ```ruby
    # Correct
    provider = RAAF::Models::ResponsesProvider.new
@@ -108,6 +113,11 @@ RAAF::Errors::ProviderError: Unknown provider 'custom_provider'
    ```
 
 2. **Ensure provider gem is installed:**
+
+<!-- VALIDATION_FAILED: troubleshooting.md:113 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:301:in 'Gem::Dependency#to_specs': Could not find 'anthropic-sdk' (>= 0) among 224 total gem(s) (Gem::MissingSpecError) Checked in 'GEM_PATH=/Users/hajee/.rvm/gems/ruby-3.4.5:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/gems/3.4.0' , execute `gem env` for more information 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/dependency.rb:313:in 'Gem::Dependency#to_spec' 	from /Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_gem.rb:56:in 'Kernel#gem' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-zzv1if.rb:445:in '<main>'
+```
 
    ```ruby
    # For Anthropic
@@ -245,6 +255,11 @@ RAAF::Errors::ToolError: Tool 'get_weather' failed to execute
 
 2. **Check session ID consistency:**
 
+<!-- VALIDATION_FAILED: troubleshooting.md:249 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'user' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-vkz0q7.rb:445:in '<main>'
+```
+
    ```ruby
    # Use consistent session ID
    session_id = "user_#{user.id}_conversation"
@@ -285,6 +300,11 @@ RAAF::Errors::ToolError: Tool 'get_weather' failed to execute
    ```
 
 2. **Use context variables for persistent data:**
+
+<!-- VALIDATION_FAILED: troubleshooting.md:290 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'memory_manager' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-f579sz.rb:446:in '<main>'
+```
 
    ```ruby
    runner = RAAF::Runner.new(
@@ -348,6 +368,11 @@ Performance Issues
 **Optimization Strategies:**
 
 1. **Use appropriate models:**
+
+<!-- VALIDATION_FAILED: troubleshooting.md:353 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'simple_agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-h1z4ql.rb:445:in '<main>'
+```
 
    ```ruby
    # For simple tasks
@@ -415,6 +440,11 @@ Performance Issues
    ```
 
 3. **Implement cost tracking:**
+
+<!-- VALIDATION_FAILED: troubleshooting.md:420 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::CostTracker /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-u2zet3.rb:444:in '<main>'
+```
 
    ```ruby
    cost_tracker = RAAF::Tracing::CostTracker.new(
@@ -567,6 +597,11 @@ Debugging Techniques
 
 #### Enable Comprehensive Logging
 
+<!-- VALIDATION_FAILED: troubleshooting.md:571 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant Logger /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-own3hw.rb:451:in '<main>'
+```
+
 ```ruby
 # Configure detailed logging
 RAAF.configure do |config|
@@ -656,6 +691,11 @@ Performance Profiling
 
 ### Memory Profiling
 
+<!-- VALIDATION_FAILED: troubleshooting.md:660 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'runner' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-mn5ue0.rb:447:in 'block in <main>' /Users/hajee/.rvm/gems/ruby-3.4.5/gems/memory_profiler-1.1.0/lib/memory_profiler/reporter.rb:76:in 'MemoryProfiler::Reporter#run' /Users/hajee/.rvm/gems/ruby-3.4.5/gems/memory_profiler-1.1.0/lib/memory_profiler/reporter.rb:33:in 'MemoryProfiler::Reporter.report'
+```
+
 ```ruby
 require 'memory_profiler'
 
@@ -667,6 +707,11 @@ report.pretty_print(to_file: 'memory_profile.txt')
 ```
 
 ### CPU Profiling
+
+<!-- VALIDATION_FAILED: troubleshooting.md:672 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- ruby-prof (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-kf4kbe.rb:444:in '<main>'
+```
 
 ```ruby
 require 'ruby-prof'

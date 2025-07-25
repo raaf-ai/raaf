@@ -126,8 +126,13 @@ Basic Tracing Setup
 
 ### Simple Console Tracing
 
+<!-- VALIDATION_FAILED: tracing_guide.md:130 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wm3guv.rb:444:in '<main>'
+```
+
 ```ruby
-require 'raaf-tracing'
+require 'raaf'
 
 # Basic console output for development
 tracer = RAAF::Tracing::SpanTracer.new
@@ -167,6 +172,11 @@ runner = RAAF::Runner.new(agent: agent, tracer: tracer)
 ```
 
 ### Multi-Destination Tracing
+
+<!-- VALIDATION_FAILED: tracing_guide.md:172 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::DatadogProcessor /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-uw7mio.rb:457:in '<main>'
+```
 
 ```ruby
 # Send traces to multiple destinations
@@ -274,6 +284,11 @@ openai_processor = RAAF::Tracing::OpenAIProcessor.new(
 
 Store traces in database for analysis:
 
+<!-- VALIDATION_FAILED: tracing_guide.md:278 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::DatabaseProcessor /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-gbjpbm.rb:444:in '<main>'
+```
+
 ```ruby
 db_processor = RAAF::Tracing::DatabaseProcessor.new(
   connection: ActiveRecord::Base.connection,
@@ -298,6 +313,11 @@ db_processor = RAAF::Tracing::DatabaseProcessor.new(
 ### Custom Processors
 
 Create custom processors for specific needs:
+
+<!-- VALIDATION_FAILED: tracing_guide.md:303 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::BaseProcessor /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-on3qoo.rb:444:in '<main>'
+```
 
 ```ruby
 class SlackProcessor < RAAF::Tracing::BaseProcessor
@@ -454,6 +474,11 @@ end
 
 ### Real-time Dashboards
 
+<!-- VALIDATION_FAILED: tracing_guide.md:458 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::RealTimeDashboard /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-zupo06.rb:445:in '<main>'
+```
+
 ```ruby
 # Real-time dashboard with WebSockets
 dashboard = RAAF::Tracing::RealTimeDashboard.new(
@@ -542,6 +567,11 @@ end
 ```
 
 ### Budget Management
+
+<!-- VALIDATION_FAILED: tracing_guide.md:547 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::BudgetManager /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-nugaqk.rb:444:in '<main>'
+```
 
 ```ruby
 budget_manager = RAAF::Tracing::BudgetManager.new(
@@ -774,6 +804,11 @@ Distributed tracing provides essential visibility into multi-service request flo
 
 ### Multi-Service Tracing
 
+<!-- VALIDATION_FAILED: tracing_guide.md:778 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::DistributedTracer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-g86mm5.rb:445:in '<main>'
+```
+
 ```ruby
 # Distributed tracing across services
 distributed_tracer = RAAF::Tracing::DistributedTracer.new(
@@ -811,6 +846,11 @@ end
 ```
 
 ### Cross-Agent Tracing
+
+<!-- VALIDATION_FAILED: tracing_guide.md:816 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::MultiAgentTracer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-lu7ny2.rb:445:in '<main>'
+```
 
 ```ruby
 # Trace spans across multiple agents
@@ -876,6 +916,11 @@ This scenario demonstrates why testing tracing system failure modes is as import
 
 ### Mock Tracing
 
+<!-- VALIDATION_FAILED: tracing_guide.md:880 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::MockTracer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-vydh2g.rb:445:in '<main>'
+```
+
 ```ruby
 # Mock tracer for testing
 mock_tracer = RAAF::Tracing::MockTracer.new(
@@ -914,6 +959,11 @@ end
 ```
 
 ### Development Profiling
+
+<!-- VALIDATION_FAILED: tracing_guide.md:919 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::ProfilingTracer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-678pnf.rb:445:in '<main>'
+```
 
 ```ruby
 # Development profiling
@@ -966,6 +1016,11 @@ Tracing systems face reliability challenges: they often experience failures duri
 4. **Isolation**: Tracing failures don't affect the main system
 
 ### High-Availability Setup
+
+<!-- VALIDATION_FAILED: tracing_guide.md:971 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::ProductionTracer /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-s8pxdr.rb:445:in '<main>'
+```
 
 ```ruby
 # Production tracing with HA
@@ -1038,6 +1093,11 @@ data:
 ```
 
 ### Monitoring Setup
+
+<!-- VALIDATION_FAILED: tracing_guide.md:1043 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Tracing::MonitoringStack /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-yf6774.rb:445:in '<main>'
+```
 
 ```ruby
 # Comprehensive monitoring stack

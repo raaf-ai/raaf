@@ -198,6 +198,11 @@ Most guardrails support sensitivity levels that control how aggressively they fi
 **How to Configure:**
 When initializing a guardrail, specify the sensitivity parameter. This affects internal thresholds and pattern matching aggressiveness.
 
+<!-- VALIDATION_FAILED: guardrails_guide.md:202 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Guardrails::SecurityGuardrail /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ux6x51.rb:445:in '<main>'
+```
+
 ```ruby
 # Low sensitivity for internal tools
 internal_guardrail = RAAF::Guardrails::SecurityGuardrail.new(
@@ -238,6 +243,11 @@ Security and PII guardrails allow custom patterns for organization-specific thre
 
 **How to Configure:**
 Provide custom patterns during guardrail initialization. Patterns can be simple strings, regular expressions, or complex matching logic.
+
+<!-- VALIDATION_FAILED: guardrails_guide.md:243 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Guardrails::PIIDetector /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-ti97wu.rb:445:in '<main>'
+```
 
 ```ruby
 # Add organization-specific PII patterns
@@ -308,6 +318,11 @@ Map actions to violation severity or type. Common patterns include:
 - Medium severity → Flag
 - Low severity → Log
 
+<!-- VALIDATION_FAILED: guardrails_guide.md:312 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Guardrails::SecurityGuardrail /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-csq28m.rb:455:in '<main>'
+```
+
 ```ruby
 # Static action mapping
 content_moderator = RAAF::Guardrails::ContentModerator.new(
@@ -370,6 +385,11 @@ Adjust threshold parameters during initialization or runtime. Most guardrails ac
 - 0.4-0.6: Balanced detection
 - 0.7-0.9: Conservative (more false positives)
 - 1.0: Maximum strictness
+
+<!-- VALIDATION_FAILED: guardrails_guide.md:375 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Guardrails::ToxicityDetector /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-6pje13.rb:445:in '<main>'
+```
 
 ```ruby
 # Confidence threshold configuration
@@ -440,6 +460,11 @@ Advanced configurations can apply different rules based on context. A medical ap
 2. **Dynamic rules**: Runtime evaluation based on context
 3. **Rule engines**: Complex conditional logic systems
 4. **ML-based**: Adaptive rules based on patterns
+
+<!-- VALIDATION_FAILED: guardrails_guide.md:445 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Guardrails::SecurityGuardrail /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-r7rlbt.rb:445:in '<main>'
+```
 
 ```ruby
 # Role-based conditional logic
@@ -543,6 +568,11 @@ Some aspects can be adjusted during operation without restarting:
 - Database-backed settings
 - API-based configuration
 - Feature flags
+
+<!-- VALIDATION_FAILED: guardrails_guide.md:548 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant RAAF::Guardrails::SecurityGuardrail /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-819gaf.rb:446:in '<main>'
+```
 
 ```ruby
 # File-based configuration (config/guardrails.yml)

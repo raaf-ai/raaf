@@ -213,14 +213,6 @@
         Learn through practical examples, implementation strategies, and proven patterns for business applications.
       work_in_progress: true
     -
-      name: Architecture Patterns
-      url: architecture_patterns.html
-      description: >
-        Proven architectural patterns for scaling AI agent systems
-        in production environments.
-        Learn about system design, scalability patterns, resilience strategies, and building robust AI architectures.
-      work_in_progress: true
-    -
       name: Best Practices
       url: best_practices.html
       description: >

@@ -265,19 +265,16 @@ RAAF::Models::ResponsesProvider.new(
 )
 ```
 
-### RAAF::Models::ResponsesProvider
+### RAAF::Models::OpenAIProvider
 
-Direct OpenAI API integration.
+**DEPRECATED**: Direct OpenAI Chat Completions API integration. Use ResponsesProvider instead.
 
 #### Constructor
 
 ```ruby
-RAAF::Models::ResponsesProvider.new(
+RAAF::Models::OpenAIProvider.new(
   api_key: String = ENV['OPENAI_API_KEY'],
-  organization: String = ENV['OPENAI_ORG_ID'],
-  base_url: String = "https://api.openai.com/v1",
-  timeout: Integer = 30,
-  max_retries: Integer = 3
+  api_base: String = ENV['OPENAI_API_BASE'] || "https://api.openai.com/v1"
 )
 ```
 

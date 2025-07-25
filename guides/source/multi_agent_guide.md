@@ -141,6 +141,11 @@ The secret is in the instructions. Not just what they do, but how they interact:
 
 ### Creating Specialized Agents
 
+<!-- VALIDATION_FAILED: multi_agent_guide.md:145 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-oq2ete.rb:444:in '<main>'
+```
+
 ```ruby
 require 'raaf'
 
@@ -197,11 +202,19 @@ editor_agent = RAAF::Agent.new(
 
 For complex multi-agent workflows, managing prompts becomes crucial. RAAF's prompt system helps maintain consistency and reusability across agents:
 
+<!-- VALIDATION_FAILED: multi_agent_guide.md:201 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'editor_agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-pf64k9.rb:515:in '<main>'
+```
+
 ```ruby
 # Define reusable prompt templates
-class ResearchAgentPrompt < RAAF::DSL::Prompts::Base
-  requires :domain, :research_depth
-  optional :sources, default: ["web", "academic"]
+class ResearchAgentPrompt
+  def initialize(domain:, research_depth:, sources: ["web", "academic"])
+    @domain = domain
+    @research_depth = research_depth
+    @sources = sources
+  end
   
   def system
     <<~SYSTEM
@@ -217,9 +230,12 @@ class ResearchAgentPrompt < RAAF::DSL::Prompts::Base
   end
 end
 
-class WriterAgentPrompt < RAAF::DSL::Prompts::Base
-  requires :content_type, :target_audience
-  optional :tone, default: "professional"
+class WriterAgentPrompt
+  def initialize(content_type:, target_audience:, tone: "professional")
+    @content_type = content_type
+    @target_audience = target_audience
+    @tone = tone
+  end
   
   def system
     <<~SYSTEM
@@ -232,10 +248,22 @@ class WriterAgentPrompt < RAAF::DSL::Prompts::Base
   end
 end
 
+# Create prompt instances
+research_prompt = ResearchAgentPrompt.new(
+  domain: "quantum physics",
+  research_depth: "comprehensive"
+)
+
+writer_prompt = WriterAgentPrompt.new(
+  content_type: "blog post",
+  target_audience: "tech professionals",
+  tone: "engaging yet technical"
+)
+
 # Create agents with prompt templates
 research_agent = RAAF::DSL::AgentBuilder.build do
   name "Researcher"
-  prompt ResearchAgentPrompt
+  prompt research_prompt
   model "gpt-4o"
   
   use_web_search
@@ -244,26 +272,17 @@ end
 
 writer_agent = RAAF::DSL::AgentBuilder.build do
   name "Writer"
-  prompt WriterAgentPrompt
+  prompt writer_prompt
   model "gpt-4o"
 end
 
-# Run with dynamic context
+# Run multi-agent workflow
 runner = RAAF::Runner.new(
   agent: research_agent,
   agents: [research_agent, writer_agent, editor_agent]
 )
 
-result = runner.run("Research and write about quantum computing") do
-  # Context for research agent
-  context_variable :domain, "quantum physics"
-  context_variable :research_depth, "comprehensive"
-  
-  # Context for writer agent
-  context_variable :content_type, "blog post"
-  context_variable :target_audience, "tech professionals"
-  context_variable :tone, "engaging yet technical"
-end
+result = runner.run("Research and write about quantum computing")
 ```
 
 Using prompt templates provides several benefits in multi-agent systems:
@@ -277,6 +296,11 @@ For more details on prompt management, see the [Prompting Guide](prompting.md).
 ### Setting Up Tool-Based Handoffs
 
 RAAF uses tool-based handoffs where agents must explicitly call transfer functions:
+
+<!-- VALIDATION_FAILED: multi_agent_guide.md:291 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'research_agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-a2brng.rb:445:in '<main>'
+```
 
 ```ruby
 # Define the workflow: Research → Write → Edit
@@ -379,6 +403,11 @@ result = runner.run("I need help with my monthly subscription")
 ```
 
 ### Parallel Agent Execution
+
+<!-- VALIDATION_FAILED: multi_agent_guide.md:393 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant DataAnalysisOrchestrator::Concurrent /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-j42t9w.rb:503:in 'DataAnalysisOrchestrator#run_agent_async' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-j42t9w.rb:475:in 'DataAnalysisOrchestrator#analyze_dataset' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-j42t9w.rb:512:in '<main>'
+```
 
 ```ruby
 class DataAnalysisOrchestrator
@@ -1186,6 +1215,11 @@ end
 
 ### State Machine Workflows
 
+<!-- VALIDATION_FAILED: multi_agent_guide.md:1199 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant StateMachineWorkflow::AASM /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-4y1o33.rb:445:in '<class:StateMachineWorkflow>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-4y1o33.rb:444:in '<main>'
+```
+
 ```ruby
 class StateMachineWorkflow
   include AASM
@@ -1322,6 +1356,11 @@ Multi-agent systems require integration testing that validates agent interaction
 
 ### Unit Testing Individual Agents
 
+<!-- VALIDATION_FAILED: multi_agent_guide.md:1335 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'create_research_agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-kpq18i.rb:445:in 'block (2 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-kpq18i.rb:451:in 'block (3 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-kpq18i.rb:334:in 'Object#it'
+```
+
 ```ruby
 RSpec.describe 'Multi-Agent Research Workflow' do
   let(:research_agent) { create_research_agent }
@@ -1365,6 +1404,11 @@ end
 ```
 
 ### Integration Testing Workflows
+
+<!-- VALIDATION_FAILED: multi_agent_guide.md:1379 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: uninitialized constant ContentCreationWorkflow /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-1lhcn7.rb:445:in 'block (2 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-1lhcn7.rb:448:in 'block (2 levels) in <main>' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-1lhcn7.rb:334:in 'Object#it'
+```
 
 ```ruby
 RSpec.describe 'Complete Content Creation Workflow' do

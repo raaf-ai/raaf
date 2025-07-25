@@ -89,7 +89,35 @@ bundle exec rake guides:lint:check_links
 
 # Validate HTML output
 bundle exec rake guides:validate
+
+# Validate code examples  
+ruby code_validator.rb            # Mark failing examples (default)
+ruby code_validator.rb validate   # Check all code examples only
+ruby code_validator.rb unmark     # Remove failure markers
 ```
+
+### Code Example Validation
+
+All Ruby code examples in the documentation are automatically validated for syntax and execution errors. When examples fail validation, they are marked with clear warnings in the documentation:
+
+```
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! 
+Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+[technical error details]
+```
+```
+
+**How it works:**
+- The `code_validator.rb` script extracts all Ruby code blocks from markdown files
+- Each code block is executed in isolation to check for errors
+- Failed examples are tagged with helpful error messages and contribution invitations
+- This helps maintain documentation quality while encouraging community contributions
+
+**Commands:**
+- `ruby code_validator.rb` - Mark failing examples (default behavior)
+- `ruby code_validator.rb validate` - Run validation and show summary only
+- `ruby code_validator.rb mark` - Add warning markers to failing examples  
+- `ruby code_validator.rb unmark` - Remove all validation markers
 
 ## 📚 Available Guides
 

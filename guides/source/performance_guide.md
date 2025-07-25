@@ -345,13 +345,20 @@ The challenge with AI caching isn't technical—it's semantic. How do you know t
 
 ```ruby
 # Only works if the user asks exactly the same question
+user_query = "What's the weather?"
 cache_key = "weather_#{user_query}"
 ```
 
 **2. Semantic Caching** (Harder but Powerful)
 
+<!-- VALIDATION_FAILED: performance_guide.md:355 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'semantic_hash' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-4ppt9m.rb:446:in '<main>'
+```
+
 ```ruby
 # Works for similar questions with the same intent
+user_query = "How's the weather?"
 cache_key = "weather_#{semantic_hash(user_query)}"
 ```
 
@@ -359,6 +366,9 @@ cache_key = "weather_#{semantic_hash(user_query)}"
 
 ```ruby
 # Considers user context, time, and conversation history
+user_id = "user_123"
+time_bucket = "2024-01-15-morning"
+location = "san_francisco"
 cache_key = "weather_#{user_id}_#{time_bucket}_#{location}"
 ```
 
@@ -1491,6 +1501,11 @@ Production Performance Configuration
 ------------------------------------
 
 ### Environment-specific Optimizations
+
+<!-- VALIDATION_FAILED: performance_guide.md:1501 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'env' for module Rails /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-evmznr.rb:445:in '<main>'
+```
 
 ```ruby
 # config/initializers/raaf_performance.rb

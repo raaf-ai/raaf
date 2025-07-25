@@ -97,6 +97,11 @@ GDPR compliance isn't just about adding guardrails—it's about designing your e
 
 **Basic GDPR Configuration Example:**
 
+<!-- VALIDATION_FAILED: compliance_guide.md:101 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'compliance_logger' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-4u8v5a.rb:450:in '<main>'
+```
+
 ```ruby
 # Configure GDPR guardrail with data minimization
 gdpr_guardrail = RAAF::Guardrails::GDPRCompliance.new(
@@ -117,6 +122,11 @@ agent.add_output_guardrail(gdpr_guardrail)
 ```
 
 **Advanced Configuration with Context:**
+
+<!-- VALIDATION_FAILED: compliance_guide.md:122 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: ArgumentError: wrong number of arguments (given 2, expected 1) /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-22cxmp.rb:57:in 'run' /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-22cxmp.rb:463:in '<main>'
+```
 
 ```ruby
 # Context-aware GDPR configuration
@@ -244,6 +254,11 @@ Requires notification when unsecured PHI is compromised:
 HIPAA compliance shapes every aspect of your healthcare AI system:
 
 **Basic HIPAA Configuration Example:**
+
+<!-- VALIDATION_FAILED: compliance_guide.md:249 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'hipaa_audit_logger' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-twyd92.rb:451:in '<main>'
+```
 
 ```ruby
 # Configure HIPAA guardrail with PHI protection
@@ -421,6 +436,11 @@ SOC2 requires comprehensive organizational controls:
 
 **Basic SOC2 Configuration Example:**
 
+<!-- VALIDATION_FAILED: compliance_guide.md:425 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'soc2_audit_logger' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-bvb8xq.rb:457:in '<main>'
+```
+
 ```ruby
 # Configure SOC2 guardrail with trust criteria
 soc2_guardrail = RAAF::Guardrails::SOC2Compliance.new(
@@ -448,6 +468,11 @@ enterprise_agent.add_output_guardrail(soc2_guardrail)
 ```
 
 **Multi-Criteria Configuration:**
+
+<!-- VALIDATION_FAILED: compliance_guide.md:453 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NameError: undefined local variable or method 'enterprise_agent' for main /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-f8x11o.rb:478:in '<main>'
+```
 
 ```ruby
 # Advanced SOC2 configuration with all criteria
@@ -606,6 +631,11 @@ Real-world applications often need to comply with multiple frameworks simultaneo
 
 **Healthcare Platform with GDPR and HIPAA:**
 
+<!-- VALIDATION_FAILED: compliance_guide.md:610 -->
+WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
+Error: NoMethodError: undefined method 'add_input_guardrail' for an instance of RAAF::Agent /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-o4u6vj.rb:465:in '<main>'
+```
+
 ```ruby
 # Create compliance guardrails
 gdpr_guardrail = RAAF::Guardrails::GDPRCompliance.new(
@@ -620,12 +650,8 @@ hipaa_guardrail = RAAF::Guardrails::HIPAACompliance.new(
   minimum_necessary: true
 )
 
-# Combine guardrails in parallel for performance
-compliance_guardrails = RAAF::Guardrails::ParallelGuardrails.new(
-  [gdpr_guardrail, hipaa_guardrail],
-  max_parallel: 2,
-  timeout: 5
-)
+# Combine guardrails sequentially
+compliance_guardrails = [gdpr_guardrail, hipaa_guardrail]
 
 # Configure healthcare agent
 healthcare_agent = RAAF::Agent.new(
@@ -672,8 +698,8 @@ def create_enterprise_guardrails(user_region, user_role)
     guardrails << RAAF::Guardrails::AuditLogger.new
   end
   
-  # Return parallel executor for performance
-  RAAF::Guardrails::ParallelGuardrails.new(guardrails)
+  # Return guardrails array
+  guardrails
 end
 
 # Use in application
