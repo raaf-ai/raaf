@@ -1,11 +1,10 @@
 # RAAF Core
 
-[![Gem Version](https://badge.fury.io/rb/raaf-core.svg)](https://badge.fury.io/rb/raaf-core)
-[![Tests](https://github.com/raaf-ai/ruby-ai-agents-factory/actions/workflows/core-ci.yml/badge.svg)](https://github.com/raaf-ai/ruby-ai-agents-factory/actions/workflows/core-ci.yml)
-[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.0-ruby.svg)](https://www.ruby-lang.org/)
+[![🚀 Core CI](https://github.com/raaf-ai/raaf/actions/workflows/core-ci.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/core-ci.yml)
+[![⚡ Quick Check](https://github.com/raaf-ai/raaf/actions/workflows/core-quick-check.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/core-quick-check.yml)
+[![🌙 Nightly](https://github.com/raaf-ai/raaf/actions/workflows/core-nightly.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/core-nightly.yml)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.2-ruby.svg)](https://www.ruby-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Maintainability](https://api.codeclimate.com/v1/badges/[hash]/maintainability)](https://codeclimate.com/github/raaf-ai/ruby-ai-agents-factory/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/[hash]/test_coverage)](https://codeclimate.com/github/raaf-ai/ruby-ai-agents-factory/test_coverage)
 
 The **RAAF Core** gem provides the foundational agent implementation and execution engine for the Ruby AI Agents Factory (RAAF). This is the core gem that enables creating and running AI agents with multi-agent handoffs, tool integration, and structured output capabilities.
 

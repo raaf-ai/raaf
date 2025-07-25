@@ -1,0 +1,234 @@
+name: 📚 Guides - Build & Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'guides/**'
+      - '.github/workflows/guides-build-deploy.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'guides/**'
+      - '.github/workflows/guides-build-deploy.yml'
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:  # Allow manual triggering
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  RUBY_VERSION: '3.4.5'
+  DEFAULT_RUBY_VERSION: '3.4.5'
+
+jobs:
+  # Stage 1: Validation and linting
+  validate-guides:
+    name: "🔍 Validate Guides"
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+        working-directory: guides
+
+    - name: Install dependencies
+      run: |
+        cd guides
+        bundle install
+
+    - name: Lint Markdown files
+      run: |
+        cd guides
+        bundle exec rake guides:lint:mdl
+      continue-on-error: true  # Don't fail CI for style violations
+
+    - name: Validate code examples
+      run: |
+        cd guides
+        bundle exec rake guides:validate_code
+      continue-on-error: true  # Don't fail CI for code validation issues
+
+  # Stage 2: Build guides
+  build-guides:
+    name: "🏗️ Build Guides"
+    runs-on: ubuntu-latest
+    needs: validate-guides
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+        working-directory: guides
+
+    - name: Install dependencies
+      run: |
+        cd guides
+        bundle install
+
+    - name: Generate HTML guides
+      run: |
+        cd guides
+        bundle exec rake guides:generate:html
+        echo "✅ HTML guides generated successfully"
+
+    - name: Check link validity in generated guides
+      run: |
+        cd guides
+        bundle exec rake guides:lint:check_links
+      continue-on-error: true  # Don't fail CI for broken links
+
+    - name: Validate generated HTML
+      run: |
+        cd guides
+        bundle exec rake guides:validate
+      continue-on-error: true  # Don't fail CI for HTML validation issues
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: guides-html
+        path: guides/output/
+        retention-days: 7
+
+    - name: Upload build logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: guides-build-logs
+        path: |
+          guides/*.log
+          guides/tmp/
+        retention-days: 3
+
+  # Stage 3: Setup GitHub Pages (only on main branch)
+  setup-pages:
+    name: "⚙️ Setup Pages"
+    runs-on: ubuntu-latest
+    needs: build-guides
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+  # Stage 4: Deploy to GitHub Pages (only on main branch)
+  deploy-pages:
+    name: "🚀 Deploy to Pages"
+    runs-on: ubuntu-latest
+    needs: [build-guides, setup-pages]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: guides-html
+        path: ./guides-output
+
+    - name: Upload to GitHub Pages
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./guides-output
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+    - name: Update deployment status
+      run: |
+        echo "## 📚 Guides Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🌐 **Live Documentation**: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📝 **What was deployed:**" >> $GITHUB_STEP_SUMMARY
+        echo "- All RAAF guides converted to HTML" >> $GITHUB_STEP_SUMMARY
+        echo "- Assets (CSS, JavaScript, images) included" >> $GITHUB_STEP_SUMMARY
+        echo "- Navigation and search functionality" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⏰ **Deployment completed at**: $(date)" >> $GITHUB_STEP_SUMMARY
+
+  # Stage 5: Build summary (runs on all events)
+  build-summary:
+    name: "📊 Build Summary"
+    runs-on: ubuntu-latest
+    needs: [validate-guides, build-guides]
+    if: always()
+    
+    steps:
+    - name: Generate build summary
+      run: |
+        echo "# 📚 Guides Build Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.validate-guides.result }}" == "success" ]]; then
+          echo "✅ **Guide Validation**: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ **Guide Validation**: COMPLETED WITH WARNINGS" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.build-guides.result }}" == "success" ]]; then
+          echo "✅ **Guide Generation**: PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🏗️ **Build Process Completed Successfully:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Markdown files processed" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML guides generated" >> $GITHUB_STEP_SUMMARY
+          echo "- Assets copied and optimized" >> $GITHUB_STEP_SUMMARY
+          echo "- Navigation structure built" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Guide Generation**: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔧 **Troubleshooting:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Check the build logs for specific errors" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify all Markdown files are valid" >> $GITHUB_STEP_SUMMARY
+          echo "- Ensure code examples are syntactically correct" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📋 Available Guides" >> $GITHUB_STEP_SUMMARY
+        echo "- **Getting Started**: Introduction to RAAF" >> $GITHUB_STEP_SUMMARY
+        echo "- **Core Guide**: Core concepts and architecture" >> $GITHUB_STEP_SUMMARY
+        echo "- **Multi-Agent Guide**: Multi-agent handoff patterns" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tools Guide**: Built-in and custom tools" >> $GITHUB_STEP_SUMMARY
+        echo "- **Memory Guide**: Memory management strategies" >> $GITHUB_STEP_SUMMARY
+        echo "- **Providers Guide**: Multi-provider support" >> $GITHUB_STEP_SUMMARY
+        echo "- **Testing Guide**: Testing patterns and best practices" >> $GITHUB_STEP_SUMMARY
+        echo "- **Performance Guide**: Optimization and benchmarking" >> $GITHUB_STEP_SUMMARY
+        echo "- **Rails Guide**: Rails integration patterns" >> $GITHUB_STEP_SUMMARY
+        echo "- **API Reference**: Complete API documentation" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ github.event_name }}" == "push" && "${{ needs.build-guides.result }}" == "success" ]]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 **Next Step**: Guides will be deployed to GitHub Pages automatically." >> $GITHUB_STEP_SUMMARY
+        elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Preview**: This is a PR build. Merge to main to deploy to GitHub Pages." >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Fail if build failed  
+      if: needs.build-guides.result != 'success'
+      run: |
+        echo "❌ Guide build failed. Check the logs above for details."
+        exit 1

@@ -1,4 +1,4 @@
-name: Core CI
+name: 🚀 Core CI - Complete Test Suite
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
     paths:
       - 'core/**'
       - '.github/workflows/core-ci.yml'
+    types: [opened, synchronize, reopened, ready_for_review]
 
 # Workflow Structure:
 # 1. Lint & Style + Unit Tests (parallel foundation)
@@ -19,12 +20,14 @@ on:
 # 4. Build & Summary (final validation and reporting)
 env:
   RUBY_VERSION: '3.4.5'
+  DEFAULT_RUBY_VERSION: '3.4.5'
 
 jobs:
   # Stage 1: Basic validation (fastest feedback)
   lint:
     name: "🔍 Lint & Style"
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
     
     steps:
     - uses: actions/checkout@v4
@@ -43,7 +46,7 @@ jobs:
     - name: Run RuboCop (Core gem)
       run: |
         cd core
-        bundle exec rubocop
+        bundle exec rubocop --parallel
 
     - name: Check bundle audit (Core gem)
       run: |
@@ -93,6 +96,7 @@ jobs:
       with:
         name: unit-test-results-${{ matrix.ruby-version }}
         path: core/test-results-unit.xml
+        retention-days: 7
 
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
@@ -102,6 +106,7 @@ jobs:
         path: |
           core/coverage/
           !core/coverage/assets/
+        retention-days: 14
 
   # Stage 3: Parallel comprehensive tests (run simultaneously after unit tests)
   example-validation:
@@ -139,6 +144,7 @@ jobs:
       with:
         name: example-validation-report
         path: core/example_validation_report.json
+        retention-days: 7
 
   integration-tests:
     name: "🔗 Integration Tests"
@@ -177,6 +183,7 @@ jobs:
       with:
         name: integration-test-results
         path: core/test-results-integration.xml
+        retention-days: 7
 
   compliance-tests:
     name: "📋 Compliance Tests"
@@ -215,6 +222,7 @@ jobs:
       with:
         name: compliance-test-results
         path: core/test-results-compliance.xml
+        retention-days: 7
 
   # Stage 4: Acceptance tests (end-to-end scenarios) - depends on all parallel tests
   acceptance-tests:
@@ -254,6 +262,7 @@ jobs:
       with:
         name: acceptance-test-results
         path: core/test-results-acceptance.xml
+        retention-days: 7
 
   # Stage 5: Build verification (package validation)
   build:
@@ -291,6 +300,7 @@ jobs:
       with:
         name: raaf-core-gem
         path: core/raaf-core-*.gem
+        retention-days: 30
 
   performance-tests:
     name: "⚡ Performance Tests"
@@ -330,6 +340,7 @@ jobs:
       with:
         name: performance-test-results
         path: core/test-results-performance.xml
+        retention-days: 7
 
   cost-tests:
     name: "💰 Cost Analysis Tests"
@@ -369,6 +380,7 @@ jobs:
       with:
         name: cost-test-results
         path: core/test-results-cost.xml
+        retention-days: 7
 
   # Final status job - summarizes all results
   test-summary:

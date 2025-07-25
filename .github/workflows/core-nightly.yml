@@ -1,4 +1,4 @@
-name: Core Nightly Tests
+name: 🌙 Core Nightly - Comprehensive Health Check
 
 on:
   schedule:
@@ -8,6 +8,7 @@ on:
 
 env:
   RUBY_VERSION: '3.4.5'
+  DEFAULT_RUBY_VERSION: '3.4.5'
 
 jobs:
   # Comprehensive test matrix
@@ -59,6 +60,7 @@ jobs:
       with:
         name: nightly-test-results-${{ matrix.os }}-${{ matrix.ruby-version }}
         path: core/test-results-*.xml
+        retention-days: 14
 
   # Memory profiling and leak detection
   memory-analysis:
@@ -71,7 +73,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ${{ env.RUBY_VERSION }}
+        ruby-version: ${{ env.DEFAULT_RUBY_VERSION }}
         bundler-cache: true
 
     - name: Install dependencies and profiling tools
@@ -185,7 +187,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ${{ env.RUBY_VERSION }}
+        ruby-version: ${{ env.DEFAULT_RUBY_VERSION }}
         bundler-cache: true
 
     - name: Install dependencies
@@ -216,6 +218,7 @@ jobs:
         name: security-reports
         path: |
           core/brakeman-report.json
+        retention-days: 30
 
   # Coverage analysis
   coverage-analysis:
@@ -228,7 +231,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ${{ env.RUBY_VERSION }}
+        ruby-version: ${{ env.DEFAULT_RUBY_VERSION }}
         bundler-cache: true
 
     - name: Install dependencies
@@ -251,6 +254,7 @@ jobs:
       with:
         name: coverage-reports
         path: core/coverage/
+        retention-days: 14
 
   # Generate nightly report
   nightly-summary:

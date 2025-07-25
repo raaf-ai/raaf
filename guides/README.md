@@ -4,7 +4,9 @@ This directory contains the documentation for Ruby AI Agents Factory (RAAF), bui
 
 ## 🚀 Live Documentation
 
-The documentation is automatically deployed to GitHub Pages at: `https://your-username.github.io/your-repo-name/`
+The documentation is automatically deployed to GitHub Pages at: **https://raaf-ai.github.io/raaf/**
+
+[![📚 Guides Build & Deploy](https://github.com/raaf-ai/raaf/actions/workflows/guides-build-deploy.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/guides-build-deploy.yml)
 
 ## 📁 Structure
 
@@ -65,9 +67,16 @@ python -m http.server 8000
 ## 🚀 Deployment
 
 Documentation is automatically deployed via GitHub Actions when:
-- Changes are pushed to the `main` branch
-- The workflow runs `bundle exec rake guides:generate:html`
+- Changes are pushed to the `main` branch in the `guides/` directory
+- The [`guides-build-deploy.yml`](../.github/workflows/guides-build-deploy.yml) workflow runs
+- Validation steps: markdown linting, code validation, link checking
+- Build step: `bundle exec rake guides:generate:html`
 - Generated files in `output/` are deployed to GitHub Pages
+
+**Workflow triggers:**
+- 📝 Push to `main`/`develop` with `guides/**` changes
+- 🔄 Pull requests to `main`/`develop` with `guides/**` changes  
+- 🚀 Manual dispatch for on-demand builds
 
 ## 🔍 Validation
 

@@ -1,4 +1,4 @@
-name: Core Quick Check
+name: ⚡ Core Quick Check - Fast Development Feedback
 
 on:
   push:
@@ -6,16 +6,11 @@ on:
     paths: 
       - 'core/**'
       - '.github/workflows/core-quick-check.yml'
-  pull_request:
-    branches: [ main, develop ]
-    paths:
-      - 'core/**'
-      - '.github/workflows/core-quick-check.yml'
-    types: [opened, synchronize, reopened, ready_for_review]
 
 # Quick feedback for development branches
 env:
   RUBY_VERSION: '3.4.5'
+  DEFAULT_RUBY_VERSION: '3.4.5'
 
 jobs:
   # Super fast checks for immediate feedback
