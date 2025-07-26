@@ -14,17 +14,17 @@ agent = RAAF::DSL::AgentBuilder.build do
   name "DebugExampleAgent"
   instructions "You are a helpful assistant for demonstrating debugging features."
   model "gpt-4o"
-  
+
   config do
     temperature 0.7
     max_turns 3
     timeout 30
   end
-  
+
   tool :process_data do |data|
     { processed: data.upcase, length: data.length }
   end
-  
+
   tool :calculate do |x, y|
     { sum: x + y, product: x * y }
   end
@@ -45,11 +45,11 @@ prompt_inspector = RAAF::DSL::Debugging::PromptInspector.new
 class DebugPrompt < RAAF::DSL::Prompts::Base
   required :task_name, :priority
   optional :deadline
-  
+
   def system
     "You are managing task: #{task_name} with #{priority} priority."
   end
-  
+
   def user
     msg = "Process this task."
     msg += " Deadline: #{deadline}" if deadline
@@ -101,19 +101,19 @@ puts interceptor.format_call(example_capture)
 puts "\n=== Debug Logging Example ==="
 
 # Create a logger with debug level
-logger = Logger.new(STDOUT)
+logger = Logger.new($stdout)
 logger.level = Logger::DEBUG
 
 # Temporarily enable debug logging
-original_log_level = ENV["RAAF_LOG_LEVEL"]
+original_log_level = ENV.fetch("RAAF_LOG_LEVEL", nil)
 ENV["RAAF_LOG_LEVEL"] = "debug"
 
 # Create another agent with logging
-logged_agent = RAAF::DSL::AgentBuilder.build do
+RAAF::DSL::AgentBuilder.build do
   name "LoggedAgent"
   instructions "Agent with debug logging enabled"
   model "gpt-4o"
-  
+
   tool :debug_tool do |input|
     logger.debug "Tool called with input: #{input}"
     { result: "processed", input: input }
@@ -132,7 +132,7 @@ puts "\n=== Debugging Memory Usage ==="
 memory_agent = RAAF::DSL::AgentBuilder.build do
   name "MemoryAgent"
   instructions "Agent with memory capabilities"
-  
+
   memory(
     type: :conversation,
     max_messages: 10,

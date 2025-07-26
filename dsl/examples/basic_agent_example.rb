@@ -13,7 +13,7 @@ agent = RAAF::DSL::AgentBuilder.build do
   name "Assistant"
   instructions "You are a helpful assistant that provides clear and concise answers."
   model "gpt-4o"
-  
+
   # Configure temperature and max turns
   config do
     temperature 0.7

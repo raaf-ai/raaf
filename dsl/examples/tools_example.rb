@@ -13,22 +13,22 @@ require "json"
 calculator = RAAF::DSL::ToolBuilder.build do
   name "calculator"
   description "Performs basic mathematical operations"
-  
+
   # Define parameters
   parameter :operation, type: :string, enum: %w[add subtract multiply divide], required: true
   parameter :a, type: :number, required: true
   parameter :b, type: :number, required: true
-  
+
   # Define the execution logic
   execute do |operation:, a:, b:|
     result = case operation
-    when "add" then a + b
-    when "subtract" then a - b
-    when "multiply" then a * b
-    when "divide" 
-      b.zero? ? { error: "Division by zero" } : a.to_f / b
-    end
-    
+             when "add" then a + b
+             when "subtract" then a - b
+             when "multiply" then a * b
+             when "divide"
+               b.zero? ? { error: "Division by zero" } : a.to_f / b
+             end
+
     { result: result, operation: operation, a: a, b: b }
   end
 end
@@ -37,15 +37,15 @@ end
 weather_tool = RAAF::DSL::ToolBuilder.build do
   name "get_weather"
   description "Get current weather for a location"
-  
+
   parameter :location, type: :string, required: true
   parameter :units, type: :string, enum: %w[celsius fahrenheit], default: "celsius"
-  
+
   execute do |location:, units:|
     # Simulate weather data
     temp = rand(10..30)
-    temp = (temp * 9/5 + 32).round if units == "fahrenheit"
-    
+    temp = ((temp * 9 / 5) + 32).round if units == "fahrenheit"
+
     {
       location: location,
       temperature: temp,
@@ -61,11 +61,11 @@ agent = RAAF::DSL::AgentBuilder.build do
   name "ToolsAgent"
   instructions "You are an assistant that can perform calculations and check weather."
   model "gpt-4o"
-  
+
   # Add the tools
   add_tool calculator
   add_tool weather_tool
-  
+
   # You can also define tools inline
   tool :time_in_timezone do |timezone|
     # Simple timezone offset calculation (simplified)
@@ -76,10 +76,10 @@ agent = RAAF::DSL::AgentBuilder.build do
       "CET" => 1,
       "JST" => 9
     }
-    
+
     offset = offsets[timezone] || 0
     time = Time.now.utc + (offset * 3600)
-    
+
     {
       timezone: timezone,
       time: time.strftime("%Y-%m-%d %H:%M:%S"),

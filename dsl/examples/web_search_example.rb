@@ -24,15 +24,15 @@ research_agent = RAAF::DSL::AgentBuilder.build do
     Summarize findings clearly and cite your sources.
   INSTRUCTIONS
   model "gpt-4o"
-  
+
   # Enable web search with configuration
   use_web_search do
-    api_key ENV["TAVILY_API_KEY"]
+    api_key ENV.fetch("TAVILY_API_KEY", nil)
     max_results 5
     include_raw_content true
-    search_depth "advanced"  # basic or advanced
+    search_depth "advanced" # basic or advanced
   end
-  
+
   # Add a tool to format citations
   tool :format_citation do |title, url, snippet|
     {
@@ -59,19 +59,19 @@ puts "\n=== Research Examples ===\n"
 
 queries.each_with_index do |query, i|
   puts "\n--- Query #{i + 1}: #{query} ---"
-  
+
   result = runner.run(query)
-  
+
   # Display the agent's response
   puts "\nAgent Response:"
   puts result.messages.last[:content]
-  
+
   # Check if web search was used
   if result.messages.any? { |m| m[:tool_calls]&.any? { |tc| tc[:name] == "web_search" } }
     puts "\n✓ Web search tool was used"
   end
-  
-  puts "\n" + "="*50
+
+  puts "\n" + ("=" * 50)
 end
 
 # Example: Create a specialized news agent
@@ -83,12 +83,12 @@ news_agent = RAAF::DSL::AgentBuilder.build do
     Organize findings by relevance and recency.
   INSTRUCTIONS
   model "gpt-4o"
-  
+
   # Configure web search for news
   use_web_search do
-    api_key ENV["TAVILY_API_KEY"]
+    api_key ENV.fetch("TAVILY_API_KEY", nil)
     max_results 10
-    search_depth "basic"  # Faster for news
+    search_depth "basic" # Faster for news
   end
 end
 
@@ -109,9 +109,9 @@ academic_agent = RAAF::DSL::AgentBuilder.build do
     Provide detailed citations in academic format.
   INSTRUCTIONS
   model "gpt-4o"
-  
+
   use_web_search do
-    api_key ENV["TAVILY_API_KEY"]
+    api_key ENV.fetch("TAVILY_API_KEY", nil)
     max_results 5
     include_raw_content true
     search_depth "advanced"

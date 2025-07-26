@@ -13,7 +13,7 @@ class CustomerServicePrompt < RAAF::DSL::Prompts::Base
   required :customer_name, :issue_type
   optional :language, default: "English"
   optional :tone, default: "professional"
-  
+
   def system
     <<~SYSTEM
       You are a customer service representative.
@@ -21,7 +21,7 @@ class CustomerServicePrompt < RAAF::DSL::Prompts::Base
       You are specialized in handling #{issue_type} issues.
     SYSTEM
   end
-  
+
   def user
     "Help customer #{customer_name} with their issue."
   end
@@ -34,14 +34,14 @@ class AnalysisPrompt < RAAF::DSL::Prompts::Base
   required :doc_type, path: %i[document metadata type]
   optional :author, path: %i[document metadata author], default: "Unknown"
   optional :pages, path: %i[document structure page_count]
-  
+
   # Use strict contract mode to catch extra variables
   contract_mode :strict
-  
+
   def system
     "You are analyzing a #{doc_type} document: '#{doc_name}' by #{author}."
   end
-  
+
   def user
     analysis = "Please analyze this document."
     analysis += " The document has #{pages} pages." if pages
@@ -55,10 +55,10 @@ class ReportPrompt < RAAF::DSL::Prompts::Base
   optional :time_period
   optional :metrics, default: []
   optional :format, default: "summary"
-  
+
   # Use lenient mode to allow extra context
   contract_mode :lenient
-  
+
   def system
     <<~SYSTEM
       You are a data analyst creating a #{report_type} report.
@@ -66,13 +66,13 @@ class ReportPrompt < RAAF::DSL::Prompts::Base
       Output format: #{format}
     SYSTEM
   end
-  
+
   def user
     sections = ["Generate a #{report_type} report"]
-    
+
     sections << "Time period: #{time_period}" if time_period
     sections << "Focus on metrics: #{metrics.join(', ')}" if metrics.any?
-    
+
     sections.join("\n")
   end
 end
@@ -139,7 +139,7 @@ begin
   )
   lenient_prompt.validate!
   puts "✓ Lenient mode accepts extra fields"
-rescue => e
+rescue StandardError => e
   puts "✗ Error: #{e.message}"
 end
 

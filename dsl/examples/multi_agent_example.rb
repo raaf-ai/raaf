@@ -18,22 +18,22 @@ support_agent = RAAF::DSL::AgentBuilder.build do
     transfer them to the technical support specialist.
   INSTRUCTIONS
   model "gpt-4o"
-  
+
   # Add support-specific tools
   tool :check_order_status do |order_id|
     # Simulate order lookup
     {
       order_id: order_id,
-      status: ["shipped", "processing", "delivered"].sample,
-      tracking_number: "TRK#{rand(100000..999999)}",
+      status: %w[shipped processing delivered].sample,
+      tracking_number: "TRK#{rand(100_000..999_999)}",
       estimated_delivery: (Date.today + rand(1..5)).to_s
     }
   end
-  
-  tool :create_ticket do |issue_description|
+
+  tool :create_ticket do |_issue_description|
     {
       ticket_id: "TICKET-#{rand(1000..9999)}",
-      priority: ["low", "medium", "high"].sample,
+      priority: %w[low medium high].sample,
       assigned_to: "Support Team",
       status: "open"
     }
@@ -49,24 +49,24 @@ tech_agent = RAAF::DSL::AgentBuilder.build do
     You can access system logs and run diagnostics.
   INSTRUCTIONS
   model "gpt-4o"
-  
+
   # Add technical tools
   tool :check_system_logs do |user_id|
     {
       user_id: user_id,
       last_error: ["Connection timeout", "Authentication failed", "Service unavailable", nil].sample,
       error_count: rand(0..10),
-      last_login: (Time.now - rand(0..72) * 3600).to_s
+      last_login: (Time.now - (rand(0..72) * 3600)).to_s
     }
   end
-  
+
   tool :run_diagnostics do |issue_type|
     diagnostics = {
       network: { status: "OK", latency: "#{rand(10..100)}ms", packet_loss: "#{rand(0..5)}%" },
-      authentication: { status: ["OK", "FAILED"].sample, last_attempt: Time.now.to_s },
-      services: { api: "running", database: "running", cache: ["running", "degraded"].sample }
+      authentication: { status: %w[OK FAILED].sample, last_attempt: Time.now.to_s },
+      services: { api: "running", database: "running", cache: %w[running degraded].sample }
     }
-    
+
     { issue_type: issue_type, results: diagnostics[issue_type.to_sym] || diagnostics }
   end
 end
@@ -80,20 +80,20 @@ sales_agent = RAAF::DSL::AgentBuilder.build do
     You can check inventory and provide quotes.
   INSTRUCTIONS
   model "gpt-4o"
-  
+
   tool :check_inventory do |product_name|
     {
       product: product_name,
       in_stock: [true, false].sample,
       quantity: rand(0..100),
-      warehouses: ["East", "West", "Central"].sample(rand(1..3))
+      warehouses: %w[East West Central].sample(rand(1..3))
     }
   end
-  
+
   tool :generate_quote do |products, quantity|
     base_price = rand(50..500)
     discount = quantity > 10 ? 0.1 : 0
-    
+
     {
       products: products,
       quantity: quantity,
@@ -107,7 +107,7 @@ end
 # Enable handoffs between agents
 support_agent.add_handoff(tech_agent)
 support_agent.add_handoff(sales_agent)
-tech_agent.add_handoff(support_agent)  # Can transfer back
+tech_agent.add_handoff(support_agent) # Can transfer back
 sales_agent.add_handoff(support_agent)
 
 puts "=== Multi-Agent System Created ==="
@@ -119,30 +119,28 @@ end
 
 # Create a multi-agent runner
 runner = RAAF::Runner.new(
-  agent: support_agent,  # Start with support agent
+  agent: support_agent, # Start with support agent
   agents: [support_agent, tech_agent, sales_agent]
 )
 
 # Example conversations that might trigger handoffs
-puts "\n=== Example 1: Technical Issue ===
+puts "\n=== Example 1: Technical Issue ==="
 
-result = runner.run(\"My application keeps crashing with error code 500\")
+result = runner.run("My application keeps crashing with error code 500")
 
-puts \"Conversation flow:\"
+puts "\nConversation flow:"
 result.messages.each do |msg|
-  if msg[:role] == \"assistant\" && msg[:content].include?(\"transfer\")
-    puts \"  → Handoff detected\"
-  end
-  puts \"#{msg[:role].upcase}: #{msg[:content]}\"
+  puts "  → Handoff detected" if msg[:role] == "assistant" && msg[:content].include?("transfer")
+  puts "#{msg[:role].upcase}: #{msg[:content]}"
 end
 
-puts "\n=== Example 2: Sales Inquiry ===
+puts "\n=== Example 2: Sales Inquiry ==="
 
-result = runner.run(\"I'd like to know the price for 50 units of your premium widgets\")
+result = runner.run("I'd like to know the price for 50 units of your premium widgets")
 
-puts \"Conversation flow:\"
+puts "\nConversation flow:"
 result.messages.each do |msg|
-  puts \"#{msg[:role].upcase}: #{msg[:content]}\"
+  puts "#{msg[:role].upcase}: #{msg[:content]}"
 end
 
 # Test direct tool usage
