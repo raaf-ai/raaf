@@ -1072,6 +1072,27 @@ body.guide {
       }
     }
   }
+
+  // Welcome page logo styling
+  .welcome-logo {
+    text-align: center;
+    margin: 3rem 0;
+    
+    img {
+      max-width: 400px;
+      height: auto;
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      
+      @include media("<tablet") {
+        max-width: 300px;
+      }
+      
+      @include media("<phone-wide") {
+        max-width: 250px;
+      }
+    }
+  }
 } // body.guide
 
 html[dir="rtl"] {
