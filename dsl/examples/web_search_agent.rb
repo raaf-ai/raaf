@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../core/lib/raaf-core"
 require_relative "../lib/raaf-dsl"
 require_relative "web_search_prompt"
 
@@ -71,8 +72,8 @@ class TechAgent < RAAF::DSL::Agents::Base
 
   agent_name "tech_agent"
 
-  # Use tech-focused preset configuration
-  uses_tool :web_search, RAAF::DSL::Tools::WebSearchPresets.tech_search
+  # Use detailed search preset configuration for tech research
+  uses_tool :web_search, RAAF::DSL::Tools::WebSearchPresets.detailed_search
 
   def agent_name
     "Technology Research Assistant"

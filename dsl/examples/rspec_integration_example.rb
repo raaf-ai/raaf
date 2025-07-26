@@ -9,7 +9,7 @@
 require "bundler/setup"
 require "raaf-dsl"
 require "rspec"
-require "ai_agent_dsl/rspec"
+require "raaf/dsl/rspec"
 
 # Example prompt class for a document processing application
 class ReportAnalysisPrompt < RAAF::DSL::Prompts::Base

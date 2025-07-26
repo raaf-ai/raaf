@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../core/lib/raaf-core"
 require_relative "../lib/raaf-dsl"
 
 # Prompt class for WebSearchAgent

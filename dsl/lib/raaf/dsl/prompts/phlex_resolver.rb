@@ -56,7 +56,10 @@ module RAAF
           # Convert to RAAF::Prompt
           build_prompt(prompt_instance, context)
         rescue StandardError => e
-          log_error("Failed to resolve Phlex prompt", error: e.message)
+          # Log error if logger is available
+          if defined?(RAAF::Logger) && self.class.included_modules.include?(RAAF::Logger)
+            log_error("Failed to resolve Phlex prompt", error: e.message)
+          end
           nil
         end
 

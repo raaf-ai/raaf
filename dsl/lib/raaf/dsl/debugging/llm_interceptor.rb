@@ -40,8 +40,8 @@ module RAAF
         # @param logger [Logger] Logger instance for output (defaults to Rails.logger)
         # @example
         #   interceptor = LLMInterceptor.new(logger: Rails.logger)
-        def initialize(logger: Rails.logger)
-          @logger = logger
+        def initialize(logger: nil)
+          @logger = logger || ::Logger.new($stdout)
           @original_chat_method = nil
         end
 

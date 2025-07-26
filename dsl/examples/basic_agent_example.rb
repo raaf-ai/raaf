@@ -6,6 +6,7 @@
 # This example demonstrates how to create a simple conversational agent
 # using the RAAF DSL.
 
+require_relative "../../core/lib/raaf-core"
 require_relative "../lib/raaf-dsl"
 
 # Create a basic conversational agent
@@ -24,8 +25,7 @@ end
 puts "Created agent: #{agent.name}"
 puts "Model: #{agent.model}"
 puts "Instructions: #{agent.instructions}"
-puts "Temperature: #{agent.config[:temperature]}"
-puts "Max turns: #{agent.config[:max_turns]}"
+# NOTE: Agent configuration is internal and not directly accessible
 
 # Create a runner to execute the agent
 runner = RAAF::Runner.new(agent: agent)

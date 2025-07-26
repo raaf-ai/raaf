@@ -37,7 +37,7 @@ module RAAF
         # @param logger [Logger] Logger instance for output (defaults to Rails.logger)
         # @example
         #   inspector = PromptInspector.new(logger: custom_logger)
-        def initialize(logger: Rails.logger)
+        def initialize(logger: nil)
           @logger = logger
         end
 

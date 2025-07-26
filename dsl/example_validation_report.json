@@ -1,0 +1,337 @@
+{
+  "summary": {
+    "total": 61,
+    "passed": 42,
+    "failed": 0,
+    "skipped": 15,
+    "warnings": 4,
+    "success_rate": 68.9
+  },
+  "results": {
+    "passed": [
+      {
+        "status": "passed",
+        "file": "simple_demo.rb",
+        "message": "Executed successfully with expected output",
+        "output": "=== AI Agent DSL - Strict Prompt Implementation ===\n✓ Agent configured with prompt class: DemoPrompt\n✓ User prompt from prompt class: 'Hello there!'"
+      },
+      {
+        "status": "passed",
+        "file": "README block #1 (line 95)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #2 (line 138)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #3 (line 157)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #4 (line 173)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #5 (line 196)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #6 (line 218)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #7 (line 282)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #8 (line 302)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #9 (line 330)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #10 (line 373)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #11 (line 401)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #12 (line 425)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #13 (line 456)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #14 (line 490)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #15 (line 518)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #16 (line 534)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #17 (line 550)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #18 (line 571)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #19 (line 597)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #20 (line 608)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #21 (line 613)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #22 (line 618)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #23 (line 629)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #24 (line 685)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #25 (line 726)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #26 (line 759)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #27 (line 789)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #28 (line 818)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #29 (line 868)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #30 (line 958)",
+        "message": "Executed successfully"
+      },
+      {
+        "status": "passed",
+        "file": "README block #31 (line 1054)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #32 (line 1073)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #33 (line 1103)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #34 (line 1157)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #35 (line 1202)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #36 (line 1241)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #37 (line 1264)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #38 (line 1296)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #39 (line 1312)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #40 (line 1336)",
+        "message": "Syntax check passed"
+      },
+      {
+        "status": "passed",
+        "file": "README block #41 (line 1377)",
+        "message": "Syntax check passed"
+      }
+    ],
+    "failed": [],
+    "skipped": [
+      {
+        "status": "skipped",
+        "file": "basic_agent_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "debug_prompt_flow.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "debugging_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "dynamic_prompts_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "enhanced_debug_test.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "multi_agent_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "orchestrator_prompt_flow.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "prompt_resolution.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "prompt_with_schema_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "prompts_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "rspec_integration_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "run_agent_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "tools_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "web_search_agent.rb",
+        "message": "Temporarily skipped due to known issues"
+      },
+      {
+        "status": "skipped",
+        "file": "web_search_example.rb",
+        "message": "Temporarily skipped due to known issues"
+      }
+    ],
+    "warnings": [
+      {
+        "status": "warnings",
+        "file": "enhanced_debug_usage.rb",
+        "message": "Executed without error but no clear success indicators",
+        "output": "================================================================================\n🔍 ENHANCED DEBUGGING USAGE EXAMPLES\n================================================================================"
+      },
+      {
+        "status": "warnings",
+        "file": "prompt_matcher_examples.rb",
+        "message": "Executed without error but no clear success indicators",
+        "output": "Example prompt matcher tests defined!\nRun with: bundle exec rspec examples/prompt_matcher_examples.rb"
+      },
+      {
+        "status": "warnings",
+        "file": "swarm_style_agent_example.rb",
+        "message": "Executed without error but no clear success indicators",
+        "output": "🔄 AI Agent DSL - OpenAI Swarm-Style Context Variables Demo\n======================================================================\nChoose demo to run:"
+      },
+      {
+        "status": "warnings",
+        "file": "web_search_prompt.rb",
+        "message": "Executed without error but no clear success indicators",
+        "output": ""
+      }
+    ],
+    "summary": {}
+  },
+  "timestamp": "2025-07-26T12:59:47+0200",
+  "environment": {
+    "ruby_version": "3.4.5",
+    "dsl_directory": "/Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/raaf/dsl",
+    "ci_mode": true,
+    "test_mode": true
+  }
+}

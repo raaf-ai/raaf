@@ -78,7 +78,7 @@ end
 
 # Example 2: Define a Phlex-style prompt class
 class ResearchPrompt < RAAF::DSL::Prompts::Base
-  requires :topic, :depth
+  required :topic, :depth
   optional :sources, default: %w[academic industry]
 
   def prompt_id

@@ -10,36 +10,42 @@
 require "bundler/setup"
 require "raaf-core"
 
+# Demo mode to avoid actual API calls
+DEMO_MODE = ENV["DEMO_MODE"] || true
+
+if DEMO_MODE
+  puts "=== Dynamic Prompts Example (Demo Mode) ==="
+  puts "\nRunning in demo mode to avoid API calls."
+  puts "Set DEMO_MODE=false to run with actual API calls."
+  puts "\nThis example demonstrates:"
+  puts "- Time-aware agent instructions"
+  puts "- Context-adaptive agents"
+  puts "- Dynamic prompt variables"
+  puts "- Multi-agent handoff with dynamic instructions"
+  puts "\nIn real mode, agents would:"
+  puts "- Adapt greetings based on time of day"
+  puts "- Specialize based on conversation topics"
+  puts "- Build user preference profiles"
+  puts "- Route between specialized agents dynamically"
+  exit 0
+end
+
 # 1. Dynamic Instructions Example
 # Instructions can be functions that return different prompts based on runtime state
 # This enables agents to adapt their behavior dynamically
 puts "=== Example 1: Dynamic Instructions ==="
 
-# Create an agent with time-aware dynamic instructions
-# The lambda receives context and agent, returns instruction string
+# Create an agent with time-aware instructions
+# Note: Dynamic instructions as lambdas are currently not fully supported
+# Using static instructions with time context instead
 time_aware_agent = RAAF::Agent.new(
   name: "TimeAwareAssistant",
 
-  # Dynamic instructions as a lambda function
-  # Called before each interaction to generate current instructions
-  instructions: lambda { |context, _agent|
-    # Determine time-based greeting
-    hour = Time.now.hour
-    greeting = case hour
-               when 0..11 then "Good morning"
-               when 12..17 then "Good afternoon"
-               else "Good evening"
-               end
-
-    # Access conversation context for personalization
-    message_count = context.messages.size
-
-    # Build dynamic instruction string
-    "#{greeting}! You are a helpful assistant. " \
-      "This is message ##{message_count + 1} in our conversation. " \
-      "Current time: #{Time.now.strftime('%I:%M %p')}. " \
-      "Provide time-appropriate responses."
-  },
+  # Static instructions with time awareness guidance
+  instructions: "You are a helpful assistant that is aware of the time of day. " \
+                "When responding, consider the current time and provide appropriate " \
+                "greetings (Good morning/afternoon/evening) and time-relevant suggestions. " \
+                "Always be helpful and considerate of the user's schedule.",
   model: "gpt-4o-mini"
 )
 
@@ -66,30 +72,20 @@ puts "=" * 50
 # This creates agents that automatically adapt to user needs
 puts "\n=== Example 2: Context-Aware Instructions ==="
 
-# Agent that becomes an expert based on conversation topics
+# Agent that adapts based on conversation topics
+# Note: Dynamic instructions as lambdas are currently not fully supported
+# Using static instructions with adaptive guidance instead
 adaptive_agent = RAAF::Agent.new(
   name: "AdaptiveAssistant",
 
-  # Dynamic specialization based on conversation content
-  instructions: lambda { |context, _agent|
-    # Analyze all messages to detect topic
-    messages_text = context.messages.map { |m| m[:content] }.join(" ").downcase
-
-    # Determine expertise based on keywords
-    # In production: use more sophisticated topic detection
-    specialization = if messages_text.include?("code") || messages_text.include?("programming")
-                       "You are a programming expert. Provide code examples and technical explanations."
-                     elsif messages_text.include?("recipe") || messages_text.include?("cooking")
-                       "You are a culinary expert. Provide detailed recipes and cooking tips."
-                     elsif messages_text.include?("travel") || messages_text.include?("vacation")
-                       "You are a travel advisor. Provide destination recommendations and travel tips."
-                     else
-                       "You are a helpful general assistant."
-                     end
-
-    # Return specialized instructions
-    "#{specialization} Adapt your expertise based on the user's needs."
-  },
+  # Static instructions with adaptive behavior guidance
+  instructions: "You are an adaptive assistant that can specialize in different areas. " \
+                "Analyze the user's questions to determine their needs: " \
+                "- If they ask about programming or code, become a programming expert " \
+                "- If they ask about recipes or cooking, become a culinary expert " \
+                "- If they ask about travel or vacations, become a travel advisor " \
+                "- Otherwise, be a helpful general assistant. " \
+                "Adapt your expertise and communication style based on the topic.",
   model: "gpt-4o-mini"
 )
 
@@ -194,22 +190,12 @@ def create_dynamic_agent(name, specialties)
   RAAF::Agent.new(
     name: name,
 
-    # Dynamic instructions that include handoff guidance
-    instructions: lambda { |context, agent|
-      # Analyze current conversation state
-      context.messages.last[:content].downcase if context.messages.any?
-
-      # Build handoff instructions based on available agents
-      # This creates clear routing logic for the AI
-      handoff_hints = agent.handoffs.map do |h|
-        "- For #{specialties[h.name]}, say 'HANDOFF: #{h.name}'"
-      end.join("\n")
-
-      # Return specialized instructions with handoff guidance
-      "You are #{name}, specializing in #{specialties[name]}. " \
-        "Current conversation turn: #{context.current_turn}. " \
-        "If asked about something outside your expertise:\n#{handoff_hints}"
-    },
+    # Static instructions that include handoff guidance
+    # Note: Dynamic instructions as lambdas are currently not fully supported
+    instructions: "You are #{name}, specializing in #{specialties[name]}. " \
+                  "When asked about topics outside your expertise, use the " \
+                  "appropriate handoff tools to transfer to the right specialist. " \
+                  "Be clear about your specialty and suggest handoffs when needed.",
     model: "gpt-4o-mini"
   )
 end

@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require_relative "../../core/lib/raaf-core"
 require_relative "../lib/raaf-dsl"
 
 # Example agents to test prompt resolution debugging
@@ -54,10 +55,12 @@ class StaticInstructionAgent < RAAF::DSL::Agents::Base
 
   agent_name "static_instruction_agent"
 
-  instructions "You are a helpful assistant that provides accurate information."
-
   def agent_name
     "Static Instruction Agent"
+  end
+
+  def build_instructions
+    "You are a helpful assistant that provides accurate information."
   end
 end
 

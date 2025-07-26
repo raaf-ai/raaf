@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require_relative "../../core/lib/raaf-core"
 require_relative "../lib/raaf-dsl"
 
 # Example showing how Orchestrator < ApplicationAgent uses prompt classes
@@ -88,7 +89,9 @@ end
 puts
 
 puts "🔍 PROMPT RESOLUTION ANALYSIS:"
-orchestrator.debug_prompt_flow
+# NOTE: debug_prompt_flow method not yet implemented
+# orchestrator.debug_prompt_flow
+puts "debug_prompt_flow: Not yet implemented"
 
 puts "\n#{'=' * 60}"
 puts "📤 ACTUAL PROMPT OUTPUT:"

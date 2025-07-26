@@ -6,6 +6,7 @@
 # This example demonstrates how to use the flexible prompt system
 # with validation, context mapping, and different contract modes.
 
+require_relative "../../core/lib/raaf-core"
 require_relative "../lib/raaf-dsl"
 
 # Example 1: Basic prompt with required and optional variables
@@ -17,13 +18,13 @@ class CustomerServicePrompt < RAAF::DSL::Prompts::Base
   def system
     <<~SYSTEM
       You are a customer service representative.
-      Respond in #{language} with a #{tone} tone.
-      You are specialized in handling #{issue_type} issues.
+      Respond in #{@language} with a #{@tone} tone.
+      You are specialized in handling #{@issue_type} issues.
     SYSTEM
   end
 
   def user
-    "Help customer #{customer_name} with their issue."
+    "Help customer #{@customer_name} with their issue."
   end
 end
 
@@ -61,17 +62,17 @@ class ReportPrompt < RAAF::DSL::Prompts::Base
 
   def system
     <<~SYSTEM
-      You are a data analyst creating a #{report_type} report.
-      Data source: #{data_source}
-      Output format: #{format}
+      You are a data analyst creating a #{@report_type} report.
+      Data source: #{@data_source}
+      Output format: #{@format}
     SYSTEM
   end
 
   def user
-    sections = ["Generate a #{report_type} report"]
+    sections = ["Generate a #{@report_type} report"]
 
-    sections << "Time period: #{time_period}" if time_period
-    sections << "Focus on metrics: #{metrics.join(', ')}" if metrics.any?
+    sections << "Time period: #{@time_period}" if @time_period
+    sections << "Focus on metrics: #{@metrics.join(', ')}" if @metrics&.any?
 
     sections.join("\n")
   end

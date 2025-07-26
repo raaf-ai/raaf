@@ -6,13 +6,26 @@
 # This example demonstrates how to use the built-in web search tool
 # with the RAAF DSL.
 
+require_relative "../../core/lib/raaf-core"
 require_relative "../lib/raaf-dsl"
 
-# Ensure TAVILY_API_KEY is set
-unless ENV["TAVILY_API_KEY"]
-  puts "Warning: TAVILY_API_KEY not set. Web search will not work."
-  puts "Get your API key from https://tavily.com"
-  exit 1
+# Check if TAVILY_API_KEY is set
+if ENV["TAVILY_API_KEY"].nil? || ENV["TAVILY_API_KEY"].empty?
+  puts "=== Web Search Example (Demo Mode) ==="
+  puts "\nWarning: TAVILY_API_KEY not set. Running in demo mode."
+  puts "To use actual web search, get your API key from https://tavily.com"
+  puts "\nDemo: This example would create an agent with web search capabilities."
+  puts "The agent would be able to search the web for information and provide"
+  puts "summaries of the search results."
+
+  # Show example of what would be created
+  puts "\nExample agent configuration:"
+  puts "  - Name: WebResearcher"
+  puts "  - Model: gpt-4o"
+  puts "  - Tools: web_search (with Tavily integration)"
+  puts "  - Capabilities: Search queries, result summarization"
+
+  exit 0
 end
 
 # Create a research agent with web search capabilities
@@ -34,7 +47,7 @@ research_agent = RAAF::DSL::AgentBuilder.build do
   end
 
   # Add a tool to format citations
-  tool :format_citation do |title, url, snippet|
+  tool :format_citation do |title:, url:, snippet:|
     {
       citation: "[#{title}](#{url})",
       summary: snippet

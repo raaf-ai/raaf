@@ -9,7 +9,7 @@ module RAAF
     # with support for parameters, validation, and advanced tool features.
     #
     class ToolBuilder
-      include RAAF::Logging
+      include RAAF::Logger
 
       @@count = 0
 
@@ -377,12 +377,11 @@ module RAAF
       def build
         validate_configuration!
 
-        tool = RAAF::FunctionTool.new(
-          name: @tool_name,
-          description: @config[:description],
-          parameters: @config[:parameters],
-          &@execution_block
-        )
+        tool = RAAF::FunctionTool.new({
+                                        name: @tool_name,
+                                        description: @config[:description],
+                                        parameters: @config[:parameters]
+                                      }, &@execution_block)
 
         # Apply configuration
         apply_configuration(tool)
@@ -462,7 +461,7 @@ module RAAF
         # Validate timeout
         errors << "Timeout must be positive" if @config[:timeout]&.negative?
 
-        raise DSL::ValidationError, errors.join(", ") if errors.any?
+        raise RAAF::DSL::Error, errors.join(", ") if errors.any?
       end
 
       def apply_configuration(tool)

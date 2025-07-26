@@ -9,7 +9,7 @@ module RAAF
     # Supports declarative agent definition with tools, configurations, and behaviors.
     #
     class AgentBuilder
-      include RAAF::Logging
+      include RAAF::Logger
 
       @@count = 0
 
@@ -462,7 +462,7 @@ module RAAF
         # Validate max_tokens
         errors << "Max tokens must be positive" if @config[:max_tokens] && @config[:max_tokens] < 1
 
-        raise DSL::ValidationError, errors.join(", ") if errors.any?
+        raise RAAF::DSL::Error, errors.join(", ") if errors.any?
       end
 
       def apply_macros(agent)
@@ -489,12 +489,11 @@ module RAAF
         @tools.each do |tool_def|
           if tool_def.is_a?(Hash) && tool_def[:name]
             # Build tool from definition
-            tool = RAAF::FunctionTool.new(
-              name: tool_def[:name],
-              description: tool_def[:config][:description],
-              parameters: tool_def[:config][:parameters],
-              &tool_def[:block]
-            )
+            tool = RAAF::FunctionTool.new({
+                                            name: tool_def[:name],
+                                            description: tool_def[:config][:description],
+                                            parameters: tool_def[:config][:parameters]
+                                          }, &tool_def[:config][:execution_block])
             agent.add_tool(tool)
           else
             # Add existing tool

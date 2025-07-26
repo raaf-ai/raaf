@@ -38,8 +38,8 @@ module RAAF
         # @param logger [Logger] Logger instance for output (defaults to Rails.logger)
         # @example
         #   inspector = ContextInspector.new(logger: Rails.logger)
-        def initialize(logger: Rails.logger)
-          @logger = logger
+        def initialize(logger: nil)
+          @logger = logger || ::Logger.new($stdout)
         end
 
         # Display formatted context variables for debugging
