@@ -13,17 +13,12 @@ on:
       - '.github/workflows/dsl-ci.yml'
     types: [opened, synchronize, reopened, ready_for_review]
 
-# Workflow Structure:
-# 1. Lint & Style + Unit Tests (parallel foundation)
-# 2. Integration, DSL Features, Prompt Tests & Performance (parallel comprehensive)
-# 3. Acceptance Tests (validates all parallel tests passed)
-# 4. Build & Summary (final validation and reporting)
 env:
   RUBY_VERSION: '3.4.5'
   DEFAULT_RUBY_VERSION: '3.4.5'
 
 jobs:
-  # Stage 1: Basic validation (fastest feedback)
+  # Stage 1: Lint & Style (fastest feedback)
   lint:
     name: "🔍 Lint & Style"
     runs-on: ubuntu-latest
@@ -54,9 +49,9 @@ jobs:
         gem install bundler-audit
         bundle audit check --update
 
-  # Stage 2: Unit tests (core functionality)
-  unit-tests:
-    name: "🧪 Unit Tests"
+  # Stage 2: All tests (unit tests + examples)
+  test:
+    name: "🧪 Tests (Ruby ${{ matrix.ruby-version }})"
     runs-on: ubuntu-latest
     needs: lint
     strategy:
@@ -78,192 +73,39 @@ jobs:
         cd dsl
         bundle install
 
-    - name: Run unit tests, models, and edge cases (DSL gem)
+    - name: Run all tests (unit + examples)
       run: |
         cd dsl
         bundle exec rspec --format progress \
                          --format RspecJunitFormatter \
-                         --out test-results-unit.xml
+                         --out test-results.xml
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
         TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY_TEST }}
 
-    - name: Upload unit test results
+    - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: unit-test-results-${{ matrix.ruby-version }}
-        path: dsl/test-results-unit.xml
+        name: test-results-${{ matrix.ruby-version }}
+        path: dsl/test-results.xml
         retention-days: 7
 
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && matrix.ruby-version == env.DEFAULT_RUBY_VERSION
       with:
-        name: coverage-reports-${{ matrix.ruby-version }}
+        name: coverage-reports
         path: |
           dsl/coverage/
           !dsl/coverage/assets/
         retention-days: 14
 
-  # Stage 3: Parallel comprehensive tests (run simultaneously after unit tests)
-  dsl-features:
-    name: "🎨 DSL Features"
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ env.RUBY_VERSION }}
-        bundler-cache: true
-
-    - name: Install dependencies (DSL gem)
-      run: |
-        cd dsl
-        bundle install
-
-    - name: Run DSL feature tests
-      run: |
-        cd dsl
-        bundle exec rspec --tag dsl \
-                         --format progress \
-                         --format RspecJunitFormatter \
-                         --out test-results-dsl.xml
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
-        TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY_TEST }}
-
-    - name: Upload DSL feature test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: dsl-feature-test-results
-        path: dsl/test-results-dsl.xml
-        retention-days: 7
-
-  prompt-resolution:
-    name: "📝 Prompt Resolution"
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ env.RUBY_VERSION }}
-        bundler-cache: true
-
-    - name: Install dependencies (DSL gem)
-      run: |
-        cd dsl
-        bundle install
-
-    - name: Run prompt resolution tests
-      run: |
-        cd dsl
-        bundle exec rspec --tag prompts \
-                         --format progress \
-                         --format RspecJunitFormatter \
-                         --out test-results-prompts.xml
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
-        TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY_TEST }}
-
-    - name: Upload prompt resolution test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: prompt-resolution-test-results
-        path: dsl/test-results-prompts.xml
-        retention-days: 7
-
-  debug-tools:
-    name: "🔧 Debug Tools"
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ env.RUBY_VERSION }}
-        bundler-cache: true
-
-    - name: Install dependencies (DSL gem)
-      run: |
-        cd dsl
-        bundle install
-
-    - name: Run debug tool tests
-      run: |
-        cd dsl
-        bundle exec rspec --tag debug \
-                         --format progress \
-                         --format RspecJunitFormatter \
-                         --out test-results-debug.xml
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
-        TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY_TEST }}
-
-    - name: Upload debug tool test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: debug-tool-test-results
-        path: dsl/test-results-debug.xml
-        retention-days: 7
-
-  integration-tests:
-    name: "🔗 Integration Tests"
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ env.RUBY_VERSION }}
-        bundler-cache: true
-
-    - name: Install dependencies (DSL gem)
-      run: |
-        cd dsl
-        bundle install
-
-    - name: Run integration tests (DSL gem)
-      run: |
-        cd dsl
-        bundle exec rspec --tag integration \
-                         --format progress \
-                         --format RspecJunitFormatter \
-                         --out test-results-integration.xml
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
-        TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY_TEST }}
-
-    - name: Upload integration test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: integration-test-results
-        path: dsl/test-results-integration.xml
-        retention-days: 7
-
-  # Stage 4: Build verification (package validation)
+  # Stage 3: Build verification (package validation)
   build:
     name: "📦 Build Gem"
     runs-on: ubuntu-latest
-    needs: [dsl-features, prompt-resolution, debug-tools, integration-tests]  # Build after all feature tests pass
+    needs: test
     
     steps:
     - uses: actions/checkout@v4
@@ -309,9 +151,8 @@ jobs:
     - name: Download coverage reports
       uses: actions/download-artifact@v4
       with:
-        pattern: coverage-reports-*
+        name: coverage-reports
         path: coverage-artifacts/
-        merge-multiple: false
       continue-on-error: true
 
     - name: Process coverage data
@@ -319,26 +160,18 @@ jobs:
       run: |
         echo "Processing coverage reports..."
         
-        # Find the primary coverage report (use 3.4.5 as primary, fallback to first available)
-        PRIMARY_COVERAGE=""
-        if [ -d "coverage-artifacts/coverage-reports-3.4.5" ]; then
-          PRIMARY_COVERAGE="coverage-artifacts/coverage-reports-3.4.5"
-        else
-          PRIMARY_COVERAGE=$(find coverage-artifacts -name "coverage-reports-*" -type d | head -1)
-        fi
-        
-        if [ -n "$PRIMARY_COVERAGE" ] && [ -f "$PRIMARY_COVERAGE/.last_run.json" ]; then
+        if [ -f "coverage-artifacts/.last_run.json" ]; then
           # Extract coverage percentage from SimpleCov's last_run.json
-          COVERAGE_PERCENT=$(cat "$PRIMARY_COVERAGE/.last_run.json" | jq -r '.result.line // 0' | cut -d. -f1)
+          COVERAGE_PERCENT=$(cat "coverage-artifacts/.last_run.json" | jq -r '.result.line // 0' | cut -d. -f1)
           echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
           
           # Count covered and total lines
-          if [ -f "$PRIMARY_COVERAGE/.resultset.json" ]; then
-            TOTAL_LINES=$(cat "$PRIMARY_COVERAGE/.resultset.json" | jq -r '
+          if [ -f "coverage-artifacts/.resultset.json" ]; then
+            TOTAL_LINES=$(cat "coverage-artifacts/.resultset.json" | jq -r '
               [.. | objects | select(has("coverage")) | .coverage | to_entries[] | .value] 
               | map(select(. != null)) | length'
             )
-            COVERED_LINES=$(cat "$PRIMARY_COVERAGE/.resultset.json" | jq -r '
+            COVERED_LINES=$(cat "coverage-artifacts/.resultset.json" | jq -r '
               [.. | objects | select(has("coverage")) | .coverage | to_entries[] | .value] 
               | map(select(. != null and . > 0)) | length'
             )
@@ -359,13 +192,13 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [[ "${{ needs.build.result }}" == "success" ]]; then
-          echo "✅ **All DSL Tests PASSED** (Lint, Unit, DSL Features, Prompt Resolution, Debug Tools & Integration)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All DSL Tests PASSED**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🎉 The build step validates that all prerequisite DSL tests have passed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 All tests (unit + examples) and build validation succeeded!" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **DSL Tests FAILED** - Build step did not pass" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **DSL Tests FAILED**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⚠️ This means one or more of the prerequisite DSL tests (Lint, Unit, DSL Features, Prompt Resolution, Debug Tools, Integration) failed." >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ One or more tests failed. Check the test results above." >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -406,13 +239,13 @@ jobs:
         
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "📋 **DSL Workflow Structure:**" >> $GITHUB_STEP_SUMMARY
-        echo "1. Lint & Style + Unit Tests (parallel foundation)" >> $GITHUB_STEP_SUMMARY
-        echo "2. DSL Features + Prompt Resolution + Debug Tools + Integration Tests (parallel comprehensive)" >> $GITHUB_STEP_SUMMARY
-        echo "3. Build Gem (depends on DSL Features, Prompt Resolution, Debug Tools & Integration Tests)" >> $GITHUB_STEP_SUMMARY
-        echo "4. Test Summary (depends on Build)" >> $GITHUB_STEP_SUMMARY
+        echo "1. Lint & Style Check" >> $GITHUB_STEP_SUMMARY
+        echo "2. Run All Tests (unit tests + examples)" >> $GITHUB_STEP_SUMMARY
+        echo "3. Build & Validate Gem" >> $GITHUB_STEP_SUMMARY
+        echo "4. Coverage Summary" >> $GITHUB_STEP_SUMMARY
 
     - name: Fail if build failed
       if: needs.build.result != 'success'
       run: |
-        echo "❌ DSL build failed, indicating issues with prerequisite tests. See summary above."
+        echo "❌ DSL build failed. See summary above."
         exit 1

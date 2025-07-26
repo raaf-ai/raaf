@@ -348,6 +348,28 @@ module RAAF
       end
 
       ##
+      # Build a tool using DSL
+      #
+      # @param name [Symbol, String] Tool name (optional)
+      # @param block [Proc] Configuration block
+      # @return [Tool] Configured tool
+      #
+      def self.build(name = nil, &block)
+        builder = new(name || "tool_#{SecureRandom.hex(4)}")
+        builder.instance_eval(&block) if block_given?
+        builder.build
+      end
+
+      ##
+      # Set tool name
+      #
+      # @param name [String] Tool name
+      #
+      def name(name)
+        @tool_name = name
+      end
+
+      ##
       # Build the tool
       #
       # @return [Tool] Configured tool
