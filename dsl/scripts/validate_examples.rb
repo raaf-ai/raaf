@@ -8,7 +8,7 @@ require "open3"
 require "shellwords"
 
 # DSL example validation script for RAAF DSL gem
-class DSLExampleValidator
+class DSLExampleValidator # rubocop:disable Metrics/ClassLength
   attr_reader :results, :config
 
   def initialize
@@ -232,16 +232,16 @@ class DSLExampleValidator
 
     # Determine if this is a runnable example or just a snippet
     runnable = code.include?("require") && (
-      code.include?("RAAF::DSL") || 
-      code.include?("agent.run") || 
+      code.include?("RAAF::DSL") ||
+      code.include?("agent.run") ||
       code.include?("runner.run")
     )
 
-    if runnable
-      result = validate_readme_execution(code, description)
-    else
-      result = validate_readme_syntax(code, description)
-    end
+    result = if runnable
+               validate_readme_execution(code, description)
+             else
+               validate_readme_syntax(code, description)
+             end
 
     # Record result
     @results[result[:status]] << result
@@ -263,7 +263,7 @@ class DSLExampleValidator
   def validate_readme_syntax(code, description)
     # Create a temporary file for syntax checking
     temp_file = File.join(@dsl_dir, ".readme_syntax_check.rb")
-    
+
     begin
       # Add require statement if missing
       full_code = if code.include?("require")
@@ -292,13 +292,13 @@ class DSLExampleValidator
         }
       end
     ensure
-      File.delete(temp_file) if File.exist?(temp_file)
+      FileUtils.rm_f(temp_file)
     end
   end
 
   def validate_readme_execution(code, description)
     temp_file = File.join(@dsl_dir, ".readme_execution_check.rb")
-    
+
     begin
       # Prepare the code for execution
       full_code = prepare_readme_code_for_execution(code)
@@ -306,11 +306,11 @@ class DSLExampleValidator
 
       # Set up test environment
       env = ENV.to_h.merge({
-        "RAAF_EXAMPLE_MODE" => "true",
-        "RAAF_LOG_LEVEL" => "warn",
-        "RAAF_DISABLE_TRACING" => "true",
-        "RAAF_TEST_MODE" => "true"
-      })
+                             "RAAF_EXAMPLE_MODE" => "true",
+                             "RAAF_LOG_LEVEL" => "warn",
+                             "RAAF_DISABLE_TRACING" => "true",
+                             "RAAF_TEST_MODE" => "true"
+                           })
 
       # Run the code with timeout
       Timeout.timeout(10) do
@@ -358,7 +358,7 @@ class DSLExampleValidator
         error: e.message
       }
     ensure
-      File.delete(temp_file) if File.exist?(temp_file)
+      FileUtils.rm_f(temp_file)
     end
   end
 
@@ -367,9 +367,9 @@ class DSLExampleValidator
       # README example validation
       ENV["RAAF_TEST_MODE"] = "true"
       ENV["OPENAI_API_KEY"] ||= "test-key"
-      
+
       require_relative "lib/raaf-dsl"
-      
+
       # Stub runner if needed for test mode
       if ENV["RAAF_TEST_MODE"] == "true"
         module RAAF
@@ -383,10 +383,10 @@ class DSLExampleValidator
           end
         end
       end
-      
+
       # Execute the README code
       #{code}
-      
+
       # Exit cleanly
       exit(0)
     RUBY
@@ -497,17 +497,17 @@ class DSLExampleValidator
     Timeout.timeout(@config[:timeout]) do
       # Set up test environment
       env = ENV.to_h.merge({
-        "RAAF_EXAMPLE_MODE" => "true",
-        "RAAF_LOG_LEVEL" => "warn",
-        "RAAF_DISABLE_TRACING" => "true"
-      })
+                             "RAAF_EXAMPLE_MODE" => "true",
+                             "RAAF_LOG_LEVEL" => "warn",
+                             "RAAF_DISABLE_TRACING" => "true"
+                           })
 
       # Add test mode environment if enabled
       if @config[:test_mode]
         env.merge!({
-          "RAAF_TEST_MODE" => "true",
-          "RAAF_MOCK_RESPONSES" => "true"
-        })
+                     "RAAF_TEST_MODE" => "true",
+                     "RAAF_MOCK_RESPONSES" => "true"
+                   })
       end
 
       # Run the example
@@ -648,6 +648,5 @@ class DSLExampleValidator
     end
   end
 end
-
 # Run the validator if this script is executed directly
 DSLExampleValidator.new.run if __FILE__ == $PROGRAM_NAME
