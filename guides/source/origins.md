@@ -95,6 +95,31 @@ raaf/
 └── streaming/    # Real-time and async capabilities
 ```
 
+## The RAAF Identity: A Dutch Raven Takes Flight
+
+When it came time to create an identity for RAAF, the inspiration came from an unexpected place: the Dutch language itself. "Raaf" is the Dutch word for "raven" – a bird known for its intelligence, adaptability, and problem-solving abilities. This wasn't just a happy coincidence; it became a perfect metaphor for what we were building.
+
+### Why a Raven?
+
+Ravens are among the most intelligent birds in the world. They use tools, solve complex problems, and even teach their skills to other ravens. They're known for:
+
+- **Intelligence and Problem-Solving** - Ravens can plan for future events and use tools creatively
+- **Communication Skills** - They have one of the largest repertoires of vocalizations in the bird world
+- **Adaptability** - Ravens thrive in diverse environments, from Arctic tundra to urban landscapes
+- **Social Cooperation** - They work together in sophisticated social structures
+
+These characteristics mirror RAAF's capabilities perfectly. Just as ravens use tools to solve problems, RAAF agents use function tools to accomplish tasks. Like ravens communicating in their complex social groups, RAAF agents collaborate through structured handoffs. And similar to how ravens adapt to any environment, RAAF adapts to any AI provider or deployment scenario.
+
+### The Logo Design
+
+Our logo captures this essence – a stylized raven that represents both the intelligence of the platform and its Ruby heritage. The clean, modern design reflects RAAF's enterprise-grade capabilities while the raven symbolizes the clever, adaptive nature of AI agents.
+
+<div class="welcome-logo">
+  <img src="images/raaf-icon-fixed.png" alt="RAAF Logo" width="400">
+</div>
+
+This Dutch connection also reflects our international perspective. Just as Ruby came from Japan and became a global phenomenon, RAAF draws inspiration from around the world to create something universally useful. The name serves as a reminder that great ideas transcend borders and languages – whether it's Matz creating Ruby in Japan, or our team using a Dutch word to name a framework that bridges Python and Ruby ecosystems.
+
 ## The Compatibility Commitment
 
 A key principle in RAAF's development was **maintaining Python SDK compatibility**. This meant:
