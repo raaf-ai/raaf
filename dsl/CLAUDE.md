@@ -80,7 +80,9 @@ calculator = RAAF::DSL::ToolBuilder.build do
   parameter :expression, type: :string, required: true
   
   execute do |expression:|
-    eval(expression) # In production, use a safe evaluator
+    # Use a safe math evaluator instead of eval
+    # Example: Dentaku.evaluate(expression)
+    raise "Calculator not implemented - use a safe math library"
   end
 end
 

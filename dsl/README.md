@@ -7,7 +7,7 @@ The **RAAF DSL** gem provides a comprehensive domain-specific language for the R
 
 ## Overview
 
-RAAF (Ruby AI Agents Factory) DSL extends the core agent capabilities from `raaf-core` to provide a comprehensive Ruby DSL (Domain-Specific Language) for building intelligent AI agents with advanced configuration management, cost optimization, and enterprise-ready features. This gem provides a declarative, readable way to define AI agents that can handle complex workflows, integrate with external tools, and automatically optimize costs across different environments.
+RAAF DSL extends the core agent capabilities from `raaf-core` to provide a comprehensive Ruby DSL (Domain-Specific Language) for building intelligent AI agents. This gem provides a declarative, configuration-only approach where all execution is delegated to `raaf-core`, ensuring clean separation of concerns between configuration and execution.
 
 ## 📑 Table of Contents
 
@@ -75,17 +75,17 @@ RAAF (Ruby AI Agents Factory) DSL extends the core agent capabilities from `raaf
 - [🌟 Contributors](#-contributors)
 - [🔗 Related Projects](#-related-projects)
 
-## 🎯 Why AI Agent DSL?
+## 🎯 Why RAAF DSL?
 
-Building AI agents in production requires more than just API calls. You need:
+Building AI agents requires clean, maintainable code with clear separation between configuration and execution. RAAF DSL provides:
 
-- **Environment-Aware Configuration**: Different models and limits for development, test, and production
-- **Cost Optimization**: Automatic model switching to reduce API costs by 50-90%
-- **Structured Prompts**: Phlex-like prompt system with variable contracts and validation
-- **Tool Integration**: Easy integration with external APIs, databases, and services
-- **Multi-Agent Workflows**: Orchestrate complex agent handoffs and workflows
-- **Rails Integration**: Seamless integration with Rails applications and conventions
-- **Production Ready**: Logging, monitoring, error handling, and performance optimization
+- **Declarative Agent Configuration**: Define agents with a clean DSL that delegates execution to `raaf-core`
+- **Phlex-inspired Prompt System**: Type-safe prompt classes with validation and contracts
+- **Multi-Format Prompt Support**: Ruby classes, Markdown files, and ERB templates
+- **Tool Integration**: Easy integration with external tools via the DSL
+- **Debugging Tools**: Comprehensive debugging for prompts, context, and API calls
+- **Rails Integration**: Seamless integration with Rails applications
+- **Lifecycle Hooks**: Global and agent-specific callbacks for monitoring
 
 ## ✨ Key Features
 
@@ -94,7 +94,7 @@ Define AI agents using a clean, readable DSL that makes complex agent configurat
 
 ```ruby
 class DocumentAnalyzer < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "DocumentAnalyzerAgent"
   model "gpt-4o"
@@ -156,7 +156,7 @@ Orchestrate complex workflows with agent handoffs and sequential processing:
 
 ```ruby
 class ContentWorkflow < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
   
   processing_workflow do
     extract_content
@@ -172,6 +172,7 @@ Easy integration of external tools with automatic parameter validation and error
 
 ```ruby
 class ContentAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Agents::AgentDsl
   uses_tool :document_parser, max_size: '10MB', timeout: 30
   uses_tool :database_query, connection: :primary
   uses_tool :api_client, base_url: ENV['API_BASE_URL']
@@ -182,8 +183,8 @@ end
 Full Rails integration with generators, automatic configuration loading, and Rails conventions:
 
 ```bash
-rails generate ai_agent_dsl:config
-rails generate ai_agent_dsl:agent DocumentAnalyzer
+rails generate raaf:dsl:config
+rails generate raaf:dsl:agent DocumentAnalyzer
 ```
 
 ## 📦 Installation
@@ -193,7 +194,7 @@ rails generate ai_agent_dsl:agent DocumentAnalyzer
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'ai_agent_dsl'
+gem 'raaf-dsl'
 ```
 
 Then execute:
@@ -209,13 +210,13 @@ The gem will automatically integrate with Rails through its built-in Railtie.
 Install the gem directly:
 
 ```bash
-gem install ai_agent_dsl
+gem install raaf-dsl
 ```
 
 Then require it in your application:
 
 ```ruby
-require 'ai_agent_dsl'
+require 'raaf-dsl'
 ```
 
 ### System Requirements
@@ -231,7 +232,7 @@ require 'ai_agent_dsl'
 Set up your project with intelligent defaults:
 
 ```bash
-rails generate ai_agent_dsl:config
+rails generate raaf:dsl:config
 ```
 
 This creates two essential files:
@@ -292,7 +293,7 @@ end
 Generate a complete agent with prompt class:
 
 ```bash
-rails generate ai_agent_dsl:agent DocumentAnalyzer
+rails generate raaf:dsl:agent DocumentAnalyzer
 ```
 
 This creates two files with full scaffolding:
@@ -300,7 +301,7 @@ This creates two files with full scaffolding:
 #### `app/ai/agents/document_analyzer.rb` - Agent class
 ```ruby
 class DocumentAnalyzer < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   # Agent identification and configuration
   agent_name "DocumentAnalyzerAgent"
@@ -488,7 +489,7 @@ Context flows and evolves through agent handoffs:
 
 ```ruby
 class ResearchWorkflow < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
   
   agent_name "ResearchWorkflow"
   
@@ -683,7 +684,7 @@ Create complex workflows with multiple agents working together:
 
 ```ruby
 class ContentProcessingOrchestrator < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "ContentProcessingOrchestrator"
   description "Orchestrates multi-step content analysis workflow"
@@ -724,7 +725,7 @@ Create sophisticated tool integrations with validation and error handling:
 
 ```ruby
 class AdvancedContentAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   # Multiple tools with specific configurations
   uses_tool :document_parser, max_pages: 100, timeout: 45
@@ -750,6 +751,34 @@ class AdvancedContentAgent < RAAF::DSL::Agents::Base
   )
 end
 ```
+
+### 🐛 Advanced Debugging Tools
+
+The DSL includes comprehensive debugging tools for understanding agent execution:
+
+```ruby
+# Context inspection
+context_inspector = RAAF::DSL::Debugging::ContextInspector.new
+context_inspector.inspect_context(agent_instance)
+
+# Prompt inspection with variable substitution
+prompt_inspector = RAAF::DSL::Debugging::PromptInspector.new
+prompt_inspector.inspect_prompts(agent_instance)
+
+# API call interception
+llm_interceptor = RAAF::DSL::Debugging::LLMInterceptor.new
+llm_interceptor.intercept_openai_calls do
+  agent.run
+end
+
+# Multi-agent workflow debugging
+swarm_debugger = RAAF::DSL::Debugging::SwarmDebugger.new(enabled: true)
+swarm_debugger.start_workflow_session("Customer Support Workflow")
+# ... run agents ...
+swarm_debugger.end_workflow_session
+```
+
+See the [debugging tools documentation](lib/raaf/dsl/debugging/README.md) for comprehensive examples.
 
 ### 📝 Advanced Prompt Engineering
 
@@ -928,7 +957,7 @@ Define complex response schemas with nested validation:
 
 ```ruby
 class ComprehensiveContentAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   schema do
     # Document overview with nested structure
@@ -1007,11 +1036,11 @@ The gem provides seamless Rails integration through its built-in Railtie:
 ### Rails Generators
 ```bash
 # Generate configuration files
-rails generate ai_agent_dsl:config
+rails generate raaf:dsl:config
 
 # Generate agent and prompt classes
-rails generate ai_agent_dsl:agent DocumentAnalyzer
-rails generate ai_agent_dsl:agent content/text_processor
+rails generate raaf:dsl:agent DocumentAnalyzer
+rails generate raaf:dsl:agent content/text_processor
 ```
 
 ### Deployment Integration
@@ -1073,7 +1102,7 @@ Register callbacks for specific agent instances:
 
 ```ruby
 class DocumentAnalyzer < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
   include RAAF::DSL::Hooks::AgentHooks
 
   agent_name "document_analyzer"
@@ -1133,6 +1162,7 @@ RAAF::DSL::Hooks::RunHooks.on_agent_start { |agent| send_to_monitoring(agent) }
 
 # Multiple agent-specific handlers
 class MyAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Agents::AgentDsl
   include RAAF::DSL::Hooks::AgentHooks
   
   on_start :prepare_environment
@@ -1211,7 +1241,7 @@ The gem includes intelligent cost optimization that can reduce your AI API costs
 ```ruby
 # Track costs per agent
 class CostTrackingAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
   
   
   private
@@ -1233,7 +1263,7 @@ end
 ### Error Handling & Resilience
 ```ruby
 class ProductionAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
   
   # Execution hooks for monitoring
   
@@ -1281,7 +1311,7 @@ end
 ### Security Best Practices
 ```ruby
 class SecureAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
   
   
   private
@@ -1399,8 +1429,8 @@ We welcome contributions! Here's how to get started:
 
 ### Development Setup
 ```bash
-git clone https://github.com/enterprisemodules/ai_agent_dsl.git
-cd ai_agent_dsl
+git clone https://github.com/raaf-ai/raaf-dsl.git
+cd raaf-dsl
 bundle install
 ```
 
@@ -1424,7 +1454,7 @@ bundle exec yard doc
 6. **Submit a pull request** with a clear description
 
 ### Reporting Issues
-Please use the [GitHub issue tracker](https://github.com/enterprisemodules/ai_agent_dsl/issues) to report bugs or request features. Include:
+Please use the [GitHub issue tracker](https://github.com/raaf-ai/raaf-dsl/issues) to report bugs or request features. Include:
 - Ruby and Rails versions
 - Detailed error messages
 - Steps to reproduce
@@ -1479,7 +1509,7 @@ Special thanks to our contributors who make this project possible:
 
 <div align="center">
 
-**[⭐ Star us on GitHub](https://github.com/enterprisemodules/ai_agent_dsl)** if this project helped you!
+**[⭐ Star us on GitHub](https://github.com/raaf-ai/raaf-dsl)** if this project helped you!
 
 Made with ❤️ by [Enterprise Modules](https://enterprisemodules.com)
 

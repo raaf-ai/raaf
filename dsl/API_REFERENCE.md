@@ -52,7 +52,7 @@ Gets the configured maximum conversation turns.
 
 ---
 
-### `RAAF::DSL::AgentDsl`
+### `RAAF::DSL::Agents::AgentDsl`
 
 Module providing DSL methods for declarative agent configuration. Include this module in your agent classes to access the DSL.
 
@@ -67,7 +67,7 @@ Sets the agent name for configuration lookup.
 **Example:**
 ```ruby
 class MyAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
   
   agent_name "MyCustomAgent"
 end

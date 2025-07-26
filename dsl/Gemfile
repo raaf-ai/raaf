@@ -2,12 +2,9 @@
 
 source "https://rubygems.org"
 
-if ENV["RAAF_LOCAL_DEV"]
-  # Add local path dependency for raaf-core during development
-  gem "raaf-core", path: "../core"
-  # Add local path dependency for raaf-testing during development
-  # gem "raaf-testing", path: "../testing"  # Temporarily disabled
-end
+# Always use local development paths for raaf gems
+gem "raaf-core", path: "../core"
+gem "raaf-testing", path: "../testing"
 
 # Specify your gem's dependencies in the gemspec
 gemspec
