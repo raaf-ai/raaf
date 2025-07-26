@@ -15,7 +15,7 @@ RSpec.shared_examples "a DSL module" do |dsl_module|
       include dsl_module
     end
 
-    expect(test_class).to respond_to(:_agent_config) if dsl_module == RAAF::DSL::AgentDsl
+    expect(test_class).to respond_to(:_agent_config) if dsl_module == RAAF::DSL::Agents::AgentDsl
     expect(test_class).to respond_to(:_tool_config) if dsl_module == RAAF::DSL::ToolDsl
   end
 end

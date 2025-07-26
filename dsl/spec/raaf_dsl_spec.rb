@@ -21,8 +21,8 @@ RSpec.describe RAAF::DSL do
 
   describe "autoloaded modules" do
     it "autoloads AgentDsl" do
-      # Check if it's autoloaded or already loaded
-      expect(described_class.autoload?(:AgentDsl) || described_class.const_defined?(:AgentDsl)).to be_truthy
+      # Check if it's autoloaded or already loaded under Agents module
+      expect(described_class::Agents.autoload?(:AgentDsl) || described_class::Agents.const_defined?(:AgentDsl)).to be_truthy
     end
 
     it "autoloads Config" do
@@ -239,7 +239,7 @@ RSpec.describe RAAF::DSL do
   describe "module loading" do
     it "loads all autoloaded constants successfully" do
       # Force loading of autoloaded constants
-      expect { described_class::AgentDsl }.not_to raise_error
+      expect { described_class::Agents::AgentDsl }.not_to raise_error
       expect { described_class::Config }.not_to raise_error
       expect { described_class::ToolDsl }.not_to raise_error
       expect { described_class::Agents::Base }.not_to raise_error
@@ -294,7 +294,7 @@ RSpec.describe RAAF::DSL do
 
     it "uses ActiveSupport features" do
       # The module should use ActiveSupport features like concern
-      expect(described_class::AgentDsl).to respond_to(:included)
+      expect(described_class::Agents::AgentDsl).to respond_to(:included)
     end
   end
 
