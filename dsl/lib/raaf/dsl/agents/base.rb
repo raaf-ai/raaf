@@ -145,12 +145,11 @@ module RAAF
           # Transform result to expected DSL format
           transform_openai_result(run_result, run_context)
         rescue StandardError => e
-          log_error("Agent execution failed", {
-                      error_class: e.class.name,
-                      error_message: e.message,
-                      agent_name: agent_name,
-                      backtrace: e.backtrace&.first(5)
-                    })
+          log_error("Agent execution failed",
+                    error_class: e.class.name,
+                    error_message: e.message,
+                    agent_name: agent_name,
+                    backtrace: e.backtrace&.first(5))
 
           # Return error result in expected format
           {
