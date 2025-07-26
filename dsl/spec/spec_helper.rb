@@ -2,6 +2,11 @@
 
 require "bundler/setup"
 
+# Add parent gems to load path if in development
+parent_dir = File.expand_path("../..", __dir__)
+core_lib = File.join(parent_dir, "core/lib")
+$LOAD_PATH.unshift(core_lib) if File.directory?(core_lib)
+
 # Require core gem first for logging and other dependencies
 require "raaf-core"
 require "raaf-dsl"
@@ -11,7 +16,7 @@ require "tempfile"
 require "tmpdir"
 
 # Require raaf-testing for prompt matchers (mandatory development gem)
-# require "raaf-testing"  # Temporarily disabled
+require "raaf-testing"
 
 # Load support files (excluding the old prompt_matchers which are now in the gem)
 Dir[File.expand_path("support/**/*.rb", __dir__)].each do |f|
@@ -59,18 +64,59 @@ RSpec.configure do |config|
   config.shared_context_metadata_behavior = :apply_to_host_groups
 
   # Include testing matchers
-  # config.include RAAF::Testing::Matchers  # Temporarily disabled
+  config.include RAAF::Testing::Matchers
 
   # Clear configuration between tests
   config.before do
-    # Reset RAAF::DSL configuration to defaults
-    RAAF::DSL.instance_variable_set(:@configuration, nil)
+    # Clear thread-local variables used by AgentDsl
+    Thread.current[:raaf_dsl_agent_config] = {}
+    Thread.current[:raaf_dsl_tools_config] = []
+    Thread.current[:raaf_dsl_schema_config] = {}
+    Thread.current[:raaf_dsl_prompt_config] = {}
 
     # Clear any class attributes that might have been set
     if defined?(RAAF::DSL::Config)
       RAAF::DSL::Config.instance_variable_set(:@config, nil)
       RAAF::DSL::Config.instance_variable_set(:@environment_configs, {})
       RAAF::DSL::Config.instance_variable_set(:@raw_config, nil)
+    end
+
+    # Reset RAAF::DSL configuration to fresh defaults
+    RAAF::DSL.instance_variable_set(:@configuration, nil)
+
+    # Force new configuration with defaults by accessing it
+    if defined?(RAAF::DSL) && RAAF::DSL.respond_to?(:configuration)
+      # This will create a new Configuration instance with defaults
+      RAAF::DSL.configuration
+    end
+  end
+
+  # Clean up after each test
+  config.after do
+    # Reset any ENV stubs
+    RSpec::Mocks.space.proxy_for(ENV)&.reset
+
+    # Reset Rails stubs if any
+    if defined?(Rails)
+      if Rails.is_a?(RSpec::Mocks::Double)
+        # If Rails is a mock, unstub it completely
+        RSpec::Mocks.space.reset_all
+        hide_const("Rails") if Object.const_defined?(:Rails)
+      elsif RSpec::Mocks.space.proxy_for(Rails)
+        # Reset any stubs on the real Rails object
+        RSpec::Mocks.space.proxy_for(Rails)&.reset
+      end
+    end
+
+    # COMPREHENSIVE GLOBAL STATE CLEANUP
+    if defined?(RAAF::DSL)
+      # Reset ALL RAAF::DSL module-level state
+      RAAF::DSL.instance_variable_set(:@configuration, nil)
+      RAAF::DSL.instance_variable_set(:@prompt_configuration, nil)
+      RAAF::DSL.instance_variable_set(:@prompt_resolvers, nil)
+
+      # Always reload Config state regardless of Rails state
+      RAAF::DSL::Config.reload! if defined?(RAAF::DSL::Config)
     end
   end
 

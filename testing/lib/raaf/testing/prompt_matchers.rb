@@ -81,12 +81,9 @@ module RAAF
             when Class
               raise ArgumentError, "Context required when testing prompt class. Use .with_context()" unless @context
 
-              # Ensure common non-context variables are provided in context
-              enhanced_context = @context.dup
-              enhanced_context[:processing_params] ||= {}
-              enhanced_context[:agent_name] ||= "TestAgent"
-
-              prompt_instance_or_class.new(**enhanced_context)
+              # Simply use the context as provided - don't add extra fields
+              # This allows prompt classes with strict validation to work correctly
+              prompt_instance_or_class.new(**@context)
 
             when RAAF::DSL::Prompts::Base
               raise ArgumentError, "Context should not be provided when testing prompt instance" if @context

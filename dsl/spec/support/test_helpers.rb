@@ -11,7 +11,7 @@ module TestHelpers
   # Create a test agent class for testing
   def create_test_agent_class(name = "TestAgent", &block)
     agent_class = Class.new(RAAF::DSL::Agents::Base) do
-      include RAAF::DSL::AgentDsl
+      include RAAF::DSL::Agents::AgentDsl
     end
 
     agent_class.class_eval(&block) if block_given?
@@ -126,16 +126,12 @@ module TestHelpers
   def with_config_file(config_hash)
     config_path = create_test_config_file(config_hash)
 
+    # Store original config file path
+    RAAF::DSL.configuration.config_file
+
     # Configure RAAF::DSL to use the test config file
     RAAF::DSL.configure do |config|
       config.config_file = config_path
-    end
-
-    # Clear any existing config cache
-    if defined?(RAAF::DSL::Config)
-      RAAF::DSL::Config.instance_variable_set(:@config, nil)
-      RAAF::DSL::Config.instance_variable_set(:@environment_configs, {})
-      RAAF::DSL::Config.instance_variable_set(:@raw_config, nil)
     end
 
     # Force reload of configuration
@@ -143,13 +139,15 @@ module TestHelpers
 
     yield config_path
   ensure
-    # Reset configuration
+    # Reset to default configuration instead of restoring potentially contaminated state
+    # This ensures a clean state for the next test
     RAAF::DSL.instance_variable_set(:@configuration, nil)
-    if defined?(RAAF::DSL::Config)
-      RAAF::DSL::Config.instance_variable_set(:@config, nil)
-      RAAF::DSL::Config.instance_variable_set(:@environment_configs, {})
-      RAAF::DSL::Config.instance_variable_set(:@raw_config, nil)
-    end
+
+    # Force Config to reload with fresh defaults
+    RAAF::DSL::Config.reload! if defined?(RAAF::DSL::Config)
+
+    # Access configuration to force creation with defaults
+    RAAF::DSL.configuration
   end
 
   # Helper to test YAML parsing errors
