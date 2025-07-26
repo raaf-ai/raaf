@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require "raaf-core"
-require_relative "../config"
-require_relative "../context_variables"
+require_relative "../config/config"
+require_relative "../core/context_variables"
 
 # Base class for all AI agents in the AI Agent DSL framework
 #
@@ -14,7 +14,7 @@ require_relative "../context_variables"
 #
 # @example Creating a basic agent
 #   class MyAgent < RAAF::DSL::Agents::Base
-#     include RAAF::DSL::AgentDsl
+#     include RAAF::DSL::Agents::AgentDsl
 #
 #     agent_name "MyAgent"
 #     model "gpt-4o"

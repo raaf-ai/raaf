@@ -1,19 +1,62 @@
 # frozen_string_literal: true
 
-# LLMInterceptor provides debugging capabilities for LLM API calls
-# by intercepting and logging OpenAI API requests and responses
 module RAAF
   module DSL
     module Debugging
+      # Intercepts and logs LLM API calls for debugging
+      #
+      # This class provides deep visibility into OpenAI API interactions by
+      # intercepting API calls and logging both requests and responses. It's
+      # invaluable for debugging issues with tool usage, prompt formatting,
+      # and understanding why the AI responds in certain ways.
+      #
+      # @example Basic usage
+      #   interceptor = LLMInterceptor.new
+      #   interceptor.intercept_openai_calls do
+      #     agent.run
+      #   end
+      #
+      # @example With custom logger
+      #   interceptor = LLMInterceptor.new(logger: my_logger)
+      #   interceptor.intercept_openai_calls do
+      #     result = agent.process_request
+      #   end
+      #
+      # @example Debugging tool usage
+      #   # When tools aren't being called as expected
+      #   interceptor = LLMInterceptor.new
+      #   interceptor.intercept_openai_calls do
+      #     # Check the logged API requests to see tool configurations
+      #     agent_with_tools.run
+      #   end
+      #
+      # @since 0.1.0
       class LLMInterceptor
+        # @return [Logger] The logger instance used for output
         attr_reader :logger
 
+        # Initialize a new LLM interceptor
+        #
+        # @param logger [Logger] Logger instance for output (defaults to Rails.logger)
+        # @example
+        #   interceptor = LLMInterceptor.new(logger: Rails.logger)
         def initialize(logger: Rails.logger)
           @logger = logger
           @original_chat_method = nil
         end
 
         # Intercept OpenAI API calls and log detailed information
+        #
+        # Temporarily patches the OpenAI client to intercept and log all
+        # chat completion requests and responses. The patch is automatically
+        # removed after the block executes, even if an error occurs.
+        #
+        # @yield Block to execute with API interception enabled
+        # @return [Object] The return value of the yielded block
+        # @example
+        #   result = interceptor.intercept_openai_calls do
+        #     agent.run("What's the weather?")
+        #   end
         def intercept_openai_calls
           return yield unless defined?(OpenAI::Client)
 

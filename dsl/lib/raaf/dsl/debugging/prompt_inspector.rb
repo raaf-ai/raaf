@@ -1,18 +1,57 @@
 # frozen_string_literal: true
 
-# PromptInspector provides debugging capabilities for prompt inspection
-# by displaying formatted prompts with substituted context variables
 module RAAF
   module DSL
     module Debugging
+      # Provides debugging capabilities for inspecting prompts
+      #
+      # This class helps developers debug prompt generation by displaying
+      # the actual prompts sent to the AI after all variable substitutions
+      # and template processing. It's essential for verifying that prompts
+      # are being constructed correctly with the expected context.
+      #
+      # @example Basic usage
+      #   inspector = PromptInspector.new
+      #   inspector.inspect_prompts(agent_instance)
+      #
+      # @example With custom logger
+      #   inspector = PromptInspector.new(logger: my_logger)
+      #   inspector.inspect_prompts(agent)
+      #
+      # @example In debugging workflow
+      #   debugger = SwarmDebugger.new(enabled: true)
+      #   prompt_inspector = PromptInspector.new
+      #
+      #   debugger.debug_agent_execution(agent, context) do
+      #     prompt_inspector.inspect_prompts(agent)
+      #     agent.run
+      #   end
+      #
+      # @since 0.1.0
       class PromptInspector
+        # @return [Logger] The logger instance used for output
         attr_reader :logger
 
+        # Initialize a new prompt inspector
+        #
+        # @param logger [Logger] Logger instance for output (defaults to Rails.logger)
+        # @example
+        #   inspector = PromptInspector.new(logger: custom_logger)
         def initialize(logger: Rails.logger)
           @logger = logger
         end
 
         # Display formatted prompts and context for debugging
+        #
+        # Inspects the agent's prompt configuration and displays the actual
+        # prompts that will be sent to the AI, including system and user
+        # prompts with all variables substituted. Handles errors gracefully
+        # when prompts cannot be rendered.
+        #
+        # @param agent_instance [Object] The agent instance whose prompts to inspect
+        # @return [void]
+        # @example
+        #   inspector.inspect_prompts(my_agent)
         def inspect_prompts(agent_instance)
           return unless agent_instance.respond_to?(:debug_enabled) && agent_instance.debug_enabled
 

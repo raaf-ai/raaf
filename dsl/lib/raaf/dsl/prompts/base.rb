@@ -308,10 +308,9 @@ module RAAF
 
         # Render both prompts as a hash (for compatibility with PromptLoader)
         def render_messages
-          validate_variable_contract!
           {
-            system: render_prompt(:system),
-            user: render_prompt(:user)
+            system: render(:system),
+            user: render(:user)
           }
         end
 
@@ -396,12 +395,11 @@ module RAAF
 
                     # If dig fails, log debug info for troubleshooting
                     if value.nil?
-                      log_debug("Context path resolution failed", {
-                                  variable_name: variable_name,
-                                  path: path.inspect,
-                                  context_keys: actual_context.keys.inspect,
-                                  first_path_key_exists: path.first && actual_context.key?(path.first)
-                                })
+                      log_debug("Context path resolution failed",
+                                variable_name: variable_name,
+                                path: path.inspect,
+                                context_keys: actual_context.keys.inspect,
+                                first_path_key_exists: path.first && actual_context.key?(path.first))
                     end
 
                     value

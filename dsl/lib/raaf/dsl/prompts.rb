@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "prompt_configuration"
+require_relative "config/prompt_configuration"
 
 module RAAF
   module DSL

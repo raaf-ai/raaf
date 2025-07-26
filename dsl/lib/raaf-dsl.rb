@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "raaf-core"
-require_relative "raaf/dsl/version"
-require_relative "raaf/dsl/hash_utils"
+require_relative "raaf/dsl/core/version"
 require "active_support/all"
 
 # AI Agent DSL - A Ruby framework for building intelligent AI agents
@@ -17,7 +16,7 @@ require "active_support/all"
 #
 # @example Basic agent definition
 #   class MyAgent < RAAF::DSL::Agents::Base
-#     include RAAF::DSL::AgentDsl
+#     include RAAF::DSL::Agents::AgentDsl
 #
 #     agent_name "MyAgent"
 #     uses_tool :web_search
@@ -30,7 +29,7 @@ require "active_support/all"
 #
 # @example Agent with required tool usage
 #   class ResearchAgent < RAAF::DSL::Agents::Base
-#     include RAAF::DSL::AgentDsl
+#     include RAAF::DSL::Agents::AgentDsl
 #
 #     agent_name "ResearchAgent"
 #     uses_tool :web_search
@@ -39,7 +38,7 @@ require "active_support/all"
 #
 # @example Agent with specific tool enforcement
 #   class WebSearchAgent < RAAF::DSL::Agents::Base
-#     include RAAF::DSL::AgentDsl
+#     include RAAF::DSL::Agents::AgentDsl
 #
 #     agent_name "WebSearchAgent"
 #     uses_tool :web_search
@@ -79,25 +78,20 @@ module RAAF
     class Error < StandardError; end
 
     # Auto-require core components
-    autoload :AgentBuilder, "raaf/dsl/agent_builder"
-    autoload :AgentDsl, "raaf/dsl/agent_dsl"
-    autoload :Config, "raaf/dsl/config"
-    autoload :ConfigurationBuilder, "raaf/dsl/configuration_builder"
-    autoload :ContextVariables, "raaf/dsl/context_variables"
-    autoload :DebugUtils, "raaf/dsl/debug_utils"
-    autoload :HashUtils, "raaf/dsl/hash_utils"
-    autoload :Logging, "raaf/dsl/logging"
+    autoload :AgentBuilder, "raaf/dsl/builders/agent_builder"
+    autoload :Config, "raaf/dsl/config/config"
+    autoload :ConfigurationBuilder, "raaf/dsl/builders/configuration_builder"
+    autoload :ContextVariables, "raaf/dsl/core/context_variables"
     autoload :Prompt, "raaf/dsl/prompts"
-    autoload :PromptConfiguration, "raaf/dsl/prompt_configuration"
-    autoload :PromptResolver, "raaf/dsl/prompt_resolver"
-    autoload :PromptResolverRegistry, "raaf/dsl/prompt_resolver"
+    autoload :PromptConfiguration, "raaf/dsl/config/prompt_configuration"
+    autoload :PromptResolver, "raaf/dsl/prompts/prompt_resolver"
+    autoload :PromptResolverRegistry, "raaf/dsl/prompts/prompt_resolver"
     autoload :Railtie, "raaf/dsl/railtie"
-    autoload :SchemaBuilder, "raaf/dsl/agent_dsl"
-    autoload :SwarmDebugger, "raaf/dsl/swarm_debugger"
-    autoload :ToolBuilder, "raaf/dsl/tool_builder"
+    autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
+    autoload :ToolBuilder, "raaf/dsl/builders/tool_builder"
     autoload :ToolDsl, "raaf/dsl/tool_dsl"
-    autoload :ToolRegistry, "raaf/dsl/tool_registry"
-    autoload :WorkflowBuilder, "raaf/dsl/workflow_builder"
+    autoload :ToolRegistry, "raaf/dsl/core/tool_registry"
+    autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
 
     # AI Agent classes and base functionality
     #
@@ -107,13 +101,17 @@ module RAAF
     #
     # @example Creating a custom agent
     #   class MyAgent < RAAF::DSL::Agents::Base
-    #     include RAAF::DSL::AgentDsl
+    #     include RAAF::DSL::Agents::AgentDsl
     #     agent_name "my_agent"
     #   end
     #
     module Agents
       autoload :Base, "raaf/dsl/agents/base"
+      autoload :AgentDsl, "raaf/dsl/agents/agent_dsl"
     end
+
+    # Force load of AgentDsl module for tests
+    require_relative "raaf/dsl/agents/agent_dsl"
 
     # Prompt building and template system
     #
@@ -145,8 +143,8 @@ module RAAF
     #   prompt = RAAF::DSL::Prompt.resolve("template.md.erb", name: "John")
     #
     module PromptResolvers
-      autoload :PhlexResolver, "raaf/dsl/prompt_resolvers/phlex_resolver"
-      autoload :FileResolver, "raaf/dsl/prompt_resolvers/file_resolver"
+      autoload :PhlexResolver, "raaf/dsl/prompts/phlex_resolver"
+      autoload :FileResolver, "raaf/dsl/prompts/file_resolver"
     end
 
     # Tool integration and execution framework
@@ -158,7 +156,7 @@ module RAAF
     #
     # @example Using tools in agents
     #   class MyAgent < RAAF::DSL::Agents::Base
-    #     include RAAF::DSL::AgentDsl
+    #     include RAAF::DSL::Agents::AgentDsl
     #     uses_tool :web_search
     #   end
     #
@@ -210,22 +208,6 @@ module RAAF
     module Hooks
       autoload :RunHooks, "raaf/dsl/hooks/run_hooks"
       autoload :AgentHooks, "raaf/dsl/hooks/agent_hooks"
-    end
-
-    # Execution layer for agent runtime
-    #
-    # This module contains the minimal execution abstractions that the DSL
-    # configures and delegates to. The DSL remains purely configurational
-    # while these classes handle the actual execution details.
-    #
-    # @example DSL creates execution objects
-    #   dsl_agent = MyAgent.new
-    #   execution_agent = dsl_agent.create_agent  # Returns RAAF::DSL::Execution::Agent
-    #   runner = RAAF::DSL::Execution::Runner.new(agent: execution_agent)
-    #   result = runner.run(input)
-    #
-    module Execution
-      autoload :Runner, "raaf/dsl/execution/runner"
     end
 
     # Rails generators for scaffolding AI agents and configuration

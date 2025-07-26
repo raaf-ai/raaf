@@ -1,18 +1,56 @@
 # frozen_string_literal: true
 
-# ContextInspector provides debugging capabilities for context inspection
-# by displaying formatted context variables and summaries
 module RAAF
   module DSL
     module Debugging
+      # Provides debugging capabilities for inspecting context variables
+      #
+      # This class helps developers debug agent execution by displaying
+      # formatted context variables and generating summaries of the current
+      # agent state. It's particularly useful for understanding data flow
+      # between agents in multi-agent workflows.
+      #
+      # @example Basic usage
+      #   inspector = ContextInspector.new
+      #   inspector.inspect_context(agent_instance)
+      #
+      # @example With custom logger
+      #   inspector = ContextInspector.new(logger: my_logger)
+      #   summary = inspector.context_summary(agent_instance)
+      #   puts summary[:workflow_step]
+      #
+      # @example In agent execution
+      #   class MyAgent < RAAF::DSL::Agents::Base
+      #     def run
+      #       inspector = ContextInspector.new
+      #       inspector.inspect_context(self) if debug_enabled
+      #       # ... agent logic ...
+      #     end
+      #   end
+      #
+      # @since 0.1.0
       class ContextInspector
+        # @return [Logger] The logger instance used for output
         attr_reader :logger
 
+        # Initialize a new context inspector
+        #
+        # @param logger [Logger] Logger instance for output (defaults to Rails.logger)
+        # @example
+        #   inspector = ContextInspector.new(logger: Rails.logger)
         def initialize(logger: Rails.logger)
           @logger = logger
         end
 
         # Display formatted context variables for debugging
+        #
+        # Inspects the agent instance and outputs formatted context information
+        # to the logger. Only runs if the agent has debug enabled.
+        #
+        # @param agent_instance [Object] The agent instance to inspect
+        # @return [void]
+        # @example
+        #   inspector.inspect_context(my_agent)
         def inspect_context(agent_instance)
           return unless agent_instance.respond_to?(:debug_enabled) && agent_instance.debug_enabled
 
@@ -26,6 +64,16 @@ module RAAF
         end
 
         # Generate a summary of the current context state
+        #
+        # Creates a structured summary of key context variables, providing
+        # a high-level overview of the agent's current state including
+        # discovered entities, workflow progress, and other metrics.
+        #
+        # @param agent_instance [Object] The agent instance to summarize
+        # @return [Hash] Summary hash with keys like :product, :workflow_step, etc.
+        # @example
+        #   summary = inspector.context_summary(agent)
+        #   # => { product: "MyProduct", companies_discovered: 5, workflow_step: "enrichment" }
         def context_summary(agent_instance)
           return {} unless agent_instance.respond_to?(:context_variables)
 
