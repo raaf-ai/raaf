@@ -3,6 +3,25 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 
+## RAAF Module Structure
+
+raaf/
+├── core/          # Agent implementation and execution engine
+├── tracing/       # Comprehensive monitoring with Python SDK compatibility
+├── memory/        # Context persistence and vector storage  
+├── tools/         # Pre-built tools (web search, files, code execution)
+├── guardrails/    # Security and safety filters
+├── providers/     # Multi-provider support (OpenAI, Anthropic, Groq, etc.)
+├── dsl/           # Ruby DSL for declarative agent building
+├── rails/         # Rails integration with dashboard
+├── testing/       # Testing utilities and mock providers
+├── analytics/     # Usage tracking and analytics
+├── compliance/    # GDPR, HIPAA compliance features
+├── debug/         # Debugging tools and REPL
+├── mcp/           # Model Context Protocol support
+├── misc/          # Multimodal, voice, and data pipelines
+└── raaf/          # Main gem that bundles all modules
+
 ### Style Guidelines
 - Follow Pragmatic Programmer voice: practical, conversational, example-driven
 - Code examples should be complete and runnable
