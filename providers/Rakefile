@@ -11,6 +11,11 @@ RuboCop::RakeTask.new
 
 task default: %i[spec rubocop]
 
+# Load shared tasks from the root shared directory
+$LOAD_PATH.unshift(File.expand_path("../shared/lib", __dir__))
+require "raaf/shared/tasks"
+RAAF::Shared::Tasks.load("examples")
+
 # Custom tasks
 namespace :gem do
   desc "Build and install the gem locally"
@@ -91,3 +96,7 @@ namespace :spec do
     system("bundle exec rspec --tag ~integration --tag ~performance --tag ~cost --tag ~acceptance --tag ~compliance")
   end
 end
+
+# CI task
+desc "Run all CI checks (specs, rubocop, and example validation)"
+task ci: [:spec, :rubocop, "examples:validate_test"]

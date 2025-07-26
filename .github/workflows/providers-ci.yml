@@ -134,14 +134,7 @@ jobs:
     - name: Validate provider examples
       run: |
         cd providers
-        # Test that provider examples can be loaded and validated
-        for example in examples/*_example.rb; do
-          if [ -f "$example" ]; then
-            echo "Validating $example..."
-            ruby -c "$example" || exit 1
-          fi
-        done
-        echo "All provider examples validated successfully"
+        bundle exec rake examples:validate_test
       env:
         CI: true
         RAAF_TEST_MODE: true

@@ -131,7 +131,7 @@ jobs:
     - name: Validate core examples
       run: |
         cd core
-        bundle exec ruby scripts/validate_examples.rb
+        bundle exec rake examples:validate_test
       env:
         CI: true
         RAAF_TEST_MODE: true

@@ -124,7 +124,7 @@ jobs:
     - name: Validate DSL examples and README
       run: |
         cd dsl
-        bundle exec ruby scripts/validate_examples.rb
+        bundle exec rake examples:validate_test
       env:
         CI: true
         RAAF_TEST_MODE: true
