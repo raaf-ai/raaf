@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 
 # Example showing how Orchestrator < ApplicationAgent uses prompt classes
 
 # 1. Define the base ApplicationAgent class
 class ApplicationAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 end
 
 # 2. Define the Orchestrator that inherits from ApplicationAgent

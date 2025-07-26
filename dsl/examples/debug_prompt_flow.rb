@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 
 # Example agents to test prompt resolution debugging
 
 # Agent with explicit prompt class
 class ExplicitPromptAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "explicit_prompt_agent"
 
@@ -21,7 +21,7 @@ end
 
 # Agent that uses inference (expects RAAF::DSL::Prompts::InferredPromptAgent)
 class InferredPromptAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "inferred_prompt_agent"
 
@@ -32,7 +32,7 @@ end
 
 # Agent using legacy template system
 class LegacyTemplateAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "legacy_template_agent"
 
@@ -50,7 +50,7 @@ end
 
 # Agent using static instructions
 class StaticInstructionAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "static_instruction_agent"
 
@@ -63,7 +63,7 @@ end
 
 # Agent with no configuration (uses defaults)
 class DefaultAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "default_agent"
 

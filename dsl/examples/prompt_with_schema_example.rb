@@ -6,7 +6,7 @@
 # This example shows how to define schemas directly in prompt classes
 # using the same Complex Nested Schema DSL available in agent classes.
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 
 # Example 1: Simple prompt with basic schema
 class UserExtractionPrompt < RAAF::DSL::Prompts::Base
@@ -100,7 +100,7 @@ end
 
 # Example 3: Agent using prompt with schema
 class CompanyAnalysisAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "CompanyAnalyst"
   model "gpt-4o"
@@ -116,7 +116,7 @@ end
 
 # Example 4: Demonstration of schema conflict detection
 class ConflictingAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "ConflictingAgent"
   prompt_class UserExtractionPrompt # This prompt has a schema

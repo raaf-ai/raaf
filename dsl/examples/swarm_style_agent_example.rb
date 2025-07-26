@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 
 # Example demonstrating OpenAI Swarm-style context variables and debugging
 # This example shows how to:
@@ -164,7 +164,7 @@ end
 
 # Triage agent that analyzes requests and routes them
 class TriageAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "TriageAgent"
   model "gpt-4o-mini" # Use cheaper model for triage
@@ -201,7 +201,7 @@ end
 
 # Specialist agent that handles routed requests
 class SpecialistAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "SpecialistAgent"
   model "gpt-4o-mini"

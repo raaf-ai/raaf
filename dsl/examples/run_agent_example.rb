@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 require_relative "web_search_agent"
 
 puts "=== Running WebSearchAgent with prompt from prompt class ==="
@@ -24,7 +24,7 @@ puts "\n=== Demonstrating error when no prompt class is configured ==="
 
 # Example of what happens when no prompt class is configured
 class BadAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "bad_agent"
   uses_tool :web_search
@@ -61,7 +61,7 @@ puts <<~USAGE
 
   # 2. Configure the agent to use the prompt class:
   class MyAgent < RAAF::DSL::Agents::Base
-    include RAAF::DSL::AgentDsl
+    include RAAF::DSL::Agents::AgentDsl
   #{'  '}
     prompt_class MyPrompt
   end

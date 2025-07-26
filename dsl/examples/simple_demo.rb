@@ -1,8 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/ai_agent_dsl"
-require_relative "../lib/ai_agent_dsl/prompts/base"
+require_relative "../lib/raaf-dsl"
 
 # Create a simple prompt class
 class DemoPrompt < RAAF::DSL::Prompts::Base
@@ -17,7 +16,7 @@ end
 
 # Create an agent that uses the prompt class
 class DemoAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "demo_agent"
   prompt_class DemoPrompt
@@ -61,7 +60,7 @@ puts
 puts "=== Error Demonstration ==="
 
 class BadAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "bad_agent"
 

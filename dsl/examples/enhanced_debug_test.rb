@@ -3,7 +3,7 @@
 
 # Test script to verify enhanced debugging capabilities in RAAF::DSL::Agents::Base
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 
 # Add the lib directory to the load path
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
@@ -55,7 +55,7 @@ end
 
 # Test agent that includes the enhanced debugging capabilities
 class TestAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "TestAgent"
   model "gpt-4o"

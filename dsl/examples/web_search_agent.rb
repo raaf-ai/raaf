@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 require_relative "web_search_prompt"
 
 # Example agent demonstrating web search capabilities
 class WebSearchAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "web_search_agent"
 
@@ -37,7 +37,7 @@ end
 
 # Example agent with custom web search configuration
 class NewsAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "news_agent"
 
@@ -67,7 +67,7 @@ end
 
 # Example agent using preset configurations
 class TechAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
 
   agent_name "tech_agent"
 

@@ -7,7 +7,7 @@
 # that are now part of the AI Agent DSL gem.
 
 require "bundler/setup"
-require "ai_agent_dsl"
+require "raaf-dsl"
 require "rspec"
 require "ai_agent_dsl/rspec"
 

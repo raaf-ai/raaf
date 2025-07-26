@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../lib/ai_agent_dsl"
+require_relative "../lib/raaf-dsl"
 
 # Prompt class for WebSearchAgent
 class WebSearchPrompt < RAAF::DSL::Prompts::Base
