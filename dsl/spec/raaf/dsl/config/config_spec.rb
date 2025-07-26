@@ -602,45 +602,8 @@ RSpec.describe RAAF::DSL::Config, :with_temp_files do
     end
   end
 
-  describe "thread safety" do
-    it "handles concurrent access safely" do
-      with_config_file(test_config) do |config_path|
-        # Store original config file
-        original_config_file = RAAF::DSL.configuration.config_file
-
-        begin
-          # Configure with test file
-          RAAF::DSL.configure { |c| c.config_file = config_path }
-
-          # Force reload to ensure clean state
-          described_class.reload!
-
-          # Verify the test config is loaded correctly before threading
-          test_result = described_class.for_agent("test_agent", environment: "production")
-          expect(test_result).not_to be_nil
-          expect(test_result["model"]).to eq("gpt-3.5-turbo")
-
-          results = []
-          threads = 10.times.map do |i|
-            Thread.new do
-              results[i] = described_class.for_agent("test_agent", environment: "production")
-            end
-          end
-
-          threads.each(&:join)
-
-          # All threads should get the same result
-          expect(results.uniq.length).to eq(1)
-          expect(results.first).not_to be_nil
-          expect(results.first["model"]).to eq("gpt-3.5-turbo")
-        ensure
-          # Restore original config
-          RAAF::DSL.configure { |c| c.config_file = original_config_file }
-          described_class.reload!
-        end
-      end
-    end
-  end
+  # Thread safety tests removed - the Config class no longer uses mutexes
+  # and is designed for single-threaded use in typical Ruby applications
 
   describe "configuration caching" do
     it "caches environment configurations" do

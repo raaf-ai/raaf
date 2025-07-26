@@ -68,14 +68,6 @@ module RAAF
   module DSL
     class Config
       class << self
-        private
-
-        def mutex
-          @mutex ||= Mutex.new
-        end
-
-        public
-
         # Get configuration for a specific agent
         def for_agent(agent_name, environment: current_environment)
           agent_key = normalize_agent_name(agent_name)
@@ -153,22 +145,15 @@ module RAAF
 
         # Reload configuration (useful for development)
         def reload!
-          mutex.synchronize do
-            @config = nil
-            @environment_configs = {}
-            @raw_config = nil
-            @raw_config_internal = nil
-            load_config_internal
-          end
+          @config = nil
+          @environment_configs = {}
+          @raw_config = nil
+          load_config
         end
 
         # Get raw configuration hash
         def raw_config
-          return @raw_config if @raw_config
-
-          mutex.synchronize do
-            @raw_config ||= load_config_internal
-          end
+          @raw_config ||= load_config
         end
 
         # Get current environment (Rails-aware but works without Rails)
@@ -181,16 +166,6 @@ module RAAF
         end
 
         private
-
-        # Thread-safe internal method to get raw config
-        def raw_config_internal
-          @raw_config_internal ||= load_config_internal
-        end
-
-        # Internal method that doesn't use locks
-        def load_config_internal
-          load_config
-        end
 
         # Load configuration from YAML file
         def load_config
@@ -229,24 +204,18 @@ module RAAF
         def environment_config(environment)
           env_key = environment.to_s
 
-          # Double-checked locking pattern for performance
+          # Simple caching without thread safety
           @environment_configs ||= {}
-          return @environment_configs[env_key] if @environment_configs[env_key]
+          @environment_configs[env_key] ||= begin
+            raw = raw_config
+            env_config = raw[env_key] || {}
+            defaults = raw["defaults"] || {}
 
-          mutex.synchronize do
-            @environment_configs ||= {}
-            @environment_configs[env_key] ||= begin
-              # Use internal method to avoid recursive locking
-              raw = raw_config_internal
-              env_config = raw[env_key] || {}
-              defaults = raw["defaults"] || {}
-
-              # Always merge defaults first, then layer environment-specific config on top
-              if env_config.empty?
-                defaults
-              else
-                defaults.deep_merge(env_config)
-              end
+            # Always merge defaults first, then layer environment-specific config on top
+            if env_config.empty?
+              defaults
+            else
+              defaults.deep_merge(env_config)
             end
           end
         end
