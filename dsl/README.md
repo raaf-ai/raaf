@@ -137,8 +137,8 @@ Structured prompt building with variable contracts, context mapping, and automat
 
 ```ruby
 class ContentAnalysis < RAAF::DSL::Prompts::Base
-  requires :content_type, :analysis_depth
-  requires_from_context :document_format, path: [:document, :format]
+  required :content_type, :analysis_depth
+  required :document_format, path: [:document, :format]
   
   contract_mode :strict  # Validate all variables exist
   
@@ -158,12 +158,14 @@ Orchestrate complex workflows with agent handoffs and sequential processing:
 class ContentWorkflow < RAAF::DSL::Agents::Base
   include RAAF::DSL::Agents::AgentDsl
   
-  processing_workflow do
-    extract_content
-    then_analyze_structure
-    then_categorize_topics
-    finally_generate_summary
-  end
+  # Note: processing_workflow is a conceptual example
+  # In practice, use handoffs between agents
+  # processing_workflow do
+  #   extract_content
+  #   then_analyze_structure
+  #   then_categorize_topics
+  #   finally_generate_summary
+  # end
 end
 ```
 
@@ -330,9 +332,9 @@ end
 ```ruby
 class DocumentAnalyzer < RAAF::DSL::Prompts::Base
   # Variable contracts with validation
-  requires :content_type, :depth, :focus_areas
-  requires_from_context :document_name, path: [:document, :name]
-  requires_from_context :format, path: [:document, :format], default: "PDF"
+  required :content_type, :depth, :focus_areas
+  required :document_name, path: [:document, :name]
+  required :format, path: [:document, :format], default: "PDF"
   
   # Strict validation mode
   contract_mode :strict
@@ -456,12 +458,12 @@ The DSL provides powerful path navigation to access nested context data safely:
 ```ruby
 class DocumentPrompt < RAAF::DSL::Prompts::Base
   # Map context paths to prompt variables
-  requires_from_context :document_name, path: [:document, :name]
-  requires_from_context :author, path: [:document, :metadata, :author], default: "Unknown"
-  requires_from_context :page_count, path: [:document, :pages]
+  required :document_name, path: [:document, :name]
+  required :author, path: [:document, :metadata, :author], default: "Unknown"
+  required :page_count, path: [:document, :pages]
   
   # Direct parameter requirements
-  requires :analysis_type
+  required :analysis_type
   
   def system
     <<~SYSTEM
@@ -571,11 +573,11 @@ The DSL provides comprehensive validation:
 ```ruby
 class ValidatedPrompt < RAAF::DSL::Prompts::Base
   # These will raise errors if missing
-  requires_from_context :company_name, path: [:company, :name]
-  requires_from_context :industry, path: [:company, :industry]
+  required :company_name, path: [:company, :name]
+  required :industry, path: [:company, :industry]
   
   # These are optional with defaults
-  optional_from_context :company_size, path: [:company, :size], default: "Unknown"
+  optional :company_size, path: [:company, :size], default: "Unknown"
   
   # Strict validation mode (default)
   contract_mode :strict
@@ -606,12 +608,12 @@ prompt = ValidatedPrompt.new(context: incomplete_context, variables: {})
 
 3. **Provide Meaningful Defaults**: Use defaults for optional context paths
    ```ruby
-   optional_from_context :theme, path: [:user, :preferences, :theme], default: "light"
+   optional :theme, path: [:user, :preferences, :theme], default: "light"
    ```
 
-4. **Validate Critical Data**: Use `requires_from_context` for essential data
+4. **Validate Critical Data**: Use `required` with path for essential data
    ```ruby
-   requires_from_context :api_key, path: [:credentials, :api_key]
+   required :api_key, path: [:credentials, :api_key]
    ```
 
 5. **Context Evolution**: Design contexts to grow through workflows
@@ -690,13 +692,15 @@ class ContentProcessingOrchestrator < RAAF::DSL::Agents::Base
   description "Orchestrates multi-step content analysis workflow"
   
   # Define the workflow sequence
-  processing_workflow do
-    start_with_content_extraction TextExtractionAgent
-    then_analyze_structure StructureAnalysisAgent
-    then_categorize_topics TopicCategorizationAgent
-    then_generate_summary SummaryGenerationAgent
-    finally_compile_results ReportCompilationAgent
-  end
+  # Note: processing_workflow is a conceptual example
+  # In practice, use handoffs between agents
+  # processing_workflow do
+  #   start_with_content_extraction TextExtractionAgent
+  #   then_analyze_structure StructureAnalysisAgent
+  #   then_categorize_topics TopicCategorizationAgent
+  #   then_generate_summary SummaryGenerationAgent
+  #   finally_compile_results ReportCompilationAgent
+  # end
   
   # Configure handoffs between agents
   configure_handoffs(
@@ -817,7 +821,7 @@ agent = MyAgent.new(
 1. **Ruby Prompt Classes** (Phlex-style)
    ```ruby
    class ResearchPrompt < RAAF::DSL::Prompts::Base
-     requires :topic, :depth
+     required :topic, :depth
      
      def system
        "You are a research assistant specializing in #{@topic}."
@@ -868,18 +872,18 @@ Sophisticated prompt management with contracts and validation:
 ```ruby
 class AdvancedContentAnalysis < RAAF::DSL::Prompts::Base
   # Required variables with strict validation
-  requires :analysis_depth, :focus_areas, :timeline
+  required :analysis_depth, :focus_areas, :timeline
   
   # Context mapping with nested paths and defaults
-  requires_from_context :document_name, path: [:document, :name]
-  requires_from_context :document_size, path: [:document, :pages], default: "Unknown"
-  requires_from_context :document_type, path: [:document, :type], default: "General"
-  requires_from_context :source, path: [:document, :source], default: "Not provided"
-  requires_from_context :language, path: [:document, :metadata, :language], default: "English"
+  required :document_name, path: [:document, :name]
+  required :document_size, path: [:document, :pages], default: "Unknown"
+  required :document_type, path: [:document, :type], default: "General"
+  required :source, path: [:document, :source], default: "Not provided"
+  required :language, path: [:document, :metadata, :language], default: "English"
   
   # Optional context variables
-  optional_from_context :author, path: [:document, :metadata, :author]
-  optional_from_context :created_date, path: [:document, :metadata, :created]
+  optional :author, path: [:document, :metadata, :author]
+  optional :created_date, path: [:document, :metadata, :created]
   
   # Strict contract validation - will raise errors if variables missing
   contract_mode :strict
