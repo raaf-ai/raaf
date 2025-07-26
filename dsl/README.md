@@ -334,7 +334,7 @@ class DocumentAnalyzer < RAAF::DSL::Prompts::Base
   # Variable contracts with validation
   required :content_type, :depth, :focus_areas
   required :document_name, path: [:document, :name]
-  required :format, path: [:document, :format], default: "PDF"
+  optional :format, path: [:document, :format], default: "PDF"
   
   # Strict validation mode
   contract_mode :strict
@@ -459,7 +459,7 @@ The DSL provides powerful path navigation to access nested context data safely:
 class DocumentPrompt < RAAF::DSL::Prompts::Base
   # Map context paths to prompt variables
   required :document_name, path: [:document, :name]
-  required :author, path: [:document, :metadata, :author], default: "Unknown"
+  optional :author, path: [:document, :metadata, :author], default: "Unknown"
   required :page_count, path: [:document, :pages]
   
   # Direct parameter requirements
@@ -587,8 +587,19 @@ class ValidatedPrompt < RAAF::DSL::Prompts::Base
   end
 end
 
+# Example with complete context
+complete_context = {
+  company: {
+    name: "TechCorp",
+    industry: "Software"
+  }
+}
+prompt = ValidatedPrompt.new(context: complete_context, variables: {})
+
+# Example with incomplete context - this will raise an error
+incomplete_context = { company: {} }
 # This will raise a clear error if context[:company][:name] is missing
-prompt = ValidatedPrompt.new(context: incomplete_context, variables: {})
+# prompt = ValidatedPrompt.new(context: incomplete_context, variables: {})
 ```
 
 ### Context Best Practices
@@ -685,22 +696,27 @@ The gem automatically optimizes costs across environments:
 Create complex workflows with multiple agents working together:
 
 ```ruby
+# Example agent classes (define these first)
+class TextExtractionAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Agents::AgentDsl
+  agent_name "TextExtractionAgent"
+end
+
+class StructureAnalysisAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Agents::AgentDsl
+  agent_name "StructureAnalysisAgent"
+end
+
+class SummaryGenerationAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Agents::AgentDsl
+  agent_name "SummaryGenerationAgent"
+end
+
 class ContentProcessingOrchestrator < RAAF::DSL::Agents::Base
   include RAAF::DSL::Agents::AgentDsl
 
   agent_name "ContentProcessingOrchestrator"
   description "Orchestrates multi-step content analysis workflow"
-  
-  # Define the workflow sequence
-  # Note: processing_workflow is a conceptual example
-  # In practice, use handoffs between agents
-  # processing_workflow do
-  #   start_with_content_extraction TextExtractionAgent
-  #   then_analyze_structure StructureAnalysisAgent
-  #   then_categorize_topics TopicCategorizationAgent
-  #   then_generate_summary SummaryGenerationAgent
-  #   finally_compile_results ReportCompilationAgent
-  # end
   
   # Configure handoffs between agents
   configure_handoffs(
@@ -876,10 +892,10 @@ class AdvancedContentAnalysis < RAAF::DSL::Prompts::Base
   
   # Context mapping with nested paths and defaults
   required :document_name, path: [:document, :name]
-  required :document_size, path: [:document, :pages], default: "Unknown"
-  required :document_type, path: [:document, :type], default: "General"
-  required :source, path: [:document, :source], default: "Not provided"
-  required :language, path: [:document, :metadata, :language], default: "English"
+  optional :document_size, path: [:document, :pages], default: "Unknown"
+  optional :document_type, path: [:document, :type], default: "General"
+  optional :source, path: [:document, :source], default: "Not provided"
+  optional :language, path: [:document, :metadata, :language], default: "English"
   
   # Optional context variables
   optional :author, path: [:document, :metadata, :author]
@@ -1060,7 +1076,9 @@ Works seamlessly with Rails deployment patterns:
 rails console
 
 # Use agents directly in console
-agent = DocumentAnalyzer.new(context: {...}, **params)
+context = { document: { name: "report.pdf", format: "PDF" } }
+params = { processing_params: {} }
+agent = DocumentAnalyzer.new(context: context, **params)
 result = agent.run
 
 # Access configuration
