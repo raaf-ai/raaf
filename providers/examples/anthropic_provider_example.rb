@@ -12,7 +12,7 @@ require "raaf-providers"
 # Anthropic requires an API key for authentication
 # Sign up at https://console.anthropic.com to get your key
 unless ENV["ANTHROPIC_API_KEY"]
-  puts "ERROR: ANTHROPIC_API_KEY environment variable is required"
+  puts "ERROR: API key not set - ANTHROPIC_API_KEY"
   puts "Please set it with: export ANTHROPIC_API_KEY='your-api-key'"
   puts "Get your API key from: https://console.anthropic.com/account/keys"
   exit 1

@@ -11,8 +11,8 @@ require "raaf-providers"
 
 # Groq requires an API key for authentication
 # Sign up at https://console.groq.com to get your key
-unless ENV["GROQ_API_KEY"]
-  puts "ERROR: GROQ_API_KEY environment variable is required"
+if !ENV["GROQ_API_KEY"] && ENV["RAAF_TEST_MODE"] != "true"
+  puts "ERROR: API key not set - GROQ_API_KEY"
   puts "Please set it with: export GROQ_API_KEY='your-api-key'"
   puts "Get your API key from: https://console.groq.com/keys"
   exit 1
@@ -42,7 +42,7 @@ test_prompt = "Explain what makes Groq different from other AI providers in one 
 start_time = Time.now
 response = provider.chat_completion(
   messages: [{ role: "user", content: test_prompt }],
-  model: "llama3-8b-8192" # Groq's optimized Llama 3 model
+  model: "llama-3.1-8b-instant" # Groq's optimized Llama 3 model
 )
 end_time = Time.now
 
@@ -58,7 +58,7 @@ puts "2. Comparing different Groq models:"
 
 # Test different models available on Groq
 groq_models = [
-  { model: "llama3-8b-8192", name: "Llama 3 8B (Fast, General Purpose)" },
+  { model: "llama-3.1-8b-instant", name: "Llama 3 8B (Fast, General Purpose)" },
   { model: "llama3-70b-8192", name: "Llama 3 70B (Most Capable)" },
   { model: "mixtral-8x7b-32768", name: "Mixtral 8x7B (Long Context)" },
   { model: "gemma-7b-it", name: "Gemma 7B (Google's Model)" }
@@ -116,7 +116,7 @@ end
 speed_agent = RAAF::Agent.new(
   name: "GroqSpeedAgent",
   instructions: "You are a high-speed utility assistant. Provide quick, concise responses. Use tools for calculations and analysis.",
-  model: "llama3-8b-8192" # Fast model for utility tasks
+  model: "llama-3.1-8b-instant" # Fast model for utility tasks
 )
 
 # Add utility tools
@@ -152,7 +152,7 @@ puts "Streaming: "
 # Stream completion for ultra-fast real-time output
 provider.stream_completion(
   messages: [{ role: "user", content: "List the top 5 programming languages and briefly explain each." }],
-  model: "llama3-8b-8192"
+  model: "llama-3.1-8b-instant"
 ) do |chunk|
   # Process streaming chunks as they arrive
   if chunk["choices"] && chunk["choices"][0]["delta"]["content"]
@@ -185,7 +185,7 @@ batch_requests.each_with_index do |request, index|
   start_time = Time.now
   response = provider.chat_completion(
     messages: [{ role: "user", content: request }],
-    model: "llama3-8b-8192"
+    model: "llama-3.1-8b-instant"
   )
   elapsed = Time.now - start_time
 
@@ -257,7 +257,7 @@ analysis_agent = RAAF::Agent.new(
 groq_agent = RAAF::Agent.new(
   name: "GroqSpeedAgent",
   instructions: "You provide ultra-fast responses using Groq. Be concise and quick.",
-  model: "llama3-8b-8192"
+  model: "llama-3.1-8b-instant"
 )
 
 # Configure handoff
@@ -289,7 +289,7 @@ puts "8. Performance monitoring with Groq:"
 traced_agent = RAAF::Agent.new(
   name: "TracedGroqAgent",
   instructions: "You are a performance-monitored agent using Groq.",
-  model: "llama3-8b-8192"
+  model: "llama-3.1-8b-instant"
 )
 
 # Setup tracing

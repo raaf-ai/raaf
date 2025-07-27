@@ -26,7 +26,7 @@ providers_config.each do |provider, config|
   if config[:key]
     available_providers << provider
   elsif config[:required]
-    puts "ERROR: #{provider.to_s.upcase}_API_KEY is required"
+    puts "ERROR: API key not set - #{provider.to_s.upcase}_API_KEY"
     exit 1
   else
     puts "Note: #{provider.to_s.upcase}_API_KEY not set, skipping #{provider} examples"

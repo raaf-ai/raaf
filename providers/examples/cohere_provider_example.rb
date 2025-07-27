@@ -11,8 +11,8 @@ require "raaf-providers"
 
 # Cohere requires an API key for authentication
 # Sign up at https://cohere.com to get your key
-unless ENV["COHERE_API_KEY"]
-  puts "ERROR: COHERE_API_KEY environment variable is required"
+if !ENV["COHERE_API_KEY"] && ENV["RAAF_TEST_MODE"] != "true"
+  puts "ERROR: API key not set - COHERE_API_KEY"
   puts "Please set it with: export COHERE_API_KEY='your-api-key'"
   puts "Get your API key from: https://dashboard.cohere.com/api-keys"
   exit 1

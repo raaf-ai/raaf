@@ -11,8 +11,8 @@ require "raaf-providers"
 
 # Together AI requires an API key for authentication
 # Sign up at https://together.ai to get your key
-unless ENV["TOGETHER_API_KEY"]
-  puts "ERROR: TOGETHER_API_KEY environment variable is required"
+if !ENV["TOGETHER_API_KEY"] && ENV["RAAF_TEST_MODE"] != "true"
+  puts "ERROR: API key not set - TOGETHER_API_KEY"
   puts "Please set it with: export TOGETHER_API_KEY='your-api-key'"
   puts "Get your API key from: https://together.ai/api-keys"
   exit 1
