@@ -8,11 +8,15 @@ inputs:
     description: 'Whether to install bundle dependencies for all gems'
     required: false
     default: 'true'
+  skip-gem-dependencies:
+    description: 'Skip installing gem dependencies (for validation tasks)'
+    required: false
+    default: 'false'
 runs:
   using: 'composite'
   steps:
     - name: Install gem dependencies
-      if: inputs.install-dependencies == 'true'
+      if: inputs.install-dependencies == 'true' && inputs.skip-gem-dependencies == 'false'
       shell: bash
       run: |
         # Determine which gems need to be installed based on target
@@ -50,6 +54,47 @@ runs:
             fi
             ;;
         esac
+    
+    - name: Install only external dependencies (skip raaf-* gems)
+      if: inputs.install-dependencies == 'true' && inputs.skip-gem-dependencies == 'true'
+      shell: bash
+      run: |
+        # For validation tasks, we need external gems but not raaf-* dependencies
+        echo "Installing only external dependencies for ${{ inputs.target-gem }}"
+        
+        if [ -d "${{ inputs.target-gem }}" ]; then
+          cd "${{ inputs.target-gem }}"
+          
+          # Install dependencies directly without Bundler to avoid dependency resolution issues
+          echo "Installing dependencies without bundler for validation"
+          
+          # Read required gems from gemspec (excluding raaf-* gems)
+          ruby -e "
+            spec = Gem::Specification.load(Dir.glob('*.gemspec').first)
+            spec.runtime_dependencies.each do |dep|
+              next if dep.name.start_with?('raaf-')
+              system('gem install', dep.name, '-v', dep.requirement.to_s)
+            end
+            spec.development_dependencies.each do |dep|
+              next if dep.name.start_with?('raaf-')
+              system('gem install', dep.name, '-v', dep.requirement.to_s)
+            end
+          "
+          
+          # Also install test dependencies from Gemfile
+          if [ -f "Gemfile" ]; then
+            # Extract and install non-raaf gems from Gemfile
+            ruby -e "
+              require 'bundler'
+              gemfile = Bundler::Definition.build('Gemfile', 'Gemfile.lock', nil)
+              gemfile.dependencies.each do |dep|
+                next if dep.name.start_with?('raaf-')
+                next if dep.source&.options&.key?(:path)  # Skip path dependencies
+                system('gem install', dep.name) rescue nil
+              end
+            " || true
+          fi
+        fi
     
     - name: Setup Ruby load paths
       shell: bash
