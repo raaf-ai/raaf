@@ -128,13 +128,12 @@ jobs:
       with:
         target-gem: dsl
 
-    - name: Validate DSL examples and README
+    - name: Validate DSL examples only
       run: |
         cd dsl
-        bundle exec rake examples:validate_test
+        RAAF_TEST_MODE=true bundle exec rake code:validate_examples
       env:
         CI: true
-        RAAF_TEST_MODE: true
         # Note: Using test mode to avoid requiring real API keys in CI
         # This validates example structure, syntax, and basic functionality
 
@@ -146,11 +145,47 @@ jobs:
         path: dsl/example_validation_report.json
         retention-days: 7
 
+  # Stage 3b: Documentation validation (separate job)
+  documentation-validation:
+    name: "📚 Documentation Validation"
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Setup RAAF environment
+      uses: ./.github/actions/setup-raaf-env
+      with:
+        target-gem: dsl
+
+    - name: Validate DSL documentation code blocks
+      run: |
+        cd dsl
+        RAAF_TEST_MODE=true bundle exec rake code:validate_documentation
+      env:
+        CI: true
+        # This validates all code blocks in markdown files
+
+    - name: Upload documentation validation report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: documentation-validation-report
+        path: dsl/documentation_validation_report.json
+        retention-days: 7
+
   # Stage 4: Build verification (package validation)
   build:
     name: "📦 Build Gem"
     runs-on: ubuntu-latest
-    needs: [test, example-validation]
+    needs: [test, example-validation, documentation-validation]
     
     steps:
     - uses: actions/checkout@v4

@@ -329,17 +329,16 @@ jobs:
     - name: Validate DSL examples
       run: |
         cd dsl
-        # Test that DSL examples can be loaded and validated
-        for example in examples/*_example.rb; do
-          if [ -f "$example" ]; then
-            echo "Validating $example..."
-            ruby -c "$example" || exit 1
-          fi
-        done
-        echo "All DSL examples validated successfully"
+        RAAF_TEST_MODE=true bundle exec rake code:validate_examples
       env:
         CI: true
-        RAAF_TEST_MODE: true
+    
+    - name: Validate DSL documentation
+      run: |
+        cd dsl
+        RAAF_TEST_MODE=true bundle exec rake code:validate_documentation
+      env:
+        CI: true
 
     - name: Generate documentation
       run: |
@@ -422,11 +421,13 @@ jobs:
         fi
         
         # Documentation results
-        echo "### 📚 Documentation Validation" >> $GITHUB_STEP_SUMMARY
+        echo "### 📚 Documentation & Examples Validation" >> $GITHUB_STEP_SUMMARY
         if [[ "${{ needs.docs-validation.result }}" == "success" ]]; then
-          echo "✅ **Documentation validation**: PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Documentation & examples validation**: PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "  - ✓ Example files validated" >> $GITHUB_STEP_SUMMARY
+          echo "  - ✓ Documentation code blocks validated" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **Documentation validation**: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Documentation & examples validation**: FAILED" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY

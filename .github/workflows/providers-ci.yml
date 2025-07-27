@@ -143,10 +143,10 @@ jobs:
       with:
         target-gem: providers
 
-    - name: Validate provider examples
+    - name: Validate provider examples only
       run: |
         cd providers
-        bundle exec rake examples:validate_test
+        RAAF_TEST_MODE=true bundle exec rake code:validate_examples
       env:
         CI: true
         RAAF_TEST_MODE: true
@@ -159,6 +159,47 @@ jobs:
       with:
         name: example-validation-report
         path: providers/example_validation_report.json
+        retention-days: 7
+
+  # Stage 3b: Documentation validation (separate job)
+  documentation-validation:
+    name: "📚 Documentation Validation"
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: true
+
+    - name: Install dependencies (Providers gem)
+      run: |
+        cd providers
+        bundle install
+
+    - name: Setup RAAF environment
+      uses: ./.github/actions/setup-raaf-env
+      with:
+        target-gem: providers
+
+    - name: Validate provider documentation code blocks
+      run: |
+        cd providers
+        RAAF_TEST_MODE=true bundle exec rake code:validate_documentation
+      env:
+        CI: true
+        # This validates all code blocks in markdown files
+
+    - name: Upload documentation validation report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: documentation-validation-report
+        path: providers/documentation_validation_report.json
         retention-days: 7
 
   integration-tests:
@@ -208,7 +249,7 @@ jobs:
   build:
     name: "📦 Build Gem"
     runs-on: ubuntu-latest
-    needs: [example-validation, integration-tests]  # Build after example validation and integration tests pass
+    needs: [example-validation, documentation-validation, integration-tests]  # Build after all validations and integration tests pass
     
     steps:
     - uses: actions/checkout@v4
