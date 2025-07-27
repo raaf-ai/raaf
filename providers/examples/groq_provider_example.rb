@@ -7,7 +7,7 @@
 # enabling cost optimization, speed optimization, and provider redundancy.
 # Groq excels at high-throughput, low-latency applications requiring fast responses.
 
-require_relative "../lib/raaf"
+require_relative "../lib/raaf-providers"
 
 # Groq requires an API key for authentication
 # Sign up at https://console.groq.com to get your key

@@ -9,7 +9,7 @@
 # flexibility, and comparing model performance across providers.
 
 require "bundler/setup"
-require "raaf"
+require_relative "../lib/raaf-providers"
 
 # LiteLLM must be running as a proxy server to handle requests
 # Install: pip install litellm

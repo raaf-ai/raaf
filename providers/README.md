@@ -70,12 +70,12 @@ bundle install
 require 'raaf-providers'
 
 # OpenAI Provider
-openai = RAAF::Providers::OpenAI.new(
+openai = RAAF::Models::OpenAIProvider.new(
   api_key: ENV['OPENAI_API_KEY']
 )
 
 # Anthropic Provider
-anthropic = RAAF::Providers::Anthropic.new(
+anthropic = RAAF::Models::AnthropicProvider.new(
   api_key: ENV['ANTHROPIC_API_KEY']
 )
 
@@ -92,91 +92,88 @@ runner = RAAF::Runner.new(
 )
 ```
 
-### Provider Factory
+### Multi-Provider Support
 
 ```ruby
-# Create provider from configuration
-provider = RAAF::Providers::Factory.create(:openai) do |config|
-  config.api_key = ENV['OPENAI_API_KEY']
-  config.model = 'gpt-4o'
-  config.max_tokens = 4000
-end
+# Automatic provider selection based on model
+provider = RAAF::Models::MultiProvider.auto_provider(model: "claude-3-sonnet")
+provider = RAAF::Models::MultiProvider.auto_provider(model: "gpt-4o")
 
-# Create from string
-provider = RAAF::Providers::Factory.from_string('openai://gpt-4o')
+# Create specific provider with custom options
+anthropic = RAAF::Models::MultiProvider.create_provider("anthropic", api_key: "custom-key")
+groq = RAAF::Models::MultiProvider.create_provider("groq", timeout: 30)
 
-# Create from URL
-provider = RAAF::Providers::Factory.from_url('https://api.openai.com/v1')
+# List available providers
+puts "Available providers: #{RAAF::Models::MultiProvider.supported_providers}"
 ```
 
-### Multi-Provider Configuration
+### Using Different Providers
 
 ```ruby
-# Configure multiple providers
-RAAF::Providers.configure do |config|
-  config.register :openai do |openai|
-    openai.api_key = ENV['OPENAI_API_KEY']
-    openai.models = ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
-  end
-  
-  config.register :anthropic do |anthropic|
-    anthropic.api_key = ENV['ANTHROPIC_API_KEY']
-    anthropic.models = ['claude-3-opus', 'claude-3-sonnet']
-  end
-  
-  config.register :cohere do |cohere|
-    cohere.api_key = ENV['COHERE_API_KEY']
-    cohere.models = ['command-r-plus', 'command-r']
-  end
-end
+# Create different providers
+anthropic = RAAF::Models::AnthropicProvider.new(
+  api_key: ENV['ANTHROPIC_API_KEY']
+)
+
+cohere = RAAF::Models::CohereProvider.new(
+  api_key: ENV['COHERE_API_KEY']
+)
+
+groq = RAAF::Models::GroqProvider.new(
+  api_key: ENV['GROQ_API_KEY']
+)
+
+# Use with agents
+agent = RAAF::Agent.new(
+  name: "Assistant",
+  instructions: "You are a helpful assistant",
+  model: "claude-3-sonnet"  # or "command-r", "llama3-8b-8192", etc.
+)
+
+runner = RAAF::Runner.new(
+  agent: agent,
+  provider: anthropic  # or cohere, groq, etc.
+)
 ```
 
 ### Provider Switching
 
 ```ruby
 # Switch providers at runtime
+openai = RAAF::Models::OpenAIProvider.new
+anthropic = RAAF::Models::AnthropicProvider.new
+
 runner = RAAF::Runner.new(agent: agent)
 
 # Use OpenAI
-runner.provider = RAAF::Providers.get(:openai)
+runner.provider = openai
 result1 = runner.run("Hello")
 
-# Switch to Anthropic
-runner.provider = RAAF::Providers.get(:anthropic)
+# Switch to Anthropic  
+runner.provider = anthropic
 result2 = runner.run("Hello")
 ```
 
-### Load Balancing
+### Retry Logic
 
 ```ruby
-# Configure load balancing across providers
-balancer = RAAF::Providers::LoadBalancer.new do |config|
-  config.add_provider(:openai, weight: 70)
-  config.add_provider(:anthropic, weight: 20)
-  config.add_provider(:cohere, weight: 10)
-  config.strategy = :weighted_round_robin
+# Add retry logic to any provider
+base_provider = RAAF::Models::OpenAIProvider.new
+retryable_provider = RAAF::Models::RetryableProviderWrapper.new(base_provider) do |config|
+  config.max_retries = 3
+  config.initial_delay = 1.0
+  config.backoff_multiplier = 2.0
+  config.max_delay = 60.0
+  config.retry_on = [
+    RAAF::Errors::RateLimitError,
+    RAAF::Errors::ServiceUnavailableError,
+    Net::TimeoutError
+  ]
 end
 
 runner = RAAF::Runner.new(
   agent: agent,
-  provider: balancer
-)
-```
-
-### Failover Configuration
-
-```ruby
-# Configure automatic failover
-failover = RAAF::Providers::Failover.new do |config|
-  config.primary_provider = :openai
-  config.fallback_providers = [:anthropic, :cohere]
-  config.retry_attempts = 3
-  config.retry_delay = 1.0
-end
-
-runner = RAAF::Runner.new(
-  agent: agent,
-  provider: failover
+  provider: retryable_provider
 )
 ```
 
@@ -185,7 +182,7 @@ runner = RAAF::Runner.new(
 ### OpenAI Features
 
 ```ruby
-openai = RAAF::Providers::OpenAI.new do |config|
+openai = RAAF::Models::OpenAIProvider.new do |config|
   config.api_key = ENV['OPENAI_API_KEY']
   config.organization = ENV['OPENAI_ORG_ID']
   config.use_responses_api = true  # Use new Responses API
@@ -208,7 +205,7 @@ result = openai.chat_completion(
 ### Anthropic Features
 
 ```ruby
-anthropic = RAAF::Providers::Anthropic.new do |config|
+anthropic = RAAF::Models::AnthropicProvider.new do |config|
   config.api_key = ENV['ANTHROPIC_API_KEY']
   config.max_tokens = 4000
   config.streaming = true
@@ -227,7 +224,7 @@ result = anthropic.chat_completion(
 ### Cohere Features
 
 ```ruby
-cohere = RAAF::Providers::Cohere.new do |config|
+cohere = RAAF::Models::CohereProvider.new do |config|
   config.api_key = ENV['COHERE_API_KEY']
   config.temperature = 0.7
   config.max_tokens = 4000
@@ -284,25 +281,22 @@ result = cohere.chat_completion(
 ### Core Components
 
 ```
-RAAF::Providers::
-├── Base                     # Base provider class
-├── OpenAI                   # OpenAI provider implementation
-├── Anthropic               # Anthropic provider implementation
-├── Cohere                  # Cohere provider implementation
-├── Groq                    # Groq provider implementation
-├── Mistral                 # Mistral provider implementation
-├── GoogleAI                # Google AI provider implementation
-├── Factory                 # Provider factory
-├── LoadBalancer           # Load balancing across providers
-├── Failover               # Failover and retry logic
-├── RateLimit              # Rate limiting and throttling
-└── Registry               # Provider registry and management
+RAAF::Models::
+├── ModelInterface           # Base provider interface (from raaf-core)
+├── OpenAIProvider          # OpenAI provider implementation
+├── AnthropicProvider       # Anthropic provider implementation
+├── CohereProvider          # Cohere provider implementation
+├── GroqProvider            # Groq provider implementation
+├── TogetherProvider        # Together AI provider implementation
+├── LitellmProvider         # LiteLLM provider implementation
+├── MultiProvider           # Multi-provider support with auto-selection
+└── RetryableProviderWrapper # Retry wrapper (from raaf-core)
 ```
 
 ### Provider Interface
 
 ```ruby
-class CustomProvider < RAAF::Providers::Base
+class CustomProvider < RAAF::Models::ModelInterface
   def chat_completion(messages:, model:, **options)
     # Implementation
   end
@@ -327,7 +321,7 @@ end
 
 ```ruby
 # Create custom provider
-class MyCustomProvider < RAAF::Providers::Base
+class MyCustomProvider < RAAF::Models::ModelInterface
   def initialize(api_key:, base_url:)
     @api_key = api_key
     @base_url = base_url
@@ -352,43 +346,41 @@ class MyCustomProvider < RAAF::Providers::Base
   end
 end
 
-# Register custom provider
-RAAF::Providers.register(:custom, MyCustomProvider)
+# Use custom provider
+custom_provider = MyCustomProvider.new(
+  api_key: ENV['CUSTOM_API_KEY'],
+  base_url: "https://api.custom-llm.com/v1"
+)
+
+runner = RAAF::Runner.new(agent: agent, provider: custom_provider)
 ```
 
-### Provider Middleware
+### Cost Optimization Strategy
 
 ```ruby
-# Add middleware to providers
-class LoggingMiddleware < RAAF::Providers::Middleware
-  def call(request, response)
-    log_info("Provider request", provider: request.provider, model: request.model)
-    yield
-    log_info("Provider response", tokens: response.usage.total_tokens)
+# Route requests based on cost and capability
+class CostOptimizedProvider
+  def initialize
+    @providers = {
+      cheap: RAAF::Models::GroqProvider.new,       # Fast, cheap
+      balanced: RAAF::Models::OpenAIProvider.new,  # Good balance
+      premium: RAAF::Models::AnthropicProvider.new # Best quality
+    }
+  end
+  
+  def route_request(complexity_score)
+    case complexity_score
+    when 0..3 then @providers[:cheap]
+    when 4..7 then @providers[:balanced]
+    else @providers[:premium]
+    end
   end
 end
 
-provider.use(LoggingMiddleware)
-```
-
-### Cost Optimization
-
-```ruby
-# Configure cost-based provider selection
-optimizer = RAAF::Providers::CostOptimizer.new do |config|
-  config.budget_limit = 100.0  # $100 per day
-  config.cost_per_token = {
-    'gpt-4o' => 0.00003,
-    'gpt-3.5-turbo' => 0.000002,
-    'claude-3-sonnet' => 0.000015
-  }
-  config.optimization_strategy = :cost_performance_balance
-end
-
-runner = RAAF::Runner.new(
-  agent: agent,
-  provider: optimizer
-)
+# Usage
+optimizer = CostOptimizedProvider.new
+provider = optimizer.route_request(task_complexity)
+runner = RAAF::Runner.new(agent: agent, provider: provider)
 ```
 
 ## Best Practices
@@ -412,7 +404,7 @@ bundle exec rspec
 
 ```ruby
 # Test provider implementations
-RSpec.describe RAAF::Providers::OpenAI do
+RSpec.describe RAAF::Models::OpenAIProvider do
   include RAAF::Testing::ProviderMatchers
   
   it "supports chat completion" do

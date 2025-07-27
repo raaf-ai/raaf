@@ -7,7 +7,7 @@
 # The multi-provider architecture allows seamless switching between AI providers,
 # enabling model diversity, cost optimization, and specialized capabilities.
 
-require_relative "../lib/raaf"
+require_relative "../lib/raaf-providers"
 
 # Together AI requires an API key for authentication
 # Sign up at https://together.ai to get your key
