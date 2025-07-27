@@ -65,12 +65,14 @@ Each gem had its own validation approach:
 ### After
 All gems use the same shared validation tool:
 ```ruby
-# In Rakefile
-$LOAD_PATH.unshift(File.expand_path("../shared/lib", __dir__))
-require "raaf/shared/tasks"
-RAAF::Shared::Tasks.load("examples")
-
-task ci: [:spec, :rubocop, "examples:validate_test"]
+# In Rakefile (requires Rake to be loaded)
+# This is an example of Rakefile content, not standalone Ruby code
+#
+# $LOAD_PATH.unshift(File.expand_path("../shared/lib", __dir__))
+# require "raaf/shared/tasks"
+# RAAF::Shared::Tasks.load("examples")
+#
+# task ci: [:spec, :rubocop, "examples:validate_test"]
 ```
 
 ## Benefits

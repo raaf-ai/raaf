@@ -59,7 +59,7 @@ If you were using content-based handoffs:
 ### Old Pattern (No Longer Supported)
 ```ruby
 # This will NOT work anymore:
-"I'll transfer you to billing. {"handoff_to": "BillingAgent"}"
+"I'll transfer you to billing. {\"handoff_to\": \"BillingAgent\"}"
 ```
 
 ### New Pattern (Tool-Based Only)

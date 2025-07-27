@@ -158,11 +158,20 @@ end
 agent = RAAF::Agent.new(
   name: "ProductAgent",
   instructions: "Generate product information",
-  model: "gpt-4o"
+  model: "gpt-4o",
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "product_info",
+      strict: true,
+      schema: schema.to_h
+    }
+  }
 )
 
-# Schema validation happens automatically
-result = runner.run("Create product info for iPhone", schema: schema)
+# Create runner and execute
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("Create product info for iPhone")
 ```
 
 ## Configuration

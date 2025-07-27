@@ -2,9 +2,9 @@
 
 This directory contains shared tools and utilities that are used across all RAAF gems.
 
-## Example Validator
+## Code Validator
 
-The `RAAF::Shared::ExampleValidator` provides a consistent way to validate example files and README code blocks across all gems.
+The `RAAF::Shared::CodeValidator` provides a consistent way to validate example files and code blocks in all markdown documentation across all gems.
 
 ### Usage in Your Gem
 
@@ -14,36 +14,36 @@ The `RAAF::Shared::ExampleValidator` provides a consistent way to validate examp
 # In your gem's Rakefile
 $LOAD_PATH.unshift(File.expand_path("../shared/lib", __dir__))
 require "raaf/shared/tasks"
-RAAF::Shared::Tasks.load("examples")
+RAAF::Shared::Tasks.load("code")
 ```
 
 2. Available rake tasks:
 
 ```bash
-# Validate all examples (requires real API keys)
-bundle exec rake examples:validate
+# Validate all code examples (requires real API keys)
+bundle exec rake code:validate
 
-# Validate examples in test mode (no real API calls)
-bundle exec rake examples:validate_test
+# Validate code examples in test mode (no real API calls)
+bundle exec rake code:validate_test
 
-# Validate only syntax of examples
-bundle exec rake examples:validate_syntax
+# Validate only syntax of code examples
+bundle exec rake code:validate_syntax
 
 # List all example files
-bundle exec rake examples:list
+bundle exec rake code:list
 
 # Run a specific example
-bundle exec rake examples:run[example_name.rb]
+bundle exec rake code:run[example_name.rb]
 ```
 
 3. CI Integration:
 
 ```yaml
 # In your GitHub Actions workflow
-- name: Validate examples and README
+- name: Validate code examples in all markdown files
   run: |
     cd your-gem
-    bundle exec rake examples:validate_test
+    bundle exec rake code:validate_test
   env:
     CI: true
     RAAF_TEST_MODE: true
@@ -118,7 +118,7 @@ This will:
 ```ruby
 # In your Rakefile
 desc "Run all CI checks"
-task ci: [:spec, :rubocop, "examples:validate_test"]
+task ci: [:spec, :rubocop, "code:validate_test"]
 ```
 
 5. Update your GitHub Actions workflow to use the rake task

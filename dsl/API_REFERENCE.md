@@ -12,6 +12,9 @@ Base class for all AI agents. Provides the foundation for creating intelligent A
 
 ```ruby
 def initialize(context:, processing_params:)
+  @context = context
+  @processing_params = processing_params
+end
 ```
 
 **Parameters:**
@@ -158,6 +161,8 @@ Base class for structured prompt management with variable contracts and context 
 
 ```ruby
 def initialize(**kwargs)
+  @variables = kwargs
+end
 ```
 
 **Parameters:**
@@ -174,7 +179,15 @@ Declares required variables for the prompt.
 **Example:**
 ```ruby
 class MyPrompt < RAAF::DSL::Prompts::Base
-  requires :company_name, :analysis_type
+  required :company_name, :analysis_type
+  
+  def system
+    "System prompt with #{@company_name}"
+  end
+  
+  def user
+    "User prompt for #{@analysis_type}"
+  end
 end
 ```
 
@@ -301,7 +314,8 @@ Reloads configuration from the YAML file.
 **Example:**
 ```ruby
 # Useful in development when config file changes
-RAAF::DSL::Config.reload!
+config = RAAF::DSL::Config.reload!
+puts "Config reloaded: #{config.inspect}"
 ```
 
 ---
@@ -314,6 +328,8 @@ Base class for AI tool integration.
 
 ```ruby
 def initialize(**options)
+  @options = options
+end
 ```
 
 **Parameters:**

@@ -12,9 +12,9 @@ The unified processing system consolidates step processing into atomic operation
 ```ruby
 step_result = StepResult.new(
   original_input: "Hello",
-  model_response: {...},
-  pre_step_items: [...],
-  new_step_items: [...],
+  model_response: {},
+  pre_step_items: [],
+  new_step_items: [],
   next_step: NextStepRunAgain.new
 )
 
@@ -27,11 +27,11 @@ step_result.handoff_occurred? # true/false
 ### 2. ProcessedResponse (Response Categorization)
 ```ruby
 processed = ProcessedResponse.new(
-  new_items: [...],
-  handoffs: [...],
-  functions: [...],
-  computer_actions: [...],
-  local_shell_calls: [...],
+  new_items: [],
+  handoffs: [],
+  functions: [],
+  computer_actions: [],
+  local_shell_calls: [],
   tools_used: ["get_weather", "transfer_to_agent"]
 )
 
@@ -107,7 +107,7 @@ The system provides comprehensive error handling:
 
 ```ruby
 begin
-  step_result = processor.execute_step(...)
+  step_result = processor.execute_step(messages, input)
 rescue RAAF::Errors::ModelBehaviorError => e
   # Handle model issues
   puts "Model error: #{e.message}"

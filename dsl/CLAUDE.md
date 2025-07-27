@@ -22,16 +22,21 @@ agent = RAAF::DSL::AgentBuilder.build do
   instructions "You help users search the web"
   model "gpt-4o"
   
-  tool :web_search do |query|
-    RAAF::DSL::Tools::WebSearch.search(query)
+  # Add a custom web search tool
+  tool :web_search do
+    description "Search the web for information"
+    parameter :query, type: :string, required: true
+    
+    execute do |query:|
+      # Web search implementation
+      { results: ["Result 1", "Result 2"] }
+    end
   end
 end
 
-# Run with context
-result = agent.run("Search for Ruby programming tutorials") do
-  context_variable :max_results, 5
-  context_variable :search_engine, "google"
-end
+# Run the agent with a runner
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("Search for Ruby programming tutorials")
 ```
 
 ## Core Components
@@ -86,6 +91,13 @@ calculator = RAAF::DSL::ToolBuilder.build do
   end
 end
 
+# Create an agent and add the tool
+agent = RAAF::DSL::AgentBuilder.build do
+  name "MathAgent"
+  instructions "You help with mathematical calculations"
+  model "gpt-4o"
+end
+
 agent.add_tool(calculator)
 ```
 
@@ -106,7 +118,7 @@ end
 
 # PREFERRED: Ruby prompt classes (Phlex-style)
 class ResearchPrompt < RAAF::DSL::Prompts::Base
-  requires :topic, :depth
+  required :topic, :depth
   optional :language, default: "English"
   
   def system
@@ -121,12 +133,21 @@ class ResearchPrompt < RAAF::DSL::Prompts::Base
   end
 end
 
-# Use prompts in agents
+# Use prompts in agents via a custom agent class
+class ResearchAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Agents::AgentDsl
+  
+  agent_name "researcher"
+  prompt_class ResearchPrompt  # Preferred: Ruby class
+  # prompt_class "research.md"  # Alternative: Markdown file
+  # prompt_class "analysis.md.erb"  # Alternative: ERB template
+end
+
+# Or with simple instructions
 agent = RAAF::DSL::AgentBuilder.build do
   name "Researcher"
-  prompt ResearchPrompt  # Preferred: Ruby class
-  # prompt "research.md"  # Alternative: Markdown file
-  # prompt "analysis.md.erb"  # Alternative: ERB template
+  instructions "You are a research assistant"
+  model "gpt-4o"
 end
 ```
 
@@ -192,21 +213,30 @@ end
 ## RSpec Integration
 
 ```ruby
-# In spec files
-require 'raaf-dsl/rspec'
+# Example RSpec test file (e.g., spec/agent_spec.rb)
+# This shows how to use RAAF DSL in RSpec tests
 
-RSpec.describe "Agent behavior" do
-  it "should handle web search" do
-    agent = build_agent do
-      name "TestAgent"
-      use_web_search
-    end
-    
-    result = agent.run("Search for Ruby news")
-    expect(result).to have_used_tool(:web_search)
-    expect(result).to have_successful_completion
-  end
-end
+# require 'spec_helper'
+# require 'raaf-testing' # For RSpec matchers
+# 
+# RSpec.describe "Agent behavior" do
+#   it "should handle web search" do
+#     agent = RAAF::DSL::AgentBuilder.build do
+#       name "TestAgent"
+#       instructions "You search the web"
+#       model "gpt-4o"
+#       
+#       tool :web_search do
+#         description "Search the web"
+#         parameter :query, type: :string, required: true
+#         execute { |query:| { results: ["Result 1", "Result 2"] } }
+#       end
+#     end
+#     
+#     runner = RAAF::Runner.new(agent: agent)
+#     # Test agent behavior here
+#   end
+# end
 ```
 
 ## Environment Variables
