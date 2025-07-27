@@ -9,14 +9,14 @@ require "shellwords"
 module RAAF
   module Shared
     ##
-    # Generic example validator for RAAF gems
+    # Generic code validator for RAAF gems
     #
     # This validator can be used across all RAAF gems to validate
-    # example files and README code blocks. It provides a consistent
-    # interface for running examples with proper error handling and
-    # reporting.
+    # example files and code blocks in all markdown documentation.
+    # It provides a consistent interface for running code examples
+    # with proper error handling and reporting.
     #
-    class ExampleValidator
+    class CodeValidator
       attr_reader :results, :config, :gem_name, :gem_dir
 
       ##
@@ -45,12 +45,22 @@ module RAAF
       # @return [Integer] Exit code (0 for success, 1 for failure)
       #
       def run
-        puts "🧪 RAAF #{gem_name.upcase} Example Validation"
+        puts "🧪 RAAF #{gem_name.upcase} Code Validation"
         puts "=" * 50
 
         validate_environment
-        find_and_validate_examples
-        validate_readme_examples if config[:validate_readme]
+        
+        case config[:validation_mode]
+        when :examples_only
+          find_and_validate_examples
+        when :documentation_only
+          validate_markdown_examples
+        else
+          # Default: validate both
+          find_and_validate_examples
+          validate_markdown_examples if config[:validate_markdown]
+        end
+        
         generate_report
 
         exit_code
@@ -92,8 +102,8 @@ module RAAF
           # Run in CI mode (stricter validation)
           ci_mode: ENV.fetch("CI", "false") == "true",
 
-          # Validate README examples
-          validate_readme: true,
+          # Validate markdown documentation examples
+          validate_markdown: true,
 
           # Required environment variables
           required_env: [],
@@ -106,6 +116,9 @@ module RAAF
 
           # Test mode - use dummy API keys
           test_mode: ENV.fetch("RAAF_TEST_MODE", "false") == "true",
+          
+          # Validation mode: :all (default), :examples_only, :documentation_only
+          validation_mode: :all,
 
           # Success patterns in output
           success_patterns: [
@@ -317,8 +330,16 @@ module RAAF
       def build_execution_command(file_path)
         # Build require paths
         require_args = config[:require_paths].map { |path| "-I #{path}" }.join(" ")
+        
+        # Add all RAAF gem paths to support cross-gem dependencies
+        raaf_root = File.expand_path("../../../../../..", __FILE__)
+        raaf_gems = %w[core providers tracing memory tools guardrails dsl rails streaming analytics compliance debug mcp misc shared testing]
+        raaf_paths = raaf_gems.map { |gem| File.join(raaf_root, gem, "lib") }
+                              .select { |path| File.directory?(path) }
+                              .map { |path| "-I #{Shellwords.escape(path)}" }
+                              .join(" ")
 
-        "bundle exec ruby #{require_args} #{Shellwords.escape(file_path)}"
+        "bundle exec ruby #{require_args} #{raaf_paths} #{Shellwords.escape(file_path)}"
       end
 
       def analyze_execution_result(filename, stdout, stderr, status)
@@ -356,34 +377,52 @@ module RAAF
             error: extract_key_output(stderr)
           }
         else
+          # Get the first line of the error for cleaner display
+          error_msg = stderr.lines.first&.strip || "Unknown error"
+          
           {
             status: :failed,
             file: filename,
             message: "Execution failed",
-            error: extract_key_output(stderr)
+            error: error_msg
           }
         end
       end
 
-      def validate_readme_examples
-        readme_path = File.join(gem_dir, "README.md")
-        return unless File.exist?(readme_path)
-
-        puts "\n📄 Validating README Examples"
+      def validate_markdown_examples
+        puts "\n📄 Validating Markdown Documentation Examples"
         puts "=" * 40
 
-        readme_content = File.read(readme_path)
-        ruby_code_blocks = extract_ruby_code_blocks(readme_content)
-
-        if ruby_code_blocks.empty?
-          puts "  ℹ️  No Ruby code blocks found in README"
+        # Find all markdown files in the gem directory
+        markdown_files = Dir.glob(File.join(gem_dir, "**/*.md")).sort
+        
+        # Exclude vendor and other directories we shouldn't validate
+        markdown_files.reject! { |f| f.include?("/vendor/") || f.include?("/node_modules/") || f.include?("/tmp/") }
+        
+        if markdown_files.empty?
+          puts "  ℹ️  No markdown files found"
           return
         end
 
-        puts "  📝 Found #{ruby_code_blocks.length} Ruby code blocks in README.md\n\n"
+        puts "  📚 Found #{markdown_files.length} markdown files to validate\n"
+
+        markdown_files.each do |md_file|
+          validate_markdown_file(md_file)
+        end
+      end
+
+      def validate_markdown_file(file_path)
+        relative_path = file_path.sub(gem_dir + "/", "")
+        content = File.read(file_path)
+        ruby_code_blocks = extract_ruby_code_blocks(content)
+
+        return if ruby_code_blocks.empty?
+
+        puts "\n  📝 Validating #{relative_path}"
+        puts "     Found #{ruby_code_blocks.length} Ruby code blocks\n"
 
         ruby_code_blocks.each_with_index do |code_block, index|
-          validate_readme_code_block(code_block, index + 1)
+          validate_markdown_code_block(code_block, index + 1, relative_path)
         end
       end
 
@@ -413,9 +452,9 @@ module RAAF
         blocks
       end
 
-      def validate_readme_code_block(code_block, block_number)
+      def validate_markdown_code_block(code_block, block_number, file_path)
         code = code_block[:code]
-        description = "README block ##{block_number} (line #{code_block[:start_line]})"
+        description = "#{file_path} block ##{block_number} (line #{code_block[:start_line]})"
 
         puts "🔍 #{description}"
 
@@ -433,20 +472,20 @@ module RAAF
         )
 
         result = if runnable
-                   validate_readme_execution(code, description)
+                   validate_markdown_execution(code, description)
                  else
-                   validate_readme_syntax(code, description)
+                   validate_markdown_syntax(code, description)
                  end
 
         record_and_display_result(result)
       end
 
-      def validate_readme_syntax(code, description)
+      def validate_markdown_syntax(code, description)
         temp_file = File.join(gem_dir, ".readme_syntax_check.rb")
 
         begin
           # Add require statement if missing
-          full_code = prepare_readme_code(code)
+          full_code = prepare_markdown_code(code)
           File.write(temp_file, full_code)
 
           _, stderr, status = Open3.capture3("ruby -c #{Shellwords.escape(temp_file)}")
@@ -470,11 +509,11 @@ module RAAF
         end
       end
 
-      def validate_readme_execution(code, description)
+      def validate_markdown_execution(code, description)
         temp_file = File.join(gem_dir, ".readme_execution_check.rb")
 
         begin
-          full_code = prepare_readme_code_for_execution(code)
+          full_code = prepare_markdown_code_for_execution(code)
           File.write(temp_file, full_code)
 
           env = build_execution_environment
@@ -495,7 +534,7 @@ module RAAF
         end
       end
 
-      def prepare_readme_code(code)
+      def prepare_markdown_code(code)
         if code.include?("require")
           code
         else
@@ -507,11 +546,23 @@ module RAAF
         end
       end
 
-      def prepare_readme_code_for_execution(code)
+      def prepare_markdown_code_for_execution(code)
+        # Get all RAAF gem paths
+        raaf_root = File.expand_path("../../../../../..", __FILE__)
+        raaf_gems = %w[core providers tracing memory tools guardrails dsl rails streaming analytics compliance debug mcp misc shared testing]
+        raaf_paths = raaf_gems.map { |gem| File.join(raaf_root, gem, "lib") }
+                              .select { |path| File.directory?(path) }
+        
+        # Add all RAAF lib paths to $LOAD_PATH
+        load_path_setup = raaf_paths.map { |path| "$LOAD_PATH.unshift(#{path.inspect})" }.join("\n")
+        
         <<~RUBY
-          # README example validation
+          # Markdown example validation
           ENV["RAAF_TEST_MODE"] = "true"
           ENV["OPENAI_API_KEY"] ||= "test-key"
+          
+          # Add all RAAF gem paths to load path
+          #{load_path_setup}
 
           require_relative "lib/raaf-#{gem_name}"
 
@@ -529,7 +580,7 @@ module RAAF
             end
           end
 
-          # Execute the README code
+          # Execute the markdown code
           #{code}
 
           # Exit cleanly
@@ -673,6 +724,10 @@ module RAAF
         puts "⏭️  Skipped:  #{results[:skipped].length}"
         puts "⚠️  Warnings: #{results[:warnings].length}"
         puts "📋 Total:    #{total}"
+        
+        if config[:validation_mode] != :all
+          puts "🎯 Mode:     #{config[:validation_mode].to_s.gsub('_', ' ')}"
+        end
         puts
 
         show_failure_details

@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "../example_validator"
+require_relative "../code_validator"
 require "shellwords"
 
-namespace :examples do
-  desc "Validate all examples in this gem"
+namespace :code do
+  desc "Validate all code examples in this gem (including markdown documentation)"
   task :validate do
     # Determine gem name and directory
     gem_dir = Rake.original_dir
@@ -21,16 +21,46 @@ namespace :examples do
     options = configure_validator_options(gem_name)
 
     # Run validator
-    validator = RAAF::Shared::ExampleValidator.new(gem_name, gem_dir, options)
+    validator = RAAF::Shared::CodeValidator.new(gem_name, gem_dir, options)
     exit_code = validator.run
 
     exit(exit_code)
   end
 
-  desc "Validate examples with test mode (no real API calls)"
+  desc "Validate code examples with test mode (no real API calls)"
   task :validate_test do
     ENV["RAAF_TEST_MODE"] = "true"
-    Rake::Task["examples:validate"].invoke
+    Rake::Task["code:validate"].invoke
+  end
+  
+  desc "Validate only example files (not documentation)"
+  task :validate_examples do
+    gem_dir = Rake.original_dir
+    gemspec_path = Dir.glob(File.join(gem_dir, "*.gemspec")).first
+    gem_name = File.basename(gemspec_path, ".gemspec").sub(/^raaf-/, "")
+    
+    options = configure_validator_options(gem_name)
+    options[:validation_mode] = :examples_only
+    
+    validator = RAAF::Shared::CodeValidator.new(gem_name, gem_dir, options)
+    exit_code = validator.run
+    
+    exit(exit_code)
+  end
+  
+  desc "Validate only documentation (markdown files)"
+  task :validate_documentation do
+    gem_dir = Rake.original_dir
+    gemspec_path = Dir.glob(File.join(gem_dir, "*.gemspec")).first
+    gem_name = File.basename(gemspec_path, ".gemspec").sub(/^raaf-/, "")
+    
+    options = configure_validator_options(gem_name)
+    options[:validation_mode] = :documentation_only
+    
+    validator = RAAF::Shared::CodeValidator.new(gem_name, gem_dir, options)
+    exit_code = validator.run
+    
+    exit(exit_code)
   end
 
   desc "Validate only syntax of examples"
@@ -42,7 +72,7 @@ namespace :examples do
     options = configure_validator_options(gem_name)
     options[:syntax_only_files] = Dir.glob(File.join(gem_dir, "examples", "*.rb")).map { |f| File.basename(f) }
 
-    validator = RAAF::Shared::ExampleValidator.new(gem_name, gem_dir, options)
+    validator = RAAF::Shared::CodeValidator.new(gem_name, gem_dir, options)
     exit_code = validator.run
 
     exit(exit_code)
@@ -194,9 +224,3 @@ def configure_validator_options(gem_name)
   options
 end
 
-# Add shorthand tasks at top level
-desc "Validate examples (alias for examples:validate)"
-task validate_examples: "examples:validate"
-
-desc "Validate examples in test mode (alias for examples:validate_test)"
-task validate_examples_test: "examples:validate_test"
