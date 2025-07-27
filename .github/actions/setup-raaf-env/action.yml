@@ -68,32 +68,31 @@ runs:
           # Install dependencies directly without Bundler to avoid dependency resolution issues
           echo "Installing dependencies without bundler for validation"
           
+          # First, ensure bundler and rake are installed
+          gem install bundler rake
+          
           # Read required gems from gemspec (excluding raaf-* gems)
           ruby -e "
             spec = Gem::Specification.load(Dir.glob('*.gemspec').first)
             spec.runtime_dependencies.each do |dep|
               next if dep.name.start_with?('raaf-')
-              system('gem install', dep.name, '-v', dep.requirement.to_s)
+              puts \"Installing #{dep.name} #{dep.requirement}\"
+              system('gem', 'install', dep.name, '-v', dep.requirement.to_s.gsub('~>', '>='))
             end
             spec.development_dependencies.each do |dep|
               next if dep.name.start_with?('raaf-')
-              system('gem install', dep.name, '-v', dep.requirement.to_s)
+              puts \"Installing #{dep.name} #{dep.requirement}\"
+              # For development deps, install without version constraints if no specific version
+              if dep.requirement.to_s == '>= 0'
+                system('gem', 'install', dep.name)
+              else
+                system('gem', 'install', dep.name, '-v', dep.requirement.to_s.gsub('~>', '>='))
+              end
             end
           "
           
-          # Also install test dependencies from Gemfile
-          if [ -f "Gemfile" ]; then
-            # Extract and install non-raaf gems from Gemfile
-            ruby -e "
-              require 'bundler'
-              gemfile = Bundler::Definition.build('Gemfile', 'Gemfile.lock', nil)
-              gemfile.dependencies.each do |dep|
-                next if dep.name.start_with?('raaf-')
-                next if dep.source&.options&.key?(:path)  # Skip path dependencies
-                system('gem install', dep.name) rescue nil
-              end
-            " || true
-          fi
+          # Install additional gems that might be needed
+          gem install rspec simplecov webmock vcr pry pry-byebug yard || true
         fi
     
     - name: Setup Ruby load paths
