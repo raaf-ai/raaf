@@ -9,6 +9,12 @@ require "rubocop/rake_task"
 
 RuboCop::RakeTask.new
 
+
+# Load shared tasks from the root shared directory
+$LOAD_PATH.unshift(File.expand_path("../shared/lib", __dir__))
+require "raaf/shared/tasks"
+RAAF::Shared::Tasks.load("code")
+
 task default: %i[spec rubocop]
 
 # Custom tasks
@@ -50,3 +56,7 @@ namespace :test do
     Rake::Task["spec"].execute
   end
 end
+
+# CI task
+desc "Run all CI checks (specs, rubocop, and code validation)"
+task ci: [:spec, :rubocop, "code:validate_test"]

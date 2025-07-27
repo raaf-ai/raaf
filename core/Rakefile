@@ -14,7 +14,7 @@ task default: %i[spec rubocop]
 # Load shared tasks from the root shared directory
 $LOAD_PATH.unshift(File.expand_path("../shared/lib", __dir__))
 require "raaf/shared/tasks"
-RAAF::Shared::Tasks.load("examples")
+RAAF::Shared::Tasks.load("code")
 
 # Custom tasks
 namespace :gem do
@@ -43,8 +43,8 @@ namespace :docs do
 end
 
 # CI task
-desc "Run all CI checks (specs, rubocop, and example validation)"
-task ci: [:spec, :rubocop, "examples:validate_test"]
+desc "Run all CI checks (specs, rubocop, and code validation)"
+task ci: [:spec, :rubocop, "code:validate_test"]
 
 namespace :spec do
   desc "Run tests with coverage"
