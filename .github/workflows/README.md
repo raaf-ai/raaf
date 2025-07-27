@@ -33,8 +33,8 @@ This directory contains a comprehensive CI/CD setup for the RAAF core gem with m
 - **💨 Smoke Test** - Basic gem loading and functionality verification
 - **✓ Status Check** - Summary report for PR reviews
 
-### 3. **core-nightly.yml** - Comprehensive Analysis
-**Triggers**: Nightly schedule (2 AM UTC), manual dispatch  
+### 3. **core-weekly.yml** - Comprehensive Analysis
+**Triggers**: Weekly schedule (Wednesdays at 2 AM UTC), manual dispatch  
 **Purpose**: Deep analysis and cross-platform testing  
 **Duration**: ~25-35 minutes
 
@@ -43,7 +43,7 @@ This directory contains a comprehensive CI/CD setup for the RAAF core gem with m
 - **🧠 Memory Analysis** - Memory profiling, leak detection, GC stress testing
 - **🔒 Security Scan** - Bundle audit, Brakeman security analysis
 - **📊 Coverage Analysis** - Complete test coverage reporting
-- **📈 Nightly Summary** - Comprehensive health report generation
+- **📈 Weekly Summary** - Comprehensive health report generation
 
 ## 🚀 Fail-Fast Strategy
 
@@ -77,9 +77,9 @@ Tests are strategically ordered by:
 |-----------|----------|-----|
 | Feature development | `core-quick-check.yml` | Fast feedback loop |
 | PR to main/develop | `core-ci.yml` | Full quality gate |
-| Production readiness | `core-nightly.yml` | Comprehensive validation |
-| Security audit | `core-nightly.yml` | Complete security scan |
-| Performance regression | `core-nightly.yml` | Memory and performance analysis |
+| Production readiness | `core-weekly.yml` | Comprehensive validation |
+| Security audit | `core-weekly.yml` | Complete security scan |
+| Performance regression | `core-weekly.yml` | Memory and performance analysis |
 
 ## 🔧 Usage Examples
 
@@ -94,7 +94,7 @@ bundle exec rspec spec/models/
 # With integration tests
 RUN_INTEGRATION_TESTS=true bundle exec rspec spec/integration/
 
-# Full test suite (nightly equivalent)
+# Full test suite (weekly equivalent)
 RUN_INTEGRATION_TESTS=true RUN_PERFORMANCE_TESTS=true RUN_COST_TESTS=true RUN_ACCEPTANCE_TESTS=true bundle exec rspec
 
 # Specific test categories
@@ -115,8 +115,8 @@ git push origin main
 git commit --allow-empty -m "trigger CI"
 git push
 
-# Manual nightly run
-# Use GitHub UI "Run workflow" button on core-nightly.yml
+# Manual weekly run
+# Use GitHub UI "Run workflow" button on core-weekly.yml
 ```
 
 ## 📊 Artifacts and Reporting
@@ -128,17 +128,17 @@ Each workflow generates comprehensive artifacts:
 - **Test timing data** for performance optimization
 - **Failure details** with full stack traces
 
-### Coverage Reports (Nightly Only)
+### Coverage Reports (Weekly Only)
 - **Line coverage** with SimpleCov integration
 - **Branch coverage** analysis
 - **Coverage trends** over time
 
-### Security Reports (Nightly Only)
+### Security Reports (Weekly Only)
 - **Dependency vulnerabilities** (bundle audit)
 - **Security issues** (Brakeman analysis)
 - **License compliance** reports
 
-### Performance Data (Nightly Only)
+### Performance Data (Weekly Only)
 - **Memory profiling** with allocation tracking
 - **Garbage collection** stress test results
 - **CPU profiling** for bottleneck identification
@@ -176,11 +176,11 @@ GEMINI_API_KEY_TEST      # Google Gemini API for provider tests
 |----------|------|----------|-------------|----------------|
 | **Quick Check** | 3 | 2-3 min | Limited | Blocks PR merge |
 | **Main CI** | 11 | 8-12 min | High | Blocks deployment |
-| **Nightly** | 4 | 25-35 min | Cross-platform | Notification only |
+| **Weekly** | 4 | 25-35 min | Cross-platform | Notification only |
 
 ### Resource Usage
 - **CPU**: Optimized with parallel execution and strategic job dependencies
-- **Memory**: Memory-intensive tests isolated to nightly workflow
+- **Memory**: Memory-intensive tests isolated to weekly workflow
 - **Network**: VCR cassettes minimize external API calls
 - **Storage**: Artifacts retained for 7-30 days based on importance
 
@@ -215,7 +215,7 @@ GEMINI_API_KEY_TEST      # Google Gemini API for provider tests
 - **Caching**: Uses `bundler-cache: true` for dependency caching
 - **Parallelism**: Strategic use of `needs:` for job dependencies
 - **Early termination**: `fail-fast: true` in matrices
-- **Resource allocation**: Memory-intensive tasks in nightly only
+- **Resource allocation**: Memory-intensive tasks in weekly only
 
 ## 🚨 Troubleshooting
 
@@ -239,7 +239,7 @@ GEMINI_API_KEY_TEST      # Google Gemini API for provider tests
 
 4. **Flaky Tests**:
    - Performance and cost tests use `continue-on-error`
-   - Check nightly runs for persistent issues
+   - Check weekly runs for persistent issues
 
 ### Debugging Workflows
 1. Check **Actions tab** for detailed execution logs
@@ -250,7 +250,7 @@ GEMINI_API_KEY_TEST      # Google Gemini API for provider tests
 ### Getting Help
 - **Workflow issues**: Check Actions tab logs and workflow YAML syntax
 - **Test failures**: Review test output and run locally with same environment
-- **Performance issues**: Check nightly memory analysis reports
+- **Performance issues**: Check weekly memory analysis reports
 - **Security alerts**: Review security scan artifacts and bundle audit output
 
 ---
@@ -261,7 +261,7 @@ GEMINI_API_KEY_TEST      # Google Gemini API for provider tests
 |-----------|--------|----------|--------------|
 | Core CI Pipeline | ✅ Active | 95%+ | Current |
 | Quick Check | ✅ Active | Essential tests | Current |
-| Nightly Analysis | ✅ Active | 100% comprehensive | Current |
+| Weekly Analysis | ✅ Active | 100% comprehensive | Current |
 | Legacy Workflows | 🚫 Disabled | N/A | Replaced |
 
 *Generated for RAAF Core v1.0 - Enterprise-grade AI agent framework with comprehensive CI/CD*

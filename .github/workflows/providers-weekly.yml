@@ -1,9 +1,9 @@
-name: 🌙 Providers Nightly - Extended Testing & Multi-Provider Validation
+name: 📅 Providers Weekly - Extended Testing & Multi-Provider Validation
 
 on:
   schedule:
-    # Run every night at 2 AM UTC (different from core to spread load)
-    - cron: '0 2 * * *'
+    # Run every Wednesday at 2 AM UTC (different from core to spread load)
+    - cron: '0 2 * * 3'
   workflow_dispatch:
     inputs:
       full_integration:
@@ -282,17 +282,17 @@ jobs:
         path: providers/audit-report.json
         retention-days: 30
 
-  # Nightly summary
-  nightly-summary:
-    name: "📊 Nightly Summary"
+  # Weekly summary
+  weekly-summary:
+    name: "📊 Weekly Summary"
     runs-on: ubuntu-latest
     needs: [compatibility-matrix, multi-provider-tests, provider-validation, performance-benchmarks, security-audit]
     if: always()
     
     steps:
-    - name: Generate nightly summary
+    - name: Generate weekly summary
       run: |
-        echo "## 🌙 Providers Nightly Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## 📅 Providers Weekly Test Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Date:** $(date)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -352,10 +352,10 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const title = `🌙 Providers Nightly Tests Failed - ${new Date().toISOString().split('T')[0]}`;
-          const body = `## Nightly Test Failure Report
+          const title = `📅 Providers Weekly Tests Failed - ${new Date().toISOString().split('T')[0]}`;
+          const body = `## Weekly Test Failure Report
           
-          The nightly providers test suite has failed. Please investigate the following:
+          The weekly providers test suite has failed. Please investigate the following:
           
           ### Failed Jobs
           - **Compatibility Matrix**: ${{ needs.compatibility-matrix.result }}
@@ -382,7 +382,7 @@ jobs:
           const issues = await github.rest.issues.listForRepo({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            labels: ['nightly-failure', 'providers'],
+            labels: ['weekly-failure', 'providers'],
             state: 'open'
           });
           
@@ -392,8 +392,8 @@ jobs:
               repo: context.repo.repo,
               title: title,
               body: body,
-              labels: ['nightly-failure', 'providers', 'investigation-needed']
+              labels: ['weekly-failure', 'providers', 'investigation-needed']
             });
           } else {
-            console.log('Similar nightly failure issue already exists, skipping creation');
+            console.log('Similar weekly failure issue already exists, skipping creation');
           }
