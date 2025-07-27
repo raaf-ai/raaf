@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "rspec/matchers"
 require_relative "prompt_matchers"
 
 module RAAF

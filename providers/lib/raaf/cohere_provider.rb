@@ -513,6 +513,62 @@ module RAAF
           cohere_reason
         end
       end
+
+      ##
+      # Makes an HTTP request to the Cohere API
+      #
+      # @param body [Hash] Request body
+      # @return [Hash] Parsed response
+      # @private
+      #
+      def make_request(body)
+        uri = URI("#{@api_base}/chat")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.read_timeout = @timeout
+
+        request = Net::HTTP::Post.new(uri)
+        request["Authorization"] = "Bearer #{@api_key}"
+        request["Content-Type"] = "application/json"
+        request["Accept"] = "application/json"
+        request.body = body.to_json
+
+        response = http.request(request)
+
+        handle_api_error(response, "Cohere") unless response.code.start_with?("2")
+
+        JSON.parse(response.body)
+      end
+
+      ##
+      # Makes a streaming HTTP request to the Cohere API
+      #
+      # @param body [Hash] Request body
+      # @yield [String] Yields SSE chunks
+      # @return [void]
+      # @private
+      #
+      def make_streaming_request(body, &block)
+        uri = URI("#{@api_base}/chat")
+
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: @timeout) do |http|
+          request = Net::HTTP::Post.new(uri)
+          request["Authorization"] = "Bearer #{@api_key}"
+          request["Content-Type"] = "application/json"
+          request["Accept"] = "text/event-stream"
+          request.body = body.to_json
+
+          http.request(request) do |response|
+            handle_api_error(response, "Cohere") unless response.code.start_with?("2")
+
+            response.read_body do |chunk|
+              chunk.each_line do |line|
+                yield line if line.start_with?("data: ")
+              end
+            end
+          end
+        end
+      end
     end
   end
 end

@@ -84,8 +84,8 @@ Example shared context after execution:
     "ResearchAgent_completed" => true,
     "ResearchAgent_final_message" => "Research complete...",
     handoffs: [
-      { from: "ResearchAgent", to: "AnalysisAgent", timestamp: ... },
-      { from: "AnalysisAgent", to: "ReportWriter", timestamp: ... }
+      { from: "ResearchAgent", to: "AnalysisAgent", timestamp: Time.now },
+      { from: "AnalysisAgent", to: "ReportWriter", timestamp: Time.now }
     ]
   }
 }

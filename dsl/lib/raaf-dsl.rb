@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../core/lib/raaf-core"
+require "raaf-core"
 require_relative "raaf/dsl/core/version"
 require "active_support/all"
 
