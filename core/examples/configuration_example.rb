@@ -8,7 +8,7 @@
 # This example shows centralized configuration, environment-specific overrides,
 # and validation patterns.
 
-require_relative "../lib/raaf-core"
+require "raaf-core"
 
 # ============================================================================
 # CONFIGURATION SYSTEM SETUP

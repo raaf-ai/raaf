@@ -3,8 +3,8 @@
 
 # Test script to verify enhanced debugging capabilities in RAAF::DSL::Agents::Base
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 
 # Add the lib directory to the load path
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)

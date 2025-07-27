@@ -6,8 +6,8 @@
 # This example demonstrates how to create a simple conversational agent
 # using the RAAF DSL.
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 
 # Create a basic conversational agent
 agent = RAAF::DSL::AgentBuilder.build do

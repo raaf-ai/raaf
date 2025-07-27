@@ -6,8 +6,8 @@
 # This example demonstrates how to create multiple agents that can
 # hand off conversations to each other using the RAAF DSL.
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 
 # Create a customer support agent
 support_agent = RAAF::DSL::AgentBuilder.build do

@@ -15,7 +15,7 @@
 # - Replay functionality for debugging
 # - OpenTelemetry compatibility
 
-require_relative "../lib/raaf-tracing"
+require "raaf-tracing"
 
 puts "=== Distributed Tracing Example ==="
 puts "Demonstrates cross-service tracing and correlation"

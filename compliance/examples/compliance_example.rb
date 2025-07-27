@@ -7,7 +7,7 @@
 # shows how to implement audit logging, PII detection, consent management, and compliance
 # monitoring to meet regulatory requirements and enable forensic analysis.
 
-require_relative "../lib/raaf"
+require "raaf"
 require_relative "../lib/openai_agents/compliance"
 
 # Set API key from environment

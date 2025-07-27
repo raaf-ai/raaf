@@ -6,7 +6,7 @@
 # Demonstrates intelligent trace analysis using AI to provide optimization
 # suggestions, root cause analysis, and performance insights.
 
-require_relative "../lib/raaf"
+require "raaf"
 
 puts "=== AI Analyzer Example ==="
 puts "Demonstrates intelligent trace analysis and optimization suggestions"

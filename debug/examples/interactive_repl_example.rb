@@ -22,7 +22,7 @@
 # - Quick testing of agent behaviors
 # - Live demonstration of capabilities
 
-require_relative "../lib/raaf"
+require "raaf"
 
 # ============================================================================
 # ENVIRONMENT VALIDATION

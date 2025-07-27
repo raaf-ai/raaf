@@ -9,7 +9,7 @@
 # vector databases, embedding generation, document indexing, hybrid search, and
 # integration with AI agents.
 
-require_relative "../lib/raaf"
+require "raaf"
 
 # Semantic search modules (these will be implemented in future versions)
 begin

@@ -8,7 +8,7 @@
 # information before they reach the AI model or are stored. This ensures data
 # privacy and prevents accidental exposure of sensitive information in AI systems.
 
-require_relative "../lib/raaf"
+require "raaf"
 require_relative "../lib/openai_agents/guardrails/pii_detector"
 
 # Configure API access (if implemented)

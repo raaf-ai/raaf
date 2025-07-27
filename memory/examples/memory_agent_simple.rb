@@ -8,7 +8,7 @@
 # and managing memories. This example shows how to use the memory system for
 # persistent context, knowledge accumulation, and multi-agent collaboration.
 
-require_relative "../lib/raaf"
+require "raaf"
 require_relative "../lib/openai_agents/memory"
 
 # ============================================================================

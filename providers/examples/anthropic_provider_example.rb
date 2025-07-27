@@ -7,7 +7,7 @@
 # enabling cost optimization, feature comparison, and provider redundancy.
 # Claude models excel at reasoning, analysis, and following complex instructions.
 
-require_relative "../lib/raaf-providers"
+require "raaf-providers"
 
 # Anthropic requires an API key for authentication
 # Sign up at https://console.anthropic.com to get your key

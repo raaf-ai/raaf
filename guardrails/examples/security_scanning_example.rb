@@ -9,7 +9,7 @@
 # prevent common vulnerabilities like injection attacks, exposed secrets, and
 # unsafe code execution patterns.
 
-require_relative "../lib/raaf"
+require "raaf"
 
 # Security modules (these will be implemented in future versions)
 begin

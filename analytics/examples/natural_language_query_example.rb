@@ -7,7 +7,7 @@
 # language. Users can ask questions about agent performance, errors, and
 # patterns in plain English.
 
-require_relative "../lib/raaf"
+require "raaf"
 
 puts "=== Natural Language Query Example ==="
 puts "Demonstrates AI-powered trace analysis with natural language"

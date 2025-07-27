@@ -6,8 +6,8 @@
 # This example demonstrates how to use the flexible prompt system
 # with validation, context mapping, and different contract modes.
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 
 # Example 1: Basic prompt with required and optional variables
 class CustomerServicePrompt < RAAF::DSL::Prompts::Base

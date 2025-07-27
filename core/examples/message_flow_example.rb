@@ -8,7 +8,7 @@
 # Completions API. Each has different message formats and flow characteristics.
 # This example visualizes both approaches and explains their trade-offs.
 
-require_relative "../lib/raaf-core"
+require "raaf-core"
 
 # Enable debug output to visualize the complete message flow
 # This flag shows the raw API requests and responses for learning

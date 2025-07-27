@@ -6,8 +6,8 @@
 # This example demonstrates how to create custom tools and add them to agents
 # using the RAAF DSL.
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 require "json"
 
 # Create a calculator tool using the DSL

@@ -80,10 +80,10 @@ jobs:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true
 
-    - name: Install dependencies (Providers gem)
-      run: |
-        cd providers
-        bundle install
+    - name: Setup RAAF environment
+      uses: ./.github/actions/setup-raaf-env
+      with:
+        target-gem: providers
 
     - name: Run unit tests, models, and edge cases (Providers gem)
       run: |
@@ -138,6 +138,11 @@ jobs:
         cd providers
         bundle install
 
+    - name: Setup RAAF environment
+      uses: ./.github/actions/setup-raaf-env
+      with:
+        target-gem: providers
+
     - name: Validate provider examples
       run: |
         cd providers
@@ -170,10 +175,10 @@ jobs:
         ruby-version: ${{ env.RUBY_VERSION }}
         bundler-cache: true
 
-    - name: Install dependencies (Providers gem)
-      run: |
-        cd providers
-        bundle install
+    - name: Setup RAAF environment
+      uses: ./.github/actions/setup-raaf-env
+      with:
+        target-gem: providers
 
     - name: Run integration tests (Providers gem)
       run: |

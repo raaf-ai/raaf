@@ -6,8 +6,8 @@
 # This example demonstrates the debugging and inspection tools
 # available in the RAAF DSL.
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 require "logger"
 
 # Create a complex agent for debugging

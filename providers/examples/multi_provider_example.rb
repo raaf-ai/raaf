@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/raaf-providers"
+require "raaf-providers"
 
 # Example demonstrating multiple AI providers
 

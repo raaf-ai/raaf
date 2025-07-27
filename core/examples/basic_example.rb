@@ -4,7 +4,7 @@
 # Simple working example without handoffs to verify basic functionality
 
 require "bundler/setup"
-require_relative "../lib/raaf-core"
+require "raaf-core"
 
 puts "=== Simple Working Example ==="
 

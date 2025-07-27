@@ -7,7 +7,7 @@
 # enabling cost optimization, feature comparison, and provider redundancy.
 # This integration maintains API compatibility while leveraging Cohere's strengths.
 
-require_relative "../lib/raaf-providers"
+require "raaf-providers"
 
 # Cohere requires an API key for authentication
 # Sign up at https://cohere.com to get your key

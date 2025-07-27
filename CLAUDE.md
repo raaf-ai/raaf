@@ -197,7 +197,7 @@ export RAAF_DEBUG_CATEGORIES="api,tracing"
 ```bash
 # Run basic example
 ruby -e "
-require_relative 'lib/raaf'
+require 'raaf'
 agent = RAAF::Agent.new(name: 'Assistant', instructions: 'Be helpful')
 runner = RAAF::Runner.new(agent: agent)
 puts runner.run('Hello').messages.last[:content]

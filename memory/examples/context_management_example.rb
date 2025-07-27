@@ -7,7 +7,7 @@
 # important messages, preventing errors and reducing costs. The system uses
 # intelligent strategies to maintain conversation coherence.
 
-require_relative "../lib/raaf"
+require "raaf"
 
 # ============================================================================
 # CONTEXT MANAGEMENT EXAMPLES

@@ -9,7 +9,7 @@
 # and reason over large knowledge bases. Essential for building AI assistants
 # with domain-specific knowledge.
 
-require_relative "../lib/raaf"
+require "raaf"
 
 # Vector store modules (these will be implemented in future versions)
 begin

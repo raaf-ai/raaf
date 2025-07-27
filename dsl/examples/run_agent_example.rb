@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 require_relative "web_search_agent"
 
 puts "=== Running WebSearchAgent with prompt from prompt class ==="

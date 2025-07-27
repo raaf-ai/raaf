@@ -7,7 +7,7 @@
 # The Ruby implementation maintains exact parity with Python's trace format for
 # compatibility with OpenAI's dashboard and monitoring tools.
 
-require_relative "../lib/raaf-tracing"
+require "raaf-tracing"
 
 # ============================================================================
 # TRACING EXAMPLE

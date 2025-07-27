@@ -21,7 +21,7 @@
 # - Development and testing of new features
 # - Production debugging and monitoring
 
-require_relative "../lib/raaf"
+require "raaf"
 
 # ============================================================================
 # ENVIRONMENT VALIDATION

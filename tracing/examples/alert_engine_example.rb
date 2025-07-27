@@ -6,7 +6,7 @@
 # Demonstrates comprehensive alerting system with multiple handlers for
 # automated notifications when issues occur in agent workflows.
 
-require_relative "../raaf/lib/raaf"
+require "raaf"
 
 puts "=== Alert Engine Example ==="
 puts "Demonstrates automated alerting and notification system"

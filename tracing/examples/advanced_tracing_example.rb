@@ -7,7 +7,7 @@
 # These features are essential for production deployments where you need comprehensive
 # observability, cost control, and proactive issue detection.
 
-require_relative "../lib/raaf-tracing"
+require "raaf-tracing"
 
 puts "=== Advanced Tracing Example ==="
 puts

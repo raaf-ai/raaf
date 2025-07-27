@@ -10,7 +10,7 @@
 # NOTE: This example assumes you're running this in a Rails application context.
 # Some features will only work within an actual Rails app environment.
 
-require_relative "../lib/raaf"
+require "raaf"
 
 puts "=== Rails Integration Example ==="
 puts "Rails detected: #{defined?(Rails) ? "Yes (#{Rails.version})" : "No"}"

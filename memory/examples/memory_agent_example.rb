@@ -7,7 +7,7 @@
 # The memory system supports multiple storage backends (in-memory, file-based)
 # and provides semantic search capabilities for intelligent recall.
 
-require_relative "../lib/raaf"
+require "raaf"
 # require_relative "../lib/openai_agents/memory"  # Not implemented yet
 
 # Helper method to handle memory method calls gracefully

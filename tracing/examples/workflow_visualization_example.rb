@@ -22,7 +22,7 @@
 # - Stakeholder reporting and communication
 # - Workflow optimization and improvement
 
-require_relative "../lib/raaf"
+require "raaf"
 
 # ============================================================================
 # ENVIRONMENT VALIDATION

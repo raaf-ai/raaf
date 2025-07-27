@@ -123,10 +123,10 @@ jobs:
         ruby-version: ${{ env.RUBY_VERSION }}
         bundler-cache: true
 
-    - name: Install dependencies (DSL gem)
-      run: |
-        cd dsl
-        bundle install
+    - name: Setup RAAF environment
+      uses: ./.github/actions/setup-raaf-env
+      with:
+        target-gem: dsl
 
     - name: Validate DSL examples and README
       run: |

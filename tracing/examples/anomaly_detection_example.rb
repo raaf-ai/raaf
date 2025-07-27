@@ -6,7 +6,7 @@
 # Demonstrates statistical anomaly detection for monitoring agent performance,
 # costs, and behavior patterns using multiple algorithms.
 
-require_relative "../raaf/lib/raaf"
+require "raaf"
 
 puts "=== Anomaly Detection Example ==="
 puts "Demonstrates statistical monitoring and anomaly detection"

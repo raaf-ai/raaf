@@ -6,8 +6,8 @@
 # This example shows how to define schemas directly in prompt classes
 # using the same Complex Nested Schema DSL available in agent classes.
 
-require_relative "../../core/lib/raaf-core"
-require_relative "../lib/raaf-dsl"
+require "raaf-core"
+require "raaf-dsl"
 
 # Example 1: Simple prompt with basic schema
 class UserExtractionPrompt < RAAF::DSL::Prompts::Base

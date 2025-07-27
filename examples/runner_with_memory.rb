@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/raaf"
+require "raaf"
 require "raaf/memory"
 require "raaf/memory_manager"
 

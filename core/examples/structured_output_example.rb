@@ -7,7 +7,7 @@
 # The Ruby implementation uses response_format for universal provider support,
 # matching OpenAI's standard while adapting to other providers automatically.
 
-require_relative "../lib/raaf-core"
+require "raaf-core"
 
 # ============================================================================
 # STRUCTURED OUTPUT EXAMPLES

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/raaf-dsl"
+require "raaf-dsl"
 require "fileutils"
 
 # Example: Flexible Prompt Resolution System

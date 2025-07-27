@@ -1,0 +1,93 @@
+name: 'Setup RAAF Environment'
+description: 'Sets up Ruby load paths to simulate installed RAAF gems'
+inputs:
+  target-gem:
+    description: 'The gem being tested (e.g., core, dsl, providers)'
+    required: true
+  install-dependencies:
+    description: 'Whether to install bundle dependencies for all gems'
+    required: false
+    default: 'true'
+runs:
+  using: 'composite'
+  steps:
+    - name: Install gem dependencies
+      if: inputs.install-dependencies == 'true'
+      shell: bash
+      run: |
+        # Determine which gems need to be installed based on target
+        case "${{ inputs.target-gem }}" in
+          core)
+            # Core has no RAAF dependencies
+            echo "Installing dependencies for core only"
+            (cd core && bundle install)
+            ;;
+          providers)
+            # Providers needs core and other base gems
+            for gem in core tracing memory guardrails tools; do
+              if [ -d "$gem" ]; then
+                echo "Installing dependencies for $gem"
+                (cd $gem && bundle install)
+              fi
+            done
+            (cd providers && bundle install)
+            ;;
+          dsl)
+            # DSL needs core, providers, tools, etc.
+            for gem in core tracing memory guardrails tools providers; do
+              if [ -d "$gem" ]; then
+                echo "Installing dependencies for $gem"
+                (cd $gem && bundle install)
+              fi
+            done
+            (cd dsl && bundle install)
+            ;;
+          *)
+            # For other gems, install core and the target
+            if [ -d "core" ]; then
+              echo "Installing dependencies for core"
+              (cd core && bundle install)
+            fi
+            if [ -d "${{ inputs.target-gem }}" ]; then
+              echo "Installing dependencies for ${{ inputs.target-gem }}"
+              (cd "${{ inputs.target-gem }}" && bundle install)
+            fi
+            ;;
+        esac
+    
+    - name: Setup Ruby load paths
+      shell: bash
+      run: |
+        # Build RUBYOPT environment variable with all necessary load paths
+        RUBY_PATHS=""
+        
+        # Determine which gems to add to load path based on target
+        case "${{ inputs.target-gem }}" in
+          core)
+            # Core only needs its own path
+            GEMS_TO_ADD="core"
+            ;;
+          providers)
+            # Providers needs core and base gems
+            GEMS_TO_ADD="core tracing memory guardrails tools providers"
+            ;;
+          dsl)
+            # DSL needs everything
+            GEMS_TO_ADD="core tracing memory guardrails tools providers dsl"
+            ;;
+          *)
+            # For other gems, add core and the target
+            GEMS_TO_ADD="core ${{ inputs.target-gem }}"
+            ;;
+        esac
+        
+        # Add each gem's lib directory to the path
+        for gem in $GEMS_TO_ADD; do
+          if [ -d "$gem/lib" ]; then
+            RUBY_PATHS="$RUBY_PATHS -I$(pwd)/$gem/lib"
+          fi
+        done
+        
+        # Export for use in subsequent steps
+        echo "RUBYOPT=$RUBY_PATHS" >> $GITHUB_ENV
+        echo "Set up Ruby load paths: $RUBY_PATHS"

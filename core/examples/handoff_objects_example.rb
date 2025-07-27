@@ -9,7 +9,7 @@
 # complex AI workflows.
 
 require "bundler/setup"
-require_relative "../lib/raaf-core"
+require "raaf-core"
 
 # ============================================================================
 # HANDOFF OBJECTS EXAMPLES

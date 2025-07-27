@@ -9,7 +9,7 @@
 # This is essential for preventing security breaches, data loss, and
 # maintaining compliance in production AI applications.
 
-require_relative "../lib/raaf"
+require "raaf"
 require_relative "../lib/openai_agents/guardrails/tripwire"
 
 # Example demonstrating Guardrail Tripwire functionality

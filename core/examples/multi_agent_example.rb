@@ -7,7 +7,7 @@
 # This pattern is useful for building complex AI systems where different agents
 # have different capabilities, tools, and knowledge domains.
 
-require_relative "../lib/raaf-core"
+require "raaf-core"
 
 # ============================================================================
 # MULTI-AGENT SYSTEM WITH HANDOFFS
