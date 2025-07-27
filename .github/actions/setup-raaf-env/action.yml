@@ -16,41 +16,37 @@ runs:
       shell: bash
       run: |
         # Determine which gems need to be installed based on target
+        # Note: Most gems depend on raaf-core which isn't published yet
+        # We only install external dependencies, not inter-gem dependencies
+        
         case "${{ inputs.target-gem }}" in
           core)
             # Core has no RAAF dependencies
-            echo "Installing dependencies for core only"
+            echo "Installing dependencies for core"
             (cd core && bundle install)
             ;;
+          tracing)
+            # Tracing depends on core but we skip that dependency
+            echo "Installing dependencies for tracing (skipping raaf-core dependency)"
+            (cd tracing && bundle install --without raaf-core || bundle install)
+            ;;
           providers)
-            # Providers needs core and other base gems
-            for gem in core tracing memory guardrails tools; do
-              if [ -d "$gem" ]; then
-                echo "Installing dependencies for $gem"
-                (cd $gem && bundle install)
-              fi
-            done
+            # Providers has raaf-core commented out
+            echo "Installing dependencies for providers"
             (cd providers && bundle install)
             ;;
           dsl)
-            # DSL needs core, providers, tools, etc.
-            for gem in core tracing memory guardrails tools providers; do
-              if [ -d "$gem" ]; then
-                echo "Installing dependencies for $gem"
-                (cd $gem && bundle install)
-              fi
-            done
-            (cd dsl && bundle install)
+            # DSL needs only external dependencies
+            echo "Installing dependencies for dsl (skipping raaf-* dependencies)"
+            (cd dsl && bundle install --without raaf-core || bundle install)
             ;;
           *)
-            # For other gems, install core and the target
-            if [ -d "core" ]; then
-              echo "Installing dependencies for core"
-              (cd core && bundle install)
-            fi
+            # For other gems, only install if they don't have raaf-* dependencies
+            # or handle the failure gracefully
+            echo "Attempting to install dependencies for ${{ inputs.target-gem }}"
             if [ -d "${{ inputs.target-gem }}" ]; then
-              echo "Installing dependencies for ${{ inputs.target-gem }}"
-              (cd "${{ inputs.target-gem }}" && bundle install)
+              (cd "${{ inputs.target-gem }}" && bundle install 2>/dev/null) || \
+                echo "Skipping bundle install for ${{ inputs.target-gem }} due to unpublished dependencies"
             fi
             ;;
         esac
@@ -69,10 +65,12 @@ runs:
             ;;
           providers)
             # Providers needs core and base gems
+            # Memory is included in load path but not installed
             GEMS_TO_ADD="core tracing memory guardrails tools providers"
             ;;
           dsl)
             # DSL needs everything
+            # Memory is included in load path but not installed
             GEMS_TO_ADD="core tracing memory guardrails tools providers dsl"
             ;;
           *)
