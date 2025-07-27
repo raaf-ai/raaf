@@ -38,18 +38,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "opentelemetry-sdk", "~> 1.0"
   spec.add_dependency "raaf-core", "0.1.0"
   
-  # Visualization dependencies
-  spec.add_dependency "csv", "~> 3.0"
-  spec.add_dependency "descriptive_statistics", "~> 2.5"
+  # Template processing for visualization
   spec.add_dependency "erb", "~> 4.0"
-  spec.add_dependency "gruff", "~> 0.19"
-  spec.add_dependency "matrix", "~> 0.4"
-  spec.add_dependency "mini_magick", "~> 4.11"
-  spec.add_dependency "numo-gnuplot", "~> 0.2"
-  spec.add_dependency "prawn", "~> 2.4"
-  spec.add_dependency "prawn-svg", "~> 0.32"
-  spec.add_dependency "rmagick", "~> 4.2"
-  spec.add_dependency "ruby-plot", "~> 0.6"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
