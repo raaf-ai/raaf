@@ -31,7 +31,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Dependencies
-  spec.add_dependency "activerecord", "~> 7.0"
+  spec.add_dependency "activerecord", ">= 7.0", "< 9.0"
   spec.add_dependency "chronic", "~> 0.10"
   spec.add_dependency "csv", "~> 3.0"
   spec.add_dependency "digest", "~> 3.0"

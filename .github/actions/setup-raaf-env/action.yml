@@ -68,10 +68,23 @@ runs:
           echo ""
           
           # Add path dependencies for RAAF gems that might not be in the Gemfile
+          # We need to be selective about which gems to add to avoid version conflicts
           for gem_dir in ../*/; do
             gemspec_file=$(find "${gem_dir}" -maxdepth 1 -name "raaf-*.gemspec" 2>/dev/null | head -1)
             if [ -n "${gemspec_file}" ]; then
               gem_name=$(basename "${gemspec_file}" .gemspec)
+              
+              # Skip gems that might have version conflicts
+              case "${{ inputs.target-gem }}" in
+                dsl)
+                  # DSL uses Rails 8, so skip compliance which requires ActiveRecord 7
+                  if [ "${gem_name}" = "raaf-compliance" ]; then
+                    echo "# Skipping ${gem_name} due to Rails version conflict"
+                    continue
+                  fi
+                  ;;
+              esac
+              
               # Only add if not already in Gemfile
               if ! grep -q "gem ['\"]${gem_name}['\"]" Gemfile.original; then
                 echo "gem \"${gem_name}\", path: \"${gem_dir%/}\""
