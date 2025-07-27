@@ -122,7 +122,10 @@ module RAAF
           acceptable_failure_patterns: [
             /Missing required environment/i,
             /API key not set/i,
-            /requires.*setup/i
+            /requires.*setup/i,
+            /Invalid API key/i,
+            /AuthenticationError/,
+            /Authentication failed/i
           ],
 
           # Custom require paths for the gem
@@ -141,7 +144,7 @@ module RAAF
         # Check gem directory
         gemspec_path = File.join(gem_dir, "#{gem_name}.gemspec")
         raaf_gemspec_path = File.join(gem_dir, "raaf-#{gem_name}.gemspec")
-        
+
         unless (File.exist?(gemspec_path) || File.exist?(raaf_gemspec_path)) &&
                File.directory?(File.join(gem_dir, "lib"))
           puts "  ❌ Not in a valid gem directory: #{gem_dir}"
@@ -264,12 +267,16 @@ module RAAF
       end
 
       def validate_execution(file_path, filename)
+        # First check syntax and constants
+        syntax_result = validate_syntax_and_constants(file_path, filename)
+        return syntax_result unless syntax_result[:status] == :passed
+
         Timeout.timeout(config[:timeout]) do
           env = build_execution_environment
           command = build_execution_command(file_path)
 
           stdout, stderr, status = Open3.capture3(env, command, chdir: gem_dir)
-          
+
           analyze_execution_result(filename, stdout, stderr, status)
         end
       rescue Timeout::Error
@@ -290,10 +297,10 @@ module RAAF
 
       def build_execution_environment
         env = ENV.to_h.merge({
-          "RAAF_EXAMPLE_MODE" => "true",
-          "RAAF_LOG_LEVEL" => "warn",
-          "BUNDLE_GEMFILE" => File.join(gem_dir, "Gemfile")
-        })
+                               "RAAF_EXAMPLE_MODE" => "true",
+                               "RAAF_LOG_LEVEL" => "warn",
+                               "BUNDLE_GEMFILE" => File.join(gem_dir, "Gemfile")
+                             })
 
         # Add test mode if enabled
         if config[:test_mode]
@@ -310,7 +317,7 @@ module RAAF
       def build_execution_command(file_path)
         # Build require paths
         require_args = config[:require_paths].map { |path| "-I #{path}" }.join(" ")
-        
+
         "bundle exec ruby #{require_args} #{Shellwords.escape(file_path)}"
       end
 
@@ -334,10 +341,18 @@ module RAAF
             }
           end
         elsif config[:acceptable_failure_patterns].any? { |pattern| combined_output.match?(pattern) }
+          skip_reason = determine_skip_reason(combined_output)
           {
             status: :skipped,
             file: filename,
-            message: "Skipped due to missing dependencies",
+            message: skip_reason,
+            error: extract_key_output(stderr)
+          }
+        elsif config[:test_mode] && is_authentication_error?(combined_output)
+          {
+            status: :skipped,
+            file: filename,
+            message: "Skipped in test mode due to missing API credentials (syntax verified)",
             error: extract_key_output(stderr)
           }
         else
@@ -486,7 +501,7 @@ module RAAF
         else
           <<~RUBY
             require_relative 'lib/raaf-#{gem_name}'
-            
+
             #{code}
           RUBY
         end
@@ -497,9 +512,9 @@ module RAAF
           # README example validation
           ENV["RAAF_TEST_MODE"] = "true"
           ENV["OPENAI_API_KEY"] ||= "test-key"
-          
+
           require_relative "lib/raaf-#{gem_name}"
-          
+
           # Stub runner if needed for test mode
           if ENV["RAAF_TEST_MODE"] == "true"
             module RAAF
@@ -513,10 +528,10 @@ module RAAF
               end
             end
           end
-          
+
           # Execute the README code
           #{code}
-          
+
           # Exit cleanly
           exit(0)
         RUBY
@@ -565,6 +580,87 @@ module RAAF
                       .first(3)
 
         lines.join.strip
+      end
+
+      def is_authentication_error?(output)
+        auth_patterns = [
+          /Invalid API key/i,
+          /AuthenticationError/,
+          /401/,
+          /Unauthorized/i,
+          /Authentication failed/i,
+          /API key.*not.*set/i,
+          /Missing.*API.*key/i
+        ]
+
+        auth_patterns.any? { |pattern| output.match?(pattern) }
+      end
+
+      def determine_skip_reason(output)
+        case output
+        when /Missing required environment.*OPENAI_API_KEY/i, /OPENAI_API_KEY.*not set/i
+          "Skipped: OPENAI_API_KEY not configured"
+        when /Missing required environment.*TAVILY_API_KEY/i, /TAVILY_API_KEY.*not set/i
+          "Skipped: TAVILY_API_KEY not configured"
+        when /Missing required environment.*ANTHROPIC_API_KEY/i, /ANTHROPIC_API_KEY.*not set/i
+          "Skipped: ANTHROPIC_API_KEY not configured"
+        when /API key not set/i, /Missing.*API.*key/i
+          "Skipped: Required API key not configured"
+        when /Invalid API key/i, /AuthenticationError/, /401/, /Unauthorized/i
+          "Skipped: Authentication failed (invalid or missing API key)"
+        when /requires.*setup/i
+          "Skipped: Additional setup required"
+        when /Missing required environment/i
+          "Skipped: Required environment variable not set"
+        else
+          # Fallback to generic message if no specific pattern matches
+          "Skipped: Configuration or dependency issue"
+        end
+      end
+
+      def validate_syntax_and_constants(file_path, filename)
+        Timeout.timeout(10) do
+          # Check basic syntax
+          _, stderr, status = Open3.capture3(
+            "ruby -c #{Shellwords.escape(file_path)}"
+          )
+
+          unless status.success?
+            return {
+              status: :failed,
+              file: filename,
+              message: "Syntax errors found",
+              error: stderr.strip.lines.first
+            }
+          end
+
+          # Check for undefined constants and missing requires
+          env = build_execution_environment
+          check_command = "bundle exec ruby -I#{File.join(gem_dir, "lib")} -e \"require '#{file_path}'; exit(0)\""
+
+          _, stderr, status = Open3.capture3(env, check_command, chdir: gem_dir)
+
+          if !status.success? && stderr.match?(/uninitialized constant|NameError/)
+            return {
+              status: :failed,
+              file: filename,
+              message: "Undefined constants or missing requires",
+              error: stderr.strip.lines.first
+            }
+          end
+
+          {
+            status: :passed,
+            file: filename,
+            message: "Syntax and constants check passed"
+          }
+        end
+      rescue Timeout::Error
+        {
+          status: :failed,
+          file: filename,
+          message: "Syntax/constants check timed out"
+        }
       end
 
       def generate_report
