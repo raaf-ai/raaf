@@ -85,6 +85,12 @@ runs:
                   ;;
               esac
               
+              # Skip if this is the target gem itself (avoid circular dependency)
+              if [ "${gem_name}" = "raaf-${{ inputs.target-gem }}" ]; then
+                echo "# Skipping ${gem_name} (target gem itself)"
+                continue
+              fi
+              
               # Only add if not already in Gemfile
               if ! grep -q "gem ['\"]${gem_name}['\"]" Gemfile.original; then
                 echo "gem \"${gem_name}\", path: \"${gem_dir%/}\""
