@@ -12,6 +12,13 @@ on:
       - 'providers/**'
       - '.github/workflows/providers-ci.yml'
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Enable debug logging'
+        required: false
+        type: boolean
+        default: false
 
 # Workflow Structure:
 # 1. Lint & Style + Unit Tests (parallel foundation)

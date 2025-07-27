@@ -6,6 +6,13 @@ on:
     paths: 
       - 'dsl/**'
       - '.github/workflows/dsl-quick-check.yml'
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Enable debug logging'
+        required: false
+        type: boolean
+        default: false
 
 # Quick feedback for development branches
 env:

@@ -6,6 +6,13 @@ on:
     paths: 
       - 'core/**'
       - '.github/workflows/core-quick-check.yml'
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Enable debug logging'
+        required: false
+        type: boolean
+        default: false
 
 # Quick feedback for development branches
 env:
