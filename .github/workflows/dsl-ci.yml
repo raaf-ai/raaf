@@ -127,12 +127,11 @@ jobs:
       uses: ./.github/actions/setup-raaf-env
       with:
         target-gem: dsl
-        skip-gem-dependencies: 'true'
 
     - name: Validate DSL examples only
       run: |
         cd dsl
-        RAAF_TEST_MODE=true rake code:validate_examples
+        RAAF_TEST_MODE=true bundle exec rake code:validate_examples
       env:
         CI: true
         # Note: Using test mode to avoid requiring real API keys in CI
@@ -165,12 +164,11 @@ jobs:
       uses: ./.github/actions/setup-raaf-env
       with:
         target-gem: dsl
-        skip-gem-dependencies: 'true'
 
     - name: Validate DSL documentation code blocks
       run: |
         cd dsl
-        RAAF_TEST_MODE=true rake code:validate_documentation
+        RAAF_TEST_MODE=true bundle exec rake code:validate_documentation
       env:
         CI: true
         # This validates all code blocks in markdown files
