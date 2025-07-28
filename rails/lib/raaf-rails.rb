@@ -34,10 +34,10 @@ module RAAF
   # @example Basic Rails integration
   #   # In your Rails application
   #   gem 'raaf-rails'
-  #   
+  #
   #   # Mount the engine in config/routes.rb
   #   mount RAAF::Rails::Engine, at: "/agents"
-  #   
+  #
   #   # Configure in config/initializers/raaf.rb
   #   RAAF::Rails.configure do |config|
   #     config.authentication_method = :devise
@@ -55,7 +55,7 @@ module RAAF
   #         model: params[:model],
   #         user: current_user
   #       )
-  #       
+  #
   #       redirect_to agent_path(@agent)
   #     end
   #   end
@@ -69,7 +69,7 @@ module RAAF
   #       "session_id": "abc123"
   #     }
   #   }
-  #   
+  #
   #   # Response:
   #   {
   #     "id": "conv_456",
@@ -88,12 +88,12 @@ module RAAF
   # @example Real-time conversation
   #   // In JavaScript
   #   const ws = new WebSocket('ws://localhost:3000/agents/chat');
-  #   
+  #
   #   ws.onmessage = function(event) {
   #     const data = JSON.parse(event.data);
   #     console.log('Assistant:', data.message);
   #   };
-  #   
+  #
   #   ws.send(JSON.stringify({
   #     type: 'message',
   #     content: 'Hello!',
@@ -102,6 +102,9 @@ module RAAF
   #
   # @since 1.0.0
   module Rails
+    # Configuration error raised when invalid configuration is provided
+    class ConfigurationError < StandardError; end
+
     # Default configuration
     DEFAULT_CONFIG = {
       authentication_method: :none,
@@ -119,45 +122,72 @@ module RAAF
       },
       monitoring: {
         enabled: true,
-        metrics: [:usage, :performance, :errors]
+        metrics: %i[usage performance errors]
       }
     }.freeze
 
     class << self
-      # @return [Hash] Current Rails configuration
-      attr_accessor :config
-
       ##
       # Configure Rails integration
       #
-      # @param options [Hash] Configuration options
-      # @option options [Symbol] :authentication_method (:none) Authentication method
-      # @option options [Boolean] :enable_dashboard (true) Enable web dashboard
-      # @option options [Boolean] :enable_api (true) Enable REST API
-      # @option options [Boolean] :enable_websockets (true) Enable WebSocket support
-      # @option options [Boolean] :enable_background_jobs (true) Enable background processing
-      # @option options [String] :dashboard_path ("/dashboard") Dashboard mount path
-      # @option options [String] :api_path ("/api/v1") API mount path
-      # @option options [Array] :allowed_origins (["*"]) CORS allowed origins
+      # Provides a configuration block to customize RAAF Rails behavior.
+      # Configuration is validated and frozen after initialization.
       #
-      # @example Configure Rails integration
+      # @yield [Hash] Configuration hash to modify
+      # @return [Hash] The configuration hash
+      #
+      # @example Basic configuration
       #   RAAF::Rails.configure do |config|
-      #     config.authentication_method = :devise
-      #     config.enable_dashboard = true
-      #     config.enable_api = true
-      #     config.allowed_origins = ["https://myapp.com"]
+      #     config[:authentication_method] = :devise
+      #     config[:enable_dashboard] = true
       #   end
+      #
+      # @example Full configuration
+      #   RAAF::Rails.configure do |config|
+      #     # Authentication
+      #     config[:authentication_method] = :devise
+      #
+      #     # Features
+      #     config[:enable_dashboard] = true
+      #     config[:enable_api] = true
+      #     config[:enable_websockets] = true
+      #     config[:enable_background_jobs] = true
+      #
+      #     # Paths
+      #     config[:dashboard_path] = "/admin/agents"
+      #     config[:api_path] = "/api/v1"
+      #     config[:websocket_path] = "/chat"
+      #
+      #     # Security
+      #     config[:allowed_origins] = ["https://myapp.com"]
+      #     config[:rate_limit] = {
+      #       enabled: true,
+      #       requests_per_minute: 100
+      #     }
+      #   end
+      #
+      # @see DEFAULT_CONFIG for available options
+      # @raise [ConfigurationError] if invalid configuration provided
       #
       def configure
         @config ||= DEFAULT_CONFIG.dup
         yield @config if block_given?
+        validate_configuration!
         @config
       end
 
       ##
       # Get current configuration
       #
+      # Returns the current configuration hash. If not configured,
+      # returns a copy of the default configuration.
+      #
       # @return [Hash] Current configuration
+      #
+      # @example
+      #   config = RAAF::Rails.config
+      #   puts config[:authentication_method]
+      #
       def config
         @config ||= DEFAULT_CONFIG.dup
       end
@@ -166,7 +196,14 @@ module RAAF
       # Install Rails integration
       #
       # Sets up necessary Rails components including routes, middleware,
-      # and initializers for AI agent functionality.
+      # and initializers for AI agent functionality. This method is
+      # idempotent and can be called multiple times safely.
+      #
+      # @return [void]
+      # @note This method is automatically called when the engine is loaded
+      #
+      # @example Manual installation
+      #   RAAF::Rails.install!
       #
       def install!
         return unless defined?(::Rails)
@@ -175,6 +212,9 @@ module RAAF
         install_routes
         install_initializers
         install_assets
+      rescue StandardError => e
+        Rails.logger.error "[RAAF] Installation failed: #{e.message}"
+        raise
       end
 
       ##
@@ -235,6 +275,37 @@ module RAAF
 
       private
 
+      ##
+      # Validate configuration values
+      #
+      # @raise [ConfigurationError] if configuration is invalid
+      # @return [void]
+      #
+      def validate_configuration!
+        # Validate authentication method
+        valid_auth_methods = %i[none devise doorkeeper custom]
+        unless valid_auth_methods.include?(@config[:authentication_method])
+          raise ConfigurationError, "Invalid authentication_method: #{@config[:authentication_method]}"
+        end
+
+        # Validate boolean values
+        %i[enable_dashboard enable_api enable_websockets enable_background_jobs].each do |key|
+          raise ConfigurationError, "#{key} must be boolean" unless [true, false].include?(@config[key])
+        end
+
+        # Validate paths
+        %i[dashboard_path api_path websocket_path].each do |key|
+          unless @config[key].is_a?(String) && @config[key].start_with?("/")
+            raise ConfigurationError, "#{key} must be a string starting with /"
+          end
+        end
+      end
+
+      ##
+      # Install Rails middleware
+      #
+      # @return [void]
+      #
       def install_middleware
         return unless defined?(::Rails)
 
@@ -248,12 +319,12 @@ module RAAF
 
         ::Rails.application.routes.draw do
           mount RAAF::Rails::Engine, at: config[:dashboard_path]
-          
+
           if config[:enable_api]
             namespace :api do
               namespace :v1 do
                 resources :agents do
-                  resources :conversations, only: [:create, :show, :index]
+                  resources :conversations, only: %i[create show index]
                 end
               end
             end
@@ -270,17 +341,17 @@ module RAAF
 
         # Setup background jobs
         if config[:enable_background_jobs] && defined?(Sidekiq)
-          require 'sidekiq/web'
+          require "sidekiq/web"
           ::Rails.application.routes.draw do
-            mount Sidekiq::Web => '/sidekiq'
+            mount Sidekiq::Web => "/sidekiq"
           end
         end
 
         # Setup logging integration
-        if defined?(::Rails.logger)
-          RAAF::Logging.configure do |logging_config|
-            logging_config.log_output = :rails
-          end
+        return unless defined?(::Rails.logger)
+
+        RAAF::Logging.configure do |logging_config|
+          logging_config.log_output = :rails
         end
       end
 
@@ -288,10 +359,10 @@ module RAAF
         return unless defined?(::Rails)
 
         # Add asset paths
-        if ::Rails.application.config.assets
-          ::Rails.application.config.assets.paths << 
-            File.join(File.dirname(__FILE__), "rails", "assets")
-        end
+        return unless ::Rails.application.config.assets
+
+        ::Rails.application.config.assets.paths <<
+          File.join(File.dirname(__FILE__), "rails", "assets")
       end
     end
   end

@@ -7,6 +7,29 @@ module RAAF
     #
     # Provides WebSocket support for real-time chat with AI agents,
     # including message streaming, typing indicators, and session management.
+    # This handler manages WebSocket connections, routes messages to appropriate
+    # agents, and maintains session state.
+    #
+    # @example Client-side usage
+    #   const ws = new WebSocket('ws://localhost:3000/agents/chat');
+    #
+    #   ws.onmessage = (event) => {
+    #     const data = JSON.parse(event.data);
+    #     console.log('Received:', data);
+    #   };
+    #
+    #   ws.send(JSON.stringify({
+    #     type: 'chat',
+    #     agent_id: 'agent_123',
+    #     content: 'Hello!'
+    #   }));
+    #
+    # @example Server-side extension
+    #   class CustomHandler < RAAF::Rails::WebsocketHandler
+    #     def handle_custom_message(ws, message)
+    #       # Custom message handling
+    #     end
+    #   end
     #
     class WebsocketHandler
       include RAAF::Logging
@@ -14,7 +37,11 @@ module RAAF
       ##
       # WebSocket connection handler
       #
-      # Handles WebSocket connections for real-time agent interactions.
+      # Entry point for WebSocket connections. Creates a new handler
+      # instance and processes the WebSocket request.
+      #
+      # @param env [Hash] Rack environment
+      # @return [Array] Rack response tuple
       #
       def self.call(env)
         new(env).call
@@ -46,7 +73,7 @@ module RAAF
         ws.onopen do |handshake|
           connection_id = SecureRandom.uuid
           user_id = extract_user_id(handshake)
-          
+
           @connections[connection_id] = {
             websocket: ws,
             user_id: user_id,
@@ -55,15 +82,15 @@ module RAAF
           }
 
           log_info("WebSocket connection opened", {
-            connection_id: connection_id,
-            user_id: user_id
-          })
+                     connection_id: connection_id,
+                     user_id: user_id
+                   })
 
           send_message(ws, {
-            type: "connected",
-            connection_id: connection_id,
-            timestamp: Time.current.iso8601
-          })
+                         type: "connected",
+                         connection_id: connection_id,
+                         timestamp: Time.current.iso8601
+                       })
         end
 
         ws.onmessage do |message|
@@ -82,34 +109,32 @@ module RAAF
       end
 
       def handle_message(ws, raw_message)
-        begin
-          message = JSON.parse(raw_message)
-          connection = find_connection_by_websocket(ws)
-          
-          return unless connection
+        message = JSON.parse(raw_message)
+        connection = find_connection_by_websocket(ws)
 
-          update_last_activity(connection)
+        return unless connection
 
-          case message["type"]
-          when "chat"
-            handle_chat_message(ws, connection, message)
-          when "typing"
-            handle_typing_indicator(ws, connection, message)
-          when "join_agent"
-            handle_join_agent(ws, connection, message)
-          when "leave_agent"
-            handle_leave_agent(ws, connection, message)
-          when "ping"
-            handle_ping(ws, connection)
-          else
-            send_error(ws, "Unknown message type: #{message['type']}")
-          end
-        rescue JSON::ParserError => e
-          send_error(ws, "Invalid JSON: #{e.message}")
-        rescue StandardError => e
-          log_error("WebSocket message error", error: e)
-          send_error(ws, "Internal server error")
+        update_last_activity(connection)
+
+        case message["type"]
+        when "chat"
+          handle_chat_message(ws, connection, message)
+        when "typing"
+          handle_typing_indicator(ws, connection, message)
+        when "join_agent"
+          handle_join_agent(ws, connection, message)
+        when "leave_agent"
+          handle_leave_agent(ws, connection, message)
+        when "ping"
+          handle_ping(ws, connection)
+        else
+          send_error(ws, "Unknown message type: #{message['type']}")
         end
+      rescue JSON::ParserError => e
+        send_error(ws, "Invalid JSON: #{e.message}")
+      rescue StandardError => e
+        log_error("WebSocket message error", error: e)
+        send_error(ws, "Internal server error")
       end
 
       def handle_chat_message(ws, connection, message)
@@ -144,9 +169,9 @@ module RAAF
 
         # Send acknowledgment
         send_message(ws, {
-          type: "message_received",
-          timestamp: Time.current.iso8601
-        })
+                       type: "message_received",
+                       timestamp: Time.current.iso8601
+                     })
       end
 
       def handle_typing_indicator(ws, connection, message)
@@ -157,11 +182,11 @@ module RAAF
 
         # Broadcast typing indicator to other connections in the same agent session
         broadcast_to_agent_session(agent_id, {
-          type: "typing",
-          user_id: connection[:user_id],
-          typing: typing,
-          timestamp: Time.current.iso8601
-        }, exclude: ws)
+                                     type: "typing",
+                                     user_id: connection[:user_id],
+                                     typing: typing,
+                                     timestamp: Time.current.iso8601
+                                   }, exclude: ws)
       end
 
       def handle_join_agent(ws, connection, message)
@@ -188,16 +213,16 @@ module RAAF
         @agent_sessions[agent_id] << ws
 
         send_message(ws, {
-          type: "joined_agent",
-          agent_id: agent_id,
-          agent_name: agent.name,
-          timestamp: Time.current.iso8601
-        })
+                       type: "joined_agent",
+                       agent_id: agent_id,
+                       agent_name: agent.name,
+                       timestamp: Time.current.iso8601
+                     })
 
         log_info("User joined agent session", {
-          user_id: connection[:user_id],
-          agent_id: agent_id
-        })
+                   user_id: connection[:user_id],
+                   agent_id: agent_id
+                 })
       end
 
       def handle_leave_agent(ws, connection, message)
@@ -207,25 +232,25 @@ module RAAF
 
         # Remove from agent session
         @agent_sessions[agent_id]&.delete(ws)
-        @agent_sessions.delete(agent_id) if @agent_sessions[agent_id]&.empty?
+        @agent_sessions.delete(agent_id) if @agent_sessions[agent_id] && @agent_sessions[agent_id].empty?
 
         send_message(ws, {
-          type: "left_agent",
-          agent_id: agent_id,
-          timestamp: Time.current.iso8601
-        })
+                       type: "left_agent",
+                       agent_id: agent_id,
+                       timestamp: Time.current.iso8601
+                     })
 
         log_info("User left agent session", {
-          user_id: connection[:user_id],
-          agent_id: agent_id
-        })
+                   user_id: connection[:user_id],
+                   agent_id: agent_id
+                 })
       end
 
       def handle_ping(ws, connection)
         send_message(ws, {
-          type: "pong",
-          timestamp: Time.current.iso8601
-        })
+                       type: "pong",
+                       timestamp: Time.current.iso8601
+                     })
       end
 
       def handle_disconnect(ws, code, reason)
@@ -245,19 +270,19 @@ module RAAF
         @connections.delete(connection_id)
 
         log_info("WebSocket connection closed", {
-          connection_id: connection_id,
-          user_id: user_id,
-          code: code,
-          reason: reason
-        })
+                   connection_id: connection_id,
+                   user_id: user_id,
+                   code: code,
+                   reason: reason
+                 })
       end
 
       def handle_error(ws, error)
         connection = find_connection_by_websocket(ws)
         log_error("WebSocket error", {
-          user_id: connection&.dig(:user_id),
-          error: error
-        })
+                    user_id: connection&.dig(:user_id),
+                    error: error
+                  })
       end
 
       def send_message(ws, message)
@@ -266,10 +291,10 @@ module RAAF
 
       def send_error(ws, error_message)
         send_message(ws, {
-          type: "error",
-          message: error_message,
-          timestamp: Time.current.iso8601
-        })
+                       type: "error",
+                       message: error_message,
+                       timestamp: Time.current.iso8601
+                     })
       end
 
       def broadcast_to_agent_session(agent_id, message, exclude: nil)
@@ -301,9 +326,9 @@ module RAAF
         # Extract user ID from query params or headers
         query_params = Rack::Utils.parse_query(handshake.query_string)
         user_id = query_params["user_id"]
-        
+
         # Alternative: extract from JWT token
-        if token = query_params["token"]
+        if (token = query_params["token"])
           user_id = decode_jwt_token(token)
         end
 

@@ -5,19 +5,36 @@ module RAAF
     ##
     # Rails engine for Ruby AI Agents Factory
     #
-    # Provides mountable Rails engine with dashboard, API endpoints,
-    # and WebSocket support for AI agent management.
+    # This engine provides a complete Rails integration for RAAF, including:
+    # - Mountable routes for dashboard and API
+    # - Asset pipeline integration
+    # - Middleware setup for authentication and monitoring
+    # - WebSocket support via Action Cable
+    # - Background job processing with Sidekiq
+    # - Automatic helper inclusion in controllers and views
+    #
+    # @example Mount the engine in your routes
+    #   Rails.application.routes.draw do
+    #     mount RAAF::Rails::Engine, at: "/agents"
+    #   end
+    #
+    # @example Access engine routes
+    #   # Dashboard: /agents/dashboard
+    #   # API: /agents/api/v1
+    #   # WebSocket: /agents/cable
+    #
+    # @see RAAF::Rails.configure for configuration options
     #
     class Engine < ::Rails::Engine
       isolate_namespace RAAF::Rails
 
       # Configure engine paths
-      config.autoload_paths << File.expand_path("../../../../app", __FILE__)
-      config.eager_load_paths << File.expand_path("../../../../app", __FILE__)
+      config.autoload_paths << File.expand_path("../../../app", __dir__)
+      config.eager_load_paths << File.expand_path("../../../app", __dir__)
 
       # Set up asset pipeline
       config.assets.enabled = true
-      config.assets.paths << File.expand_path("../../../../app/assets", __FILE__)
+      config.assets.paths << File.expand_path("../../../app/assets", __dir__)
       config.assets.precompile += %w[raaf-rails.css raaf-rails.js]
 
       # Configure generators
@@ -36,8 +53,8 @@ module RAAF
             allow do
               origins(*RAAF::Rails.config[:allowed_origins])
               resource "/api/v1/*",
-                headers: :any,
-                methods: [:get, :post, :put, :patch, :delete, :options, :head]
+                       headers: :any,
+                       methods: %i[get post put patch delete options head]
             end
           end
         end
@@ -108,30 +125,28 @@ module RAAF
               patch :deploy
               delete :undeploy
             end
-            
-            resources :conversations, only: [:index, :show, :create]
+
+            resources :conversations, only: %i[index show create]
           end
 
           # API routes
           namespace :api do
             namespace :v1 do
-              resources :agents, only: [:index, :show, :create, :update, :destroy] do
+              resources :agents, only: %i[index show create update destroy] do
                 member do
                   post :chat
                   get :status
                   post :deploy
                   delete :undeploy
                 end
-                
-                resources :conversations, only: [:index, :show, :create]
+
+                resources :conversations, only: %i[index show create]
               end
             end
           end
 
           # WebSocket routes - Action Cable handles WebSocket connections
-          if RAAF::Rails.config[:enable_websockets]
-            mount ActionCable.server => "/cable"
-          end
+          mount ActionCable.server => "/cable" if RAAF::Rails.config[:enable_websockets]
         end
       end
 
@@ -209,16 +224,16 @@ module RAAF
       # Setup I18n
       initializer "raaf-rails.i18n" do
         config.i18n.load_path += Dir[
-          File.expand_path("../../../../config/locales/*.yml", __FILE__)
+          File.expand_path("../../../config/locales/*.yml", __dir__)
         ]
       end
 
       # Setup assets
       initializer "raaf-rails.assets" do
         if defined?(Sprockets)
-          config.assets.paths << File.expand_path("../../../../app/assets/stylesheets", __FILE__)
-          config.assets.paths << File.expand_path("../../../../app/assets/javascripts", __FILE__)
-          config.assets.paths << File.expand_path("../../../../app/assets/images", __FILE__)
+          config.assets.paths << File.expand_path("../../../app/assets/stylesheets", __dir__)
+          config.assets.paths << File.expand_path("../../../app/assets/javascripts", __dir__)
+          config.assets.paths << File.expand_path("../../../app/assets/images", __dir__)
         end
       end
     end

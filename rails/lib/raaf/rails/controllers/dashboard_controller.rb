@@ -7,7 +7,16 @@ module RAAF
       # Dashboard controller for AI agent management
       #
       # Provides web-based dashboard for managing AI agents, monitoring
-      # conversations, and viewing analytics.
+      # conversations, and viewing analytics. This controller includes
+      # comprehensive filtering, sorting, and data visualization capabilities.
+      #
+      # @example Custom dashboard controller
+      #   class MyDashboardController < RAAF::Rails::Controllers::DashboardController
+      #     def index
+      #       super
+      #       @custom_stats = calculate_custom_stats
+      #     end
+      #   end
       #
       class DashboardController < BaseController
         before_action :authenticate_user!
@@ -68,7 +77,7 @@ module RAAF
 
         def current_user_conversations
           ConversationModel.joins(:agent)
-                          .where(agents: { user: current_user })
+                           .where(agents: { user: current_user })
         end
 
         def recent_conversations
@@ -80,8 +89,8 @@ module RAAF
             agents_count: current_user_agents.count,
             conversations_count: current_user_conversations.count,
             messages_count: MessageModel.joins(conversation: :agent)
-                                      .where(agents: { user: current_user })
-                                      .count,
+                                        .where(agents: { user: current_user })
+                                        .count,
             total_tokens: calculate_total_tokens,
             active_agents: current_user_agents.where(status: "active").count,
             avg_response_time: calculate_avg_response_time
@@ -90,9 +99,15 @@ module RAAF
 
         def filter_conversations(conversations)
           conversations = conversations.where(agent_id: params[:agent_id]) if params[:agent_id].present?
-          conversations = conversations.where("created_at >= ?", Time.parse(params[:start_date])) if params[:start_date].present?
-          conversations = conversations.where("created_at <= ?", Time.parse(params[:end_date])) if params[:end_date].present?
-          conversations = conversations.where("messages.content ILIKE ?", "%#{params[:search]}%").joins(:messages) if params[:search].present?
+          if params[:start_date].present?
+            conversations = conversations.where(created_at: Time.zone.parse(params[:start_date])..)
+          end
+          if params[:end_date].present?
+            conversations = conversations.where(created_at: ..Time.zone.parse(params[:end_date]))
+          end
+          if params[:search].present?
+            conversations = conversations.where("messages.content ILIKE ?", "%#{params[:search]}%").joins(:messages)
+          end
           conversations
         end
 
@@ -110,10 +125,10 @@ module RAAF
                          7.days.ago
                        end
 
-          conversations = current_user_conversations.where("created_at >= ?", start_date)
+          conversations = current_user_conversations.where(created_at: start_date..)
           messages = MessageModel.joins(conversation: :agent)
-                                .where(agents: { user: current_user })
-                                .where("messages.created_at >= ?", start_date)
+                                 .where(agents: { user: current_user })
+                                 .where(messages: { created_at: start_date.. })
 
           {
             conversations_over_time: conversations_over_time_data(conversations, start_date),
@@ -127,7 +142,7 @@ module RAAF
 
         def conversations_over_time_data(conversations, start_date)
           conversations.group_by_day(:created_at, range: start_date..Time.current)
-                      .count
+                       .count
         end
 
         def messages_by_agent_data(messages)
@@ -151,36 +166,36 @@ module RAAF
 
         def popular_agents_data(conversations)
           conversations.joins(:agent)
-                      .group("agents.name")
-                      .count
-                      .sort_by { |_, count| -count }
-                      .first(10)
+                       .group("agents.name")
+                       .count
+                       .sort_by { |_, count| -count }
+                       .first(10)
         end
 
         def error_rate_data(conversations)
           total = conversations.count
           errors = conversations.where("metadata->>'error' IS NOT NULL").count
-          
+
           {
             total: total,
             errors: errors,
-            rate: total > 0 ? (errors.to_f / total * 100).round(2) : 0
+            rate: total.positive? ? (errors.to_f / total * 100).round(2) : 0
           }
         end
 
         def calculate_total_tokens
           MessageModel.joins(conversation: :agent)
-                     .where(agents: { user: current_user })
-                     .where.not(usage: nil)
-                     .sum("(usage->>'total_tokens')::int")
+                      .where(agents: { user: current_user })
+                      .where.not(usage: nil)
+                      .sum("(usage->>'total_tokens')::int")
         end
 
         def calculate_avg_response_time
           MessageModel.joins(conversation: :agent)
-                     .where(agents: { user: current_user })
-                     .where("metadata->>'response_time' IS NOT NULL")
-                     .average("(metadata->>'response_time')::float")
-                     &.round(2)
+                      .where(agents: { user: current_user })
+                      .where("metadata->>'response_time' IS NOT NULL")
+                      .average("(metadata->>'response_time')::float")
+                      &.round(2)
         end
       end
     end
