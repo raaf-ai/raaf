@@ -2,6 +2,12 @@
 
 source "https://rubygems.org"
 
+# Always use local development paths for raaf gems
+gem "raaf-core", path: "../core"
+gem "raaf-memory", path: "../memory"
+gem "raaf-testing", path: "../testing"
+gem "raaf-tracing", path: "../tracing"
+
 # Specify your gem's dependencies in the gemspec
 gemspec
 
@@ -11,16 +17,18 @@ group :development do
 end
 
 group :test do
+  gem "matrix", "~> 0.4" # Required by raaf-memory
   gem "rspec", "~> 3.0"
   gem "simplecov", "~> 0.22"
-  gem "webmock", "~> 3.18"
   gem "vcr", "~> 6.1"
+  gem "webmock", "~> 3.18"
 end
 
 group :development, :test do
-  gem "rubocop", "~> 1.21"
-  gem "rubocop-rake", "~> 0.6"
-  gem "rubocop-rspec", "~> 2.0"
   gem "pry", "~> 0.14"
   gem "pry-byebug", "~> 3.10"
+  gem "rubocop", "~> 1.21"
+  gem "rubocop-rails", "~> 2.0"
+  gem "rubocop-rake", "~> 0.6"
+  gem "rubocop-rspec", "~> 3.0"
 end

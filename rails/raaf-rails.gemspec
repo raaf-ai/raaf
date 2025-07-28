@@ -31,20 +31,24 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Dependencies
-  spec.add_dependency "raaf-core", "0.1.0"
-  spec.add_dependency "raaf-memory", "0.1.0"
+  spec.add_dependency "ostruct", "~> 0.5" # Required for Ruby 3.5+ compatibility
+  spec.add_dependency "raaf-core", "~> 0.1"
+  spec.add_dependency "raaf-memory", "~> 0.1"
+  spec.add_dependency "raaf-tracing", "~> 0.1"
   spec.add_dependency "rails", ">= 7.0"
   spec.add_dependency "stimulus-rails", "~> 1.0"
   spec.add_dependency "turbo-rails", "~> 1.0"
 
   # Development dependencies
-  spec.add_development_dependency "bundler", "~> 2.0"
-  spec.add_development_dependency "capybara", "~> 3.0"
-  spec.add_development_dependency "rake", "~> 13.0"
-  spec.add_development_dependency "rspec", "~> 3.0"
-  spec.add_development_dependency "rspec-rails", "~> 6.0"
-  spec.add_development_dependency "rubocop", "~> 1.0"
-  spec.add_development_dependency "rubocop-rails", "~> 2.0"
-  spec.add_development_dependency "rubocop-rspec", "~> 2.0"
-  spec.add_development_dependency "selenium-webdriver", "~> 4.0"
+  spec.add_development_dependency "bundler"
+  spec.add_development_dependency "capybara"
+  spec.add_development_dependency "rake"
+  spec.add_development_dependency "rspec"
+  spec.add_development_dependency "rspec_junit_formatter"
+  spec.add_development_dependency "rspec-rails"
+  spec.add_development_dependency "rubocop"
+  spec.add_development_dependency "rubocop-rails"
+  spec.add_development_dependency "rubocop-rake"
+  spec.add_development_dependency "rubocop-rspec"
+  spec.add_development_dependency "selenium-webdriver"
 end
