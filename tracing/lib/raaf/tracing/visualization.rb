@@ -445,12 +445,15 @@ module RAAF
         timeline_spans = prepare_timeline_data(spans_data)
         mermaid_diagram = TraceVisualizer.new(spans).generate_mermaid
 
-        # Define variables for ERB template
+        # Define variables for ERB template (used in binding)
         trace_id = spans_data.first&.dig(:trace_id) || "unknown"
         total_spans = spans_data.length
         total_duration = spans_data.sum { |s| s[:duration] || 0 }
         status = spans_data.any? { |s| s[:status] == :error } ? "error" : "success"
         spans = spans_data
+        
+        # Variables used in ERB template through binding
+        _ = [trace_id, total_spans, total_duration, status, timeline_spans, mermaid_diagram]
 
         template = ERB.new(TEMPLATE)
         template.result(binding)

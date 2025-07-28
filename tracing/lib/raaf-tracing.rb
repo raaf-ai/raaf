@@ -81,19 +81,7 @@ module RAAF
       #     config.processors = [OpenAIProcessor.new, ConsoleProcessor.new]
       #   end
       #
-      def configure
-        @config ||= DEFAULT_CONFIG.dup
-        yield @config if block_given?
-        @config
-      end
-
-      ##
-      # Get current configuration
-      #
-      # @return [Hash] Current configuration
-      def config
-        @config ||= DEFAULT_CONFIG.dup
-      end
+      # Note: configure and config methods are defined in raaf/tracing.rb to avoid duplication
 
       ##
       # Create a new tracer with default configuration
@@ -113,17 +101,7 @@ module RAAF
         config[:enabled]
       end
 
-      ##
-      # Disable tracing globally
-      def disable!
-        config[:enabled] = false
-      end
-
-      ##
-      # Enable tracing globally
-      def enable!
-        config[:enabled] = true
-      end
+      # Note: disable! and enable! methods are defined in raaf/tracing.rb to avoid duplication
     end
   end
 end

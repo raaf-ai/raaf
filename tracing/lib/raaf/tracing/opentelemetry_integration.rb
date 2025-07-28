@@ -109,7 +109,7 @@ module RAAF
         return unless span.finished?
 
         # Convert to OpenTelemetry span
-        otel_span = create_otel_span(span)
+        create_otel_span(span)
         
         # The span is automatically sent to configured exporters
         # when it's finished within the OpenTelemetry context
