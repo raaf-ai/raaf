@@ -401,9 +401,7 @@ module RAAF
         Dir.glob(pattern).size
       end
 
-      def clear_test_caches
-        # Clear any test-specific caches
-      end
+      # Note: clear_test_caches is defined above with actual implementation
 
       def deep_dup(hash)
         hash.each_with_object({}) do |(key, value), result|

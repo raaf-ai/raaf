@@ -451,7 +451,7 @@ module RAAF
         
         # Add any additional metadata from response config
         if @responses.find { |k, v| v.is_a?(Hash) && v[:metadata] }
-          pattern, response_config = @responses.find { |k, v| v.is_a?(Hash) && v[:metadata] }
+          _, response_config = @responses.find { |k, v| v.is_a?(Hash) && v[:metadata] }
           if response_config && response_config[:metadata]
             response[:metadata].merge!(response_config[:metadata])
           end
