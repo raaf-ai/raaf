@@ -1,0 +1,27 @@
+# English translations for RAAF Rails
+
+en:
+  raaf:
+    rails:
+      auth:
+        please_sign_in: "Please sign in to continue"
+      agents:
+        created: "Agent was successfully created."
+        updated: "Agent was successfully updated."
+        destroyed: "Agent was successfully deleted."
+        deployed: "Agent was successfully deployed."
+        undeployed: "Agent was successfully undeployed."
+        not_found: "Agent not found."
+        access_denied: "You don't have permission to access this agent."
+      conversations:
+        started: "Conversation started successfully."
+        message_sent: "Message sent successfully."
+        not_found: "Conversation not found."
+        error: "An error occurred while processing your message."
+      errors:
+        authentication_required: "Authentication required"
+        unauthorized: "Unauthorized access"
+        bad_request: "Bad request"
+        not_found: "Resource not found"
+        unprocessable_entity: "Unable to process request"
+        internal_error: "Internal server error"
