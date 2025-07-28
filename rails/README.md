@@ -1,23 +1,12 @@
 # RAAF Rails
 
-[![Gem Version](https://badge.fury.io/rb/raaf-rails.svg)](https://badge.fury.io/rb/raaf-rails)
+[![🚀 Rails CI](https://github.com/raaf-ai/raaf/actions/workflows/rails-ci.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/rails-ci.yml)
+[![⚡ Quick Check](https://github.com/raaf-ai/raaf/actions/workflows/rails-quick-check.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/rails-quick-check.yml)
+[![🌙 Nightly](https://github.com/raaf-ai/raaf/actions/workflows/rails-nightly.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/rails-nightly.yml)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.2-ruby.svg)](https://www.ruby-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The **RAAF Rails** gem provides comprehensive Rails integration for the Ruby AI Agents Factory (RAAF) ecosystem. It offers Rails engine functionality, web dashboard, API endpoints, generators, and seamless integration with Rails applications.
-
-## Overview
-
-RAAF (Ruby AI Agents Factory) Rails extends the core Rails capabilities from `raaf-core` to provide Rails integration and web interface for Ruby AI Agents Factory (RAAF). This gem provides comprehensive Rails integration including web-based dashboard, REST API, real-time conversations, and deployment tools.
-
-## Features
-
-- **Web Dashboard** - Complete web interface for managing AI agents
-- **REST API** - RESTful API for agent interactions and management
-- **Real-time Chat** - WebSocket-based real-time conversations
-- **Authentication** - Support for Devise, Doorkeeper, and custom auth
-- **Background Jobs** - Sidekiq integration for async processing
-- **Monitoring** - Built-in analytics and performance monitoring
-- **Deployment Tools** - Easy deployment and scaling utilities
+The **RAAF Rails** gem provides comprehensive Rails integration for the Ruby AI Agents Factory (RAAF). This gem adds web dashboards, REST APIs, WebSocket support, and seamless Rails application integration to the RAAF ecosystem.
 
 ## Installation
 
@@ -33,61 +22,137 @@ And then execute:
 bundle install
 ```
 
+Or install it yourself as:
+
+```bash
+gem install raaf-rails
+```
+
 ## Quick Start
 
-### 1. Mount the Engine
-
-In your Rails application's `config/routes.rb`:
-
 ```ruby
+# Mount the engine in config/routes.rb
 Rails.application.routes.draw do
   mount RAAF::Rails::Engine, at: "/agents"
 end
-```
 
-### 2. Configure the Integration
-
-Create `config/initializers/raaf.rb`:
-
-```ruby
+# Configure in config/initializers/raaf.rb
 RAAF::Rails.configure do |config|
   config.authentication_method = :devise
   config.enable_dashboard = true
   config.enable_api = true
-  config.enable_websockets = true
-  config.dashboard_path = "/agents"
-  config.api_path = "/api/v1"
 end
+
+# Create and use agents
+agent = RAAF::Rails.create_agent(
+  name: "Assistant",
+  instructions: "You are a helpful assistant",
+  model: "gpt-4o",
+  user: current_user
+)
+
+result = RAAF::Rails.start_conversation(
+  agent_id: agent.id,
+  message: "Hello!",
+  context: { user: current_user }
+)
 ```
 
-### 3. Generate Migrations
+## Core Components
 
-```bash
-rails generate raaf:install
-rails db:migrate
+### Rails Engine
+The mountable engine that provides dashboard, API, and WebSocket endpoints.
+
+```ruby
+# config/routes.rb
+mount RAAF::Rails::Engine, at: "/agents"
+
+# Access points:
+# - /agents/dashboard - Web dashboard
+# - /agents/api/v1 - REST API
+# - /agents/chat - WebSocket endpoint
 ```
 
-### 4. Start Using
+### Dashboard Controller
+Web interface for managing agents, conversations, and analytics.
 
-Visit `http://localhost:3000/agents` to access the dashboard.
+```ruby
+# Provided actions:
+# - index: Dashboard overview
+# - agents: Agent management
+# - conversations: Conversation history
+# - analytics: Usage metrics
+```
+
+### WebSocket Handler
+Real-time bidirectional communication for chat interfaces.
+
+```ruby
+# JavaScript client example
+const ws = new WebSocket('ws://localhost:3000/agents/chat');
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Agent:', data.message);
+};
+
+ws.send(JSON.stringify({
+  type: 'chat',
+  agent_id: 'agent_123',
+  content: 'Hello!'
+}));
+```
+
+### Agent Helper
+View helpers for Rails applications.
+
+```erb
+<%= agent_status_badge(@agent) %>
+<%= format_agent_response(@response) %>
+<%= agent_model_options %>
+<%= format_agent_tools(@agent.tools) %>
+<%= agent_deploy_button(@agent) %>
+<%= render_agent_metrics(@agent) %>
+```
 
 ## Configuration
 
-### Authentication Methods
-
-#### Devise Integration
+### Basic Configuration
 
 ```ruby
-# config/initializers/raaf.rb
 RAAF::Rails.configure do |config|
-  config.authentication_method = :devise
+  # Authentication
+  config.authentication_method = :devise  # :devise, :custom, :none
+  
+  # Features
+  config.enable_dashboard = true
+  config.enable_api = true
+  config.enable_websockets = true
+  config.enable_background_jobs = true
+  
+  # Paths
+  config.dashboard_path = "/dashboard"
+  config.api_path = "/api/v1"
+  config.websocket_path = "/chat"
+  
+  # Security
+  config.allowed_origins = ["*"]
+  config.rate_limit = {
+    enabled: true,
+    requests_per_minute: 60
+  }
+  
+  # Monitoring
+  config.monitoring = {
+    enabled: true,
+    metrics: [:usage, :performance, :errors]
+  }
 end
 ```
 
-#### Custom Authentication
+### Custom Authentication
 
 ```ruby
-# config/initializers/raaf.rb
 RAAF::Rails.configure do |config|
   config.authentication_method = :custom
   config.authentication_handler = ->(request) {
@@ -97,87 +162,60 @@ RAAF::Rails.configure do |config|
 end
 ```
 
-### Dashboard Configuration
+## Creating Agents
 
-```ruby
-RAAF::Rails.configure do |config|
-  config.enable_dashboard = true
-  config.dashboard_path = "/admin/agents"
-  config.dashboard_title = "AI Agents Dashboard"
-  config.dashboard_theme = "dark"
-end
-```
-
-### API Configuration
-
-```ruby
-RAAF::Rails.configure do |config|
-  config.enable_api = true
-  config.api_path = "/api/v1"
-  config.api_version = "v1"
-  config.rate_limit = {
-    enabled: true,
-    requests_per_minute: 60
-  }
-end
-```
-
-### WebSocket Configuration
-
-```ruby
-RAAF::Rails.configure do |config|
-  config.enable_websockets = true
-  config.websocket_path = "/chat"
-  config.websocket_origins = ["http://localhost:3000"]
-end
-```
-
-## Usage
-
-### Creating Agents
-
-#### Via Dashboard
+### Via Dashboard
 
 1. Navigate to `/agents/dashboard`
 2. Click "New Agent"
-3. Fill in agent details (name, instructions, model)
-4. Click "Create Agent"
+3. Fill in agent details
+4. Configure tools and handoffs
+5. Deploy the agent
 
-#### Via API
+### Via API
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/agents \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
-    "name": "Customer Support Agent",
-    "instructions": "You are a helpful customer support agent",
+    "name": "Support Agent",
+    "instructions": "You help customers with their questions",
     "model": "gpt-4o",
     "tools": ["web_search", "knowledge_base"]
   }'
 ```
 
-#### Via Rails Console
+### Via Rails Code
 
 ```ruby
+# In a controller or service
 agent = RAAF::Rails.create_agent(
-  name: "Assistant",
-  instructions: "You are a helpful assistant",
+  name: "Sales Assistant",
+  instructions: "You help with sales inquiries",
   model: "gpt-4o",
-  user: current_user
+  user: current_user,
+  tools: ["product_search", "price_calculator"],
+  metadata: {
+    department: "sales",
+    region: "north"
+  }
 )
+
+# Deploy the agent
+agent.deploy!
 ```
 
-### Starting Conversations
+## Starting Conversations
 
-#### Via API
+### Via API
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/agents/123/conversations \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
-    "message": "Hello, how can you help me?",
+    "message": "What products do you have?",
     "context": {
       "user_id": 456,
       "session_id": "abc123"
@@ -185,12 +223,14 @@ curl -X POST http://localhost:3000/api/v1/agents/123/conversations \
   }'
 ```
 
-#### Via WebSocket
+### Via WebSocket
 
 ```javascript
+// Connect to WebSocket
 const ws = new WebSocket('ws://localhost:3000/agents/chat');
 
-ws.onopen = function() {
+// Handle connection
+ws.onopen = () => {
   // Join agent session
   ws.send(JSON.stringify({
     type: 'join_agent',
@@ -198,219 +238,201 @@ ws.onopen = function() {
   }));
 };
 
-ws.onmessage = function(event) {
+// Handle messages
+ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  console.log('Received:', data);
+  
+  switch(data.type) {
+    case 'message':
+      console.log('Agent:', data.content);
+      break;
+    case 'typing':
+      console.log('Agent is typing...');
+      break;
+    case 'error':
+      console.error('Error:', data.message);
+      break;
+  }
 };
 
 // Send message
 ws.send(JSON.stringify({
   type: 'chat',
   agent_id: 'agent_123',
-  content: 'Hello, assistant!'
+  content: 'Hello, I need help!'
 }));
 ```
 
-#### Via Rails Code
+### Via Rails Code
 
 ```ruby
+# Synchronous conversation
 result = RAAF::Rails.start_conversation(
-  agent_id: "agent_123",
+  agent_id: agent.id,
   message: "Hello!",
-  context: { user: current_user }
+  context: {
+    user: current_user,
+    session_id: session.id,
+    metadata: { source: "web" }
+  }
 )
 
 puts result[:message]
-```
+puts result[:usage]
 
-### Background Jobs
-
-#### Setup Sidekiq
-
-```ruby
-# config/initializers/raaf.rb
-RAAF::Rails.configure do |config|
-  config.enable_background_jobs = true
-end
-```
-
-#### Process Messages Asynchronously
-
-```ruby
-# In a controller
-def create
-  ConversationJob.perform_async(
-    current_user.id,
-    params[:agent_id],
-    params[:message],
-    params[:context] || {}
-  )
-  
-  render json: { status: "processing" }
-end
+# Asynchronous with background jobs
+ConversationJob.perform_async(
+  current_user.id,
+  agent.id,
+  "Hello!",
+  { session_id: session.id }
+)
 ```
 
 ## Models
 
-### Agent Model
+### AgentModel
 
 ```ruby
+# Creating agents
 agent = RAAF::Rails::AgentModel.create!(
   name: "Customer Support",
-  instructions: "You are a helpful customer support agent",
+  instructions: "You are a helpful support agent",
   model: "gpt-4o",
   user: current_user,
-  tools: ["web_search", "knowledge_base"],
-  metadata: {
-    department: "support",
-    language: "en"
-  }
+  status: "draft"
 )
 
 # Instance methods
-agent.process_message("Hello")
-agent.deploy!
-agent.undeploy!
-agent.conversation_count
-agent.total_tokens_used
+agent.deploy!                    # Deploy the agent
+agent.undeploy!                 # Undeploy the agent
+agent.process_message(msg)      # Process a message
+agent.add_tool(tool)           # Add a tool
+agent.add_handoff(other_agent) # Add handoff target
+
+# Scopes and queries
+AgentModel.deployed            # All deployed agents
+AgentModel.by_user(user)      # User's agents
+AgentModel.with_tool("web")   # Agents with specific tool
 ```
 
-### Conversation Model
+### ConversationModel
 
 ```ruby
+# Creating conversations
 conversation = RAAF::Rails::ConversationModel.create!(
   agent: agent,
   user: current_user,
   context: { session_id: "abc123" }
 )
 
-# Add messages
+# Managing messages
 conversation.add_message("Hello", role: "user")
-conversation.add_message("Hi there!", role: "assistant")
+response = agent.process_message("Hello")
+conversation.add_message(response[:content], role: "assistant")
 
-# Query messages
-conversation.messages.count
+# Queries
 conversation.messages.by_role("user")
 conversation.total_tokens
+conversation.duration
+conversation.successful?
 ```
 
-### Message Model
+### MessageModel
 
 ```ruby
+# Message structure
 message = RAAF::Rails::MessageModel.create!(
   conversation: conversation,
-  content: "Hello, world!",
-  role: "user",
+  content: "How can I help you?",
+  role: "assistant",
   usage: {
-    input_tokens: 10,
-    output_tokens: 8,
-    total_tokens: 18
+    input_tokens: 15,
+    output_tokens: 20,
+    total_tokens: 35
   },
   metadata: {
-    response_time: 1.25,
-    model: "gpt-4o"
+    model: "gpt-4o",
+    response_time: 1.5,
+    tool_calls: []
   }
 )
+
+# Scopes
+MessageModel.by_role("assistant")
+MessageModel.with_tool_calls
+MessageModel.recent(24.hours)
 ```
 
-## Controllers
+## Background Jobs
 
-### Custom Controllers
+### Setup Sidekiq
 
 ```ruby
-class MyAgentsController < RAAF::Rails::Controllers::BaseController
-  def index
-    @agents = current_user.agents
-  end
+# Gemfile
+gem 'sidekiq'
 
-  def chat
-    @agent = find_agent(params[:id])
-    @conversation = @agent.conversations.create!(user: current_user)
+# config/initializers/raaf.rb
+RAAF::Rails.configure do |config|
+  config.enable_background_jobs = true
+end
+
+# config/routes.rb
+require 'sidekiq/web'
+mount Sidekiq::Web => '/sidekiq'
+```
+
+### ConversationJob
+
+```ruby
+# Async message processing
+ConversationJob.perform_async(
+  user_id,
+  agent_id,
+  message,
+  context
+)
+
+# Custom job
+class CustomAgentJob < ApplicationJob
+  def perform(agent_id, task)
+    agent = AgentModel.find(agent_id)
+    agent.perform_task(task)
   end
 end
 ```
 
-### API Controllers
+## Analytics & Monitoring
+
+### Built-in Analytics
 
 ```ruby
-class Api::V1::MyAgentsController < RAAF::Rails::Controllers::Api::V1::BaseController
-  def chat
-    agent = find_agent(params[:id])
-    result = agent.process_message(
-      params[:message],
-      context: params[:context]
-    )
-    
-    render json: result
-  end
-end
-```
-
-## Helpers
-
-### Agent Helper
-
-```erb
-<%= agent_status_badge(@agent) %>
-<%= agent_conversation_count(@agent) %>
-<%= agent_last_activity(@agent) %>
-<%= format_usage(@message.usage) %>
-<%= format_response_time(@message.metadata["response_time"]) %>
-```
-
-### In Controllers
-
-```ruby
-class AgentsController < ApplicationController
-  include RAAF::Rails::Helpers::AgentHelper
-
-  def show
-    @agent = find_agent(params[:id])
-    @status = agent_status(@agent)
-    @metrics = agent_metrics(@agent)
-  end
-end
-```
-
-## Monitoring and Analytics
-
-### Built-in Dashboard
-
-Visit `/agents/dashboard/analytics` to view:
-- Conversation volume over time
-- Token usage statistics
-- Response time metrics
-- Popular agents
-- Error rates
-
-### Custom Analytics
-
-```ruby
-# In a controller
+# Access analytics in controller
 def analytics
-  @analytics = {
-    conversations_count: current_user.conversations.count,
-    total_tokens: current_user.total_tokens_used,
-    avg_response_time: current_user.average_response_time,
-    top_agents: current_user.agents.by_usage.limit(10)
+  @stats = {
+    total_conversations: current_user.conversations.count,
+    total_tokens: current_user.messages.sum("(usage->>'total_tokens')::int"),
+    avg_response_time: current_user.messages.average("(metadata->>'response_time')::float"),
+    conversations_by_day: current_user.conversations.group_by_day(:created_at).count
   }
 end
 ```
 
-### Metrics Collection
+### Custom Metrics
 
 ```ruby
-# Custom metrics
+# Collect custom metrics
 RAAF::Rails.collect_metric(
   :conversation_started,
   agent_id: agent.id,
-  user_id: current_user.id
+  user_id: current_user.id,
+  value: 1
 )
 
-RAAF::Rails.collect_metric(
-  :token_usage,
-  value: usage[:total_tokens],
-  agent_id: agent.id
+# Query metrics
+metrics = RAAF::Rails.metrics_for(:conversation_started, 
+  start_date: 1.week.ago,
+  end_date: Time.current
 )
 ```
 
@@ -419,87 +441,251 @@ RAAF::Rails.collect_metric(
 ### Environment Variables
 
 ```bash
-# Database
-export DATABASE_URL="postgres://user:pass@localhost/db"
+# Required
+export OPENAI_API_KEY="sk-..."
+export DATABASE_URL="postgresql://..."
+export REDIS_URL="redis://..."
+export SECRET_KEY_BASE="..."
 
-# Redis (for Sidekiq and WebSockets)
-export REDIS_URL="redis://localhost:6379"
-
-# OpenAI API
-export OPENAI_API_KEY="your-api-key"
-
-# Rails configuration
-export RAILS_ENV="production"
-export SECRET_KEY_BASE="your-secret-key"
-
-# RAAF configuration
+# Optional RAAF configuration
 export RAAF_DASHBOARD_PATH="/admin/agents"
 export RAAF_API_PATH="/api/v1"
-export RAAF_WEBSOCKET_ORIGINS="https://yourdomain.com"
+export RAAF_ENABLE_DASHBOARD="true"
+export RAAF_ENABLE_API="true"
+export RAAF_ENABLE_WEBSOCKETS="true"
+export RAAF_AUTHENTICATION_METHOD="devise"
 ```
 
-### Docker Deployment
+### Docker Support
 
 ```dockerfile
-FROM ruby:3.2
+FROM ruby:3.2-alpine
+
+RUN apk add --no-cache \
+    build-base \
+    postgresql-dev \
+    nodejs \
+    yarn
 
 WORKDIR /app
 
-COPY Gemfile Gemfile.lock ./
-RUN bundle install
+COPY Gemfile* ./
+RUN bundle install --jobs 4
 
 COPY . .
+
+RUN rails assets:precompile
 
 EXPOSE 3000
 
 CMD ["rails", "server", "-b", "0.0.0.0"]
 ```
 
-### Scaling
+### Production Considerations
 
 ```ruby
-# config/initializers/raaf.rb
+# config/environments/production.rb
+config.force_ssl = true
+config.cache_store = :redis_cache_store, { url: ENV['REDIS_URL'] }
+
+# config/initializers/raaf.rb (production)
 RAAF::Rails.configure do |config|
-  # Use Redis for shared state in multi-server deployments
+  config.authentication_method = :devise
+  config.allowed_origins = ["https://yourdomain.com"]
+  config.rate_limit = {
+    enabled: true,
+    requests_per_minute: 100
+  }
   config.websocket_adapter = :redis
-  config.cache_store = :redis_cache_store
-  config.session_store = :redis_session_store
 end
+```
+
+## Advanced Usage
+
+### Custom Controllers
+
+```ruby
+class MyAgentsController < RAAF::Rails::Controllers::BaseController
+  before_action :set_agent
+  
+  def chat
+    @conversation = @agent.conversations.create!(user: current_user)
+    @messages = @conversation.messages.recent(50)
+  end
+  
+  private
+  
+  def set_agent
+    @agent = current_user.agents.find(params[:id])
+  end
+end
+```
+
+### Custom API Endpoints
+
+```ruby
+module Api
+  module V1
+    class CustomAgentsController < RAAF::Rails::Controllers::Api::V1::BaseController
+      def analyze
+        agent = find_agent(params[:id])
+        
+        result = agent.process_message(
+          params[:text],
+          context: { analysis_type: params[:type] }
+        )
+        
+        render json: {
+          analysis: result[:content],
+          confidence: result[:metadata][:confidence],
+          usage: result[:usage]
+        }
+      end
+    end
+  end
+end
+```
+
+### Extending WebSocket Handler
+
+```ruby
+class CustomWebsocketHandler < RAAF::Rails::WebsocketHandler
+  def handle_custom_event(ws, message)
+    case message["event"]
+    when "file_upload"
+      handle_file_upload(ws, message)
+    when "voice_message"
+      handle_voice_message(ws, message)
+    end
+  end
+  
+  private
+  
+  def handle_file_upload(ws, message)
+    # Process file upload
+    file_url = message["file_url"]
+    agent_id = message["agent_id"]
+    
+    # Process with agent
+    agent = AgentModel.find(agent_id)
+    result = agent.process_file(file_url)
+    
+    send_message(ws, {
+      type: "file_processed",
+      result: result
+    })
+  end
+end
+```
+
+## Testing
+
+### RSpec Integration
+
+```ruby
+# spec/rails_helper.rb
+require 'raaf/rails/testing'
+
+RSpec.configure do |config|
+  config.include RAAF::Rails::Testing::Helpers
+end
+
+# spec/models/agent_spec.rb
+RSpec.describe AgentModel, type: :model do
+  let(:agent) { create(:agent) }
+  
+  it "processes messages" do
+    result = agent.process_message("Hello")
+    expect(result[:content]).to be_present
+    expect(result[:usage][:total_tokens]).to be > 0
+  end
+end
+```
+
+### Testing Helpers
+
+```ruby
+# Test agent creation
+agent = create_test_agent(
+  name: "Test Agent",
+  model: "gpt-4o-mini"
+)
+
+# Test conversations
+with_conversation(agent, user) do |conversation|
+  response = conversation.add_user_message("Hello")
+  expect(response).to include("assistant")
+end
+
+# Mock WebSocket connections
+mock_websocket do |ws|
+  ws.send_message(type: "chat", content: "Hello")
+  expect(ws.received_messages.last).to include("response")
+end
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **WebSocket Connection Failed**
+   ```ruby
+   # Check CORS settings
+   config.allowed_origins = ["http://localhost:3000"]
+   
+   # Ensure Redis is running for ActionCable
+   config.websocket_adapter = :redis
+   ```
+
+2. **Authentication Errors**
+   ```ruby
+   # Verify authentication method
+   config.authentication_method = :devise
+   
+   # Check current_user is available
+   before_action :authenticate_user!
+   ```
+
+3. **Background Jobs Not Processing**
+   ```ruby
+   # Start Sidekiq worker
+   bundle exec sidekiq
+   
+   # Check Redis connection
+   Sidekiq.redis { |r| r.ping }
+   ```
+
+### Debug Mode
+
+```ruby
+# Enable debug logging
+RAAF::Rails.configure do |config|
+  config.debug = true
+  config.log_level = :debug
+end
+
+# Check logs
+tail -f log/development.log | grep RAAF
 ```
 
 ## Development
 
-### Setup
+After checking out the repo, run:
 
 ```bash
-git clone https://github.com/raaf-ai/ruby-ai-agents-factory
-cd ruby-ai-agents-factory/gems/raaf-rails
 bundle install
+bundle exec rake spec
 ```
 
-### Running Tests
+To install this gem onto your local machine:
 
 ```bash
-bundle exec rspec
-```
-
-### Running Example App
-
-```bash
-cd spec/dummy
-rails server
+bundle exec rake install
 ```
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for your changes
-5. Ensure all tests pass (`bundle exec rspec`)
-6. Commit your changes (`git commit -am 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+Bug reports and pull requests are welcome on GitHub at https://github.com/raaf-ai/raaf. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/raaf-ai/raaf/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 

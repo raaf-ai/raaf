@@ -13,7 +13,7 @@
 require "raaf"
 
 puts "=== Rails Integration Example ==="
-puts "Rails detected: #{defined?(Rails) ? "Yes (#{Rails.version})" : "No"}"
+puts "Rails detected: #{defined?(Rails) ? "Yes (#{Rails.version})" : 'No'}"
 puts
 
 # ============================================================================
@@ -35,18 +35,18 @@ puts <<~RUBY
     config.api_key = ENV['OPENAI_API_KEY']
     config.environment = Rails.env
     config.app_name = Rails.application.class.parent_name
-    
+  #{'  '}
     # Tracing configuration
     config.tracing.enabled = true
     config.tracing.sampling_rate = Rails.env.production? ? 0.1 : 1.0
     config.tracing.retention_days = 30
-    
+  #{'  '}
     # Logging configuration
     config.logging.level = Rails.env.production? ? :info : :debug
     config.logging.format = Rails.env.production? ? :json : :text
     config.logging.output = :rails  # Use Rails.logger
   end
-  
+
   # Configure tracing engine
   RAAF::Tracing.configure do |config|
     config.auto_configure = true
@@ -54,12 +54,12 @@ puts <<~RUBY
     config.retention_days = 30
     config.sampling_rate = 1.0
   end
-  
+
   # Add ActiveRecord processor for database storage
   RAAF.tracer.add_processor(
     RAAF::Tracing::ActiveRecordProcessor.new
   )
-  
+
   # Add console processor for development
   if Rails.env.development?
     RAAF.tracer.add_processor(
@@ -85,7 +85,7 @@ puts <<~RUBY
     # Mount the tracing engine at /admin/tracing
     # This provides a complete web interface for viewing traces
     mount RAAF::Tracing::Engine => '/admin/tracing'
-    
+  #{'  '}
     # Optional: Add custom routes for API endpoints
     namespace :api do
       namespace :v1 do
@@ -97,7 +97,7 @@ puts <<~RUBY
         end
       end
     end
-    
+  #{'  '}
     # Optional: Add health check endpoint
     get '/health/agents', to: 'health#agents'
   end
@@ -120,7 +120,7 @@ puts <<~RUBY
     class Application < Rails::Application
       # Add correlation middleware for request tracking
       config.middleware.use RAAF::Tracing::RailsIntegrations::CorrelationMiddleware
-      
+  #{'    '}
       # Configure Ruby AI Agents Factory tracing
       config.raaf_tracing.auto_configure = true
       config.raaf_tracing.mount_path = "/admin/tracing"
@@ -146,10 +146,10 @@ puts <<~RUBY
   class ApplicationJob < ActiveJob::Base
     # Include automatic tracing for all jobs
     include RAAF::Tracing::RailsIntegrations::JobTracing
-    
+  #{'  '}
     # Retry jobs with exponential backoff
     retry_on StandardError, wait: :exponentially_longer, attempts: 3
-    
+  #{'  '}
     # Discard jobs that consistently fail
     discard_on ActiveJob::DeserializationError
   end
@@ -161,24 +161,24 @@ puts "Example specific job with AI agent integration:"
 puts <<~RUBY
   class ProcessUserQueryJob < ApplicationJob
     include RAAF::Logger
-    
+  #{'  '}
     # Job is automatically traced by JobTracing module
     def perform(user_id, query, context = {})
       log_info("Processing user query", user_id: user_id, query_length: query.length)
-      
+  #{'    '}
       # Create agent for this specific task
       agent = RAAF::Agent.new(
         name: "QueryProcessor",
         instructions: "Process user queries with helpful responses",
         model: "gpt-4o-mini"
       )
-      
+  #{'    '}
       # Create runner with tracing
       runner = RAAF::Runner.new(
         agent: agent,
         tracer: RAAF.tracer
       )
-      
+  #{'    '}
       # Add job context to trace metadata
       runner.tracer.current_trace&.metadata&.merge!(
         user_id: user_id,
@@ -187,10 +187,10 @@ puts <<~RUBY
         request_id: Thread.current[:raaf_request_id],
         context: context
       )
-      
+  #{'    '}
       # Process the query
       result = runner.run(query)
-      
+  #{'    '}
       # Store result (example)
       UserQueryResult.create!(
         user_id: user_id,
@@ -199,10 +199,10 @@ puts <<~RUBY
         trace_id: runner.tracer.current_trace&.trace_id,
         job_id: job_id
       )
-      
-      log_info("Query processed successfully", user_id: user_id, 
+  #{'    '}
+      log_info("Query processed successfully", user_id: user_id,#{' '}
                trace_id: runner.tracer.current_trace&.trace_id)
-      
+  #{'    '}
       result
     rescue => e
       log_error("Query processing failed", user_id: user_id, error: e.message)
@@ -226,28 +226,28 @@ puts "Example API controller with AI agent integration:"
 puts <<~RUBY
   class Api::V1::ChatController < ApplicationController
     include RAAF::Logger
-    
+  #{'  '}
     before_action :authenticate_user!
     before_action :rate_limit_check
-    
+  #{'  '}
     # POST /api/v1/chat
     def create
-      log_info("Chat request received", user_id: current_user.id, 
+      log_info("Chat request received", user_id: current_user.id,#{' '}
                message_length: chat_params[:message].length)
-      
+  #{'    '}
       # Create agent for this user's conversation
       agent = RAAF::Agent.new(
         name: "ChatAssistant",
         instructions: build_instructions_for_user(current_user),
         model: determine_model_for_user(current_user)
       )
-      
+  #{'    '}
       # Create runner with tracing
       runner = RAAF::Runner.new(
         agent: agent,
         tracer: RAAF.tracer
       )
-      
+  #{'    '}
       # Add request context to trace
       runner.tracer.current_trace&.metadata&.merge!(
         user_id: current_user.id,
@@ -257,14 +257,14 @@ puts <<~RUBY
         endpoint: "#{request.method} #{request.path}",
         conversation_id: chat_params[:conversation_id]
       )
-      
+  #{'    '}
       # Build conversation context
       messages = build_conversation_context(chat_params[:conversation_id])
       messages << { role: "user", content: chat_params[:message] }
-      
+  #{'    '}
       # Process the chat
       result = runner.run(messages)
-      
+  #{'    '}
       # Save conversation
       conversation = save_conversation(
         user: current_user,
@@ -273,7 +273,7 @@ puts <<~RUBY
         response: result.messages.last[:content],
         trace_id: runner.tracer.current_trace&.trace_id
       )
-      
+  #{'    '}
       # Return response
       render json: {
         response: result.messages.last[:content],
@@ -282,35 +282,35 @@ puts <<~RUBY
         model: agent.model,
         timestamp: Time.current.iso8601
       }
-      
+  #{'    '}
     rescue => e
-      log_error("Chat processing failed", user_id: current_user.id, 
+      log_error("Chat processing failed", user_id: current_user.id,#{' '}
                 error: e.message, error_class: e.class.name)
-      
+  #{'    '}
       render json: { error: "Processing failed" }, status: :internal_server_error
     end
-    
+  #{'  '}
     private
-    
+  #{'  '}
     def chat_params
       params.require(:chat).permit(:message, :conversation_id)
     end
-    
+  #{'  '}
     def build_instructions_for_user(user)
       base_instructions = "You are a helpful AI assistant."
-      
+  #{'    '}
       # Customize based on user preferences
       if user.preferences[:formal_tone]
         base_instructions += " Use a formal, professional tone."
       end
-      
+  #{'    '}
       if user.preferences[:expert_mode]
         base_instructions += " Provide detailed, technical explanations."
       end
-      
+  #{'    '}
       base_instructions
     end
-    
+  #{'  '}
     def determine_model_for_user(user)
       # Use different models based on user tier
       case user.tier
@@ -322,52 +322,52 @@ puts <<~RUBY
         'gpt-3.5-turbo'
       end
     end
-    
+  #{'  '}
     def build_conversation_context(conversation_id)
       return [] unless conversation_id
-      
+  #{'    '}
       Conversation.find_by(id: conversation_id)
                   &.messages
                   &.order(:created_at)
                   &.limit(20)
                   &.map { |msg| { role: msg.role, content: msg.content } } || []
     end
-    
+  #{'  '}
     def save_conversation(user:, conversation_id:, messages:, response:, trace_id:)
       conversation = Conversation.find_or_create_by(
         id: conversation_id,
         user: user
       )
-      
+  #{'    '}
       # Save the user message
       conversation.messages.create!(
         role: 'user',
         content: messages.last[:content],
         trace_id: trace_id
       )
-      
+  #{'    '}
       # Save the assistant response
       conversation.messages.create!(
         role: 'assistant',
         content: response,
         trace_id: trace_id
       )
-      
+  #{'    '}
       conversation
     end
-    
+  #{'  '}
     def rate_limit_check
       # Implement rate limiting logic
       return if rate_limit_ok?(current_user)
-      
+  #{'    '}
       render json: { error: "Rate limit exceeded" }, status: :too_many_requests
     end
-    
+  #{'  '}
     def rate_limit_ok?(user)
       # Simple rate limiting example
       key = "rate_limit:#{user.id}"
       current_count = Rails.cache.read(key) || 0
-      
+  #{'    '}
       if current_count >= user.rate_limit
         false
       else
@@ -395,7 +395,7 @@ puts
 # Mock the console helpers for demonstration
 class MockConsoleHelpers
   include RAAF::Tracing::RailsIntegrations::ConsoleHelpers if defined?(RAAF::Tracing::RailsIntegrations::ConsoleHelpers)
-  
+
   def demonstrate_helpers
     puts "Console helper methods:"
     puts "  recent_traces(limit: 10)     - Get recent traces"
@@ -408,24 +408,24 @@ class MockConsoleHelpers
     puts "  trace_summary('trace_id')    - Print trace summary"
     puts "  performance_stats(timeframe: 24.hours) - Show performance stats"
     puts
-    
+
     puts "Example usage in Rails console:"
     puts <<~CONSOLE
       # Get recent traces
       recent_traces
-      
+
       # Find chat-related traces
       traces_for("ChatAssistant")
-      
+
       # Find slow operations
       slow_spans(threshold: 5000)
-      
+
       # Analyze specific trace
       trace_summary("abc123")
-      
+
       # Show performance overview
       performance_stats(timeframe: 7.days)
-      
+
       # Find errors in the last hour
       error_spans(limit: 50).where("created_at > ?", 1.hour.ago)
     CONSOLE
@@ -456,10 +456,10 @@ class MockRakeTasks
     puts "  raaf:tracing:stats       - Show database statistics"
     puts "  raaf:tracing:migrate     - Run tracing migrations"
     puts
-    
+
     puts "Example task implementations:"
     puts
-    
+
     puts "# lib/tasks/raaf.rake"
     puts <<~RAKE
       namespace :raaf do
@@ -470,25 +470,25 @@ class MockRakeTasks
             count = RAAF::Tracing::RailsIntegrations::RakeTasks.cleanup_old_traces(older_than: older_than)
             puts "Cleaned up \#{count} traces older than \#{older_than.inspect}"
           end
-          
+      #{'    '}
           desc "Generate performance report"
           task report: :environment do
             timeframe = ENV['TIMEFRAME']&.to_i&.hours || 24.hours
             RAAF::Tracing::RailsIntegrations::RakeTasks.performance_report(timeframe: timeframe)
           end
-          
+      #{'    '}
           desc "Show database statistics"
           task stats: :environment do
             traces_count = RAAF::Tracing::Trace.count
             spans_count = RAAF::Tracing::Span.count
             avg_duration = RAAF::Tracing::Trace.average('duration_ms')
-            
+      #{'      '}
             puts "Database Statistics:"
             puts "  Traces: \#{traces_count}"
             puts "  Spans: \#{spans_count}"
             puts "  Average duration: \#{avg_duration&.round(2) || 'N/A'}ms"
           end
-          
+      #{'    '}
           desc "Run tracing migrations"
           task migrate: :environment do
             RAAF::Tracing::Engine.load_tasks
@@ -498,7 +498,7 @@ class MockRakeTasks
         end
       end
     RAKE
-    
+
     puts "Usage examples:"
     puts "  bundle exec rake raaf:tracing:cleanup"
     puts "  bundle exec rake raaf:tracing:report TIMEFRAME=168  # 7 days"
@@ -526,12 +526,12 @@ puts <<~RUBY
   class User < ApplicationRecord
     has_many :conversations, dependent: :destroy
     has_many :ai_interactions, dependent: :destroy
-    
+  #{'  '}
     # AI-specific attributes
     jsonb :ai_preferences, default: {}
-    
+  #{'  '}
     enum tier: { free: 0, standard: 1, premium: 2 }
-    
+  #{'  '}
     # Rate limiting
     def rate_limit
       case tier
@@ -540,7 +540,7 @@ puts <<~RUBY
       else 50
       end
     end
-    
+  #{'  '}
     # Get AI agent configuration for this user
     def ai_agent_config
       {
@@ -550,9 +550,9 @@ puts <<~RUBY
         max_tokens: token_limit
       }
     end
-    
+  #{'  '}
     private
-    
+  #{'  '}
     def determine_model
       case tier
       when 'premium' then 'gpt-4o'
@@ -560,28 +560,28 @@ puts <<~RUBY
       else 'gpt-3.5-turbo'
       end
     end
-    
+  #{'  '}
     def build_instructions
       base = "You are a helpful AI assistant."
-      
+  #{'    '}
       if ai_preferences['formal_tone']
         base += " Use a formal, professional tone."
       end
-      
+  #{'    '}
       if ai_preferences['expert_mode']
         base += " Provide detailed, technical explanations."
       end
-      
+  #{'    '}
       base
     end
-    
+  #{'  '}
     def available_tools
       tools = ['web_search', 'calculator']
       tools << 'code_interpreter' if premium?
       tools << 'file_analysis' if standard? || premium?
       tools
     end
-    
+  #{'  '}
     def token_limit
       case tier
       when 'premium' then 4000
@@ -599,29 +599,29 @@ puts <<~RUBY
   class Conversation < ApplicationRecord
     belongs_to :user
     has_many :messages, dependent: :destroy
-    
+  #{'  '}
     # Link to Ruby AI Agents Factory traces
     has_many :ai_interactions, dependent: :destroy
-    
+  #{'  '}
     validates :title, presence: true
-    
+  #{'  '}
     scope :recent, -> { order(updated_at: :desc) }
     scope :with_ai_traces, -> { joins(:ai_interactions).distinct }
-    
+  #{'  '}
     # Get related traces
     def traces
       return [] unless defined?(RAAF::Tracing::Trace)
-      
+  #{'    '}
       trace_ids = ai_interactions.pluck(:trace_id).compact
       RAAF::Tracing::Trace.where(trace_id: trace_ids)
     end
-    
+  #{'  '}
     # Performance metrics
     def performance_metrics
       traces_data = traces.includes(:spans)
-      
+  #{'    '}
       return {} if traces_data.empty?
-      
+  #{'    '}
       {
         total_interactions: traces_data.count,
         avg_response_time: traces_data.average('duration_ms'),
@@ -630,12 +630,12 @@ puts <<~RUBY
         error_count: traces_data.failed.count
       }
     end
-    
+  #{'  '}
     private
-    
+  #{'  '}
     def calculate_total_cost(traces_data)
       cost_manager = RAAF::Tracing::CostManager.new
-      
+  #{'    '}
       traces_data.sum do |trace|
         cost_manager.calculate_trace_cost(trace)[:total_cost]
       end
@@ -650,34 +650,34 @@ puts <<~RUBY
   class AiInteraction < ApplicationRecord
     belongs_to :user
     belongs_to :conversation, optional: true
-    
+  #{'  '}
     validates :trace_id, presence: true, uniqueness: true
     validates :model, presence: true
-    
+  #{'  '}
     scope :recent, -> { order(created_at: :desc) }
     scope :by_model, ->(model) { where(model: model) }
     scope :successful, -> { where(status: 'completed') }
     scope :failed, -> { where(status: 'failed') }
-    
+  #{'  '}
     # Get the actual trace from Ruby AI Agents Factory
     def trace
       return nil unless defined?(RAAF::Tracing::Trace)
-      
+  #{'    '}
       RAAF::Tracing::Trace.find_by(trace_id: trace_id)
     end
-    
+  #{'  '}
     # Calculate cost for this interaction
     def cost
       return 0.0 unless trace
-      
+  #{'    '}
       cost_manager = RAAF::Tracing::CostManager.new
       cost_manager.calculate_trace_cost(trace)[:total_cost]
     end
-    
+  #{'  '}
     # Get performance data
     def performance_data
       return {} unless trace
-      
+  #{'    '}
       {
         duration_ms: trace.duration_ms,
         token_count: trace.spans.sum { |s| s.attributes&.dig('llm', 'usage', 'total_tokens') || 0 },
@@ -721,33 +721,33 @@ puts <<~RUBY
     module Generators
       class InstallGenerator < Rails::Generators::Base
         include Rails::Generators::Migration
-        
+  #{'      '}
         source_root File.expand_path('templates', __dir__)
-        
+  #{'      '}
         def self.next_migration_number(path)
           Time.current.utc.strftime("%Y%m%d%H%M%S")
         end
-        
+  #{'      '}
         def create_initializer
           copy_file 'initializer.rb', 'config/initializers/raaf.rb'
         end
-        
+  #{'      '}
         def create_migration
           migration_template 'migration.rb', 'db/migrate/create_raaf_tracing.rb'
         end
-        
+  #{'      '}
         def create_rake_tasks
           copy_file 'tasks.rake', 'lib/tasks/raaf.rake'
         end
-        
+  #{'      '}
         def create_concern
           copy_file 'ai_agent_integration.rb', 'app/models/concerns/ai_agent_integration.rb'
         end
-        
+  #{'      '}
         def mount_engine
           route "mount RAAF::Tracing::Engine => '/admin/tracing'"
         end
-        
+  #{'      '}
         def show_readme
           readme 'README'
         end
@@ -776,7 +776,7 @@ puts <<~CONFIG
   config.raaf_tracing.auto_configure = true
   config.raaf_tracing.sampling_rate = 0.1  # Sample 10% of requests
   config.raaf_tracing.retention_days = 30
-  
+
   # Use background jobs for trace processing
   config.raaf_tracing.async_processing = true
   config.raaf_tracing.queue_name = 'tracing'
@@ -804,12 +804,12 @@ puts "3. Background Job Configuration:"
 puts <<~JOBS
   # config/application.rb
   config.active_job.queue_adapter = :sidekiq
-  
+
   # config/schedule.rb (whenever gem)
   every 1.day, at: '2:00 am' do
     rake 'raaf:tracing:cleanup'
   end
-  
+
   every 1.week, at: '3:00 am' do
     rake 'raaf:tracing:report'
   end
@@ -823,12 +823,12 @@ puts <<~MONITORING
   RAAF.tracer.add_processor(
     RAAF::Tracing::ActiveRecordProcessor.new
   )
-  
+
   # Add custom monitoring
   RAAF.tracer.add_processor(
     RAAF::Tracing::DatadogProcessor.new
   )
-  
+
   # Configure alerting
   alert_engine = RAAF::Tracing::AlertEngine.new
   alert_engine.add_alert_handler(
@@ -848,7 +848,7 @@ puts <<~SECURITY
   authenticate :user, ->(user) { user.admin? } do
     mount RAAF::Tracing::Engine => '/admin/tracing'
   end
-  
+
   # Or use HTTP basic auth
   # config/initializers/raaf.rb
   RAAF::Tracing::Engine.middleware.use Rack::Auth::Basic do |username, password|
@@ -864,14 +864,14 @@ puts <<~PERFORMANCE
   # config/database.yml
   production:
     pool: 25
-    
+  #{'  '}
   # Configure caching
   config.cache_store = :redis_cache_store, {
     url: ENV['REDIS_URL'],
     namespace: 'raaf',
     expires_in: 1.hour
   }
-  
+
   # Use CDN for assets
   config.asset_host = ENV['CDN_HOST']
 PERFORMANCE
@@ -891,43 +891,43 @@ puts <<~PRACTICES
      - Set different sampling rates for different environments
      - Configure proper log levels and formats
      - Use Rails.application.credentials for API keys
-  
+
   2. Database Design:
      - Use separate database for tracing data if needed
      - Implement proper indexing for trace queries
      - Set up automatic cleanup of old traces
      - Consider read replicas for analytics queries
-  
+
   3. Background Processing:
      - Use background jobs for expensive trace processing
      - Implement proper error handling and retries
      - Monitor background job queues
      - Use dedicated queues for tracing operations
-  
+
   4. Performance Considerations:
      - Implement sampling in production environments
      - Use asynchronous trace processing
      - Cache expensive trace queries
      - Monitor database performance impact
-  
+
   5. Security:
      - Secure the tracing web interface
      - Don't log sensitive information in traces
      - Use proper authentication and authorization
      - Implement rate limiting for tracing endpoints
-  
+
   6. Monitoring and Alerting:
      - Set up alerts for high error rates
      - Monitor trace processing performance
      - Track cost and usage metrics
      - Implement health checks for tracing system
-  
+
   7. Development Workflow:
      - Use console helpers for debugging
      - Implement proper test coverage
      - Use fixtures for trace data in tests
      - Set up development-friendly logging
-  
+
   8. Production Deployment:
      - Use proper deployment strategies
      - Implement database migrations safely
