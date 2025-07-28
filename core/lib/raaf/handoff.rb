@@ -123,19 +123,7 @@ module RAAF
   #     input_type: EscalationData
   #   )
   #
-  def self.handoff(agent, overrides: {}, input_filter: nil, description: nil,
-                   tool_name_override: nil, tool_description_override: nil,
-                   on_handoff: nil, input_type: nil)
-    Handoff.new(
-      agent,
-      overrides: overrides,
-      input_filter: input_filter,
-      description: description,
-      tool_name_override: tool_name_override,
-      tool_description_override: tool_description_override,
-      on_handoff: on_handoff,
-      input_type: input_type
-    )
-  end
+  # Note: This method is defined in the RAAF module (handoffs.rb) to avoid duplication
+  # The implementation delegates to Handoffs.handoff which creates a Handoff instance
 
 end
