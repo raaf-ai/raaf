@@ -28,11 +28,11 @@ module RAAF
     #
     # @example Get span performance metrics
     #   RAAF::Tracing::Span.performance_metrics('tool')
-    class SpanRecord < ActiveRecord::Base
+    class SpanRecord < ApplicationRecord
       self.table_name = "raaf_tracing_spans"
 
       # Associations
-      belongs_to :trace, primary_key: :trace_id, foreign_key: :trace_id,
+      belongs_to :trace, primary_key: :trace_id,
                          class_name: "RAAF::Tracing::TraceRecord", optional: true
       belongs_to :parent_span, class_name: "RAAF::Tracing::SpanRecord",
                                primary_key: :span_id, foreign_key: :parent_id, optional: true
@@ -60,8 +60,8 @@ module RAAF
       # Callbacks
       before_validation :ensure_span_id
       before_validation :set_defaults
-      after_save :update_trace_status
       after_destroy :update_trace_status
+      after_save :update_trace_status
 
       # Scopes
       scope :recent, -> { order(start_time: :desc) }
@@ -88,7 +88,7 @@ module RAAF
         # @param timeframe [Range, nil] Time range to analyze
         # @return [Hash] Performance statistics
         def performance_metrics(kind: nil, timeframe: nil)
-          query = all.reorder(nil)
+          query = reorder(nil)
           query = query.by_kind(kind) if kind
           query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
 
@@ -110,7 +110,7 @@ module RAAF
         # @param percentile [Float] Percentile to calculate (0.0 to 1.0)
         # @return [Float, nil] Percentile value
         def percentile(column, percentile)
-          return nil if count == 0
+          return nil if count.zero?
 
           # PostgreSQL syntax - adjust for other databases as needed
           if connection.adapter_name.downcase.include?("postgresql")
@@ -143,7 +143,7 @@ module RAAF
           if error_spans.any?
             # Use pluck to get the raw data, then group and count in Ruby
             workflow_data = error_spans.joins(:trace)
-                                       .pluck("raaf_tracing_traces.workflow_name", "raaf_tracing_spans.id") # rubocop:disable Layout/LineLength
+                                       .pluck("raaf_tracing_traces.workflow_name", "raaf_tracing_spans.id")
 
             # Group by workflow name and count unique span IDs
             workflow_data.group_by(&:first).each do |workflow_name, entries|
@@ -201,7 +201,7 @@ module RAAF
         # @param older_than [ActiveSupport::Duration] Delete spans older than this
         # @return [Integer] Number of spans deleted
         def cleanup_old_spans(older_than: 30.days)
-          where("start_time < ?", older_than.ago).delete_all
+          where(start_time: ...older_than.ago).delete_all
         end
       end
 

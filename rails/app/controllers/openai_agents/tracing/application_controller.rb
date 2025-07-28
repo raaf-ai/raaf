@@ -13,6 +13,7 @@ module RAAF
     # - Helper methods for pagination and filtering
     class ApplicationController < ActionController::Base
       include RAAF::Logger
+
       protect_from_forgery with: :exception
 
       # Include helpers for content_tag
@@ -35,10 +36,9 @@ module RAAF
       # Handle general errors
       def handle_error(exception)
         log_error("Ruby AI Agents Factory Tracing Error",
-          error: exception.message,
-          error_class: exception.class.name,
-          backtrace: exception.backtrace&.first(5)&.join("\n")
-        )
+                  error: exception.message,
+                  error_class: exception.class.name,
+                  backtrace: exception.backtrace&.first(5)&.join("\n"))
 
         render "ruby_ai_agents_factory/tracing/shared/error",
                status: :internal_server_error,
@@ -56,8 +56,8 @@ module RAAF
 
       # Time range helper for filtering
       def parse_time_range(params)
-        start_time = params[:start_time].present? ? Time.parse(params[:start_time]) : 24.hours.ago
-        end_time = params[:end_time].present? ? Time.parse(params[:end_time]) : Time.current
+        start_time = params[:start_time].present? ? Time.zone.parse(params[:start_time]) : 24.hours.ago
+        end_time = params[:end_time].present? ? Time.zone.parse(params[:end_time]) : Time.current
 
         start_time..end_time
       rescue ArgumentError

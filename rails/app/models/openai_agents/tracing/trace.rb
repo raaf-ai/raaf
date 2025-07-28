@@ -30,7 +30,7 @@ module RAAF
     # @example Get trace performance summary
     #   trace = RAAF::Tracing::Trace.find_by(trace_id: "trace_abc123")
     #   trace.performance_summary
-    class TraceRecord < ActiveRecord::Base
+    class TraceRecord < ApplicationRecord
       self.table_name = "raaf_tracing_traces"
 
       # Associations
@@ -76,7 +76,7 @@ module RAAF
         # @param timeframe [Range, nil] Time range to analyze
         # @return [Hash] Performance statistics
         def performance_stats(workflow_name: nil, timeframe: nil)
-          query = all.reorder(nil)
+          query = reorder(nil)
           query = query.by_workflow(workflow_name) if workflow_name
           query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
 
@@ -97,7 +97,7 @@ module RAAF
         # @param timeframe [Range, nil] Time range to analyze
         # @return [Array<Hash>] Workflow statistics
         def top_workflows(limit: 10, timeframe: nil)
-          query = all.reorder(nil)
+          query = reorder(nil)
           query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
 
           # Get raw data to avoid GROUP BY issues
@@ -128,7 +128,7 @@ module RAAF
         # @param older_than [ActiveSupport::Duration] Delete traces older than this
         # @return [Integer] Number of traces deleted
         def cleanup_old_traces(older_than: 30.days)
-          where("started_at < ?", older_than.ago).delete_all
+          where(started_at: ...older_than.ago).delete_all
         end
       end
 

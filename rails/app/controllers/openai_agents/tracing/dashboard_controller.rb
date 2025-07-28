@@ -110,7 +110,7 @@ module RAAF
         @model_costs = model_costs
 
         # Override cost_analysis with actual calculated values if we have data
-        if total_llm_calls > 0
+        if total_llm_calls.positive?
           @cost_analysis[:total_input_tokens] = total_input_tokens
           @cost_analysis[:total_output_tokens] = total_output_tokens
           @cost_analysis[:total_tokens] = total_input_tokens + total_output_tokens

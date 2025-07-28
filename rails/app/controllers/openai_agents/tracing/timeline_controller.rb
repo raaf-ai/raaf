@@ -108,7 +108,7 @@ module RAAF
             parent_span_id: span.parent_span_id,
             depth: calculate_span_depth(span, spans),
             percentage_start: (start_offset.to_f / total_duration * 100).round(2),
-            percentage_width: duration > 0 ? (duration.to_f / total_duration * 100).round(2) : 0.1,
+            percentage_width: duration.positive? ? (duration.to_f / total_duration * 100).round(2) : 0.1,
             attributes: sanitize_attributes(span.span_attributes),
             error_details: span.status == "error" ? extract_error_details(span) : nil
           }
@@ -428,7 +428,7 @@ module RAAF
 
         # Find spans that take more than 20% of total trace time
         total_duration = @trace.duration_ms || 0
-        return bottlenecks if total_duration == 0
+        return bottlenecks if total_duration.zero?
 
         spans.each do |span|
           span_duration = span.duration_ms || 0
@@ -547,7 +547,7 @@ module RAAF
         else
           longest_child_path = children.map do |child|
             find_longest_path(child, span_map, visited.dup)
-          end # rubocop:disable Style/MultilineBlockChain
+          end
           .max_by { |path| path.sum { |s| s.duration_ms || 0 } }
 
           [span] + longest_child_path
@@ -562,7 +562,7 @@ module RAAF
         critical_path.select do |span|
           span_time = span.duration_ms || 0
           (span_time.to_f / total_time) > 0.3 # More than 30% of critical path time
-        end # rubocop:disable Style/MultilineBlockChain
+        end
         .map do |span|
           {
             span_id: span.span_id,

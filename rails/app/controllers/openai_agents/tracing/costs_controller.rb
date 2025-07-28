@@ -254,7 +254,7 @@ module RAAF
             traces: data[:traces],
             tokens: data[:input_tokens] + data[:output_tokens]
           }
-        end # rubocop:disable Style/MultilineBlockChain
+        end
         .sort_by { |m| -m[:cost] }
       end
 
@@ -272,7 +272,7 @@ module RAAF
             traces: data[:traces],
             avg_cost_per_trace: (data[:cost] / data[:traces]).round(6)
           }
-        end # rubocop:disable Style/MultilineBlockChain
+        end
         .sort_by { |w| -w[:cost] }
       end
 
@@ -290,7 +290,7 @@ module RAAF
             traces: data[:traces],
             workflows: data[:workflows]
           }
-        end # rubocop:disable Style/MultilineBlockChain
+        end
         .sort_by { |t| -t[:cost] }
       end
 

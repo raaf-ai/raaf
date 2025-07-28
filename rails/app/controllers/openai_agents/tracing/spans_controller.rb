@@ -82,8 +82,8 @@ module RAAF
       # Shows flow visualization of agent and tool interactions
       def flows
         # Get time range from params or default to last 24 hours
-        @start_time = params[:start_time].present? ? Time.parse(params[:start_time]) : 24.hours.ago
-        @end_time = params[:end_time].present? ? Time.parse(params[:end_time]) : Time.current
+        @start_time = params[:start_time].present? ? Time.zone.parse(params[:start_time]) : 24.hours.ago
+        @end_time = params[:end_time].present? ? Time.zone.parse(params[:end_time]) : Time.current
 
         # Get agent and tool spans within time range
         flow_spans = SpanRecord.includes(:trace)
@@ -100,7 +100,7 @@ module RAAF
 
         # Build flow data structure
         @flow_data = build_flow_data(flow_spans)
-        @agents = @flow_data[:nodes].select { |n| n[:type] == "agent" }.map { |n| n[:name] }.uniq.sort
+        @agents = @flow_data[:nodes].select { |n| n[:type] == "agent" }.pluck(:name).uniq.sort
         @traces = flow_spans.joins(:trace).distinct.pluck(:trace_id, "raaf_tracing_traces.workflow_name")
 
         respond_to do |format|
@@ -111,7 +111,7 @@ module RAAF
 
       private
 
-      def build_flow_data(spans)
+      def build_flow_data(spans) # rubocop:disable Metrics/MethodLength
         nodes = {}
         edges = {}
 
@@ -167,7 +167,7 @@ module RAAF
           end
 
           # Create edges from parent-child relationships
-          next unless span.parent_id.present?
+          next if span.parent_id.blank?
 
           parent_span = spans.find { |s| s.span_id == span.parent_id }
           # Agent calling a tool
@@ -198,14 +198,14 @@ module RAAF
 
         # Calculate averages and success rates
         nodes.each_value do |node|
-          if node[:count] > 0
+          if node[:count].positive?
             node[:avg_duration] = (node[:total_duration] / node[:count]).round(2)
             node[:success_rate] = ((node[:count] - node[:error_count]).to_f / node[:count] * 100).round(1)
           end
         end
 
         edges.each_value do |edge|
-          next unless edge[:count] > 0
+          next unless edge[:count].positive?
 
           edge[:avg_duration] = (edge[:total_duration] / edge[:count]).round(2)
           if edge[:error_count]
@@ -244,12 +244,12 @@ module RAAF
         # Filter by duration
         if params[:min_duration].present?
           min_duration = params[:min_duration].to_f
-          spans = spans.where("duration_ms >= ?", min_duration)
+          spans = spans.where(duration_ms: min_duration..)
         end
 
         if params[:max_duration].present?
           max_duration = params[:max_duration].to_f
-          spans = spans.where("duration_ms <= ?", max_duration)
+          spans = spans.where(duration_ms: ..max_duration)
         end
 
         # Filter by time range

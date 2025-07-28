@@ -114,7 +114,7 @@ module RAAF
             Link(
               href: item[:path],
               class: "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md #{
-                item[:active] ? "bg-gray-100 text-gray-900" : "text-gray-700 hover:bg-gray-50"
+                item[:active] ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'
               }"
             ) do
               # Icon would go here

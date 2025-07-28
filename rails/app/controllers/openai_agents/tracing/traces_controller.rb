@@ -154,7 +154,7 @@ module RAAF
             count: spans.count,
             total_duration_ms: total_duration.round(2),
             avg_duration_ms: spans.any? ? (total_duration / spans.count).round(2) : 0,
-            percentage: if trace.duration_ms && trace.duration_ms > 0
+            percentage: if trace.duration_ms && trace.duration_ms.positive?
                           ((total_duration / trace.duration_ms) * 100).round(1)
                         else
                           0

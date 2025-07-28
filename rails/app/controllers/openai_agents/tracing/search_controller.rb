@@ -43,7 +43,7 @@ module RAAF
       private
 
       def perform_search
-        return {} unless @query.present?
+        return {} if @query.blank?
 
         {
           traces: search_traces.limit(10),
@@ -54,7 +54,7 @@ module RAAF
       end
 
       def search_traces
-        return TraceRecord.none unless @query.present?
+        return TraceRecord.none if @query.blank?
 
         query = TraceRecord.includes(:spans)
 
@@ -87,7 +87,7 @@ module RAAF
       end
 
       def search_spans
-        return SpanRecord.none unless @query.present?
+        return SpanRecord.none if @query.blank?
 
         query = SpanRecord.includes(:trace)
 

@@ -155,7 +155,7 @@ module RAAF
                       preline_text(span.error_details["exception_message"], size: :sm)
                     end
                     if span.error_details["exception_type"]
-                      preline_text("Type: #{span.error_details["exception_type"]}", size: :sm, variant: :muted)
+                      preline_text("Type: #{span.error_details['exception_type']}", size: :sm, variant: :muted)
                     end
                   end
                 end
@@ -169,7 +169,7 @@ module RAAF
           end
 
           # Duration bar
-          if span.duration_ms && span.duration_ms > 0
+          if span.duration_ms&.positive?
             preline_progress_bar(
               value: calculate_span_percentage(span),
               class: "mt-3"

@@ -111,7 +111,7 @@ module RAAF
         total = TraceRecord.within_timeframe(window.begin, window.end).count
         errors = TraceRecord.within_timeframe(window.begin, window.end).failed.count
 
-        total > 0 ? (errors.to_f / total * 100).round(2) : 0
+        total.positive? ? (errors.to_f / total * 100).round(2) : 0
       end
 
       def calculate_avg_duration
@@ -134,7 +134,7 @@ module RAAF
 
       def error_trends
         7.days.ago.to_date.upto(Date.current).map do |date|
-          traces = TraceRecord.where(started_at: date.beginning_of_day..date.end_of_day)
+          traces = TraceRecord.where(started_at: date.all_day)
           total = traces.count
           errors = traces.failed.count
 
@@ -142,7 +142,7 @@ module RAAF
             date: date.strftime("%Y-%m-%d"),
             total: total,
             errors: errors,
-            error_rate: total > 0 ? (errors.to_f / total * 100).round(2) : 0
+            error_rate: total.positive? ? (errors.to_f / total * 100).round(2) : 0
           }
         end
       end

@@ -189,7 +189,7 @@ module RAAF
                         preline_link(trace_path(trace.trace_id)) do
                           trace.workflow_name
                         end
-                        preline_text("#{trace.started_at.strftime("%H:%M:%S")} • #{pluralize(trace.spans.count, "span")}",
+                        preline_text("#{trace.started_at.strftime('%H:%M:%S')} • #{pluralize(trace.spans.count, 'span')}",
                                      variant: :muted, size: :sm)
                       end
 
