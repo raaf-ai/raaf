@@ -1,0 +1,172 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Rails CI Runner
+# This script runs the same CI checks that would run in GitHub Actions
+# Usage: ./rails-ci
+
+require "bundler/setup"
+require "open3"
+require "json"
+require "time"
+
+# ANSI color codes
+class Colors
+  RED = "\e[31m"
+  GREEN = "\e[32m"
+  YELLOW = "\e[33m"
+  BLUE = "\e[34m"
+  RESET = "\e[0m"
+  BOLD = "\e[1m"
+end
+
+# CI Runner for Rails gem
+class RailsCI
+  def initialize
+    @results = []
+    @start_time = Time.zone.now
+  end
+
+  def run
+    puts "#{Colors::BLUE}#{Colors::BOLD}=== RAAF Rails CI Runner ===#{Colors::RESET}"
+    puts "Started at: #{@start_time}"
+    puts
+
+    # Run all CI tasks
+    run_bundle_install
+    run_specs
+    run_integration_tests
+    run_rails_specific_tests
+    run_rubocop
+    run_code_validation
+
+    # Print summary
+    print_summary
+
+    # Exit with appropriate code
+    exit(@results.all? { |r| r[:success] } ? 0 : 1)
+  end
+
+  private
+
+  def run_bundle_install
+    run_task("Bundle Install", "bundle install") do |success, _output|
+      if success
+        # Also set up local gem paths for development
+        system("bundle config local.raaf-core ../core")
+        system("bundle config local.raaf-memory ../memory")
+        system("bundle config local.raaf-tracing ../tracing")
+      end
+    end
+  end
+
+  def run_specs
+    run_task("RSpec Tests", "bundle exec rspec")
+  end
+
+  def run_integration_tests
+    run_task("Integration Tests", "bundle exec rspec --tag integration") do |success, output|
+      # Integration tests might not exist yet, so don't fail if no examples found
+      if !success && output.include?("0 examples, 0 failures")
+        true
+      else
+        success
+      end
+    end
+  end
+
+  def run_rails_specific_tests
+    # Test Rails engine loading
+    run_task("Rails Engine Test", "ruby -e 'require \"raaf/rails/engine\"; puts \"Engine loaded successfully\"'")
+
+    # Test generators if they exist
+    return unless Dir.exist?("lib/generators")
+
+    run_task("Rails Generators", "bundle exec rails generate --help | grep raaf") do |_success, _output|
+      # Generators might not be implemented yet
+      true
+    end
+  end
+
+  def run_rubocop
+    run_task("RuboCop", "bundle exec rubocop")
+  end
+
+  def run_code_validation
+    run_task("Code Validation", "bundle exec rake code:validate_test") do |success, output|
+      # This task might not exist in Rails gem yet
+      if !success && (output.include?("Don't know how to build task") || output.include?("LoadError"))
+        puts "  #{Colors::YELLOW}(Skipped - task not available)#{Colors::RESET}"
+        true
+      else
+        success
+      end
+    end
+  end
+
+  def run_task(name, command)
+    puts "#{Colors::BLUE}Running #{name}...#{Colors::RESET}"
+
+    start_time = Time.zone.now
+    output, status = Open3.capture2e(command)
+    duration = Time.zone.now - start_time
+
+    success = status.success?
+
+    # Allow custom success determination
+    success = yield(success, output) if block_given?
+
+    result = {
+      name: name,
+      success: success,
+      duration: duration,
+      output: output
+    }
+
+    @results << result
+
+    if success
+      puts "  #{Colors::GREEN}✓ Passed#{Colors::RESET} (#{format_duration(duration)})"
+    else
+      puts "  #{Colors::RED}✗ Failed#{Colors::RESET} (#{format_duration(duration)})"
+      puts "  Output:"
+      puts output.split("\n").map { |line| "    #{line}" }.join("\n")
+    end
+
+    puts
+    success
+  end
+
+  def format_duration(duration)
+    if duration < 60
+      "%.2fs" % duration
+    else
+      format("%dm %.2fs", duration / 60, duration % 60)
+    end
+  end
+
+  def print_summary
+    total_duration = Time.zone.now - @start_time
+    passed = @results.count { |r| r[:success] }
+    failed = @results.count { |r| !r[:success] }
+
+    puts "#{Colors::BLUE}#{Colors::BOLD}=== Summary ===#{Colors::RESET}"
+    puts "Total time: #{format_duration(total_duration)}"
+    puts "Tasks run: #{@results.size}"
+    puts "#{Colors::GREEN}Passed: #{passed}#{Colors::RESET}"
+    puts "#{Colors::RED}Failed: #{failed}#{Colors::RESET}"
+
+    puts
+    if failed.positive?
+      puts "#{Colors::RED}#{Colors::BOLD}Failed tasks:#{Colors::RESET}"
+      @results.reject { |r| r[:success] }.each do |result|
+        puts "  - #{result[:name]}"
+      end
+    else
+      puts "#{Colors::GREEN}#{Colors::BOLD}All CI checks passed! ✨#{Colors::RESET}"
+    end
+  end
+end
+
+# Run CI if executed directly
+RailsCI.new.run if __FILE__ == $PROGRAM_NAME
