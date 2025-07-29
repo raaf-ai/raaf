@@ -1,0 +1,181 @@
+# AI Agents Configuration
+# 
+# This file configures AI agents for different environments.
+# It includes global defaults and environment-specific overrides
+# optimized for cost-effectiveness and performance.
+
+# Default configuration shared across all environments
+defaults: &defaults
+  global:
+    # Default AI model for all agents
+    model: "gpt-4o"
+    
+    # Maximum conversation turns (higher = more capable but more expensive)
+    max_turns: 3
+    
+    # Creativity level (0.0 = deterministic, 1.0 = very creative)
+    temperature: 0.7
+    
+    # Token limits for responses
+    max_tokens: 1000
+    
+    # Request timeout in seconds
+    timeout: 30
+    
+    # Enable structured outputs (recommended)
+    structured_outputs: true
+    
+    # Cost optimization settings
+    cost_optimization:
+      enabled: true
+      max_cost_per_request: 0.10  # USD
+      fallback_to_cheaper_model: true
+
+  # Tool configurations
+  tools:
+    # Web search configuration
+    web_search:
+      enabled: true
+      max_results: 5
+      timeout: 10
+    
+    # File processing configuration
+    file_processing:
+      enabled: true
+      max_file_size: 10485760  # 10MB
+      allowed_types: ["txt", "pdf", "docx", "csv"]
+
+  # Logging and monitoring
+  logging:
+    level: "info"
+    structured: true
+    include_tokens: true
+    include_costs: true
+
+# Development environment - optimized for cost and debugging
+development:
+  <<: *defaults
+  global:
+    # Use cheaper model for development (90% cost reduction)
+    model: "gpt-4o-mini"
+    max_turns: 2
+    temperature: 0.5
+    max_tokens: 500
+    
+    # Enhanced debugging
+    structured_outputs: true
+    
+    # Aggressive cost optimization
+    cost_optimization:
+      enabled: true
+      max_cost_per_request: 0.05  # Lower limit for dev
+      fallback_to_cheaper_model: true
+  
+  logging:
+    level: "debug"
+    structured: true
+    include_tokens: true
+    include_costs: true
+    include_prompts: true  # Include full prompts in dev logs
+
+# Test environment - minimal configuration for fast tests
+test:
+  <<: *defaults
+  global:
+    # Fastest, cheapest model for tests
+    model: "gpt-4o-mini"
+    max_turns: 1
+    temperature: 0.0  # Deterministic for consistent tests
+    max_tokens: 200
+    timeout: 10
+    
+    # Disable expensive features in tests
+    structured_outputs: false
+    
+    cost_optimization:
+      enabled: true
+      max_cost_per_request: 0.01
+      fallback_to_cheaper_model: true
+  
+  tools:
+    web_search:
+      enabled: false  # Avoid external calls in tests
+    file_processing:
+      enabled: false
+  
+  logging:
+    level: "warn"
+    structured: false
+    include_tokens: false
+    include_costs: false
+
+# Production environment - balanced for performance and cost
+production:
+  <<: *defaults
+  global:
+    # Full-featured model for production
+    model: "gpt-4o"
+    max_turns: 3
+    temperature: 0.7
+    max_tokens: 1000
+    timeout: 30
+    
+    structured_outputs: true
+    
+    # Moderate cost optimization
+    cost_optimization:
+      enabled: true
+      max_cost_per_request: 0.20
+      fallback_to_cheaper_model: false  # Don't compromise quality in prod
+  
+  tools:
+    web_search:
+      enabled: true
+      max_results: 10
+      timeout: 15
+    file_processing:
+      enabled: true
+      max_file_size: 52428800  # 50MB
+  
+  logging:
+    level: "info"
+    structured: true
+    include_tokens: true
+    include_costs: true
+    include_prompts: false  # Don't log prompts in production
+
+# Agent-specific configuration examples
+# Uncomment and modify as needed for specific agents
+
+# agents:
+#   market_research:
+#     model: "gpt-4o"
+#     max_turns: 5
+#     temperature: 0.8
+#     tools:
+#       web_search:
+#         max_results: 20
+#   
+#   company_discovery:
+#     model: "gpt-4o-mini"  # Cheaper for simple tasks
+#     max_turns: 2
+#     temperature: 0.5
+#   
+#   data_analysis:
+#     model: "gpt-4o"
+#     max_turns: 1
+#     temperature: 0.3  # More deterministic for analysis
+#     max_tokens: 2000  # Longer responses for detailed analysis
+
+# Cost monitoring (optional)
+cost_monitoring:
+  enabled: true
+  daily_limit: 50.00    # USD per day
+  monthly_limit: 1000.00  # USD per month
+  alert_thresholds:
+    - 50  # Alert at 50% of limit
+    - 80  # Alert at 80% of limit
+    - 95  # Alert at 95% of limit
+  
+  # Webhook for cost alerts (optional)
+  # webhook_url: "https://your-app.com/api/cost-alerts"

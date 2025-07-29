@@ -133,7 +133,7 @@ module RAAF
       # @see Rails::Generators::NamedBase Rails generator base class
       # @since 0.1.0
       #
-      class AgentGenerator < Rails::Generators::NamedBase
+      class AgentGenerator < ::Rails::Generators::NamedBase
         # Set the template directory for the generator
         # Templates are located in the same directory as this generator file
         source_root File.expand_path("templates", __dir__)

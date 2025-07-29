@@ -162,7 +162,7 @@ module RAAF
       # @see Rails::Generators::Base Rails generator base class
       # @since 0.1.0
       #
-      class ConfigGenerator < Rails::Generators::Base
+      class ConfigGenerator < ::Rails::Generators::Base
         # Set the template directory for the generator
         # Templates are located in the same directory as this generator file
         source_root File.expand_path("templates", __dir__)

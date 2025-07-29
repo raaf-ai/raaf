@@ -1,0 +1,243 @@
+# frozen_string_literal: true
+
+# AI Agent DSL Configuration
+# 
+# This initializer configures the RAAF DSL gem for your Rails application.
+# It provides additional configuration options beyond what's available in
+# the YAML configuration file.
+
+# Configure the RAAF DSL gem
+RAAF::DSL.configure do |config|
+  # ============================================================================
+  # BASIC CONFIGURATION
+  # ============================================================================
+  
+  # Configuration file path (defaults to config/ai_agents.yml)
+  config.config_file = Rails.root.join("config", "ai_agents.yml").to_s
+  
+  # Default model for all agents (can be overridden per agent)
+  config.default_model = "gpt-4o"
+  
+  # Default maximum turns for conversations
+  config.default_max_turns = 3
+  
+  # Default temperature for AI responses (0.0-1.0)
+  config.default_temperature = 0.7
+  
+  # ============================================================================
+  # LOGGING CONFIGURATION  
+  # ============================================================================
+  
+  # Enable/disable logging
+  config.logging_enabled = true
+  
+  # Log level (:debug, :info, :warn, :error)
+  config.log_level = Rails.env.production? ? :info : :debug
+  
+  # Custom logger (defaults to Rails.logger)
+  config.logger = Rails.logger
+  
+  # Log AI costs and token usage
+  config.log_costs = true
+  config.log_tokens = true
+  
+  # Log full prompts (be careful in production - may contain sensitive data)
+  config.log_prompts = Rails.env.development?
+  
+  # ============================================================================
+  # PERFORMANCE & OPTIMIZATION
+  # ============================================================================
+  
+  # Request timeout in seconds
+  config.request_timeout = 30
+  
+  # Enable connection pooling for better performance
+  config.connection_pooling = true
+  
+  # Cache AI responses (useful for development/testing)
+  config.enable_caching = Rails.env.development?
+  config.cache_store = Rails.cache if config.enable_caching
+  
+  # ============================================================================
+  # COST MANAGEMENT
+  # ============================================================================
+  
+  # Enable automatic cost optimization
+  config.cost_optimization = true
+  
+  # Maximum cost per request (USD)
+  config.max_cost_per_request = Rails.env.production? ? 0.20 : 0.05
+  
+  # Fallback to cheaper models when cost limits are hit
+  config.fallback_to_cheaper_model = true
+  
+  # Daily spending limit (USD)
+  config.daily_spending_limit = 50.00
+  
+  # ============================================================================
+  # ERROR HANDLING
+  # ============================================================================
+  
+  # Retry configuration for failed requests
+  config.max_retries = 3
+  config.retry_delay = 1.0  # seconds
+  config.exponential_backoff = true
+  
+  # Fallback behavior when AI is unavailable
+  config.fallback_enabled = true
+  config.fallback_response = {
+    success: false,
+    error: "AI service temporarily unavailable",
+    error_type: "service_unavailable"
+  }
+  
+  # ============================================================================
+  # DEVELOPMENT HELPERS
+  # ============================================================================
+  
+  if Rails.env.development?
+    # Show detailed error messages
+    config.verbose_errors = true
+    
+    # Enable request/response inspection
+    config.debug_mode = true
+    
+    # Disable actual AI calls for specific testing scenarios
+    # config.mock_mode = true
+    # config.mock_responses = {
+    #   "MarketResearch" => { success: true, markets: ["Enterprise SaaS"] }
+    # }
+  end
+  
+  # ============================================================================
+  # PRODUCTION OPTIMIZATIONS
+  # ============================================================================
+  
+  if Rails.env.production?
+    # Disable verbose logging
+    config.verbose_errors = false
+    config.debug_mode = false
+    
+    # Enable structured logging for better monitoring
+    config.structured_logging = true
+    
+    # Production monitoring hooks
+    config.before_request do |agent_name, context|
+      # Log request start
+      Rails.logger.info "AI Request Started", {
+        agent: agent_name,
+        context_keys: context.keys,
+        timestamp: Time.current.iso8601
+      }
+    end
+    
+    config.after_request do |agent_name, result, duration|
+      # Log request completion
+      Rails.logger.info "AI Request Completed", {
+        agent: agent_name,
+        success: result[:success],
+        duration_ms: (duration * 1000).round(2),
+        timestamp: Time.current.iso8601
+      }
+    end
+    
+    # Error tracking integration (example with Sentry)
+    config.on_error do |error, agent_name, context|
+      # Report to error tracking service
+      if defined?(Sentry)
+        Sentry.capture_exception(error, extra: {
+          agent: agent_name,
+          context: context&.keys
+        })
+      end
+    end
+  end
+  
+  # ============================================================================
+  # CUSTOM TOOL CONFIGURATION
+  # ============================================================================
+  
+  # Register custom tools if needed
+  # config.register_tool :custom_search, MyCustomSearchTool
+  # config.register_tool :data_processor, MyDataProcessorTool
+  
+  # Tool-specific configuration
+  # config.tool_config = {
+  #   web_search: {
+  #     api_key: ENV['SEARCH_API_KEY'],
+  #     max_results: 10
+  #   },
+  #   file_processor: {
+  #     max_file_size: 10.megabytes
+  #   }
+  # }
+  
+  # ============================================================================
+  # ENVIRONMENT VARIABLES
+  # ============================================================================
+  
+  # Load configuration from environment variables if available
+  config.default_model = ENV['AI_DEFAULT_MODEL'] if ENV['AI_DEFAULT_MODEL']
+  config.default_temperature = ENV['AI_DEFAULT_TEMPERATURE'].to_f if ENV['AI_DEFAULT_TEMPERATURE']
+  config.max_cost_per_request = ENV['AI_MAX_COST_PER_REQUEST'].to_f if ENV['AI_MAX_COST_PER_REQUEST']
+  
+  # API keys should be set via environment variables
+  # ENV['OPENAI_API_KEY'] - OpenAI API key
+  # ENV['ANTHROPIC_API_KEY'] - Anthropic API key (if using Claude)
+  
+  # ============================================================================
+  # MONITORING & OBSERVABILITY
+  # ============================================================================
+  
+  # Integration with APM tools (example with New Relic)
+  if Rails.env.production? && defined?(NewRelic)
+    config.after_request do |agent_name, result, duration|
+      NewRelic::Agent.record_metric("AI/#{agent_name}/Duration", duration)
+      NewRelic::Agent.record_metric("AI/#{agent_name}/Success", result[:success] ? 1 : 0)
+    end
+  end
+  
+  # Custom metrics tracking
+  # config.metrics_collector = lambda do |agent_name, result, duration, cost|
+  #   # Send metrics to your monitoring system
+  #   YourMetricsService.record("ai.agent.duration", duration, tags: { agent: agent_name })
+  #   YourMetricsService.record("ai.agent.cost", cost, tags: { agent: agent_name })
+  # end
+end
+
+# ============================================================================
+# ADDITIONAL SETUP
+# ============================================================================
+
+# Preload frequently used agents in production for better performance
+if Rails.env.production?
+  Rails.application.config.after_initialize do
+    # Example: preload common agents
+    # MarketResearchAgent
+    # CompanyDiscoveryAgent
+  end
+end
+
+# Development helpers
+if Rails.env.development?
+  # Add a console helper for testing agents
+  Rails.application.console do
+    def test_agent(agent_class, context_data = {})
+      context = RAAF::DSL::ContextVariables.new
+      context_data.each { |k, v| context.set(k, v) }
+      
+      agent = agent_class.new(context: context)
+      puts "🤖 Testing #{agent_class.name}..."
+      
+      result = agent.call
+      puts "✅ Result: #{result.inspect}"
+      result
+    rescue => e
+      puts "❌ Error: #{e.message}"
+      puts e.backtrace.first(5).join("\n")
+      nil
+    end
+    
+    puts "💡 Helper method available: test_agent(AgentClass, { key: 'value' })"
+  end
+end

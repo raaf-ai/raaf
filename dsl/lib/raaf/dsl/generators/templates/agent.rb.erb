@@ -1,0 +1,152 @@
+# frozen_string_literal: true
+
+<% if agent_module_name -%>
+module <%= agent_module_name %>
+<% end -%>
+  # <%= agent_class_name %> AI Agent
+  #
+  # This agent handles <%= name.humanize.downcase %> operations using the RAAF DSL framework.
+  # It includes structured AI interactions with defined schemas and tool integration.
+  #
+  # @example Basic usage
+  #   context = RAAF::DSL::ContextVariables.new
+  #   context.set(:data, "your data here")
+  #   agent = <%= class_path_name %>.new(context: context)
+  #   result = agent.call
+  #
+  class <%= agent_class_name %> < Ai::Agents::ApplicationAgent
+    include RAAF::DSL::Agents::AgentDsl
+    include RAAF::DSL::Hooks::AgentHooks
+
+    # Agent configuration
+    agent_name "<%= agent_class_name %>"
+    model "gpt-4o"
+    max_turns 1
+
+    # Required context keys for this agent
+    REQUIRED_CONTEXT_KEYS = %i[data].freeze
+
+    def initialize(context:)
+      validate_context!(context) if context.is_a?(Hash)
+      super(context: context)
+    end
+
+    # Build system instructions for the AI
+    def build_instructions
+      Rails.logger.info "🤖 [<%= agent_class_name %>] Building instructions"
+      
+      validate_inputs
+      build_system_prompt
+    end
+
+    # Define the response schema
+    def build_schema
+      {
+        type: "object",
+        properties: {
+          result: { type: "string", description: "The main result" },
+          confidence: { type: "integer", minimum: 0, maximum: 100, description: "Confidence score" },
+          metadata: {
+            type: "object",
+            properties: {
+              source: { type: "string" },
+              timestamp: { type: "string" }
+            }
+          }
+        },
+        required: ["result"],
+        additionalProperties: false
+      }
+    end
+
+    # Build the user prompt with context data
+    def build_user_prompt
+      data = context.get(:data)
+      
+      <<~PROMPT
+        Please analyze the following data: #{data}
+        
+        Provide a comprehensive analysis with your confidence level.
+      PROMPT
+    end
+
+    # Main execution method
+    def call
+      Rails.logger.info "🚀 [<%= agent_class_name %>] Starting analysis"
+      
+      begin
+        # Use RAAF's run method (inherited from base)
+        raaf_result = run
+        
+        # Transform to expected format
+        process_result(raaf_result)
+      rescue => e
+        handle_error(e)
+      end
+    end
+
+    private
+
+    def validate_context!(context_hash)
+      return unless context_hash.is_a?(Hash)
+      missing_keys = REQUIRED_CONTEXT_KEYS.reject { |key| context_hash.key?(key) }
+      return if missing_keys.empty?
+      
+      raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
+    end
+
+    def validate_inputs
+      data = context.get(:data)
+      raise ArgumentError, "Data is required for analysis" if data.blank?
+    end
+
+    def build_system_prompt
+      <<~PROMPT
+        You are a helpful AI assistant that analyzes data and provides insights.
+        
+        Your task is to:
+        1. Analyze the provided data
+        2. Generate meaningful insights
+        3. Provide a confidence score for your analysis
+        4. Include relevant metadata
+        
+        Always respond with valid JSON following the defined schema.
+      PROMPT
+    end
+
+    def process_result(raaf_result)
+      {
+        success: true,
+        result: raaf_result["result"],
+        confidence: raaf_result["confidence"] || 85,
+        metadata: raaf_result["metadata"] || {
+          source: self.class.name,
+          timestamp: Time.current.iso8601
+        }
+      }
+    end
+
+    def handle_error(error)
+      Rails.logger.error "❌ [<%= agent_class_name %>] Error: #{error.message}"
+      Rails.logger.error "📋 Error class: #{error.class.name}"
+      Rails.logger.error "🔍 Stack trace:\n#{error.backtrace.join("\n")}"
+      
+      if error.message.include?("rate limit")
+        error_result("rate_limit", "AI rate limit exceeded. Please try again later.")
+      else
+        error_result("unexpected_error", "Analysis failed: #{error.message}")
+      end
+    end
+
+    def error_result(error_type, error_message)
+      {
+        success: false,
+        error: error_message,
+        error_type: error_type,
+        timestamp: Time.current.iso8601
+      }
+    end
+  end
+<% if agent_module_name -%>
+end
+<% end -%>

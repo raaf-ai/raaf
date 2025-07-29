@@ -27,12 +27,12 @@ require "rails/railtie"
 #
 # ## Generator Integration
 # Automatically registers these generators:
-# - `rails generate ai_agent_dsl:config` - Creates configuration files
-# - `rails generate ai_agent_dsl:agent NAME` - Creates agent and prompt classes
+# - `rails generate raaf:config` - Creates configuration files
+# - `rails generate raaf:agent NAME` - Creates agent and prompt classes
 #
 # @example Manual railtie loading (if needed)
 #   # In config/application.rb
-#   require 'ai_agent_dsl/railtie'
+#   require 'raaf/dsl/railtie'
 #
 # @example Checking if railtie is loaded
 #   Rails.application.railties.map(&:class).include?(RAAF::DSL::Railtie)
@@ -45,7 +45,7 @@ module RAAF
     class Railtie < ::Rails::Railtie
       # Set the railtie name for Rails integration
       # This name is used in Rails configuration and logging
-      railtie_name :ai_agent_dsl
+      railtie_name :raaf_dsl
 
       # Configure the gem when Rails application is being prepared
       #
@@ -68,7 +68,7 @@ module RAAF
       # It configures Rails-specific paths and enables development logging.
       #
       # @param app [Rails::Application] The Rails application instance
-      initializer "ai_agent_dsl.configure" do |_app|
+      initializer "raaf_dsl.configure" do |_app|
         # Set Rails-aware configuration path to use Rails.root instead of Dir.pwd
         # This ensures proper path resolution in all Rails deployment scenarios
         RAAF::DSL.configure do |config|
@@ -92,8 +92,8 @@ module RAAF
       # - AgentGenerator: Creates agent classes and their corresponding prompts
       # - ConfigGenerator: Creates initial configuration files
       generators do
-        require "ai_agent_dsl/generators/agent_generator"
-        require "ai_agent_dsl/generators/config_generator"
+        require "raaf/dsl/generators/agent_generator"
+        require "raaf/dsl/generators/config_generator"
       end
 
       # Configure eager loading for production environments
