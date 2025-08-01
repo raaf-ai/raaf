@@ -438,12 +438,12 @@ bundle exec rspec
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/new-feature`)
 3. Make your changes
 4. Add tests for your changes
 5. Ensure all tests pass (`bundle exec rspec`)
-6. Commit your changes (`git commit -am 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
+6. Commit your changes (`git commit -am 'Add new feature'`)
+7. Push to the branch (`git push origin feature/new-feature`)
 8. Open a Pull Request
 
 ## License
