@@ -185,6 +185,74 @@ module RAAF
         self
       end
 
+      # Add an object to the context with automatic proxying
+      #
+      # This method wraps any Ruby object in an ObjectProxy, allowing lazy access
+      # to its attributes and methods without immediate serialization.
+      #
+      # @param key [Symbol, String] The context key for this object
+      # @param object [Object] Any Ruby object to proxy
+      # @param options [Hash] Proxy configuration options
+      # @option options [Array<Symbol>] :only Whitelist of attributes/methods to expose
+      # @option options [Array<Symbol>] :except Blacklist of attributes/methods to hide
+      # @option options [Array<Symbol>] :methods Additional methods to include
+      # @option options [Integer] :depth Maximum depth for nested proxying (default: 2)
+      # @option options [Boolean] :cache Whether to cache accessed values (default: true)
+      # @return [ContextBuilder] Self for method chaining
+      #
+      # @example Basic usage
+      #   builder.with_object(:product, product)
+      #
+      # @example With filtering
+      #   builder.with_object(:user, user,
+      #     only: [:id, :name, :email],
+      #     except: [:password_digest]
+      #   )
+      #
+      # @example With methods
+      #   builder.with_object(:product, product,
+      #     methods: [:calculated_price, :availability_status]
+      #   )
+      #
+      def with_object(key, object, **options)
+        return with(key, nil) if object.nil?
+        
+        # Load ObjectProxy if not already loaded
+        require_relative 'object_proxy' unless defined?(RAAF::DSL::ObjectProxy)
+        
+        # Create proxy
+        proxy = ObjectProxy.new(object, **options)
+        
+        # Add to context
+        with(key, proxy)
+      end
+
+      # Add multiple objects to the context with automatic proxying
+      #
+      # @param objects [Hash] Hash of key => object pairs
+      # @param options [Hash] Common proxy options for all objects
+      # @return [ContextBuilder] Self for method chaining
+      #
+      # @example
+      #   builder.with_objects(
+      #     product: product,
+      #     company: company,
+      #     user: current_user
+      #   )
+      #
+      # @example With common options
+      #   builder.with_objects(
+      #     { product: product, company: company },
+      #     only: [:id, :name, :description]
+      #   )
+      #
+      def with_objects(objects, **common_options)
+        objects.each do |key, object|
+          with_object(key, object, **common_options)
+        end
+        self
+      end
+
       # Build and return the final ContextVariables instance
       #
       # @param strict [Boolean] Whether to enforce all validations
@@ -268,11 +336,7 @@ module RAAF
       def debug_log(message)
         return unless @debug_enabled
 
-        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-          Rails.logger.debug "[ContextBuilder] #{message}"
-        else
-          puts "[ContextBuilder] #{message}"
-        end
+        RAAF::Logging.debug("[ContextBuilder] #{message}", category: :context)
       end
     end
   end
