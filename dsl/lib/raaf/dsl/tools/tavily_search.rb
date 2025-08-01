@@ -52,6 +52,30 @@ module RAAF
           "tavily_search"
         end
 
+        # Returns the tool name (required by agent system)
+        # This is an alias for tool_name for compatibility
+        #
+        # @return [String] The tool name "tavily_search"
+        def name
+          tool_name
+        end
+
+        # Returns the tool description for agent system
+        #
+        # @return [String] Description of what this tool does
+        def description
+          "Search the web for current information using Tavily API. Returns structured results with titles, URLs, content summaries, and relevance scores."
+        end
+
+        # Main execution method expected by agent system
+        # Delegates to the search method with the provided parameters
+        #
+        # @param params [Hash] Search parameters
+        # @return [Hash] Search results
+        def call(**params)
+          search(**params)
+        end
+
         protected
 
         def build_tool_definition

@@ -82,6 +82,9 @@ module RAAF
     autoload :Config, "raaf/dsl/config/config"
     autoload :ConfigurationBuilder, "raaf/dsl/builders/configuration_builder"
     autoload :ContextVariables, "raaf/dsl/core/context_variables"
+    autoload :ContextBuilder, "raaf/dsl/core/context_builder"
+    autoload :ContextPipeline, "raaf/dsl/core/context_pipeline"
+    autoload :DataAccessHelper, "raaf/dsl/core/data_access_helper"
     autoload :Prompt, "raaf/dsl/prompts"
     autoload :PromptConfiguration, "raaf/dsl/config/prompt_configuration"
     autoload :PromptResolver, "raaf/dsl/prompts/prompt_resolver"
@@ -108,6 +111,7 @@ module RAAF
     module Agents
       autoload :Base, "raaf/dsl/agents/base"
       autoload :AgentDsl, "raaf/dsl/agents/agent_dsl"
+      autoload :ContextValidation, "raaf/dsl/agents/context_validation"
     end
 
     # Force load of AgentDsl module for tests

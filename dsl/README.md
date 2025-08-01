@@ -89,6 +89,16 @@ Building AI agents requires clean, maintainable code with clear separation betwe
 
 ## ✨ Key Features
 
+### 🔥 NEW: Enhanced Context Management
+RAAF DSL now includes powerful context management utilities to prevent common errors and simplify agent development:
+
+- **ContextBuilder**: Fluent interface for building context without immutability errors
+- **ContextPipeline**: Automatic context flow between agents in multi-step workflows  
+- **ContextValidation**: Type-safe context with validation DSL
+- **DataAccessHelper**: Safe access to data with mixed string/symbol keys
+
+See the [Context Management Guide](docs/context_management.md) for detailed documentation.
+
 ### 🏗️ Declarative Agent Configuration
 Define AI agents using a clean, readable DSL that makes complex agent configurations simple and maintainable:
 
@@ -373,7 +383,17 @@ end
 Now you can use your agent with rich context and automatic configuration:
 
 ```ruby
-# Initialize with context and parameters
+# Initialize with context using the new ContextBuilder
+context = RAAF::DSL::ContextBuilder.new
+  .with(:document, { name: "Technical Manual v2.1", format: "PDF" })
+  .with(:content_type, "technical documentation")
+  .with(:depth, "comprehensive")
+  .with(:focus_areas, ["structure analysis", "key topics", "readability"])
+  .build
+
+agent = DocumentAnalyzer.new(context: context)
+
+# Or use traditional initialization
 agent = DocumentAnalyzer.new(
   context: { 
     document: { 

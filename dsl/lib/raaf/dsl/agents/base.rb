@@ -91,7 +91,9 @@ module RAAF
 
           log_debug("Agent configuration initialized",
                     agent_class: self.class.name,
-                    context_size: @context.size)
+                    context_size: @context.size,
+                    context_keys: @context.keys.inspect,
+                    context_values: @context.to_h.transform_values { |v| v.class.name })
         end
 
         # Creates and returns an OpenAI Agent instance for API communication

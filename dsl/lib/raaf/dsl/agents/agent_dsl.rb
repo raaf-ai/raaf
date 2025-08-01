@@ -346,13 +346,109 @@ module RAAF
 
         def build_tools_from_config
           self.class._tools_config.map do |tool_config|
-            create_tool_instance(tool_config[:name], tool_config[:options])
-          end
+            tool_instance = create_tool_instance(tool_config[:name], tool_config[:options])
+
+            # Convert to OpenAI function tool format
+            convert_to_openai_tool(tool_instance)
+          end.compact
         end
 
         def create_tool_instance(tool_name, options)
+          # First check the registry
+          if RAAF::DSL::ToolRegistry.registered?(tool_name)
+            tool_class = RAAF::DSL::ToolRegistry.get(tool_name)
+            return tool_class.new(options)
+          end
+
+          # Fall back to resolving by class name
           tool_class = resolve_tool_class(tool_name)
           tool_class.new(options)
+        end
+
+        def convert_to_openai_tool(tool_instance)
+          # If tool has an openai_tool method, use it
+          return tool_instance.openai_tool if tool_instance.respond_to?(:openai_tool)
+          
+          # If tool uses DSL, create OpenAI function tool
+          process_dsl_tool(tool_instance)
+        end
+
+        def process_dsl_tool(tool_instance)
+          return tool_instance unless tool_instance.respond_to?(:tool_definition)
+
+          tool_def = tool_instance.tool_definition
+          tool_name = extract_tool_name(tool_def, tool_instance)
+          tool_description = extract_tool_description(tool_def)
+          tool_parameters = extract_tool_parameters(tool_def)
+
+          method_to_call = find_executable_method(tool_name, tool_instance)
+          return handle_no_executable_method(tool_name, tool_instance) unless method_to_call
+
+          return tool_instance unless defined?(::RAAF::FunctionTool)
+
+          tool_proc = create_tool_proc(tool_instance, method_to_call)
+          validate_tool_parameters(tool_name, tool_parameters)
+          create_openai_function_tool(tool_name, tool_description, tool_parameters, tool_proc)
+        end
+
+        def extract_tool_name(tool_def, tool_instance)
+          if tool_def.is_a?(Hash) && tool_def.dig(:function, :name)
+            tool_def[:function][:name]
+          elsif tool_instance.respond_to?(:tool_name)
+            tool_instance.tool_name
+          elsif tool_instance.respond_to?(:name)
+            tool_instance.name
+          else
+            tool_instance.class.name.demodulize.underscore
+          end
+        end
+
+        def extract_tool_description(tool_def)
+          if tool_def.is_a?(Hash) && tool_def.dig(:function, :description)
+            tool_def[:function][:description]
+          else
+            "Tool for performing specific tasks"
+          end
+        end
+
+        def extract_tool_parameters(tool_def)
+          if tool_def.is_a?(Hash) && tool_def.dig(:function, :parameters)
+            tool_def[:function][:parameters]
+          else
+            { type: "object", properties: {}, required: [], additionalProperties: false }
+          end
+        end
+
+        def find_executable_method(tool_name, tool_instance)
+          # Check for common executable methods in order of preference
+          candidate_methods = [:call, tool_name.to_sym, :execute, :run]
+          candidate_methods.find { |method| tool_instance.respond_to?(method) }
+        end
+
+        def handle_no_executable_method(tool_name, tool_instance)
+          Rails.logger.warn "⚠️ No executable method found for tool #{tool_name}. Available methods: #{tool_instance.methods(false)}"
+          nil
+        end
+
+        def create_tool_proc(tool_instance, method_to_call)
+          proc do |**params|
+            tool_instance.send(method_to_call, **params)
+          end
+        end
+
+        def validate_tool_parameters(tool_name, tool_parameters)
+          unless tool_parameters.is_a?(Hash) && tool_parameters[:type] == "object"
+            Rails.logger.warn "⚠️ Tool #{tool_name} has invalid parameter schema"
+          end
+        end
+
+        def create_openai_function_tool(tool_name, tool_description, tool_parameters, tool_proc)
+          ::RAAF::FunctionTool.new(
+            tool_proc,
+            name: tool_name,
+            description: tool_description,
+            parameters: tool_parameters
+          )
         end
 
         def resolve_tool_class(tool_name)
