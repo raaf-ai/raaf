@@ -179,23 +179,17 @@ module RAAF
                         end
 
           unless File.exist?(config_path)
-            if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-              Rails.logger.warn "AI agents configuration file not found: #{config_path}"
-            end
+            RAAF::Logging.warn "AI agents configuration file not found: #{config_path}"
             return {}
           end
 
           begin
             YAML.load_file(config_path, aliases: true) || {}
           rescue Psych::SyntaxError => e
-            if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-              Rails.logger.error "Invalid YAML in AI agents configuration: #{e.message}"
-            end
+            RAAF::Logging.error "Invalid YAML in AI agents configuration: #{e.message}"
             {}
           rescue StandardError => e
-            if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-              Rails.logger.error "Error loading AI agents configuration: #{e.message}"
-            end
+            RAAF::Logging.error "Error loading AI agents configuration: #{e.message}"
             {}
           end
         end

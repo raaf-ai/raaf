@@ -113,15 +113,22 @@ module RAAF
 
       # Get a context variable value
       #
+      # This method supports accessing both regular values and ObjectProxy instances.
+      # When a proxy is accessed, it returns the proxy itself for lazy evaluation.
+      #
       # @param key [Symbol, String] The variable key
       # @param default [Object] Default value if key doesn't exist
       # @return [Object] The variable value or default
       #
-      # @example
+      # @example Regular value
       #   context.get(:user_tier, "standard") # => "premium" or "standard"
       #
+      # @example Proxied object
+      #   context.get(:product).name # => Lazy loads product.name
+      #
       def get(key, default = nil)
-        @variables[key.to_sym] || default
+        value = @variables[key.to_sym]
+        value.nil? ? default : value
       end
 
       # Get a nested value using a path array (for prompt system compatibility)
@@ -197,10 +204,29 @@ module RAAF
 
       # Convert to hash (for compatibility)
       #
+      # This method serializes ObjectProxy instances when converting to hash,
+      # ensuring that the hash representation contains actual data rather than proxies.
+      #
+      # @param options [Hash] Serialization options
+      # @option options [Boolean] :serialize_proxies Whether to serialize proxy objects (default: true)
       # @return [Hash] Hash representation of context variables
       #
-      def to_h
-        @variables.dup
+      def to_h(options = {})
+        serialize_proxies = options.fetch(:serialize_proxies, true)
+        
+        if serialize_proxies
+          require_relative 'object_proxy' unless defined?(RAAF::DSL::ObjectProxy)
+          
+          @variables.transform_values do |value|
+            if value.respond_to?(:proxy?) && value.proxy?
+              value.to_serialized_hash
+            else
+              value
+            end
+          end
+        else
+          @variables.dup
+        end
       end
       alias to_hash to_h
 
@@ -381,11 +407,18 @@ module RAAF
       def debug_log(action, data = {})
         return unless @debug_enabled
 
-        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-          Rails.logger.debug "[ContextVariables] #{action}: #{data.inspect}"
-        else
-          puts "[ContextVariables Debug] #{action}: #{data.inspect}"
+        # Ensure proxies are handled properly in debug output
+        debug_data = data.transform_values do |value|
+          if value.is_a?(Hash)
+            value.transform_values do |v|
+              (v.respond_to?(:proxy?) && v.proxy?) ? "<ObjectProxy:#{v.__target__.class.name}>" : v
+            end
+          else
+            (value.respond_to?(:proxy?) && value.proxy?) ? "<ObjectProxy:#{value.__target__.class.name}>" : value
+          end
         end
+
+        RAAF::Logging.debug("[ContextVariables] #{action}", category: :context, data: debug_data)
       end
 
       # Basic variable validation
