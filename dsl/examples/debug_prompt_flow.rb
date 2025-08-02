@@ -7,8 +7,7 @@ require "raaf-dsl"
 # Example agents to test prompt resolution debugging
 
 # Agent with explicit prompt class
-class ExplicitPromptAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ExplicitPromptAgent < RAAF::DSL::Agent
 
   agent_name "explicit_prompt_agent"
 
@@ -21,8 +20,7 @@ class ExplicitPromptAgent < RAAF::DSL::Agents::Base
 end
 
 # Agent that uses inference (expects RAAF::DSL::Prompts::InferredPromptAgent)
-class InferredPromptAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class InferredPromptAgent < RAAF::DSL::Agent
 
   agent_name "inferred_prompt_agent"
 
@@ -32,8 +30,7 @@ class InferredPromptAgent < RAAF::DSL::Agents::Base
 end
 
 # Agent using legacy template system
-class LegacyTemplateAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class LegacyTemplateAgent < RAAF::DSL::Agent
 
   agent_name "legacy_template_agent"
 
@@ -50,8 +47,7 @@ class LegacyTemplateAgent < RAAF::DSL::Agents::Base
 end
 
 # Agent using static instructions
-class StaticInstructionAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class StaticInstructionAgent < RAAF::DSL::Agent
 
   agent_name "static_instruction_agent"
 
@@ -65,8 +61,7 @@ class StaticInstructionAgent < RAAF::DSL::Agents::Base
 end
 
 # Agent with no configuration (uses defaults)
-class DefaultAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class DefaultAgent < RAAF::DSL::Agent
 
   agent_name "default_agent"
 

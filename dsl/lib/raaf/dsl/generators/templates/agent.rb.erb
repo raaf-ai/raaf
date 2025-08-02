@@ -33,7 +33,7 @@ module <%= agent_module_name %>
 
     # Build system instructions for the AI
     def build_instructions
-      Rails.logger.info "🤖 [<%= agent_class_name %>] Building instructions"
+      RAAF::Logging.info "🤖 [<%= agent_class_name %>] Building instructions"
       
       validate_inputs
       build_system_prompt
@@ -72,7 +72,7 @@ module <%= agent_module_name %>
 
     # Main execution method
     def call
-      Rails.logger.info "🚀 [<%= agent_class_name %>] Starting analysis"
+      RAAF::Logging.info "🚀 [<%= agent_class_name %>] Starting analysis"
       
       begin
         # Use RAAF's run method (inherited from base)
@@ -127,9 +127,9 @@ module <%= agent_module_name %>
     end
 
     def handle_error(error)
-      Rails.logger.error "❌ [<%= agent_class_name %>] Error: #{error.message}"
-      Rails.logger.error "📋 Error class: #{error.class.name}"
-      Rails.logger.error "🔍 Stack trace:\n#{error.backtrace.join("\n")}"
+      RAAF::Logging.error "❌ [<%= agent_class_name %>] Error: #{error.message}", 
+        error_class: error.class.name,
+        stack_trace: error.backtrace.join("\n")
       
       if error.message.include?("rate limit")
         error_result("rate_limit", "AI rate limit exceeded. Please try again later.")

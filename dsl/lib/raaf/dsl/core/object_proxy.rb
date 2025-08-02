@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "delegate"
+require_relative "object_serializer"
 
 module RAAF
   module DSL

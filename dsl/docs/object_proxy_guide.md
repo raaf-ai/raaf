@@ -201,7 +201,7 @@ json = context.to_json
 Use object proxies in your AI agents for cleaner code:
 
 ```ruby
-class ProductAnalysisAgent < RAAF::DSL::Agents::Base
+class ProductAnalysisAgent < RAAF::DSL::Agent
   def initialize(product:, company:)
     # Build context with objects
     context = RAAF::DSL::ContextBuilder.new

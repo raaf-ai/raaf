@@ -7,8 +7,7 @@ require "raaf-dsl"
 # Example showing how Orchestrator < ApplicationAgent uses prompt classes
 
 # 1. Define the base ApplicationAgent class
-class ApplicationAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ApplicationAgent < RAAF::DSL::Agent
 end
 
 # 2. Define the Orchestrator that inherits from ApplicationAgent
@@ -84,7 +83,7 @@ orchestrator.class.ancestors.each_with_index do |ancestor, index|
   next if ancestor == orchestrator.class
 
   puts "  #{'  ' * (index + 1)}< #{ancestor.name}" if ancestor.is_a?(Class)
-  break if ancestor == RAAF::DSL::Agents::Base
+  break if ancestor == RAAF::DSL::Agent
 end
 puts
 

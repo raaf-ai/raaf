@@ -164,8 +164,7 @@ end
 # ========================================
 
 # Triage agent that analyzes requests and routes them
-class TriageAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class TriageAgent < RAAF::DSL::Agent
 
   agent_name "TriageAgent"
   model "gpt-4o-mini" # Use cheaper model for triage
@@ -201,8 +200,7 @@ class TriageAgent < RAAF::DSL::Agents::Base
 end
 
 # Specialist agent that handles routed requests
-class SpecialistAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class SpecialistAgent < RAAF::DSL::Agent
 
   agent_name "SpecialistAgent"
   model "gpt-4o-mini"

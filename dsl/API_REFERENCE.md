@@ -4,22 +4,34 @@ Complete API reference for the AI Agent DSL gem.
 
 ## Core Classes
 
-### `RAAF::DSL::Agents::Base`
+### `RAAF::DSL::Agent`
 
-Base class for all AI agents. Provides the foundation for creating intelligent AI agents with OpenAI integration.
+Unified agent class for the RAAF DSL framework. Combines all features from Base and SmartAgent into a single, powerful agent implementation that provides:
+- Declarative agent configuration with DSL
+- Automatic retry logic with configurable strategies
+- Circuit breaker pattern for fault tolerance
+- Context validation and requirements
+- Built-in error handling and categorization
+- Automatic result parsing and extraction
+- Schema building with inline DSL
 
 #### Constructor
 
 ```ruby
-def initialize(context:, processing_params:)
-  @context = context
+def initialize(context: nil, context_variables: nil, processing_params: {}, debug: nil)
+  # Supports both context and context_variables parameters
+  # Context is unified - no separate context_variables
+  @context = ContextVariables.new(context || context_variables || {})
   @processing_params = processing_params
+  @debug_enabled = debug
 end
 ```
 
 **Parameters:**
-- `context` (Hash) - Context data that flows through the agent workflow
+- `context` (Hash, ContextVariables) - Context data that flows through the agent workflow
+- `context_variables` (Hash, ContextVariables) - Alternative parameter name for context (backward compatibility)
 - `processing_params` (Hash) - Processing parameters for agent execution
+- `debug` (Boolean) - Enable debug logging for this agent instance
 
 #### Instance Methods
 
@@ -28,10 +40,21 @@ Creates an OpenAI agent instance with tracing support.
 
 **Returns:** OpenAI agent instance configured with the agent's settings
 
-##### `#run`
-Executes the agent and returns structured results.
+##### `#run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false)`
+Executes the agent with optional smart features (retry, circuit breaker, etc.).
+
+**Parameters:**
+- `context` (Hash, ContextVariables) - Context to use (overrides instance context)
+- `input_context_variables` (Hash, ContextVariables) - Alternative parameter name for context
+- `stop_checker` (Proc) - Optional stop checker for execution control
+- `skip_retries` (Boolean) - Skip retry/circuit breaker logic (default: false)
 
 **Returns:** Hash containing agent execution results
+
+**Behavior:**
+- If agent has smart features configured (retry, circuit breaker, validation), they are used by default
+- Pass `skip_retries: true` to bypass smart features and execute directly
+- Automatically logs execution start/completion for agents with smart features
 
 ##### `#agent_name`
 Gets the agent name for configuration lookup.
@@ -55,9 +78,9 @@ Gets the configured maximum conversation turns.
 
 ---
 
-### `RAAF::DSL::Agents::AgentDsl`
+### DSL Methods (Built into Agent)
 
-Module providing DSL methods for declarative agent configuration. Include this module in your agent classes to access the DSL.
+The unified `RAAF::DSL::Agent` class includes all DSL methods for declarative agent configuration. These methods are available directly when inheriting from Agent.
 
 #### Configuration Methods
 
@@ -69,8 +92,7 @@ Sets the agent name for configuration lookup.
 
 **Example:**
 ```ruby
-class MyAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class MyAgent < RAAF::DSL::Agent
   
   agent_name "MyCustomAgent"
 end
@@ -138,6 +160,73 @@ schema do
   field :confidence, type: :integer, range: 0..100
 end
 ```
+
+#### Smart Features Configuration
+
+##### `requires(*keys)`
+Declares required context keys that must be present.
+
+**Parameters:**
+- `keys` (Array<Symbol>) - Required context key names
+
+**Example:**
+```ruby
+class MyAgent < RAAF::DSL::Agent
+  requires :api_key, :endpoint
+end
+```
+
+##### `validates(key, **rules)`
+Adds validation rules for context values.
+
+**Parameters:**
+- `key` (Symbol) - Context key to validate
+- `rules` (Hash) - Validation rules (type, presence, etc.)
+
+**Example:**
+```ruby
+validates :api_key, type: String, presence: true
+validates :score, type: Integer, validate: -> (v) { v.between?(0, 100) }
+```
+
+##### `retry_on(error_type, max_attempts: 3, backoff: :linear, delay: 1)`
+Configures retry behavior for specific error types.
+
+**Parameters:**
+- `error_type` (Symbol, Class) - Error type to retry on
+- `max_attempts` (Integer) - Maximum retry attempts
+- `backoff` (Symbol) - Backoff strategy (:linear, :exponential)
+- `delay` (Integer) - Base delay in seconds
+
+**Example:**
+```ruby
+retry_on :rate_limit, max_attempts: 3, backoff: :exponential
+retry_on Timeout::Error, max_attempts: 2
+```
+
+##### `circuit_breaker(threshold: 5, timeout: 60, reset_timeout: 300)`
+Configures circuit breaker pattern for fault tolerance.
+
+**Parameters:**
+- `threshold` (Integer) - Failure threshold before opening circuit
+- `timeout` (Integer) - Timeout for each attempt
+- `reset_timeout` (Integer) - Time before attempting to close circuit
+
+##### `system_prompt(prompt = nil, &block)`
+Defines the system prompt with string or block.
+
+**Example:**
+```ruby
+system_prompt "You are a helpful assistant"
+
+# Or with block for dynamic prompts
+system_prompt do |ctx|
+  "You are analyzing #{ctx.get(:document_type)} documents"
+end
+```
+
+##### `user_prompt(prompt = nil, &block)`
+Defines the user prompt with string or block.
 
 #### Workflow Management
 

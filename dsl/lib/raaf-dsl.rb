@@ -15,9 +15,7 @@ require "active_support/all"
 # - YAML-based configuration with inheritance
 #
 # @example Basic agent definition
-#   class MyAgent < RAAF::DSL::Agents::Base
-#     include RAAF::DSL::Agents::AgentDsl
-#
+#   class MyAgent < RAAF::DSL::Agent
 #     agent_name "MyAgent"
 #     uses_tool :web_search
 #     tool_choice "auto"  # Let AI decide when to use tools
@@ -28,18 +26,14 @@ require "active_support/all"
 #   end
 #
 # @example Agent with required tool usage
-#   class ResearchAgent < RAAF::DSL::Agents::Base
-#     include RAAF::DSL::Agents::AgentDsl
-#
+#   class ResearchAgent < RAAF::DSL::Agent
 #     agent_name "ResearchAgent"
 #     uses_tool :web_search
 #     tool_choice "required"  # Must use a tool before responding
 #   end
 #
 # @example Agent with specific tool enforcement
-#   class WebSearchAgent < RAAF::DSL::Agents::Base
-#     include RAAF::DSL::Agents::AgentDsl
-#
+#   class WebSearchAgent < RAAF::DSL::Agent
 #     agent_name "WebSearchAgent"
 #     uses_tool :web_search
 #     uses_tool :calculator
@@ -72,7 +66,7 @@ module RAAF
     #   begin
     #     agent.run
     #   rescue RAAF::DSL::Error => e
-    #     Rails.logger.error "AI Agent DSL error: #{e.message}"
+    #     RAAF::Logging.error "AI Agent DSL error: #{e.message}"
     #   end
     #
     class Error < StandardError; end
@@ -100,15 +94,16 @@ module RAAF
     # units that orchestrate AI interactions, tool usage, and workflow management.
     #
     # @example Creating a custom agent
-    #   class MyAgent < RAAF::DSL::Agents::Base
-    #     include RAAF::DSL::Agents::AgentDsl
+    #   class MyAgent < RAAF::DSL::Agent
     #     agent_name "my_agent"
     #   end
     #
     module Agents
-      autoload :Base, "raaf/dsl/agents/base"
       autoload :AgentDsl, "raaf/dsl/agents/agent_dsl"
     end
+
+    # Main Agent class - the unified agent with all features
+    autoload :Agent, "raaf/dsl/agent"
 
     # Force load of AgentDsl module for tests
     require_relative "raaf/dsl/agents/agent_dsl"
@@ -155,8 +150,7 @@ module RAAF
     # computational tasks with parameter validation and error handling.
     #
     # @example Using tools in agents
-    #   class MyAgent < RAAF::DSL::Agents::Base
-    #     include RAAF::DSL::Agents::AgentDsl
+    #   class MyAgent < RAAF::DSL::Agent
     #     uses_tool :web_search
     #   end
     #
@@ -198,9 +192,7 @@ module RAAF
     #   end
     #
     # @example Agent-specific callbacks
-    #   class MyAgent < RAAF::DSL::Agents::Base
-    #     include RAAF::DSL::Hooks::AgentHooks
-    #
+    #   class MyAgent < RAAF::DSL::Agent
     #     on_start :log_start
     #     on_end { |agent, result| handle_completion(result) }
     #   end
