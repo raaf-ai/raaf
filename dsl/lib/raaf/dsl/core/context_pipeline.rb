@@ -128,7 +128,7 @@ module RAAF
       #
       # @example
       #   pipeline.on_error do |error, stage_info|
-      #     Rails.logger.error "Pipeline failed at #{stage_info[:agent_class]}: #{error.message}"
+      #     RAAF::Logging.error "Pipeline failed at #{stage_info[:agent_class]}: #{error.message}"
       #   end
       #
       def on_error(&block)
@@ -380,11 +380,7 @@ module RAAF
       def debug_log(message)
         return unless @debug
 
-        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-          Rails.logger.debug "[ContextPipeline] #{message}"
-        else
-          puts "[ContextPipeline] #{message}"
-        end
+        RAAF::Logging.debug("[ContextPipeline] #{message}", category: :context)
       end
     end
   end

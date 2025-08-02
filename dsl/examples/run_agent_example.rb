@@ -24,8 +24,7 @@ end
 puts "\n=== Demonstrating error when no prompt class is configured ==="
 
 # Example of what happens when no prompt class is configured
-class BadAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class BadAgent < RAAF::DSL::Agent
 
   agent_name "bad_agent"
   uses_tool :web_search
@@ -61,8 +60,7 @@ puts <<~USAGE
   end
 
   # 2. Configure the agent to use the prompt class:
-  class MyAgent < RAAF::DSL::Agents::Base
-    include RAAF::DSL::Agents::AgentDsl
+  class MyAgent < RAAF::DSL::Agent
   #{'  '}
     prompt_class MyPrompt
   end

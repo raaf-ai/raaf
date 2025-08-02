@@ -426,7 +426,7 @@ module RAAF
         end
 
         def handle_no_executable_method(tool_name, tool_instance)
-          Rails.logger.warn "⚠️ No executable method found for tool #{tool_name}. Available methods: #{tool_instance.methods(false)}"
+          RAAF::Logging.warn "⚠️ No executable method found for tool #{tool_name}. Available methods: #{tool_instance.methods(false)}"
           nil
         end
 
@@ -438,7 +438,7 @@ module RAAF
 
         def validate_tool_parameters(tool_name, tool_parameters)
           unless tool_parameters.is_a?(Hash) && tool_parameters[:type] == "object"
-            Rails.logger.warn "⚠️ Tool #{tool_name} has invalid parameter schema"
+            RAAF::Logging.warn "⚠️ Tool #{tool_name} has invalid parameter schema"
           end
         end
 

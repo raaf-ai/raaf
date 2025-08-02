@@ -5,8 +5,7 @@ require "raaf-dsl"
 require_relative "web_search_prompt"
 
 # Example agent demonstrating web search capabilities
-class WebSearchAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class WebSearchAgent < RAAF::DSL::Agent
 
   agent_name "web_search_agent"
 
@@ -37,8 +36,7 @@ class WebSearchAgent < RAAF::DSL::Agents::Base
 end
 
 # Example agent with custom web search configuration
-class NewsAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class NewsAgent < RAAF::DSL::Agent
 
   agent_name "news_agent"
 
@@ -67,8 +65,7 @@ class NewsAgent < RAAF::DSL::Agents::Base
 end
 
 # Example agent using preset configurations
-class TechAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class TechAgent < RAAF::DSL::Agent
 
   agent_name "tech_agent"
 

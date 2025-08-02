@@ -346,11 +346,17 @@ end
 
 ```ruby
 # Add objects conditionally based on requirements
+# Mock objects for example
+prospect = Struct.new(:name, :email, :recent_interactions).new("John Doe", "john@example.com", [])
+company = Struct.new(:name, :competitors).new("Acme Corp", ["Competitor A", "Competitor B"])
+include_competitors = true
+include_history = false
+
 builder = RAAF::DSL::ContextBuilder.new
   .with_object(:prospect, prospect)
   .with_object(:company, company)
-  .with_if(include_competitors?, :competitors, company.competitors)
-  .with_if(include_history?, :interactions, prospect.recent_interactions)
+  .with_if(include_competitors, :competitors, company.competitors)
+  .with_if(include_history, :interactions, prospect.recent_interactions)
   .build
 ```
 

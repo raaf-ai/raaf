@@ -42,10 +42,13 @@ Create new agents using SmartAgent for immediate benefits:
 
 ```ruby
 # NEW: app/ai/agents/market/smart_analysis.rb
-class Ai::Agents::Market::SmartAnalysis < RAAF::DSL::SmartAgent
-  agent_name "SmartMarketAnalysisAgent"
-  model "gpt-4o"
-  requires :product, :company
+module Ai
+  module Agents
+    module Market
+      class SmartAnalysis < RAAF::DSL::Agent
+        agent_name "SmartMarketAnalysisAgent"
+        model "gpt-4o"
+        requires :product, :company
   
   # Inline schema definition
   schema do
@@ -74,8 +77,11 @@ class Ai::Agents::Market::SmartAnalysis < RAAF::DSL::SmartAgent
     PROMPT
   end
   
-  # Auto-retry on rate limits
-  retry_on :rate_limit, max_attempts: 3, backoff: :exponential
+        # Auto-retry on rate limits
+        retry_on :rate_limit, max_attempts: 3, backoff: :exponential
+      end
+    end
+  end
 end
 ```
 
@@ -205,7 +211,12 @@ Replace complex orchestrators with declarative pipelines:
 
 ```ruby
 # OLD: Complex orchestrator (100+ lines)
-class ProspectDiscoveryOrchestrator < Ai::Agents::ApplicationAgent
+module Ai
+  module Agents
+    class ApplicationAgent < RAAF::DSL::Agent  # Base class
+    end
+    
+    class ProspectDiscoveryOrchestrator < ApplicationAgent
   def run
     # Complex manual orchestration
     market_result = Market::Analysis.new(context: @context).call
@@ -217,7 +228,8 @@ class ProspectDiscoveryOrchestrator < Ai::Agents::ApplicationAgent
     search_result = Company::Search.new(context: @context).call
     return error_result unless search_result[:success]
     
-    # More manual orchestration...
+      # More manual orchestration...
+    end
   end
 end
 
@@ -278,9 +290,11 @@ Convert existing agents one-by-one:
 
 ```ruby
 # BEFORE: 275+ lines of boilerplate
-class Analysis < Ai::Agents::ApplicationAgent
-  include RAAF::DSL::Agents::AgentDsl
-  include RAAF::DSL::Hooks::AgentHooks
+module Ai
+  module Agents
+    class Analysis < ApplicationAgent
+      include RAAF::DSL::Agents::AgentDsl
+      include RAAF::DSL::Hooks::AgentHooks
   
   agent_name "MarketAnalysisAgent"
   model "gpt-4o"
@@ -307,7 +321,9 @@ class Analysis < Ai::Agents::ApplicationAgent
     # 40+ lines of result processing and error handling
   end
   
-  # 100+ lines of helper methods, error handling, etc.
+      # 100+ lines of helper methods, error handling, etc.
+    end
+  end
 end
 
 # AFTER: 25 lines total!

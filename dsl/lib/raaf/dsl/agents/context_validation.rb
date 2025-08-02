@@ -162,13 +162,7 @@ module RAAF
 
           # Handle validation errors (can be overridden)
           def handle_validation_error(error)
-            if defined?(Rails) && Rails.logger
-              Rails.logger.error "[#{self.class.name}] Context validation failed:"
-              error.errors.each do |err|
-                Rails.logger.error "  - #{err}"
-              end
-              Rails.logger.error "Context keys present: #{error.context.keys.inspect}"
-            end
+            RAAF::Logging.error "[#{self.class.name}] Context validation failed:", errors: error.errors.join("; "), context_keys: error.context.keys.inspect
           end
         end
 

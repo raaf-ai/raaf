@@ -100,8 +100,7 @@ class CompanyAnalysisPrompt < RAAF::DSL::Prompts::Base
 end
 
 # Example 3: Agent using prompt with schema
-class CompanyAnalysisAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class CompanyAnalysisAgent < RAAF::DSL::Agent
 
   agent_name "CompanyAnalyst"
   model "gpt-4o"
@@ -116,8 +115,7 @@ class CompanyAnalysisAgent < RAAF::DSL::Agents::Base
 end
 
 # Example 4: Demonstration of schema conflict detection
-class ConflictingAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ConflictingAgent < RAAF::DSL::Agent
 
   agent_name "ConflictingAgent"
   prompt_class UserExtractionPrompt # This prompt has a schema

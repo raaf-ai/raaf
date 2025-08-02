@@ -55,8 +55,7 @@ class MockRailsEnv
 end
 
 # Test agent that includes the enhanced debugging capabilities
-class TestAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class TestAgent < RAAF::DSL::Agent
 
   agent_name "TestAgent"
   model "gpt-4o"

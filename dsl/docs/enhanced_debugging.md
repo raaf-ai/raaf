@@ -1,6 +1,6 @@
-# Enhanced Debugging Capabilities in RAAF::DSL::Agents::Base
+# Enhanced Debugging Capabilities in RAAF::DSL::Agent
 
-This document describes the enhanced debugging capabilities added to the RAAF::DSL::Agents::Base class, which provide comprehensive visibility into agent execution for troubleshooting and optimization.
+This document describes the enhanced debugging capabilities available in the RAAF::DSL::Agent class, which provide comprehensive visibility into agent execution for troubleshooting and optimization.
 
 ## Overview
 

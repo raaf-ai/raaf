@@ -77,8 +77,8 @@ module RAAF
 
         # Log gem initialization in development for debugging and verification
         # Helps developers confirm the gem is properly loaded
-        if ::Rails.respond_to?(:env) && ::Rails.env.development? && ::Rails.respond_to?(:logger) && ::Rails.logger
-          ::Rails.logger.info "[RAAF::DSL] Gem initialized with Rails integration"
+        if ::Rails.respond_to?(:env) && ::Rails.env.development?
+          RAAF::Logging.info "[RAAF::DSL] Gem initialized with Rails integration"
         end
       end
 

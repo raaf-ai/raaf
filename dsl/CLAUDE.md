@@ -134,8 +134,7 @@ class ResearchPrompt < RAAF::DSL::Prompts::Base
 end
 
 # Use prompts in agents via a custom agent class
-class ResearchAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ResearchAgent < RAAF::DSL::Agent
   
   agent_name "researcher"
   prompt_class ResearchPrompt  # Preferred: Ruby class

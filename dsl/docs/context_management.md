@@ -286,8 +286,11 @@ end
 
 ```ruby
 # ✅ COMPREHENSIVE - Full validation with clear errors
-class MyAgent < RAAF::DSL::Agents::Base
+class MyAgent < RAAF::DSL::Agent
   include RAAF::DSL::Agents::ContextValidation
+  
+  # Mock Product class for example
+  Product = Struct.new(:name, :category) unless defined?(Product)
   
   validates_context :product, required: true, type: Product
   validates_context :score, type: Integer, validate: -> (v) { v.between?(0, 100) }
@@ -298,7 +301,7 @@ end
 ### Basic Usage
 
 ```ruby
-class AnalysisAgent < RAAF::DSL::Agents::Base
+class AnalysisAgent < RAAF::DSL::Agent
   include RAAF::DSL::Agents::ContextValidation
   
   # Required fields
@@ -320,7 +323,7 @@ end
 ### Custom Validation
 
 ```ruby
-class ScoringAgent < RAAF::DSL::Agents::Base
+class ScoringAgent < RAAF::DSL::Agent
   include RAAF::DSL::Agents::ContextValidation
   
   # Inline validation
@@ -349,7 +352,7 @@ end
 ### Built-in Validators
 
 ```ruby
-class ValidationExampleAgent < RAAF::DSL::Agents::Base
+class ValidationExampleAgent < RAAF::DSL::Agent
   include RAAF::DSL::Agents::ContextValidation
   
   # Use predefined validators
@@ -400,8 +403,12 @@ end
 ### Real-World Example
 
 ```ruby
-class ProspectScoringAgent < RAAF::DSL::Agents::Base
+class ProspectScoringAgent < RAAF::DSL::Agent
   include RAAF::DSL::Agents::ContextValidation
+  
+  # Mock classes for example
+  Prospect = Struct.new(:name, :company, :email) unless defined?(Prospect)
+  Product = Struct.new(:name, :category, :features) unless defined?(Product)
   
   # Required business objects
   validates_context :prospect, required: true, type: Prospect
@@ -602,7 +609,7 @@ context = RAAF::DSL::ContextBuilder.new
 ### 2. Validate Context Early
 
 ```ruby
-class CriticalAgent < RAAF::DSL::Agents::Base
+class CriticalAgent < RAAF::DSL::Agent
   include RAAF::DSL::Agents::ContextValidation
   
   # Validate at class level
@@ -655,7 +662,7 @@ end
 ### 5. Combine Features for Robust Agents
 
 ```ruby
-class RobustAgent < RAAF::DSL::Agents::Base
+class RobustAgent < RAAF::DSL::Agent
   include RAAF::DSL::Agents::ContextValidation
   include RAAF::DSL::DataAccessHelper
   

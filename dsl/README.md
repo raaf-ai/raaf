@@ -103,8 +103,7 @@ See the [Context Management Guide](docs/context_management.md) for detailed docu
 Define AI agents using a clean, readable DSL that makes complex agent configurations simple and maintainable:
 
 ```ruby
-class DocumentAnalyzer < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class DocumentAnalyzer < RAAF::DSL::Agent
 
   agent_name "DocumentAnalyzerAgent"
   model "gpt-4o"
@@ -165,8 +164,7 @@ end
 Orchestrate complex workflows with agent handoffs and sequential processing:
 
 ```ruby
-class ContentWorkflow < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ContentWorkflow < RAAF::DSL::Agent
   
   # Note: processing_workflow is a conceptual example
   # In practice, use handoffs between agents
@@ -183,8 +181,7 @@ end
 Easy integration of external tools with automatic parameter validation and error handling:
 
 ```ruby
-class ContentAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ContentAgent < RAAF::DSL::Agent
   uses_tool :document_parser, max_size: '10MB', timeout: 30
   uses_tool :database_query, connection: :primary
   uses_tool :api_client, base_url: ENV['API_BASE_URL']
@@ -312,8 +309,7 @@ This creates two files with full scaffolding:
 
 #### `app/ai/agents/document_analyzer.rb` - Agent class
 ```ruby
-class DocumentAnalyzer < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class DocumentAnalyzer < RAAF::DSL::Agent
 
   # Agent identification and configuration
   agent_name "DocumentAnalyzerAgent"
@@ -510,8 +506,7 @@ end
 Context flows and evolves through agent handoffs:
 
 ```ruby
-class ResearchWorkflow < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ResearchWorkflow < RAAF::DSL::Agent
   
   agent_name "ResearchWorkflow"
   
@@ -717,23 +712,19 @@ Create complex workflows with multiple agents working together:
 
 ```ruby
 # Example agent classes (define these first)
-class TextExtractionAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class TextExtractionAgent < RAAF::DSL::Agent
   agent_name "TextExtractionAgent"
 end
 
-class StructureAnalysisAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class StructureAnalysisAgent < RAAF::DSL::Agent
   agent_name "StructureAnalysisAgent"
 end
 
-class SummaryGenerationAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class SummaryGenerationAgent < RAAF::DSL::Agent
   agent_name "SummaryGenerationAgent"
 end
 
-class ContentProcessingOrchestrator < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ContentProcessingOrchestrator < RAAF::DSL::Agent
 
   agent_name "ContentProcessingOrchestrator"
   description "Orchestrates multi-step content analysis workflow"
@@ -764,8 +755,7 @@ end
 Create sophisticated tool integrations with validation and error handling:
 
 ```ruby
-class AdvancedContentAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class AdvancedContentAgent < RAAF::DSL::Agent
 
   # Multiple tools with specific configurations
   uses_tool :document_parser, max_pages: 100, timeout: 45
@@ -996,8 +986,7 @@ end
 Define complex response schemas with nested validation:
 
 ```ruby
-class ComprehensiveContentAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ComprehensiveContentAgent < RAAF::DSL::Agent
 
   schema do
     # Document overview with nested structure
@@ -1143,8 +1132,7 @@ end
 Register callbacks for specific agent instances:
 
 ```ruby
-class DocumentAnalyzer < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class DocumentAnalyzer < RAAF::DSL::Agent
   include RAAF::DSL::Hooks::AgentHooks
 
   agent_name "document_analyzer"
@@ -1203,8 +1191,7 @@ RAAF::DSL::Hooks::RunHooks.on_agent_start { |agent| log_to_file(agent) }
 RAAF::DSL::Hooks::RunHooks.on_agent_start { |agent| send_to_monitoring(agent) }
 
 # Multiple agent-specific handlers
-class MyAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class MyAgent < RAAF::DSL::Agent
   include RAAF::DSL::Hooks::AgentHooks
   
   on_start :prepare_environment
@@ -1282,8 +1269,7 @@ The gem includes intelligent cost optimization that can reduce your AI API costs
 ### Cost Monitoring
 ```ruby
 # Track costs per agent
-class CostTrackingAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class CostTrackingAgent < RAAF::DSL::Agent
   
   
   private
@@ -1304,8 +1290,7 @@ end
 
 ### Error Handling & Resilience
 ```ruby
-class ProductionAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class ProductionAgent < RAAF::DSL::Agent
   
   # Execution hooks for monitoring
   
@@ -1352,8 +1337,7 @@ end
 
 ### Security Best Practices
 ```ruby
-class SecureAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class SecureAgent < RAAF::DSL::Agent
   
   
   private
@@ -1448,7 +1432,7 @@ For complete API documentation including all classes, methods, parameters, and e
 **[📖 API Reference Documentation](API_REFERENCE.md)**
 
 The API reference covers:
-- **Core Classes**: `Agents::Base`, `AgentDsl`, `Prompts::Base`, `Config`, `Tools::Base`
+- **Core Classes**: `Agent`, `AgentDsl`, `Prompts::Base`, `Config`, `Tools::Base`
 - **Method Signatures**: Complete parameter lists and return values
 - **Configuration Options**: All supported YAML configuration keys
 - **Error Classes**: Exception types and handling

@@ -16,8 +16,7 @@ class DemoPrompt < RAAF::DSL::Prompts::Base
 end
 
 # Create an agent that uses the prompt class
-class DemoAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class DemoAgent < RAAF::DSL::Agent
 
   agent_name "demo_agent"
   prompt_class DemoPrompt
@@ -60,8 +59,7 @@ puts
 # Demonstrate error when no prompt class
 puts "=== Error Demonstration ==="
 
-class BadAgent < RAAF::DSL::Agents::Base
-  include RAAF::DSL::Agents::AgentDsl
+class BadAgent < RAAF::DSL::Agent
 
   agent_name "bad_agent"
 
