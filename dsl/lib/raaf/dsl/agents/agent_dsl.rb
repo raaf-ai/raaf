@@ -272,7 +272,11 @@ module RAAF
         end
 
         def tools
-          @tools ||= build_tools_from_config
+          @tools ||= begin
+            tool_list = build_tools_from_config
+            # Convert DSL tools to FunctionTool instances for RAAF compatibility
+            tool_list.map { |tool| convert_to_function_tool(tool) }.compact
+          end
         end
 
         def build_instructions
@@ -356,6 +360,12 @@ module RAAF
         end
 
         def resolve_tool_class(tool_name)
+          # First check the registry for registered tools
+          if RAAF::DSL::ToolRegistry.registered?(tool_name)
+            return RAAF::DSL::ToolRegistry.get(tool_name)
+          end
+
+          # Fall back to name resolution for backwards compatibility
           # Map common tool names to their actual classes
           tool_mappings = {
             web_search: "WebSearch",

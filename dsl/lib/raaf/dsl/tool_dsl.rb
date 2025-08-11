@@ -179,6 +179,38 @@ module RAAF
 
       # Instance methods for tool configuration access
 
+      # Get the tool name from class configuration
+      #
+      # @return [String] The tool name
+      #
+      def tool_name
+        self.class.tool_name
+      end
+
+      # Get the tool description from class configuration
+      #
+      # @return [String, nil] The tool description
+      #
+      def description
+        self.class.description
+      end
+
+      # Get the tool version from class configuration
+      #
+      # @return [String, nil] The tool version
+      #
+      def version
+        self.class.version
+      end
+
+      # Get the tool category from class configuration
+      #
+      # @return [String, nil] The tool category
+      #
+      def category
+        self.class.category
+      end
+
       # Get tool definition in OpenAI function format
       #
       # @return [Hash] OpenAI function tool definition

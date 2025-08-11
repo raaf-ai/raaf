@@ -247,14 +247,19 @@ module RAAF
                         []
                       end
 
+          # Convert DSL tools to FunctionTool instances for RAAF compatibility
+          converted_tools = tool_list.map do |tool|
+            convert_to_function_tool(tool)
+          end.compact
+
           # Log tools if debug is enabled
           if @debug_enabled
             log_debug_tools("Agent tools loaded",
                             agent_name: agent_name,
-                            tool_count: tool_list.length,
-                            tool_names: tool_list.map(&:name))
+                            tool_count: converted_tools.length,
+                            tool_names: converted_tools.map(&:name))
 
-            tool_list.each_with_index do |tool, idx|
+            converted_tools.each_with_index do |tool, idx|
               log_debug_tools("Tool details",
                               tool_index: idx + 1,
                               tool_class: tool.class.name,
@@ -263,7 +268,47 @@ module RAAF
             end
           end
 
-          tool_list
+          converted_tools
+        end
+
+        # Convert a DSL tool instance to a FunctionTool for RAAF compatibility
+        def convert_to_function_tool(tool)
+          return tool if tool.is_a?(RAAF::FunctionTool)
+          
+          # Create a callable that wraps the tool's call method
+          callable = if tool.respond_to?(:call)
+                       proc do |**kwargs|
+                         tool.call(**kwargs)
+                       end
+                     else
+                       # Try to call the method named after the tool
+                       tool_method_name = tool.tool_name.to_sym
+                       if tool.respond_to?(tool_method_name)
+                         proc do |**kwargs|
+                           tool.send(tool_method_name, **kwargs)
+                         end
+                       else
+                         log_debug("Warning: Tool #{tool.tool_name} has no callable method")
+                         return nil
+                       end
+                     end
+
+          # Extract parameters schema from tool definition
+          parameters_schema = if tool.respond_to?(:tool_definition)
+                                tool.tool_definition.dig(:function, :parameters)
+                              elsif tool.respond_to?(:build_openai_parameters_schema)
+                                tool.send(:build_openai_parameters_schema)
+                              else
+                                { type: "object", properties: {}, required: [] }
+                              end
+
+          # Create FunctionTool with the tool's metadata
+          RAAF::FunctionTool.new(
+            callable,
+            name: tool.tool_name,
+            description: tool.description || "Tool: #{tool.tool_name}",
+            parameters: parameters_schema
+          )
         end
 
         def max_turns

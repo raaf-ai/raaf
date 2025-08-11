@@ -103,6 +103,15 @@ module RAAF
           raise NotImplementedError, "Subclasses must implement #tool_name"
         end
 
+        # Returns the tool description
+        #
+        # @abstract Subclasses should implement this method
+        # @return [String, nil] The description of the tool
+        #
+        def description
+          nil
+        end
+
         # Builds the tool definition structure
         #
         # @abstract Subclasses must implement this method
