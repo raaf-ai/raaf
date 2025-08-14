@@ -211,17 +211,21 @@ cd core && bundle exec rspec
 cd tracing && bundle exec rspec
 ```
 
-## Migration from Legacy
+## Best Practices and Current Standards
+
+**Default Provider**: RAAF automatically uses `ResponsesProvider` for OpenAI API compatibility with the Python SDK.
 
 ```ruby
-# OLD (deprecated)
-runner = RAAF::Runner.new(
-  agent: agent,
-  provider: RAAF::Models::OpenAIProvider.new  # DEPRECATED
-)
+# RECOMMENDED: Let RAAF use the default ResponsesProvider
+runner = RAAF::Runner.new(agent: agent)  # Uses ResponsesProvider automatically
 
-# NEW (recommended)
-runner = RAAF::Runner.new(agent: agent)  # Uses ResponsesProvider by default
+# EXPLICIT: Specify ResponsesProvider if needed
+provider = RAAF::Models::ResponsesProvider.new(api_key: ENV['OPENAI_API_KEY'])
+runner = RAAF::Runner.new(agent: agent, provider: provider)
+
+# LEGACY: OpenAIProvider (still supported but not recommended)
+# provider = RAAF::Models::OpenAIProvider.new
+# runner = RAAF::Runner.new(agent: agent, provider: provider)
 ```
 
 For detailed gem-specific documentation, see the individual `CLAUDE.md` files in each gem directory.

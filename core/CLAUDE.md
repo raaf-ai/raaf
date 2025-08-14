@@ -97,13 +97,31 @@ ruby examples/basic_usage.rb
 RAAF_LOG_LEVEL=debug ruby your_script.rb
 ```
 
-## Migration from Legacy
+## Provider Selection Guide
+
+**ResponsesProvider (Default)**: Automatically selected for OpenAI API compatibility with Python SDK features.
 
 ```ruby
-# OLD (deprecated)
-provider = RAAF::Models::OpenAIProvider.new
-runner = RAAF::Runner.new(agent: agent, provider: provider)
+# RECOMMENDED: Default behavior (no provider needed)
+runner = RAAF::Runner.new(agent: agent)
 
-# NEW (recommended)
-runner = RAAF::Runner.new(agent: agent)  # Uses ResponsesProvider by default
+# EXPLICIT: Manual ResponsesProvider configuration
+provider = RAAF::Models::ResponsesProvider.new(
+  api_key: ENV['OPENAI_API_KEY'],
+  api_base: ENV['OPENAI_API_BASE']
+)
+runner = RAAF::Runner.new(agent: agent, provider: provider)
+```
+
+**Built-in Retry Logic**: All providers include robust retry handling through `ModelInterface`.
+
+```ruby
+# Retry is automatic - no additional configuration needed
+agent = RAAF::Agent.new(name: "Assistant", model: "gpt-4o")
+runner = RAAF::Runner.new(agent: agent)
+
+# Customize retry behavior if needed
+provider = RAAF::Models::ResponsesProvider.new
+provider.configure_retry(max_attempts: 5, base_delay: 2.0)
+runner = RAAF::Runner.new(agent: agent, provider: provider)
 ```

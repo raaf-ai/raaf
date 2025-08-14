@@ -80,26 +80,32 @@ require 'raaf'
 # Set your API key
 ENV['OPENAI_API_KEY'] = 'your-api-key'
 
-# Define a tool
-def get_weather(city)
+# Define a tool function with proper documentation
+# @param city [String] The city to get weather for
+# @return [String] Weather information for the city
+def get_weather(city:)
   "The weather in #{city} is sunny with 22°C"
 end
 
-# Create an agent
+# Create an agent with comprehensive configuration
 agent = RAAF::Agent.new(
-  name: "Assistant",
-  instructions: "You are a helpful assistant.",
-  model: "gpt-4o"
+  name: "WeatherAssistant",
+  instructions: "You are a helpful weather assistant. Use tools when needed.",
+  model: "gpt-4o"  # Uses ResponsesProvider by default for Python SDK compatibility
 )
 
-# Add tools
+# Add tools to extend agent capabilities
 agent.add_tool(method(:get_weather))
 
-# Run conversation
+# Create runner (automatically uses ResponsesProvider with built-in retry)
 runner = RAAF::Runner.new(agent: agent)
+
+# Run conversation and get result
 result = runner.run("What's the weather in Paris?")
 
+# Access the assistant's response
 puts result.messages.last[:content]
+# => "I'll check the weather in Paris for you..."
 ```
 
 ### Structured Output Example
@@ -141,25 +147,31 @@ puts "Hello #{user_data['name']}, age #{user_data['age']}!"
 ### Multi-Agent Example
 
 ```ruby
-# Create specialized agents
+# Create specialized agents with clear roles and handoff logic
 support_agent = RAAF::Agent.new(
   name: "CustomerSupport",
-  instructions: "Handle general inquiries, escalate complex issues.",
-  model: "gpt-4"
+  instructions: "Handle general customer inquiries. Transfer technical issues to TechnicalSupport.",
+  model: "gpt-4o"
 )
 
 tech_agent = RAAF::Agent.new(
   name: "TechnicalSupport", 
-  instructions: "Handle technical troubleshooting.",
-  model: "gpt-4"
+  instructions: "Handle technical troubleshooting and API integration issues.",
+  model: "gpt-4o"
 )
 
-# Set up handoffs
+# Configure agent handoffs (creates transfer_to_TechnicalSupport tool automatically)
 support_agent.add_handoff(tech_agent)
 
-# Automatic handoff based on conversation context
+# Create runner with the initial agent
 runner = RAAF::Runner.new(agent: support_agent)
+
+# The agent will automatically handoff when detecting technical issues
 result = runner.run("My API integration is failing with 500 errors")
+
+# Check which agent handled the final response
+puts "Final agent: #{result.last_agent.name}"
+puts "Response: #{result.messages.last[:content]}"
 ```
 
 ### Memory Management Example
