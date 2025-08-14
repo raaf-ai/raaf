@@ -241,11 +241,11 @@ module RAAF
         #
         def self.schema(&block)
           if block_given?
-            # Import SchemaBuilder from RAAF::DSL module
-            schema_builder_class = const_get("::RAAF::DSL::SchemaBuilder")
+            # Import SchemaBuilder from RAAF::DSL::Agent module
+            schema_builder_class = const_get("::RAAF::DSL::Agent::SchemaBuilder")
             schema_builder = schema_builder_class.new
             schema_builder.instance_eval(&block)
-            self._schema_config = schema_builder.to_hash
+            self._schema_config = schema_builder.build
           else
             _schema_config
           end
@@ -449,8 +449,29 @@ module RAAF
           required_variables = self.class._required_variables - context_mapped_vars
           declared_variables = self.class.declared_variables - context_mapped_vars
 
-          # Check for missing required variables (non-context-mapped)
+          # Check for missing required variables (non-context-mapped)  
           missing_required = required_variables - provided_variables
+          
+          # Try to resolve missing variables from context_variables (agent context)
+          if missing_required.any? && @context_variables
+            resolved_variables = {}
+            still_missing = []
+            
+            missing_required.each do |var|
+              if @context_variables.has?(var)
+                resolved_variables[var] = @context_variables.get(var)
+              else
+                still_missing << var
+              end
+            end
+            
+            # Add resolved variables to context
+            @context.merge!(resolved_variables) if resolved_variables.any?
+            
+            # Only raise error for variables that couldn't be resolved
+            missing_required = still_missing
+          end
+          
           if missing_required.any?
             raise VariableContractError,
                   "Missing required variables for #{self.class.name}: #{missing_required.join(', ')}"
@@ -465,7 +486,9 @@ module RAAF
           # Variables that are legitimately used (either directly or as context roots)
           legitimately_used = declared_variables + context_root_keys
 
-          unused_variables = provided_variables - legitimately_used
+          # Filter out special RAAF parameters that shouldn't be considered unused
+          raaf_special_params = [:context_variables]
+          unused_variables = provided_variables - legitimately_used - raaf_special_params
           return unless unused_variables.any?
 
           message = "Unused variables provided to #{self.class.name}: #{unused_variables.join(', ')}"

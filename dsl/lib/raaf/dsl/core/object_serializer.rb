@@ -12,13 +12,24 @@ module RAAF
       # Default maximum serialization depth to prevent infinite recursion
       DEFAULT_MAX_DEPTH = 2
 
-      # Types that should be returned as-is without serialization
-      PRIMITIVE_TYPES = [
+      # Build primitive types list
+      primitive_list = [
         NilClass, TrueClass, FalseClass,
-        Integer, Float, BigDecimal,
+        Integer, Float,
         String, Symbol,
         Date, DateTime, Time
-      ].freeze
+      ]
+      
+      # Add BigDecimal if available (it's in stdlib but not always loaded)
+      begin
+        require 'bigdecimal'
+        primitive_list << BigDecimal
+      rescue LoadError
+        # BigDecimal not available
+      end
+      
+      # Types that should be returned as-is without serialization
+      PRIMITIVE_TYPES = primitive_list.freeze
 
       class << self
         # Serialize any Ruby object based on its type

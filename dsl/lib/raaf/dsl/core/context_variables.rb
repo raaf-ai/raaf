@@ -58,10 +58,10 @@ module RAAF
         @debug_enabled = options[:debug] || false
         @validate_enabled = options[:validate] != false # Default to true unless explicitly false
         @change_history = []
-        @created_at = Time.current
 
         # Convert string keys to symbols for consistency
         @variables = symbolize_keys(@variables)
+        @created_at = Time.now
 
         debug_log("Context Initialized", variables: @variables)
         validate_variables! if @validate_enabled
@@ -269,7 +269,7 @@ module RAAF
           change_history: @change_history.dup,
           debug_enabled: @debug_enabled,
           created_at: @created_at,
-          snapshot_at: Time.current,
+          snapshot_at: Time.now,
           variable_count: size,
           memory_usage: debug_memory_usage
         }
@@ -339,7 +339,7 @@ module RAAF
       #
       def add_to_history(changes)
         @change_history << {
-          timestamp: Time.current,
+          timestamp: Time.now,
           changes: changes,
           summary: summarize_changes(changes),
           details: format_change_details(changes)

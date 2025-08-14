@@ -48,7 +48,7 @@
 #   end
 #
 # @see RAAF::DSL::ToolDsl For DSL-based tool configuration
-# @see RAAF::DSL::AgentDsl#uses_tool For using tools in agents
+# @see RAAF::DSL::Agent#uses_tool For using tools in agents
 # @since 0.1.0
 #
 module RAAF

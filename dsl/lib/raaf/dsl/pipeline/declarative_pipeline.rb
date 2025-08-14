@@ -35,10 +35,8 @@ module RAAF
       #     on_pipeline_failure retry: 1, then: :partial_results
       #   end
       #
-      class DeclarativePipeline
-        include RAAF::Logger
-        include RAAF::DSL::Agents::AgentDsl
-        include RAAF::DSL::Hooks::AgentHooks
+      class DeclarativePipeline < RAAF::DSL::Agent
+        # AgentDsl and AgentHooks functionality now inherited from Agent class
 
         # Pipeline configuration DSL
         class << self
