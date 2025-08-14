@@ -108,14 +108,11 @@ module RAAF
     #   end
     #
     module Agents
-      autoload :AgentDsl, "raaf/dsl/agents/agent_dsl"
+      # AgentDsl functionality has been consolidated into the unified Agent class
     end
 
     # Main Agent class - the unified agent with all features
     autoload :Agent, "raaf/dsl/agent"
-
-    # Force load of AgentDsl module for tests
-    require_relative "raaf/dsl/agents/agent_dsl"
 
     # Prompt building and template system
     #

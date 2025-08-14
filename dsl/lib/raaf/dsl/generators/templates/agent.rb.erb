@@ -15,8 +15,7 @@ module <%= agent_module_name %>
   #   result = agent.call
   #
   class <%= agent_class_name %> < Ai::Agents::ApplicationAgent
-    include RAAF::DSL::Agents::AgentDsl
-    include RAAF::DSL::Hooks::AgentHooks
+    # AgentDsl and AgentHooks functionality now inherited from ApplicationAgent -> RAAF::DSL::Agent
 
     # Agent configuration
     agent_name "<%= agent_class_name %>"

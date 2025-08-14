@@ -2,10 +2,10 @@
 
 require "raaf-core"
 require "active_support/concern"
+require "active_support/core_ext/object/blank"
 require_relative "config/config"
 require_relative "core/context_variables"
-require_relative "agents/agent_dsl"
-require_relative "hooks/agent_hooks"
+# AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
 require_relative "pipeline"
 
@@ -13,105 +13,297 @@ module RAAF
   module DSL
     # Unified Agent class for the RAAF DSL framework
     #
-    # This class combines all the features from Base and SmartAgent into a single,
-    # powerful agent implementation that provides:
-    # - Declarative agent configuration with DSL
-    # - Automatic retry logic with configurable strategies
-    # - Circuit breaker pattern for fault tolerance
-    # - Context validation and requirements
-    # - Built-in error handling and categorization
-    # - Automatic result parsing and extraction
-    # - Schema building with inline DSL
+    # This class provides a complete agent implementation with consolidated DSL functionality:
+    # - Declarative agent configuration
+    # - Prompt class support with validation
+    # - Agent hooks for lifecycle events  
+    # - Built-in retry and circuit breaker patterns
+    # - Schema building and context management
     #
-    # @example Simple agent definition
-    #   class MarketAnalysis < RAAF::DSL::Agent
-    #     agent_name "MarketAnalysisAgent"
-    #     requires :product, :company
-    #     
-    #     schema do
-    #       field :markets, type: :array, required: true do
-    #         field :name, type: :string, required: true
-    #         field :fit_score, type: :integer, range: 0..100
-    #       end
-    #     end
-    #     
-    #     system_prompt "You are a market analysis expert..."
-    #     
-    #     user_prompt do |ctx|
-    #       "Analyze product: #{ctx.product.name} from #{ctx.company.name}"
-    #     end
+    # @example Basic agent with static instructions
+    #   class SimpleAgent < RAAF::DSL::Agent
+    #     agent_name "SimpleAgent"
+    #     static_instructions "You are a helpful assistant"
     #   end
     #
-    # @example Advanced configuration
-    #   class ComplexAgent < RAAF::DSL::Agent
-    #     retry_on :rate_limit, max_attempts: 3, backoff: :exponential
-    #     circuit_breaker threshold: 5, timeout: 60.seconds
-    #     fallback_to :simplified_analysis, when: :context_too_large
+    # @example Agent with prompt class
+    #   class MarketAnalysis < RAAF::DSL::Agent
+    #     agent_name "MarketAnalysisAgent"
+    #     prompt_class MarketAnalysisPrompt
+    #     
+    #     on_start { |agent| puts "Starting analysis..." }
+    #     on_end :log_completion
     #   end
     #
     class Agent
-      include RAAF::DSL::Agents::AgentDsl
-      include RAAF::DSL::Hooks::AgentHooks
       include RAAF::Logger
 
-      # Configuration DSL methods
+      # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
-        attr_accessor :_agent_config, :_schema_definition, :_system_prompt_block, 
-                     :_user_prompt_block, :_retry_config, :_circuit_breaker_config,
-                     :_required_context_keys, :_validation_rules,
-                     :_context_reader_config, :_result_transformations, :_log_events, 
-                     :_metrics_config, :_auto_discovery_config, :_computed_methods, 
-                     :_execution_conditions
-
-        # Configure agent name
-        def agent_name(name)
-          self._agent_config ||= {}
-          self._agent_config[:name] = name
+        # Class-specific configuration storage for thread safety
+        def _agent_config
+          Thread.current["raaf_dsl_agent_config_#{object_id}"] ||= {}
         end
 
-        # Configure model
-        def model(model_name)
-          self._agent_config ||= {}
-          self._agent_config[:model] = model_name
+        def _agent_config=(value)
+          Thread.current["raaf_dsl_agent_config_#{object_id}"] = value
         end
 
-        # Configure max turns
-        def max_turns(turns)
-          self._agent_config ||= {}
-          self._agent_config[:max_turns] = turns
+        # Control auto-context behavior (default: true)
+        def auto_context(enabled = true)
+          _agent_config[:auto_context] = enabled
         end
-
-        # Configure temperature
-        def temperature(temp)
-          self._agent_config ||= {}
-          self._agent_config[:temperature] = temp
+        
+        # Check if auto-context is enabled (default: true)
+        def auto_context?
+          _agent_config[:auto_context] != false
         end
-
-        # Declare required context keys
-        def requires(*keys)
-          self._required_context_keys ||= []
-          self._required_context_keys.concat(keys.map(&:to_sym))
-        end
-
-        # Add validation rules
-        def validates(key, **rules)
-          self._validation_rules ||= {}
-          self._validation_rules[key.to_sym] = rules
-        end
-
-        # Define inline schema
-        def schema(&block)
-          self._schema_definition = SchemaBuilder.new(&block).build
-        end
-
-        # Define system prompt
-        def system_prompt(prompt = nil, &block)
+        
+        # Configuration for context building rules
+        def context(options = {}, &block)
           if block_given?
-            self._system_prompt_block = block
+            config = ContextConfig.new
+            config.instance_eval(&block)
+            _agent_config[:context_rules] = config.to_h
           else
-            self._system_prompt_block = ->(_) { prompt }
+            _agent_config[:context_rules] = options
           end
         end
+
+        def _tools_config
+          Thread.current["raaf_dsl_tools_config_#{object_id}"] ||= []
+        end
+
+        def _tools_config=(value)
+          Thread.current["raaf_dsl_tools_config_#{object_id}"] = value
+        end
+
+        def _schema_config
+          Thread.current["raaf_dsl_schema_config_#{object_id}"] ||= {}
+        end
+
+        def _schema_config=(value)
+          Thread.current["raaf_dsl_schema_config_#{object_id}"] = value
+        end
+
+        def _prompt_config
+          Thread.current["raaf_dsl_prompt_config_#{object_id}"] ||= {}
+        end
+
+        def _prompt_config=(value)
+          Thread.current["raaf_dsl_prompt_config_#{object_id}"] = value
+        end
+
+        def _context_reader_config
+          Thread.current["raaf_dsl_context_reader_config_#{object_id}"] ||= {}
+        end
+
+        def _context_reader_config=(value)
+          Thread.current["raaf_dsl_context_reader_config_#{object_id}"] = value
+        end
+
+        def _auto_discovery_config
+          Thread.current["raaf_dsl_auto_discovery_config_#{object_id}"] ||= {}
+        end
+
+        def _auto_discovery_config=(value)
+          Thread.current["raaf_dsl_auto_discovery_config_#{object_id}"] = value
+        end
+
+        # Ensure each subclass gets its own configuration
+        def inherited(subclass)
+          super
+          subclass._agent_config = {}
+          subclass._tools_config = []
+          subclass._schema_config = {}
+          subclass._prompt_config = {}
+          subclass._context_reader_config = {}
+          subclass._auto_discovery_config = {}
+          
+          # Initialize hooks for subclass
+          hooks = {}
+          HOOK_TYPES.each { |hook_type| hooks[hook_type] = [] }
+          subclass._agent_hooks = hooks
+        end
+
+        # Core DSL methods from AgentDsl
+        def agent_name(name = nil)
+          if name
+            _agent_config[:name] = name
+          else
+            _agent_config[:name] || inferred_agent_name
+          end
+        end
+
+        def model(model_name = nil)
+          if model_name
+            _agent_config[:model] = model_name
+          else
+            _agent_config[:model] || "gpt-4o"
+          end
+        end
+
+        def max_turns(turns = nil)
+          if turns
+            _agent_config[:max_turns] = turns
+          else
+            _agent_config[:max_turns] || 5
+          end
+        end
+
+        def description(desc = nil)
+          if desc
+            _agent_config[:description] = desc
+          else
+            _agent_config[:description]
+          end
+        end
+
+        def prompt_class(klass = nil)
+          if klass
+            _prompt_config[:class] = klass
+          else
+            _prompt_config[:class]
+          end
+        end
+
+        def static_instructions(instructions = nil)
+          if instructions
+            _prompt_config[:static_instructions] = instructions
+          else
+            _prompt_config[:static_instructions]
+          end
+        end
+
+        def instruction_template(template = nil)
+          if template
+            _prompt_config[:instruction_template] = template
+          else
+            _prompt_config[:instruction_template]
+          end
+        end
+
+        # Tool configuration DSL methods (consolidated from AgentDsl)
+        def uses_tool(tool_name, options = {})
+          _tools_config << { name: tool_name, options: options }
+        end
+
+        def uses_tools(*tool_names)
+          tool_names.each { |name| uses_tool(name) }
+        end
+
+        # Configure multiple tools with a hash of options
+        def configure_tools(tools_hash)
+          tools_hash.each do |tool_name, options|
+            uses_tool(tool_name, options || {})
+          end
+        end
+
+        # Add tools with conditional logic
+        def uses_tool_if(condition, tool_name, options = {})
+          uses_tool(tool_name, options) if condition
+        end
+
+        # Agent Hooks functionality (consolidated from AgentHooks)
+        HOOK_TYPES = %i[
+          on_start
+          on_end
+          on_handoff
+          on_tool_start
+          on_tool_end
+          on_error
+        ].freeze
+
+        def _agent_hooks
+          Thread.current["raaf_dsl_agent_hooks_#{object_id}"] ||= begin
+            hooks = {}
+            HOOK_TYPES.each { |hook_type| hooks[hook_type] = [] }
+            hooks
+          end
+        end
+
+        def _agent_hooks=(value)
+          Thread.current["raaf_dsl_agent_hooks_#{object_id}"] = value
+        end
+
+        # Hook registration methods
+        def on_start(method_name = nil, &block)
+          register_agent_hook(:on_start, method_name, &block)
+        end
+
+        def on_end(method_name = nil, &block)
+          register_agent_hook(:on_end, method_name, &block)
+        end
+
+        def on_handoff(method_name = nil, &block)
+          register_agent_hook(:on_handoff, method_name, &block)
+        end
+
+        def on_tool_start(method_name = nil, &block)
+          register_agent_hook(:on_tool_start, method_name, &block)
+        end
+
+        def on_tool_end(method_name = nil, &block)
+          register_agent_hook(:on_tool_end, method_name, &block)
+        end
+
+        def on_error(method_name = nil, &block)
+          register_agent_hook(:on_error, method_name, &block)
+        end
+
+        # Hook configuration methods
+        def agent_hooks_config
+          config = {}
+          HOOK_TYPES.each do |hook_type|
+            config[hook_type] = _agent_hooks[hook_type].dup if _agent_hooks[hook_type]&.any?
+          end
+          config
+        end
+
+        def get_agent_hooks(hook_type)
+          _agent_hooks[hook_type] || []
+        end
+
+        def clear_agent_hooks!
+          HOOK_TYPES.each do |hook_type|
+            _agent_hooks[hook_type] = []
+          end
+        end
+
+        private
+
+        def inferred_agent_name
+          name.to_s
+              .split("::")
+              .last
+              .gsub(/Agent$/, "")
+              .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+              .downcase
+        end
+
+        def register_agent_hook(hook_type, method_name = nil, &block)
+          unless HOOK_TYPES.include?(hook_type)
+            raise ArgumentError, "Invalid hook type: #{hook_type}. Must be one of: #{HOOK_TYPES.join(', ')}"
+          end
+
+          raise ArgumentError, "Either method_name or block must be provided" if method_name.nil? && block.nil?
+          raise ArgumentError, "Cannot provide both method_name and block" if method_name && block
+
+          hook = method_name || block
+          _agent_hooks[hook_type] ||= []
+          _agent_hooks[hook_type] << hook
+        end
+
+        # Additional configuration methods
+        def temperature(temp)
+          _agent_config[:temperature] = temp
+        end
+
+        def schema(&block)
+          self._schema_definition = SchemaBuilder.new(&block).build if block_given?
+          self._schema_definition
+        end
+
 
         # Define user prompt
         def user_prompt(prompt = nil, &block)
@@ -141,13 +333,6 @@ module RAAF
           }
         end
 
-        # Configure fallback strategy
-        def fallback_to(method_name, when: nil)
-          self._fallback_config = {
-            method: method_name,
-            condition: binding.local_variable_get(:when)
-          }
-        end
 
         # Enhanced context reader DSL - generates helper methods for context access
         # with support for validation, defaults, and transformation
@@ -176,7 +361,7 @@ module RAAF
             key = keys.first
             define_enhanced_context_reader(key, options)
           else
-            # Multiple keys without options (backward compatibility)
+            # Multiple keys without options
             keys.each do |key|
               define_simple_context_reader(key)
             end
@@ -410,24 +595,44 @@ module RAAF
           end
         end
 
-        # Inherit configuration from parent class
-        def inherited(subclass)
-          super
+        # ContextConfig class for the context DSL
+        class ContextConfig
+          def initialize
+            @rules = {}
+          end
           
-          # Copy configuration from parent
-          subclass._agent_config = _agent_config&.dup
-          subclass._required_context_keys = _required_context_keys&.dup
-          subclass._validation_rules = _validation_rules&.dup
-          subclass._retry_config = _retry_config&.dup
-          subclass._circuit_breaker_config = _circuit_breaker_config&.dup
-          subclass._context_reader_config = _context_reader_config&.dup
-          subclass._result_transformations = _result_transformations&.dup
-          subclass._log_events = _log_events&.dup
-          subclass._metrics_config = _metrics_config&.dup
-          subclass._auto_discovery_config = _auto_discovery_config&.dup
-          subclass._computed_methods = _computed_methods&.dup
-          subclass._execution_conditions = _execution_conditions&.dup
+          def requires(*keys)
+            @rules[:required] ||= []
+            @rules[:required].concat(keys)
+          end
+          
+          def exclude(*keys)
+            @rules[:exclude] ||= []
+            @rules[:exclude].concat(keys)
+          end
+          
+          def include(*keys)
+            @rules[:include] ||= []
+            @rules[:include].concat(keys)
+          end
+          
+          def validate(key, type: nil, with: nil)
+            @rules[:validations] ||= {}
+            @rules[:validations][key] = { type: type, proc: with }
+          end
+          
+          def to_h
+            @rules
+          end
         end
+
+      end # End of class << self
+
+      # Additional class attributes for agent functionality
+      class << self
+        attr_accessor :_required_context_keys, :_validation_rules, :_schema_definition, :_user_prompt_block,
+                     :_retry_config, :_circuit_breaker_config, :_result_transformations, :_log_events,
+                     :_metrics_config, :_computed_methods, :_execution_conditions
       end
 
       # Instance attributes
@@ -435,31 +640,27 @@ module RAAF
 
       # Initialize a new agent instance
       #
-      # @param context [ContextVariables, Hash, nil] Unified context for all agent data
-      # @param context_variables [ContextVariables, Hash, nil] Alternative parameter name for context (backward compatibility)
-      # @param processing_params [Hash] Parameters that control how the agent processes content
+      # @param context [ContextVariables, Hash, nil] Context for all agent data
+      # @param processing_params [Hash] Parameters that control how the agent processes content  
       # @param debug [Boolean, nil] Enable debug logging for this agent instance
-      def initialize(context: nil, context_variables: nil, processing_params: {}, debug: nil)
+      # @param kwargs [Hash] Arbitrary keyword arguments that become context when auto-context is enabled
+      def initialize(context: nil, processing_params: {}, debug: nil, **kwargs)
         @debug_enabled = debug || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?) || false
         @processing_params = processing_params
         @circuit_breaker_state = :closed
         @circuit_breaker_failures = 0
         @circuit_breaker_last_failure = nil
         
-        # Support both context and context_variables parameters
-        context_param = context || context_variables
-        
-        # Initialize unified context
-        @context = case context_param
-                   when RAAF::DSL::ContextVariables
-                     context_param
-                   when Hash
-                     RAAF::DSL::ContextVariables.new(context_param, debug: @debug_enabled)
-                   when nil
-                     RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
-                   else
-                     raise ArgumentError, "context must be ContextVariables instance, Hash, or nil"
-                   end
+        # If context provided explicitly, use it (backward compatible)
+        if context
+          @context = build_context_from_param(context, @debug_enabled)
+        elsif self.class.auto_context?
+          # Auto-build from kwargs
+          @context = build_auto_context(kwargs, @debug_enabled)
+        else
+          # Auto-context disabled, empty context
+          @context = RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
+        end
         
         validate_context!
         setup_agent_configuration
@@ -470,10 +671,34 @@ module RAAF
                     agent_class: self.class.name,
                     context_size: @context.size,
                     context_keys: @context.keys.inspect,
+                    auto_context: self.class.auto_context?,
                     category: :context)
         end
       end
 
+      # Clean API methods for context access
+      def get(key, default = nil)
+        @context.get(key, default)
+      end
+      
+      def set(key, value)
+        @context = @context.set(key, value)
+        value
+      end
+      
+      def update(**values)
+        @context = @context.update(values)
+        self
+      end
+      
+      def has?(key)
+        @context.has?(key)
+      end
+      
+      def context_keys
+        @context.keys
+      end
+      
       # Run the agent with optional smart features (retry, circuit breaker, etc.)
       # 
       # @param context [ContextVariables, Hash, nil] Context to use (overrides instance context)
@@ -544,19 +769,94 @@ module RAAF
         create_openai_agent_instance
       end
 
-      # RAAF DSL method - build system instructions
+      # RAAF DSL method - build system instructions (consolidated from AgentDsl)
       def build_instructions
-        if self.class._system_prompt_block
-          prompt_result = self.class._system_prompt_block.call(@context)
-          if prompt_result.is_a?(String)
-            prompt_result
-          else
-            log_error "System prompt block must return a String, got #{prompt_result.class}"
-            "You are a helpful AI assistant."
-          end
+        if prompt_class_configured?
+          prompt_instance.render(:system)
+        elsif self.class.instruction_template
+          build_templated_instructions
+        elsif self.class.static_instructions
+          self.class.static_instructions
         else
-          "You are a helpful AI assistant."
+          raise RAAF::DSL::Error, "No prompt class or instructions configured for #{self.class.name}. " \
+                                  "Either configure a prompt class with 'prompt_class YourPromptClass' or " \
+                                  "provide static instructions with 'static_instructions \"your instructions\"'"
         end
+      end
+
+      # RAAF DSL method - build user prompt (consolidated from AgentDsl)
+      def build_user_prompt
+        raise RAAF::DSL::Error, "No prompt class configured for #{self.class.name}" unless prompt_class_configured?
+        prompt_instance.render(:user)
+      end
+
+      private
+
+      # Supporting methods for prompt handling (from AgentDsl)
+      def prompt_class_configured?
+        self.class._prompt_config[:class].present? || default_prompt_class.present?
+      end
+
+      def prompt_instance
+        @prompt_instance ||= build_prompt_instance
+      end
+
+      def default_prompt_class
+        @default_prompt_class ||= begin
+          # Convert agent class name to prompt class name
+          agent_class_name = self.class.name
+
+          if agent_class_name.start_with?("RAAF::DSL::Agents::")
+            prompt_class_name = agent_class_name.sub("RAAF::DSL::Agents::", "RAAF::DSL::Prompts::")
+            prompt_class_name.constantize
+          elsif agent_class_name.include?("::Agents::")
+            # Handle any namespace that follows the ::Agents:: -> ::Prompts:: pattern
+            prompt_class_name = agent_class_name.sub("::Agents::", "::Prompts::")
+            prompt_class_name.constantize
+          end
+        rescue NameError
+          nil
+        end
+      end
+
+      def build_prompt_instance
+        prompt_class = self.class._prompt_config[:class] || default_prompt_class
+        return unless prompt_class
+
+        # Build core context for prompt class - merge context variables directly
+        prompt_context = @context.to_h.merge({
+                                               processing_params: @processing_params,
+                                               agent_name: agent_name,
+                                               context_variables: @context
+                                             })
+
+        prompt_class.new(**prompt_context)
+      end
+
+      def build_templated_instructions
+        template = self.class.instruction_template
+        return template unless template.include?("{{")
+        
+        # Simple variable substitution
+        result = template.dup
+        @context.to_h.each do |key, value|
+          result.gsub!("{{#{key}}}", value.to_s)
+        end
+        result
+      end
+
+      def agent_name
+        self.class._agent_config[:name] || self.class.name.split("::").last
+      end
+
+      public
+
+      # Agent Hooks instance method (consolidated from AgentHooks)
+      def combined_hooks_config
+        # For now, just return agent-specific hooks
+        # Global hooks integration would be handled elsewhere if needed
+        agent_config = self.class.agent_hooks_config
+        agent_config.empty? ? nil : agent_config
       end
 
       # RAAF DSL method - build response schema
@@ -602,6 +902,14 @@ module RAAF
 
       def name
         agent_name
+      end
+
+      def tools
+        @tools ||= begin
+          tool_list = build_tools_from_config
+          # Convert DSL tools to FunctionTool instances for RAAF compatibility
+          tool_list.map { |tool| convert_to_function_tool(tool) }.compact
+        end
       end
 
       def tools?
@@ -651,6 +959,59 @@ module RAAF
       protected
 
       private
+      
+      # Build context from parameter (backward compatibility)
+      def build_context_from_param(context_param, debug = nil)
+        case context_param
+        when RAAF::DSL::ContextVariables
+          context_param
+        when Hash
+          RAAF::DSL::ContextVariables.new(context_param, debug: debug)
+        else
+          raise ArgumentError, "context must be ContextVariables instance or Hash"
+        end
+      end
+      
+      # Build context automatically from keyword arguments
+      def build_auto_context(params, debug = nil)
+        require_relative "core/context_builder"
+        
+        rules = self.class._agent_config[:context_rules] || {}
+        builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
+        
+        params.each do |key, value|
+          # Apply exclusion rules
+          next if rules[:exclude]&.include?(key)
+          next if rules[:include]&.any? && !rules[:include].include?(key)
+          
+          # Check for custom preparation method
+          if respond_to?("prepare_#{key}_for_context", true)
+            value = send("prepare_#{key}_for_context", value)
+          end
+          
+          builder.with(key, value)
+        end
+        
+        # Add computed context values
+        add_computed_context(builder)
+        
+        builder.build
+      end
+      
+      # Add computed context values from build_*_context methods
+      def add_computed_context(builder)
+        # Find all methods matching build_*_context pattern
+        methods = self.class.instance_methods(false) + self.class.private_instance_methods(false)
+        computed_methods = methods.grep(/^build_(.+)_context$/)
+        
+        computed_methods.each do |method|
+          context_key = method.to_s.match(/^build_(.+)_context$/)[1].to_sym
+          if respond_to?(method, true)
+            value = send(method)
+            builder.with(context_key, value)
+          end
+        end
+      end
       
       # Check if agent has any smart features configured
       def has_smart_features?
@@ -1218,6 +1579,155 @@ module RAAF
           value.is_a?(type)
         else
           true
+        end
+      end
+
+      # Tool building methods (consolidated from AgentDsl)
+      def build_tools_from_config
+        self.class._tools_config.map do |tool_config|
+          create_tool_instance(tool_config[:name], tool_config[:options])
+        end.compact
+      end
+
+      def create_tool_instance(tool_name, options)
+        tool_class = resolve_tool_class(tool_name)
+        return nil unless tool_class
+        
+        tool_class.new(options)
+      rescue => e
+        log_error("Failed to create tool instance for #{tool_name}: #{e.message}")
+        nil
+      end
+
+      def resolve_tool_class(tool_name)
+        # Convert tool name to class name (e.g., :web_search -> RAAF::DSL::Tools::WebSearch)
+        class_name = tool_name.to_s.split('_').map(&:capitalize).join
+        
+        # Try RAAF::DSL::Tools namespace first
+        if defined?("RAAF::DSL::Tools::#{class_name}")
+          "RAAF::DSL::Tools::#{class_name}".constantize
+        else
+          # Fallback: assume it's a custom tool class
+          tool_name.to_s.classify.constantize
+        end
+      rescue NameError => e
+        log_error("Tool class not found for #{tool_name}: #{e.message}")
+        nil
+      end
+
+      def convert_to_function_tool(tool_instance)
+        return nil unless tool_instance
+        
+        # If tool has a function_tool method, use it
+        return tool_instance.function_tool if tool_instance.respond_to?(:function_tool)
+        
+        # If tool uses DSL, create RAAF function tool
+        process_dsl_tool(tool_instance)
+      end
+
+      def process_dsl_tool(tool_instance)
+        return tool_instance unless tool_instance.respond_to?(:tool_definition)
+
+        tool_def = tool_instance.tool_definition
+        tool_name = extract_tool_name(tool_def, tool_instance)
+        tool_description = extract_tool_description(tool_def)
+        tool_parameters = extract_tool_parameters(tool_def)
+
+        method_to_call = find_executable_method(tool_name, tool_instance)
+        return handle_no_executable_method(tool_name, tool_instance) unless method_to_call
+
+        return tool_instance unless defined?(::RAAF::FunctionTool)
+
+        tool_proc = create_tool_proc(tool_instance, method_to_call)
+        validate_tool_parameters(tool_name, tool_parameters)
+        create_raaf_function_tool(tool_name, tool_description, tool_parameters, tool_proc)
+      end
+
+      def extract_tool_name(tool_def, tool_instance)
+        if tool_def.is_a?(Hash) && tool_def.dig(:function, :name)
+          tool_def[:function][:name]
+        elsif tool_instance.respond_to?(:tool_name)
+          tool_instance.tool_name
+        elsif tool_instance.respond_to?(:name)
+          tool_instance.name
+        else
+          tool_instance.class.name.demodulize.underscore
+        end
+      end
+
+      def extract_tool_description(tool_def)
+        if tool_def.is_a?(Hash) && tool_def.dig(:function, :description)
+          tool_def[:function][:description]
+        else
+          "Tool: #{extract_tool_name(tool_def, nil)}"
+        end
+      end
+
+      def extract_tool_parameters(tool_def)
+        if tool_def.is_a?(Hash) && tool_def.dig(:function, :parameters)
+          tool_def[:function][:parameters]
+        else
+          { type: "object", properties: {}, required: [] }
+        end
+      end
+
+      def find_executable_method(tool_name, tool_instance)
+        # Look for execute method first, then tool name method
+        if tool_instance.respond_to?(:execute)
+          :execute
+        elsif tool_instance.respond_to?(tool_name)
+          tool_name.to_sym
+        else
+          nil
+        end
+      end
+
+      def handle_no_executable_method(tool_name, tool_instance)
+        log_error("Tool #{tool_name} has no executable method (execute or #{tool_name})")
+        nil
+      end
+
+      def create_tool_proc(tool_instance, method_to_call)
+        lambda do |**args|
+          begin
+            result = tool_instance.send(method_to_call, **args)
+            result.is_a?(Hash) ? result : { result: result }
+          rescue => e
+            log_error("Tool execution failed: #{e.message}")
+            { error: e.message }
+          end
+        end
+      end
+
+      def validate_tool_parameters(tool_name, parameters)
+        unless parameters.is_a?(Hash) && parameters.key?(:type)
+          log_warn("Tool #{tool_name} has invalid parameter schema")
+        end
+      end
+
+      def create_raaf_function_tool(tool_name, description, parameters, tool_proc)
+        RAAF::FunctionTool.new(
+          name: tool_name,
+          description: description,
+          parameters: parameters,
+          &tool_proc
+        )
+      end
+
+      # Handoff building method (consolidated from AgentDsl)
+      def build_handoffs_from_config
+        handoff_agent_configs = self.class._agent_config[:handoff_agents] || []
+        handoff_agent_configs.map do |handoff_config|
+          if handoff_config.is_a?(Hash)
+            handoff_agent_class = handoff_config[:agent]
+            options = handoff_config[:options] || {}
+            merged_context = @context.merge(options[:context] || {})
+            merged_params = @processing_params.merge(options[:processing_params] || {})
+            handoff_agent_class.new(context: merged_context, processing_params: merged_params)
+          else
+            # Direct agent class
+            handoff_config.new(context: @context, processing_params: @processing_params)
+          end
         end
       end
 
