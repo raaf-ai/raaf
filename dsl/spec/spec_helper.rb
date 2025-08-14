@@ -10,7 +10,6 @@ $LOAD_PATH.unshift(core_lib) if File.directory?(core_lib)
 # Require core gem first for logging and other dependencies
 require "raaf-core"
 require "raaf-dsl"
-require "raaf/dsl/rspec"
 require "rspec"
 require "tempfile"
 require "tmpdir"

@@ -47,7 +47,9 @@ RSpec.describe RAAF::DSL::Agent do
       end
     end
     
-    system_prompt "You are a smart test assistant."
+    # Use AgentDsl for modern prompt handling
+    include RAAF::DSL::Agents::AgentDsl
+    static_instructions "You are a smart test assistant."
     
     user_prompt do |ctx|
       "Process endpoint #{ctx.get(:endpoint)} with key #{ctx.get(:api_key)[0..5]}..."
