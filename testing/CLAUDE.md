@@ -60,46 +60,169 @@ mock_provider.add_response(
 )
 ```
 
-## RSpec Matchers
+## RSpec Integration
+
+### Comprehensive RSpec Matchers
+
+RAAF Testing provides extensive RSpec matchers for testing agents, DSL components, and context handling:
 
 ```ruby
-require 'raaf-testing/rspec'
+require 'raaf-testing'
+
+# Automatic setup (recommended)
+RAAF::Testing.setup_rspec
 
 RSpec.describe "Weather Agent" do
-  include RAAF::Testing::Matchers
-
+  let(:mock_provider) { create_mock_provider }
   let(:agent) do
     RAAF::Agent.new(
       name: "WeatherAgent",
-      instructions: "Help with weather queries"
+      instructions: "Help with weather queries",
+      provider: mock_provider
     )
   end
+  let(:runner) { RAAF::Runner.new(agent: agent) }
 
-  it "uses weather tool for location queries" do
-    mock_provider.add_response_with_tools(
-      content: "I'll check the weather",
-      tool_calls: [{ name: "get_weather", arguments: { location: "Tokyo" } }]
-    )
+  describe "tool usage" do
+    it "uses weather tool for location queries" do
+      mock_provider.add_response_with_tools(
+        content: "I'll check the weather",
+        tool_calls: [{ name: "get_weather", arguments: { location: "Tokyo" } }]
+      )
 
-    result = runner.run("What's the weather in Tokyo?")
+      result = runner.run("What's the weather in Tokyo?")
+      
+      expect(result).to have_used_tool(:get_weather)
+      expect(result).to have_used_tool(:get_weather, location: "Tokyo")
+      expect(result).to have_successful_execution
+      expect(result).to complete_within(5.0)
+    end
+  end
+
+  describe "conversation handling" do
+    it "maintains conversation flow" do
+      mock_provider.add_responses([
+        "Hello! I can help with weather.",
+        "The weather in Paris is sunny, 22°C"
+      ])
+
+      result1 = runner.run("Hello")
+      result2 = runner.run("Weather in Paris")
+
+      expect(result1).to have_response_containing("help")
+      expect(result2).to have_response_containing(/\d+°C/)
+      expect(result2).to have_conversation_turns(2)
+    end
+  end
+end
+```
+
+### DSL Component Testing
+
+For DSL-based agents, additional matchers are available:
+
+```ruby
+require 'raaf-testing'
+require 'raaf-dsl'
+
+RSpec.describe MyDSLAgent do
+  # Test agent configuration
+  describe "configuration" do
+    it "has valid agent configuration" do
+      expect(MyDSLAgent).to have_valid_agent_config
+      expect(MyDSLAgent).to require_context_keys(:product, :company)
+      expect(MyDSLAgent).to have_tools(:web_search, :calculator)
+    end
+  end
+
+  # Test agent instances
+  describe "execution" do
+    let(:context) { mock_context_variables(product: "SaaS", company: "Acme") }
+    let(:agent) { MyDSLAgent.new(context: context) }
+
+    it "uses context correctly" do
+      expect(agent).to have_context_values(product: "SaaS", company: "Acme")
+      
+      result = agent.run("Analyze market fit")
+      expect(result).to have_successful_execution
+      expect(result).to have_output_structure(
+        success: :boolean,
+        data: :hash,
+        analysis: :array
+      )
+    end
+  end
+end
+```
+
+### Context Variables Testing
+
+Test the immutable ContextVariables system:
+
+```ruby
+RSpec.describe "ContextVariables" do
+  let(:context) { RAAF::DSL::ContextVariables.new }
+
+  it "follows immutable pattern" do
+    expect(context).to be_immutable
+    expect(context).to have_context_size(0)
     
-    expect(result).to have_used_tool(:get_weather)
-    expect(result).to have_tool_call_with_args(location: "Tokyo")
-    expect(result).to have_successful_completion
+    # Test immutability preservation
+    expect {
+      new_context = context.set(:key, "value")
+      expect(new_context).to have_context_size(1)
+    }.to preserve_original_context(context)
+    
+    expect(context).to have_context_size(0) # Original unchanged
   end
 
-  it "handles conversation flow" do
-    mock_provider.add_responses([
-      "Hello! I can help with weather.",
-      "The weather in Paris is sunny, 22°C"
-    ])
+  it "handles nested data safely" do
+    complex_data = {
+      user: { name: "John", preferences: { theme: "dark" } },
+      features: ["search", "analytics"]
+    }
+    
+    new_context = context.set(:complex_data, complex_data)
+    
+    expect(new_context).to handle_nested_data_safely
+    expect(new_context).to be_serializable
+    expect(new_context).to have_context_keys(:complex_data)
+    expect(new_context).to have_context_values(complex_data: complex_data)
+  end
+end
+```
 
-    result1 = runner.run("Hello")
-    result2 = runner.run("Weather in Paris")
+### Multi-Agent Testing
 
-    expect(result1).to have_greeting
-    expect(result2).to include_weather_info
-    expect(runner).to have_conversation_length(2)
+Test agent handoffs and multi-agent workflows:
+
+```ruby
+RSpec.describe "Multi-agent workflow" do
+  let(:research_agent) { create_test_agent(name: "Researcher") }
+  let(:writer_agent) { create_test_agent(name: "Writer") }
+  
+  before do
+    research_agent.add_handoff(writer_agent)
+  end
+  
+  it "performs agent handoffs" do
+    mock_provider.add_response_with_tools(
+      content: "Research complete, transferring to Writer",
+      tool_calls: [{ name: "transfer_to_Writer", arguments: {} }]
+    )
+    mock_provider.add_response("Here's the final article.")
+
+    runner = RAAF::Runner.new(
+      agent: research_agent,
+      agents: [research_agent, writer_agent],
+      provider: mock_provider
+    )
+
+    result = runner.run("Research and write about Ruby")
+    
+    expect(result).to have_agent_handoff(from: "Researcher", to: "Writer")
+    expect(result).to have_final_agent("Writer")
+    expect(result).to have_conversation_turns(2)
   end
 end
 ```
