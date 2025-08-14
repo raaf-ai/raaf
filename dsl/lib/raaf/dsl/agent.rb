@@ -58,7 +58,10 @@ module RAAF
       class << self
         attr_accessor :_agent_config, :_schema_definition, :_system_prompt_block, 
                      :_user_prompt_block, :_retry_config, :_circuit_breaker_config,
-                     :_required_context_keys, :_validation_rules
+                     :_required_context_keys, :_validation_rules,
+                     :_context_reader_config, :_result_transformations, :_log_events, 
+                     :_metrics_config, :_auto_discovery_config, :_computed_methods, 
+                     :_execution_conditions
 
         # Configure agent name
         def agent_name(name)
@@ -217,10 +220,6 @@ module RAAF
           private key
         end
 
-        class << self
-          attr_accessor :_context_reader_config, :_result_transformations, :_log_events, :_metrics_config,
-                       :_auto_discovery_config, :_computed_methods, :_execution_conditions
-        end
 
         # Result transformation DSL - defines how to transform AI responses
         # into structured, validated data formats
