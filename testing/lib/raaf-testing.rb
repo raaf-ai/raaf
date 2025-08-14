@@ -4,6 +4,11 @@ require_relative "raaf/testing/version"
 require_relative "raaf/testing/matchers"
 require_relative "raaf/testing/prompt_matchers"
 
+# RSpec integration (load when RSpec is available)
+if defined?(RSpec)
+  require_relative "raaf/testing/rspec"
+end
+
 # Only require mock_provider if RAAF core is available
 begin
   require_relative "raaf/testing/mock_provider"
@@ -174,9 +179,20 @@ module RAAF
         return unless defined?(RSpec)
 
         RSpec.configure do |config|
-          # Include testing helpers
+          # Include testing helpers and matchers
           config.include RAAF::Testing::Helpers
           config.include RAAF::Testing::Matchers
+          
+          # Include RSpec-specific matchers if available
+          if defined?(RAAF::Testing::RSpec)
+            config.include RAAF::Testing::RSpec::Matchers
+            config.include RAAF::Testing::RSpec::Helpers
+          end
+          
+          # Include DSL testing helpers if DSL gem is available
+          if defined?(RAAF::DSL::Testing::RSpecHelpers)
+            config.include RAAF::DSL::Testing::RSpecHelpers
+          end
           
           # Setup VCR
           setup_vcr if defined?(VCR)
