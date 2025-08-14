@@ -71,6 +71,9 @@ module RAAF
     #
     class Error < StandardError; end
 
+    # Load error classes first since they're used by other components
+    require_relative "raaf/dsl/errors"
+    
     # Auto-require core components
     autoload :AgentBuilder, "raaf/dsl/builders/agent_builder"
     autoload :Config, "raaf/dsl/config/config"
@@ -81,11 +84,17 @@ module RAAF
     autoload :PromptResolver, "raaf/dsl/prompts/prompt_resolver"
     autoload :PromptResolverRegistry, "raaf/dsl/prompts/prompt_resolver"
     autoload :Railtie, "raaf/dsl/railtie"
+    autoload :Result, "raaf/dsl/result"
     autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
     autoload :ToolBuilder, "raaf/dsl/builders/tool_builder"
     autoload :ToolDsl, "raaf/dsl/tool_dsl"
     autoload :ToolRegistry, "raaf/dsl/core/tool_registry"
     autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
+    
+    # Builder classes
+    module Builders
+      autoload :ResultBuilder, "raaf/dsl/builders/result_builder"
+    end
 
     # AI Agent classes and base functionality
     #
@@ -218,25 +227,6 @@ module RAAF
       autoload :ConfigGenerator, "raaf/dsl/generators/config_generator"
     end
 
-    # RSpec integration and custom matchers for testing
-    #
-    # This module provides custom RSpec matchers and helpers specifically designed
-    # for testing AI Agent DSL components. It includes matchers for prompt testing,
-    # validation, context handling, and content verification.
-    #
-    # @example Using RSpec matchers
-    #   require 'ai_agent_dsl/rspec'
-    #
-    #   RSpec.describe MyPrompt do
-    #     it "includes expected content" do
-    #       expect(MyPrompt).to include_prompt_content("analysis")
-    #         .with_context(document: "test.pdf")
-    #     end
-    #   end
-    #
-    module RSpec
-      autoload :PromptMatchers, "raaf/dsl/rspec/prompt_matchers"
-    end
 
     # Configure the gem with a block
     #
