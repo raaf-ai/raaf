@@ -337,8 +337,8 @@ module RAAF
       def log_info(message)
         if defined?(RAAF) && RAAF.respond_to?(:logger)
           RAAF.logger.info(message)
-        elsif defined?(Rails)
-          Rails.logger.info(message)
+        elsif defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
+          ::Rails.logger.info(message)
         else
           puts "[INFO] #{message}"
         end
@@ -347,8 +347,8 @@ module RAAF
       def log_error(message)
         if defined?(RAAF) && RAAF.respond_to?(:logger)
           RAAF.logger.error(message)
-        elsif defined?(Rails)
-          Rails.logger.error(message)
+        elsif defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
+          ::Rails.logger.error(message)
         else
           puts "[ERROR] #{message}"
         end
