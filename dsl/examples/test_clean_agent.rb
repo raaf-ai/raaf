@@ -60,8 +60,9 @@ class SmartAgent < RAAF::DSL::Agent
     end
   end
   
-  # Prompts
-  system_prompt "You are a smart assistant"
+  # Use AgentDsl for modern prompt handling
+  include RAAF::DSL::Agents::AgentDsl
+  static_instructions "You are a smart assistant"
   
   user_prompt do |ctx|
     "Process data from #{ctx.endpoint} with key #{ctx.api_key[0..5]}..."

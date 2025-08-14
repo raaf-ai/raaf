@@ -59,13 +59,12 @@ module Ai
     end
   end
   
-  # Inline prompts
-  system_prompt do
-    <<~PROMPT
-      You are an expert B2B market analyst. Analyze products and identify target markets.
-      Focus on market fit, addressable market size, and strategic alignment.
-    PROMPT
-  end
+  # Modern prompt approach using AgentDsl
+  include RAAF::DSL::Agents::AgentDsl
+  static_instructions <<~PROMPT
+    You are an expert B2B market analyst. Analyze products and identify target markets.
+    Focus on market fit, addressable market size, and strategic alignment.
+  PROMPT
   
   user_prompt do |ctx|
     <<~PROMPT
@@ -342,7 +341,8 @@ class SmartAnalysis < RAAF::DSL::SmartAgent
     end
   end
   
-  system_prompt "You are an expert B2B market analyst..."
+  include RAAF::DSL::Agents::AgentDsl
+  static_instructions "You are an expert B2B market analyst..."
   
   user_prompt do |ctx|
     "Analyze product: #{ctx.product.name} from #{ctx.company.name}"
