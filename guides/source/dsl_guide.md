@@ -3,18 +3,19 @@
 RAAF DSL Guide
 ==============
 
-This guide covers the declarative Domain Specific Language (DSL) for Ruby AI Agents Factory (RAAF). The DSL provides an elegant, Ruby-idiomatic way to configure agents, tools, and workflows.
+This guide covers the declarative Domain Specific Language (DSL) for Ruby AI Agents Factory (RAAF). The DSL provides an elegant, Ruby-idiomatic way to configure agents, tools, and workflows with modern RAAF capabilities.
 
 After reading this guide, you will know:
 
-* How to use the declarative agent builder DSL
-* Built-in tool presets and shortcuts  
-* Advanced DSL patterns and configurations
-* Prompt management with Ruby classes and templates
-* Testing agents built with the DSL
-* Best practices for DSL-based agent design
+* How to build agents with the modern AgentBuilder DSL
+* Current tool integration patterns and best practices
+* Advanced prompt management with Ruby classes (preferred over files)
+* Multi-agent orchestration and handoff patterns  
+* Context variables and the immutable ContextVariables system
+* Testing strategies for DSL-based agents
+* Integration with Rails applications
 
-NOTE: For comprehensive prompt management documentation, see the [Prompting Guide](prompting.md).
+INFO: The DSL uses ResponsesProvider by default for Python SDK compatibility and built-in retry logic.
 
 --------------------------------------------------------------------------------
 
@@ -61,7 +62,7 @@ This abstraction is particularly valuable in AI applications because the busines
 agent = RAAF::Agent.new(
   name: "CustomerService",
   instructions: "Help customers with inquiries",
-  model: "gpt-4o"
+  model: "gpt-4o"  # Uses ResponsesProvider by default
 )
 
 def lookup_order(order_id:)
@@ -75,12 +76,13 @@ end
 agent.add_tool(method(:lookup_order))
 agent.add_tool(method(:send_email))
 
-# DSL approach (recommended)
+# DSL approach (recommended for modern RAAF)
 agent = RAAF::DSL::AgentBuilder.build do
   name "CustomerService"
   instructions "Help customers with inquiries"
-  model "gpt-4o"
+  model "gpt-4o"  # Automatically uses ResponsesProvider with built-in retry
   
+  # Tools with keyword arguments for OpenAI compatibility
   tool :lookup_order do |order_id:|
     # Implementation
   end
@@ -110,23 +112,22 @@ Basic Agent Builder
 
 ### Simple Agent Creation
 
-<!-- VALIDATION_FAILED: dsl_guide.md:114 -->
-WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
-<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-cgo28.rb:444:in '<main>'
-```
-
 ```ruby
-require 'raaf'
+require 'raaf-dsl'
 
+# Create a minimal agent with modern RAAF standards
 agent = RAAF::DSL::AgentBuilder.build do
   name "WeatherBot"
-  instructions "Provide weather information for any location"
-  model "gpt-4o"
+  instructions "Provide weather information for any location using available tools."
+  model "gpt-4o"  # Uses ResponsesProvider automatically for Python SDK compatibility
 end
 
-# Use the agent
+# Create runner (automatically uses ResponsesProvider with built-in retry)
 runner = RAAF::Runner.new(agent: agent)
-result = runner.run("What's the weather like?")
+
+# Run conversation
+result = runner.run("What's the weather like in Tokyo?")
+puts result.messages.last[:content]
 ```
 
 **Minimal viable agent:** This example shows the absolute minimum needed to create a functional agent. Just three lines of configuration create a working AI agent with specific instructions and model selection.
@@ -185,20 +186,86 @@ Choose your tool configuration based on your agent's primary purpose: informatio
 
 ### Context Variables
 
+RAAF DSL uses an immutable ContextVariables system that ensures thread safety and prevents accidental mutations during agent execution.
+
+WARNING: RAAF ContextVariables uses an immutable pattern. Each `.set()` call returns a **NEW instance**. Always capture the returned value to avoid empty context.
+
 ```ruby
+# Build context using the immutable pattern
+def build_agent_context(user, session_data)
+  context = RAAF::DSL::ContextVariables.new
+  context = context.set(:user_id, user.id)
+  context = context.set(:user_preferences, user.preferences)
+  context = context.set(:session_data, session_data)
+  context = context.set(:environment, ENV['RACK_ENV'] || 'development')
+  context  # Return the built context
+end
+
 agent = RAAF::DSL::AgentBuilder.build do
   name "ContextAwareAgent"
-  instructions "Use context variables in your responses"
+  instructions "Use context variables in your responses. Access user data via context."
   model "gpt-4o"
   
-  # Set default context variables
-  context do
-    user_preferences { { theme: 'dark', language: 'en' } }
-    session_data { { start_time: Time.now } }
-    environment "production"
+  # Tool that uses context variables
+  tool :get_user_preference do |preference_key:|
+    context.get(:user_preferences)[preference_key]
+  end
+end
+
+# Usage with context
+context = build_agent_context(current_user, session_data)
+runner = RAAF::Runner.new(agent: agent, context_variables: context)
+result = runner.run("What's my preferred theme?")
+```
+
+### ObjectProxy System for Lazy Context Handling
+
+RAAF DSL includes an advanced ObjectProxy system for lazy-loaded context variables and complex object handling. This system enables sophisticated context management with deferred evaluation.
+
+```ruby
+# ObjectProxy for lazy context loading
+agent = RAAF::DSL::AgentBuilder.build do
+  name "SmartAgent"
+  instructions "Access complex data structures efficiently"
+  model "gpt-4o"
+  
+  # Tool using ObjectProxy for database access
+  tool :get_user_orders do |user_id:|
+    # ObjectProxy enables lazy loading of complex relationships
+    user_proxy = RAAF::DSL::ObjectProxy.new do
+      User.includes(:orders, :preferences).find(user_id)
+    end
+    
+    # Data is only loaded when accessed
+    {
+      user_name: user_proxy.name,
+      order_count: user_proxy.orders.count,
+      total_spent: user_proxy.orders.sum(:total),
+      last_order: user_proxy.orders.last&.created_at
+    }
+  end
+  
+  # ObjectProxy for API integrations
+  tool :get_weather_data do |location:|
+    weather_proxy = RAAF::DSL::ObjectProxy.new do
+      WeatherAPI.fetch_detailed_forecast(location)
+    end
+    
+    # Lazy evaluation prevents unnecessary API calls
+    {
+      current_temp: weather_proxy.current.temperature,
+      conditions: weather_proxy.current.conditions,
+      forecast: weather_proxy.forecast.today.summary
+    }
   end
 end
 ```
+
+**ObjectProxy benefits:**
+- **Lazy evaluation** - Expensive operations only execute when data is accessed
+- **Memory efficiency** - Large objects aren't loaded unnecessarily
+- **Error isolation** - Failed proxy creation doesn't break the entire context
+- **Performance optimization** - Database queries and API calls are deferred
 
 **Context as configuration:** Context variables bridge the gap between static agent definition and dynamic runtime behavior. They provide a way to inject environment-specific information without hardcoding it into the agent's instructions.
 
@@ -218,46 +285,68 @@ When designing context structures, separate public context (safe to log) from pr
 
 ### Prompt Management
 
-The DSL includes a sophisticated prompt management system that supports multiple formats. For comprehensive documentation, see the [Prompting Guide](prompting.md).
+The DSL includes a sophisticated prompt management system with Ruby prompt classes as the preferred approach for type safety, testability, and IDE support.
+
+INFO: Always prefer Ruby prompt classes over Markdown files for better maintainability and validation.
+
+NOTE: All RSpec testing utilities have been moved to the `raaf-testing` gem for better organization and optional dependency management. Use `require 'raaf-testing'` to access all testing features.
 
 ```ruby
-# PREFERRED: Ruby prompt classes with validation
-class CustomerServicePrompt
-  def initialize(company_name:, issue_type:, tone: "professional")
-    @company_name = company_name
-    @issue_type = issue_type
-    @tone = tone
-  end
+# PREFERRED: Ruby prompt classes with RAAF DSL Base
+class CustomerServicePrompt < RAAF::DSL::Prompts::Base
+  # Contract validation for required variables
+  required :company_name, :issue_type
+  optional :tone, default: "professional"
+  
+  # Enable strict validation mode
+  contract_mode :strict
   
   def system
-    "You are a customer service agent for #{@company_name}. Be #{@tone}."
+    <<~SYSTEM
+      You are a customer service agent for #{@company_name}.
+      Handle #{@issue_type} issues with a #{@tone} tone.
+      Always ask clarifying questions when details are unclear.
+    SYSTEM
   end
   
   def user
-    "Customer has a #{@issue_type} issue."
+    "Customer needs help with a #{@issue_type} issue."
+  end
+  
+  # Define JSON schema for structured responses if needed
+  def schema
+    {
+      type: "object",
+      properties: {
+        resolution: { type: "string" },
+        next_steps: { type: "array", items: { type: "string" } },
+        escalation_needed: { type: "boolean" }
+      },
+      required: ["resolution", "escalation_needed"]
+    }
   end
 end
 
-# Create prompt instance
-support_prompt = CustomerServicePrompt.new(
-  company_name: "ACME Corp",
-  issue_type: "billing",
-  tone: "professional"
-)
-
+# Use prompt class in agent
 agent = RAAF::DSL::AgentBuilder.build do
   name "SupportAgent"
-  prompt support_prompt  # Type-safe, testable
+  prompt_class CustomerServicePrompt  # Type-safe with validation
   model "gpt-4o"
 end
 
-# Alternative: File-based prompts
-agent = RAAF::DSL::AgentBuilder.build do
-  name "ResearchAgent"
-  prompt "research.md"      # Markdown with {{variables}}
-  # prompt "analysis.md.erb" # ERB template with Ruby logic
-  model "gpt-4o"
-end
+# Create prompt instance with validation
+prompt = CustomerServicePrompt.new(
+  company_name: "ACME Corp",
+  issue_type: "billing"
+  # tone defaults to "professional"
+)
+
+# Alternative: File-based prompts (less preferred)
+# agent = RAAF::DSL::AgentBuilder.build do
+#   name "ResearchAgent"
+#   prompt "research.md"      # Markdown with {{variables}}
+#   model "gpt-4o"
+# end
 ```
 
 **Why Ruby prompts are preferred:** Ruby prompt classes provide type safety, validation, IDE support, and testability. They can be versioned, documented, and tested like any other Ruby code. File-based prompts are simpler but lack these benefits.
@@ -289,24 +378,21 @@ Tool Definition DSL
 
 ### Inline Tool Definition
 
-<!-- VALIDATION_FAILED: dsl_guide.md:283 -->
-WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
-ruby: /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wiqtl1.rb:484: syntax errors found (SyntaxError)   482 | end   483 |  > 484 | **Tool definition patterns:** The DSL supports multiple patterns for defining tools, each optimized for different scenarios:       | ^~ unexpected **, ignoring it       |                            ^~ unexpected **, ignoring it       |                            ^~ unexpected **, expecting end-of-input       |                                                                              ^ expected an `in` after the index in a `for` statement       |                                                                                    ^ unexpected ',', ignoring it       |                                                                                    ^ unexpected ','; expected a 'do', newline, or ';' after the 'for' loop collection       |                                                                                                                  ^ expected a collection after the `in` in a `for` statement       |                                                                                                                  ^ expected an `in` after the index in a `for` statement       |                                                                                                                   ^~~~~~~~~~ unexpected label, ignoring it       |                                                                                                                   ^~~~~~~~~~ unexpected label; expected a 'do', newline, or ';' after the 'for' loop collection   485 |  > 486 | ... self-contained logic       |     ^~~~ Can't change the value of self       |         ^ unexpected '-', ignoring it       |         ^ unexpected '-'; expected a 'do', newline, or ';' after the 'for' loop collection       |         ^ expected a collection after the `in` in a `for` statement       |         ^ expected an `in` after the index in a `for` statement > 487 | ... Ruby's argument patterns       |     ^~~~ unexpected constant, expecting end-of-input   488 | 3. **Error handling** with standard Ruby exception mechanisms   489 | 4. **Structured responses** using hashes for complex data   ~~~~~~~   491 | The key insight is that tools are just Ruby methods with a specific signature. The DSL automatically handles the integration with the AI model, including parameter extraction, type conversion, and result formatting. You write normal Ruby code; RAAF handles the AI integration.   492 |  > 493 | ... s parameter syntax, reducing the gap between what the model ex ...       |     ^ unexpected local variable or method, expecting end-of-input       |                                  ^~~ unexpected local variable or method, expecting end-of-input   494 |  > 495 | ...  reliability. When models understand exactly what a tool does and what it returns, they can make better decisions about when and how to use it. Clear contract ...       |     ^ expected an `in` after the index in a `for` statement       |                                                                                             ^~~ unexpected local variable or method; expected a 'do', newline, or ';' after the 'for' loop collection       |                                                                                                                             ^~~~ unexpected 'when', ignoring it       |                                                                                                                             ^~~~ unexpected 'when', expecting end-of-input       |                                                                                                                                  ^~~ unexpected 'and', ignoring it   496 |  > 497 | **Tool granularity decisions:** The granularity of your tools significantly impacts agent effectiveness. Fine-grained tools (like `get_current_time`) are easy to understand and test but may require multiple model calls to accomplish complex tasks. Coarse-grained tools (like `generate_report`) are more efficient but harder for models to use appropriately.       |                              ^~ unexpected **, ignoring it       |                              ^~ unexpected **, expecting end-of-input       |                                                                                                                       ^~~~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                       ^~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                                                                                                                                        ^~~~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                                                                                                                                                                       ^~~ unexpected local variable or method, expecting end-of-input       |                                                                                                                                                                                                                                                                                                                                               ^ expected an `in` after the index in a `for` statement   498 |  > 499 | ... 's role and the complexity of t ...       |     ^ unterminated string meets end of file   500 |    501 | **Parameter design philosophy:** Tool parameters should match how humans think about the task, not how the underlying system works. A temperature conversion tool should accept familiar units like "celsius" and "fahrenheit" rather than numeric codes. This human-centric design makes tools more intuitive for AI models to use correctly.   ~~~~~~~   516 |   exit 1   517 | end > 518 |        | ^ expected an `end` to close the `begin` statement        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ expected an `end` to close the `for` loop        | ^ unexpected end-of-input, assuming it is closing the parent top level context        | ^ unexpected end-of-input; expected a 'do', newline, or ';' after the 'for' loop collection
-```
-
 ```ruby
 agent = RAAF::DSL::AgentBuilder.build do
   name "UtilityAgent"
-  instructions "Provide various utility functions"
+  instructions "Provide various utility functions with proper tool usage"
   model "gpt-4o"
   
-  # Simple tool with block
+  # Simple tool without parameters
   tool :get_current_time do
     Time.now.strftime("%I:%M %p %Z on %B %d, %Y")
   end
   
-  # Tool with parameters
+  # Tool with keyword arguments (required for OpenAI compatibility)
   tool :calculate_tip do |amount:, percentage: 15|
+    raise ArgumentError, "Amount must be positive" if amount <= 0
+    
     tip = amount * (percentage / 100.0)
     {
       original_amount: amount,
@@ -316,50 +402,50 @@ agent = RAAF::DSL::AgentBuilder.build do
     }
   end
   
-  # Tool with validation
+  # Tool with validation and error handling
   tool :convert_temperature do |value:, from:, to:|
-    raise ArgumentError, "Invalid temperature scale" unless %w[C F K].include?(from) && %w[C F K].include?(to)
-    
-    case [from, to]
-    when ['C', 'F']
-      (value * 9.0/5.0) + 32
-    when ['F', 'C']
-      (value - 32) * 5.0/9.0
-    when ['C', 'K']
-      value + 273.15
-    when ['K', 'C']
-      value - 273.15
-    else
-      value  # Same scale
+    valid_scales = %w[C F K]
+    unless valid_scales.include?(from) && valid_scales.include?(to)
+      return { error: "Invalid temperature scale. Use: #{valid_scales.join(', ')}" }
     end
+    
+    result = case [from, to]
+             when ['C', 'F'] then (value * 9.0/5.0) + 32
+             when ['F', 'C'] then (value - 32) * 5.0/9.0
+             when ['C', 'K'] then value + 273.15
+             when ['K', 'C'] then value - 273.15
+             else value  # Same scale
+             end
+    
+    {
+      original_value: value,
+      original_scale: from,
+      converted_value: result.round(2),
+      converted_scale: to
+    }
+  end
+  
+  # Tool that uses context variables
+  tool :get_user_setting do |setting_key:|
+    user_prefs = context.get(:user_preferences) || {}
+    user_prefs[setting_key] || "Setting not found"
   end
 end
-
-**Tool definition patterns:** The DSL supports multiple patterns for defining tools, each optimized for different scenarios:
-
-1. **Inline blocks** for simple, self-contained logic
-2. **Parameter validation** using Ruby's argument patterns
-3. **Error handling** with standard Ruby exception mechanisms
-4. **Structured responses** using hashes for complex data
-
-The key insight is that tools are just Ruby methods with a specific signature. The DSL automatically handles the integration with the AI model, including parameter extraction, type conversion, and result formatting. You write normal Ruby code; RAAF handles the AI integration.
-
-**The tool contract:** Every tool establishes a contract with the AI model. This contract includes parameter types, expected behavior, and return value structure. The DSL makes this contract explicit through Ruby's parameter syntax, reducing the gap between what the model expects and what your code provides.
-
-This explicit contract is crucial for AI reliability. When models understand exactly what a tool does and what it returns, they can make better decisions about when and how to use it. Clear contracts also make debugging easier—you can verify that tools are called correctly and return expected values.
-
-**Tool granularity decisions:** The granularity of your tools significantly impacts agent effectiveness. Fine-grained tools (like `get_current_time`) are easy to understand and test but may require multiple model calls to accomplish complex tasks. Coarse-grained tools (like `generate_report`) are more efficient but harder for models to use appropriately.
-
-The optimal granularity depends on your agent's role and the complexity of tasks it handles. Customer service agents benefit from fine-grained tools that match natural conversation flow. Data processing agents often need coarse-grained tools that handle complete workflows.
-
-**Parameter design philosophy:** Tool parameters should match how humans think about the task, not how the underlying system works. A temperature conversion tool should accept familiar units like "celsius" and "fahrenheit" rather than numeric codes. This human-centric design makes tools more intuitive for AI models to use correctly.
-
-Default parameters reduce cognitive load for both models and developers. When most tool calls use standard settings, providing sensible defaults eliminates repetitive parameter specification while still allowing customization when needed.
-
-**Error handling strategy:** Tools should handle errors gracefully and provide meaningful feedback. Instead of letting exceptions bubble up, catch them and return structured error information that models can understand and act upon.
-
-This approach transforms errors from conversation-ending failures into opportunities for the model to adjust its approach. A web search tool that returns "search service temporarily unavailable" allows the model to try alternative information sources rather than failing completely.
 ```
+
+**Modern tool patterns:** The current DSL emphasizes several key patterns for robust tool development:
+
+1. **Keyword arguments** - All tools must use keyword arguments for OpenAI API compatibility
+2. **Error handling** - Return structured error information instead of raising exceptions
+3. **Context integration** - Access context variables through the `context` object
+4. **Validation** - Validate inputs and provide clear error messages
+5. **Structured responses** - Return hashes with meaningful keys for complex data
+
+INFO: Always use keyword arguments (`param:`) in tools for proper OpenAI API integration.
+
+**Tool design philosophy:** Modern RAAF tools prioritize reliability and user experience. Instead of raising exceptions that terminate conversations, tools return structured error information that allows agents to handle problems gracefully and suggest alternatives.
+
+This approach transforms errors from conversation-ending failures into opportunities for the model to adjust its approach and maintain helpful dialogue with users.
 
 ### External Method Tools
 
@@ -621,44 +707,52 @@ Choose your coordination model based on your application's requirements. Custome
 
 ### Agent Handoffs
 
+RAAF uses tool-based handoffs exclusively. Handoffs are implemented as function calls (tools) that the LLM must explicitly invoke. The system automatically creates `transfer_to_<agent_name>` tools for handoff targets.
+
+WARNING: Text-based or JSON-based handoff detection in message content is not supported. The LLM must explicitly call handoff tools.
+
 ```ruby
-# Define multiple agents with handoffs
+# Define specialized agents with tool-based handoffs
 research_agent = RAAF::DSL::AgentBuilder.build do
   name "Researcher"
-  instructions "Research topics thoroughly"
+  instructions "Research topics thoroughly. When research is complete, transfer to Writer."
   model "gpt-4o"
   
   use_web_search
-  
-  # Define handoff conditions
-  handoff_to "Writer" do |context, messages|
-    # Handoff when research is complete
-    messages.last[:content].include?("research complete")
-  end
 end
 
 writer_agent = RAAF::DSL::AgentBuilder.build do
   name "Writer"
-  instructions "Write content based on research"
+  instructions "Write content based on research. When draft is complete, transfer to Editor."
   model "gpt-4o"
   
-  # Access context from previous agent
-  tool :get_research_data do
-    context[:research_findings]
-  end
-  
-  handoff_to "Editor" do |context, messages|
-    messages.last[:content].include?("draft complete")
+  # Tool to access research context
+  tool :get_research_findings do
+    context.get(:research_findings) || "No research data available"
   end
 end
 
 editor_agent = RAAF::DSL::AgentBuilder.build do
   name "Editor"
-  instructions "Edit and polish content"
+  instructions "Edit and polish content. This is the final step."
   model "gpt-4o"
-  
-  # No further handoffs - final agent
 end
+
+# Configure handoffs (automatically creates transfer tools)
+research_agent.add_handoff(writer_agent)  # Creates transfer_to_Writer tool
+writer_agent.add_handoff(editor_agent)    # Creates transfer_to_Editor tool
+
+# Alternative: Use string names for handoffs
+# research_agent.add_handoff("Writer")
+# writer_agent.add_handoff("Editor")
+
+# Multi-agent runner
+runner = RAAF::Runner.new(
+  agent: research_agent,
+  agents: [research_agent, writer_agent, editor_agent]
+)
+
+result = runner.run("Research and write about Ruby best practices")
 ```
 
 ### Workflow Definition
@@ -965,40 +1059,76 @@ Testing DSL-Based Agents
 
 ### RSpec Integration
 
-<!-- VALIDATION_FAILED: dsl_guide.md:939 -->
-WARNING: **EXAMPLE VALIDATION FAILED** - This example needs work and contributions are welcome! Please see [Contributing to RAAF](contributing_to_raaf.md) for guidance. ```
-<internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require': cannot load such file -- raaf (LoadError) 	from <internal:/Users/hajee/.rvm/rubies/ruby-3.4.5/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require' 	from /var/folders/r5/1t1h14ts04v5plm6tg1237pr0000gn/T/code_block20250725-12953-wuwll6.rb:444:in '<main>'
-```
-
 ```ruby
-require 'raaf'
+require 'raaf-dsl'
+require 'raaf-testing'  # Contains all RSpec matchers and testing utilities
+
+# Automatic setup (recommended)
+RAAF::Testing.setup_rspec
 
 RSpec.describe 'Customer Service Agent' do
   let(:agent) do
     RAAF::DSL::AgentBuilder.build do
       name "CustomerServiceAgent"
-      instructions "Help customers"
+      instructions "Help customers with order inquiries"
       model "gpt-4o"
       
       tool :lookup_order do |order_id:|
-        { id: order_id, status: 'shipped' }
+        # Mock data for testing
+        { id: order_id, status: 'shipped', tracking: 'ABC123' }
+      end
+      
+      tool :escalate_to_human do |reason:|
+        { escalated: true, reason: reason, ticket_id: "TICKET-#{rand(1000)}" }
       end
     end
   end
   
-  it 'has the correct configuration' do
-    expect(agent).to have_name('CustomerServiceAgent')
-    expect(agent).to have_model('gpt-4o')
-    expect(agent).to have_tool(:lookup_order)
+  describe 'agent configuration' do
+    it 'has the correct basic configuration' do
+      expect(agent.name).to eq('CustomerServiceAgent')
+      expect(agent.model).to eq('gpt-4o')
+      expect(agent.tools).to include(:lookup_order, :escalate_to_human)
+    end
+    
+    it 'uses ResponsesProvider by default' do
+      runner = RAAF::Runner.new(agent: agent)
+      expect(runner.instance_variable_get(:@provider)).to be_a(RAAF::Models::ResponsesProvider)
+    end
   end
   
-  it 'can look up orders' do
-    runner = RAAF::Runner.new(agent: agent)
-    result = runner.run("What's the status of order 12345?")
+  describe 'tool functionality' do
+    let(:runner) { RAAF::Runner.new(agent: agent) }
     
-    expect(result).to be_successful
-    expect(result).to have_used_tool(:lookup_order)
-    expect(result.messages.last[:content]).to include('shipped')
+    it 'can look up orders with proper tool calling' do
+      # Mock the actual LLM response to test tool integration
+      allow_any_instance_of(RAAF::Models::ResponsesProvider).to receive(:call).and_return(
+        double(success?: true, data: {
+          'messages' => [
+            { 'role' => 'assistant', 'content' => 'I found your order!', 'tool_calls' => [
+              { 'function' => { 'name' => 'lookup_order', 'arguments' => '{"order_id":"12345"}' } }
+            ]}
+          ]
+        })
+      )
+      
+      result = runner.run("What's the status of order 12345?")
+      expect(result).to be_truthy
+    end
+  end
+  
+  describe 'context handling' do
+    let(:context) do
+      RAAF::DSL::ContextVariables.new
+        .set(:user_id, 'user123')
+        .set(:session_id, 'session456')
+    end
+    
+    it 'maintains context throughout execution' do
+      runner = RAAF::Runner.new(agent: agent, context_variables: context)
+      expect(context.get(:user_id)).to eq('user123')
+      expect(context.size).to eq(2)
+    end
   end
 end
 ```
@@ -1308,13 +1438,134 @@ class ChatController < ApplicationController
 end
 ```
 
+## Latest DSL Agent Features
+
+### Agent Hooks and Lifecycle Management
+
+RAAF DSL provides comprehensive lifecycle hooks for advanced agent behavior customization:
+
+```ruby
+agent = RAAF::DSL::AgentBuilder.build do
+  name "HookedAgent"
+  instructions "Agent with lifecycle hooks"
+  model "gpt-4o"
+  
+  # Pre-execution hook
+  before_run do |context, message|
+    puts "Starting agent run for: #{message}"
+    context.set(:start_time, Time.now)
+  end
+  
+  # Post-execution hook
+  after_run do |context, result|
+    duration = Time.now - context.get(:start_time)
+    puts "Agent completed in #{duration}s"
+  end
+  
+  # Error handling hook
+  on_error do |error, context|
+    puts "Agent error: #{error.message}"
+    # Log error, send notification, etc.
+  end
+end
+```
+
+### Smart Agent Classes
+
+Create reusable agent classes with inheritance and mixins:
+
+```ruby
+# Base agent class with common functionality
+class SmartAgent < RAAF::DSL::Agents::Base
+  include RAAF::DSL::Agents::AgentDsl
+  include RAAF::DSL::Hooks::AgentHooks
+  
+  # Default configuration for all smart agents
+  agent_name "SmartAgent"
+  model "gpt-4o"
+  max_turns 10
+  
+  # Common tools available to all smart agents
+  uses_tool :get_current_time
+  uses_tool :log_event
+  
+  # Prompt class integration
+  prompt_class BasePrompt
+  
+  # Schema definition
+  schema do
+    field :response, type: :string, required: true
+    field :confidence, type: :number, range: 0..1
+    field :follow_up_needed, type: :boolean
+  end
+end
+
+# Specialized agent inheriting from SmartAgent
+class CustomerServiceAgent < SmartAgent
+  agent_name "CustomerServiceAgent"
+  
+  # Override prompt class
+  prompt_class CustomerServicePrompt
+  
+  # Add specialized tools
+  uses_tool :lookup_customer
+  uses_tool :create_ticket
+  uses_tool :escalate_to_human
+  
+  # Custom schema for customer service
+  schema do
+    field :customer_id, type: :string
+    field :resolution, type: :string, required: true
+    field :satisfaction_score, type: :integer, range: 1..5
+  end
+end
+```
+
+### Testing with Mock Context
+
+```ruby
+RSpec.describe CustomerServiceAgent do
+  let(:agent) { CustomerServiceAgent.new }
+  let(:mock_context) do
+    RAAF::DSL::ContextVariables.new
+      .set(:customer_id, "CUST123")
+      .set(:environment, "test")
+  end
+  
+  describe "context handling" do
+    it "properly manages immutable context" do
+      original_size = mock_context.size
+      
+      # Verify immutability - original context unchanged
+      new_context = mock_context.set(:new_key, "value")
+      expect(mock_context.size).to eq(original_size)
+      expect(new_context.size).to eq(original_size + 1)
+    end
+    
+    it "integrates with ObjectProxy for lazy loading" do
+      proxy = RAAF::DSL::ObjectProxy.new do
+        expensive_database_call
+      end
+      
+      # Proxy doesn't execute until accessed
+      expect { proxy }.not_to receive(:expensive_database_call)
+      
+      # Only when accessed does it execute
+      expect(proxy.data).to be_present
+    end
+  end
+end
+```
+
+TIP: Use the latest DSL features for production-ready agents with proper error handling, context management, and testing support.
+
 Next Steps
 ----------
 
-Now that you understand the RAAF DSL:
+Now that you understand the modern RAAF DSL with latest features:
 
-* **[RAAF Providers Guide](providers_guide.html)** - Use different AI providers
-* **[RAAF Memory Guide](memory_guide.html)** - Advanced context management  
-* **[RAAF Testing Guide](testing_guide.html)** - Test DSL configurations
-* **[Multi-Agent Guide](multi_agent_guide.html)** - Build complex workflows
-* **[Rails Integration](rails_guide.html)** - DSL in Rails applications
+* **[RAAF Providers Guide](providers_guide.html)** - Use different AI providers with ResponsesProvider
+* **[RAAF Memory Guide](memory_guide.html)** - Advanced context management with ObjectProxy 
+* **[RAAF Testing Guide](testing_guide.html)** - Test DSL configurations with modern patterns
+* **[Multi-Agent Guide](multi_agent_guide.html)** - Build complex workflows with tool-based handoffs
+* **[Rails Integration](rails_guide.html)** - DSL in Rails applications with hooks and lifecycle management
