@@ -1369,6 +1369,7 @@ module RAAF
 
       # Log event processor that handles structured logging events
       class LogEventProcessor
+        include RAAF::Logger
         def initialize(events_config)
           @events_config = events_config
         end
