@@ -6,6 +6,8 @@ require_relative "config/config"
 require_relative "core/context_variables"
 require_relative "agents/agent_dsl"
 require_relative "hooks/agent_hooks"
+require_relative "data_merger"
+require_relative "pipeline"
 
 module RAAF
   module DSL
@@ -144,6 +146,271 @@ module RAAF
           }
         end
 
+        # Enhanced context reader DSL - generates helper methods for context access
+        # with support for validation, defaults, and transformation
+        # Similar to attr_reader but for RAAF context variables
+        #
+        # @param keys [Array<Symbol>] Context keys to create helper methods for
+        # @param options [Hash] Optional validation and default options
+        #
+        # @example Basic usage
+        #   class MyAgent < RAAF::DSL::Agent
+        #     context_reader :product, :company, :analysis_depth
+        #   end
+        #
+        # @example With validation and defaults
+        #   class MyAgent < RAAF::DSL::Agent
+        #     context_reader :product, required: true, type: Product
+        #     context_reader :analysis_depth, default: "standard", validate: ["standard", "deep", "quick"]
+        #     context_reader :max_results, default: 10, type: Integer, validate: ->(v) { v > 0 && v <= 100 }
+        #     context_reader :company, transform: ->(v) { v&.name&.downcase }
+        #   end
+        #
+        def context_reader(*keys, **options)
+          # Split keys and per-key options
+          if keys.size == 1 && options.any?
+            # Single key with options
+            key = keys.first
+            define_enhanced_context_reader(key, options)
+          else
+            # Multiple keys without options (backward compatibility)
+            keys.each do |key|
+              define_simple_context_reader(key)
+            end
+          end
+        end
+
+        private
+
+        def define_simple_context_reader(key)
+          define_method(key) do
+            context.get(key)
+          end
+          private key
+        end
+
+        def define_enhanced_context_reader(key, options)
+          # Store config for this key (only required and default are supported)
+          self._context_reader_config ||= {}
+          self._context_reader_config[key] = options.slice(:required, :default)
+
+          define_method(key) do
+            value = context.get(key)
+            
+            # Apply default if value is nil
+            if value.nil? && options[:default]
+              value = case options[:default]
+                      when Proc
+                        options[:default].call
+                      else
+                        options[:default]
+                      end
+            end
+            
+            # Validate required
+            if options[:required] && value.nil?
+              raise ArgumentError, "Context key '#{key}' is required but missing"
+            end
+            
+            value
+          end
+          private key
+        end
+
+        class << self
+          attr_accessor :_context_reader_config, :_result_transformations, :_log_events, :_metrics_config,
+                       :_auto_discovery_config, :_computed_methods, :_execution_conditions
+        end
+
+        # Result transformation DSL - defines how to transform AI responses
+        # into structured, validated data formats
+        #
+        # @example Basic field mapping
+        #   class MarketAnalysisAgent < RAAF::DSL::Agent
+        #     result_transform do
+        #       field :markets, from: "discovered_markets", type: :array
+        #       field :confidence, from: "analysis_confidence", type: :integer, range: 0..100
+        #       field :summary, default: "No summary available"
+        #     end
+        #   end
+        #
+        # @example Advanced transformations
+        #   class CompanyEnrichmentAgent < RAAF::DSL::Agent
+        #     result_transform do
+        #       field :companies, type: :array, transform: ->(data) {
+        #         data.map { |c| normalize_company_data(c) }
+        #       }
+        #       field :metadata, computed: :build_enrichment_metadata
+        #       field :timestamp, default: -> { Time.current.iso8601 }
+        #     end
+        #   end
+        #
+        def result_transform(&block)
+          self._result_transformations = ResultTransformBuilder.new(&block).build
+        end
+
+        # Logging and metrics DSL - defines structured logging and performance tracking
+        # 
+        # @example Basic logging configuration
+        #   class AnalysisAgent < RAAF::DSL::Agent
+        #     log_events do
+        #       event :analysis_started, level: :info, message: "Starting analysis for {product}"
+        #       event :results_processed, level: :debug, message: "Processed {count} results"
+        #       event :analysis_failed, level: :error, message: "Analysis failed: {error}"
+        #     end
+        #   end
+        #
+        # @example Metrics tracking
+        #   class EnrichmentAgent < RAAF::DSL::Agent
+        #     track_metrics do
+        #       counter :companies_processed, description: "Total companies processed"
+        #       gauge :processing_time_seconds, description: "Time spent processing"
+        #       histogram :response_size_bytes, buckets: [100, 1000, 10000]
+        #     end
+        #   end
+        #
+        def log_events(&block)
+          self._log_events ||= {}
+          builder = LogEventBuilder.new(self._log_events, &block)
+          self._log_events = builder.build
+        end
+
+        def track_metrics(&block)
+          self._metrics_config ||= {}
+          builder = MetricsBuilder.new(self._metrics_config, &block)
+          self._metrics_config = builder.build
+        end
+
+        # Conditional execution DSL - defines when agents should run
+        # 
+        # @example Simple conditions
+        #   class EnrichmentAgent < RAAF::DSL::Agent
+        #     run_if do
+        #       context_has :companies
+        #       context_value :analysis_depth, equals: "deep"
+        #       previous_agent_succeeded
+        #     end
+        #   end
+        #
+        # @example Complex conditions
+        #   class StakeholderAgent < RAAF::DSL::Agent
+        #     run_if do
+        #       any_of do
+        #         context_value :company_size, greater_than: 100
+        #         context_has_any :decision_makers, :influencers
+        #       end
+        #       
+        #       none_of do
+        #         context_value :industry, equals: "government"
+        #         previous_agent_failed
+        #       end
+        #     end
+        #   end
+        #
+        def run_if(&block)
+          self._execution_conditions = ExecutionConditions.new(&block)
+        end
+
+        def run_unless(&block)
+          self._execution_conditions = ExecutionConditions.new(negate: true, &block)
+        end
+
+        # Auto-discovery for computed field methods
+        # Scans for methods matching naming patterns and automatically registers them
+        #
+        # @example Automatic discovery
+        #   class EnrichmentAgent < RAAF::DSL::Agent
+        #     enable_auto_discovery patterns: %w[process_* build_* compute_*]
+        #     
+        #     private
+        #     
+        #     # These methods are automatically discovered and registered
+        #     def process_companies_from_data(data)
+        #       # Processing logic
+        #     end
+        #     
+        #     def build_enrichment_metadata(data)
+        #       # Metadata building logic
+        #     end
+        #   end
+        #
+        def enable_auto_discovery(patterns: %w[process_*_from_data build_*_metadata compute_*], exclude: [])
+          self._auto_discovery_config = {
+            patterns: patterns,
+            exclude: exclude,
+            enabled: true
+          }
+          
+          # Trigger discovery when class is loaded
+          discover_computed_methods
+        end
+
+        # Manual computed method registration
+        def computed_method(method_name, field_name = nil)
+          self._computed_methods ||= {}
+          field_name ||= method_name.to_s.gsub(/^(process_|build_|compute_)/, '').gsub(/_from_data$/, '')
+          self._computed_methods[field_name.to_sym] = method_name.to_sym
+        end
+
+        private
+
+        def discover_computed_methods
+          return unless _auto_discovery_config&.dig(:enabled)
+          
+          self._computed_methods ||= {}
+          patterns = _auto_discovery_config[:patterns] || []
+          exclude = _auto_discovery_config[:exclude] || []
+          
+          # Get all instance methods including private ones
+          all_methods = instance_methods(false) + private_instance_methods(false)
+          
+          patterns.each do |pattern|
+            # Convert glob pattern to regex
+            regex = pattern_to_regex(pattern)
+            
+            matching_methods = all_methods.select do |method_name|
+              method_str = method_name.to_s
+              method_str.match?(regex) && !exclude.include?(method_name)
+            end
+            
+            matching_methods.each do |method_name|
+              field_name = derive_field_name_from_method(method_name.to_s)
+              self._computed_methods[field_name.to_sym] = method_name.to_sym
+            end
+          end
+          
+          if _auto_discovery_config[:debug] || (defined?(Rails) && Rails.env.development?)
+            puts "🔍 [#{self.name}] Auto-discovered #{_computed_methods.size} computed methods: #{_computed_methods.keys.join(', ')}"
+          end
+        end
+
+        def pattern_to_regex(pattern)
+          # Convert glob pattern to regex
+          regex_string = pattern.gsub('*', '.*')
+          /^#{regex_string}$/
+        end
+
+        def derive_field_name_from_method(method_name)
+          # Apply common transformations to derive field names
+          field_name = method_name.dup
+          
+          # Remove common prefixes
+          field_name = field_name.gsub(/^(process_|build_|compute_|calculate_|generate_)/, '')
+          
+          # Remove common suffixes
+          field_name = field_name.gsub(/(_from_data|_metadata|_result)$/, '')
+          
+          # Handle special cases
+          case field_name
+          when /^(.+)_companies$/
+            $1 + '_companies'
+          when /^(.+)_analysis$/
+            $1 + '_analysis'
+          else
+            field_name
+          end
+        end
+
         # Inherit configuration from parent class
         def inherited(subclass)
           super
@@ -154,11 +421,18 @@ module RAAF
           subclass._validation_rules = _validation_rules&.dup
           subclass._retry_config = _retry_config&.dup
           subclass._circuit_breaker_config = _circuit_breaker_config&.dup
+          subclass._context_reader_config = _context_reader_config&.dup
+          subclass._result_transformations = _result_transformations&.dup
+          subclass._log_events = _log_events&.dup
+          subclass._metrics_config = _metrics_config&.dup
+          subclass._auto_discovery_config = _auto_discovery_config&.dup
+          subclass._computed_methods = _computed_methods&.dup
+          subclass._execution_conditions = _execution_conditions&.dup
         end
       end
 
       # Instance attributes
-      attr_reader :context, :processing_params, :debug_enabled
+      attr_reader :context, :processing_params, :debug_enabled, :metrics_collector
 
       # Initialize a new agent instance
       #
@@ -190,6 +464,7 @@ module RAAF
         
         validate_context!
         setup_agent_configuration
+        setup_logging_and_metrics
         
         if @debug_enabled
           log_debug("Agent initialized",
@@ -207,7 +482,21 @@ module RAAF
       # @param stop_checker [Proc] Optional stop checker for execution control
       # @param skip_retries [Boolean] Skip retry/circuit breaker logic (default: false)
       # @return [Hash] Result from agent execution
-      def run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false)
+      def run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        # Check execution conditions first
+        if self.class._execution_conditions
+          resolved_context = resolve_run_context(context || input_context_variables)
+          unless should_execute?(resolved_context, previous_result)
+            log_info "⏭️ [#{self.class.name}] Skipping execution due to conditions not met"
+            return {
+              success: true,
+              skipped: true,
+              reason: "Execution conditions not met",
+              workflow_status: "skipped"
+            }
+          end
+        end
+
         # Check if we should use smart features
         if skip_retries || !has_smart_features?
           # Direct execution without retries/circuit breaker
@@ -452,6 +741,60 @@ module RAAF
         # No need to apply it again at instance level
       end
 
+      def setup_logging_and_metrics
+        # Initialize metrics collector if metrics are configured
+        if self.class._metrics_config.present?
+          @metrics_collector = MetricsCollector.new(self.class._metrics_config)
+        end
+        
+        # Initialize log event processor
+        if self.class._log_events.present?
+          @log_event_processor = LogEventProcessor.new(self.class._log_events)
+        end
+      end
+
+      # Structured logging method with event-based configuration
+      def log_event(event_name, **context_data)
+        return unless @log_event_processor
+        
+        @log_event_processor.process_event(event_name, context_data.merge(
+          agent: self.class.name,
+          timestamp: Time.current.iso8601,
+          context_size: @context.size
+        ))
+      end
+
+      # Metrics tracking methods
+      def increment_counter(metric_name, value = 1, **labels)
+        return unless @metrics_collector
+        @metrics_collector.increment_counter(metric_name, value, labels)
+      end
+
+      def set_gauge(metric_name, value, **labels)
+        return unless @metrics_collector
+        @metrics_collector.set_gauge(metric_name, value, labels)
+      end
+
+      def observe_histogram(metric_name, value, **labels)
+        return unless @metrics_collector
+        @metrics_collector.observe_histogram(metric_name, value, labels)
+      end
+
+      def track_execution_time(metric_name = :execution_time_seconds, **labels)
+        start_time = Time.current
+        result = yield
+        execution_time = Time.current - start_time
+        observe_histogram(metric_name, execution_time, labels)
+        result
+      end
+
+      # Check if agent should execute based on defined conditions
+      def should_execute?(context, previous_result)
+        return true unless self.class._execution_conditions
+        
+        self.class._execution_conditions.evaluate(context, previous_result)
+      end
+
       def execute_with_retry(&block)
         attempts = 0
         max_attempts = 1  # Default no retry
@@ -545,7 +888,7 @@ module RAAF
 
       def process_raaf_result(raaf_result)
         # Handle different RAAF result formats automatically
-        if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
+        base_result = if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
           # New RAAF format
           extract_result_data(raaf_result[:results])
         elsif raaf_result.is_a?(Hash)
@@ -555,6 +898,13 @@ module RAAF
           # Unknown format
           log_warn "🤔 [#{self.class.name}] Unknown result format: #{raaf_result.class}"
           { success: true, data: raaf_result }
+        end
+
+        # Apply result transformations if configured
+        if self.class._result_transformations
+          apply_result_transformations(base_result)
+        else
+          base_result
         end
       end
 
@@ -739,6 +1089,139 @@ module RAAF
         end
       end
 
+      # Apply configured result transformations
+      def apply_result_transformations(base_result)
+        return base_result unless self.class._result_transformations
+
+        transformations = self.class._result_transformations
+        input_data = base_result[:data] || base_result
+
+        transformed_result = {}
+        metadata = {}
+
+        transformations.each do |field_name, field_config|
+          begin
+            # Extract source value
+            source_value = extract_field_value(input_data, field_config)
+
+            # Apply transformations and validations
+            transformed_value = transform_field_value(source_value, field_config)
+
+            # Set result
+            transformed_result[field_name] = transformed_value
+
+            # Track metadata for debugging
+            metadata[field_name] = {
+              source: field_config[:from] || field_name,
+              transformed: !field_config[:transform].nil?,
+              computed: !field_config[:computed].nil?
+            }
+
+          rescue => e
+            log_error "❌ [#{self.class.name}] Field transformation failed",
+                     field: field_name,
+                     error: e.message
+
+            # Set field to nil or default if transformation fails
+            transformed_result[field_name] = field_config[:default] || nil
+            metadata[field_name] = { error: e.message }
+          end
+        end
+
+        # Return transformed result with original structure preserved
+        {
+          success: base_result[:success] != false,
+          data: transformed_result,
+          transformation_metadata: metadata,
+          original_data: input_data
+        }
+      end
+
+      def extract_field_value(input_data, field_config)
+        # Determine source field name
+        source_key = field_config[:from] || field_config[:field_name]
+
+        # Handle computed fields
+        if field_config[:computed]
+          method_name = field_config[:computed]
+          if respond_to?(method_name, true)
+            send(method_name, input_data)
+          else
+            log_warn "🤔 [#{self.class.name}] Computed method '#{method_name}' not found"
+            nil
+          end
+        elsif self.class._computed_methods && self.class._computed_methods[source_key]
+          # Use auto-discovered computed method
+          method_name = self.class._computed_methods[source_key]
+          if respond_to?(method_name, true)
+            send(method_name, input_data)
+          else
+            log_warn "🤔 [#{self.class.name}] Auto-discovered computed method '#{method_name}' not found"
+            nil
+          end
+        else
+          # Extract from input data (supports both string and symbol keys)
+          case input_data
+          when Hash
+            input_data[source_key] || input_data[source_key.to_s] || input_data[source_key.to_sym]
+          else
+            nil
+          end
+        end
+      end
+
+      def transform_field_value(source_value, field_config)
+        value = source_value
+
+        # Apply default if value is nil
+        if value.nil? && field_config[:default]
+          value = case field_config[:default]
+                  when Proc
+                    field_config[:default].call
+                  else
+                    field_config[:default]
+                  end
+        end
+
+        # Type validation
+        if value && field_config[:type] && !valid_type?(value, field_config[:type])
+          raise ArgumentError, "Field must be #{field_config[:type]} but was #{value.class}"
+        end
+
+        # Range validation
+        if value && field_config[:range] && !field_config[:range].include?(value)
+          raise ArgumentError, "Field value #{value} not in range #{field_config[:range]}"
+        end
+
+        # Custom transformation
+        if value && field_config[:transform]
+          value = field_config[:transform].call(value)
+        end
+
+        value
+      end
+
+      def valid_type?(value, type)
+        case type
+        when :array
+          value.is_a?(Array)
+        when :hash, :object
+          value.is_a?(Hash)
+        when :string
+          value.is_a?(String)
+        when :integer
+          value.is_a?(Integer)
+        when :float, :number
+          value.is_a?(Numeric)
+        when :boolean
+          value.is_a?(TrueClass) || value.is_a?(FalseClass)
+        when Class
+          value.is_a?(type)
+        else
+          true
+        end
+      end
+
       # Custom error classes
       class CircuitBreakerOpenError < StandardError; end
 
@@ -787,6 +1270,437 @@ module RAAF
 
           @schema[:properties][name] = field_schema
           @schema[:required] << name.to_s if required
+        end
+      end
+
+      # Result transformation builder for defining field mappings and transformations
+      class ResultTransformBuilder
+        def initialize(&block)
+          @transformations = {}
+          instance_eval(&block) if block_given?
+        end
+
+        def build
+          @transformations
+        end
+
+        # Define a field transformation
+        #
+        # @param name [Symbol] Output field name
+        # @param options [Hash] Transformation options
+        # @option options [String, Symbol] :from Source field name (defaults to field name)
+        # @option options [Symbol] :type Expected type for validation
+        # @option options [Range] :range Valid range for numeric values
+        # @option options [Proc] :transform Custom transformation lambda
+        # @option options [Symbol] :computed Method name for computed fields
+        # @option options [Object, Proc] :default Default value if source is nil
+        #
+        def field(name, **options)
+          @transformations[name] = options.merge(field_name: name)
+        end
+      end
+
+      # Log event builder for defining structured logging events
+      class LogEventBuilder
+        def initialize(existing_events = {}, &block)
+          @events = existing_events.dup
+          instance_eval(&block) if block_given?
+        end
+
+        def build
+          @events
+        end
+
+        # Define a log event
+        #
+        # @param name [Symbol] Event name
+        # @param options [Hash] Event configuration
+        # @option options [Symbol] :level Log level (info, debug, warn, error)
+        # @option options [String] :message Log message with {variable} interpolation
+        # @option options [Hash] :metadata Additional structured metadata
+        #
+        def event(name, level: :info, message:, **metadata)
+          @events[name] = {
+            level: level,
+            message: message,
+            metadata: metadata
+          }
+        end
+      end
+
+      # Metrics builder for defining performance tracking metrics
+      class MetricsBuilder
+        def initialize(existing_metrics = {}, &block)
+          @metrics = existing_metrics.dup
+          instance_eval(&block) if block_given?
+        end
+
+        def build
+          @metrics
+        end
+
+        # Define a counter metric (monotonically increasing)
+        def counter(name, description: nil, **labels)
+          @metrics[name] = {
+            type: :counter,
+            description: description,
+            default_labels: labels
+          }
+        end
+
+        # Define a gauge metric (can go up or down)
+        def gauge(name, description: nil, **labels)
+          @metrics[name] = {
+            type: :gauge,
+            description: description,
+            default_labels: labels
+          }
+        end
+
+        # Define a histogram metric (distribution of values)
+        def histogram(name, description: nil, buckets: nil, **labels)
+          @metrics[name] = {
+            type: :histogram,
+            description: description,
+            buckets: buckets || [0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
+            default_labels: labels
+          }
+        end
+      end
+
+      # Log event processor that handles structured logging events
+      class LogEventProcessor
+        def initialize(events_config)
+          @events_config = events_config
+        end
+
+        def process_event(event_name, context_data)
+          event_config = @events_config[event_name]
+          return unless event_config
+
+          # Interpolate message with context data
+          message = interpolate_message(event_config[:message], context_data)
+          
+          # Build structured log entry
+          log_entry = {
+            level: event_config[:level],
+            message: message,
+            event: event_name,
+            metadata: event_config[:metadata].merge(context_data)
+          }
+
+          # Send to appropriate logger based on level
+          case event_config[:level]
+          when :debug
+            log_debug(message, log_entry[:metadata])
+          when :info
+            log_info(message)
+          when :warn
+            log_warn(message)
+          when :error
+            log_error(message, log_entry[:metadata])
+          end
+        end
+
+        private
+
+        def interpolate_message(template, context_data)
+          result = template.dup
+          context_data.each do |key, value|
+            result.gsub!("{#{key}}", value.to_s)
+          end
+          result
+        end
+
+        def log_debug(message, metadata = {})
+          return unless respond_to?(:log_debug, true)
+          log_debug(message, **metadata)
+        end
+
+        def log_info(message)
+          if defined?(RAAF) && RAAF.respond_to?(:logger)
+            RAAF.logger.info(message)
+          elsif defined?(Rails)
+            Rails.logger.info(message)
+          else
+            puts "[INFO] #{message}"
+          end
+        end
+
+        def log_warn(message)
+          if defined?(RAAF) && RAAF.respond_to?(:logger)
+            RAAF.logger.warn(message)
+          elsif defined?(Rails)
+            Rails.logger.warn(message)
+          else
+            puts "[WARN] #{message}"
+          end
+        end
+
+        def log_error(message, metadata = {})
+          if defined?(RAAF) && RAAF.respond_to?(:logger)
+            RAAF.logger.error(message)
+          elsif defined?(Rails)
+            Rails.logger.error(message)
+          else
+            puts "[ERROR] #{message}"
+          end
+        end
+      end
+
+      # Metrics collector that handles performance metric collection
+      class MetricsCollector
+        def initialize(metrics_config)
+          @metrics_config = metrics_config
+          @counters = {}
+          @gauges = {}
+          @histograms = {}
+        end
+
+        def increment_counter(metric_name, value = 1, labels = {})
+          metric_config = @metrics_config[metric_name]
+          return unless metric_config && metric_config[:type] == :counter
+
+          key = build_metric_key(metric_name, labels, metric_config[:default_labels])
+          @counters[key] = (@counters[key] || 0) + value
+
+          # Emit metric (could integrate with Prometheus, DataDog, etc.)
+          emit_counter_metric(key, @counters[key], metric_config)
+        end
+
+        def set_gauge(metric_name, value, labels = {})
+          metric_config = @metrics_config[metric_name]
+          return unless metric_config && metric_config[:type] == :gauge
+
+          key = build_metric_key(metric_name, labels, metric_config[:default_labels])
+          @gauges[key] = value
+
+          # Emit metric
+          emit_gauge_metric(key, value, metric_config)
+        end
+
+        def observe_histogram(metric_name, value, labels = {})
+          metric_config = @metrics_config[metric_name]
+          return unless metric_config && metric_config[:type] == :histogram
+
+          key = build_metric_key(metric_name, labels, metric_config[:default_labels])
+          @histograms[key] ||= []
+          @histograms[key] << value
+
+          # Emit metric
+          emit_histogram_metric(key, value, metric_config)
+        end
+
+        private
+
+        def build_metric_key(metric_name, labels, default_labels)
+          all_labels = (default_labels || {}).merge(labels || {})
+          label_string = all_labels.map { |k, v| "#{k}=#{v}" }.join(",")
+          "#{metric_name}#{label_string.empty? ? '' : "{#{label_string}}"}"
+        end
+
+        def emit_counter_metric(key, value, config)
+          # Simple console output - could be replaced with actual metrics backend
+          puts "[METRIC] Counter #{key} = #{value} (#{config[:description]})"
+        end
+
+        def emit_gauge_metric(key, value, config)
+          puts "[METRIC] Gauge #{key} = #{value} (#{config[:description]})"
+        end
+
+        def emit_histogram_metric(key, value, config)
+          puts "[METRIC] Histogram #{key} observed #{value} (#{config[:description]})"
+        end
+      end
+
+      # Execution conditions for conditional agent execution
+      class ExecutionConditions
+        def initialize(negate: false, &block)
+          @conditions = []
+          @negate = negate
+          instance_eval(&block) if block_given?
+        end
+
+        def evaluate(context, previous_result)
+          result = @conditions.empty? || @conditions.all? { |condition| condition.call(context, previous_result) }
+          @negate ? !result : result
+        end
+
+        # Context-based conditions
+        def context_has(*keys)
+          @conditions << ->(context, _) {
+            keys.all? { |key| context.has?(key) && context.get(key) }
+          }
+        end
+
+        def context_has_any(*keys)
+          @conditions << ->(context, _) {
+            keys.any? { |key| context.has?(key) && context.get(key) }
+          }
+        end
+
+        def context_value(key, **comparisons)
+          @conditions << ->(context, _) {
+            value = context.get(key)
+            return false unless value
+            
+            check_comparisons(value, comparisons)
+          }
+        end
+
+        # Previous result conditions
+        def previous_agent_succeeded
+          @conditions << ->(_, previous_result) {
+            previous_result && previous_result[:success] != false
+          }
+        end
+
+        def previous_agent_failed
+          @conditions << ->(_, previous_result) {
+            previous_result && previous_result[:success] == false
+          }
+        end
+
+        def previous_result_has(*keys)
+          @conditions << ->(_, previous_result) {
+            return false unless previous_result.is_a?(Hash)
+            keys.all? { |key| previous_result.key?(key) && previous_result[key] }
+          }
+        end
+
+        # Logical grouping
+        def all_of(&block)
+          sub_conditions = ExecutionConditions.new(&block)
+          @conditions << ->(context, previous_result) {
+            sub_conditions.evaluate(context, previous_result)
+          }
+        end
+
+        def any_of(&block)
+          sub_builder = ConditionBuilder.new
+          sub_builder.instance_eval(&block)
+          
+          @conditions << ->(context, previous_result) {
+            sub_builder.conditions.any? { |condition| condition.call(context, previous_result) }
+          }
+        end
+
+        def none_of(&block)
+          sub_builder = ConditionBuilder.new
+          sub_builder.instance_eval(&block)
+          
+          @conditions << ->(context, previous_result) {
+            sub_builder.conditions.none? { |condition| condition.call(context, previous_result) }
+          }
+        end
+
+        # Custom condition
+        def custom(&block)
+          @conditions << block
+        end
+
+        private
+
+        def check_comparisons(value, comparisons)
+          comparisons.all? do |comparison, expected|
+            case comparison
+            when :equals, :eq
+              value == expected
+            when :not_equals, :ne
+              value != expected
+            when :greater_than, :gt
+              value.respond_to?(:>) && value > expected
+            when :greater_than_or_equal, :gte
+              value.respond_to?(:>=) && value >= expected
+            when :less_than, :lt
+              value.respond_to?(:<) && value < expected
+            when :less_than_or_equal, :lte
+              value.respond_to?(:<=) && value <= expected
+            when :includes
+              value.respond_to?(:include?) && value.include?(expected)
+            when :matches
+              expected.is_a?(Regexp) && expected.match?(value.to_s)
+            when :in
+              expected.respond_to?(:include?) && expected.include?(value)
+            else
+              true
+            end
+          end
+        end
+      end
+
+      # Helper class for building condition groups
+      class ConditionBuilder
+        attr_reader :conditions
+
+        def initialize
+          @conditions = []
+        end
+
+        def context_has(*keys)
+          @conditions << ->(context, _) {
+            keys.all? { |key| context.has?(key) && context.get(key) }
+          }
+        end
+
+        def context_has_any(*keys)
+          @conditions << ->(context, _) {
+            keys.any? { |key| context.has?(key) && context.get(key) }
+          }
+        end
+
+        def context_value(key, **comparisons)
+          @conditions << ->(context, _) {
+            value = context.get(key)
+            return false unless value
+            
+            check_comparisons(value, comparisons)
+          }
+        end
+
+        def previous_agent_succeeded
+          @conditions << ->(_, previous_result) {
+            previous_result && previous_result[:success] != false
+          }
+        end
+
+        def previous_agent_failed
+          @conditions << ->(_, previous_result) {
+            previous_result && previous_result[:success] == false
+          }
+        end
+
+        def custom(&block)
+          @conditions << block
+        end
+
+        private
+
+        def check_comparisons(value, comparisons)
+          comparisons.all? do |comparison, expected|
+            case comparison
+            when :equals, :eq
+              value == expected
+            when :not_equals, :ne
+              value != expected
+            when :greater_than, :gt
+              value.respond_to?(:>) && value > expected
+            when :greater_than_or_equal, :gte
+              value.respond_to?(:>=) && value >= expected
+            when :less_than, :lt
+              value.respond_to?(:<) && value < expected
+            when :less_than_or_equal, :lte
+              value.respond_to?(:<=) && value <= expected
+            when :includes
+              value.respond_to?(:include?) && value.include?(expected)
+            when :matches
+              expected.is_a?(Regexp) && expected.match?(value.to_s)
+            when :in
+              expected.respond_to?(:include?) && expected.include?(value)
+            else
+              true
+            end
+          end
         end
       end
     end
