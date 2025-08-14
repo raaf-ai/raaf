@@ -378,7 +378,7 @@ module RAAF
             end
           end
           
-          if _auto_discovery_config[:debug] || (defined?(Rails) && Rails.env.development?)
+          if _auto_discovery_config[:debug] || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?)
             puts "🔍 [#{self.name}] Auto-discovered #{_computed_methods.size} computed methods: #{_computed_methods.keys.join(', ')}"
           end
         end
@@ -440,7 +440,7 @@ module RAAF
       # @param processing_params [Hash] Parameters that control how the agent processes content
       # @param debug [Boolean, nil] Enable debug logging for this agent instance
       def initialize(context: nil, context_variables: nil, processing_params: {}, debug: nil)
-        @debug_enabled = debug || (defined?(::Rails) && ::Rails.env.development?) || false
+        @debug_enabled = debug || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?) || false
         @processing_params = processing_params
         @circuit_breaker_state = :closed
         @circuit_breaker_failures = 0
