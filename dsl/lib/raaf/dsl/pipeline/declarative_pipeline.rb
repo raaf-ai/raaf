@@ -36,6 +36,7 @@ module RAAF
       #   end
       #
       class DeclarativePipeline
+        include RAAF::Logger
         include RAAF::DSL::Agents::AgentDsl
         include RAAF::DSL::Hooks::AgentHooks
 

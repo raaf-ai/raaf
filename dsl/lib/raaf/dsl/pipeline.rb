@@ -55,6 +55,7 @@ module RAAF
     #   end
     #
     class AgentPipeline
+      include RAAF::Logger
       def self.build(&block)
         builder = PipelineBuilder.new
         builder.instance_eval(&block)
@@ -334,25 +335,6 @@ module RAAF
         end
       end
 
-      def log_info(message)
-        if defined?(RAAF) && RAAF.respond_to?(:logger)
-          RAAF.logger.info(message)
-        elsif defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
-          ::Rails.logger.info(message)
-        else
-          puts "[INFO] #{message}"
-        end
-      end
-
-      def log_error(message)
-        if defined?(RAAF) && RAAF.respond_to?(:logger)
-          RAAF.logger.error(message)
-        elsif defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
-          ::Rails.logger.error(message)
-        else
-          puts "[ERROR] #{message}"
-        end
-      end
 
       # Custom merge handlers for common patterns
       def merge_enrichment_results(input_data, context)

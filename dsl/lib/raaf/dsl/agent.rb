@@ -1411,40 +1411,7 @@ module RAAF
           result
         end
 
-        def log_debug(message, metadata = {})
-          return unless respond_to?(:log_debug, true)
-          log_debug(message, **metadata)
-        end
 
-        def log_info(message)
-          if defined?(RAAF) && RAAF.respond_to?(:logger)
-            RAAF.logger.info(message)
-          elsif defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
-            ::Rails.logger.info(message)
-          else
-            puts "[INFO] #{message}"
-          end
-        end
-
-        def log_warn(message)
-          if defined?(RAAF) && RAAF.respond_to?(:logger)
-            RAAF.logger.warn(message)
-          elsif defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
-            ::Rails.logger.warn(message)
-          else
-            puts "[WARN] #{message}"
-          end
-        end
-
-        def log_error(message, metadata = {})
-          if defined?(RAAF) && RAAF.respond_to?(:logger)
-            RAAF.logger.error(message)
-          elif defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
-            ::Rails.logger.error(message)
-          else
-            puts "[ERROR] #{message}"
-          end
-        end
       end
 
       # Metrics collector that handles performance metric collection

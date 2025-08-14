@@ -27,6 +27,7 @@ module RAAF
       #   end
       #
       class SmartBuilder
+        include RAAF::Logger
         def initialize(**options)
           @context_variables = ContextVariables.new({}, **options)
           @proxy_configs = {}
@@ -310,14 +311,13 @@ module RAAF
         end
 
         def log_debug_info
-          RAAF::Logging.debug "[SmartBuilder] Context built successfully", 
-                             category: :context,
-                             data: {
-                               keys: @context_variables.keys,
-                               proxied_objects: @proxy_configs.keys,
-                               total_size: @context_variables.size,
-                               validation_rules: @validation_rules.keys
-                             }
+          log_debug_context "[SmartBuilder] Context built successfully", 
+                           data: {
+                             keys: @context_variables.keys,
+                             proxied_objects: @proxy_configs.keys,
+                             total_size: @context_variables.size,
+                             validation_rules: @validation_rules.keys
+                           }
         end
       end
     end
