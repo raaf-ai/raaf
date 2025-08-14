@@ -35,7 +35,7 @@ module RAAF
 
           case response
           when String
-            simple_format(response)
+            raaf_simple_format(response)
           when Hash
             content_tag(:pre, JSON.pretty_generate(response), class: "agent-response")
           else
@@ -73,7 +73,7 @@ module RAAF
           if response.nil?
             content_tag(:div, "", class: "agent-response")
           elsif response.is_a?(String)
-            content_tag(:div, simple_format(response), class: "agent-response")
+            content_tag(:div, raaf_simple_format(response), class: "agent-response")
           elsif response.is_a?(Hash)
             content = response[:content] || response["content"] || response.to_s
             content_tag(:div, content, class: "agent-response")
@@ -149,10 +149,11 @@ module RAAF
         end
 
         # Fallback for simple_format if not available (in controllers)
-        def simple_format(text)
+        # Renamed to avoid conflict with Rails' simple_format method
+        def raaf_simple_format(text, options = {})
           return text unless respond_to?(:content_tag)
-
-          content_tag(:p, text)
+          
+          content_tag(:p, text, options)
         end
       end
     end
