@@ -75,21 +75,32 @@ puts "\nFinal Response: #{result.messages.last[:content]}\n\n"
 # This API is more familiar but less efficient for multi-turn conversations.
 # Compare the debug output to see the different message formats.
 
-puts "2. Using Chat Completions API (Legacy):"
+puts "2. Explicit ResponsesProvider Configuration:"
 puts "-" * 50
 
-# Create a runner with explicit OpenAIProvider for legacy API comparison
-# ⚠️  DEPRECATED: OpenAIProvider is deprecated, use default ResponsesProvider instead
-# This provider uses the traditional /v1/chat/completions endpoint
-puts "⚠️  Using deprecated OpenAIProvider for comparison purposes"
-legacy_runner = RAAF::Runner.new(
-  agent: agent,
-  provider: RAAF::Models::OpenAIProvider.new # DEPRECATED - for comparison only
+# Create a runner with explicit ResponsesProvider configuration
+# This demonstrates manual provider configuration for custom settings
+explicit_provider = RAAF::Models::ResponsesProvider.new(
+  api_key: ENV['OPENAI_API_KEY'],
+  api_base: ENV['OPENAI_API_BASE'] || "https://api.openai.com/v1"
 )
 
-# Run the same query to compare message handling
-# The result should be functionally identical despite different internals
-result = legacy_runner.run("Hello! What time is it?")
+# Configure custom retry behavior for this provider
+explicit_provider.configure_retry(
+  max_attempts: 3,
+  base_delay: 1.0,
+  max_delay: 30.0
+)
+
+puts "✅ Using explicit ResponsesProvider with custom retry configuration"
+explicit_runner = RAAF::Runner.new(
+  agent: agent,
+  provider: explicit_provider
+)
+
+# Run the same query to show consistent behavior
+# The result should be identical to the default provider
+result = explicit_runner.run("Hello! What time is it?")
 puts "\nFinal Response: #{result.messages.last[:content]}\n\n"
 
 # ============================================================================

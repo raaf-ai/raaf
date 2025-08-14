@@ -502,10 +502,10 @@ puts "-" * 55
 def configure_providers(config)
   providers = {}
 
-  # OpenAI Provider (primary) - DEPRECATED, use default ResponsesProvider instead
+  # ResponsesProvider (recommended) - Default modern provider
   if config.openai_api_key
-    puts "⚠️  DEPRECATED: Using OpenAIProvider for demonstration purposes"
-    openai_provider = RAAF::Models::OpenAIProvider.new( # DEPRECATED
+    puts "✅ Using ResponsesProvider (recommended for Python SDK compatibility)"
+    responses_provider = RAAF::Models::ResponsesProvider.new(
       api_key: config.openai_api_key,
       api_base: config.openai_api_base
     )
@@ -514,7 +514,7 @@ def configure_providers(config)
     puts "✅ Configuring retry behavior (built into ModelInterface)"
 
     # Configure retry settings based on configuration
-    openai_provider.configure_retry(
+    responses_provider.configure_retry(
       max_attempts: config.retry_max_attempts,
       base_delay: config.retry_base_delay,
       max_delay: config.retry_max_delay,
@@ -522,9 +522,9 @@ def configure_providers(config)
       jitter: 0.1
     )
 
-    providers[:openai] = openai_provider
+    providers[:responses] = responses_provider
 
-    puts "✅ OpenAI provider configured with retry logic (#{config.retry_max_attempts} attempts max)"
+    puts "✅ ResponsesProvider configured with retry logic (#{config.retry_max_attempts} attempts max)"
   end
 
   # Anthropic Provider (backup)
@@ -579,9 +579,9 @@ def create_configured_runner(agent, config, provider_name = :openai)
 
   # Select provider
   provider = case provider_name
-             when :openai
+             when :responses, :openai
                if config.openai_api_key
-                 RAAF::Models::OpenAIProvider.new(
+                 RAAF::Models::ResponsesProvider.new(
                    api_key: config.openai_api_key,
                    api_base: config.openai_api_base
                  )
@@ -656,11 +656,11 @@ class DemoProvider < RAAF::Models::ModelInterface
 
 end
 
-# Create configured runners
+# Create configured runners using modern ResponsesProvider
 configured_runners = {}
 
 agents.each do |name, agent|
-  configured_runners[name] = create_configured_runner(agent, config)
+  configured_runners[name] = create_configured_runner(agent, config, :responses)
 end
 
 puts "✅ Created #{configured_runners.length} configured runners"
