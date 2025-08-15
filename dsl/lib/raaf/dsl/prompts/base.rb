@@ -180,9 +180,9 @@ module RAAF
           end
         end
 
-        def self.optional(*variables, path: nil, default: nil)
+        def self.optional(*variables, path: nil)
           if path
-            # Path-based usage: optional :var, path: [:path], default: "value"
+            # Path-based usage: optional :var, path: [:path]
             raise ArgumentError, "Can only specify one variable when using path" if variables.length != 1
 
             variable_name = variables.first.to_sym
@@ -190,7 +190,6 @@ module RAAF
 
             _context_mappings[variable_name] = {
               path: path,
-              default: default,
               required: false
             }
           else
@@ -340,14 +339,19 @@ module RAAF
 
         # Render a specific prompt method
         def render_prompt(type)
-          # Call the method and get its return value
-          content = send(type)
+          begin
+            # Call the method and get its return value
+            content = send(type)
 
-          # If it's an array (multiple heredocs), join them
-          if content.is_a?(Array)
-            content.map(&:to_s).map(&:rstrip).join("\n\n")
-          else
-            content.to_s.rstrip
+            # If it's an array (multiple heredocs), join them
+            if content.is_a?(Array)
+              content.map(&:to_s).map(&:rstrip).join("\n\n")
+            else
+              content.to_s.rstrip
+            end
+          rescue StandardError => e
+            # Re-raise with additional context but preserve the original error and stack trace
+            raise e.class, "Error in #{type} method of #{self.class.name}: #{e.message}", e.backtrace
           end
         end
 
@@ -359,6 +363,9 @@ module RAAF
             @context_variables.get(method)
           elsif @context&.key?(method)
             @context[method]
+          elsif self.class._optional_variables.include?(method.to_sym)
+            # Return nil for optional variables that aren't in context
+            nil
           else
             super
           end
@@ -368,6 +375,7 @@ module RAAF
           self.class._context_mappings.key?(method) ||
             @context_variables&.has?(method) ||
             @context&.key?(method) ||
+            self.class._optional_variables.include?(method.to_sym) ||
             super
         end
 
@@ -381,7 +389,6 @@ module RAAF
 
           mapping = self.class._context_mappings[variable_name]
           path = mapping[:path]
-          default_value = mapping[:default]
 
           # Navigate the context path using unified context variables
           value = if @context_variables
@@ -410,8 +417,8 @@ module RAAF
           # Treat empty strings as nil for required fields
           value = nil if value.is_a?(String) && value.strip.empty?
 
-          # If value is nil and no default, provide clear error
-          if value.nil? && default_value.nil? && mapping[:required]
+          # If value is nil, provide clear error for required fields
+          if value.nil? && mapping[:required]
             # Enhanced error message with context debugging
             error_msg = "Context path #{path.join(' -> ')} not found for required variable " \
                         "'#{variable_name}' in #{self.class.name}"
@@ -428,10 +435,7 @@ module RAAF
             raise VariableContractError, error_msg
           end
 
-          # Use default if value is nil
-          value = default_value if value.nil?
-
-          # Store in instance variable for memoization
+          # Store in instance variable for memoization (value can be nil for optional variables)
           instance_variable_set(instance_var, value)
           value
         end
@@ -486,8 +490,9 @@ module RAAF
           # Variables that are legitimately used (either directly or as context roots)
           legitimately_used = declared_variables + context_root_keys
 
-          # Filter out special RAAF parameters that shouldn't be considered unused
-          raaf_special_params = [:context_variables]
+          # Filter out special RAAF parameters that are automatically injected by the framework
+          # and shouldn't be considered unused (convention over configuration)
+          raaf_special_params = [:context_variables, :processing_params, :agent_name]
           unused_variables = provided_variables - legitimately_used - raaf_special_params
           return unless unused_variables.any?
 

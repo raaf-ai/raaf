@@ -118,12 +118,31 @@ module RAAF
           subclass._schema_config = {}
           subclass._prompt_config = {}
           subclass._context_reader_config = {}
-          subclass._auto_discovery_config = {}
+          
+          # Enable auto-transform by default with standard patterns
+          subclass._auto_discovery_config = {
+            patterns: %w[
+              process_*_from_data
+              build_*_metadata
+              extract_*_from_data
+              compute_*
+            ],
+            exclude: [],
+            enabled: true
+          }
           
           # Initialize hooks for subclass
           hooks = {}
           HOOK_TYPES.each { |hook_type| hooks[hook_type] = [] }
           subclass._agent_hooks = hooks
+          
+          # Schedule auto-discovery to run after class body is evaluated
+          TracePoint.new(:end) do |tp|
+            if tp.self == subclass
+              subclass.discover_computed_methods
+              tp.disable
+            end
+          end.enable
         end
 
         # Core DSL methods from AgentDsl
@@ -378,22 +397,12 @@ module RAAF
         end
 
         def define_enhanced_context_reader(key, options)
-          # Store config for this key (only required and default are supported)
+          # Store config for this key (only required is supported)
           self._context_reader_config ||= {}
-          self._context_reader_config[key] = options.slice(:required, :default)
+          self._context_reader_config[key] = options.slice(:required)
 
           define_method(key) do
             value = context.get(key)
-            
-            # Apply default if value is nil
-            if value.nil? && options[:default]
-              value = case options[:default]
-                      when Proc
-                        options[:default].call
-                      else
-                        options[:default]
-                      end
-            end
             
             # Validate required
             if options[:required] && value.nil?
@@ -433,37 +442,8 @@ module RAAF
           self._result_transformations = ResultTransformBuilder.new(&block).build
         end
 
-        # Logging and metrics DSL - defines structured logging and performance tracking
-        # 
-        # @example Basic logging configuration
-        #   class AnalysisAgent < RAAF::DSL::Agent
-        #     log_events do
-        #       event :analysis_started, level: :info, message: "Starting analysis for {product}"
-        #       event :results_processed, level: :debug, message: "Processed {count} results"
-        #       event :analysis_failed, level: :error, message: "Analysis failed: {error}"
-        #     end
-        #   end
-        #
-        # @example Metrics tracking
-        #   class EnrichmentAgent < RAAF::DSL::Agent
-        #     track_metrics do
-        #       counter :companies_processed, description: "Total companies processed"
-        #       gauge :processing_time_seconds, description: "Time spent processing"
-        #       histogram :response_size_bytes, buckets: [100, 1000, 10000]
-        #     end
-        #   end
-        #
-        def log_events(&block)
-          self._log_events ||= {}
-          builder = LogEventBuilder.new(self._log_events, &block)
-          self._log_events = builder.build
-        end
-
-        def track_metrics(&block)
-          self._metrics_config ||= {}
-          builder = MetricsBuilder.new(self._metrics_config, &block)
-          self._metrics_config = builder.build
-        end
+        # Note: log_events and track_metrics DSL methods were removed as they were not implemented.
+        # Use Rails.logger or RAAF.logger directly for logging needs.
 
         # Conditional execution DSL - defines when agents should run
         # 
@@ -518,15 +498,64 @@ module RAAF
         #     end
         #   end
         #
+        # Auto-transform configuration for result transformation methods
+        # Uses Convention Over Configuration - enabled by default with standard patterns
+        #
+        # Default patterns (automatically discovered):
+        #   - process_*_from_data  : Process raw AI data into structured format
+        #   - build_*_metadata     : Build metadata for results
+        #   - extract_*_from_data  : Extract specific data from AI response
+        #   - compute_*            : Compute derived values
+        #
+        # @example Using default auto-transform (no configuration needed!)
+        #   class MyAgent < RAAF::DSL::Agent
+        #     # Auto-transform is ON by default - these methods will be auto-discovered:
+        #     
+        #     def process_companies_from_data(data)
+        #       # Automatically used for field :companies, computed: :process_companies_from_data
+        #     end
+        #     
+        #     def build_search_metadata(data)
+        #       # Automatically used for field :search_metadata, computed: :build_search_metadata
+        #     end
+        #   end
+        #
+        # @example Disabling auto-transform
+        #   class MyAgent < RAAF::DSL::Agent
+        #     auto_transform :off
+        #   end
+        #
+        # @example Custom patterns
+        #   class MyAgent < RAAF::DSL::Agent
+        #     auto_transform patterns: %w[parse_* format_*]
+        #   end
+        #
+        def auto_transform(config = :on, patterns: nil, exclude: [])
+          if config == :off
+            self._auto_discovery_config = { enabled: false }
+          else
+            # Use provided patterns or default convention patterns
+            transform_patterns = patterns || %w[
+              process_*_from_data
+              build_*_metadata
+              extract_*_from_data
+              compute_*
+            ]
+            
+            self._auto_discovery_config = {
+              patterns: transform_patterns,
+              exclude: exclude,
+              enabled: true
+            }
+            
+            # Trigger discovery when class is loaded
+            discover_computed_methods
+          end
+        end
+        
+        # Legacy method for backward compatibility
         def enable_auto_discovery(patterns: %w[process_*_from_data build_*_metadata compute_*], exclude: [])
-          self._auto_discovery_config = {
-            patterns: patterns,
-            exclude: exclude,
-            enabled: true
-          }
-          
-          # Trigger discovery when class is loaded
-          discover_computed_methods
+          auto_transform(:on, patterns: patterns, exclude: exclude)
         end
 
         # Manual computed method registration
@@ -536,14 +565,21 @@ module RAAF
           self._computed_methods[field_name.to_sym] = method_name.to_sym
         end
 
-        private
+        protected
 
         def discover_computed_methods
-          return unless _auto_discovery_config&.dig(:enabled)
+          # Auto-transform is enabled by default
+          return if _auto_discovery_config&.dig(:enabled) == false
           
           self._computed_methods ||= {}
-          patterns = _auto_discovery_config[:patterns] || []
-          exclude = _auto_discovery_config[:exclude] || []
+          # Use configured patterns or default convention patterns
+          patterns = _auto_discovery_config&.dig(:patterns) || %w[
+            process_*_from_data
+            build_*_metadata
+            extract_*_from_data
+            compute_*
+          ]
+          exclude = _auto_discovery_config&.dig(:exclude) || []
           
           # Get all instance methods including private ones
           all_methods = instance_methods(false) + private_instance_methods(false)
@@ -567,6 +603,8 @@ module RAAF
             puts "🔍 [#{self.name}] Auto-discovered #{_computed_methods.size} computed methods: #{_computed_methods.keys.join(', ')}"
           end
         end
+
+        private
 
         def pattern_to_regex(pattern)
           # Convert glob pattern to regex
@@ -631,12 +669,12 @@ module RAAF
       # Additional class attributes for agent functionality
       class << self
         attr_accessor :_required_context_keys, :_validation_rules, :_schema_definition, :_user_prompt_block,
-                     :_retry_config, :_circuit_breaker_config, :_result_transformations, :_log_events,
-                     :_metrics_config, :_computed_methods, :_execution_conditions
+                     :_retry_config, :_circuit_breaker_config, :_result_transformations,
+                     :_computed_methods, :_execution_conditions
       end
 
       # Instance attributes
-      attr_reader :context, :processing_params, :debug_enabled, :metrics_collector
+      attr_reader :context, :processing_params, :debug_enabled
 
       # Initialize a new agent instance
       #
@@ -752,11 +790,6 @@ module RAAF
         end
       end
       
-      # Backward compatibility - call now just delegates to run
-      def call
-        run
-      end
-
       # Create the underlying RAAF::Agent instance
       def create_agent
         log_debug("Creating RAAF agent instance",
@@ -769,30 +802,102 @@ module RAAF
         create_openai_agent_instance
       end
 
-      # RAAF DSL method - build system instructions (consolidated from AgentDsl)
+      # RAAF DSL method - build system instructions using resolver system
       def build_instructions
-        if prompt_class_configured?
-          prompt_instance.render(:system)
-        elsif self.class.instruction_template
-          build_templated_instructions
-        elsif self.class.static_instructions
-          self.class.static_instructions
-        else
-          raise RAAF::DSL::Error, "No prompt class or instructions configured for #{self.class.name}. " \
-                                  "Either configure a prompt class with 'prompt_class YourPromptClass' or " \
-                                  "provide static instructions with 'static_instructions \"your instructions\"'"
+        prompt_spec = determine_prompt_spec
+        log_debug "Building system instructions", prompt_spec: prompt_spec, agent_class: self.class.name
+        
+        if prompt_spec
+          begin
+            resolved_prompt = DSL.prompt_resolvers.resolve(prompt_spec, @context.to_h)
+            log_debug "Resolver result", resolved: !!resolved_prompt, resolvers_count: DSL.prompt_resolvers.resolvers.count
+            if resolved_prompt
+              system_message = resolved_prompt.messages.find { |m| m[:role] == "system" }
+              log_debug "System message found", found: !!system_message
+              return system_message[:content] if system_message
+            end
+          rescue StandardError => e
+            # Re-raise prompt resolution errors with agent context, preserving original error type and stack trace
+            raise e.class, "Agent #{self.class.name} failed to build system prompt: #{e.message}", e.backtrace
+          end
+        end
+        
+        raise RAAF::DSL::Error, "No system prompt resolved for #{self.class.name}. " \
+                                "Check prompt class configuration or ensure prompt files exist."
+      end
+
+      # RAAF DSL method - build user prompt using resolver system
+      def build_user_prompt
+        prompt_spec = determine_prompt_spec
+        
+        if prompt_spec
+          begin
+            resolved_prompt = DSL.prompt_resolvers.resolve(prompt_spec, @context.to_h)
+            if resolved_prompt
+              user_message = resolved_prompt.messages.find { |m| m[:role] == "user" }
+              return user_message[:content] if user_message
+            end
+          rescue StandardError => e
+            # Re-raise prompt resolution errors with agent context, preserving original error type and stack trace
+            raise e.class, "Agent #{self.class.name} failed to build user prompt: #{e.message}", e.backtrace
+          end
+        end
+        
+        raise RAAF::DSL::Error, "No user prompt resolved for #{self.class.name}. " \
+                                "Check prompt class configuration or ensure prompt files exist."
+      end
+
+      protected
+
+      # Determine the prompt specification to resolve
+      # Can be a prompt class, file name, or other spec that resolvers can handle
+      def determine_prompt_spec
+        # Check for configured prompt class first
+        if self.class._prompt_config[:class]
+          log_debug "Found configured prompt class", class: self.class._prompt_config[:class]
+          return self.class._prompt_config[:class]
+        end
+        
+        # Try to infer prompt class by convention (e.g., Ai::Agents::MyAgent -> Ai::Prompts::MyAgent)
+        inferred_prompt_class = infer_prompt_class_name
+        if inferred_prompt_class
+          log_debug "Trying inferred prompt class", class: inferred_prompt_class.name
+          return inferred_prompt_class
+        end
+        
+        # Try to infer from agent name (e.g., MyAgent -> "my_agent.md")
+        agent_name_file = agent_name.underscore
+        log_debug "Trying to infer prompt from agent name", agent_name: agent_name_file
+        return agent_name_file if agent_name_file
+        
+        log_debug "No prompt spec found for agent", agent_class: self.class.name
+        nil
+      end
+
+      # Infer prompt class name by convention
+      # Transforms Ai::Agents::Category::AgentName to Ai::Prompts::Category::AgentName
+      def infer_prompt_class_name
+        agent_class_name = self.class.name
+        
+        # Replace "Agents" with "Prompts" in the module path
+        prompt_class_name = agent_class_name.gsub(/::Agents::/, "::Prompts::")
+        
+        log_debug "Inferring prompt class", 
+                  agent_class: agent_class_name, 
+                  inferred_prompt_class: prompt_class_name
+        
+        # Try to constantize the inferred class name
+        begin
+          prompt_class_name.constantize
+        rescue NameError => e
+          log_debug "Inferred prompt class not found", 
+                    class: prompt_class_name, 
+                    error: e.message
+          nil
         end
       end
 
-      # RAAF DSL method - build user prompt (consolidated from AgentDsl)
-      def build_user_prompt
-        raise RAAF::DSL::Error, "No prompt class configured for #{self.class.name}" unless prompt_class_configured?
-        prompt_instance.render(:user)
-      end
-
-      private
-
-      # Supporting methods for prompt handling (from AgentDsl)
+      # Supporting methods for prompt handling (from AgentDsl) - called by public methods
       def prompt_class_configured?
         self.class._prompt_config[:class].present? || default_prompt_class.present?
       end
@@ -800,6 +905,8 @@ module RAAF
       def prompt_instance
         @prompt_instance ||= build_prompt_instance
       end
+
+      private
 
       def default_prompt_class
         @default_prompt_class ||= begin
@@ -864,20 +971,6 @@ module RAAF
         self.class._schema_definition || default_schema
       end
 
-      # RAAF DSL method - build user prompt  
-      def build_user_prompt
-        if self.class._user_prompt_block
-          prompt_result = self.class._user_prompt_block.call(@context)
-          if prompt_result.is_a?(String)
-            prompt_result
-          else
-            log_error "User prompt block must return a String, got #{prompt_result.class}"
-            "Please help me with this task."
-          end
-        else
-          "Please help me with this task."
-        end
-      end
 
       # Agent configuration methods
       def agent_name
@@ -955,8 +1048,6 @@ module RAAF
 
       # Public context accessor for testing and prompt blocks
       attr_reader :context
-
-      protected
 
       private
       
@@ -1102,51 +1193,9 @@ module RAAF
       end
 
       def setup_logging_and_metrics
-        # Initialize metrics collector if metrics are configured
-        if self.class._metrics_config.present?
-          @metrics_collector = MetricsCollector.new(self.class._metrics_config)
-        end
-        
-        # Initialize log event processor
-        if self.class._log_events.present?
-          @log_event_processor = LogEventProcessor.new(self.class._log_events)
-        end
+        # Note: log_events and track_metrics DSL methods were removed as they were not implemented.
       end
 
-      # Structured logging method with event-based configuration
-      def log_event(event_name, **context_data)
-        return unless @log_event_processor
-        
-        @log_event_processor.process_event(event_name, context_data.merge(
-          agent: self.class.name,
-          timestamp: Time.current.iso8601,
-          context_size: @context.size
-        ))
-      end
-
-      # Metrics tracking methods
-      def increment_counter(metric_name, value = 1, **labels)
-        return unless @metrics_collector
-        @metrics_collector.increment_counter(metric_name, value, labels)
-      end
-
-      def set_gauge(metric_name, value, **labels)
-        return unless @metrics_collector
-        @metrics_collector.set_gauge(metric_name, value, labels)
-      end
-
-      def observe_histogram(metric_name, value, **labels)
-        return unless @metrics_collector
-        @metrics_collector.observe_histogram(metric_name, value, labels)
-      end
-
-      def track_execution_time(metric_name = :execution_time_seconds, **labels)
-        start_time = Time.current
-        result = yield
-        execution_time = Time.current - start_time
-        observe_histogram(metric_name, execution_time, labels)
-        result
-      end
 
       # Check if agent should execute based on defined conditions
       def should_execute?(context, previous_result)
@@ -1331,8 +1380,7 @@ module RAAF
         {
           type: "object",
           properties: {
-            result: { type: "string", description: "The result of the analysis" },
-            confidence: { type: "integer", minimum: 0, maximum: 100, description: "Confidence level" }
+            result: { type: "string", description: "The result of the analysis" }
           },
           required: ["result"],
           additionalProperties: false
@@ -1809,186 +1857,9 @@ module RAAF
         end
       end
 
-      # Log event builder for defining structured logging events
-      class LogEventBuilder
-        def initialize(existing_events = {}, &block)
-          @events = existing_events.dup
-          instance_eval(&block) if block_given?
-        end
+      # Note: LogEventBuilder and MetricsBuilder classes were removed as they were not implemented.
 
-        def build
-          @events
-        end
-
-        # Define a log event
-        #
-        # @param name [Symbol] Event name
-        # @param options [Hash] Event configuration
-        # @option options [Symbol] :level Log level (info, debug, warn, error)
-        # @option options [String] :message Log message with {variable} interpolation
-        # @option options [Hash] :metadata Additional structured metadata
-        #
-        def event(name, level: :info, message:, **metadata)
-          @events[name] = {
-            level: level,
-            message: message,
-            metadata: metadata
-          }
-        end
-      end
-
-      # Metrics builder for defining performance tracking metrics
-      class MetricsBuilder
-        def initialize(existing_metrics = {}, &block)
-          @metrics = existing_metrics.dup
-          instance_eval(&block) if block_given?
-        end
-
-        def build
-          @metrics
-        end
-
-        # Define a counter metric (monotonically increasing)
-        def counter(name, description: nil, **labels)
-          @metrics[name] = {
-            type: :counter,
-            description: description,
-            default_labels: labels
-          }
-        end
-
-        # Define a gauge metric (can go up or down)
-        def gauge(name, description: nil, **labels)
-          @metrics[name] = {
-            type: :gauge,
-            description: description,
-            default_labels: labels
-          }
-        end
-
-        # Define a histogram metric (distribution of values)
-        def histogram(name, description: nil, buckets: nil, **labels)
-          @metrics[name] = {
-            type: :histogram,
-            description: description,
-            buckets: buckets || [0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
-            default_labels: labels
-          }
-        end
-      end
-
-      # Log event processor that handles structured logging events
-      class LogEventProcessor
-        include RAAF::Logger
-        def initialize(events_config)
-          @events_config = events_config
-        end
-
-        def process_event(event_name, context_data)
-          event_config = @events_config[event_name]
-          return unless event_config
-
-          # Interpolate message with context data
-          message = interpolate_message(event_config[:message], context_data)
-          
-          # Build structured log entry
-          log_entry = {
-            level: event_config[:level],
-            message: message,
-            event: event_name,
-            metadata: event_config[:metadata].merge(context_data)
-          }
-
-          # Send to appropriate logger based on level
-          case event_config[:level]
-          when :debug
-            log_debug(message, log_entry[:metadata])
-          when :info
-            log_info(message)
-          when :warn
-            log_warn(message)
-          when :error
-            log_error(message, log_entry[:metadata])
-          end
-        end
-
-        private
-
-        def interpolate_message(template, context_data)
-          result = template.dup
-          context_data.each do |key, value|
-            result.gsub!("{#{key}}", value.to_s)
-          end
-          result
-        end
-
-
-      end
-
-      # Metrics collector that handles performance metric collection
-      class MetricsCollector
-        def initialize(metrics_config)
-          @metrics_config = metrics_config
-          @counters = {}
-          @gauges = {}
-          @histograms = {}
-        end
-
-        def increment_counter(metric_name, value = 1, labels = {})
-          metric_config = @metrics_config[metric_name]
-          return unless metric_config && metric_config[:type] == :counter
-
-          key = build_metric_key(metric_name, labels, metric_config[:default_labels])
-          @counters[key] = (@counters[key] || 0) + value
-
-          # Emit metric (could integrate with Prometheus, DataDog, etc.)
-          emit_counter_metric(key, @counters[key], metric_config)
-        end
-
-        def set_gauge(metric_name, value, labels = {})
-          metric_config = @metrics_config[metric_name]
-          return unless metric_config && metric_config[:type] == :gauge
-
-          key = build_metric_key(metric_name, labels, metric_config[:default_labels])
-          @gauges[key] = value
-
-          # Emit metric
-          emit_gauge_metric(key, value, metric_config)
-        end
-
-        def observe_histogram(metric_name, value, labels = {})
-          metric_config = @metrics_config[metric_name]
-          return unless metric_config && metric_config[:type] == :histogram
-
-          key = build_metric_key(metric_name, labels, metric_config[:default_labels])
-          @histograms[key] ||= []
-          @histograms[key] << value
-
-          # Emit metric
-          emit_histogram_metric(key, value, metric_config)
-        end
-
-        private
-
-        def build_metric_key(metric_name, labels, default_labels)
-          all_labels = (default_labels || {}).merge(labels || {})
-          label_string = all_labels.map { |k, v| "#{k}=#{v}" }.join(",")
-          "#{metric_name}#{label_string.empty? ? '' : "{#{label_string}}"}"
-        end
-
-        def emit_counter_metric(key, value, config)
-          # Simple console output - could be replaced with actual metrics backend
-          puts "[METRIC] Counter #{key} = #{value} (#{config[:description]})"
-        end
-
-        def emit_gauge_metric(key, value, config)
-          puts "[METRIC] Gauge #{key} = #{value} (#{config[:description]})"
-        end
-
-        def emit_histogram_metric(key, value, config)
-          puts "[METRIC] Histogram #{key} observed #{value} (#{config[:description]})"
-        end
-      end
+      # Note: LogEventProcessor and MetricsCollector classes were removed as they were not implemented.
 
       # Execution conditions for conditional agent execution
       class ExecutionConditions
