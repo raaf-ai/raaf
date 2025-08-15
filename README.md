@@ -318,7 +318,7 @@ debugger.export_session("debug_session.json")
 
 ```ruby
 # Configure unified logging system
-RAAF::Logging.configure do |config|
+RAAF.logger.configure do |config|
   config.log_level = :debug
   config.log_format = :json
   config.log_output = :rails  # or :console, :file, :auto

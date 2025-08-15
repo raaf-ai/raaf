@@ -71,7 +71,7 @@ module RAAF
             end
           rescue LoadError
             # Sidekiq not available, skip background job configuration
-            RAAF::Logging.warn("Sidekiq gem not available. Background jobs will be disabled.")
+            RAAF.logger.warn("Sidekiq gem not available. Background jobs will be disabled.")
           end
         end
 
@@ -82,7 +82,7 @@ module RAAF
             # Modern WebSocket support through Action Cable
             # Configuration will be handled by Rails application
           rescue LoadError
-            RAAF::Logging.warn("Action Cable not available. WebSocket support will be disabled.")
+            RAAF.logger.warn("Action Cable not available. WebSocket support will be disabled.")
           end
         end
 
@@ -93,7 +93,7 @@ module RAAF
             tracer = RAAF::Tracing.create_tracer
             app.config.raaf_tracer = tracer
           rescue LoadError
-            RAAF::Logging.warn("raaf-tracing gem not available. Monitoring will be disabled.")
+            RAAF.logger.warn("raaf-tracing gem not available. Monitoring will be disabled.")
           end
         end
 
@@ -215,7 +215,7 @@ module RAAF
       # Setup logging
       initializer "raaf-rails.logging" do
         if defined?(::Rails.logger)
-          RAAF::Logging.configure do |config|
+          RAAF.logger.configure do |config|
             config.log_output = :rails
           end
         end

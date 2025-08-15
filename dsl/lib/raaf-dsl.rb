@@ -66,7 +66,7 @@ module RAAF
     #   begin
     #     agent.run
     #   rescue RAAF::DSL::Error => e
-    #     RAAF::Logging.error "AI Agent DSL error: #{e.message}"
+    #     RAAF.logger.error "AI Agent DSL error: #{e.message}"
     #   end
     #
     class Error < StandardError; end
@@ -144,7 +144,7 @@ module RAAF
     #   prompt = RAAF::DSL::Prompt.resolve("template.md.erb", name: "John")
     #
     module PromptResolvers
-      autoload :PhlexResolver, "raaf/dsl/prompts/phlex_resolver"
+      autoload :ClassResolver, "raaf/dsl/prompts/class_resolver"
       autoload :FileResolver, "raaf/dsl/prompts/file_resolver"
     end
 
@@ -269,8 +269,34 @@ module RAAF
     #
     # @return [PromptResolverRegistry] The prompt resolver registry
     def self.prompt_resolvers
-      @prompt_resolvers ||= PromptResolverRegistry.new
+      @prompt_resolvers ||= begin
+        registry = PromptResolverRegistry.new
+        # Initialize default resolvers
+        initialize_default_resolvers(registry)
+        registry
+      end
     end
+
+    # Initialize default prompt resolvers
+    #
+    # @param registry [PromptResolverRegistry] The registry to populate with default resolvers
+    # @private
+    def self.initialize_default_resolvers(registry)
+      # Load resolver classes
+      require_relative "raaf/dsl/prompts/class_resolver"
+      require_relative "raaf/dsl/prompts/file_resolver"
+      
+      # Create and register default resolvers
+      class_resolver = PromptResolvers::ClassResolver.new(priority: 100)
+      file_resolver = PromptResolvers::FileResolver.new(
+        priority: 50, 
+        paths: ["app/ai/prompts", "prompts"]
+      )
+      
+      registry.register(class_resolver)
+      registry.register(file_resolver)
+    end
+    private_class_method :initialize_default_resolvers
 
     # Configuration object for the gem
     class Configuration

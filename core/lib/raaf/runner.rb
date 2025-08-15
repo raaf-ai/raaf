@@ -1944,7 +1944,7 @@ module RAAF
                   content_length: assistant_message[:content]&.length || 0)
 
         # Debug assistant response if enabled
-        if RAAF::Logging.configuration.debug_enabled?(:context)
+        if RAAF.logger.configuration.debug_enabled?(:context)
           content_preview = assistant_message[:content].to_s[0..500]
           content_preview += "..." if assistant_message[:content].to_s.length > 500
 
@@ -2119,7 +2119,7 @@ module RAAF
       end
 
       # Debug conversation if enabled
-      if RAAF::Logging.configuration.debug_enabled?(:context)
+      if RAAF.logger.configuration.debug_enabled?(:context)
         log_debug("Full conversation dump",
                   agent: agent.name,
                   message_count: conversation.size)
@@ -2209,7 +2209,7 @@ module RAAF
                   end
 
         # Debug OpenAI-hosted tool result if enabled
-        if RAAF::Logging.configuration.debug_enabled?(:context)
+        if RAAF.logger.configuration.debug_enabled?(:context)
           log_debug("OpenAI-hosted tool result", tool_name: tool_name)
           log_debug("Tool arguments", arguments: arguments)
 
@@ -2223,7 +2223,7 @@ module RAAF
           end
 
           # Also show the raw response structure for debugging
-          if full_response && RAAF::Logging.configuration.debug_enabled?(:api)
+          if full_response && RAAF.logger.configuration.debug_enabled?(:api)
             log_debug("Raw response keys", keys: full_response.keys)
             if full_response["choices"]&.first&.dig("message")
               msg = full_response["choices"].first["message"]
@@ -2271,7 +2271,7 @@ module RAAF
         formatted_result = format_tool_result(result)
 
         # Debug tool result if enabled
-        if RAAF::Logging.configuration.debug_enabled?(:context)
+        if RAAF.logger.configuration.debug_enabled?(:context)
           log_debug("Tool execution result", tool_name: tool_name)
           result_preview = formatted_result.to_s[0..1000]
           result_preview += "..." if formatted_result.to_s.length > 1000

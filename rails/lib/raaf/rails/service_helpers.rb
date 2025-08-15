@@ -300,7 +300,7 @@ module RAAF
       def handle_agent_error(agent_class, error, start_time, options)
         duration = Time.current - start_time
         
-        RAAF::Logging.error "❌ [ServiceHelpers] Agent #{agent_class.name} failed after #{duration.round(2)}s: #{error.message}",
+        RAAF.logger.error "❌ [ServiceHelpers] Agent #{agent_class.name} failed after #{duration.round(2)}s: #{error.message}",
                            category: :agents,
                            data: {
                              agent_class: agent_class.name,
@@ -324,7 +324,7 @@ module RAAF
         log_level = success ? :info : :warn
         status = success ? "completed" : "failed"
         
-        RAAF::Logging.send(log_level, "🤖 [ServiceHelpers] Agent #{agent_class.name} #{status} in #{duration.round(2)}s",
+        RAAF.logger.send(log_level, "🤖 [ServiceHelpers] Agent #{agent_class.name} #{status} in #{duration.round(2)}s",
                           category: :agents,
                           data: {
                             agent_class: agent_class.name,

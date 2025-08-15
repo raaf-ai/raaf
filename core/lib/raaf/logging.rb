@@ -63,7 +63,7 @@ module RAAF
     # @param context [Hash] Additional structured data to include
     #
     def log_debug(message, category: :general, **context)
-      RAAF::Logging.debug(message, category: category, **context)
+      RAAF.logger.debug(message, category: category, **context)
     end
 
     ##
@@ -73,7 +73,7 @@ module RAAF
     # @param context [Hash] Additional structured data to include
     #
     def log_info(message, **context)
-      RAAF::Logging.info(message, **context)
+      RAAF.logger.info(message, **context)
     end
 
     ##
@@ -83,7 +83,7 @@ module RAAF
     # @param context [Hash] Additional structured data to include
     #
     def log_warn(message, **context)
-      RAAF::Logging.warn(message, **context)
+      RAAF.logger.warn(message, **context)
     end
 
     ##
@@ -95,7 +95,7 @@ module RAAF
     def log_error(message, **context)
       # Automatically capture stack trace for error logging
       context[:stack_trace] = caller(1).join("\n") unless context.key?(:stack_trace)
-      RAAF::Logging.error(message, **context)
+      RAAF.logger.error(message, **context)
     end
 
     ##
@@ -107,7 +107,7 @@ module RAAF
     def log_fatal(message, **context)
       # Automatically capture stack trace for fatal logging
       context[:stack_trace] = caller(1).join("\n") unless context.key?(:stack_trace)
-      RAAF::Logging.fatal(message, **context)
+      RAAF.logger.fatal(message, **context)
     end
 
     ##
@@ -118,7 +118,7 @@ module RAAF
     # @param context [Hash] Additional structured data
     #
     def log_debug_tracing(message, **context)
-      RAAF::Logging.debug(message, category: :tracing, **context)
+      RAAF.logger.debug(message, category: :tracing, **context)
     end
 
     ##
@@ -129,7 +129,7 @@ module RAAF
     # @param context [Hash] Additional structured data
     #
     def log_debug_api(message, **context)
-      RAAF::Logging.debug(message, category: :api, **context)
+      RAAF.logger.debug(message, category: :api, **context)
     end
 
     ##
@@ -140,7 +140,7 @@ module RAAF
     # @param context [Hash] Additional structured data
     #
     def log_debug_tools(message, **context)
-      RAAF::Logging.debug(message, category: :tools, **context)
+      RAAF.logger.debug(message, category: :tools, **context)
     end
 
     ##
@@ -151,7 +151,7 @@ module RAAF
     # @param context [Hash] Additional structured data
     #
     def log_debug_handoff(message, **context)
-      RAAF::Logging.debug(message, category: :handoff, **context)
+      RAAF.logger.debug(message, category: :handoff, **context)
     end
 
     ##
@@ -162,7 +162,7 @@ module RAAF
     # @param context [Hash] Additional structured data
     #
     def log_debug_context(message, **context)
-      RAAF::Logging.debug(message, category: :context, **context)
+      RAAF.logger.debug(message, category: :context, **context)
     end
 
     ##
@@ -173,7 +173,7 @@ module RAAF
     # @param context [Hash] Additional structured data
     #
     def log_debug_http(message, **context)
-      RAAF::Logging.debug(message, category: :http, **context)
+      RAAF.logger.debug(message, category: :http, **context)
     end
 
     ##
@@ -182,37 +182,37 @@ module RAAF
     # @return [Boolean] true if :http debug category is enabled
     #
     def http_debug_enabled?
-      RAAF::Logging.configuration.debug_enabled?(:http)
+      RAAF.logger.configuration.debug_enabled?(:http)
     end
 
     # Utility methods
     def log_benchmark(label, **context, &)
-      RAAF::Logging.benchmark(label, **context, &)
+      RAAF.logger.benchmark(label, **context, &)
     end
 
     # Agent-specific logging methods
     def log_agent_start(agent_name, **context)
-      RAAF::Logging.agent_start(agent_name, **context)
+      RAAF.logger.agent_start(agent_name, **context)
     end
 
     def log_agent_end(agent_name, **context)
-      RAAF::Logging.agent_end(agent_name, **context)
+      RAAF.logger.agent_end(agent_name, **context)
     end
 
     def log_tool_call(tool_name, **context)
-      RAAF::Logging.tool_call(tool_name, **context)
+      RAAF.logger.tool_call(tool_name, **context)
     end
 
     def log_handoff(from_agent, to_agent, **context)
-      RAAF::Logging.handoff(from_agent, to_agent, **context)
+      RAAF.logger.handoff(from_agent, to_agent, **context)
     end
 
     def log_api_call(method, url, **context)
-      RAAF::Logging.api_call(method, url, **context)
+      RAAF.logger.api_call(method, url, **context)
     end
 
     def log_api_error(error, **context)
-      RAAF::Logging.api_error(error, **context)
+      RAAF.logger.api_error(error, **context)
     end
 
     ##
@@ -229,7 +229,7 @@ module RAAF
       context[:error_cause_class] = exception.cause.class.name if exception.cause
 
       error_message = message || exception.message
-      RAAF::Logging.error(error_message, **context)
+      RAAF.logger.error(error_message, **context)
     end
 
   end
@@ -245,12 +245,12 @@ module RAAF
   # - Maintains consistent log structure across the framework
   #
   # @example Basic logging
-  #   RAAF::Logging.info("Agent started", agent: "GPT-4", run_id: "123")
-  #   RAAF::Logging.debug("Tool called", tool: "search", category: :tools)
-  #   RAAF::Logging.error("API error", error: e.message, status: 500)
+  #   RAAF.logger.info("Agent started", agent: "GPT-4", run_id: "123")
+  #   RAAF.logger.debug("Tool called", tool: "search", category: :tools)
+  #   RAAF.logger.error("API error", error: e.message, status: 500)
   #
   # @example Configuration
-  #   RAAF::Logging.configure do |config|
+  #   RAAF.logger.configure do |config|
   #     config.log_level = :debug
   #     config.log_format = :json
   #     config.debug_categories = [:api, :tools]
@@ -261,11 +261,11 @@ module RAAF
   #   ENV['RAAF_DEBUG_CATEGORIES'] = 'api,tracing'
   #
   #   # These will be shown:
-  #   RAAF::Logging.debug("API call", category: :api)
-  #   RAAF::Logging.debug("Span created", category: :tracing)
+  #   RAAF.logger.debug("API call", category: :api)
+  #   RAAF.logger.debug("Span created", category: :tracing)
   #
   #   # This will be hidden:
-  #   RAAF::Logging.debug("Tool details", category: :tools)
+  #   RAAF.logger.debug("Tool details", category: :tools)
   #
   # ## Environment Variables
   #
@@ -296,7 +296,7 @@ module RAAF
       # @return [Configuration] The current configuration
       #
       # @example
-      #   RAAF::Logging.configure do |config|
+      #   RAAF.logger.configure do |config|
       #     config.log_level = :debug
       #     config.log_format = :json
       #     config.debug_categories = [:api, :tracing]

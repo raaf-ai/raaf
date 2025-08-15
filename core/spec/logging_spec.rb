@@ -388,7 +388,7 @@ RSpec.describe RAAF::Logger do
   end
 
   describe "#log_debug" do
-    it "delegates to RAAF::Logging.debug with category" do
+    it "delegates to RAAF.logger.debug with category" do
       instance.log_debug("Debug message", category: :api, user_id: 123)
 
       expect(mock_logging).to have_received(:debug).with("Debug message", category: :api, user_id: 123)
@@ -402,7 +402,7 @@ RSpec.describe RAAF::Logger do
   end
 
   describe "#log_info" do
-    it "delegates to RAAF::Logging.info" do
+    it "delegates to RAAF.logger.info" do
       instance.log_info("Info message", request_id: "req_123")
 
       expect(mock_logging).to have_received(:info).with("Info message", request_id: "req_123")
@@ -410,7 +410,7 @@ RSpec.describe RAAF::Logger do
   end
 
   describe "#log_warn" do
-    it "delegates to RAAF::Logging.warn" do
+    it "delegates to RAAF.logger.warn" do
       instance.log_warn("Warning message", deprecated: true)
 
       expect(mock_logging).to have_received(:warn).with("Warning message", deprecated: true)
@@ -418,7 +418,7 @@ RSpec.describe RAAF::Logger do
   end
 
   describe "#log_error" do
-    it "delegates to RAAF::Logging.error with automatic stack trace" do
+    it "delegates to RAAF.logger.error with automatic stack trace" do
       instance.log_error("Error occurred", user_id: 456)
 
       expect(mock_logging).to have_received(:error) do |message, context|
@@ -438,7 +438,7 @@ RSpec.describe RAAF::Logger do
   end
 
   describe "#log_fatal" do
-    it "delegates to RAAF::Logging.fatal with automatic stack trace" do
+    it "delegates to RAAF.logger.fatal with automatic stack trace" do
       instance.log_fatal("Fatal error", component: "database")
 
       expect(mock_logging).to have_received(:fatal) do |message, context|
@@ -513,7 +513,7 @@ RSpec.describe RAAF::Logger do
 
   describe "utility methods" do
     describe "#log_benchmark" do
-      it "delegates to RAAF::Logging.benchmark" do
+      it "delegates to RAAF.logger.benchmark" do
         block = proc { "result" }
         instance.log_benchmark("Operation", context: "test", &block)
 
@@ -524,7 +524,7 @@ RSpec.describe RAAF::Logger do
 
   describe "agent-specific logging methods" do
     describe "#log_agent_start" do
-      it "delegates to RAAF::Logging.agent_start" do
+      it "delegates to RAAF.logger.agent_start" do
         instance.log_agent_start("GPT-4", run_id: "run_123")
 
         expect(mock_logging).to have_received(:agent_start).with("GPT-4", run_id: "run_123")
@@ -532,7 +532,7 @@ RSpec.describe RAAF::Logger do
     end
 
     describe "#log_agent_end" do
-      it "delegates to RAAF::Logging.agent_end" do
+      it "delegates to RAAF.logger.agent_end" do
         instance.log_agent_end("GPT-4", duration: 2.5, tokens: 200)
 
         expect(mock_logging).to have_received(:agent_end).with("GPT-4", duration: 2.5, tokens: 200)
@@ -540,7 +540,7 @@ RSpec.describe RAAF::Logger do
     end
 
     describe "#log_tool_call" do
-      it "delegates to RAAF::Logging.tool_call" do
+      it "delegates to RAAF.logger.tool_call" do
         instance.log_tool_call("search", query: "Ruby programming")
 
         expect(mock_logging).to have_received(:tool_call).with("search", query: "Ruby programming")
@@ -548,7 +548,7 @@ RSpec.describe RAAF::Logger do
     end
 
     describe "#log_handoff" do
-      it "delegates to RAAF::Logging.handoff" do
+      it "delegates to RAAF.logger.handoff" do
         instance.log_handoff("Researcher", "Writer", context: "analysis_done")
 
         expect(mock_logging).to have_received(:handoff).with("Researcher", "Writer", context: "analysis_done")
@@ -556,7 +556,7 @@ RSpec.describe RAAF::Logger do
     end
 
     describe "#log_api_call" do
-      it "delegates to RAAF::Logging.api_call" do
+      it "delegates to RAAF.logger.api_call" do
         instance.log_api_call("POST", "https://api.openai.com/v1/completions", model: "gpt-3.5-turbo")
 
         expect(mock_logging).to have_received(:api_call).with("POST", "https://api.openai.com/v1/completions", model: "gpt-3.5-turbo")
@@ -564,7 +564,7 @@ RSpec.describe RAAF::Logger do
     end
 
     describe "#log_api_error" do
-      it "delegates to RAAF::Logging.api_error" do
+      it "delegates to RAAF.logger.api_error" do
         error = StandardError.new("API Error")
         instance.log_api_error(error, status: 500)
 

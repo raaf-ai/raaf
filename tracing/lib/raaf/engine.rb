@@ -79,9 +79,9 @@ module RAAF
           Rails.application.config.after_initialize do
             processor = RAAF::Tracing::ActiveRecordProcessor.new
             RAAF.tracer.add_processor(processor)
-            RAAF::Logging.info("Auto-configured ActiveRecord processor")
+            RAAF.logger.info("Auto-configured ActiveRecord processor")
           rescue StandardError => e
-            RAAF::Logging.warn("Failed to auto-configure", error: e.message, error_class: e.class.name)
+            RAAF.logger.warn("Failed to auto-configure", error: e.message, error_class: e.class.name)
           end
         end
       end

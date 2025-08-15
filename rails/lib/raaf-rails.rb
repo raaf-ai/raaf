@@ -350,7 +350,7 @@ module RAAF
         # Setup logging integration
         return unless defined?(::Rails.logger)
 
-        RAAF::Logging.configure do |logging_config|
+        RAAF.logger.configure do |logging_config|
           logging_config.log_output = :rails
         end
       end

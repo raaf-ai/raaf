@@ -107,4 +107,18 @@ module RAAF
   ErrorHandler = Execution::ErrorHandler
   RecoveryStrategy = Execution::ErrorHandler::RecoveryStrategy
 
+  ##
+  # Get the logger instance for convenient access
+  #
+  # @return [RAAF::Logging] The unified logging system
+  #
+  # @example
+  #   RAAF.logger.info("Agent started", agent: "GPT-4")
+  #   RAAF.logger.debug("Tool called", tool: "search")
+  #   RAAF.logger.error("API failed", error: e.message)
+  #
+  def self.logger
+    @logger ||= Logging
+  end
+
 end

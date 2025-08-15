@@ -122,7 +122,7 @@ module RAAF
         # Simple logging fallback if Logger module isn't available
         return unless defined?(RAAF::Logging)
 
-        RAAF::Logging.debug(message, category: :general, **context)
+        RAAF.logger.debug(message, category: :general, **context)
       end
 
     end

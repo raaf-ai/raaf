@@ -172,7 +172,7 @@ module RAAF
         # Execute the pipeline
         def call
           pipeline_name = self.class.name
-          RAAF::Logging.info "🚀 [#{pipeline_name}] Starting pipeline execution"
+          RAAF.logger.info "🚀 [#{pipeline_name}] Starting pipeline execution"
 
           begin
             execute_pipeline_with_retry
@@ -225,13 +225,13 @@ module RAAF
             finalize_pipeline_results
           rescue => e
             if attempts <= pipeline_retries
-              RAAF::Logging.warn "🔄 [#{self.class.name}] Pipeline retry #{attempts}/#{pipeline_retries}: #{e.message}"
+              RAAF.logger.warn "🔄 [#{self.class.name}] Pipeline retry #{attempts}/#{pipeline_retries}: #{e.message}"
               retry
             else
               # Try fallback method if configured
               fallback_method = self.class._error_handlers&.dig(:pipeline, :fallback_method)
               if fallback_method && respond_to?(fallback_method, true)
-                RAAF::Logging.info "🔄 [#{self.class.name}] Executing pipeline fallback: #{fallback_method}"
+                RAAF.logger.info "🔄 [#{self.class.name}] Executing pipeline fallback: #{fallback_method}"
                 return send(fallback_method, e, @step_results)
               end
               raise
@@ -347,7 +347,7 @@ module RAAF
           step_config = find_step_config(step_name)
           @current_step += 1
           
-          RAAF::Logging.info "🔄 [#{self.class.name}] Executing step #{@current_step}/#{@total_steps}: #{step_name}"
+          RAAF.logger.info "🔄 [#{self.class.name}] Executing step #{@current_step}/#{@total_steps}: #{step_name}"
           
           begin
             # Build context for this step
@@ -363,7 +363,7 @@ module RAAF
             # Store result
             store_step_result(step_name, step_config, result)
             
-            RAAF::Logging.info "✅ [#{self.class.name}] Step completed: #{step_name}"
+            RAAF.logger.info "✅ [#{self.class.name}] Step completed: #{step_name}"
             
           rescue => e
             handle_step_error(step_name, step_config, e)
@@ -371,7 +371,7 @@ module RAAF
         end
 
         def execute_parallel_steps(step_names)
-          RAAF::Logging.info "🔄 [#{self.class.name}] Executing parallel steps: #{step_names.join(', ')}"
+          RAAF.logger.info "🔄 [#{self.class.name}] Executing parallel steps: #{step_names.join(', ')}"
           
           threads = step_names.map do |step_name|
             Thread.new do
@@ -398,7 +398,7 @@ module RAAF
             end
           end
           
-          RAAF::Logging.info "✅ [#{self.class.name}] Parallel steps completed: #{step_names.join(', ')}"
+          RAAF.logger.info "✅ [#{self.class.name}] Parallel steps completed: #{step_names.join(', ')}"
         end
 
         def find_step_config(step_name)
@@ -465,7 +465,7 @@ module RAAF
         end
 
         def handle_step_error(step_name, step_config, error)
-          RAAF::Logging.error "❌ [#{self.class.name}] Step failed: #{step_name} - #{error.message}"
+          RAAF.logger.error "❌ [#{self.class.name}] Step failed: #{step_name} - #{error.message}"
           
           # Check for step-specific error handler
           error_handler = self.class._error_handlers&.[](step_name)
@@ -474,7 +474,7 @@ module RAAF
             fallback_method = error_handler[:fallback_method]
             
             if respond_to?(fallback_method, true)
-              RAAF::Logging.info "🔄 [#{self.class.name}] Executing step fallback: #{fallback_method}"
+              RAAF.logger.info "🔄 [#{self.class.name}] Executing step fallback: #{fallback_method}"
               fallback_result = send(fallback_method, error, step_name)
               store_step_result(step_name, step_config, fallback_result)
               return
@@ -495,7 +495,7 @@ module RAAF
 
         def finalize_pipeline_results
           if self.class._finalizer && respond_to?(self.class._finalizer, true)
-            RAAF::Logging.info "🏁 [#{self.class.name}] Finalizing results with: #{self.class._finalizer}"
+            RAAF.logger.info "🏁 [#{self.class.name}] Finalizing results with: #{self.class._finalizer}"
             return send(self.class._finalizer, @step_results)
           end
           
@@ -509,8 +509,8 @@ module RAAF
         end
 
         def handle_pipeline_error(error)
-          RAAF::Logging.error "❌ [#{self.class.name}] Pipeline failed: #{error.message}"
-          RAAF::Logging.error error.backtrace.join("\n")
+          RAAF.logger.error "❌ [#{self.class.name}] Pipeline failed: #{error.message}"
+          RAAF.logger.error error.backtrace.join("\n")
           
           {
             success: false,
@@ -524,7 +524,7 @@ module RAAF
         def log_pipeline_completion
           duration = @execution_log.any? ? Time.current - @execution_log.first[:timestamp] : 0
           
-          RAAF::Logging.info "🏁 [#{self.class.name}] Pipeline execution completed",
+          RAAF.logger.info "🏁 [#{self.class.name}] Pipeline execution completed",
                             category: :pipeline,
                             data: {
                               steps_completed: @execution_log.count { |log| log[:status] == :completed },

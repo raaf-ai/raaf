@@ -6,11 +6,11 @@ module RAAF
   module DSL
     module PromptResolvers
       ##
-      # Resolver for Phlex-style prompt classes from RAAF::DSL
+      # Resolver for Class-based prompt classes from RAAF::DSL
       #
-      class PhlexResolver < PromptResolver
+      class ClassResolver < PromptResolver
         def initialize(**options)
-          super(name: :phlex, **options)
+          super(name: :class, **options)
         end
 
         ##
@@ -41,13 +41,13 @@ module RAAF
 
           prompt_instance = case prompt_spec
                             when Class
-                              # Instantiate with context
-                              prompt_spec.new(context)
+                              # Instantiate with context as keyword arguments
+                              prompt_spec.new(**context)
                             when Hash
                               # Handle hash specification
                               klass = prompt_spec[:class]
                               params = prompt_spec[:params] || context
-                              klass.new(params)
+                              klass.new(**params)
                             else
                               # Already an instance
                               prompt_spec
@@ -56,11 +56,24 @@ module RAAF
           # Convert to RAAF::Prompt
           build_prompt(prompt_instance, context)
         rescue StandardError => e
+          # Log detailed error information
+          error_details = {
+            prompt_class: prompt_spec.name,
+            error_class: e.class.name,
+            error_message: e.message,
+            backtrace: e.backtrace.first(3)
+          }
+          
           # Log error if logger is available
           if defined?(RAAF::Logger) && self.class.included_modules.include?(RAAF::Logger)
-            log_error("Failed to resolve Phlex prompt", error: e.message)
+            log_error("Failed to resolve prompt class", **error_details)
           end
-          nil
+          
+          # Re-raise with clearer context instead of returning nil
+          raise RAAF::DSL::Error, "Failed to resolve prompt class #{prompt_spec.name}: #{e.class.name} - #{e.message}\n" \
+                                  "This usually indicates an error in the prompt's system/user methods or missing required context.\n" \
+                                  "Original error: #{e.message}\n" \
+                                  "Location: #{e.backtrace.first}"
         end
 
         private

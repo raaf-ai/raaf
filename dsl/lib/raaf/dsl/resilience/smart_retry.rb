@@ -333,7 +333,7 @@ module RAAF
           if respond_to?(:reduce_context_size, true)
             new_size = (@current_context_size || 4000) * reduction_factor
             send(:reduce_context_size, new_size.to_i)
-            RAAF::Logging.info "🔄 Context reduced to #{new_size.to_i} tokens for retry #{attempt}"
+            RAAF.logger.info "🔄 Context reduced to #{new_size.to_i} tokens for retry #{attempt}"
           end
         end
 
@@ -342,7 +342,7 @@ module RAAF
           
           if respond_to?(:switch_model, true)
             send(:switch_model, fallback_model)
-            RAAF::Logging.info "🔄 Switched to fallback model #{fallback_model} for retry #{attempt}"
+            RAAF.logger.info "🔄 Switched to fallback model #{fallback_model} for retry #{attempt}"
           end
         end
 
@@ -350,7 +350,7 @@ module RAAF
           if respond_to?(:simplify_prompt, true)
             simplification_level = attempt
             send(:simplify_prompt, simplification_level)
-            RAAF::Logging.info "🔄 Simplified prompt (level #{simplification_level}) for retry #{attempt}"
+            RAAF.logger.info "🔄 Simplified prompt (level #{simplification_level}) for retry #{attempt}"
           end
         end
 
@@ -449,11 +449,11 @@ module RAAF
           # Try fallback strategy if configured
           fallback = _fallback_strategies[error_type]
           if fallback && respond_to?(fallback[:strategy], true)
-            RAAF::Logging.info "🔄 Applying fallback strategy #{fallback[:strategy]} for #{error_type}"
+            RAAF.logger.info "🔄 Applying fallback strategy #{fallback[:strategy]} for #{error_type}"
             begin
               return send(fallback[:strategy], error, fallback[:options])
             rescue => fallback_error
-              RAAF::Logging.error "❌ Fallback strategy failed: #{fallback_error.message}"
+              RAAF.logger.error "❌ Fallback strategy failed: #{fallback_error.message}"
             end
           end
           
@@ -467,7 +467,7 @@ module RAAF
         def log_retry_attempt(operation_name, error, attempt, max_attempts, delay)
           @total_retry_attempts += 1
           
-          RAAF::Logging.warn "🔄 [SmartRetry] #{operation_name} retry #{attempt}/#{max_attempts} in #{delay.round(2)}s: #{error.message}",
+          RAAF.logger.warn "🔄 [SmartRetry] #{operation_name} retry #{attempt}/#{max_attempts} in #{delay.round(2)}s: #{error.message}",
                              category: :resilience,
                              data: {
                                operation: operation_name,
@@ -481,7 +481,7 @@ module RAAF
         def log_retry_success(operation_name, retry_count, total_duration)
           @successful_retries += 1
           
-          RAAF::Logging.info "✅ [SmartRetry] #{operation_name} succeeded after #{retry_count} retries in #{total_duration.round(2)}s",
+          RAAF.logger.info "✅ [SmartRetry] #{operation_name} succeeded after #{retry_count} retries in #{total_duration.round(2)}s",
                             category: :resilience,
                             data: {
                               operation: operation_name,
@@ -491,7 +491,7 @@ module RAAF
         end
 
         def log_final_failure(operation_name, error, error_type, attempts)
-          RAAF::Logging.error "❌ [SmartRetry] #{operation_name} failed permanently after #{attempts} attempts: #{error.message}",
+          RAAF.logger.error "❌ [SmartRetry] #{operation_name} failed permanently after #{attempts} attempts: #{error.message}",
                              category: :resilience,
                              data: {
                                operation: operation_name,
@@ -502,7 +502,7 @@ module RAAF
         end
 
         def log_circuit_breaker_state_change(new_state)
-          RAAF::Logging.info "🔌 [CircuitBreaker] State changed to #{new_state}",
+          RAAF.logger.info "🔌 [CircuitBreaker] State changed to #{new_state}",
                             category: :resilience,
                             data: {
                               new_state: new_state,

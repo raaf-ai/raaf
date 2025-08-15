@@ -659,6 +659,11 @@ module RAAF
             @rules[:validations][key] = { type: type, proc: with }
           end
           
+          def default(key, value)
+            @rules[:defaults] ||= {}
+            @rules[:defaults][key.to_sym] = value
+          end
+          
           def to_h
             @rules
           end
@@ -1070,6 +1075,7 @@ module RAAF
         rules = self.class._agent_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
         
+        # First pass: Add static params and defaults
         params.each do |key, value|
           # Apply exclusion rules
           next if rules[:exclude]&.include?(key)
@@ -1083,9 +1089,23 @@ module RAAF
           builder.with(key, value)
         end
         
-        # Add computed context values
+        # Apply default values for keys that weren't provided
+        if rules[:defaults]
+          rules[:defaults].each do |key, default_value|
+            # Only set default if the key wasn't provided in params
+            unless params.key?(key)
+              builder.with(key, default_value)
+            end
+          end
+        end
+        
+        # Make static context available to build_*_context methods
+        @context = builder.current_context
+        
+        # Second pass: Add computed context values now that @context is available
         add_computed_context(builder)
         
+        # Final build with all values
         builder.build
       end
       

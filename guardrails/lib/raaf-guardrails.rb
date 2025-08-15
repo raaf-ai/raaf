@@ -327,7 +327,7 @@ module RAAF
         @violations_by_type[violation[:type]] = (@violations_by_type[violation[:type]] || 0) + 1
 
         # Log to configured logger
-        RAAF::Logging.warn("Guardrail violation", violation)
+        RAAF.logger.warn("Guardrail violation", violation)
         
         # Send to monitoring system if configured
         if config[:violation_reporting]
@@ -366,7 +366,7 @@ module RAAF
       def send_violation_report(violation)
         # This would send to a monitoring system like DataDog, New Relic, etc.
         # For now, we'll just log it
-        RAAF::Logging.info("Violation reported", violation)
+        RAAF.logger.info("Violation reported", violation)
       end
     end
   end

@@ -418,7 +418,7 @@ module RAAF
           end
         end
 
-        RAAF::Logging.debug("[ContextVariables] #{action}", category: :context, data: debug_data)
+        RAAF.logger.debug("[ContextVariables] #{action}", category: :context, data: debug_data)
       end
 
       # Basic variable validation

@@ -269,7 +269,7 @@ module RAAF
       #
       def setup_test_environment
         # Setup logging for tests
-        RAAF::Logging.configure do |logging_config|
+        RAAF.logger.configure do |logging_config|
           logging_config.log_level = :warn
           logging_config.log_output = :console
         end
@@ -353,7 +353,7 @@ module RAAF
         @debug_mode = enabled
         
         if enabled
-          RAAF::Logging.configure do |config|
+          RAAF.logger.configure do |config|
             config.log_level = :debug
             config.debug_categories = [:all]
           end

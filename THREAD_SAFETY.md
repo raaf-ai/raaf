@@ -195,7 +195,7 @@ end
 ### 1. Enable Debug Logging
 ```ruby
 # Enable thread-aware logging
-RAAF::Logging.configure do |config|
+RAAF.logger.configure do |config|
   config.debug_enabled = true
   config.debug_categories = [:threading, :api, :tracing]
 end
@@ -204,7 +204,7 @@ end
 ### 2. Thread-Safe Logging
 ```ruby
 # ✅ Good: Thread-safe logging with context
-RAAF::Logging.info("Processing request", 
+RAAF.logger.info("Processing request", 
   thread_id: Thread.current.object_id,
   agent_name: agent.name,
   timestamp: Time.current

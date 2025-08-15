@@ -264,7 +264,7 @@ RSpec.describe RAAF::Execution::ExecutorFactory do
         stub_const("RAAF::Logging", double("Logging"))
       end
 
-      it "calls RAAF::Logging.debug with correct parameters" do
+      it "calls RAAF.logger.debug with correct parameters" do
         message = "Test message"
         context = { key: "value" }
 

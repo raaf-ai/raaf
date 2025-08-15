@@ -204,7 +204,7 @@ module RAAF
       end
 
       def extract_step_inputs(step, context)
-        input_context = RAAF::DSL::ContextVariables.new({}, debug: context.debug)
+        input_context = RAAF::DSL::ContextVariables.new({}, debug: context.debug_enabled)
         
         step.input_fields.each do |field|
           if context.has?(field)

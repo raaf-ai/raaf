@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../prompts/prompt_resolver"
-require_relative "../prompts/phlex_resolver"
+require_relative "../prompts/class_resolver"
 require_relative "../prompts/file_resolver"
 
 module RAAF
@@ -21,7 +21,7 @@ module RAAF
       # @param resolvers [Array<Symbol>] resolver types to enable
       # @param default_format [Symbol] default format when not specified
       #
-      def initialize(paths: ["prompts"], resolvers: %i[file phlex], default_format: :file)
+      def initialize(paths: ["prompts"], resolvers: %i[class file], default_format: :class)
         @paths = paths
         @resolvers = resolvers
         @default_format = default_format
@@ -154,7 +154,7 @@ module RAAF
       def setup_default_resolvers
         # Default resolver classes
         @default_resolver_classes = {
-          phlex: PromptResolvers::PhlexResolver,
+          class: PromptResolvers::ClassResolver,
           file: PromptResolvers::FileResolver
         }
       end

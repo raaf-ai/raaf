@@ -273,7 +273,7 @@ module RAAF
         tokens.length
       rescue StandardError => e
         # If tiktoken fails, fall back to character estimation
-        RAAF::Logging.warn("Tiktoken encoding failed, falling back to estimation", model: model,
+        RAAF.logger.warn("Tiktoken encoding failed, falling back to estimation", model: model,
                                                                                    error: e.message, error_class: e.class.name)
         char_count = text.length
         ratio = TOKEN_RATIOS[model] || TOKEN_RATIOS["default"]

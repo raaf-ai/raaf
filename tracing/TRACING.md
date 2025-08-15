@@ -232,7 +232,7 @@ The tracing system now uses a unified logging system with granular debug categor
 
 ```ruby
 # Configure logging for tracing
-RAAF::Logging.configure do |config|
+RAAF.logger.configure do |config|
   config.log_level = :debug
   config.debug_categories = [:tracing, :http]
 end

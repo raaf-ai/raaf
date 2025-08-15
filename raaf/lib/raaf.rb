@@ -164,11 +164,11 @@ rescue LoadError => e
 end
 
 # Set up logging (now part of core)
-RAAF::Logging.configure do |config|
+RAAF.logger.configure do |config|
   config.log_level = RAAF.configuration.log_level
   config.log_format = :text
   config.log_output = :auto
 end
 
 # Log successful initialization
-RAAF::Logging.info("RAAF initialized successfully", version: RAAF::VERSION)
+RAAF.logger.info("RAAF initialized successfully", version: RAAF::VERSION)

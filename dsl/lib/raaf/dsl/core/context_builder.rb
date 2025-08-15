@@ -282,6 +282,19 @@ module RAAF
                            "Required keys: #{required_keys.inspect}"
       end
 
+      # Get the current context state without finalizing the builder
+      #
+      # This returns a copy of the current context variables, allowing
+      # incremental building where the context can be accessed during
+      # the building process.
+      #
+      # @return [ContextVariables] Copy of current context state
+      #
+      def current_context
+        # Return by value (copy) for safe isolation
+        ContextVariables.new(@context.to_h, debug: @debug_enabled, validate: @validate_enabled)
+      end
+
       # Get a snapshot of the current state (for debugging)
       #
       # @return [Hash] Current builder state
@@ -336,7 +349,7 @@ module RAAF
       def debug_log(message)
         return unless @debug_enabled
 
-        RAAF::Logging.debug("[ContextBuilder] #{message}", category: :context)
+        RAAF.logger.debug("[ContextBuilder] #{message}", category: :context)
       end
     end
   end
