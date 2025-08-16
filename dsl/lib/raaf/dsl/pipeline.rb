@@ -75,7 +75,12 @@ module RAAF
       # @return [Hash] Final pipeline result
       #
       def execute(initial_context = {}, debug: false)
-        context = RAAF::DSL::ContextVariables.new(initial_context, debug: debug)
+        # Handle both Hash and ContextVariables as initial_context
+        context = if initial_context.is_a?(RAAF::DSL::ContextVariables)
+                    initial_context  # Already a ContextVariables, use directly
+                  else
+                    RAAF::DSL::ContextVariables.new(initial_context, debug: debug)
+                  end
         execution_log = []
         
         log_info "🚀 [Pipeline] Starting execution with #{@steps.size} steps"
