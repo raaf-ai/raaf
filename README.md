@@ -204,6 +204,67 @@ result = runner.run("What's my favorite color?")
 # => "Your favorite color is blue"
 ```
 
+### Pipeline DSL Example
+
+Transform complex multi-step workflows from 66+ lines to just 3 lines:
+
+```ruby
+# Define agents using RAAF DSL
+class DataAnalyzer < RAAF::DSL::Agent
+  context_reader :raw_data
+  
+  instructions "Analyze the provided data and extract key insights"
+  model "gpt-4o"
+  
+  result_transform do
+    field :insights
+    field :summary
+  end
+end
+
+class ReportGenerator < RAAF::DSL::Agent
+  context_reader :insights, :summary
+  
+  instructions "Generate a professional report from the analysis"
+  model "gpt-4o"
+  
+  result_transform do
+    field :report
+  end
+end
+
+# Create elegant pipeline - just 3 lines!
+class DataProcessingPipeline < RAAF::Pipeline
+  flow DataAnalyzer >> ReportGenerator
+end
+
+# Run the pipeline
+pipeline = DataProcessingPipeline.new(
+  raw_data: "Sales data: Q1: $100k, Q2: $150k, Q3: $120k, Q4: $180k"
+)
+result = pipeline.run
+puts result[:report]
+```
+
+**Parallel Processing:**
+```ruby
+# Execute multiple agents simultaneously
+class ParallelAnalysisPipeline < RAAF::Pipeline
+  flow DataInput >> 
+       (SentimentAnalyzer | KeywordExtractor | EntityRecognizer) >> 
+       ResultMerger
+end
+```
+
+**Advanced Features:**
+- **Automatic Field Mapping** - Context flows intelligently between agents
+- **Error Handling** - Built-in retry and fallback mechanisms  
+- **Performance Optimization** - Parallel execution where possible
+- **Testing Support** - Comprehensive RSpec integration
+- **Field Validation** - Compile-time compatibility checking
+
+👉 **[Complete Pipeline DSL Guide](docs/PIPELINE_DSL_GUIDE.md)** - Comprehensive documentation with patterns, troubleshooting, and best practices
+
 ### Vector Search Example
 
 ```ruby

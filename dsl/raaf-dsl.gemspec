@@ -34,6 +34,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "activesupport", "~> 8.0"
   spec.add_dependency "ast", "~> 2.4"
   spec.add_dependency "binding_of_caller", "~> 1.0"
+  spec.add_dependency "concurrent-ruby", "~> 1.0"
   spec.add_dependency "erb", "~> 4.0"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "method_source", "~> 1.0"

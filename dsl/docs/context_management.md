@@ -2,6 +2,8 @@
 
 This guide covers the new context management features in RAAF DSL that help prevent common errors and simplify agent development.
 
+> **📝 Note**: This guide covers the original ContextPipeline approach. For the newer, more elegant Pipeline DSL with `>>` and `|` operators, see the **[Pipeline DSL Guide](../../docs/PIPELINE_DSL_GUIDE.md)** which reduces 66+ line pipeline definitions to just 3 lines.
+
 ## Table of Contents
 
 1. [ContextBuilder - Fluent Context Building](#contextbuilder)
