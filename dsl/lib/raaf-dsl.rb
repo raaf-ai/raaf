@@ -113,6 +113,10 @@ module RAAF
 
     # Main Agent class - the unified agent with all features
     autoload :Agent, "raaf/dsl/agent"
+    
+    # Pipeline DSL for elegant agent chaining
+    autoload :Pipeline, "raaf/dsl/pipeline_dsl/pipeline"
+    require_relative "raaf/dsl/pipeline_dsl"
 
     # Prompt building and template system
     #
@@ -162,6 +166,9 @@ module RAAF
     #
     module Tools
       autoload :Base, "raaf/dsl/tools/base"
+      autoload :ConventionOverConfiguration, "raaf/dsl/tools/convention_over_configuration"
+      autoload :PerformanceOptimizer, "raaf/dsl/tools/performance_optimizer"
+      autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"
       autoload :WebSearch, "raaf/dsl/tools/web_search"
       autoload :WebSearchPresets, "raaf/dsl/tools/web_search_presets"
       autoload :TavilySearch, "raaf/dsl/tools/tavily_search"
