@@ -226,15 +226,16 @@ module RAAF
       return json_str if plain_text?
 
       begin
-        parsed = JSON.parse(json_str)
+        parsed = JSON.parse(json_str, symbolize_names: true)
 
         if @is_wrapped
           raise Errors::ModelBehaviorError, "Expected a Hash, got #{parsed.class} for JSON: #{json_str}" unless parsed.is_a?(Hash)
 
-          raise Errors::ModelBehaviorError, "Could not find key '#{WRAPPER_DICT_KEY}' in JSON: #{json_str}" unless parsed.key?(WRAPPER_DICT_KEY)
+          wrapper_key_sym = WRAPPER_DICT_KEY.to_sym
+          raise Errors::ModelBehaviorError, "Could not find key '#{wrapper_key_sym}' in JSON: #{json_str}" unless parsed.key?(wrapper_key_sym)
 
           # Extract the wrapped value and validate it against the expected type
-          wrapped_value = parsed[WRAPPER_DICT_KEY]
+          wrapped_value = parsed[wrapper_key_sym]
           return validate_against_type(wrapped_value)
         end
 
