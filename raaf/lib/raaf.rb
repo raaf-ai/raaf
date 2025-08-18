@@ -70,13 +70,34 @@ module RAAF
   # Provides global configuration options for the entire framework.
   #
   class Configuration
-    attr_accessor :default_model, :default_provider, :log_level, :tracing_enabled
+    attr_accessor :default_model, :default_provider, :log_level, :tracing_enabled, :use_log_icons
 
     def initialize
       @default_model = "gpt-4o"
       @default_provider = :responses
       @log_level = :info
       @tracing_enabled = false
+      @use_log_icons = determine_log_icons_default
+    end
+
+    private
+
+    def determine_log_icons_default
+      # Check environment variable first
+      if ENV.key?("RAAF_LOG_ICONS")
+        ENV["RAAF_LOG_ICONS"] != "false"
+      else
+        # Default to true in development, false in production
+        development_environment?
+      end
+    end
+
+    def development_environment?
+      if defined?(Rails) && Rails.respond_to?(:env)
+        Rails.env.development?
+      else
+        ENV["RAILS_ENV"] == "development" || ENV["RACK_ENV"] == "development"
+      end
     end
   end
 
