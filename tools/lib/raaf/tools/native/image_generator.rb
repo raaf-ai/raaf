@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "../../dsl/tools/tool/native"
+require "raaf-dsl"
+require "raaf/dsl/tools/tool"
 
 module RAAF
   module Tools
@@ -27,8 +28,8 @@ module RAAF
       #   end
       #
       class ImageGenerator < RAAF::DSL::Tools::Tool::Native
-        tool_name "image_generator"
-        description "Generate images using DALL-E based on text descriptions"
+        configure name: "image_generator",
+                  description: "Generate images using DALL-E based on text descriptions"
         
         # DALL-E specific parameters
         parameter :prompt, 

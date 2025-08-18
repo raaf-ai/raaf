@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "../../dsl/tools/tool/api"
+require "raaf-dsl"
+require "raaf/dsl/tools/tool"
 
 module RAAF
   module Tools
@@ -24,32 +25,9 @@ module RAAF
       #   )
       #
       class WebPageFetch < RAAF::DSL::Tools::Tool::API
-        description "Intelligently fetch web page content using the best available scraping service"
+        configure description: "Intelligently fetch web page content using the best available scraping service"
         
-        # Parameters
-        param :url, 
-              required: true,
-              description: "The URL to fetch content from"
-        
-        param :prefer_service,
-              default: "auto",
-              enum: ["auto", "scrapfly", "tavily"],
-              description: "Preferred scraping service (auto selects best option)"
-        
-        param :render_js,
-              type: :boolean,
-              default: false,
-              description: "Enable JavaScript rendering if available"
-        
-        param :format,
-              default: "text",
-              enum: ["text", "markdown", "html"],
-              description: "Output format preference"
-        
-        param :max_chars,
-              type: :integer,
-              default: 10000,
-              description: "Maximum characters to return"
+        # Note: Parameters are defined in to_tool_definition method below
 
         def initialize
           super

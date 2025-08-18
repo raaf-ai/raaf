@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "raaf-dsl"
+require "raaf/dsl/tools/tool"
 
 module RAAF
   module Tools
