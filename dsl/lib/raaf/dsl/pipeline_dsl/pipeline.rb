@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../pipeline_dsl"
+
 module RAAF
   # New Pipeline base class for elegant DSL
   # Supports agent chaining with >> and | operators
@@ -17,12 +19,21 @@ module RAAF
   #   end
   class Pipeline
     class << self
-      attr_reader :flow_chain, :context_config, :context_readers
+      attr_reader :flow_chain, :context_config, :context_readers, :after_run_block
       
       # Define the agent execution flow using DSL operators
       # Stores the chained/parallel agent structure for execution
       def flow(chain)
         @flow_chain = chain
+      end
+      
+      # Define after_run hook using DSL block
+      # Executes after all agents complete with the final result
+      def after_run(&block)
+        if block_given?
+          @after_run_block = block
+        end
+        @after_run_block
       end
       
       # Context DSL - just like agents
@@ -81,7 +92,14 @@ module RAAF
     end
     
     def run
-      execute_chain(@flow, @context)
+      result = execute_chain(@flow, @context)
+      
+      # Execute after_run hook if defined
+      if self.class.after_run_block
+        instance_exec(result, &self.class.after_run_block)
+      end
+      
+      result
     end
     
     private
@@ -123,17 +141,21 @@ module RAAF
       
       # Extract first agent from chain
       first_agent = extract_first_agent(@flow)
-      return unless first_agent && first_agent.respond_to?(:required_fields)
+      return unless first_agent && first_agent.respond_to?(:externally_required_fields)
       
-      required = first_agent.required_fields
+      # Use externally_required_fields to only check for fields without defaults
+      externally_required = first_agent.externally_required_fields
       provided = @context.keys
-      missing = required - provided
+      missing = externally_required - provided
       
       if missing.any?
+        # Show both externally required and all required for debugging
+        all_required = first_agent.respond_to?(:required_fields) ? first_agent.required_fields : externally_required
+        
         raise ArgumentError, <<~MSG
           Pipeline initialization error!
           
-          First agent #{first_agent.name} requires: #{required.inspect}
+          First agent #{first_agent.name} requires: #{all_required.inspect}
           You have in context: #{provided.inspect}
           Missing: #{missing.inspect}
           

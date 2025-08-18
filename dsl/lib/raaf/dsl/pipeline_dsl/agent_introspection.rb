@@ -28,6 +28,27 @@ module RAAF
             fields.uniq
           end
           
+          # Extract truly required fields (context_reader fields WITHOUT defaults)
+          # This is used by pipeline validation to check what MUST be provided externally
+          def externally_required_fields
+            context_reader_fields = []
+            
+            # From context_reader declarations
+            if respond_to?(:_context_reader_config) && _context_reader_config
+              context_reader_fields.concat(_context_reader_config.keys)
+            end
+            
+            # Get fields that have defaults (these can be satisfied internally)
+            default_fields = []
+            if respond_to?(:_agent_config) && _agent_config && _agent_config[:context_rules]
+              defaults = _agent_config[:context_rules][:defaults]
+              default_fields = defaults&.keys || []
+            end
+            
+            # Return only fields that don't have defaults
+            (context_reader_fields - default_fields).uniq
+          end
+          
           # Extract provided fields from result_transform declarations
           def provided_fields
             return [] unless respond_to?(:_result_transformations) && _result_transformations

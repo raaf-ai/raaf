@@ -566,6 +566,10 @@ module RAAF
         private
 
         def define_simple_context_reader(key)
+          # Store key in context reader config for introspection
+          self._context_reader_config ||= {}
+          self._context_reader_config[key] = {}
+          
           define_method(key) do
             context.get(key)
           end
@@ -930,7 +934,7 @@ module RAAF
         if self.class._execution_conditions
           resolved_context = resolve_run_context(context || input_context_variables)
           unless should_execute?(resolved_context, previous_result)
-            log_info "#{RAAF.log_icon(:skip)} [#{self.class.name}] Skipping execution due to conditions not met"
+            log_info "⏭️ [#{self.class.name}] Skipping execution due to conditions not met"
             return {
               success: true,
               skipped: true,
@@ -947,7 +951,7 @@ module RAAF
         else
           # Smart execution with retries and circuit breaker
           agent_name = self.class._agent_config&.dig(:name) || self.class.name
-          log_info "#{RAAF.log_icon(:ai)} [#{agent_name}] Starting execution"
+          log_info "🤖 [#{agent_name}] Starting execution"
 
           begin
             # Check circuit breaker
@@ -962,7 +966,7 @@ module RAAF
             # Reset circuit breaker on success
             reset_circuit_breaker!
             
-            log_info "#{RAAF.log_icon(:success)} [#{agent_name}] Execution completed successfully"
+            log_info "✅ [#{agent_name}] Execution completed successfully"
             result
 
           rescue => e

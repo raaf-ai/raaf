@@ -7,15 +7,6 @@ require "securerandom"
 
 module RAAF
   
-  ##
-  # Get log icon for a specific type based on configuration
-  #
-  # @param type [Symbol] The icon type (:process, :skip, :target, :save, :success, :error, :info, :warning)
-  # @return [String] The icon or empty string if icons are disabled
-  #
-  def self.log_icon(type)
-    Logging.icon(type)
-  end
 
   ##
   # Logger mixin provides convenient logging methods to any class
@@ -446,6 +437,29 @@ module RAAF
         result
       end
 
+      ##
+      # Get icon for a specific type (always enabled)
+      #
+      # @param type [Symbol] The icon type (:process, :skip, :target, :save, :success, :error, :info, :warning)
+      # @return [String] The icon or text representation
+      #
+      def icon(type)
+        case type
+        when :process then "🔄"
+        when :skip then "⏭️"
+        when :target then "🎯"
+        when :save then "💾"
+        when :success then "✅"
+        when :error then "❌"
+        when :info then "🔍"
+        when :warning then "⚠️"
+        when :enrichment then "💎"
+        when :ai then "🤖"
+        when :metrics then "📊"
+        else ""
+        end
+      end
+
       private
 
       def log(level, message, **context)
@@ -529,30 +543,6 @@ module RAAF
         end
       end
 
-      ##
-      # Get icon for a specific type based on configuration
-      #
-      # @param type [Symbol] The icon type (:process, :skip, :target, :save, :success, :error, :info, :warning)
-      # @return [String] The icon or text representation
-      #
-      def icon(type)
-        return "" unless RAAF.configuration.use_log_icons
-
-        case type
-        when :process then "🔄"
-        when :skip then "⏭️"
-        when :target then "🎯"
-        when :save then "💾"
-        when :success then "✅"
-        when :error then "❌"
-        when :info then "🔍"
-        when :warning then "⚠️"
-        when :enrichment then "💎"
-        when :ai then "🤖"
-        when :metrics then "📊"
-        else ""
-        end
-      end
 
     end
 
