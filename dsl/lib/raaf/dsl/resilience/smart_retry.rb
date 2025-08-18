@@ -333,7 +333,7 @@ module RAAF
           if respond_to?(:reduce_context_size, true)
             new_size = (@current_context_size || 4000) * reduction_factor
             send(:reduce_context_size, new_size.to_i)
-            RAAF.logger.info "🔄 Context reduced to #{new_size.to_i} tokens for retry #{attempt}"
+            RAAF.logger.info "#{RAAF.log_icon(:process)} Context reduced to #{new_size.to_i} tokens for retry #{attempt}"
           end
         end
 
@@ -342,7 +342,7 @@ module RAAF
           
           if respond_to?(:switch_model, true)
             send(:switch_model, fallback_model)
-            RAAF.logger.info "🔄 Switched to fallback model #{fallback_model} for retry #{attempt}"
+            RAAF.logger.info "#{RAAF.log_icon(:process)} Switched to fallback model #{fallback_model} for retry #{attempt}"
           end
         end
 
@@ -350,7 +350,7 @@ module RAAF
           if respond_to?(:simplify_prompt, true)
             simplification_level = attempt
             send(:simplify_prompt, simplification_level)
-            RAAF.logger.info "🔄 Simplified prompt (level #{simplification_level}) for retry #{attempt}"
+            RAAF.logger.info "#{RAAF.log_icon(:process)} Simplified prompt (level #{simplification_level}) for retry #{attempt}"
           end
         end
 
@@ -449,7 +449,7 @@ module RAAF
           # Try fallback strategy if configured
           fallback = _fallback_strategies[error_type]
           if fallback && respond_to?(fallback[:strategy], true)
-            RAAF.logger.info "🔄 Applying fallback strategy #{fallback[:strategy]} for #{error_type}"
+            RAAF.logger.info "#{RAAF.log_icon(:process)} Applying fallback strategy #{fallback[:strategy]} for #{error_type}"
             begin
               return send(fallback[:strategy], error, fallback[:options])
             rescue => fallback_error
@@ -467,7 +467,7 @@ module RAAF
         def log_retry_attempt(operation_name, error, attempt, max_attempts, delay)
           @total_retry_attempts += 1
           
-          RAAF.logger.warn "🔄 [SmartRetry] #{operation_name} retry #{attempt}/#{max_attempts} in #{delay.round(2)}s: #{error.message}",
+          RAAF.logger.warn "#{RAAF.log_icon(:process)} [SmartRetry] #{operation_name} retry #{attempt}/#{max_attempts} in #{delay.round(2)}s: #{error.message}",
                              category: :resilience,
                              data: {
                                operation: operation_name,

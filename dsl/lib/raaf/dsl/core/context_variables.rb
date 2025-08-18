@@ -131,6 +131,22 @@ module RAAF
         value.nil? ? default : value
       end
 
+      # Array-style access for compatibility with Hash syntax
+      #
+      # This allows ContextVariables to be used interchangeably with Hash
+      # in agent code, making it easier to write portable agent implementations.
+      #
+      # @param key [Symbol, String] The variable key
+      # @return [Object] The variable value or nil
+      #
+      # @example
+      #   context[:user_tier] # => "premium"
+      #   context["session_id"] # => "abc-123"
+      #
+      def [](key)
+        get(key)
+      end
+
       # Get a nested value using a path array (for prompt system compatibility)
       #
       # @param path [Array<Symbol, String>] Path to the nested value

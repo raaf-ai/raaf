@@ -87,6 +87,7 @@ module RAAF
         # Field mapping decisions:
         # - Producer fields must satisfy consumer requirements (enforced)
         # - Initial context fields are allowed (from pipeline setup)
+        # - Fields with context defaults in the agent are allowed
         # - Missing non-initial fields raise FieldMismatchError
         def validate_field_compatibility!
           return unless @first.respond_to?(:provided_fields) && @second.respond_to?(:required_fields)
@@ -94,6 +95,16 @@ module RAAF
           provided = @first.provided_fields
           required = @second.required_fields
           missing = required - provided
+          
+          # Check if the second agent has context defaults for missing fields
+          if @second.respond_to?(:_agent_config)
+            agent_config = @second._agent_config
+            if agent_config && agent_config[:context_rules] && agent_config[:context_rules][:defaults]
+              defaults = agent_config[:context_rules][:defaults]
+              # Remove fields that have defaults from the missing list
+              missing = missing - defaults.keys
+            end
+          end
           
           # Allow certain fields to come from initial context
           # These fields are typically provided when creating the pipeline instance
@@ -106,7 +117,7 @@ module RAAF
           ]
           non_initial_missing = missing - initial_context_fields
           
-          # Only raise error for fields that can't come from initial context
+          # Only raise error for fields that can't come from initial context or defaults
           if non_initial_missing.any?
             raise FieldMismatchError.new(@first, @second, non_initial_missing, initial_context_fields)
           end

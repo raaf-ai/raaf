@@ -141,7 +141,7 @@ module RAAF
       def execute_agent_step(step, context)
         # Check step condition if defined
         if step.condition && !step.condition.call(context)
-          log_info "⏭️ [Pipeline] Skipping step #{step.name} (condition not met)"
+          log_info "#{RAAF.log_icon(:skip)} [Pipeline] Skipping step #{step.name} (condition not met)"
           return {
             success: true,
             skipped: true,

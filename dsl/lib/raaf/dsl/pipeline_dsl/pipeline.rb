@@ -56,9 +56,25 @@ module RAAF
       end
     end
     
-    def initialize(**provided_context)
-      # Build context just like agents do
-      @context = build_initial_context(provided_context)
+    # Initialize a pipeline with flexible context options
+    #
+    # Supports the same flexible API as RAAF agents for consistency:
+    # 1. With context hash: Pipeline.new(context: { key: value })
+    # 2. With keyword args: Pipeline.new(key: value, key2: value2)
+    # 3. Mixed: Pipeline.new(context: base_context, extra_key: value)
+    #
+    # @param context [Hash, nil] Optional context hash (like agents)
+    # @param provided_context [Hash] Additional context as keyword arguments
+    def initialize(context: nil, **provided_context)
+      # Support both context: hash and direct keyword arguments like agents do
+      if context
+        # Context provided explicitly (like agents)
+        @context = build_context_from_param(context).merge(provided_context)
+      else
+        # Use keyword arguments as context
+        @context = build_initial_context(provided_context)
+      end
+      
       @flow = self.class.flow_chain
       @context[:pipeline_instance] = self if @context.is_a?(Hash)
       validate_initial_context!
@@ -69,6 +85,15 @@ module RAAF
     end
     
     private
+    
+    def build_context_from_param(context_param)
+      case context_param
+      when Hash
+        context_param
+      else
+        raise ArgumentError, "Pipeline context must be a Hash, got #{context_param.class}"
+      end
+    end
     
     def build_initial_context(provided_context)
       # Start with provided context

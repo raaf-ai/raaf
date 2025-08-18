@@ -930,7 +930,7 @@ module RAAF
         if self.class._execution_conditions
           resolved_context = resolve_run_context(context || input_context_variables)
           unless should_execute?(resolved_context, previous_result)
-            log_info "⏭️ [#{self.class.name}] Skipping execution due to conditions not met"
+            log_info "#{RAAF.log_icon(:skip)} [#{self.class.name}] Skipping execution due to conditions not met"
             return {
               success: true,
               skipped: true,
@@ -947,7 +947,7 @@ module RAAF
         else
           # Smart execution with retries and circuit breaker
           agent_name = self.class._agent_config&.dig(:name) || self.class.name
-          log_info "🤖 [#{agent_name}] Starting execution"
+          log_info "#{RAAF.log_icon(:ai)} [#{agent_name}] Starting execution"
 
           begin
             # Check circuit breaker
@@ -962,7 +962,7 @@ module RAAF
             # Reset circuit breaker on success
             reset_circuit_breaker!
             
-            log_info "✅ [#{agent_name}] Execution completed successfully"
+            log_info "#{RAAF.log_icon(:success)} [#{agent_name}] Execution completed successfully"
             result
 
           rescue => e
@@ -1149,7 +1149,20 @@ module RAAF
 
       # RAAF DSL method - build response schema
       def build_schema
-        self.class._schema_definition || default_schema
+        # First check if agent has directly defined schema
+        if self.class._schema_definition
+          return self.class._schema_definition
+        end
+        
+        # Check if prompt class has a schema
+        prompt_spec = determine_prompt_spec
+        if prompt_spec && prompt_spec.respond_to?(:has_schema?) && prompt_spec.has_schema?
+          log_debug "Using schema from prompt class", prompt_class: prompt_spec.name
+          return prompt_spec.get_schema
+        end
+        
+        # Fall back to default schema
+        default_schema
       end
 
 
@@ -1234,14 +1247,25 @@ module RAAF
       
       # Build context from parameter (backward compatibility)
       def build_context_from_param(context_param, debug = nil)
-        case context_param
+        # Start with the provided context
+        base_context = case context_param
         when RAAF::DSL::ContextVariables
-          context_param
+          context_param.to_h
         when Hash
-          RAAF::DSL::ContextVariables.new(context_param, debug: debug)
+          context_param
         else
           raise ArgumentError, "context must be ContextVariables instance or Hash"
         end
+        
+        # Apply agent's context defaults if they don't exist in provided context
+        if self.class._agent_config && self.class._agent_config[:context_rules] && self.class._agent_config[:context_rules][:defaults]
+          defaults = self.class._agent_config[:context_rules][:defaults]
+          defaults.each do |key, value|
+            base_context[key] ||= value.is_a?(Proc) ? value.call : value
+          end
+        end
+        
+        RAAF::DSL::ContextVariables.new(base_context, debug: debug)
       end
       
       # Build context automatically from keyword arguments
@@ -1329,12 +1353,20 @@ module RAAF
         run_result = runner.run(user_prompt, context: run_context)
         
         # Transform result to expected DSL format
-        transform_openai_result(run_result, run_context)
+        base_result = transform_ai_result(run_result, run_context)
+        
+        # Apply result transformations if configured
+        if self.class._result_transformations
+          apply_result_transformations(base_result)
+        else
+          base_result
+        end
       rescue StandardError => e
-        log_error("Agent execution failed",
+        log_error("Agent execution failed", 
                   error_class: e.class.name,
                   error_message: e.message,
-                  agent_name: agent_name)
+                  agent_name: agent_name,
+                  stack_trace: e.backtrace.join("\n"))
         
         # Return error result in expected format
         {
@@ -1539,7 +1571,8 @@ module RAAF
         return content unless content.is_a?(String)
         
         begin
-          parsed = JSON.parse(content)
+          # Parse JSON with symbolized keys for consistent internal processing
+          parsed = JSON.parse(content, symbolize_names: true)
           { success: true, data: parsed }
         rescue JSON::ParserError => e
           log_error "❌ [#{self.class.name}] JSON parsing failed: #{e.message}"
@@ -1644,18 +1677,18 @@ module RAAF
         prompt
       end
 
-      def transform_openai_result(run_result, run_context)
-        # Extract final output from messages
-        final_output = extract_final_output(run_result)
+      def transform_ai_result(run_result, run_context)
+        # Extract parsed output from messages (works for any AI provider)
+        parsed_output = extract_final_output(run_result)
 
         # Build result in expected DSL format
         {
           workflow_status: "completed",
           success: true,
           results: run_result,
-          final_output: final_output,
+          parsed_output: parsed_output,  # The parsed AI response
           context_variables: run_context,
-          summary: build_result_summary(final_output)
+          summary: build_result_summary(parsed_output)
         }
       end
 
@@ -1671,7 +1704,8 @@ module RAAF
         # Try to parse as JSON if it looks like JSON
         if content.is_a?(String) && (content.start_with?("{") || content.start_with?("["))
           begin
-            JSON.parse(content)
+            # Parse JSON with symbolized keys for consistent internal processing
+            JSON.parse(content, symbolize_names: true)
           rescue JSON::ParserError
             content
           end
@@ -1698,7 +1732,9 @@ module RAAF
         return base_result unless self.class._result_transformations
 
         transformations = self.class._result_transformations
-        input_data = base_result[:data] || base_result
+        # For AI results, the parsed output is in :parsed_output
+        # For other results, it's in :data
+        input_data = base_result[:parsed_output] || base_result[:data] || base_result
 
         transformed_result = {}
         metadata = {}
@@ -1732,13 +1768,12 @@ module RAAF
           end
         end
 
-        # Return transformed result with original structure preserved
-        {
-          success: base_result[:success] != false,
-          data: transformed_result,
-          transformation_metadata: metadata,
-          original_data: input_data
-        }
+        # Merge transformed fields into the original result structure
+        # This preserves all original fields (like workflow_status, results, etc.)
+        # while adding the new transformed fields
+        base_result.merge(transformed_result).merge(
+          transformation_metadata: metadata
+        )
       end
 
       def extract_field_value(input_data, field_config)
@@ -1928,18 +1963,25 @@ module RAAF
       end
 
       def find_executable_method(tool_name, tool_instance)
-        # Look for execute method first, then tool name method
+        # Look for execute method first, then call (Ruby callable convention), then tool name method
         if tool_instance.respond_to?(:execute)
           :execute
+        elsif tool_instance.respond_to?(:call)
+          :call
         elsif tool_instance.respond_to?(tool_name)
           tool_name.to_sym
         else
+          # Debug output to understand what methods are available
+          log_error("Tool instance class: #{tool_instance.class}")
+          log_error("Tool instance methods: #{tool_instance.public_methods(false).sort.join(', ')}")
+          log_error("Tool instance responds to call?: #{tool_instance.respond_to?(:call)}")
+          log_error("Tool instance responds to execute?: #{tool_instance.respond_to?(:execute)}")
           nil
         end
       end
 
       def handle_no_executable_method(tool_name, tool_instance)
-        log_error("Tool #{tool_name} has no executable method (execute or #{tool_name})")
+        log_error("Tool #{tool_name} has no executable method (execute, call, or #{tool_name})")
         nil
       end
 
@@ -1963,10 +2005,10 @@ module RAAF
 
       def create_raaf_function_tool(tool_name, description, parameters, tool_proc)
         RAAF::FunctionTool.new(
+          tool_proc,
           name: tool_name,
           description: description,
-          parameters: parameters,
-          &tool_proc
+          parameters: parameters
         )
       end
 

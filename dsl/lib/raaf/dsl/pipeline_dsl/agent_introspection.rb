@@ -39,16 +39,23 @@ module RAAF
           def requirements_met?(context)
             required = required_fields
             
-            # Check if context has all required fields
+            # Get agent defaults if available
+            defaults = {}
+            if respond_to?(:_agent_config) && _agent_config && _agent_config[:context_rules]
+              defaults = _agent_config[:context_rules][:defaults] || {}
+            end
+            
+            # Check if context has all required fields (or they have defaults)
             if context.is_a?(Hash)
-              required.all? { |field| context.key?(field) }
+              required.all? { |field| context.key?(field) || defaults.key?(field) }
             elsif context.respond_to?(:keys)
-              required.all? { |field| context.keys.include?(field) }
+              required.all? { |field| context.keys.include?(field) || defaults.key?(field) }
             else
               # For ContextVariables or other context objects
               required.all? do |field| 
                 context.respond_to?(field) || 
-                (context.respond_to?(:[]) && !context[field].nil?)
+                (context.respond_to?(:[]) && !context[field].nil?) ||
+                defaults.key?(field)
               end
             end
           end
