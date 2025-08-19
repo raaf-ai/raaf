@@ -5,6 +5,7 @@ require "active_support/concern"
 require "active_support/core_ext/object/blank"
 require_relative "config/config"
 require_relative "core/context_variables"
+require_relative "context_access"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
 require_relative "pipeline"
@@ -37,6 +38,7 @@ module RAAF
     #
     class Agent
       include RAAF::Logger
+      include RAAF::DSL::ContextAccess
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
@@ -94,13 +96,6 @@ module RAAF
           Thread.current["raaf_dsl_prompt_config_#{object_id}"] = value
         end
 
-        def _context_reader_config
-          Thread.current["raaf_dsl_context_reader_config_#{object_id}"] ||= {}
-        end
-
-        def _context_reader_config=(value)
-          Thread.current["raaf_dsl_context_reader_config_#{object_id}"] = value
-        end
 
         def _auto_discovery_config
           Thread.current["raaf_dsl_auto_discovery_config_#{object_id}"] ||= {}
@@ -117,7 +112,6 @@ module RAAF
           subclass._tools_config = []
           subclass._schema_config = {}
           subclass._prompt_config = {}
-          subclass._context_reader_config = {}
           
           # Enable auto-transform by default with standard patterns
           subclass._auto_discovery_config = {
@@ -125,7 +119,6 @@ module RAAF
               process_*_from_data
               build_*_metadata
               extract_*_from_data
-              compute_*
             ],
             exclude: [],
             enabled: true
@@ -135,14 +128,6 @@ module RAAF
           hooks = {}
           HOOK_TYPES.each { |hook_type| hooks[hook_type] = [] }
           subclass._agent_hooks = hooks
-          
-          # Schedule auto-discovery to run after class body is evaluated
-          TracePoint.new(:end) do |tp|
-            if tp.self == subclass
-              subclass.discover_computed_methods
-              tp.disable
-            end
-          end.enable
         end
 
         # Core DSL methods from AgentDsl
@@ -159,6 +144,18 @@ module RAAF
             _agent_config[:model] = model_name
           else
             _agent_config[:model] || "gpt-4o"
+          end
+        end
+
+        # Set or get the contract mode for this agent
+        #
+        # @param mode [Symbol, nil] The contract mode (:strict, :warn, :lenient, :off)
+        # @return [Symbol] The contract mode
+        def contract_mode(mode = nil)
+          if mode
+            _agent_config[:contract_mode] = mode
+          else
+            _agent_config[:contract_mode] || :lenient
           end
         end
 
@@ -529,70 +526,6 @@ module RAAF
         end
 
 
-        # Enhanced context reader DSL - generates helper methods for context access
-        # with support for validation, defaults, and transformation
-        # Similar to attr_reader but for RAAF context variables
-        #
-        # @param keys [Array<Symbol>] Context keys to create helper methods for
-        # @param options [Hash] Optional validation and default options
-        #
-        # @example Basic usage
-        #   class MyAgent < RAAF::DSL::Agent
-        #     context_reader :product, :company, :analysis_depth
-        #   end
-        #
-        # @example With validation and defaults
-        #   class MyAgent < RAAF::DSL::Agent
-        #     context_reader :product, required: true, type: Product
-        #     context_reader :analysis_depth, default: "standard", validate: ["standard", "deep", "quick"]
-        #     context_reader :max_results, default: 10, type: Integer, validate: ->(v) { v > 0 && v <= 100 }
-        #     context_reader :company, transform: ->(v) { v&.name&.downcase }
-        #   end
-        #
-        def context_reader(*keys, **options)
-          # Split keys and per-key options
-          if keys.size == 1 && options.any?
-            # Single key with options
-            key = keys.first
-            define_enhanced_context_reader(key, options)
-          else
-            # Multiple keys without options
-            keys.each do |key|
-              define_simple_context_reader(key)
-            end
-          end
-        end
-
-        private
-
-        def define_simple_context_reader(key)
-          # Store key in context reader config for introspection
-          self._context_reader_config ||= {}
-          self._context_reader_config[key] = {}
-          
-          define_method(key) do
-            context.get(key)
-          end
-          private key
-        end
-
-        def define_enhanced_context_reader(key, options)
-          # Store config for this key (only required is supported)
-          self._context_reader_config ||= {}
-          self._context_reader_config[key] = options.slice(:required)
-
-          define_method(key) do
-            value = context.get(key)
-            
-            # Validate required
-            if options[:required] && value.nil?
-              raise ArgumentError, "Context key '#{key}' is required but missing"
-            end
-            
-            value
-          end
-          private key
-        end
 
 
         # Result transformation DSL - defines how to transform AI responses
@@ -681,22 +614,21 @@ module RAAF
         # Auto-transform configuration for result transformation methods
         # Uses Convention Over Configuration - enabled by default with standard patterns
         #
-        # Default patterns (automatically discovered):
+        # Default patterns (automatically discovered for result processing):
         #   - process_*_from_data  : Process raw AI data into structured format
         #   - build_*_metadata     : Build metadata for results
         #   - extract_*_from_data  : Extract specific data from AI response
-        #   - compute_*            : Compute derived values
         #
-        # @example Using default auto-transform (no configuration needed!)
+        # @example Using default auto-transform (result processing only)
         #   class MyAgent < RAAF::DSL::Agent
-        #     # Auto-transform is ON by default - these methods will be auto-discovered:
+        #     # Auto-transform is ON by default for result processing methods:
         #     
         #     def process_companies_from_data(data)
-        #       # Automatically used for field :companies, computed: :process_companies_from_data
+        #       # Used in result_transform field declarations
         #     end
         #     
         #     def build_search_metadata(data)
-        #       # Automatically used for field :search_metadata, computed: :build_search_metadata
+        #       # Used in result_transform field declarations
         #     end
         #   end
         #
@@ -719,7 +651,6 @@ module RAAF
               process_*_from_data
               build_*_metadata
               extract_*_from_data
-              compute_*
             ]
             
             self._auto_discovery_config = {
@@ -727,62 +658,16 @@ module RAAF
               exclude: exclude,
               enabled: true
             }
-            
-            # Trigger discovery when class is loaded
-            discover_computed_methods
           end
         end
         
         # Legacy method for backward compatibility
-        def enable_auto_discovery(patterns: %w[process_*_from_data build_*_metadata compute_*], exclude: [])
+        def enable_auto_discovery(patterns: %w[process_*_from_data build_*_metadata], exclude: [])
           auto_transform(:on, patterns: patterns, exclude: exclude)
         end
 
-        # Manual computed method registration
-        def computed_method(method_name, field_name = nil)
-          self._computed_methods ||= {}
-          field_name ||= method_name.to_s.gsub(/^(process_|build_|compute_)/, '').gsub(/_from_data$/, '')
-          self._computed_methods[field_name.to_sym] = method_name.to_sym
-        end
 
         protected
-
-        def discover_computed_methods
-          # Auto-transform is enabled by default
-          return if _auto_discovery_config&.dig(:enabled) == false
-          
-          self._computed_methods ||= {}
-          # Use configured patterns or default convention patterns
-          patterns = _auto_discovery_config&.dig(:patterns) || %w[
-            process_*_from_data
-            build_*_metadata
-            extract_*_from_data
-            compute_*
-          ]
-          exclude = _auto_discovery_config&.dig(:exclude) || []
-          
-          # Get all instance methods including private ones
-          all_methods = instance_methods(false) + private_instance_methods(false)
-          
-          patterns.each do |pattern|
-            # Convert glob pattern to regex
-            regex = pattern_to_regex(pattern)
-            
-            matching_methods = all_methods.select do |method_name|
-              method_str = method_name.to_s
-              method_str.match?(regex) && !exclude.include?(method_name)
-            end
-            
-            matching_methods.each do |method_name|
-              field_name = derive_field_name_from_method(method_name.to_s)
-              self._computed_methods[field_name.to_sym] = method_name.to_sym
-            end
-          end
-          
-          if _auto_discovery_config[:debug] || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?)
-            puts "🔍 [#{self.name}] Auto-discovered #{_computed_methods.size} computed methods: #{_computed_methods.keys.join(', ')}"
-          end
-        end
 
         private
 
@@ -819,11 +704,31 @@ module RAAF
             @rules = {}
           end
           
-          def requires(*keys)
+          # New DSL methods
+          def required(*fields)
             @rules[:required] ||= []
-            @rules[:required].concat(keys)
+            @rules[:required].concat(fields.map(&:to_sym))
           end
           
+          def optional(**fields_with_defaults)
+            @rules[:optional] ||= {}
+            fields_with_defaults.each do |field, default_value|
+              @rules[:optional][field.to_sym] = default_value
+            end
+          end
+          
+          def output(*fields)
+            @rules[:output] ||= []
+            @rules[:output].concat(fields.map(&:to_sym))
+          end
+          
+          def computed(field_name, method_name = nil)
+            @rules[:computed] ||= {}
+            method_name ||= "compute_#{field_name}".to_sym
+            @rules[:computed][field_name.to_sym] = method_name.to_sym
+          end
+          
+          # Keep existing methods for backward compatibility and other functionality
           def exclude(*keys)
             @rules[:exclude] ||= []
             @rules[:exclude].concat(keys)
@@ -839,11 +744,6 @@ module RAAF
             @rules[:validations][key] = { type: type, proc: with }
           end
           
-          def default(key, value)
-            @rules[:defaults] ||= {}
-            @rules[:defaults][key.to_sym] = value
-          end
-          
           def to_h
             @rules
           end
@@ -855,7 +755,7 @@ module RAAF
       class << self
         attr_accessor :_required_context_keys, :_validation_rules, :_schema_definition, :_user_prompt_block,
                      :_retry_config, :_circuit_breaker_config, :_result_transformations,
-                     :_computed_methods, :_execution_conditions
+                     :_execution_conditions
       end
 
       # Instance attributes
@@ -899,20 +799,7 @@ module RAAF
         end
       end
 
-      # Clean API methods for context access
-      def get(key, default = nil)
-        @context.get(key, default)
-      end
-      
-      def set(key, value)
-        @context = @context.set(key, value)
-        value
-      end
-      
-      def update(**values)
-        @context = @context.update(values)
-        self
-      end
+      # Context access through dynamic methods - update/set methods removed
       
       def has?(key)
         @context.has?(key)
@@ -992,23 +879,34 @@ module RAAF
         prompt_spec = determine_prompt_spec
         log_debug "Building system instructions", prompt_spec: prompt_spec, agent_class: self.class.name
         
-        if prompt_spec
-          begin
-            resolved_prompt = DSL.prompt_resolvers.resolve(prompt_spec, @context.to_h)
-            log_debug "Resolver result", resolved: !!resolved_prompt, resolvers_count: DSL.prompt_resolvers.resolvers.count
-            if resolved_prompt
-              system_message = resolved_prompt.messages.find { |m| m[:role] == "system" }
-              log_debug "System message found", found: !!system_message
-              return system_message[:content] if system_message
+        error_message = "No system prompt resolved for #{self.class.name}. "
+        
+        if prompt_spec.nil?
+          error_message += "No prompt class configured and could not infer one. " \
+                          "Expected to find prompt class at: #{infer_prompt_class_name_string}"
+        else
+          log_debug "Found prompt spec", spec_class: prompt_spec.class.name, spec_value: prompt_spec.inspect
+          
+          resolved_prompt = DSL.prompt_resolvers.resolve(prompt_spec, @context.to_h)
+          log_debug "Resolver result", resolved: !!resolved_prompt, resolvers_count: DSL.prompt_resolvers.resolvers.count
+          
+          if resolved_prompt
+            system_message = resolved_prompt.messages.find { |m| m[:role] == "system" }
+            log_debug "System message found", found: !!system_message
+            if system_message
+              return system_message[:content]
+            else
+              error_message += "Prompt was resolved but no system message found. " \
+                              "Check your prompt class has a 'system' method that returns content."
             end
-          rescue StandardError => e
-            # Re-raise prompt resolution errors with agent context, preserving original error type and stack trace
-            raise e.class, "Agent #{self.class.name} failed to build system prompt: #{e.message}", e.backtrace
+          else
+            error_message += "No resolver could handle the prompt specification. " \
+                            "Tried: #{DSL.prompt_resolvers.resolvers.map(&:name).join(', ')}. " \
+                            "Check prompt class exists and context variables are valid."
           end
         end
         
-        raise RAAF::DSL::Error, "No system prompt resolved for #{self.class.name}. " \
-                                "Check prompt class configuration or ensure prompt files exist."
+        raise RAAF::DSL::Error, error_message
       end
 
       # RAAF DSL method - build user prompt using resolver system
@@ -1071,15 +969,28 @@ module RAAF
                   agent_class: agent_class_name, 
                   inferred_prompt_class: prompt_class_name
         
-        # Try to constantize the inferred class name
-        begin
-          prompt_class_name.constantize
-        rescue NameError => e
+        # Check if the class exists before trying to constantize it
+        if Object.const_defined?(prompt_class_name)
+          # Class exists, now try to load it (this will catch actual errors in the class)
+          begin
+            prompt_class_name.constantize
+          rescue StandardError => e
+            # This is a real error in the class definition (like missing methods, syntax errors, etc.)
+            # Re-raise it so the user can see what's wrong
+            raise e.class, "Error loading prompt class #{prompt_class_name}: #{e.message}", e.backtrace
+          end
+        else
+          # Class doesn't exist, log and return nil for graceful fallback
           log_debug "Inferred prompt class not found", 
                     class: prompt_class_name, 
-                    error: e.message
+                    error: "Class does not exist"
           nil
         end
+      end
+      
+      def infer_prompt_class_name_string
+        agent_class_name = self.class.name
+        agent_class_name.gsub(/::Agents::/, "::Prompts::")
       end
 
       # Supporting methods for prompt handling (from AgentDsl) - called by public methods
@@ -1187,6 +1098,10 @@ module RAAF
           3
       end
 
+      def contract_mode
+        self.class._agent_config&.dig(:contract_mode) || :lenient
+      end
+
       def instructions
         build_instructions
       end
@@ -1247,6 +1162,10 @@ module RAAF
       # Public context accessor for testing and prompt blocks
       attr_reader :context
 
+      # Context access now handled by RAAF::DSL::ContextAccess module
+
+      # Context update methods removed - use natural assignment syntax: field = value
+
       private
       
       # Build context from parameter (backward compatibility)
@@ -1269,7 +1188,13 @@ module RAAF
           end
         end
         
-        RAAF::DSL::ContextVariables.new(base_context, debug: debug)
+        final_context = RAAF::DSL::ContextVariables.new(base_context, debug: debug)
+        @context = final_context
+        
+        # NEW: Create dynamic methods for all context variables
+        define_context_accessors(final_context.keys)
+        
+        final_context
       end
       
       # Build context automatically from keyword arguments
@@ -1279,7 +1204,15 @@ module RAAF
         rules = self.class._agent_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
         
-        # First pass: Add static params and defaults
+        # Validate required fields are provided
+        if rules[:required]
+          missing_required = rules[:required] - params.keys
+          if missing_required.any?
+            raise ArgumentError, "Missing required context fields: #{missing_required.inspect}"
+          end
+        end
+        
+        # Add provided parameters (with exclusion/inclusion rules for backward compatibility)
         params.each do |key, value|
           # Apply exclusion rules
           next if rules[:exclude]&.include?(key)
@@ -1293,24 +1226,63 @@ module RAAF
           builder.with(key, value)
         end
         
-        # Apply default values for keys that weren't provided
-        if rules[:defaults]
-          rules[:defaults].each do |key, default_value|
+        # Add optional fields with defaults (new DSL)
+        if rules[:optional]
+          rules[:optional].each do |key, default_value|
             # Only set default if the key wasn't provided in params
             unless params.key?(key)
-              builder.with(key, default_value)
+              builder.with(key, default_value.is_a?(Proc) ? default_value.call : default_value)
             end
           end
         end
         
-        # Make static context available to build_*_context methods
+        # Add output fields as nil (new DSL)
+        if rules[:output]
+          rules[:output].each do |key|
+            # Initialize output fields as nil to prevent NameError on access
+            builder.with(key, nil)
+          end
+        end
+        
+        # Apply legacy default values for backward compatibility
+        if rules[:defaults]
+          rules[:defaults].each do |key, default_value|
+            # Only set default if the key wasn't provided in params
+            unless params.key?(key)
+              builder.with(key, default_value.is_a?(Proc) ? default_value.call : default_value)
+            end
+          end
+        end
+        
+        # Make static context available to computed methods
         @context = builder.current_context
         
-        # Second pass: Add computed context values now that @context is available
+        # Add computed context values from build_*_context methods (legacy)
         add_computed_context(builder)
         
+        # Add computed fields (new DSL) - after basic context is available
+        if rules[:computed]
+          rules[:computed].each do |field_name, method_name|
+            # Only compute if the method exists on the agent
+            if respond_to?(method_name, true)
+              computed_value = send(method_name)
+              builder.with(field_name, computed_value)
+            else
+              # Initialize as nil to prevent NameError, but log a warning
+              builder.with(field_name, nil)
+              log_warn "🤔 [#{self.class.name}] Computed method '#{method_name}' not found for field '#{field_name}'"
+            end
+          end
+        end
+        
         # Final build with all values
-        builder.build
+        final_context = builder.build
+        @context = final_context
+        
+        # NEW: Create dynamic methods for all context variables
+        define_context_accessors(final_context.keys)
+        
+        final_context
       end
       
       # Add computed context values from build_*_context methods
@@ -1326,6 +1298,39 @@ module RAAF
             builder.with(context_key, value)
           end
         end
+      end
+      
+      # Define dynamic getter and setter methods for context variables
+      # This enables natural Ruby assignment syntax: results = value
+      def define_context_accessors(context_keys)
+        context_keys.each do |key|
+          # Remove any existing methods to avoid warnings (check if method exists first)
+          begin
+            singleton_class.remove_method(key) if singleton_class.method_defined?(key)
+          rescue NameError
+            # Method doesn't exist, which is fine
+          end
+          
+          begin
+            singleton_class.remove_method("#{key}=") if singleton_class.method_defined?("#{key}=")
+          rescue NameError
+            # Method doesn't exist, which is fine
+          end
+          
+          # Define getter method
+          define_singleton_method(key) do
+            @context.get(key)
+          end
+          
+          # Define setter method
+          define_singleton_method("#{key}=") do |value|
+            @context = @context.set(key, value)
+            value
+          end
+        end
+        
+        # Track what we've defined for debugging
+        @defined_context_keys = context_keys
       end
       
       # Check if agent has any smart features configured
@@ -1791,15 +1796,6 @@ module RAAF
             send(method_name, input_data)
           else
             log_warn "🤔 [#{self.class.name}] Computed method '#{method_name}' not found"
-            nil
-          end
-        elsif self.class._computed_methods && self.class._computed_methods[source_key]
-          # Use auto-discovered computed method
-          method_name = self.class._computed_methods[source_key]
-          if respond_to?(method_name, true)
-            send(method_name, input_data)
-          else
-            log_warn "🤔 [#{self.class.name}] Auto-discovered computed method '#{method_name}' not found"
             nil
           end
         else
