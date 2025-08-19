@@ -42,9 +42,8 @@ class SmartPipeline < RAAF::Pipeline
   
   # Set defaults (just like agents)
   context do
-    default :market_data, {}
-    default :analysis_depth, "standard"
-    default :scoring_weights, { growth: 0.4, fit: 0.6 }
+    optional market_data: {}, analysis_depth: "standard"
+    optional scoring_weights: { growth: 0.4, fit: 0.6 }
   end
   
   # Optional: Dynamic context building

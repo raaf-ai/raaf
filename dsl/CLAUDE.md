@@ -118,18 +118,15 @@ end
 
 # PREFERRED: Ruby prompt classes (Phlex-style)
 class ResearchPrompt < RAAF::DSL::Prompts::Base
-  required :topic, :depth
-  optional :language, default: "English"
-  
   def system
     <<~SYSTEM
-      You are a research assistant specializing in #{@topic}.
-      Provide #{@depth} analysis in #{@language}.
+      You are a research assistant specializing in #{topic}.
+      Provide #{depth} analysis in #{language || 'English'}.
     SYSTEM
   end
   
   def user
-    "Research the latest developments in #{@topic}."
+    "Research the latest developments in #{topic}."
   end
 end
 
@@ -158,10 +155,11 @@ end
 
 ### Why Prefer Ruby Prompts?
 
-- **Validation**: Required/optional variables with contracts
+- **Automatic Context**: Variables are automatically accessible via method_missing
 - **Testing**: Easy to test with RSpec
-- **IDE Support**: Autocomplete and refactoring
+- **IDE Support**: Autocomplete and refactoring support
 - **Dynamic**: Can use Ruby logic and conditionals
+- **Clean Errors**: Clear Ruby NameError messages for missing variables
 - **Reusable**: Inherit from base classes
 
 ## Context Variables

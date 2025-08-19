@@ -156,17 +156,14 @@ result = agent.run("Search for Ruby news")
 RAAF DSL provides a flexible prompt resolution system. **Always prefer Ruby prompt classes over Markdown files** for better type safety, testability, and IDE support:
 
 ```ruby
-# PREFERRED: Ruby prompt class with validation
+# PREFERRED: Ruby prompt class with automatic context access
 class ResearchPrompt < RAAF::DSL::Prompts::Base
-  requires :topic, :depth
-  optional :language, default: "English"
-  
   def system
-    "You are a research assistant specializing in #{@topic}."
+    "You are a research assistant specializing in #{topic}."
   end
   
   def user
-    "Provide #{@depth} analysis in #{@language}."
+    "Provide #{depth} analysis in #{language || 'English'}."
   end
 end
 
