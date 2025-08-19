@@ -11,7 +11,6 @@ require "raaf-dsl"
 
 # Example 1: Simple prompt with basic schema
 class UserExtractionPrompt < RAAF::DSL::Prompts::Base
-  required :text_content
 
   # Define schema using the same DSL as agents
   schema do
@@ -38,7 +37,6 @@ end
 
 # Example 2: Complex nested schema for company analysis
 class CompanyAnalysisPrompt < RAAF::DSL::Prompts::Base
-  required :company_name, :analysis_criteria
 
   # Complex nested schema with objects and arrays
   schema do

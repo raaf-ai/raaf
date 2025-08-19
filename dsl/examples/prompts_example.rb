@@ -9,38 +9,25 @@
 require "raaf-core"
 require "raaf-dsl"
 
-# Example 1: Basic prompt with required and optional variables
+# Example 1: Basic prompt with automatic context access
 class CustomerServicePrompt < RAAF::DSL::Prompts::Base
-  required :customer_name, :issue_type
-  optional :language, default: "English"
-  optional :tone, default: "professional"
-
   def system
     <<~SYSTEM
       You are a customer service representative.
-      Respond in #{@language} with a #{@tone} tone.
-      You are specialized in handling #{@issue_type} issues.
+      Respond in #{language || 'English'} with a #{tone || 'professional'} tone.
+      You are specialized in handling #{issue_type} issues.
     SYSTEM
   end
 
   def user
-    "Help customer #{@customer_name} with their issue."
+    "Help customer #{customer_name} with their issue."
   end
 end
 
-# Example 2: Prompt with context mapping for nested data
+# Example 2: Prompt with automatic context access (including nested paths)
 class AnalysisPrompt < RAAF::DSL::Prompts::Base
-  # Map nested context paths to flat variables
-  required :doc_name, path: %i[document metadata name]
-  required :doc_type, path: %i[document metadata type]
-  optional :author, path: %i[document metadata author], default: "Unknown"
-  optional :pages, path: %i[document structure page_count]
-
-  # Use strict contract mode to catch extra variables
-  contract_mode :strict
-
   def system
-    "You are analyzing a #{doc_type} document: '#{doc_name}' by #{author}."
+    "You are analyzing a #{doc_type} document: '#{doc_name}' by #{author || 'Unknown'}."
   end
 
   def user
@@ -52,27 +39,20 @@ end
 
 # Example 3: Dynamic prompt with conditional content
 class ReportPrompt < RAAF::DSL::Prompts::Base
-  required :report_type, :data_source
-  optional :time_period
-  optional :metrics, default: []
-  optional :format, default: "summary"
-
-  # Use lenient mode to allow extra context
-  contract_mode :lenient
 
   def system
     <<~SYSTEM
-      You are a data analyst creating a #{@report_type} report.
-      Data source: #{@data_source}
-      Output format: #{@format}
+      You are a data analyst creating a #{report_type} report.
+      Data source: #{data_source}
+      Output format: #{format || 'summary'}
     SYSTEM
   end
 
   def user
-    sections = ["Generate a #{@report_type} report"]
+    sections = ["Generate a #{report_type} report"]
 
-    sections << "Time period: #{@time_period}" if @time_period
-    sections << "Focus on metrics: #{@metrics.join(', ')}" if @metrics&.any?
+    sections << "Time period: #{time_period}" if time_period
+    sections << "Focus on metrics: #{metrics.join(', ')}" if metrics&.any?
 
     sections.join("\n")
   end
