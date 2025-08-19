@@ -71,8 +71,7 @@ RSpec.describe RAAF::Pipeline do
       let(:pipeline_with_context) do
         Class.new(described_class) do
           context do
-            default :market_data, {}
-            default :threshold, 0.7
+            optional market_data: {}, threshold: 0.7
           end
         end
       end
@@ -120,8 +119,7 @@ RSpec.describe RAAF::Pipeline do
           flow agents[0] >> agents[1]
           
           context do
-            default :market_data, { regions: ["NA"] }
-            default :analysis_depth, "standard"
+            optional market_data: { regions: ["NA"] }, analysis_depth: "standard"
           end
         end
       end
@@ -297,8 +295,7 @@ RSpec.describe RAAF::Pipeline do
         context_reader :product, :company
         
         context do
-          default :market_data, {}
-          default :analysis_depth, "standard"
+          optional market_data: {}, analysis_depth: "standard"
         end
       end
     end
