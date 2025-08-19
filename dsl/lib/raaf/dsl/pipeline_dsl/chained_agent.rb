@@ -157,8 +157,9 @@ module RAAF
             end
           end
           
-          # Execute agent
-          agent = agent_class.new(context: context)
+          # Execute agent - convert context to keyword arguments to trigger context DSL processing
+          context_hash = context.is_a?(RAAF::DSL::ContextVariables) ? context.to_h : context
+          agent = agent_class.new(**context_hash)
           result = agent.run
           
           # Merge provided fields into context

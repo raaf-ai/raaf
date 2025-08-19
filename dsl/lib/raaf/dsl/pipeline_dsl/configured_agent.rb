@@ -68,8 +68,9 @@ module RAAF
                 end
               end
               
-              # Execute agent
-              agent = @agent_class.new(context: enhanced_context)
+              # Execute agent - convert context to keyword arguments to trigger context DSL processing
+              context_hash = enhanced_context.is_a?(RAAF::DSL::ContextVariables) ? enhanced_context.to_h : enhanced_context
+              agent = @agent_class.new(**context_hash)
               result = agent.run
               
               # Merge results back into original context
