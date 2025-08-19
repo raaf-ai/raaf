@@ -39,6 +39,7 @@ module RAAF
         def resolve(prompt_spec, context = {})
           return nil unless can_resolve?(prompt_spec)
 
+          
           prompt_instance = case prompt_spec
                             when Class
                               # Instantiate with context as keyword arguments
@@ -61,7 +62,7 @@ module RAAF
             prompt_class: prompt_spec.name,
             error_class: e.class.name,
             error_message: e.message,
-            backtrace: e.backtrace.first(3)
+            backtrace: e.backtrace.first(10)
           }
           
           # Log error if logger is available
@@ -69,11 +70,13 @@ module RAAF
             log_error("Failed to resolve prompt class", **error_details)
           end
           
-          # Re-raise with clearer context instead of returning nil
-          raise RAAF::DSL::Error, "Failed to resolve prompt class #{prompt_spec.name}: #{e.class.name} - #{e.message}\n" \
-                                  "This usually indicates an error in the prompt's system/user methods or missing required context.\n" \
-                                  "Original error: #{e.message}\n" \
-                                  "Location: #{e.backtrace.first}"
+          # Re-raise with full context and stack trace
+          full_error_message = "Failed to resolve prompt class #{prompt_spec.name}: #{e.class.name} - #{e.message}\n" \
+                              "This usually indicates an error in the prompt's system/user methods or missing required context.\n" \
+                              "Original error: #{e.message}\n" \
+                              "Full stack trace:\n#{e.backtrace.join("\n")}"
+          
+          raise RAAF::DSL::Error, full_error_message
         end
 
         private
