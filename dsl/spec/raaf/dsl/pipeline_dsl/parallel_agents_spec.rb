@@ -7,7 +7,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   let(:agent1) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent1"
-      context_reader :input
+      # Context is automatically available through auto-context
       result_transform do
         field :output1, computed: :process
       end
@@ -22,7 +22,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   let(:agent2) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent2"
-      context_reader :input
+      # Context is automatically available through auto-context
       result_transform do
         field :output2, computed: :process
       end
@@ -37,7 +37,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   let(:agent3) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent3"
-      context_reader :input
+      # Context is automatically available through auto-context
       result_transform do
         field :output3, computed: :process
       end
@@ -142,7 +142,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
     it "skips agents whose requirements aren't met" do
       agent_with_req = Class.new(RAAF::DSL::Agent) do
         agent_name "RequiringAgent"
-        context_reader :missing_field
+        # Context is automatically available through auto-context
+        # Requires: missing_field
         def run
           { should_not_appear: true }
         end
@@ -159,11 +160,13 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   describe "#required_fields" do
     it "returns union of all agents' requirements" do
       agent_a = Class.new(RAAF::DSL::Agent) do
-        context_reader :field_a, :common
+        # Context is automatically available through auto-context
+        # Input fields: field_a, common
       end
       
       agent_b = Class.new(RAAF::DSL::Agent) do
-        context_reader :field_b, :common
+        # Context is automatically available through auto-context
+        # Input fields: field_b, common
       end
       
       parallel = described_class.new([agent_a, agent_b])

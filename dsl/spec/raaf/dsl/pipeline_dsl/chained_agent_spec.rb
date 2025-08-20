@@ -9,7 +9,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     Class.new(RAAF::DSL::Agent) do
       agent_name "ProducerAgent"
       
-      context_reader :input_data
+      # Context is automatically available through auto-context
       
       result_transform do
         field :output_data, computed: :process
@@ -29,7 +29,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     Class.new(RAAF::DSL::Agent) do
       agent_name "ConsumerAgent"
       
-      context_reader :output_data
+      # Context is automatically available through auto-context
       
       result_transform do
         field :final_result, computed: :finalize
@@ -49,7 +49,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     Class.new(RAAF::DSL::Agent) do
       agent_name "IncompatibleAgent"
       
-      context_reader :missing_field
+      # Context is automatically available through auto-context
+      # Requires: missing_field
       
       def run
         {}
@@ -73,7 +74,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     it "allows initial context fields to be missing" do
       agent_needing_initial = Class.new(RAAF::DSL::Agent) do
         agent_name "InitialAgent"
-        context_reader :product, :company
+        # Context is automatically available through auto-context
+        # Input fields: product, company
       end
       
       expect {

@@ -9,7 +9,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::ConfiguredAgent do
     Class.new(RAAF::DSL::Agent) do
       agent_name "BaseAgent"
       
-      context_reader :input
+      # Context is automatically available through auto-context
       
       result_transform do
         field :output, computed: :process

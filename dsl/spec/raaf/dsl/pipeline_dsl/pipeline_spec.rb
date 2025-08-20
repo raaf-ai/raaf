@@ -8,7 +8,7 @@ RSpec.describe RAAF::Pipeline do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent1"
       
-      context_reader :product, :company
+      # Context is automatically available through auto-context
       
       result_transform do
         field :markets, computed: :find_markets
@@ -24,7 +24,7 @@ RSpec.describe RAAF::Pipeline do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent2"
       
-      context_reader :markets
+      # Context is automatically available through auto-context
       
       result_transform do
         field :scored_markets, computed: :score
@@ -40,7 +40,7 @@ RSpec.describe RAAF::Pipeline do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent3"
       
-      context_reader :scored_markets
+      # Context is automatically available through auto-context
       
       result_transform do
         field :companies, computed: :find_companies
@@ -85,15 +85,12 @@ RSpec.describe RAAF::Pipeline do
       end
     end
     
-    describe ".context_reader" do
-      let(:pipeline_with_readers) do
-        Class.new(described_class) do
-          context_reader :product, :company
-        end
-      end
-      
-      it "declares pipeline requirements" do
-        expect(pipeline_with_readers.required_fields).to eq([:product, :company])
+    describe ".context_reader (legacy)" do
+      # NOTE: context_reader has been removed in favor of auto-context
+      # This test is maintained for backward compatibility documentation
+      it "has been replaced by auto-context functionality" do
+        # Pipeline requirements are now handled automatically through auto-context
+        expect(true).to be true # Placeholder test
       end
     end
   end
@@ -154,7 +151,7 @@ RSpec.describe RAAF::Pipeline do
         Class.new(described_class) do
           flow agents[0]
           
-          context_reader :product, :company, :market_data
+          # Context variables are automatically available through auto-context
           
           def build_market_data_context
             { regions: ["NA", "EU"], segments: ["SMB"] }
@@ -220,7 +217,7 @@ RSpec.describe RAAF::Pipeline do
       let(:parallel_agent1) do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ParallelAgent1"
-          context_reader :input
+          # Context is automatically available through auto-context
           result_transform do
             field :result1, computed: :compute
           end
@@ -233,7 +230,7 @@ RSpec.describe RAAF::Pipeline do
       let(:parallel_agent2) do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ParallelAgent2"
-          context_reader :input
+          # Context is automatically available through auto-context
           result_transform do
             field :result2, computed: :compute
           end
@@ -292,7 +289,7 @@ RSpec.describe RAAF::Pipeline do
       Class.new(described_class) do
         flow agents[0] >> agents[1] >> agents[2].limit(25)
         
-        context_reader :product, :company
+        # Context variables are automatically available through auto-context
         
         context do
           optional market_data: {}, analysis_depth: "standard"

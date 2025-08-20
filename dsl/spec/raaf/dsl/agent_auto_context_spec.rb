@@ -215,16 +215,16 @@ RSpec.describe "RAAF::DSL::Agent Auto-Context" do
   end
 
   describe "integration with existing features" do
-    it "works with context_reader DSL" do
+    it "works with auto-context for accessing variables" do
       class ReaderAgent < RAAF::DSL::Agent
-        context_reader :product, :company
+        # Context is automatically available through auto-context
         static_instructions "Test"
       end
       
       agent = ReaderAgent.new(product: "Widget", company: "Acme")
-      # context_reader methods should work
-      expect(agent.send(:product)).to eq("Widget")
-      expect(agent.send(:company)).to eq("Acme")
+      # Context variables are accessible through get method
+      expect(agent.get(:product)).to eq("Widget")
+      expect(agent.get(:company)).to eq("Acme")
     end
     
     it "maintains immutability of context" do
