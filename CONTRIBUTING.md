@@ -324,6 +324,20 @@ docs(examples): add multi-agent workflow example
 - **Documentation**: Update relevant documentation
 - **No breaking changes**: Avoid breaking existing APIs
 
+### PR Documentation Checklist
+
+Before submitting, verify documentation is accurate and complete:
+
+- Links work: Root `README.md` links to the correct sub-gem docs or `docs/` pages
+- Mono-repo map: Update the map if adding/renaming gems or key folders
+- Canonical pipeline: Use `RAAF::Pipeline` (operator-style) in examples; avoid adding new examples with the legacy builder DSL
+- Examples included: Add or update examples to reflect new features or changes
+- API references: Update or add API docs and anchors where appropriate
+- Versions aligned: Supported Ruby versions and coverage claims match CI configuration
+- Cross-links: Enterprise features link to implementing gem READMEs/API references
+- Headings/TOC: Keep headings consistent; update any manual tables of contents
+- Optional link check: If available, run the docs link-check script or CI check
+
 ### Review Process
 
 1. **Automated checks**: Ensure CI passes

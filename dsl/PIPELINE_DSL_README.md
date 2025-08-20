@@ -37,8 +37,7 @@ class SmartPipeline < RAAF::Pipeline
   # Define the flow
   flow Market::Analysis >> Market::Scoring >> Company::Search.limit(25)
   
-  # Declare what the pipeline needs
-  context_reader :product, :company
+  # Context is automatically available
   
   # Set defaults (just like agents)
   context do
@@ -59,7 +58,7 @@ end
 
 The DSL automatically introspects agents to determine their inputs and outputs:
 
-- **Inputs**: Extracted from `context_reader` declarations
+- **Inputs**: Automatically detected from context usage
 - **Outputs**: Extracted from `result_transform` field declarations
 
 No new DSL methods needed - works with all existing agents!
@@ -95,7 +94,46 @@ Available modifiers:
 - `.retry(times)` - Retry on failure with exponential backoff
 - `.limit(count)` - Pass limit to agent context
 
-### 4. Field Validation
+### 4. Pipeline Iteration
+
+Process multiple data entries with agents using `.each_over()` with flexible output field naming:
+
+```ruby
+# Sequential iteration (default output naming)
+flow DataInput >> ItemProcessor.each_over(:items) >> ResultCollector  # outputs to :processed_items
+
+# Custom output field
+flow DataInput >> ItemProcessor.each_over(:items, to: :enriched_items) >> ResultCollector
+
+# Custom field name for iteration items (as: option)
+flow DataInput >> ItemProcessor.each_over(:search_terms, as: :query) >> ResultCollector
+
+# Both custom input and output field names
+flow DataInput >> ItemProcessor.each_over(:search_terms, as: :query, to: :companies) >> ResultCollector
+
+# Full syntax with :from marker
+flow DataInput >> ItemProcessor.each_over(:from, :companies, to: :analyzed_companies) >> ResultCollector
+
+# Parallel iteration with custom output
+flow DataInput >> ItemProcessor.each_over(:items, to: :results).parallel >> ResultCollector
+
+# Configured iteration with custom field
+flow DataInput >> 
+     ItemProcessor.each_over(:items, to: :processed_data)
+       .parallel
+       .timeout(30)
+       .retry(2)
+       .limit(10) >> 
+     ResultCollector
+```
+
+**How It Works:**
+- Takes array from specified field (e.g., `:items`)
+- Executes agent once per item with item in `:current_item`
+- Collects results in `:processed_items` field
+- Supports both sequential and parallel processing
+
+### 5. Field Validation
 
 The DSL validates field compatibility between agents at pipeline creation time:
 
@@ -108,11 +146,11 @@ Agent1 only provides: [:result]
 
 To fix this:
 1. Update Agent1's result_transform to provide: [:data]
-2. Or update Agent2's context_reader to not require these fields
+2. Or update Agent2 to not require these fields
 3. Or add an intermediate agent that provides the transformation
 ```
 
-### 5. Auto-Skip Logic
+### 6. Auto-Skip Logic
 
 Agents automatically skip execution when their requirements aren't met:
 
@@ -129,6 +167,7 @@ flow RequiredAgent >> OptionalAgent >> FinalAgent
 - **`ChainedAgent`** - Implements sequential execution (`>>`)
 - **`ParallelAgents`** - Implements parallel execution (`|`)
 - **`ConfiguredAgent`** - Wraps agents with configuration options
+- **`IteratingAgent`** - Processes arrays of data with agents
 - **`FieldMismatchError`** - Clear errors for field incompatibilities
 
 ### How It Works
@@ -185,6 +224,171 @@ class DataEnrichmentPipeline < RAAF::Pipeline
 end
 ```
 
+### Pipeline Iteration Examples
+
+#### Basic Sequential Iteration
+
+```ruby
+class CompanyAnalysisPipeline < RAAF::Pipeline
+  # Process each company sequentially with detailed analysis
+  flow CompanyFetcher >> 
+       CompanyAnalyzer.each_over(:companies) >> 
+       ReportGenerator
+  
+  context do
+    default :analysis_depth, "comprehensive"
+  end
+end
+
+# Usage
+pipeline = CompanyAnalysisPipeline.new(
+  search_query: "AI startups in San Francisco"
+)
+result = pipeline.run
+# result[:processed_companies] contains analysis for each company
+```
+
+#### Parallel Processing with Limits
+
+```ruby
+class HighVolumeProcessingPipeline < RAAF::Pipeline
+  # Process up to 100 items in parallel with retries
+  flow DataLoader >> 
+       ItemProcessor.each_over(:items)
+         .parallel           # Process in parallel
+         .limit(100)         # Limit to 100 items
+         .timeout(60)        # 60s timeout per item
+         .retry(3) >>        # Retry failed items 3 times
+       ResultAggregator
+
+  after_run do |result|
+    # Log processing statistics
+    total_items = result[:processed_items]&.count || 0
+    failed_items = result[:processed_items]&.count { |r| r[:error] } || 0
+    
+    Rails.logger.info "Processed #{total_items} items, #{failed_items} failures"
+  end
+end
+```
+
+#### Mixed Sequential and Parallel Iteration
+
+```ruby
+class MarketResearchPipeline < RAAF::Pipeline
+  # Complex flow: analyze companies sequentially, 
+  # then score prospects in parallel
+  flow CompanyDataFetcher >> 
+       CompanyAnalyzer.each_over(:companies) >>      # Sequential analysis
+       ProspectScorer.each_over(:processed_companies) # Parallel scoring
+         .parallel
+         .timeout(30) >> 
+       RankingEngine
+  
+  context do
+    default :scoring_weights, { growth: 0.4, fit: 0.6 }
+    default :min_score, 0.7
+  end
+end
+```
+
+#### Nested Iteration (Advanced)
+
+```ruby
+class MultiMarketAnalysisPipeline < RAAF::Pipeline
+  # Process multiple markets, each containing multiple companies
+  flow MarketDataLoader >> 
+       MarketAnalyzer.each_over(:markets, to: :analyzed_markets)
+         .timeout(120) >>                            # Each market gets 2 minutes
+       CompanyProcessor.each_over(:analyzed_markets) # Process all market results
+         .parallel >>                               # Markets processed in parallel  
+       GlobalRanking
+  
+  # Agent that processes companies within each market
+  class MarketAnalyzer < RAAF::DSL::Agent
+    context do
+      required :market  # Provided by .each_over(:markets) - singularized field name
+    end
+    
+    def run
+      # Process companies within this market
+      companies = market[:companies] || []
+      
+      # Process each company for this market
+      company_results = companies.map do |company|
+        # Company-specific processing logic
+        analyze_company(company)
+      end
+      
+      {
+        market_analysis: {
+          market: current_market,
+          company_results: company_results,
+          market_score: calculate_market_score(company_results)
+        }
+      }
+    end
+  end
+end
+```
+
+## Field Naming and Context Access
+
+When using `.each_over()`, agents receive individual items through context fields with predictable names:
+
+### Default Field Naming (Singularization)
+```ruby
+# Input field -> Agent context field
+Agent.each_over(:companies)    # Agent receives :company
+Agent.each_over(:markets)      # Agent receives :market  
+Agent.each_over(:search_terms) # Agent receives :search_term
+Agent.each_over(:items)        # Agent receives :item
+```
+
+### Custom Field Naming (as: option)
+```ruby
+# Custom field names for better clarity
+Agent.each_over(:search_terms, as: :query)           # Agent receives :query
+Agent.each_over(:companies, as: :target_company)     # Agent receives :target_company
+Agent.each_over(:user_profiles, as: :profile)        # Agent receives :profile
+```
+
+### Agent Context Example
+```ruby
+class SearchProcessor < RAAF::DSL::Agent
+  context do
+    required :query        # Custom field from .each_over(:search_terms, as: :query)
+    optional :current_item # Always available (original item)
+    optional :item_index   # Always available (0-based index)
+  end
+  
+  def run
+    # Process the search query
+    results = perform_search(query)
+    
+    { 
+      companies: results,
+      query_processed: query,
+      index: item_index
+    }
+  end
+end
+
+# Usage in pipeline
+flow SearchInput >> 
+     SearchProcessor.each_over(:search_terms, as: :query, to: :company_results) >> 
+     ResultCollector
+```
+
+### Complete Field Control
+```ruby
+# Full control over field naming
+Agent.each_over(:from, :search_terms, as: :query, to: :company_results)
+
+# Input:  { search_terms: ["ruby programming", "rails tutorial"] }
+# Agent receives: { query: "ruby programming", current_item: "ruby programming", item_index: 0 }
+# Output: { company_results: [result1, result2] }
+```
+
 ## Benefits
 
 1. **Concise**: 95% reduction in code (from 66+ lines to 3)
@@ -192,7 +396,9 @@ end
 3. **Type-Safe**: Field validation catches errors early
 4. **No Changes Required**: Works with all existing agents
 5. **Flexible**: Supports sequential, parallel, and mixed flows
-6. **Maintainable**: Clear separation of concerns
+6. **Scalable**: Built-in iteration for processing multiple data items
+7. **Configurable**: Timeout, retry, and limit controls for robust processing
+8. **Maintainable**: Clear separation of concerns
 
 ## Migration Guide
 
@@ -220,3 +426,5 @@ bundle exec rspec spec/raaf/dsl/pipeline_dsl/
 - Pipeline composition (pipelines within pipelines)
 - Visual pipeline builder
 - Performance profiling per step
+- Advanced iteration patterns (filtering, batching, streaming)
+- Nested iteration optimization

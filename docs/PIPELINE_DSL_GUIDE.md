@@ -17,6 +17,10 @@
 
 The RAAF Pipeline DSL provides an elegant way to chain AI agents together, reducing complex pipeline definitions from 66+ lines to just 3 lines while maintaining all functionality. Instead of manually managing context flow and agent coordination, the DSL handles this automatically through agent introspection.
 
+Note on canonical DSL:
+- The operator-style Pipeline DSL using `class MyFlow < RAAF::Pipeline; flow A >> (B | C) >> D; end` is the canonical approach for new code and documentation.
+- The older builder-style pipeline (`RAAF::DSL::AgentPipeline`) remains for backward compatibility but is considered legacy and is not recommended for new work.
+
 ### Basic Syntax and Structure
 
 The Pipeline DSL uses operator overloading to create intuitive chains:
@@ -32,8 +36,6 @@ require 'raaf-dsl'
 
 # Define your agents using RAAF DSL Agent
 class DataAnalyzer < RAAF::DSL::Agent
-  context_reader :raw_data
-  
   instructions "Analyze the provided data and extract key insights"
   model "gpt-4o"
   
@@ -44,8 +46,6 @@ class DataAnalyzer < RAAF::DSL::Agent
 end
 
 class ReportGenerator < RAAF::DSL::Agent
-  context_reader :insights, :summary
-  
   instructions "Generate a professional report from the analysis"
   model "gpt-4o"
   
@@ -97,7 +97,7 @@ The most basic pattern - each agent processes the output of the previous one:
 class SequentialPipeline < RAAF::Pipeline
   flow InputValidator >> DataProcessor >> OutputFormatter
   
-  context_reader :input_data
+  # Context is automatically available to all agents
   
   context do
     default :validation_rules, { required: [:id, :name] }
@@ -120,7 +120,7 @@ class ParallelAnalysisPipeline < RAAF::Pipeline
        (SentimentAnalyzer | KeywordExtractor | EntityRecognizer) >> 
        ResultMerger
   
-  context_reader :text_data
+  # Context is automatically available to all agents
 end
 
 # Each parallel agent processes the same input independently
@@ -143,7 +143,7 @@ class ConditionalPipeline < RAAF::Pipeline
 end
 
 class OptionalStep < RAAF::DSL::Agent
-  context_reader :optional_data  # Optional field
+  # Context is automatically available - optional_data field
   
   def self.requirements_met?(context)
     # Custom logic for when to run
@@ -162,7 +162,7 @@ class ResilientPipeline < RAAF::Pipeline
        DataProcessor.timeout(60) >> 
        DataStorer.retry(2).timeout(30)
   
-  context_reader :source_url
+  # Context is automatically available to all agents
 end
 
 # Built-in error handling:
@@ -184,7 +184,7 @@ class TransformationPipeline < RAAF::Pipeline
 end
 
 class JsonToObjectTransformer < RAAF::DSL::Agent
-  context_reader :json_data
+  # Context is automatically available - json_data field
   
   instructions "Convert JSON data to structured objects"
   
@@ -206,7 +206,7 @@ class FanOutFanInPipeline < RAAF::Pipeline
 end
 
 class DataSplitter < RAAF::DSL::Agent
-  context_reader :large_dataset
+  # Context is automatically available - large_dataset field
   
   result_transform do
     field :chunk_a
@@ -225,22 +225,22 @@ end
 1. **Use descriptive, specific names**:
    ```ruby
    # Good
-   context_reader :customer_transaction_data
+   # Access customer_transaction_data from context
    field :risk_assessment_score
    
    # Avoid
-   context_reader :data
+   # Access generic data from context
    field :result
    ```
 
 2. **Follow consistent patterns**:
    ```ruby
    # Input/Output pairs
-   context_reader :raw_customer_data
+   # Access raw_customer_data from context
    field :processed_customer_data
    
    # Analysis/Report pairs
-   context_reader :sales_analysis
+   # Access sales_analysis from context
    field :sales_report
    ```
 
@@ -264,14 +264,14 @@ end
    end
    
    class ConsumerAgent < RAAF::DSL::Agent
-     context_reader :user_profile  # Direct match
+     # Context is automatically available - user_profile field directly accessible
    end
    ```
 
 2. **Transformation mapping** (field conversion):
    ```ruby
    class DataTransformer < RAAF::DSL::Agent
-     context_reader :raw_data
+     # Context is automatically available - raw_data field
      
      result_transform do
        field :processed_data  # Transforms raw_data -> processed_data
@@ -282,7 +282,7 @@ end
 3. **Aggregation mapping** (multiple inputs to one output):
    ```ruby
    class DataAggregator < RAAF::DSL::Agent
-     context_reader :sales_data, :marketing_data, :customer_data
+     # Context is automatically available - sales_data, marketing_data, customer_data fields
      
      result_transform do
        field :business_intelligence  # Combines all inputs
@@ -351,7 +351,7 @@ class MyPipeline < RAAF::Pipeline
 end
 
 class DataProcessor < RAAF::DSL::Agent
-  context_reader :raw_data
+  # Context is automatically available - raw_data field
   result_transform do
     field :processed_data
   end
@@ -361,7 +361,7 @@ end
 **Option C: Update consumer requirements**
 ```ruby
 class ConsumerAgent < RAAF::DSL::Agent
-  context_reader :raw_data  # Change to what's actually provided
+  # Context is automatically available - raw_data field accessible
 end
 ```
 
@@ -463,7 +463,7 @@ end
 
 ```ruby
 class DebuggingAgent < RAAF::DSL::Agent
-  context_reader :any_field  # Will accept any context
+  # Context is automatically available - all fields accessible
   
   instructions "Debug the context and return it unchanged"
   
@@ -502,7 +502,7 @@ flow Step1 >> (Step2 | Step3) >> Step4
 
 ```ruby
 class EfficientAgent < RAAF::DSL::Agent
-  context_reader :small_data  # Only read what you need
+  # Context is automatically available - small_data field
   
   result_transform do
     field :specific_result  # Only provide what others need
@@ -544,7 +544,7 @@ end
 
 ```ruby
 class StreamingAgent < RAAF::DSL::Agent
-  context_reader :data_stream
+  # Context is automatically available - data_stream field
   
   result_transform do
     field :processed_stream
@@ -590,9 +590,10 @@ class ResilientParallelPipeline < RAAF::Pipeline
 end
 
 class ResultMerger < RAAF::DSL::Agent
-  context_reader :critical_result  # Required
-  context_reader :optional_result  # Optional - pipeline continues without it
-  context_reader :best_effort_result  # Optional
+  # Context is automatically available:
+  # - critical_result (required)
+  # - optional_result (optional - pipeline continues without it)
+  # - best_effort_result (optional)
   
   def self.requirements_met?(context)
     # Only require critical result
@@ -600,6 +601,21 @@ class ResultMerger < RAAF::DSL::Agent
   end
 end
 ```
+
+---
+
+## Services in Pipelines and Field Capture
+
+When you use `RAAF::DSL::Service` classes inside a `RAAF::Pipeline`, keep in mind how fields flow between steps:
+
+- Services should return a Hash of outputs from `#call`, for example: `{ companies: [...], metadata: {...} }`.
+- The pipeline updates context based on each step’s declared provided fields. For services, define `self.provided_fields` to list the keys your service adds to context (e.g., `[:companies, :metadata]`).
+- Advanced: services can implement field auto‑discovery by executing via `#call_with_field_capture`, which records the last set of result keys so `self.provided_fields` can be inferred. If you rely on this mechanism, ensure your pipeline execution path uses `#call_with_field_capture` when invoking services.
+
+Practical guidance:
+- Prefer explicit `provided_fields` on services used in pipelines for clarity and predictability.
+- Keep output keys stable and descriptive to make downstream requirements easy to validate.
+- For complex services, consider small, composable steps that each provide a narrow set of fields.
 
 ---
 
@@ -726,7 +742,7 @@ end
 RSpec.describe ApiDataPipeline do
   let(:mock_api_agent) do
     Class.new(RAAF::DSL::Agent) do
-      context_reader :query
+      # Context is automatically available - query field
       
       result_transform do
         field :api_data
@@ -759,7 +775,7 @@ end
 RSpec.describe DataAnalysisPipeline do
   let(:fast_mock_analyzer) do
     Class.new(RAAF::DSL::Agent) do
-      context_reader :large_dataset
+      # Context is automatically available - large_dataset field
       
       result_transform do
         field :analysis_result

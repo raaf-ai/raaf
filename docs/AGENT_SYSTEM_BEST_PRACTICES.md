@@ -307,7 +307,6 @@ For RAAF specifically, these principles translate to:
 ```ruby
 # Good: Stateless agents with clear field mapping
 class DataAnalyzer < RAAF::DSL::Agent
-  context_reader :raw_data  # Input
   
   result_transform do
     field :insights         # Output

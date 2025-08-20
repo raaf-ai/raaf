@@ -3,10 +3,27 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/Version-0.1.0-blue.svg)](https://rubygems.org/gems/ruby-ai-agents-factory)
 [![Ruby](https://img.shields.io/badge/Ruby-3.0%2B-red.svg)](https://www.ruby-lang.org/)
+ 
 
 A comprehensive Ruby framework for building sophisticated multi-agent AI workflows. Ruby AI Agents Factory (RAAF) is a Ruby implementation inspired by OpenAI's Swarm framework, providing 100% feature parity with the Python OpenAI Agents library, plus additional enterprise-grade capabilities.
 
 > 🤖 **Built with AI**: This codebase was developed using AI assistance, demonstrating AI-assisted software development at scale.
+
+## ✅ Build Status
+
+CI:
+
+[![Docs Link Check](https://github.com/raaf-ai/raaf/actions/workflows/docs-link-check.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/docs-link-check.yml)
+[![Core CI](https://github.com/raaf-ai/raaf/actions/workflows/core-ci.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/core-ci.yml)
+[![DSL CI](https://github.com/raaf-ai/raaf/actions/workflows/dsl-ci.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/dsl-ci.yml)
+[![Providers CI](https://github.com/raaf-ai/raaf/actions/workflows/providers-ci.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/providers-ci.yml)
+[![Guides Build & Deploy](https://github.com/raaf-ai/raaf/actions/workflows/guides-build-deploy.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/guides-build-deploy.yml)
+
+Weekly:
+
+[![Core Weekly](https://github.com/raaf-ai/raaf/actions/workflows/core-weekly.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/core-weekly.yml)
+[![DSL Weekly](https://github.com/raaf-ai/raaf/actions/workflows/dsl-weekly.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/dsl-weekly.yml)
+[![Providers Weekly](https://github.com/raaf-ai/raaf/actions/workflows/providers-weekly.yml/badge.svg)](https://github.com/raaf-ai/raaf/actions/workflows/providers-weekly.yml)
 
 ## 🎯 About RAAF and OpenAI Swarm
 
@@ -211,8 +228,6 @@ Transform complex multi-step workflows from 66+ lines to just 3 lines:
 ```ruby
 # Define agents using RAAF DSL
 class DataAnalyzer < RAAF::DSL::Agent
-  context_reader :raw_data
-  
   instructions "Analyze the provided data and extract key insights"
   model "gpt-4o"
   
@@ -223,8 +238,6 @@ class DataAnalyzer < RAAF::DSL::Agent
 end
 
 class ReportGenerator < RAAF::DSL::Agent
-  context_reader :insights, :summary
-  
   instructions "Generate a professional report from the analysis"
   model "gpt-4o"
   
@@ -449,18 +462,24 @@ result = runner.run("Hello from Rails!")
 ## 📚 Documentation
 
 ### Getting Started
-- **[Getting Started Guide](GETTING_STARTED.md)** - Detailed tutorials and core concepts
-- **[Examples](EXAMPLES.md)** - Comprehensive code examples for all features
-- **[API Reference](API_REFERENCE.md)** - Complete API documentation
+- dsl/README.md — DSL quick start and core concepts
+- examples/ — Example workflows and tool usage
+- docs/PIPELINE_DSL_GUIDE.md — End-to-end Pipeline DSL guide
+
+### API References
+- dsl/API_REFERENCE.md — DSL classes, agents, pipeline APIs
+- docs/TOOL_API_REFERENCE.md — Tool DSL and unified tool API
+- tracing/API_REFERENCE.md — Tracing APIs and integrations
+- memory/API_REFERENCE.md — Memory and vector store APIs
+- guardrails/API_REFERENCE.md — Guardrails and safety APIs
+- tools/API_REFERENCE.md — Toolkits and adapters
+- analytics/API_REFERENCE.md — Analytics and usage tracking APIs
 
 ### Production
-- **[Deployment Guide](DEPLOYMENT.md)** - Production setup, Docker, configuration
-- **[Security Guide](SECURITY.md)** - Security best practices and guidelines
-- **[Tracing Guide](TRACING.md)** - Monitoring and observability
+- SECURITY.md — Security practices and guidelines
+- rails/ — Rails engine and integration (see gem README)
 
-### Rails Integration
-- **[Rails Integration Guide](RAILS_INTEGRATION.md)** - Complete Rails integration with web UI
-- **[Rails Tracing Engine](TRACING_RAILS.md)** - Database storage and analytics dashboard
+If you can’t find a doc at the root, look for it under the relevant gem folder (e.g., dsl/, tracing/, memory/) or in docs/.
 
 ### Development
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
@@ -472,29 +491,40 @@ result = runner.run("Hello from Rails!")
 RAAF is organized as a mono-repo containing multiple independent gems, allowing you to use only the features you need:
 
 ### Core Gems
-- **`raaf`** - Meta-gem that includes all components
-- **`raaf-core`** - Essential agent runtime with OpenAI provider
-- **`raaf-dsl`** - Declarative configuration DSL for elegant agent definitions
-- **`raaf-providers`** - Multi-provider support (Anthropic, Cohere, Groq, Ollama, etc.)
+- raaf — Meta-gem that includes all components
+- raaf-core — Essential agent runtime (see core/README.md)
+- raaf-dsl — Declarative DSL for agents/pipelines (see dsl/README.md)
+- raaf-providers — Multi-provider support (see providers/)
 
 ### Tool Ecosystems
-- **`raaf-tools`** - Basic tools (file search, web search)
-- **`raaf-tools-advanced`** - Enterprise tools (code interpreter, document generation, computer control)
+- raaf-tools — Basic tools (see tools/)
+- raaf-tools-advanced — Enterprise tools (see tools/)
 
 ### Safety & Compliance
-- **`raaf-guardrails`** - Content filtering, PII detection, security validation
-- **`raaf-compliance`** - GDPR/SOC2/HIPAA compliance and audit trails
+- raaf-guardrails — Content filtering, PII detection (see guardrails/)
+- raaf-compliance — Compliance and audit (see compliance/)
 
 ### Advanced Features
-- **`raaf-memory`** - Memory management and vector search capabilities
-- **`raaf-streaming`** - Real-time streaming and async processing
-- **`raaf-tracing`** - Comprehensive monitoring and observability
-- **`raaf-rails`** - Rails integration with web UI
+- raaf-memory — Memory/vector search (see memory/)
+- raaf-streaming — Streaming and async (see core/ and tracing/)
+- raaf-tracing — Monitoring/observability (see tracing/)
+- raaf-rails — Rails integration and UI (see rails/)
 
 ### Development Tools
-- **`raaf-debug`** - Interactive debugger and REPL
-- **`raaf-testing`** - RSpec matchers and test utilities
-- **`raaf-visualization`** - Workflow visualization and analytics
+- raaf-debug — Debugger and REPL (see debug/)
+- raaf-testing — RSpec matchers/test utils (see testing/)
+- raaf-visualization — Workflow visualization (see analytics/)
+
+### Quick Map
+- Core runtime: core/
+- DSL and pipelines: dsl/
+- Providers: providers/
+- Tools: tools/
+- Guardrails: guardrails/
+- Memory: memory/
+- Tracing: tracing/
+- Rails engine: rails/
+- Testing helpers: testing/
 
 ### Modular Installation
 
@@ -633,7 +663,7 @@ end
 
 ## 🧪 Testing
 
-The gem includes a comprehensive RSpec test suite with 100% code coverage.
+The project includes a comprehensive RSpec test suite. Coverage is tracked in CI; see workflow summaries for current figures.
 
 ### Running Tests
 
@@ -727,6 +757,14 @@ end
 - Verify token usage and cost tracking
 - Test streaming responses with proper event handling
 
+## ⚙️ Supported Ruby Versions
+
+RAAF targets modern Ruby versions tested in CI. Current baseline: Ruby 3.2 and 3.3. Other versions may work but are not part of the official test matrix.
+
+## ⚡ Concurrency Notes
+
+Parallel pipeline steps and iterators use Ruby threads. For IO‑bound workloads this improves throughput. For very large data sets, consider adding concurrency limits or batching to avoid creating excessive threads. See docs/PIPELINE_DSL_GUIDE.md for patterns.
+
 ## 🤝 Contributing
 
 We welcome contributions from developers of all experience levels! Here's how to get involved:
@@ -795,4 +833,4 @@ RAAF began as a Ruby port of OpenAI's Swarm framework, maintaining the core phil
 
 ---
 
-**Ready to build intelligent AI workflows?** Start with our [Getting Started Guide](GETTING_STARTED.md) or explore the [Examples](EXAMPLES.md).
+**Ready to build intelligent AI workflows?** Start with the DSL guide in dsl/README.md, dive deeper with docs/PIPELINE_DSL_GUIDE.md, or explore examples in examples/.

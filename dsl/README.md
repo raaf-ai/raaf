@@ -167,6 +167,26 @@ class ContentWorkflow < RAAF::DSL::Agent
 end
 ```
 
+### 🧵 Pipelines (Canonical)
+
+For multi-step workflows, use the canonical operator-style Pipeline DSL:
+
+- Base class: `RAAF::Pipeline`
+- Define flow with `flow` and chain agents/services with `>>` (sequential) and `|` (parallel)
+- See the complete guide at `docs/PIPELINE_DSL_GUIDE.md`
+
+Example:
+
+```ruby
+class AnalyzeThenReport < RAAF::Pipeline
+  flow DataAnalyzer >> ReportGenerator
+end
+
+result = AnalyzeThenReport.new(raw_data: data).run
+```
+
+Legacy: The builder-style pipeline (`RAAF::DSL::AgentPipeline`) remains for backward compatibility but is considered legacy. Prefer `RAAF::Pipeline` for new work and documentation.
+
 ### 🛠️ Advanced Tool Integration
 Easy integration of external tools with automatic parameter validation and error handling:
 
