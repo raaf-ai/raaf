@@ -114,6 +114,9 @@ module RAAF
     # Main Agent class - the unified agent with all features
     autoload :Agent, "raaf/dsl/agent"
     
+    # Service base class for non-LLM operations
+    autoload :Service, "raaf/dsl/service"
+    
     # Pipeline DSL for elegant agent chaining
     autoload :Pipeline, "raaf/dsl/pipeline_dsl/pipeline"
     require_relative "raaf/dsl/pipeline_dsl"

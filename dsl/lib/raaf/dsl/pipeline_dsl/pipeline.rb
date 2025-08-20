@@ -14,12 +14,11 @@ module RAAF
   # Usage Pattern:
   #   class MyPipeline < RAAF::Pipeline
   #     flow Agent1 >> Agent2 >> (Agent3 | Agent4) >> Agent5
-  #     context_reader :required_field
   #     context { default :optional_field, "default_value" }
   #   end
   class Pipeline
     class << self
-      attr_reader :flow_chain, :context_config, :context_readers, :after_run_block
+      attr_reader :flow_chain, :context_config, :after_run_block
       
       # Define the agent execution flow using DSL operators
       # Stores the chained/parallel agent structure for execution
@@ -47,15 +46,13 @@ module RAAF
         @context_config ||= {}
       end
       
-      # Context readers - just like agents  
-      # Declares required fields that must be provided when creating pipeline instance
-      def context_reader(*fields)
-        @context_readers ||= []
-        @context_readers.concat(fields)
-      end
-      
+      # Get required fields from context configuration
       def required_fields
-        @context_readers || []
+        context_config = @context_config || {}
+        requirements = context_config[:requirements] || []
+        defaults = context_config[:defaults] || {}
+        # Include both explicitly required fields and those with defaults
+        (requirements + defaults.keys).uniq
       end
     end
     
@@ -274,8 +271,16 @@ module RAAF
       
       # Convert context to keyword arguments to trigger agent's context DSL processing
       context_hash = context.is_a?(RAAF::DSL::ContextVariables) ? context.to_h : context
-      agent = agent_class.new(**context_hash)
-      result = agent.run
+      
+      # Create instance - works for both Agent and Service classes
+      instance = agent_class.new(**context_hash)
+      
+      # Execute based on type - Services use 'call', Agents use 'run'
+      result = if is_service_class?(agent_class)
+        instance.call
+      else
+        instance.run
+      end
       
       # Merge provisions into context
       if agent_class.respond_to?(:provided_fields)
@@ -285,6 +290,15 @@ module RAAF
       end
       
       context
+    end
+    
+    # Check if a class is a Service (as opposed to an Agent)
+    def is_service_class?(klass)
+      # Check if the class inherits from RAAF::DSL::Service
+      klass < RAAF::DSL::Service
+    rescue NameError
+      # RAAF::DSL::Service might not be loaded yet
+      false
     end
     
     # ContextConfig class - unified with Agent DSL implementation

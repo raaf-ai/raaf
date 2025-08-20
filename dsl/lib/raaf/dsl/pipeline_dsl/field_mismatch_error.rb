@@ -34,7 +34,7 @@ module RAAF
               
               To fix this:
               1. Update #{producer_name}'s result_transform to provide: #{truly_missing.inspect}
-              2. Or update #{consumer_name}'s context_reader to not require these fields
+              2. Or update #{consumer_name} to not require these fields
               3. Or add an intermediate agent that provides the transformation
             MSG
           end

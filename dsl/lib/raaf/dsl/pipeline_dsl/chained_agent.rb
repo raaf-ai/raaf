@@ -50,6 +50,8 @@ module RAAF
             @first.respond_to?(:required_fields) ? @first.required_fields : []
           when ConfiguredAgent
             @first.required_fields
+          when IteratingAgent
+            @first.required_fields
           else
             []
           end
@@ -64,6 +66,8 @@ module RAAF
             @second.respond_to?(:provided_fields) ? @second.provided_fields : []
           when ConfiguredAgent
             @second.provided_fields
+          when IteratingAgent
+            @second.provided_fields
           else
             []
           end
@@ -71,7 +75,7 @@ module RAAF
         
         def requirements_met?(context)
           case @first
-          when ChainedAgent, ConfiguredAgent
+          when ChainedAgent, ConfiguredAgent, IteratingAgent
             @first.requirements_met?(context)
           when Class
             @first.respond_to?(:requirements_met?) ? @first.requirements_met?(context) : true
@@ -130,6 +134,8 @@ module RAAF
           when ParallelAgents
             part.execute(context)
           when ConfiguredAgent
+            part.execute(context)
+          when IteratingAgent
             part.execute(context)
           when Class
             execute_single_agent(part, context)

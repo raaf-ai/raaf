@@ -6,6 +6,8 @@ require "active_support/core_ext/object/blank"
 require_relative "config/config"
 require_relative "core/context_variables"
 require_relative "context_access"
+require_relative "context_configuration"
+require_relative "pipeline_integration"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
 require_relative "pipeline"
@@ -39,38 +41,11 @@ module RAAF
     class Agent
       include RAAF::Logger
       include RAAF::DSL::ContextAccess
+      include RAAF::DSL::ContextConfiguration
+      include RAAF::DSL::PipelineIntegration
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
-        # Class-specific configuration storage for thread safety
-        def _agent_config
-          Thread.current["raaf_dsl_agent_config_#{object_id}"] ||= {}
-        end
-
-        def _agent_config=(value)
-          Thread.current["raaf_dsl_agent_config_#{object_id}"] = value
-        end
-
-        # Control auto-context behavior (default: true)
-        def auto_context(enabled = true)
-          _agent_config[:auto_context] = enabled
-        end
-        
-        # Check if auto-context is enabled (default: true)
-        def auto_context?
-          _agent_config[:auto_context] != false
-        end
-        
-        # Configuration for context building rules
-        def context(options = {}, &block)
-          if block_given?
-            config = ContextConfig.new
-            config.instance_eval(&block)
-            _agent_config[:context_rules] = config.to_h
-          else
-            _agent_config[:context_rules] = options
-          end
-        end
 
         def _tools_config
           Thread.current["raaf_dsl_tools_config_#{object_id}"] ||= []

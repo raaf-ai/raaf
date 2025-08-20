@@ -64,7 +64,7 @@ module RAAF
             case agent
             when Class
               agent.respond_to?(:required_fields) ? agent.required_fields : []
-            when ChainedAgent, ConfiguredAgent
+            when ChainedAgent, ConfiguredAgent, IteratingAgent
               agent.required_fields
             else
               []
@@ -78,7 +78,7 @@ module RAAF
             case agent
             when Class
               agent.respond_to?(:provided_fields) ? agent.provided_fields : []
-            when ChainedAgent, ConfiguredAgent
+            when ChainedAgent, ConfiguredAgent, IteratingAgent
               agent.provided_fields
             else
               []
@@ -92,7 +92,7 @@ module RAAF
             case agent
             when Class
               !agent.respond_to?(:requirements_met?) || agent.requirements_met?(context)
-            when ChainedAgent, ConfiguredAgent
+            when ChainedAgent, ConfiguredAgent, IteratingAgent
               agent.requirements_met?(context)
             else
               true
@@ -109,6 +109,9 @@ module RAAF
             extract_provided_fields(agent, context)
           when ConfiguredAgent
             agent.execute(context)
+          when IteratingAgent
+            agent.execute(context)
+            extract_provided_fields(agent, context)
           when Class
             return {} unless agent.respond_to?(:requirements_met?)
             return {} unless agent.requirements_met?(context)
@@ -145,7 +148,7 @@ module RAAF
           case agent
           when Class
             agent.name
-          when ChainedAgent, ConfiguredAgent, ParallelAgents
+          when ChainedAgent, ConfiguredAgent, ParallelAgents, IteratingAgent
             agent.class.name
           else
             agent.to_s

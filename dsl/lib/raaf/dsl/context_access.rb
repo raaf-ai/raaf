@@ -114,8 +114,8 @@ module RAAF
       # @param method_name [Symbol] The variable name to check
       # @return [Boolean] true if variable exists in any context
       def variable_exists_in_context?(method_name)
-        # Check primary context (agent-style)
-        return true if respond_to?(:context, true) && context&.respond_to?(:has?) && context.has?(method_name)
+        # Check primary context (agent/service-style) - use direct instance variable check to avoid recursion
+        return true if instance_variable_defined?(:@context) && @context&.respond_to?(:has?) && @context.has?(method_name)
         
         # Check context variables (prompt-style from agents)  
         return true if instance_variable_defined?(:@context_variables) && @context_variables&.respond_to?(:has?) && @context_variables.has?(method_name)
