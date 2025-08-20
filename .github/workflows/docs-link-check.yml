@@ -1,0 +1,55 @@
+name: 🔗 Docs Link Check
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**/*.md'
+      - '.github/workflows/docs-link-check.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '**/*.md'
+      - '.github/workflows/docs-link-check.yml'
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check internal Markdown links
+        run: |
+          set -euo pipefail
+          errors=0
+          while IFS= read -r file; do
+            dir=$(dirname "$file")
+            # Extract markdown links and images: ](link) and ![](link)
+            mapfile -t links < <(grep -oE '\]\(([^)]+)\)' "$file" | sed -E 's/^.*\]\(([^)]+)\).*$/\1/' || true)
+            # Extract HTML anchors and images
+            mapfile -t hrefs < <(grep -oE 'href="[^"]+"' "$file" | sed -E 's/^href="([^"]+)"$/\1/' || true)
+            mapfile -t srcs < <(grep -oE 'src="[^"]+"' "$file" | sed -E 's/^src="([^"]+)"$/\1/' || true)
+            links+=("${hrefs[@]:-}")
+            links+=("${srcs[@]:-}")
+            for link in "${links[@]:-}"; do
+              # Skip external and anchor-only links
+              case "$link" in
+                http://*|https://*|mailto:*|#*|javascript:*) continue ;;
+              esac
+              path="${link%%#*}"
+              [ -z "$path" ] && continue
+              if [[ "$path" = /* ]]; then
+                target=".${path}"
+              else
+                target="${dir}/${path}"
+              fi
+              if [ ! -e "$target" ]; then
+                echo "::error file=$file,title=Broken doc link:: $link -> $target not found"
+                errors=$((errors+1))
+              fi
+            done
+          done < <(git ls-files "*.md")
+          if [ "$errors" -gt 0 ]; then
+            echo "Found $errors broken internal link(s)." >&2
+            exit 1
+          fi
+          echo "All internal links OK."

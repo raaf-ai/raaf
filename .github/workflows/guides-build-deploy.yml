@@ -27,8 +27,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RUBY_VERSION: '3.4.5'
-  DEFAULT_RUBY_VERSION: '3.4.5'
+  RUBY_VERSION: '3.3'
+  DEFAULT_RUBY_VERSION: '3.3'
 
 jobs:
   # Stage 1: Validation and linting

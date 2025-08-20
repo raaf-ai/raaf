@@ -26,8 +26,8 @@ on:
 # 3. Acceptance Tests (validates all parallel tests passed)
 # 4. Build & Summary (final validation and reporting)
 env:
-  RUBY_VERSION: '3.4.5'
-  DEFAULT_RUBY_VERSION: '3.4.5'
+  RUBY_VERSION: '3.3'
+  DEFAULT_RUBY_VERSION: '3.3'
 
 jobs:
   # Stage 1: Basic validation (fastest feedback)
@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        ruby-version: ['3.2', '3.3', '3.4.5']
+        ruby-version: ['3.2', '3.3']
     
     steps:
     - uses: actions/checkout@v4
@@ -305,10 +305,10 @@ jobs:
       run: |
         echo "Processing coverage reports..."
         
-        # Find the primary coverage report (use 3.4.5 as primary, fallback to first available)
+        # Find the primary coverage report (use DEFAULT_RUBY_VERSION as primary, fallback to first available)
         PRIMARY_COVERAGE=""
-        if [ -d "coverage-artifacts/coverage-reports-3.4.5" ]; then
-          PRIMARY_COVERAGE="coverage-artifacts/coverage-reports-3.4.5"
+        if [ -d "coverage-artifacts/coverage-reports-${{ env.DEFAULT_RUBY_VERSION }}" ]; then
+          PRIMARY_COVERAGE="coverage-artifacts/coverage-reports-${{ env.DEFAULT_RUBY_VERSION }}"
         else
           PRIMARY_COVERAGE=$(find coverage-artifacts -name "coverage-reports-*" -type d | head -1)
         fi
