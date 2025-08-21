@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "pipeline_integration"
+require_relative "pipelineable"
 require_relative "pipeline_dsl/chained_agent"
 require_relative "pipeline_dsl/parallel_agents"
 require_relative "pipeline_dsl/configured_agent"

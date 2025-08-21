@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../pipeline_dsl"
+require_relative "../context_flow_tracker"
 
 module RAAF
   # New Pipeline base class for elegant DSL
@@ -19,6 +20,7 @@ module RAAF
   class Pipeline
     class << self
       attr_reader :flow_chain, :context_config, :after_run_block
+      attr_accessor :skip_validation
       
       # Define the agent execution flow using DSL operators
       # Stores the chained/parallel agent structure for execution
@@ -54,6 +56,16 @@ module RAAF
         # Include both explicitly required fields and those with defaults
         (requirements + defaults.keys).uniq
       end
+      
+      # Disable validation for this pipeline
+      def skip_validation!
+        @skip_validation = true
+      end
+      
+      # Enable validation (default)
+      def enable_validation!
+        @skip_validation = false
+      end
     end
     
     # Initialize a pipeline with flexible context options
@@ -80,7 +92,57 @@ module RAAF
       validate_initial_context!
     end
     
+    # Validate all agents in the pipeline with context flow tracking
+    def validate_pipeline!
+      errors = []
+      
+      # Track context as it flows through the pipeline
+      context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
+      tracker = RAAF::DSL::ContextFlowTracker.new(context_hash)
+      
+      # Validate the entire flow
+      validate_flow_with_tracking(@flow, tracker, errors)
+      
+      if errors.any?
+        error_message = "Pipeline validation failed! Context errors detected:\n\n"
+        errors.each do |error|
+          error_message += "Stage #{error[:stage_number]}: #{error[:stage]}\n"
+          error_message += "   Error: #{error[:message]}\n"
+          error_message += "   Context at this stage: #{error[:available_context].inspect}\n"
+          
+          if error[:missing_variables]
+            error_message += "   Missing: #{error[:missing_variables].inspect}\n"
+          end
+          
+          error_message += "\n"
+        end
+        
+        # Add summary
+        error_message += "Context Flow Summary:\n"
+        summary = tracker.summary
+        error_message += "  Initial context: #{summary[:initial_context].inspect}\n"
+        error_message += "  Final context: #{summary[:final_context].inspect}\n"
+        error_message += "  Fields added during pipeline: #{summary[:fields_added].inspect}\n"
+        
+        raise RAAF::DSL::Error, error_message
+      end
+      
+      if defined?(RAAF::Logger) && self.respond_to?(:log_info)
+        log_info "Pipeline validation successful", 
+                 stages: tracker.stage_number,
+                 initial_context: tracker.summary[:initial_context],
+                 final_context: tracker.summary[:final_context]
+      end
+      
+      true
+    end
+
     def run
+      # Validate pipeline before execution (enabled by default)
+      unless self.class.skip_validation
+        validate_pipeline!
+      end
+      
       result = execute_chain(@flow, @context)
       
       # Execute after_run hook if defined
@@ -299,6 +361,89 @@ module RAAF
     rescue NameError
       # RAAF::DSL::Service might not be loaded yet
       false
+    end
+    
+    # Validate flow with context tracking through pipeline stages
+    def validate_flow_with_tracking(flow, tracker, errors)
+      case flow
+      when DSL::PipelineDSL::ChainedAgent
+        # Sequential chain - validate each stage in order
+        validate_flow_with_tracking(flow.first, tracker, errors)
+        validate_flow_with_tracking(flow.second, tracker, errors)
+        
+      when DSL::PipelineDSL::ParallelAgents
+        # Parallel execution - each branch gets current context
+        flow.agents.each_with_index do |agent, index|
+          branch_tracker = tracker.create_branch_tracker
+          validate_single_stage(agent, branch_tracker, errors, "parallel_#{index + 1}")
+          tracker.merge_branch_results(branch_tracker)
+        end
+        
+      when DSL::PipelineDSL::ConfiguredAgent
+        validate_single_stage(flow.agent_class, tracker, errors)
+        
+      when Class
+        validate_single_stage(flow, tracker, errors)
+        
+      else
+        # Unknown flow type - add warning but continue
+        errors << {
+          stage_number: tracker.stage_number + 1,
+          stage: "unknown_flow_type",
+          message: "Unknown flow type: #{flow.class}",
+          available_context: tracker.available_keys,
+          missing_variables: nil
+        }
+      end
+    end
+    
+    # Validate a single stage (agent or service) with context tracking
+    def validate_single_stage(stage_class, tracker, errors, stage_name = nil)
+      stage_name ||= stage_class.respond_to?(:name) ? stage_class.name : stage_class.to_s
+      
+      # Enter this stage in the tracker
+      tracker.enter_stage(stage_name)
+      
+      begin
+        # Create a test instance with current context
+        context_hash = tracker.current_context
+        
+        # Try to create agent/service instance
+        test_instance = stage_class.new(**context_hash)
+        
+        # Validate using unified Pipelineable interface if supported
+        if test_instance.can_validate_for_pipeline?
+          test_instance.validate_for_pipeline(context_hash)
+        end
+        
+        # Add output fields if the stage provides them
+        if stage_class.respond_to?(:provided_fields)
+          output_fields = stage_class.provided_fields
+          tracker.add_output_fields(output_fields)
+        elsif stage_class.respond_to?(:output_fields)
+          output_fields = stage_class.output_fields
+          tracker.add_output_fields(output_fields)
+        end
+        
+      rescue StandardError => e
+        # Capture validation error with context
+        missing_vars = nil
+        
+        # Extract missing variables from error message if it's a context error
+        if e.message.include?("Missing variables:")
+          # Try to extract missing variables from error message
+          match = e.message.match(/Missing variables: \[(.*?)\]/)
+          missing_vars = match ? match[1].split(', ').map(&:strip) : nil
+        end
+        
+        errors << {
+          stage_number: tracker.stage_number,
+          stage: stage_name,
+          message: e.message,
+          available_context: tracker.available_keys,
+          missing_variables: missing_vars
+        }
+      end
     end
     
     # ContextConfig class - unified with Agent DSL implementation
