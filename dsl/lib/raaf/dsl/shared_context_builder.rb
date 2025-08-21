@@ -18,6 +18,7 @@ module RAAF
     # - DSL rule application (defaults, requirements, validation)
     #
     module SharedContextBuilder
+      include RAAF::Logging
       
       # Build context automatically from provided arguments
       #
@@ -89,7 +90,7 @@ module RAAF
           end
         end
         
-        RAAF::DSL::ContextVariables.new(builder.context, debug: debug)
+        RAAF::DSL::ContextVariables.new(builder.context.to_h, debug: debug)
       end
       
       # Build context from an explicit context parameter
@@ -103,14 +104,12 @@ module RAAF
       # @return [RAAF::DSL::ContextVariables] Processed context object
       # @raise [ArgumentError] If context parameter is invalid type
       def build_context_from_param(context_param, debug = nil)
-        # Start with the provided context
+        # Only accept ContextVariables instances
         base_context = case context_param
         when RAAF::DSL::ContextVariables
           context_param.to_h
-        when Hash
-          context_param
         else
-          raise ArgumentError, "context must be ContextVariables instance or Hash"
+          raise ArgumentError, "context must be RAAF::DSL::ContextVariables instance. Use RAAF::DSL::ContextVariables.new(your_hash) instead of passing raw hash."
         end
         
         # Apply agent's context defaults if they don't exist in provided context
@@ -180,6 +179,8 @@ module RAAF
           end
         end
       end
+      
+      private
       
     end
   end

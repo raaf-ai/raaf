@@ -161,8 +161,10 @@ module RAAF
           return [] unless _agent_config[:context_rules]
 
           context_rules = _agent_config[:context_rules]
-          requirements = context_rules[:requirements] || []
-          defaults = context_rules[:defaults] || {}
+          # Check both :required (new format) and :requirements (legacy format)
+          requirements = context_rules[:required] || context_rules[:requirements] || []
+          # Check both :optional (new format) and :defaults (legacy format)
+          defaults = context_rules[:optional] || context_rules[:defaults] || {}
 
           # Include both explicitly required fields and those with defaults
           (requirements + defaults.keys).uniq
@@ -178,8 +180,10 @@ module RAAF
           return [] unless _agent_config[:context_rules]
 
           context_rules = _agent_config[:context_rules]
-          requirements = context_rules[:requirements] || []
-          defaults = context_rules[:defaults] || {}
+          # Check both :required (new format) and :requirements (legacy format)
+          requirements = context_rules[:required] || context_rules[:requirements] || []
+          # Check both :optional (new format) and :defaults (legacy format)
+          defaults = context_rules[:optional] || context_rules[:defaults] || {}
 
           # Return only required fields that don't have defaults
           (requirements - defaults.keys).uniq
@@ -192,6 +196,11 @@ module RAAF
         #
         # @return [Array<Symbol>] Array of provided field names
         def provided_fields
+          # Check context configuration for output fields (DSL declaration)
+          if _agent_config[:context_rules] && _agent_config[:context_rules][:output]
+            return _agent_config[:context_rules][:output]
+          end
+          
           # Check if service has been instantiated and run to analyze result
           if respond_to?(:last_result_fields) && last_result_fields
             return last_result_fields
