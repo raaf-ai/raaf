@@ -3,11 +3,12 @@
 require "raaf-core"
 require "active_support/concern"
 require "active_support/core_ext/object/blank"
+require "timeout"
 require_relative "config/config"
 require_relative "core/context_variables"
 require_relative "context_access"
 require_relative "context_configuration"
-require_relative "pipeline_integration"
+require_relative "pipelineable"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
 require_relative "pipeline"
@@ -42,7 +43,7 @@ module RAAF
       include RAAF::Logger
       include RAAF::DSL::ContextAccess
       include RAAF::DSL::ContextConfiguration
-      include RAAF::DSL::PipelineIntegration
+      include RAAF::DSL::Pipelineable
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
@@ -466,6 +467,18 @@ module RAAF
           _agent_config[:temperature] = temp
         end
 
+        # Set or get execution timeout for this agent
+        #
+        # @param seconds [Integer, nil] Timeout in seconds
+        # @return [Integer, nil] The execution timeout value
+        def execution_timeout(seconds = nil)
+          if seconds
+            _agent_config[:execution_timeout] = seconds
+          else
+            _agent_config[:execution_timeout]
+          end
+        end
+
         def schema(&block)
           self._schema_definition = SchemaBuilder.new(&block).build if block_given?
           self._schema_definition
@@ -792,6 +805,47 @@ module RAAF
       # @param skip_retries [Boolean] Skip retry/circuit breaker logic (default: false)
       # @return [Hash] Result from agent execution
       def run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        # Check if execution timeout is configured
+        execution_timeout = self.class._agent_config[:execution_timeout]
+        
+        if execution_timeout
+          run_with_timeout(execution_timeout, context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+        else
+          run_without_timeout(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+        end
+      end
+
+      private
+
+      def run_with_timeout(timeout_seconds, context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        agent_name = self.class._agent_config&.dig(:name) || self.class.name
+        log_info "⏰ [#{agent_name}] Starting execution with #{timeout_seconds}s timeout"
+        
+        begin
+          Timeout.timeout(timeout_seconds) do
+            run_without_timeout(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+          end
+        rescue Timeout::Error => e
+          log_error "⏰ [#{agent_name}] Execution timed out after #{timeout_seconds} seconds"
+          {
+            workflow_status: "timeout",
+            success: false,
+            error: "Agent execution timed out after #{timeout_seconds} seconds",
+            error_type: "execution_timeout",
+            timeout_seconds: timeout_seconds
+          }
+        end
+      end
+
+      def run_without_timeout(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        # Validate prompt context early if configured
+        if self.class._agent_config[:validate_prompt_context] != false
+          validate_prompt_context!
+        end
+        
+        # Validate computed fields early to catch context reference errors
+        validate_computed_fields!
+        
         # Check execution conditions first
         if self.class._execution_conditions
           resolved_context = resolve_run_context(context || input_context_variables)
@@ -837,6 +891,205 @@ module RAAF
         end
       end
       
+      # Validate prompt context requirements using dry-run
+      def validate_prompt_context!
+        prompt_spec = determine_prompt_spec
+        return true unless prompt_spec
+        
+        begin
+          # Try to create prompt instance for validation
+          prompt_instance = case prompt_spec
+                           when Class
+                             # Pass context as keyword arguments
+                             context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
+                             prompt_spec.new(**context_hash)
+                           when String, Symbol
+                             # Try to resolve and instantiate
+                             klass = Object.const_get(prompt_spec.to_s)
+                             context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
+                             klass.new(**context_hash)
+                           else
+                             prompt_spec
+                           end
+          
+          # Run dry validation if available
+          if prompt_instance.respond_to?(:dry_run_validation!)
+            prompt_instance.dry_run_validation!
+          end
+          
+          # NEW: Validate prompt methods can be called without context errors
+          validate_prompt_methods!(prompt_instance)
+          
+          true
+          
+        rescue RAAF::DSL::Error => e
+          # Re-raise validation errors with agent context
+          raise RAAF::DSL::Error,
+            "Prompt validation failed for agent #{self.class.name}:\n#{e.message}"
+        rescue StandardError => e
+          # Log but don't fail on other errors (like missing prompt class)
+          log_debug "Could not validate prompt context", error: e.message
+          true
+        end
+      end
+
+      # Validate that prompt methods (system, user) can be called without context errors
+      #
+      # This performs dry-run validation of prompt methods to catch undefined variable
+      # references early, before expensive AI operations.
+      #
+      # @param prompt_instance [Object] The instantiated prompt object to validate
+      # @return [Boolean] true if validation passes
+      # @raise [RAAF::DSL::Error] if validation fails
+      def validate_prompt_methods!(prompt_instance)
+        return true unless prompt_instance
+        
+        # Validate system prompt method
+        if prompt_instance.respond_to?(:system)
+          begin
+            prompt_instance.system
+          rescue NameError => e
+            if e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
+              handle_prompt_validation_error("system", e, prompt_instance.class.name)
+            else
+              # Re-raise other NameErrors as they might be legitimate method issues
+              raise
+            end
+          rescue StandardError => e
+            # Log but don't fail on other errors during dry-run (e.g., nil method calls)
+            log_debug "Prompt system method dry-run warning: #{e.class.name}: #{e.message}"
+          end
+        end
+        
+        # Validate user prompt method
+        if prompt_instance.respond_to?(:user)
+          begin
+            prompt_instance.user
+          rescue NameError => e
+            if e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
+              handle_prompt_validation_error("user", e, prompt_instance.class.name)
+            else
+              # Re-raise other NameErrors as they might be legitimate method issues
+              raise
+            end
+          rescue StandardError => e
+            # Log but don't fail on other errors during dry-run
+            log_debug "Prompt user method dry-run warning: #{e.class.name}: #{e.message}"
+          end
+        end
+        
+        true
+      end
+
+      # Handle prompt validation errors with clear, actionable messages
+      #
+      # @param method_name [String] The prompt method that failed ("system" or "user")
+      # @param error [NameError] The original error
+      # @param prompt_class_name [String] Name of the prompt class
+      # @raise [RAAF::DSL::Error] Formatted validation error
+      def handle_prompt_validation_error(method_name, error, prompt_class_name)
+        # Extract the problematic variable name
+        variable_match = error.message.match(/`([^']+)'/)
+        problem_var = variable_match ? variable_match[1] : "unknown"
+        
+        # Get available context for helpful error message
+        available_context = if @context.respond_to?(:keys)
+                             @context.keys
+                           elsif @context.respond_to?(:to_h)
+                             @context.to_h.keys
+                           else
+                             ["context object: #{@context.class.name}"]
+                           end
+        
+        raise RAAF::DSL::Error,
+          "Failed to validate #{method_name} prompt method in #{prompt_class_name}: " \
+          "references undefined variable '#{problem_var}'. " \
+          "Available context variables: #{available_context.join(', ')}. " \
+          "This usually indicates an error in the prompt's #{method_name} method or missing required context."
+      end
+
+      # Validate computed fields in result_transform blocks before execution
+      #
+      # This method performs a dry-run of all computed field methods to catch
+      # context variable reference errors early, before expensive AI API calls.
+      #
+      # @return [Boolean] true if validation passes
+      # @raise [RAAF::DSL::Error] if validation fails
+      def validate_computed_fields!
+        return true unless self.class._result_transformations
+        
+        transformations = self.class._result_transformations
+        mock_data = { "test" => "value", :test => :value }
+        
+        transformations.each do |field_name, field_config|
+          next unless field_config[:computed]
+          
+          method_name = field_config[:computed]
+          next unless respond_to?(method_name, true)
+          
+          begin
+            # Attempt dry-run with mock data
+            send(method_name, mock_data)
+            
+          rescue NameError => e
+            if e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
+              # Extract the problematic variable name
+              variable_match = e.message.match(/`([^']+)'/)
+              problem_var = variable_match ? variable_match[1] : "unknown"
+              
+              # Get available context for helpful error message
+              available_context = if @context.respond_to?(:keys)
+                                   @context.keys
+                                 elsif @context.respond_to?(:to_h)
+                                   @context.to_h.keys
+                                 else
+                                   ["context object: #{@context.class.name}"]
+                                 end
+              
+              raise RAAF::DSL::Error,
+                "Computed field '#{field_name}' (method: #{method_name}) references undefined variable '#{problem_var}'. " \
+                "Available context variables: #{available_context.join(', ')}"
+            else
+              # Re-raise other NameErrors as they might be legitimate method issues
+              raise
+            end
+            
+          rescue StandardError => e
+            # Log but don't fail on other errors during dry-run
+            # These might be legitimate errors that only occur with real data
+            log_debug "Computed field '#{field_name}' dry-run warning: #{e.class.name}: #{e.message}"
+          end
+        end
+        
+        true
+      end
+
+      # Class method to validate with specific context (for pipeline validation)
+      def self.validate_with_context(context)
+        agent = new(**context)
+        agent.validate_prompt_context!
+      end
+      
+      # Validate this agent for pipeline use (implements Pipelineable interface)
+      #
+      # Agents validate both their required context fields and their prompt context.
+      # This provides comprehensive validation for pipeline compatibility.
+      #
+      # @param context [Hash] Context to validate against  
+      # @return [Boolean] true if validation passes
+      # @raise [RAAF::DSL::Error] if validation fails
+      def validate_for_pipeline(context)
+        # First validate basic required context fields (from Pipelineable)
+        validate_required_context_fields(context)
+        
+        # Then validate prompt-specific context if this agent has prompts
+        if self.class._agent_config[:validate_prompt_context] != false
+          validate_prompt_context!
+        end
+        
+        true
+      end
+
       # Create the underlying RAAF::Agent instance
       def create_agent
         log_debug("Creating RAAF agent instance",
@@ -1145,14 +1398,12 @@ module RAAF
       
       # Build context from parameter (backward compatibility)
       def build_context_from_param(context_param, debug = nil)
-        # Start with the provided context
+        # Only accept ContextVariables instances
         base_context = case context_param
         when RAAF::DSL::ContextVariables
           context_param.to_h
-        when Hash
-          context_param
         else
-          raise ArgumentError, "context must be ContextVariables instance or Hash"
+          raise ArgumentError, "context must be RAAF::DSL::ContextVariables instance. Use RAAF::DSL::ContextVariables.new(your_hash) instead of passing raw hash."
         end
         
         # Apply agent's context defaults if they don't exist in provided context
@@ -1364,18 +1615,21 @@ module RAAF
       end
 
       def validate_context!
-        return unless self.class._required_context_keys
+        # Validate required context keys from the _required_context_keys class method
+        if self.class._required_context_keys
+          missing_keys = self.class._required_context_keys.reject do |key|
+            @context.has?(key)
+          end
 
-        missing_keys = self.class._required_context_keys.reject do |key|
-          @context.has?(key)
+          if missing_keys.any?
+            raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
+          end
         end
 
-        if missing_keys.any?
-          raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
+        # Validate context DSL rules if defined  
+        if self.class.respond_to?(:_validation_rules) && self.class._validation_rules
+          validate_context_rules!
         end
-
-        # Run validation rules
-        validate_context_rules! if self.class._validation_rules
       end
 
       def validate_context_rules!

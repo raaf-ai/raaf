@@ -5,7 +5,7 @@ require "active_support/concern"
 require "active_support/core_ext/object/blank"
 require_relative "context_configuration"
 require_relative "context_access"
-require_relative "pipeline_integration"
+require_relative "pipelineable"
 require_relative "core/context_variables"
 require_relative "shared_context_builder"
 
@@ -87,7 +87,7 @@ module RAAF
       include RAAF::Logger
       include RAAF::DSL::ContextAccess
       include RAAF::DSL::ContextConfiguration
-      include RAAF::DSL::PipelineIntegration
+      include RAAF::DSL::Pipelineable
       include RAAF::DSL::SharedContextBuilder
 
       # Context accessor for compatibility with ContextAccess module
