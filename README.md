@@ -40,7 +40,7 @@ Like Swarm, RAAF implements:
 ### Beyond Swarm: Enterprise Features
 
 RAAF extends the Swarm concepts with:
-- **Multi-Provider Support**: Not just OpenAI, but Anthropic, Google, Cohere, and 100+ LLMs
+- **Multi-Provider Support**: Not just OpenAI, but Anthropic, Google, Cohere, and more.
 - **Production Safety**: Advanced guardrails, PII detection, and security filtering
 - **Memory Management**: Token-aware context management with vector search
 - **Compliance**: GDPR/SOC2/HIPAA compliance tracking and audit trails
@@ -53,7 +53,7 @@ RAAF extends the Swarm concepts with:
 - **🤖 Multi-Agent Workflows** - Specialized agents with intelligent routing and handoffs
 - **🔧 Advanced Tool Integration** - 15+ built-in tools including file search, web search, computer automation, code interpreter, document generation, and more
 - **📡 Real-time Streaming** - Live response streaming with comprehensive event handling
-- **🎯 Multi-Provider Support** - OpenAI, Anthropic, Gemini, Cohere, Groq, Ollama, and 100+ LLMs
+- **🎯 Multi-Provider Support** - OpenAI, Anthropic, Gemini, Cohere, Groq, Ollama, and more
 - **📋 Universal Structured Output** - JSON schema enforcement across ALL providers
 
 ### Memory & Intelligence
