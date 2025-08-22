@@ -7,14 +7,15 @@ module RAAF
       include Phlex::Rails::Helpers::LinkTo
       include Phlex::Rails::Helpers::TimeAgoInWords
       include Phlex::Rails::Helpers::Truncate
-      include Components::Preline
 
-      def initialize(spans:)
+      def initialize(spans:, page: 1, per_page: 50)
         @spans = spans
+        @page = page
+        @per_page = per_page
       end
 
-      def template
-        Container(class: "space-y-6") do
+      def view_template
+        div(class: "container-fluid") do
           render_header
           render_spans_table
         end
@@ -23,125 +24,124 @@ module RAAF
       private
 
       def render_header
-        Flex(align: :center, justify: :between) do
-          Container do
-            Typography(tag: :h1, "Spans")
-            Typography(color: :muted, "Detailed view of all execution spans")
+        div(class: "d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom") do
+          div do
+            h1(class: "h2") { "Spans" }
+            p(class: "text-muted") { "Detailed view of all execution spans" }
           end
 
-          Flex(align: :center, gap: 3) do
-            Button(
-              type: "button",
-              data: { action: "click->window#reload" },
-              variant: :secondary,
-              icon: "arrow-path"
-            ) do
-              "Refresh"
+          div(class: "btn-toolbar mb-2 mb-md-0") do
+            div(class: "btn-group me-2") do
+              a(
+                href: "javascript:window.location.reload();",
+                class: "btn btn-sm btn-outline-secondary"
+              ) do
+                i(class: "bi bi-arrow-clockwise me-1")
+                plain "Refresh"
+              end
             end
           end
         end
       end
 
       def render_spans_table
-        Card do
-          if @spans.any?
-            Table do
-              TableHead do
-                TableRow do
-                  TableCell("Name", header: true)
-                  TableCell("Kind", header: true)
-                  TableCell("Status", header: true)
-                  TableCell("Duration", header: true)
-                  TableCell("Trace", header: true)
-                  TableCell("Started", header: true)
-                  TableCell("Actions", header: true, align: :end)
+        div(class: "card") do
+          div(class: "card-body") do
+            if @spans.any?
+              div(class: "table-responsive") do
+                table(class: "table table-sm") do
+                  thead do
+                    tr do
+                      th { "Name" }
+                      th { "Kind" }
+                      th { "Status" }
+                      th { "Duration" }
+                      th { "Trace" }
+                      th { "Started" }
+                      th(class: "text-end") { "Actions" }
+                    end
+                  end
+                  tbody do
+                    @spans.each do |span|
+                      render_span_row(span)
+                    end
+                  end
                 end
               end
-              TableBody do
-                @spans.each do |span|
-                  render_span_row(span)
-                end
+            else
+              div(class: "text-center py-5") do
+                i(class: "bi bi-clock display-4 text-muted")
+                h3(class: "mt-3") { "No spans found" }
+                p(class: "text-muted") { "No execution spans are available." }
               end
             end
-          else
-            EmptyState(
-              icon: "clock",
-              title: "No spans found",
-              description: "No execution spans are available."
-            )
           end
         end
       end
 
       def render_span_row(span)
-        TableRow do
-          TableCell do
-            Container do
-              Typography(tag: :strong, span.name, size: :sm)
-              if span.attributes.present? && span.attributes["description"]
-                Typography(truncate(span.attributes["description"], length: 60), color: :muted, size: :sm)
+        tr do
+          td do
+            div do
+              strong { span.name }
+              if span.span_attributes.present? && span.span_attributes["description"]
+                br
+                small(class: "text-muted") { truncate(span.span_attributes["description"], length: 60) }
               end
             end
           end
 
-          TableCell do
+          td do
             render_kind_badge(span.kind)
           end
 
-          TableCell do
+          td do
             render_status_badge(span.status)
           end
 
-          TableCell do
-            format_duration(span.duration_ms)
+          td do
+            plain format_duration(span.duration_ms)
           end
 
-          TableCell do
+          td do
             if span.trace
-              link_to(trace_path(span.trace_id)) { span.trace.workflow_name }
+              link_to(span.trace.workflow_name, "/raaf/tracing/traces/#{span.trace_id}", class: "text-decoration-none")
             else
-              Typography(color: :muted, span.trace_id, size: :sm)
+              small(class: "text-muted") { span.trace_id }
             end
           end
 
-          TableCell do
-            "#{time_ago_in_words(span.start_time)} ago"
+          td do
+            plain "#{time_ago_in_words(span.start_time)} ago"
           end
 
-          TableCell(align: :end) do
-            link_to(span_path(span.span_id)) { "View" }
+          td(class: "text-end") do
+            link_to("View", "/raaf/tracing/spans/#{span.span_id}", class: "btn btn-sm btn-outline-primary")
           end
         end
       end
 
       def render_status_badge(status)
-        variant = case status
-                  when "ok", "completed" then :success
-                  when "error", "failed" then :danger
-                  when "running" then :warning
-                  else :secondary
-                  end
+        badge_class = case status
+                      when "ok", "completed" then "bg-success"
+                      when "error", "failed" then "bg-danger"
+                      when "running" then "bg-warning text-dark"
+                      else "bg-secondary"
+                      end
 
-        icon = case status
-               when "ok", "completed" then "check-circle"
-               when "error", "failed" then "x-circle"
-               when "running" then "arrow-path"
-               else "clock"
-               end
-
-        Badge(status.capitalize, variant: variant, icon: icon)
+        span(class: "badge #{badge_class}") { status.to_s.capitalize }
       end
 
       def render_kind_badge(kind)
-        variant = case kind
-                  when "agent" then :primary
-                  when "llm" then :info
-                  when "tool" then :success
-                  when "handoff" then :warning
-                  else :secondary
-                  end
+        badge_class = case kind
+                      when "agent" then "bg-primary"
+                      when "llm" then "bg-info"
+                      when "tool" then "bg-success"
+                      when "handoff" then "bg-warning text-dark"
+                      else "bg-secondary"
+                      end
 
-        Badge(kind.capitalize, variant: variant, size: :sm)
+        span(class: "badge #{badge_class}") { kind.to_s.capitalize }
       end
 
       def format_duration(ms)
