@@ -7,7 +7,6 @@ module RAAF
       include Phlex::Rails::Helpers::LinkTo
       include Phlex::Rails::Helpers::TimeAgoInWords
       include Phlex::Rails::Helpers::Pluralize
-      include Components::Preline
 
       def initialize(traces:, stats: nil)
         @traces = traces
@@ -15,242 +14,162 @@ module RAAF
       end
 
       def view_template
-        Container(class: "space-y-6") do
+        div(class: "container-fluid") do
           render_header
-          render_filter_form
           render_stats if @stats
           render_traces_table
-          render_last_updated
         end
       end
 
       private
 
       def render_header
-        Flex(justify: :between, align: :center) do
-          Container do
-            Typography(tag: :h1) { "Traces" }
-            Typography(color: :muted) { "Monitor and analyze your agent execution traces" }
+        div(class: "d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom") do
+          div do
+            h1(class: "h2") { "Traces" }
+            p(class: "text-muted") { "Monitor and analyze your agent execution traces" }
           end
 
-          Flex(align: :center, gap: 3) do
-            Button(
-              id: "refresh-dashboard",
-              variant: :secondary,
-              icon: "arrow-path",
-              title: "Refresh"
-            )
+          div(class: "btn-toolbar mb-2 mb-md-0") do
+            div(class: "btn-group me-2") do
+              a(
+                href: "javascript:window.location.reload();",
+                class: "btn btn-sm btn-outline-secondary",
+                title: "Refresh"
+              ) do
+                i(class: "bi bi-arrow-clockwise me-1")
+                plain "Refresh"
+              end
 
-            Button(
-              href: "/raaf/tracing/traces.json",
-              variant: :secondary,
-              icon: "arrow-down-tray"
-            ) do
-              "Export JSON"
-            end
-
-            Flex(align: :center) do
-              Checkbox(
-                id: "auto-refresh-toggle",
-                checked: true,
-                label: "Auto-refresh"
-              )
+              a(
+                href: "/raaf/tracing/traces.json",
+                class: "btn btn-sm btn-outline-secondary"
+              ) do
+                i(class: "bi bi-download me-1")
+                plain "Export JSON"
+              end
             end
           end
         end
       end
 
-      def render_filter_form
-        render FilterForm.new(
-          url: "/raaf/tracing/traces",
-          search: params[:search],
-          workflow: params[:workflow],
-          status: params[:status],
-          start_time: params[:start_time],
-          end_time: params[:end_time]
-        )
-      end
-
       def render_stats
-        Grid(cols: { md: 4 }, gap: 4, class: "mb-6") do
-          render MetricCard.new(
-            value: @stats[:total],
-            label: "Total",
-            color: :blue
-          )
+        return unless @stats
 
-          render MetricCard.new(
-            value: @stats[:completed],
-            label: "Completed",
-            color: :green
-          )
+        div(class: "row mb-4") do
+          div(class: "col-md-3") do
+            div(class: "card") do
+              div(class: "card-body") do
+                h6(class: "card-title text-muted") { "Total Traces" }
+                h3(class: "mb-0") { @stats[:total_traces] }
+              end
+            end
+          end
 
-          render MetricCard.new(
-            value: @stats[:failed],
-            label: "Failed",
-            color: :red
-          )
+          div(class: "col-md-3") do
+            div(class: "card") do
+              div(class: "card-body") do
+                h6(class: "card-title text-muted") { "Completed" }
+                h3(class: "mb-0 text-success") { @stats[:completed_traces] }
+              end
+            end
+          end
 
-          render MetricCard.new(
-            value: @stats[:running],
-            label: "Running",
-            color: :yellow
-          )
+          div(class: "col-md-3") do
+            div(class: "card") do
+              div(class: "card-body") do
+                h6(class: "card-title text-muted") { "Failed" }
+                h3(class: "mb-0 text-danger") { @stats[:failed_traces] }
+              end
+            end
+          end
+
+          div(class: "col-md-3") do
+            div(class: "card") do
+              div(class: "card-body") do
+                h6(class: "card-title text-muted") { "Success Rate" }
+                h3(class: "mb-0") { "#{@stats[:success_rate]}%" }
+              end
+            end
+          end
         end
       end
 
       def render_traces_table
-        # Connection Status
-        Alert(
-          id: "connection-status",
-          variant: :info,
-          class: "hidden mb-4"
-        ) do
-          Typography(class: "status-text") { "Connecting..." }
-        end
-
-        Card(id: "traces-table-container") do
-          render_traces_table_content
-        end
-      end
-
-      def render_traces_table_content
-        if @traces.any?
-          Table do
-            TableHead do
-              TableRow do
-                TableCell("Workflow", header: true)
-                TableCell("Status", header: true)
-                TableCell("Duration", header: true)
-                TableCell("Spans", header: true)
-                TableCell("Started", header: true)
-                TableCell("Actions", header: true, align: :end)
+        div(class: "card") do
+          div(class: "card-body") do
+            if @traces.any?
+              div(class: "table-responsive") do
+                table(class: "table table-sm") do
+                  thead do
+                    tr do
+                      th { "Workflow" }
+                      th { "Status" }
+                      th { "Duration" }
+                      th { "Spans" }
+                      th { "Started" }
+                      th(class: "text-end") { "Actions" }
+                    end
+                  end
+                  tbody do
+                    @traces.each do |trace|
+                      render_trace_row(trace)
+                    end
+                  end
+                end
               end
-            end
-            TableBody do
-              @traces.each do |trace|
-                render_trace_row(trace)
+            else
+              div(class: "text-center py-5") do
+                i(class: "bi bi-diagram-3 display-4 text-muted")
+                h3(class: "mt-3") { "No traces found" }
+                p(class: "text-muted") { "No execution traces are available." }
               end
             end
           end
-        else
-          render_empty_state
         end
-      end
-
-      def render_empty_state
-        EmptyState(
-          icon: "document-text",
-          title: "No traces found",
-          description: "Try adjusting your search criteria or time range."
-        )
       end
 
       def render_trace_row(trace)
-        TableRow(data: { trace_id: trace.trace_id }) do
-          TableCell do
-            Container do
-              link_to("/raaf/tracing/traces/#{trace.trace_id}") { trace.workflow_name }
-              Typography(color: :muted, size: :sm) { trace.trace_id }
+        tr(data: { trace_id: trace.trace_id }) do
+          td do
+            div do
+              strong { trace.workflow_name || "Unnamed Workflow" }
+              br
+              small(class: "text-muted") { trace.trace_id }
             end
           end
 
-          TableCell do
+          td do
             render_status_badge(trace.status)
           end
 
-          TableCell do
-            format_duration(trace.duration_ms)
+          td do
+            plain format_duration(trace.duration_ms)
           end
 
-          TableCell do
-            Flex(align: :center) do
-              Button(
-                type: "button",
-                variant: :ghost,
-                size: :sm,
-                icon: "chevron-right",
-                class: "toggle-spans mr-2",
-                data: {
-                  "hs-collapse": "#collapse-#{trace.trace_id}",
-                  "hs-collapse-toggle": "#collapse-#{trace.trace_id}"
-                }
-              )
-              Typography(size: :sm) { pluralize(trace.spans.count, "span") }
-            end
+          td do
+            span(class: "badge bg-secondary") { pluralize(trace.spans.count, "span") }
           end
 
-          TableCell do
-            time_ago_in_words(trace.started_at)
+          td do
+            plain "#{time_ago_in_words(trace.started_at)} ago"
           end
 
-          TableCell(align: :end) do
-            link_to("/raaf/tracing/traces/#{trace.trace_id}") { "View" }
+          td(class: "text-end") do
+            link_to("View", "/raaf/tracing/traces/#{trace.trace_id}", class: "btn btn-sm btn-outline-primary")
           end
-        end
-
-        # Collapsible spans row
-        TableRow(id: "collapse-#{trace.trace_id}", class: "hs-collapse hidden") do
-          TableCell(colspan: 6) do
-            Card(variant: :subtle, class: "p-4") do
-              Stack(gap: 2) do
-                trace.spans.limit(5).each do |span|
-                  Flex(justify: :between, align: :center) do
-                    Flex(align: :center) do
-                      render_kind_badge(span.kind)
-                      Typography(size: :sm, class: "ml-2") { span.name }
-                    end
-                    Typography(color: :muted, size: :sm) { format_duration(span.duration_ms) }
-                  end
-                end
-
-                if trace.spans.count > 5
-                  Container(class: "text-center") do
-                    link_to("/raaf/tracing/traces/#{trace.trace_id}") do
-                      "View all #{trace.spans.count} spans"
-                    end
-                  end
-                end
-              end
-            end
-          end
-        end
-      end
-
-      def render_last_updated
-        Typography(color: :muted, class: "text-end mt-4", size: :sm) do
-          Typography(id: "last-updated") { Time.current.strftime("%Y-%m-%d %H:%M:%S") }
         end
       end
 
       def render_status_badge(status)
-        variant = case status
-                  when "completed" then :success
-                  when "failed" then :danger
-                  when "running" then :warning
-                  else :secondary
-                  end
+        badge_class = case status
+                      when "completed" then "bg-success"
+                      when "failed" then "bg-danger"
+                      when "running" then "bg-warning text-dark"
+                      else "bg-secondary"
+                      end
 
-        icon = case status
-               when "completed" then "check-circle"
-               when "failed" then "x-circle"
-               when "running" then "arrow-path"
-               else "clock"
-               end
-
-        Badge(status.capitalize, variant: variant, icon: icon)
-      end
-
-      def render_kind_badge(kind)
-        variant = case kind
-                  when "agent" then :primary
-                  when "llm" then :info
-                  when "tool" then :success
-                  when "handoff" then :warning
-                  else :secondary
-                  end
-
-        Badge(kind.capitalize, variant: variant, size: :sm)
+        span(class: "badge #{badge_class}") { status.to_s.capitalize }
       end
 
       def format_duration(ms)

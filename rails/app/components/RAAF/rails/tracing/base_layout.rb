@@ -8,7 +8,6 @@ module RAAF
       include Phlex::Rails::Helpers::CSPMetaTag
       include Phlex::Rails::Helpers::LinkTo
       include Phlex::Rails::Helpers::Routes
-      include Components::Preline
 
       def initialize(title: "Dashboard", breadcrumb: nil)
         @title = title

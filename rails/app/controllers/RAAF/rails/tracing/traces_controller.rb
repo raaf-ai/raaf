@@ -39,8 +39,11 @@ module RAAF
               # For AJAX requests, render just the traces table partial
               render partial: "traces_table", locals: { traces: @traces }, layout: false
             else
-              # For regular HTML requests, render the Phlex version
-              render "RAAF/rails/tracing/traces/index_phlex"
+              # For regular HTML requests, render the Phlex component directly
+              render RAAF::Rails::Tracing::TracesList.new(
+                traces: @traces,
+                stats: @stats
+              )
             end
           end
           format.json { render json: serialize_traces(@traces) }
