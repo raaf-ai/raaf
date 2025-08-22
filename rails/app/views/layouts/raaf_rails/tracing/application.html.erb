@@ -256,7 +256,7 @@
 
 <body>
   <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0">
-    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="<%= tracing_dashboard_path %>">
+    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="/raaf/tracing/dashboard">
       <i class="bi bi-graph-up me-2"></i>
       Ruby AI Agents Factory Tracing
     </a>
@@ -269,31 +269,31 @@
         <div class="sidebar-sticky pt-3">
           <ul class="nav flex-column">
             <li class="nav-item">
-              <%= link_to tracing_dashboard_path, class: "nav-link #{'active' if controller_name == 'dashboard'}" do %>
+              <%= link_to "/raaf/tracing/dashboard", class: "nav-link #{'active' if controller_name == 'dashboard' && action_name == 'index'}" do %>
                 <i class="bi bi-speedometer2 me-2"></i>
                 Dashboard
               <% end %>
             </li>
             <li class="nav-item">
-              <%= link_to tracing_traces_path, class: "nav-link #{'active' if controller_name == 'traces'}" do %>
+              <%= link_to "/raaf/tracing/traces", class: "nav-link #{'active' if controller_name == 'traces'}" do %>
                 <i class="bi bi-diagram-3 me-2"></i>
                 Traces
               <% end %>
             </li>
             <li class="nav-item">
-              <%= link_to tracing_spans_path, class: "nav-link #{'active' if controller_name == 'spans' && action_name != 'tools'}" do %>
+              <%= link_to "/raaf/tracing/spans", class: "nav-link #{'active' if controller_name == 'spans' && action_name == 'index'}" do %>
                 <i class="bi bi-list-ul me-2"></i>
                 Spans
               <% end %>
             </li>
             <li class="nav-item">
-              <%= link_to tracing_spans_tools_path, class: "nav-link #{'active' if action_name == 'tools'}" do %>
+              <%= link_to "/raaf/tracing/spans/tools", class: "nav-link #{'active' if action_name == 'tools'}" do %>
                 <i class="bi bi-tools me-2"></i>
                 Tool Calls
               <% end %>
             </li>
             <li class="nav-item">
-              <%= link_to tracing_spans_flows_path, class: "nav-link #{'active' if action_name == 'flows'}" do %>
+              <%= link_to "/raaf/tracing/spans/flows", class: "nav-link #{'active' if action_name == 'flows'}" do %>
                 <i class="bi bi-diagram-3-fill me-2"></i>
                 Flow Visualization
               <% end %>
@@ -305,19 +305,19 @@
           </h6>
           <ul class="nav flex-column mb-2">
             <li class="nav-item">
-              <%= link_to tracing_dashboard_performance_path, class: "nav-link #{'active' if action_name == 'performance'}" do %>
+              <%= link_to "/raaf/tracing/dashboard/performance", class: "nav-link #{'active' if action_name == 'performance'}" do %>
                 <i class="bi bi-graph-up me-2"></i>
                 Performance
               <% end %>
             </li>
             <li class="nav-item">
-              <%= link_to tracing_dashboard_costs_path, class: "nav-link #{'active' if action_name == 'costs'}" do %>
+              <%= link_to "/raaf/tracing/dashboard/costs", class: "nav-link #{'active' if action_name == 'costs'}" do %>
                 <i class="bi bi-currency-dollar me-2"></i>
                 Costs & Usage
               <% end %>
             </li>
             <li class="nav-item">
-              <%= link_to tracing_dashboard_errors_path, class: "nav-link #{'active' if action_name == 'errors'}" do %>
+              <%= link_to "/raaf/tracing/dashboard/errors", class: "nav-link #{'active' if action_name == 'errors'}" do %>
                 <i class="bi bi-exclamation-triangle me-2"></i>
                 Errors
               <% end %>
