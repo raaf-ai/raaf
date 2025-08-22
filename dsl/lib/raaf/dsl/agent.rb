@@ -8,6 +8,8 @@ require_relative "config/config"
 require_relative "core/context_variables"
 require_relative "context_access"
 require_relative "context_configuration"
+require_relative "json_repair"
+require_relative "schema_validator"
 require_relative "pipelineable"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
@@ -1097,6 +1099,23 @@ module RAAF
 
       # RAAF DSL method - build system instructions using resolver system
       def build_instructions
+        base_instructions = build_base_instructions
+        
+        # Append schema instructions if in tolerant or partial mode
+        schema_def = build_schema
+        if schema_def && schema_def.is_a?(Hash) && schema_def[:config]
+          validation_mode = schema_def[:config][:mode]
+          if [:tolerant, :partial].include?(validation_mode)
+            schema_instructions = build_schema_instructions(schema_def)
+            return "#{base_instructions}\n\n#{schema_instructions}"
+          end
+        end
+        
+        base_instructions
+      end
+
+      # Build base system instructions (original logic)
+      def build_base_instructions
         prompt_spec = determine_prompt_spec
         log_debug "Building system instructions", prompt_spec: prompt_spec, agent_class: self.class.name
         
@@ -1128,6 +1147,62 @@ module RAAF
         end
         
         raise RAAF::DSL::Error, error_message
+      end
+
+      # Build schema guidance instructions for tolerant/partial validation modes
+      def build_schema_instructions(schema_def)
+        schema = schema_def[:schema]
+        config = schema_def[:config]
+        required = schema[:required] || []
+        properties = schema[:properties] || {}
+        
+        instructions = "\n## Response Format Requirements\n\n"
+        instructions += "You must return your response as valid JSON matching this structure:\n\n"
+        instructions += "```json\n{\n"
+        
+        properties.each do |name, field_config|
+          req_marker = required.include?(name.to_s) ? " (REQUIRED)" : " (optional)"
+          type_str = field_config[:type] || "any"
+          
+          # Add enum information if available
+          if field_config[:enum]
+            type_str += " (one of: #{field_config[:enum].join(', ')})"
+          end
+          
+          # Add default value information
+          if field_config[:default]
+            default_str = field_config[:default].is_a?(String) ? "\"#{field_config[:default]}\"" : field_config[:default]
+            type_str += " (default: #{default_str})"
+          end
+          
+          instructions += "  \"#{name}\": <#{type_str}>#{req_marker}"
+          instructions += field_config[:description] ? " // #{field_config[:description]}" : ""
+          instructions += ",\n"
+        end
+        
+        instructions = instructions.chomp(",\n") + "\n"
+        instructions += "}\n```\n\n"
+        
+        # Add validation-specific guidance
+        case config[:mode]
+        when :tolerant
+          instructions += "**Validation Mode: Tolerant**\n"
+          instructions += "- REQUIRED fields must always be present and valid\n"
+          instructions += "- Optional fields should be included when relevant\n"
+          instructions += "- If you cannot determine a required field value, use a reasonable default\n"
+          instructions += "- Additional fields are allowed if they provide value\n"
+        when :partial
+          instructions += "**Validation Mode: Partial**\n"
+          instructions += "- Include any fields you can determine\n"
+          instructions += "- Skip fields you cannot confidently populate\n"
+          instructions += "- Focus on providing accurate data for the fields you do include\n"
+        end
+        
+        instructions += "\n**Important:** Ensure your response is valid JSON that can be parsed. " \
+                       "If you're unsure about a field value, it's better to omit optional fields " \
+                       "than to include invalid data."
+        
+        instructions
       end
 
       # RAAF DSL method - build user prompt using resolver system
@@ -1345,16 +1420,27 @@ module RAAF
         return if self.class._agent_config&.dig(:output_format) == :unstructured
 
         # Check if schema is nil (indicating unstructured output)
-        schema = build_schema
-        return if schema.nil?
+        schema_def = build_schema
+        return if schema_def.nil?
 
-        # Return structured format with JSON schema
+        # Extract validation mode from schema definition
+        validation_mode = schema_def.is_a?(Hash) && schema_def[:config] ? 
+                         schema_def[:config][:mode] : :strict
+        
+        # In tolerant/partial mode, don't use OpenAI response_format
+        # Let the agent return flexible JSON and validate on our side
+        return nil if [:tolerant, :partial].include?(validation_mode)
+        
+        # Strict mode uses OpenAI response_format (backward compatible)
+        schema_data = schema_def.is_a?(Hash) && schema_def[:schema] ? 
+                     schema_def[:schema] : schema_def
+        
         {
           type: "json_schema",
           json_schema: {
             name: schema_name,
             strict: true,
-            schema: schema
+            schema: schema_data
           }
         }
       end
@@ -1800,14 +1886,104 @@ module RAAF
       def parse_ai_response(content)
         return content unless content.is_a?(String)
         
-        begin
-          # Parse JSON with symbolized keys for consistent internal processing
-          parsed = JSON.parse(content, symbolize_names: true)
-          { success: true, data: parsed }
-        rescue JSON::ParserError => e
-          log_error "❌ [#{self.class.name}] JSON parsing failed: #{e.message}"
-          { success: false, error: "Failed to parse AI response", raw_content: content }
+        # Get schema configuration for validation mode
+        schema_def = build_schema
+        validation_mode = schema_def && schema_def.is_a?(Hash) && schema_def[:config] ? 
+                         schema_def[:config][:mode] : :strict
+        
+        # Strict mode - use original behavior for backward compatibility
+        if validation_mode == :strict
+          begin
+            parsed = JSON.parse(content, symbolize_names: true)
+            return { success: true, data: parsed }
+          rescue JSON::ParserError => e
+            log_error "❌ [#{self.class.name}] JSON parsing failed: #{e.message}"
+            return { success: false, error: "Failed to parse AI response", raw_content: content }
+          end
         end
+        
+        # Tolerant/Partial mode - use fault-tolerant parsing
+        result = fault_tolerant_parse(content, schema_def)
+        
+        if result[:valid] || result[:partial]
+          { 
+            success: true, 
+            data: result[:data], 
+            warnings: result[:warnings],
+            partial: result[:partial]
+          }
+        else
+          log_to_dead_letter(content, result[:errors])
+          { 
+            success: false, 
+            error: "Unable to parse or validate response", 
+            errors: result[:errors], 
+            raw_content: content 
+          }
+        end
+      end
+
+      # Fault-tolerant parsing with JSON repair and schema validation
+      def fault_tolerant_parse(content, schema_def)
+        # Try JSON repair first
+        repaired = JsonRepair.repair(content)
+        
+        unless repaired
+          return {
+            valid: false,
+            errors: ["Unable to parse JSON from content"],
+            data: {},
+            warnings: [],
+            partial: false
+          }
+        end
+        
+        # If we have a schema, validate against it
+        if schema_def && schema_def.is_a?(Hash)
+          validator = SchemaValidator.new(
+            schema_def[:schema],
+            mode: schema_def[:config][:mode],
+            repair_attempts: schema_def[:config][:repair_attempts] || 2
+          )
+          
+          validation_result = validator.validate(repaired)
+          
+          # Log metrics for observability
+          if validation_result[:valid] || validation_result[:partial]
+            log_debug "✅ [#{self.class.name}] Schema validation successful",
+                     mode: schema_def[:config][:mode],
+                     warnings: validation_result[:warnings]&.length || 0
+          else
+            log_warn "⚠️ [#{self.class.name}] Schema validation failed",
+                    errors: validation_result[:errors],
+                    mode: schema_def[:config][:mode]
+          end
+          
+          validation_result
+        else
+          # No schema - just return the repaired JSON
+          {
+            valid: true,
+            data: repaired,
+            warnings: [],
+            partial: false
+          }
+        end
+      end
+
+      # Log unparseable content for debugging and analysis
+      def log_to_dead_letter(content, errors)
+        log_error "💀 [DEAD_LETTER] #{self.class.name} - Failed to parse AI response"
+        log_error "Content: #{content}"
+        log_error "Errors: #{errors.join(', ')}"
+        
+        # In production, you might want to store this in a database or file
+        # DeadLetterQueue.create!(
+        #   agent_class: self.class.name,
+        #   content: content,
+        #   errors: errors,
+        #   timestamp: Time.current
+        # )
       end
 
       def handle_smart_error(error)
@@ -2352,22 +2528,35 @@ module RAAF
         end
       end
 
-      # Schema builder for inline schema definitions
+      # Schema builder for inline schema definitions with fault-tolerant validation support
       class SchemaBuilder
         def initialize(&block)
           @schema = { type: "object", properties: {}, required: [], additionalProperties: false }
+          @validation_config = { mode: :tolerant, repair_attempts: 2, allow_extra: true }
           instance_eval(&block) if block_given?
         end
 
         def build
-          @schema
+          { schema: @schema, config: @validation_config }
         end
 
         def field(name, type:, required: false, description: nil, **options, &block)
           field_schema = { type: type.to_s }
           field_schema[:description] = description if description
           
-          # Handle type-specific options
+          # Add new fault-tolerance field options
+          field_schema[:default] = options[:default] if options.key?(:default)
+          field_schema[:flexible] = options[:flexible] if options[:flexible]
+          field_schema[:passthrough] = options[:passthrough] if options[:passthrough]
+          field_schema[:enum] = options[:enum] if options[:enum]
+          field_schema[:fallback] = options[:fallback] if options[:fallback]
+          
+          # Handle union types for flexible schema support
+          if type == :union && options[:schemas]
+            field_schema = { oneOf: options[:schemas] }
+          end
+          
+          # Handle type-specific options (existing functionality)
           case type
           when :integer, :number
             field_schema[:minimum] = options[:min] if options[:min]
@@ -2379,24 +2568,54 @@ module RAAF
           when :string
             field_schema[:minLength] = options[:min_length] if options[:min_length]
             field_schema[:maxLength] = options[:max_length] if options[:max_length]
-            field_schema[:enum] = options[:enum] if options[:enum]
           when :array
             field_schema[:items] = { type: (options[:items_type] || :string).to_s }
             field_schema[:minItems] = options[:min_items] if options[:min_items]
             field_schema[:maxItems] = options[:max_items] if options[:max_items]
             if block_given?
               nested_builder = SchemaBuilder.new(&block)
-              field_schema[:items] = nested_builder.build
+              nested_result = nested_builder.build
+              field_schema[:items] = nested_result.is_a?(Hash) && nested_result[:schema] ? nested_result[:schema] : nested_result
             end
           when :object
             if block_given?
               nested_builder = SchemaBuilder.new(&block)
-              field_schema = nested_builder.build
+              nested_result = nested_builder.build
+              field_schema = nested_result.is_a?(Hash) && nested_result[:schema] ? nested_result[:schema] : nested_result
             end
           end
 
           @schema[:properties][name] = field_schema
           @schema[:required] << name.to_s if required
+        end
+
+        # Configure validation behavior
+        def validation(mode)
+          unless [:strict, :tolerant, :partial].include?(mode)
+            raise ArgumentError, "Invalid validation mode: #{mode}. Must be :strict, :tolerant, or :partial"
+          end
+          @validation_config[:mode] = mode
+        end
+
+        # Allow extra fields in the response
+        def allow_extra_fields(allow = true)
+          @schema[:additionalProperties] = allow
+          @validation_config[:allow_extra] = allow
+        end
+
+        # Set number of repair attempts for malformed JSON
+        def repair_attempts(count)
+          @validation_config[:repair_attempts] = count
+        end
+
+        # Enable automatic defaults for missing fields
+        def auto_defaults(enabled = true)
+          @validation_config[:auto_defaults] = enabled
+        end
+
+        # Configure dead letter queue for unparseable responses
+        def dead_letter_queue(enabled = true)
+          @validation_config[:dead_letter] = enabled
         end
       end
 
