@@ -16,6 +16,9 @@ module RAAF
       include RAAF::Logger
 
       protect_from_forgery with: :exception
+      
+      # Use the tracing layout for all controllers in this module
+      layout "raaf_rails/tracing/application"
 
       # Include helpers for content_tag
       include ActionView::Helpers::TagHelper

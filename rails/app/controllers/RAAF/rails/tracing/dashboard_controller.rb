@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "raaf/cost_manager"
+
 module RAAF
   module Rails
     module Tracing
@@ -24,7 +26,16 @@ module RAAF
         @performance_trends = calculate_performance_trends(@time_range)
 
         respond_to do |format|
-          format.html # renders views/RAAF/rails/tracing/dashboard/index.html.erb
+          format.html do
+            render RAAF::Rails::Tracing::Dashboard.new(
+              overview_stats: @overview_stats,
+              top_workflows: @top_workflows,
+              recent_traces: @recent_traces,
+              recent_errors: @recent_errors,
+              dashboard_url: tracing_dashboard_path,
+              params: params
+            )
+          end
           format.json do
             render json: {
               overview: @overview_stats,
@@ -58,7 +69,10 @@ module RAAF
         @performance_over_time = calculate_performance_over_time(@time_range)
 
         respond_to do |format|
-          format.html
+          format.html do
+            # Use the existing HTML template for now until Phlex component is created
+            render "RAAF/rails/tracing/dashboard/performance"
+          end
           format.json do
             render json: {
               performance_by_kind: @performance_by_kind,
@@ -75,7 +89,7 @@ module RAAF
         @time_range = parse_time_range(params)
 
         # Initialize cost manager
-        cost_manager = CostManager.new
+        cost_manager = RAAF::Tracing::CostManager.new
 
         # Overall cost analysis
         @cost_analysis = RAAF::Rails::Tracing::SpanRecord.cost_analysis(timeframe: @time_range)
@@ -130,7 +144,10 @@ module RAAF
         @top_consuming_workflows = calculate_top_consuming_workflows(@time_range)
 
         respond_to do |format|
-          format.html
+          format.html do
+            # Use the existing HTML template for now until Phlex component is created
+            render "RAAF/rails/tracing/dashboard/costs"
+          end
           format.json do
             render json: {
               cost_analysis: @cost_analysis,
@@ -160,7 +177,10 @@ module RAAF
                                    .limit(50)
 
         respond_to do |format|
-          format.html
+          format.html do
+            # Use the existing HTML template for now until Phlex component is created
+            render "RAAF/rails/tracing/dashboard/errors"
+          end
           format.json do
             render json: {
               error_analysis: @error_analysis,
@@ -320,7 +340,7 @@ module RAAF
 
       def calculate_top_consuming_workflows(time_range)
         traces = RAAF::Rails::Tracing::TraceRecord.within_timeframe(time_range.begin, time_range.end)
-        cost_manager = CostManager.new
+        cost_manager = RAAF::Tracing::CostManager.new
 
         workflow_usage = {}
 
