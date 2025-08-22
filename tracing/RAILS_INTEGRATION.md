@@ -315,17 +315,17 @@ The migration includes optimized indexes:
 
 ```sql
 -- Primary indexes for lookups
-CREATE INDEX ON openai_agents_tracing_traces (trace_id);
-CREATE INDEX ON openai_agents_tracing_spans (span_id);
+CREATE INDEX ON raaf_tracing_traces (trace_id);
+CREATE INDEX ON raaf_tracing_spans (span_id);
 
 -- Performance query indexes  
-CREATE INDEX ON openai_agents_tracing_traces (workflow_name, started_at);
-CREATE INDEX ON openai_agents_tracing_spans (kind, start_time);
-CREATE INDEX ON openai_agents_tracing_spans (duration_ms);
+CREATE INDEX ON raaf_tracing_traces (workflow_name, started_at);
+CREATE INDEX ON raaf_tracing_spans (kind, start_time);
+CREATE INDEX ON raaf_tracing_spans (duration_ms);
 
 -- Cleanup indexes
-CREATE INDEX ON openai_agents_tracing_traces (started_at);
-CREATE INDEX ON openai_agents_tracing_spans (start_time);
+CREATE INDEX ON raaf_tracing_traces (started_at);
+CREATE INDEX ON raaf_tracing_spans (start_time);
 ```
 
 #### Database-Specific Optimizations
@@ -342,8 +342,8 @@ production:
 class AddJsonIndexes < ActiveRecord::Migration[7.0]
   def up
     if connection.adapter_name.downcase.include?('postgresql')
-      add_index :openai_agents_tracing_spans, :attributes, using: :gin
-      add_index :openai_agents_tracing_spans, :events, using: :gin
+      add_index :raaf_tracing_spans, :attributes, using: :gin
+      add_index :raaf_tracing_spans, :events, using: :gin
     end
   end
 end
@@ -614,7 +614,7 @@ namespace :tracing do
   task vacuum: :environment do
     if ActiveRecord::Base.connection.adapter_name.downcase.include?('postgresql')
       ActiveRecord::Base.connection.execute(
-        'VACUUM ANALYZE openai_agents_tracing_traces, openai_agents_tracing_spans'
+        'VACUUM ANALYZE raaf_tracing_traces, raaf_tracing_spans'
       )
       puts "Vacuumed tracing tables"
     end
@@ -635,12 +635,12 @@ class MetricsProcessor
   def initialize
     @registry = Prometheus::Client.registry
     @traces_total = @registry.counter(
-      :openai_agents_traces_total,
+      :raaf_traces_total,
       docstring: 'Total number of traces',
       labels: [:workflow, :status]
     )
     @trace_duration = @registry.histogram(
-      :openai_agents_trace_duration_seconds,
+      :raaf_trace_duration_seconds,
       docstring: 'Trace duration in seconds',
       labels: [:workflow]
     )
@@ -769,7 +769,7 @@ ActiveRecord::Base.connection.execute(<<-SQL)
     tablename,
     pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
   FROM pg_tables 
-  WHERE tablename LIKE 'openai_agents_tracing_%'
+  WHERE tablename LIKE 'raaf_tracing_%'
   ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 SQL
 

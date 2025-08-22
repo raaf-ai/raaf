@@ -536,7 +536,7 @@ end
 ### System Architecture
 
 ```ruby
-# lib/openai_agents/summarization/summarizer.rb
+# lib/raaf/summarization/summarizer.rb
 module RAAF
   module Summarization
     class Summarizer
@@ -608,7 +608,7 @@ end
 ### Manual Triggers
 
 ```ruby
-# lib/openai_agents/summarization/manual_trigger.rb
+# lib/raaf/summarization/manual_trigger.rb
 module RAAF
   module Summarization
     class ManualTrigger
@@ -684,7 +684,7 @@ end
 ### Automatic Triggers
 
 ```ruby
-# lib/openai_agents/summarization/automatic_triggers.rb
+# lib/raaf/summarization/automatic_triggers.rb
 module RAAF
   module Summarization
     class AutomaticTriggers
@@ -970,7 +970,7 @@ end
 ### Configuration
 
 ```ruby
-# lib/openai_agents/summarization/config.rb
+# lib/raaf/summarization/config.rb
 module RAAF
   module Summarization
     class Config
@@ -1011,7 +1011,7 @@ end
 ### Runner Integration
 
 ```ruby
-# Enhanced lib/openai_agents/runner.rb integration
+# Enhanced lib/raaf/runner.rb integration
 class Runner
   def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, 
                  stop_checker: nil, summarization_config: nil)
@@ -1075,7 +1075,7 @@ end
 ### Agent Enhancement
 
 ```ruby
-# Enhancement to lib/openai_agents/agent.rb
+# Enhancement to lib/raaf/agent.rb
 class Agent
   def summarize_conversation(conversation, **options)
     summarizer = RAAF::Summarization::ManualTrigger.new

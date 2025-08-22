@@ -180,7 +180,7 @@ end
 result = AnalyzeThenReport.new(raw_data: data).run
 ```
 
-Legacy: The builder-style pipeline (`RAAF::DSL::AgentPipeline`) remains for backward compatibility but is considered legacy. Prefer `RAAF::Pipeline` for new work and documentation.
+The RAAF Pipeline DSL provides an elegant operator-based syntax for building sophisticated multi-agent workflows with automatic context management.
 
 ### 🛠️ Advanced Tool Integration
 Easy integration of external tools with automatic parameter validation and error handling:

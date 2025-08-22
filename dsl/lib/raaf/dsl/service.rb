@@ -115,9 +115,10 @@ module RAAF
       # @param processing_params [Hash] Processing configuration parameters
       # @param debug [Boolean, nil] Enable debug mode for context variables
       # @param kwargs [Hash] Context variables as keyword arguments
-      def initialize(context: nil, processing_params: {}, debug: nil, **kwargs)
+      def initialize(context: nil, processing_params: {}, debug: nil, validation_mode: false, **kwargs)
         @debug_enabled = debug || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?) || false
         @processing_params = processing_params
+        @validation_mode = validation_mode
         
         # Use identical context building strategy as Agent
         if context

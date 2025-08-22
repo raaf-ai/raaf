@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'core/context_variables'
+
 module RAAF
   module DSL
     # Shared context access module for consistent variable resolution
@@ -21,6 +23,35 @@ module RAAF
     #   end
     #
     module ContextAccess
+      
+      def self.included(base)
+        base.class_eval do
+          # Ensure context is always a ContextVariables object for consistency and safety
+          # This prevents recursion issues when objects that include ContextAccess are stored in context
+          #
+          # @param context [ContextVariables, Hash, nil] The context to convert
+          # @param debug [Boolean] Whether to enable debug mode
+          # @return [ContextVariables] A ContextVariables object
+          def ensure_context_variables(context = nil, debug: false)
+            case context
+            when RAAF::DSL::ContextVariables
+              context
+            when Hash
+              RAAF::DSL::ContextVariables.new(context, debug: debug)
+            when nil
+              RAAF::DSL::ContextVariables.new({}, debug: debug)
+            else
+              # Try to convert to hash first
+              if context.respond_to?(:to_h)
+                RAAF::DSL::ContextVariables.new(context.to_h, debug: debug)
+              else
+                raise ArgumentError, "Context must be Hash or ContextVariables, got #{context.class}"
+              end
+            end
+          end
+          
+        end
+      end
       
       # Universal context variable access via method_missing
       # 
@@ -63,8 +94,10 @@ module RAAF
           # Try multiple context sources in order of preference
           
           # 1. Primary context (agent-style with defaults)
-          if respond_to?(:context, true) && context&.respond_to?(:has?) && context.has?(method_name)
-            return context.get(method_name) if context.respond_to?(:get)
+          if (method_defined_in_class?(:context) || instance_variable_defined?(:@context)) && 
+             (context_obj = get_context_object) && 
+             context_obj.respond_to?(:has?) && context_obj.has?(method_name)
+            return context_obj.get(method_name) if context_obj.respond_to?(:get)
           end
           
           # 2. Context variables (prompt-style from agents)
@@ -123,8 +156,12 @@ module RAAF
         # Check direct context hash (prompt-style from initialization)
         return true if instance_variable_defined?(:@context) && @context.is_a?(Hash) && @context.key?(method_name)
         
-        # Check instance variables
-        return true if instance_variable_defined?("@#{method_name}")
+        # Check instance variables - but only with valid instance variable names
+        # Ruby instance variables cannot contain special characters like ?, !, etc.
+        ivar_name = "@#{method_name}"
+        if valid_instance_variable_name?(ivar_name)
+          return true if instance_variable_defined?(ivar_name)
+        end
         
         false
       end
@@ -175,6 +212,52 @@ module RAAF
       # @return [Array<Symbol>] Array of context variable names
       def context_keys
         get_available_context_keys
+      end
+      
+      # Check if a method is defined in the class hierarchy (without triggering method_missing)
+      # 
+      # @param method_name [Symbol] The method name to check
+      # @return [Boolean] true if the method is defined in the class hierarchy
+      def method_defined_in_class?(method_name)
+        self.class.method_defined?(method_name) || 
+        self.class.private_method_defined?(method_name)
+      end
+      
+      # Safely get the context object without triggering method_missing
+      # 
+      # @return [Object, nil] The context object or nil if not available
+      def get_context_object
+        if method_defined_in_class?(:context)
+          # Use the context method if it's defined
+          context
+        elsif instance_variable_defined?(:@context)
+          # Fall back to instance variable
+          @context
+        else
+          nil
+        end
+      rescue => e
+        # If calling context method fails, fall back to instance variable
+        instance_variable_defined?(:@context) ? @context : nil
+      end
+
+      # Check if a string would be a valid Ruby instance variable name
+      # Ruby instance variables must start with @ and contain only alphanumeric characters and underscores
+      # They cannot contain special characters like ?, !, etc.
+      #
+      # @param name [String] The instance variable name to check (should include @)
+      # @return [Boolean] true if it's a valid instance variable name
+      def valid_instance_variable_name?(name)
+        return false unless name.is_a?(String)
+        return false unless name.start_with?('@')
+        
+        # Check that the rest contains only alphanumeric characters and underscores
+        var_part = name[1..-1]
+        return false if var_part.empty?
+        
+        # Ruby instance variables can contain letters, numbers, and underscores
+        # but cannot start with a number and cannot contain special chars like ?, !, etc.
+        /\A[a-zA-Z_][a-zA-Z0-9_]*\z/.match?(var_part)
       end
       
     end

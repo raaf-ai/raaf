@@ -66,7 +66,7 @@ end
 ### Basic Configuration
 
 ```ruby
-# config/initializers/openai_agents_tracing.rb
+# config/initializers/raaf_tracing.rb
 RAAF::Tracing.configure do |config|
   # Auto-configure the ActiveRecord processor
   config.auto_configure = true
@@ -87,7 +87,7 @@ end
 If you prefer manual configuration:
 
 ```ruby
-# config/initializers/openai_agents_tracing.rb
+# config/initializers/raaf_tracing.rb
 Rails.application.config.after_initialize do
   RAAF.tracer.add_processor(
     RAAF::Tracing::ActiveRecordProcessor.new(
@@ -103,7 +103,7 @@ end
 Set up automatic cleanup of old traces:
 
 ```ruby
-# config/initializers/openai_agents_tracing.rb
+# config/initializers/raaf_tracing.rb
 if defined?(ActiveJob)
   class RAAFTracingCleanupJob < ApplicationJob
     queue_as :default
@@ -202,7 +202,7 @@ Visit `/tracing` (or your configured mount path) to access:
 
 The engine creates two main tables:
 
-### Traces Table (`openai_agents_tracing_traces`)
+### Traces Table (`raaf_tracing_traces`)
 - `trace_id` - Unique trace identifier
 - `workflow_name` - Human-readable workflow name
 - `group_id` - Optional grouping identifier
@@ -210,7 +210,7 @@ The engine creates two main tables:
 - `started_at` / `ended_at` - Timing information
 - `status` - Trace status (pending, running, completed, failed)
 
-### Spans Table (`openai_agents_tracing_spans`) 
+### Spans Table (`raaf_tracing_spans`) 
 - `span_id` - Unique span identifier  
 - `trace_id` - Associated trace
 - `parent_id` - Parent span for hierarchy

@@ -2,6 +2,8 @@
 
 require_relative "../pipeline_dsl"
 require_relative "../context_flow_tracker"
+require_relative "../pipelineable"
+require_relative "../context_access"
 
 module RAAF
   # New Pipeline base class for elegant DSL
@@ -18,6 +20,9 @@ module RAAF
   #     context { default :optional_field, "default_value" }
   #   end
   class Pipeline
+    include RAAF::DSL::Pipelineable
+    include RAAF::DSL::ContextAccess
+
     class << self
       attr_reader :flow_chain, :context_config, :after_run_block
       attr_accessor :skip_validation
@@ -88,7 +93,8 @@ module RAAF
       end
       
       @flow = self.class.flow_chain
-      @context[:pipeline_instance] = self if @context.is_a?(Hash)
+      # Add pipeline instance to context - now works with ContextVariables
+      @context = @context.set(:pipeline_instance, self) if @context.respond_to?(:set)
       validate_initial_context!
     end
     
@@ -198,9 +204,11 @@ module RAAF
     def build_context_from_param(context_param)
       case context_param
       when Hash
+        ensure_context_variables(context_param)
+      when RAAF::DSL::ContextVariables
         context_param
       else
-        raise ArgumentError, "Pipeline context must be a Hash, got #{context_param.class}"
+        raise ArgumentError, "Pipeline context must be a Hash or ContextVariables, got #{context_param.class}"
       end
     end
     
@@ -231,7 +239,8 @@ module RAAF
         end
       end
       
-      context
+      # Convert to ContextVariables to ensure consistency and prevent recursion
+      ensure_context_variables(context)
     end
     
     def validate_initial_context!
@@ -405,24 +414,26 @@ module RAAF
       tracker.enter_stage(stage_name)
       
       begin
-        # Create a test instance with current context
-        context_hash = tracker.current_context
-        
-        # Try to create agent/service instance
-        test_instance = stage_class.new(**context_hash)
-        
-        # Validate using unified Pipelineable interface if supported
-        if test_instance.can_validate_for_pipeline?
-          test_instance.validate_for_pipeline(context_hash)
-        end
-        
-        # Add output fields if the stage provides them
+        # FIRST: Add output fields that this stage will provide to the tracker
+        # This allows downstream stages to know these fields will be available
         if stage_class.respond_to?(:provided_fields)
           output_fields = stage_class.provided_fields
           tracker.add_output_fields(output_fields)
         elsif stage_class.respond_to?(:output_fields)
           output_fields = stage_class.output_fields
           tracker.add_output_fields(output_fields)
+        end
+        
+        # THEN: Create test instance with context that includes simulated outputs
+        context_hash = tracker.current_context
+        
+        # Try to create agent/service instance with validation mode enabled
+        # This skips run_if execution conditions during validation
+        test_instance = stage_class.new(validation_mode: true, **context_hash)
+        
+        # Validate using unified Pipelineable interface if supported
+        if test_instance.can_validate_for_pipeline?
+          test_instance.validate_for_pipeline(context_hash)
         end
         
       rescue StandardError => e

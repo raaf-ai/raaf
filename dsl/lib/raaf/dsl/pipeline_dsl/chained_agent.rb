@@ -185,9 +185,9 @@ module RAAF
           if agent_class.respond_to?(:provided_fields)
             agent_class.provided_fields.each do |field|
               if result.is_a?(Hash) && result.key?(field)
-                context[field] = result[field]
+                context = context.set(field, result[field])
               elsif result.respond_to?(field)
-                context[field] = result.send(field)
+                context = context.set(field, result.send(field))
               end
             end
           end

@@ -743,10 +743,12 @@ module RAAF
       # @param context [ContextVariables, Hash, nil] Context for all agent data
       # @param processing_params [Hash] Parameters that control how the agent processes content  
       # @param debug [Boolean, nil] Enable debug logging for this agent instance
+      # @param validation_mode [Boolean] Skip execution conditions during validation (internal use)
       # @param kwargs [Hash] Arbitrary keyword arguments that become context when auto-context is enabled
-      def initialize(context: nil, processing_params: {}, debug: nil, **kwargs)
+      def initialize(context: nil, processing_params: {}, debug: nil, validation_mode: false, **kwargs)
         @debug_enabled = debug || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?) || false
         @processing_params = processing_params
+        @validation_mode = validation_mode
         @circuit_breaker_state = :closed
         @circuit_breaker_failures = 0
         @circuit_breaker_last_failure = nil
@@ -1058,6 +1060,8 @@ module RAAF
         agent = new(**context)
         agent.validate_prompt_context!
       end
+      
+      public
       
       # Validate this agent for pipeline use (implements Pipelineable interface)
       #
@@ -1651,6 +1655,8 @@ module RAAF
 
       # Check if agent should execute based on defined conditions
       def should_execute?(context, previous_result)
+        # Skip execution conditions during pipeline validation
+        return true if @validation_mode
         return true unless self.class._execution_conditions
         
         self.class._execution_conditions.evaluate(context, previous_result)

@@ -132,51 +132,81 @@ result = runner.run("Hello")
 # Traces are automatically sent with Python SDK compatible format
 ```
 
-### DSL Usage
+### DSL Usage with Automatic Context
+
+RAAF DSL agents now provide automatic context access, eliminating manual context building:
+
 ```ruby
-# Build agents declaratively
-agent = RAAF::DSL::AgentBuilder.build do
-  name "WebSearchAgent"
-  instructions "Help users search the web"
+# Modern DSL agent with automatic context
+class WebSearchAgent < RAAF::DSL::Agent
+  instructions "Help users search the web for #{query}"
   model "gpt-4o"
   
-  use_web_search
-  use_file_search
-  
-  tool :analyze_sentiment do |text|
-    { sentiment: "positive", confidence: 0.85 }
+  # Automatic access to context variables like :query
+  def search_results
+    "Searching for: #{query}"  # Direct context access
   end
 end
 
-result = agent.run("Search for Ruby news")
+# Usage with automatic context injection
+agent = WebSearchAgent.new(query: "Ruby news")
+result = agent.run
 ```
 
-### Prompt Management (PREFERRED: Ruby Prompts)
+### Pipeline DSL for Agent Chaining
 
-RAAF DSL provides a flexible prompt resolution system. **Always prefer Ruby prompt classes over Markdown files** for better type safety, testability, and IDE support:
+Use the elegant Pipeline DSL for chaining agents with `>>` (sequential) and `|` (parallel):
 
 ```ruby
-# PREFERRED: Ruby prompt class with automatic context access
-class ResearchPrompt < RAAF::DSL::Prompts::Base
-  def system
-    "You are a research assistant specializing in #{topic}."
+class DataProcessingPipeline < RAAF::Pipeline
+  flow DataAnalyzer >> ReportGenerator
+  
+  context do
+    default :format_type, "json"
+  end
+end
+
+# 3-line pipeline replaces 66+ line traditional approaches
+pipeline = DataProcessingPipeline.new(data: raw_data)
+result = pipeline.run
+```
+
+### Modern Agent and Service Architecture
+
+RAAF now uses a unified Agent and Service pattern with automatic context handling:
+
+```ruby
+# Modern service with automatic context
+class ResearchService < RAAF::DSL::Service
+  def call
+    case action
+    when :analyze then analyze_research
+    when :summarize then create_summary
+    end
   end
   
-  def user
-    "Provide #{depth} analysis in #{language || 'English'}."
+  private
+  
+  def analyze_research
+    # Direct access to context variables without manual building
+    success_result(analysis: "Research on #{topic} completed")
   end
 end
 
-# Use in agent
-agent = RAAF::DSL::AgentBuilder.build do
-  name "Researcher"
-  prompt ResearchPrompt  # Type-safe, testable
+# Agent using the new architecture
+class ResearchAgent < RAAF::DSL::Agent
+  instructions "Research #{topic} with #{depth} analysis"
   model "gpt-4o"
+  
+  # Context automatically available, no manual context.set() calls needed
+  def research_prompt
+    "Analyze #{topic} at #{depth} level in #{language || 'English'}"
+  end
 end
 
-# Alternative formats (less preferred):
-# prompt "research.md"      # Simple markdown
-# prompt "analysis.md.erb"  # ERB template
+# Usage with automatic context injection
+agent = ResearchAgent.new(topic: "AI", depth: "comprehensive")
+result = agent.run
 ```
 
 ## Environment Variables

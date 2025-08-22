@@ -188,10 +188,36 @@ Choose your tool configuration based on your agent's primary purpose: informatio
 
 RAAF DSL uses an immutable ContextVariables system that ensures thread safety and prevents accidental mutations during agent execution.
 
+**Modern Approach (Recommended): Automatic Context Injection**
+
+```ruby
+# Modern DSL agents automatically receive context
+class ContextAwareAgent < RAAF::DSL::Agent
+  instructions "Use context variables in your responses. Access user data via context."
+  model "gpt-4o"
+  
+  # Context variables are automatically available as methods
+  def user_greeting
+    "Hello #{user_name}, your preference is #{user_preference}"
+  end
+end
+
+# Usage with automatic context injection
+agent = ContextAwareAgent.new(
+  user_id: user.id,
+  user_name: user.name,
+  user_preference: user.preferences,
+  environment: ENV['RACK_ENV'] || 'development'
+)
+result = agent.run
+```
+
+**Legacy Approach: Manual Context Building**
+
 WARNING: RAAF ContextVariables uses an immutable pattern. Each `.set()` call returns a **NEW instance**. Always capture the returned value to avoid empty context.
 
 ```ruby
-# Build context using the immutable pattern
+# Legacy manual context building (still supported for migration)
 def build_agent_context(user, session_data)
   context = RAAF::DSL::ContextVariables.new
   context = context.set(:user_id, user.id)
