@@ -21,7 +21,13 @@ module RAAF
         @spans = paginate_records(@spans.recent, page: @page, per_page: @per_page)
 
         respond_to do |format|
-          format.html
+          format.html do
+            render RAAF::Rails::Tracing::SpansList.new(
+              spans: @spans,
+              page: @page,
+              per_page: @per_page
+            )
+          end
           format.js { render :index }
           format.json { render json: serialize_spans(@spans) }
         end
@@ -36,7 +42,7 @@ module RAAF
         @event_timeline = @span.event_timeline
 
         respond_to do |format|
-          format.html
+          format.html { render "RAAF/rails/tracing/spans/show" }
           format.js { render :show }
           format.json { render json: serialize_span_detail(@span) }
         end
@@ -73,7 +79,7 @@ module RAAF
         @tool_spans = paginate_records(@tool_spans_base.recent, page: @page, per_page: @per_page)
 
         respond_to do |format|
-          format.html
+          format.html { render "RAAF/rails/tracing/spans/tools" }
           format.js { render :tools }
           format.json { render json: serialize_tool_spans(@tool_spans) }
         end
@@ -105,7 +111,7 @@ module RAAF
         @traces = flow_spans.joins(:trace).distinct.pluck(:trace_id, "raaf_tracing_traces.workflow_name")
 
         respond_to do |format|
-          format.html
+          format.html { render "RAAF/rails/tracing/spans/flows" }
           format.json { render json: @flow_data }
         end
       end
