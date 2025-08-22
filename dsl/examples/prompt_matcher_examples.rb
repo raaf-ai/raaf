@@ -7,12 +7,7 @@ require_relative "../spec/spec_helper"
 
 # Example prompt class for testing
 class DocumentAnalysisPrompt < RAAF::DSL::Prompts::Base
-  required :document_name, :analysis_type
-  optional :urgency_level
-  required :document_path, path: %i[document file_path]
-  optional :page_count, path: %i[document metadata pages], default: "unknown"
 
-  contract_mode :strict
 
   def system
     <<~SYSTEM

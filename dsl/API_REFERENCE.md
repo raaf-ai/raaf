@@ -268,14 +268,12 @@ Declares required variables for the prompt.
 **Example:**
 ```ruby
 class MyPrompt < RAAF::DSL::Prompts::Base
-  required :company_name, :analysis_type
-  
   def system
-    "System prompt with #{@company_name}"
+    "System prompt with #{company_name}"
   end
   
   def user
-    "User prompt for #{@analysis_type}"
+    "User prompt for #{analysis_type}"
   end
 end
 ```
@@ -302,16 +300,6 @@ Maps optional context variables.
 - `path` (Array) - Path to navigate in context
 - `default` (Any) - Default value if path not found
 
-##### `contract_mode(mode)`
-Sets the validation mode for variable contracts.
-
-**Parameters:**
-- `mode` (Symbol) - Validation mode (:strict, :warn, :lenient)
-
-**Example:**
-```ruby
-contract_mode :strict  # Raises errors for missing required variables
-```
 
 #### Instance Methods
 
@@ -520,8 +508,6 @@ Raised when configuration is invalid or missing.
 ### `RAAF::DSL::ValidationError`
 Raised when validation fails.
 
-### `RAAF::DSL::VariableContractError`
-Raised when prompt variable contracts are violated.
 
 ### `RAAF::DSL::ToolExecutionError`
 Raised when tool execution fails.

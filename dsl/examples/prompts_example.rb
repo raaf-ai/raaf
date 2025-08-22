@@ -4,7 +4,7 @@
 # Prompts Example
 #
 # This example demonstrates how to use the flexible prompt system
-# with validation, context mapping, and different contract modes.
+# with automatic context access and variable interpolation.
 
 require "raaf-core"
 require "raaf-dsl"
@@ -132,7 +132,7 @@ begin
   )
   strict_prompt.validate!
   puts "✓ Validation passed"
-rescue RAAF::DSL::Prompts::VariableContractError => e
+rescue RAAF::DSL::Error => e
   puts "✗ Strict mode validation failed: #{e.message}"
 end
 
@@ -144,6 +144,6 @@ begin
   )
   invalid_prompt.validate!
   puts "✓ Validation passed"
-rescue RAAF::DSL::Prompts::VariableContractError => e
+rescue RAAF::DSL::Error => e
   puts "✗ Missing required field: #{e.message}"
 end

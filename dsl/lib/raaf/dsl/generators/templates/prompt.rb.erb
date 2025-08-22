@@ -6,24 +6,17 @@ module <%= agent_module_name %>
   # <%= agent_class_name %> Prompt Class
   #
   # This class manages prompts for the <%= agent_class_name %> agent.
-  # It provides structured prompt building with variable contracts and context mapping.
+  # It provides structured prompt building with automatic context access.
   #
   # @example Using the prompt class
   #   prompt = <%= class_path_name %>Prompt.new(data: "sample data")
-  #   system_prompt = prompt.system_prompt
-  #   user_prompt = prompt.user_prompt
+  #   system_prompt = prompt.system
+  #   user_prompt = prompt.user
   #
   class <%= agent_class_name %>Prompt < RAAF::DSL::Prompts::Base
-    # Define required variables for this prompt
-    variable_contract do
-      required :data, type: :string, description: "The data to analyze"
-      optional :context, type: :hash, description: "Additional context information"
-      optional :options, type: :hash, description: "Processing options"
-    end
-
     # System prompt that defines the AI's role and behavior
-    def system_prompt
-      <<~PROMPT
+    def system
+      <<~SYSTEM
         You are a specialized AI assistant for <%= name.humanize.downcase %> analysis.
         
         Your role is to:
@@ -49,30 +42,28 @@ module <%= agent_module_name %>
         - Acknowledge uncertainty when appropriate
         - Provide actionable recommendations
         - Use professional language
-      PROMPT
+      SYSTEM
     end
 
     # User prompt that contains the specific request and data
-    def user_prompt
-      base_prompt = <<~PROMPT
+    def user
+      base_prompt = <<~USER
         Please analyze the following data:
         
-        **Data:** #{get_variable(:data)}
-      PROMPT
+        **Data:** #{data}
+      USER
 
       # Add context if provided
-      if has_variable?(:context)
-        context_data = get_variable(:context)
-        base_prompt += "\n\n**Context:** #{context_data}"
+      if context
+        base_prompt += "\n\n**Context:** #{context}"
       end
 
       # Add processing options if provided
-      if has_variable?(:options)
-        options_data = get_variable(:options)
-        base_prompt += "\n\n**Options:** #{options_data}"
+      if options
+        base_prompt += "\n\n**Options:** #{options}"
       end
 
-      base_prompt += <<~PROMPT
+      base_prompt += <<~USER
         
         Please provide:
         1. A comprehensive analysis of the data
@@ -81,14 +72,14 @@ module <%= agent_module_name %>
         4. Relevant metadata including source and timestamp
         
         Respond with valid JSON following the defined schema.
-      PROMPT
+      USER
 
       base_prompt
     end
 
     # Additional helper method for specialized prompts
     def analysis_prompt(focus_area: nil)
-      prompt = user_prompt
+      prompt = user
       
       if focus_area
         prompt += "\n\nPlease focus specifically on: #{focus_area}"
@@ -100,11 +91,11 @@ module <%= agent_module_name %>
     # Method to get prompt with custom instructions
     def custom_prompt(instructions:)
       <<~PROMPT
-        #{system_prompt}
+        #{system}
         
         **Custom Instructions:** #{instructions}
         
-        #{user_prompt}
+        #{user}
       PROMPT
     end
   end

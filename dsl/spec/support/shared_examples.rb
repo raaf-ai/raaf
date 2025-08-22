@@ -93,16 +93,6 @@ RSpec.shared_examples "a prompt class" do
     expect { described_class.new(test_param: "value") }.not_to raise_error
   end
 
-  it "validates contracts if configured" do
-    pending "Contract validation functionality"
-    prompt_class = Class.new(described_class) do
-      requires :required_param
-      contract_mode :strict
-    end
-
-    instance = prompt_class.new(optional_param: "value")
-    expect { instance.validate! }.to raise_error(RAAF::DSL::Prompts::VariableContractError)
-  end
 end
 
 # Shared examples for tool classes

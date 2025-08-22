@@ -136,11 +136,6 @@ Structured prompt building with variable contracts, context mapping, and automat
 
 ```ruby
 class ContentAnalysis < RAAF::DSL::Prompts::Base
-  required :content_type, :analysis_depth
-  required :document_format, path: [:document, :format]
-  
-  contract_mode :strict  # Validate all variables exist
-  
   def system
     <<~SYSTEM
       You are a content analysis specialist processing #{content_type}.
@@ -347,14 +342,6 @@ end
 #### `app/ai/prompts/document_analyzer.rb` - Prompt class
 ```ruby
 class DocumentAnalyzer < RAAF::DSL::Prompts::Base
-  # Variable contracts with validation
-  required :content_type, :depth, :focus_areas
-  required :document_name, path: [:document, :name]
-  optional :format, path: [:document, :format], default: "PDF"
-  
-  # Strict validation mode
-  contract_mode :strict
-
   def system
     <<~SYSTEM
       You are a senior content analyst specializing in #{format} document analysis.
@@ -473,14 +460,6 @@ The DSL provides powerful path navigation to access nested context data safely:
 
 ```ruby
 class DocumentPrompt < RAAF::DSL::Prompts::Base
-  # Map context paths to prompt variables
-  required :document_name, path: [:document, :name]
-  optional :author, path: [:document, :metadata, :author], default: "Unknown"
-  required :page_count, path: [:document, :pages]
-  
-  # Direct parameter requirements
-  required :analysis_type
-  
   def system
     <<~SYSTEM
       You are analyzing "#{document_name}" by #{author}.
@@ -587,18 +566,8 @@ The DSL provides comprehensive validation:
 
 ```ruby
 class ValidatedPrompt < RAAF::DSL::Prompts::Base
-  # These will raise errors if missing
-  required :company_name, path: [:company, :name]
-  required :industry, path: [:company, :industry]
-  
-  # These are optional with defaults
-  optional :company_size, path: [:company, :size], default: "Unknown"
-  
-  # Strict validation mode (default)
-  contract_mode :strict
-  
   def system
-    "Analyzing #{company_name} in the #{industry} industry (Size: #{company_size})"
+    "Analyzing #{company_name} in the #{industry} industry (Size: #{company_size || 'Unknown'})"
   end
 end
 
@@ -632,15 +601,7 @@ incomplete_context = { company: {} }
    }
    ```
 
-3. **Provide Meaningful Defaults**: Use defaults for optional context paths
-   ```ruby
-   optional :theme, path: [:user, :preferences, :theme], default: "light"
-   ```
 
-4. **Validate Critical Data**: Use `required` with path for essential data
-   ```ruby
-   required :api_key, path: [:credentials, :api_key]
-   ```
 
 5. **Context Evolution**: Design contexts to grow through workflows
    ```ruby
@@ -847,8 +808,6 @@ agent = MyAgent.new(
 1. **Ruby Prompt Classes** (Phlex-style)
    ```ruby
    class ResearchPrompt < RAAF::DSL::Prompts::Base
-     required :topic, :depth
-     
      def system
        "You are a research assistant specializing in #{@topic}."
      end
@@ -897,22 +856,6 @@ Sophisticated prompt management with contracts and validation:
 
 ```ruby
 class AdvancedContentAnalysis < RAAF::DSL::Prompts::Base
-  # Required variables with strict validation
-  required :analysis_depth, :focus_areas, :timeline
-  
-  # Context mapping with nested paths and defaults
-  required :document_name, path: [:document, :name]
-  optional :document_size, path: [:document, :pages], default: "Unknown"
-  optional :document_type, path: [:document, :type], default: "General"
-  optional :source, path: [:document, :source], default: "Not provided"
-  optional :language, path: [:document, :metadata, :language], default: "English"
-  
-  # Optional context variables
-  optional :author, path: [:document, :metadata, :author]
-  optional :created_date, path: [:document, :metadata, :created]
-  
-  # Strict contract validation - will raise errors if variables missing
-  contract_mode :strict
 
   def system
     <<~SYSTEM
@@ -969,15 +912,6 @@ class AdvancedContentAnalysis < RAAF::DSL::Prompts::Base
     USER
   end
   
-  # Optional: Custom validation logic
-  private
-  
-  def validate_timeline
-    valid_timelines = ['immediate', '1 week', '2 weeks', '1 month']
-    unless valid_timelines.include?(timeline)
-      raise VariableContractError, "Timeline must be one of: #{valid_timelines.join(', ')}"
-    end
-  end
 end
 ```
 

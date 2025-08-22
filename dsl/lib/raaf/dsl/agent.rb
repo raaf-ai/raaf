@@ -123,17 +123,6 @@ module RAAF
           end
         end
 
-        # Set or get the contract mode for this agent
-        #
-        # @param mode [Symbol, nil] The contract mode (:strict, :warn, :lenient, :off)
-        # @return [Symbol] The contract mode
-        def contract_mode(mode = nil)
-          if mode
-            _agent_config[:contract_mode] = mode
-          else
-            _agent_config[:contract_mode] || :lenient
-          end
-        end
 
         def max_turns(turns = nil)
           if turns
@@ -1326,9 +1315,6 @@ module RAAF
           3
       end
 
-      def contract_mode
-        self.class._agent_config&.dig(:contract_mode) || :lenient
-      end
 
       def instructions
         build_instructions
@@ -1947,8 +1933,28 @@ module RAAF
           rescue JSON::ParserError
             content
           end
+        elsif content.is_a?(Hash)
+          # Symbolize keys for Hashes (from structured outputs)
+          deep_symbolize_keys(content)
         else
           content
+        end
+      end
+
+      # Deep symbolize all keys in a hash recursively
+      def deep_symbolize_keys(hash)
+        return hash unless hash.is_a?(Hash)
+        
+        hash.each_with_object({}) do |(key, value), result|
+          new_key = key.is_a?(String) ? key.to_sym : key
+          result[new_key] = case value
+                            when Hash
+                              deep_symbolize_keys(value)
+                            when Array
+                              value.map { |v| v.is_a?(Hash) ? deep_symbolize_keys(v) : v }
+                            else
+                              value
+                            end
         end
       end
 

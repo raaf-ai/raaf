@@ -29,8 +29,12 @@ module RAAF
       isolate_namespace RAAF::Rails
 
       # Configure engine paths
-      config.autoload_paths << File.expand_path("../../../app", __dir__)
-      config.eager_load_paths << File.expand_path("../../../app", __dir__)
+      config.autoload_paths << File.expand_path("../../../app/models", __dir__)
+      config.autoload_paths << File.expand_path("../../../app/controllers", __dir__)
+      config.autoload_paths << File.expand_path("../../../app/components", __dir__)
+      config.eager_load_paths << File.expand_path("../../../app/models", __dir__)
+      config.eager_load_paths << File.expand_path("../../../app/controllers", __dir__)
+      config.eager_load_paths << File.expand_path("../../../app/components", __dir__)
 
       # Set up asset pipeline
       config.assets.enabled = true
@@ -43,6 +47,13 @@ module RAAF
         g.fixture_replacement :factory_bot, dir: "spec/factories"
         g.assets false
         g.helper false
+      end
+
+      # Register RAAF as an acronym for proper constant loading
+      initializer "raaf-rails.inflections", before: :load_config_initializers do
+        ActiveSupport::Inflector.inflections(:en) do |inflect|
+          inflect.acronym "RAAF"
+        end
       end
 
       # Initialize the engine
@@ -106,49 +117,8 @@ module RAAF
         end
       end
 
-      # Setup routes - defer to avoid Devise initialization conflicts
-      config.after_initialize do
-        RAAF::Rails::Engine.routes.draw do
-          root "dashboard#index"
-
-          # Dashboard routes
-          get "/dashboard", to: "dashboard#index"
-          get "/dashboard/agents", to: "dashboard#agents"
-          get "/dashboard/conversations", to: "dashboard#conversations"
-          get "/dashboard/analytics", to: "dashboard#analytics"
-
-          # Agent management routes
-          resources :agents do
-            member do
-              get :chat
-              post :test
-              patch :deploy
-              delete :undeploy
-            end
-
-            resources :conversations, only: %i[index show create]
-          end
-
-          # API routes
-          namespace :api do
-            namespace :v1 do
-              resources :agents, only: %i[index show create update destroy] do
-                member do
-                  post :chat
-                  get :status
-                  post :deploy
-                  delete :undeploy
-                end
-
-                resources :conversations, only: %i[index show create]
-              end
-            end
-          end
-
-          # WebSocket routes - Action Cable handles WebSocket connections
-          mount ActionCable.server => "/cable" if RAAF::Rails.config[:enable_websockets]
-        end
-      end
+      # Routes are now defined in config/routes.rb instead of engine initializer
+      # This prevents conflicts and allows proper namespacing
 
       # Setup middleware
       initializer "raaf-rails.middleware" do |app|
@@ -184,13 +154,11 @@ module RAAF
       end
 
       # Setup ActiveRecord models
-      initializer "raaf-rails.active_record" do
+      initializer "raaf-rails.active_record", after: :load_config_initializers do
         if defined?(ActiveRecord)
-          ActiveSupport.on_load(:active_record) do
-            # include RAAF::Rails::Models::AgentModel
-            # include RAAF::Rails::Models::ConversationModel
-            # include RAAF::Rails::Models::MessageModel
-          end
+          # Ensure tracing models are loaded and available
+          require_relative "../../../app/models/RAAF/rails/tracing/trace"
+          require_relative "../../../app/models/RAAF/rails/tracing/span"
         end
       end
 

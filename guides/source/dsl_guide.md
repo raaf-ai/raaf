@@ -294,17 +294,10 @@ NOTE: All RSpec testing utilities have been moved to the `raaf-testing` gem for 
 ```ruby
 # PREFERRED: Ruby prompt classes with RAAF DSL Base
 class CustomerServicePrompt < RAAF::DSL::Prompts::Base
-  # Contract validation for required variables
-  required :company_name, :issue_type
-  optional :tone, default: "professional"
-  
-  # Enable strict validation mode
-  contract_mode :strict
-  
   def system
     <<~SYSTEM
-      You are a customer service agent for #{@company_name}.
-      Handle #{@issue_type} issues with a #{@tone} tone.
+      You are a customer service agent for #{company_name}.
+      Handle #{issue_type} issues with a #{tone || 'professional'} tone.
       Always ask clarifying questions when details are unclear.
     SYSTEM
   end

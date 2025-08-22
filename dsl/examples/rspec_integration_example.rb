@@ -13,13 +13,7 @@ require "raaf/dsl/rspec"
 
 # Example prompt class for a document processing application
 class ReportAnalysisPrompt < RAAF::DSL::Prompts::Base
-  required :report_name, :analysis_type
-  optional :urgency, :department
-  required :file_path, path: %i[document path]
-  optional :file_size, path: %i[document metadata size], default: "unknown"
-  optional :author, path: %i[document metadata author]
 
-  contract_mode :strict
 
   def system
     <<~SYSTEM

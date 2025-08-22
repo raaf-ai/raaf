@@ -31,13 +31,13 @@ Shows how to create custom tools and add them to agents.
 - Creating inline tools
 
 ### 3. Prompts Example (`prompts_example.rb`)
-Demonstrates the flexible prompt system with validation and context mapping.
+Demonstrates the flexible prompt system with automatic context access.
 
 **Key concepts:**
-- Creating prompt classes with required/optional variables
-- Context mapping for nested data structures
-- Contract modes (strict, warn, lenient)
+- Creating prompt classes with method_missing context access
 - Dynamic prompt content
+- Dry-run validation for missing variables
+- Clean Ruby error messages
 
 ### 4. Multi-Agent Example (`multi_agent_example.rb`)
 Shows how to create multiple agents that can hand off conversations.
@@ -102,15 +102,12 @@ end
 ### Using Prompts
 ```ruby
 class MyPrompt < RAAF::DSL::Prompts::Base
-  required :field1
-  optional :field2, default: "value"
-  
   def system
     "System prompt with #{field1}"
   end
   
   def user
-    "User prompt"
+    "User prompt with #{field2 || 'default_value'}"
   end
 end
 ```
