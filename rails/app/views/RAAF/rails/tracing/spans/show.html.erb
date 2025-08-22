@@ -8,12 +8,12 @@
   <div class="btn-toolbar mb-2 mb-md-0">
     <div class="btn-group me-2">
       <% if @span.trace %>
-        <%= link_to trace_path(@span.trace_id), 
+        <%= link_to tracing_trace_path(@span.trace_id), 
             class: "btn btn-outline-primary" do %>
           <i class="bi bi-diagram-3 me-1"></i>View Trace
         <% end %>
       <% end %>
-      <%= link_to span_path(@span.span_id, format: :json), 
+      <%= link_to tracing_span_path(@span.span_id, format: :json), 
           class: "btn btn-outline-secondary" do %>
         <i class="bi bi-download me-1"></i>Export JSON
       <% end %>
@@ -74,7 +74,7 @@
           <dt class="col-sm-4">Trace ID</dt>
           <dd class="col-sm-8">
             <% if @span.trace %>
-              <%= link_to @span.trace_id, trace_path(@span.trace_id), 
+              <%= link_to @span.trace_id, tracing_trace_path(@span.trace_id), 
                   class: "font-monospace" %>
             <% else %>
               <code><%= @span.trace_id %></code>
@@ -84,7 +84,7 @@
           <dt class="col-sm-4">Parent Span</dt>
           <dd class="col-sm-8">
             <% if @span.parent_span %>
-              <%= link_to @span.parent_id, span_path(@span.parent_id), 
+              <%= link_to @span.parent_id, tracing_span_path(@span.parent_id), 
                   class: "font-monospace" %>
             <% else %>
               <span class="text-muted">Root span</span>
@@ -718,7 +718,7 @@
                 <td><%= status_badge(child.status) %></td>
                 <td><%= format_duration(child.duration_ms) %></td>
                 <td>
-                  <%= link_to span_path(child.span_id), 
+                  <%= link_to tracing_span_path(child.span_id), 
                       class: "btn btn-sm btn-outline-primary" do %>
                     <i class="bi bi-eye"></i>
                   <% end %>

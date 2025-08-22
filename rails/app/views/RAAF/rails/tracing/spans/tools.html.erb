@@ -1,6 +1,6 @@
 <% content_for :title, "Tool & Custom Calls" %>
 <% content_for :breadcrumb do %>
-  <li class="breadcrumb-item"><%= link_to "Spans", spans_path %></li>
+  <li class="breadcrumb-item"><%= link_to "Spans", tracing_spans_path %></li>
   <li class="breadcrumb-item active" aria-current="page">Tool & Custom Calls</li>
 <% end %>
 
@@ -13,7 +13,7 @@
   </div>
   <div class="btn-toolbar mb-2 mb-md-0">
     <div class="btn-group me-2">
-      <%= link_to spans_path, class: "btn btn-outline-secondary" do %>
+      <%= link_to tracing_spans_path, class: "btn btn-outline-secondary" do %>
         <i class="bi bi-list me-1"></i>All Spans
       <% end %>
     </div>
@@ -23,7 +23,7 @@
 <!-- Filters -->
 <div class="card mb-3">
   <div class="card-body">
-    <%= form_with url: tools_path, method: :get, local: true, class: "row g-3" do |f| %>
+    <%= form_with url: tools_tracing_spans_path, method: :get, local: true, class: "row g-3" do |f| %>
       <div class="col-md-3">
         <%= f.text_field :function_name, 
             class: "form-control", 
@@ -54,7 +54,7 @@
       
       <div class="col-md-2">
         <%= f.submit "Filter", class: "btn btn-primary" %>
-        <%= link_to "Clear", tools_path, class: "btn btn-outline-secondary" %>
+        <%= link_to "Clear", tools_tracing_spans_path, class: "btn btn-outline-secondary" %>
       </div>
     <% end %>
   </div>
@@ -153,7 +153,7 @@
                 <td>
                   <% if span.trace %>
                     <%= link_to span.trace.workflow_name.truncate(30), 
-                        trace_path(span.trace_id), 
+                        tracing_trace_path(span.trace_id), 
                         class: "text-decoration-none",
                         title: span.trace.workflow_name %>
                   <% else %>
@@ -195,7 +195,7 @@
                   <% end %>
                 </td>
                 <td>
-                  <%= link_to span_path(span.span_id), 
+                  <%= link_to tracing_span_path(span.span_id), 
                       class: "btn btn-sm btn-outline-primary",
                       title: "View full details" do %>
                     <i class="bi bi-eye"></i>
@@ -264,7 +264,7 @@
               <tr>
                 <td>
                   <%= link_to function_name, 
-                      tools_path(function_name: function_name),
+                      tools_tracing_spans_path(function_name: function_name),
                       class: "text-decoration-none" %>
                   <% if stats[:kind] == "custom" %>
                     <span class="badge bg-secondary ms-1">custom</span>

@@ -6,10 +6,10 @@
         <button id="refresh-spans" class="btn btn-sm btn-outline-secondary" title="Refresh">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
-        <%= link_to spans_path(kind: 'llm'), class: "btn btn-outline-info" do %>
+        <%= link_to tracing_spans_path(kind: 'llm'), class: "btn btn-outline-info" do %>
           <i class="bi bi-robot me-1"></i>AI Calls Only
         <% end %>
-        <%= link_to traces_path, class: "btn btn-outline-secondary" do %>
+        <%= link_to tracing_traces_path, class: "btn btn-outline-secondary" do %>
           <i class="bi bi-diagram-3 me-1"></i>View Traces
         <% end %>
       </div>
@@ -31,7 +31,7 @@
 <!-- Filters -->
 <div class="card mb-4">
   <div class="card-body">
-    <%= form_with(url: spans_path, method: :get, local: true, class: "row g-3") do |f| %>
+    <%= form_with(url: tracing_spans_path, method: :get, local: true, class: "row g-3") do |f| %>
       <div class="col-md-3">
         <%= f.label :trace_id, "Trace ID", class: "form-label" %>
         <%= f.text_field :trace_id, value: params[:trace_id], class: "form-control", placeholder: "trace_..." %>
@@ -68,7 +68,7 @@
         <label class="form-label">&nbsp;</label>
         <div>
           <%= f.submit "Filter", class: "btn btn-primary" %>
-          <%= link_to "Reset", spans_path, class: "btn btn-secondary" %>
+          <%= link_to "Reset", tracing_spans_path, class: "btn btn-secondary" %>
         </div>
       </div>
     <% end %>
@@ -100,7 +100,7 @@
               </code>
             </td>
             <td>
-              <%= link_to span.name, span_path(span.span_id), class: "text-decoration-none" %>
+              <%= link_to span.name, tracing_span_path(span.span_id), class: "text-decoration-none" %>
             </td>
             <td><%= kind_badge(span.kind) %></td>
             <td><%= status_badge(span.status) %></td>
@@ -114,7 +114,7 @@
             </td>
             <td>
               <% if span.trace %>
-                <%= link_to span.trace_id, trace_path(span.trace_id), 
+                <%= link_to span.trace_id, tracing_trace_path(span.trace_id), 
                     class: "text-decoration-none font-monospace", 
                     style: "font-size: 0.875rem;" %>
               <% else %>
@@ -123,7 +123,7 @@
             </td>
             <td>
               <div class="btn-group" role="group">
-                <%= link_to span_path(span.span_id), 
+                <%= link_to tracing_span_path(span.span_id), 
                     class: "btn btn-sm btn-outline-primary" do %>
                   <i class="bi bi-eye"></i>
                 <% end %>
@@ -140,7 +140,7 @@
     <nav aria-label="Page navigation">
       <ul class="pagination justify-content-center">
         <li class="page-item <%= 'disabled' if @page <= 1 %>">
-          <%= link_to spans_path(params.permit(:trace_id, :kind, :status).merge(page: @page - 1)), 
+          <%= link_to tracing_spans_path(params.permit(:trace_id, :kind, :status).merge(page: @page - 1)), 
               class: "page-link" do %>
             Previous
           <% end %>
@@ -149,13 +149,13 @@
         <% (1..[@total_pages, 10].min).each do |page| %>
           <li class="page-item <%= 'active' if page == @page %>">
             <%= link_to page, 
-                spans_path(params.permit(:trace_id, :kind, :status).merge(page: page)), 
+                tracing_spans_path(params.permit(:trace_id, :kind, :status).merge(page: page)), 
                 class: "page-link" %>
           </li>
         <% end %>
         
         <li class="page-item <%= 'disabled' if @page >= @total_pages %>">
-          <%= link_to spans_path(params.permit(:trace_id, :kind, :status).merge(page: @page + 1)), 
+          <%= link_to tracing_spans_path(params.permit(:trace_id, :kind, :status).merge(page: @page + 1)), 
               class: "page-link" do %>
             Next
           <% end %>

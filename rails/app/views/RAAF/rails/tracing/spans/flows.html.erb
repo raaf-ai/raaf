@@ -1,6 +1,6 @@
 <% content_for :title, "Agent & Tool Flow Visualization" %>
 <% content_for :breadcrumb do %>
-  <li class="breadcrumb-item"><%= link_to "Spans", spans_path %></li>
+  <li class="breadcrumb-item"><%= link_to "Spans", tracing_spans_path %></li>
   <li class="breadcrumb-item active" aria-current="page">Flow Visualization</li>
 <% end %>
 
@@ -26,7 +26,7 @@
 <!-- Filters -->
 <div class="card mb-3">
   <div class="card-body">
-    <%= form_with url: flows_path, method: :get, local: true, class: "row g-3" do |f| %>
+    <%= form_with url: flows_tracing_spans_path, method: :get, local: true, class: "row g-3" do |f| %>
       <div class="col-md-2">
         <%= f.datetime_local_field :start_time, 
             class: "form-control", 
@@ -59,7 +59,7 @@
       
       <div class="col-md-3 d-flex align-items-end">
         <%= f.submit "Apply Filters", class: "btn btn-primary me-2" %>
-        <%= link_to "Clear", flows_path, class: "btn btn-outline-secondary" %>
+        <%= link_to "Clear", flows_tracing_spans_path, class: "btn btn-outline-secondary" %>
       </div>
     <% end %>
   </div>

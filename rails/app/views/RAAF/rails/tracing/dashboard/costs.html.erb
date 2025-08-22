@@ -1,6 +1,6 @@
 <% content_for :title, "Cost & Usage Analytics" %>
 <% content_for :breadcrumb do %>
-  <li class="breadcrumb-item"><%= link_to "Dashboard", dashboard_path %></li>
+  <li class="breadcrumb-item"><%= link_to "Dashboard", tracing_dashboard_path %></li>
   <li class="breadcrumb-item active" aria-current="page">Costs & Usage</li>
 <% end %>
 
@@ -8,7 +8,7 @@
   <h1 class="h2">Cost & Usage Analytics</h1>
   <div class="btn-toolbar mb-2 mb-md-0">
     <div class="btn-group me-2">
-      <%= link_to dashboard_costs_path(format: :json), 
+      <%= link_to tracing_dashboard_costs_path(format: :json), 
           class: "btn btn-sm btn-outline-secondary" do %>
         <i class="bi bi-download me-1"></i>Export Data
       <% end %>
@@ -18,7 +18,7 @@
 
 <!-- Time Range Filter -->
 <div class="filter-form">
-  <%= form_with url: dashboard_costs_path, method: :get, local: true, class: "row g-3" do |form| %>
+  <%= form_with url: tracing_dashboard_costs_path, method: :get, local: true, class: "row g-3" do |form| %>
     <div class="col-md-4">
       <%= form.datetime_local_field :start_time, 
           value: params[:start_time] || 24.hours.ago.strftime("%Y-%m-%dT%H:%M"),
@@ -33,7 +33,7 @@
     </div>
     <div class="col-md-4 d-flex align-items-end">
       <%= form.submit "Apply Filter", class: "btn btn-primary btn-sm me-2" %>
-      <%= link_to "Reset", dashboard_costs_path, class: "btn btn-outline-secondary btn-sm" %>
+      <%= link_to "Reset", tracing_dashboard_costs_path, class: "btn btn-outline-secondary btn-sm" %>
     </div>
   <% end %>
 </div>
