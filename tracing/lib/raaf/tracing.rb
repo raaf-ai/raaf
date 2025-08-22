@@ -6,6 +6,7 @@ require_relative "tracing/spans"
 require_relative "tracing/trace"
 require_relative "tracing/openai_processor"
 require_relative "tracing/trace_provider"
+require_relative "cost_manager"
 
 # Load Rails engine and ActiveRecord processor if Rails and ActiveRecord are available
 if defined?(ActiveRecord)

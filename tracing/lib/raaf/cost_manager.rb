@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../logging"
+require "raaf/logging"
 
 module RAAF
   module Tracing
