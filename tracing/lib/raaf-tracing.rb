@@ -6,6 +6,9 @@ require_relative "raaf/tracing/datadog_processor"
 require_relative "raaf/tracing/opentelemetry_integration"
 require_relative "raaf/tracing/visualization"
 
+# Load ActiveRecord models for lazy loading
+require_relative "raaf/tracing/models"
+
 module RAAF
   ##
   # Distributed tracing and monitoring for Ruby AI Agents Factory

@@ -59,7 +59,10 @@ module RAAF
         @span_hierarchy = @trace.span_hierarchy
 
         respond_to do |format|
-          format.html
+          format.html do
+            # Render the Phlex component directly
+            render RAAF::Rails::Tracing::TraceDetail.new(trace: @trace)
+          end
           format.json { render json: serialize_trace_detail(@trace) }
         end
       end
@@ -88,7 +91,11 @@ module RAAF
         @error_analysis = calculate_error_analysis(@trace) if @trace.status == "failed"
 
         respond_to do |format|
-          format.html
+          format.html do
+            # For analytics, we can use the same TraceDetail component
+            # with additional data for analytics view
+            render RAAF::Rails::Tracing::TraceDetail.new(trace: @trace)
+          end
           format.json do
             render json: {
               performance: @performance_summary,

@@ -9,12 +9,13 @@ module RAAF
       include Phlex::Rails::Helpers::Pluralize
       include Phlex::Rails::Helpers::Routes
       include Components::Preline
+      include Components
 
       def initialize(trace:)
         @trace = trace
       end
 
-      def template
+      def view_template
         Container(class: "space-y-6") do
           render_header
           render_trace_overview
@@ -27,8 +28,8 @@ module RAAF
       def render_header
         Flex(justify: :between, align: :center) do
           Container do
-            Typography(tag: :h1, @trace.workflow_name)
-            Typography(color: :muted, "Trace ID: #{@trace.trace_id}")
+            Typography(tag: :h1) { @trace.workflow_name }
+            Typography(color: :muted) { "Trace ID: #{@trace.trace_id}" }
           end
 
           Flex(align: :center, gap: 3) do
@@ -46,38 +47,40 @@ module RAAF
       def render_trace_overview
         Card do |card|
           card.header do
-            Typography(tag: :h3, "Trace Overview")
+            Typography(tag: :h3) { "Trace Overview" }
           end
 
           card.body do
             Grid(cols: { md: 2, lg: 4 }, gap: 4) do
               Card(variant: :subtle) do
-                Typography(color: :muted, "Status", size: :sm)
+                Typography(color: :muted, size: :sm) { "Status" }
                 Container(class: "mt-1") { render_status_badge(@trace.status) }
               end
 
               Card(variant: :subtle) do
-                Typography(color: :muted, "Duration", size: :sm)
-                Typography(format_duration(@trace.duration_ms), variant: :heading, size: :lg)
+                Typography(color: :muted, size: :sm) { "Duration" }
+                Typography(variant: :heading, size: :lg) { format_duration(@trace.duration_ms) }
               end
 
               Card(variant: :subtle) do
-                Typography(color: :muted, "Spans", size: :sm)
-                Typography(tag: :strong, @trace.spans.count.to_s, size: :lg)
+                Typography(color: :muted, size: :sm) { "Spans" }
+                Typography(tag: :span, weight: :bold, size: :lg) { @trace.spans.count.to_s }
               end
 
               Card(variant: :subtle) do
-                Typography(color: :muted, "Started", size: :sm)
-                Typography(@trace.started_at.strftime("%H:%M:%S"), variant: :heading, size: :lg)
-                Typography("#{time_ago_in_words(@trace.started_at)} ago", color: :muted, size: :sm)
+                Typography(color: :muted, size: :sm) { "Started" }
+                Typography(variant: :heading, size: :lg) { @trace.started_at.strftime("%H:%M:%S") }
+                Typography(color: :muted, size: :sm) { "#{time_ago_in_words(@trace.started_at)} ago" }
               end
             end
 
             if @trace.metadata.present?
               Container(class: "mt-6") do
-                Typography(tag: :h3, "Metadata", size: :sm)
+                Typography(tag: :h3, size: :sm) { "Metadata" }
                 Card(variant: :subtle, class: "mt-2 p-4 overflow-x-auto") do
-                  CodeBlock(JSON.pretty_generate(@trace.metadata), language: "json")
+                  pre(class: "text-sm text-gray-800 bg-gray-50 rounded p-2 overflow-auto") do
+                    code { JSON.pretty_generate(@trace.metadata) }
+                  end
                 end
               end
             end
@@ -88,8 +91,8 @@ module RAAF
       def render_spans_hierarchy
         Card do |card|
           card.header do
-            Typography(tag: :h3, "Span Hierarchy")
-            Typography(color: :muted, "Execution flow and timing breakdown")
+            Typography(tag: :h3) { "Span Hierarchy" }
+            Typography(color: :muted) { "Execution flow and timing breakdown" }
           end
 
           card.body do
@@ -132,7 +135,7 @@ module RAAF
             Container(class: "flex-1") do
               Flex(align: :center, gap: 3) do
                 render_kind_badge(span.kind)
-                Typography(tag: :strong, span.name, size: :sm)
+                Typography(tag: :span, weight: :bold, size: :sm) { span.name }
                 render_status_badge(span.status) if span.status != "ok"
               end
 
@@ -141,9 +144,9 @@ module RAAF
                   span.attributes.each do |key, value|
                     next if %w[span_id trace_id parent_span_id].include?(key)
 
-                    Typography(color: :muted, class: "inline-block mr-4", size: :xs) do
-                      Typography(tag: :strong, "#{key}: ")
-                      Typography(value.to_s.truncate(50))
+                    Typography(class: "inline-block mr-4", color: :muted, size: :xs) do
+                      Typography(tag: :span, weight: :bold) { "#{key}: " }
+                      Typography { value.to_s.truncate(50) }
                     end
                   end
                 end
@@ -151,13 +154,13 @@ module RAAF
 
               if span.error_details.present?
                 Alert(variant: :danger, class: "mt-2") do
-                  Typography(tag: :strong, "Error Details:", size: :sm)
+                  Typography(tag: :span, weight: :bold, size: :sm) { "Error Details:" }
                   Container(class: "mt-1") do
                     if span.error_details["exception_message"]
-                      Typography(span.error_details["exception_message"], size: :sm)
+                      Typography(size: :sm) { span.error_details["exception_message"] }
                     end
                     if span.error_details["exception_type"]
-                      Typography(color: :muted, "Type: #{span.error_details['exception_type']}", size: :sm)
+                      Typography(color: :muted, size: :sm) { "Type: #{span.error_details['exception_type']}" }
                     end
                   end
                 end
@@ -165,14 +168,14 @@ module RAAF
             end
 
             Container(class: "text-right") do
-              Typography(format_duration(span.duration_ms), size: :sm)
-              Typography(span.start_time.strftime("%H:%M:%S.%L"), size: :xs, color: :muted)
+              Typography(size: :sm) { format_duration(span.duration_ms) }
+              Typography(size: :xs, color: :muted) { span.start_time.strftime("%H:%M:%S.%L") }
             end
           end
 
           # Duration bar
           if span.duration_ms&.positive?
-            ProgressBar(
+            Progress(
               value: calculate_span_percentage(span),
               class: "mt-3"
             )
@@ -195,7 +198,7 @@ module RAAF
                else "clock"
                end
 
-        Badge(status.capitalize, variant: variant, icon: icon)
+        Badge(text: status.capitalize, variant: variant, icon: icon)
       end
 
       def render_kind_badge(kind)
@@ -207,7 +210,7 @@ module RAAF
                   else :secondary
                   end
 
-        Badge(kind.capitalize, variant: variant, size: :sm)
+        Badge(text: kind.capitalize, variant: variant, size: :sm)
       end
 
       def calculate_span_percentage(span)

@@ -8,7 +8,7 @@ rescue LoadError
   # Models will be loaded by Rails engine
 end
 
-require_relative "../logging"
+require "raaf/logging"
 
 module RAAF
   module Tracing

@@ -216,7 +216,7 @@
                 <% @top_consuming_workflows.each do |workflow, stats| %>
                   <tr>
                     <td>
-                      <%= link_to workflow, traces_path(workflow: workflow), 
+                      <%= link_to workflow, raaf_rails.tracing_traces_path(workflow: workflow), 
                           class: "text-decoration-none fw-bold" %>
                     </td>
                     <td><%= number_with_delimiter(stats[:trace_count]) %></td>
