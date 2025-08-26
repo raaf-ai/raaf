@@ -153,6 +153,21 @@ module RAAF
         end
         
         def execute_single_agent(agent_class, context)
+          # Debug: Show pipeline agent execution start
+          puts "🤖 [Pipeline Debug] Executing agent: #{agent_class.name}"
+          puts "📊 [Pipeline Debug] Context type: #{context.class}"
+          if context.respond_to?(:keys)
+            puts "📊 [Pipeline Debug] Context keys: #{context.keys.inspect}"
+            # Show markets data if available
+            markets_key = context.keys.find { |k| k.to_s.include?('market') }
+            if markets_key && context[markets_key].respond_to?(:length)
+              puts "📊 [Pipeline Debug] Markets in context: #{context[markets_key].length} items"
+              if context[markets_key].first && context[markets_key].first.respond_to?(:keys)
+                puts "📊 [Pipeline Debug] First market keys: #{context[markets_key].first.keys.inspect}"
+              end
+            end
+          end
+          
           # Check requirements
           if agent_class.respond_to?(:requirements_met?)
             unless agent_class.requirements_met?(context)
@@ -168,6 +183,17 @@ module RAAF
           
           agent = agent_class.new(**context_hash)
           
+          # Inject pipeline schema into agent if available
+          # Check if we have a pipeline instance with schema available
+          pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
+          if pipeline_instance && pipeline_instance.respond_to?(:pipeline_schema)
+            pipeline_schema = pipeline_instance.pipeline_schema
+            
+            if pipeline_schema && agent.respond_to?(:inject_pipeline_schema)
+              agent.inject_pipeline_schema(pipeline_schema)
+            end
+          end
+          
           # Call appropriate execution method based on agent type
           if agent.respond_to?(:call) && agent.class.superclass.name == 'RAAF::DSL::Service'
             result = agent.call
@@ -175,17 +201,40 @@ module RAAF
             result = agent.run
           end
           
-          # Merge provided fields into context
-          if agent_class.respond_to?(:provided_fields)
-            agent_class.provided_fields.each do |field|
-              if result.is_a?(Hash) && result.key?(field)
-                context = context.set(field, result[field])
-              elsif result.respond_to?(field)
-                context = context.set(field, result.send(field))
+          # Debug: Show agent result
+          puts "📋 [Pipeline Debug] Agent #{agent_class.name} result type: #{result.class}"
+          if result.is_a?(Hash)
+            puts "📋 [Pipeline Debug] Agent result keys: #{result.keys.inspect}"
+            # Show markets in result
+            if result.key?('markets') || result.key?(:markets)
+              markets_result = result['markets'] || result[:markets]
+              puts "📋 [Pipeline Debug] Agent returned markets: #{markets_result.length} items" if markets_result.respond_to?(:length)
+              if markets_result.respond_to?(:first) && markets_result.first && markets_result.first.respond_to?(:keys)
+                puts "📋 [Pipeline Debug] First result market keys: #{markets_result.first.keys.inspect}"
               end
             end
           end
           
+          # Merge provided fields into context
+          if agent_class.respond_to?(:provided_fields)
+            puts "📋 [Pipeline Debug] Provided fields for #{agent_class.name}: #{agent_class.provided_fields.inspect}"
+            agent_class.provided_fields.each do |field|
+              if result.is_a?(Hash) && result.key?(field)
+                puts "📋 [Pipeline Debug] Setting context field #{field} from result"
+                context = context.set(field, result[field])
+              elsif result.respond_to?(field)
+                field_value = result.send(field)
+                puts "📋 [Pipeline Debug] Setting context field #{field} from result method"
+                context = context.set(field, field_value)
+              else
+                puts "⚠️  [Pipeline Debug] Field #{field} not found in result"
+              end
+            end
+          else
+            puts "📋 [Pipeline Debug] No provided fields defined for #{agent_class.name}"
+          end
+          
+          puts "✅ [Pipeline Debug] Agent #{agent_class.name} execution completed"
           context
         end
       end

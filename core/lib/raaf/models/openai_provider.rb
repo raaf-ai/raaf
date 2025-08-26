@@ -147,6 +147,30 @@ module RAAF
         parameters[:response_format] = kwargs[:response_format] if kwargs[:response_format]
 
         begin
+          # CORE DEBUG: Log exactly what's being sent to OpenAI
+          puts "\n🚀 [RAAF CORE] === SENDING TO OPENAI ==="
+          puts "🚀 [RAAF CORE] Model: #{parameters[:model]}"
+          puts "🚀 [RAAF CORE] Stream: #{parameters[:stream]}"
+          
+          # Log messages array
+          puts "🚀 [RAAF CORE] Messages count: #{parameters[:messages].length}"
+          parameters[:messages].each_with_index do |msg, idx|
+            puts "🚀 [RAAF CORE] Message #{idx} (#{msg[:role]}): #{msg[:content].to_s[0..200]}#{msg[:content].to_s.length > 200 ? '...' : ''}"
+          end
+          
+          # Log response format (structured output)
+          if parameters[:response_format]
+            puts "🚀 [RAAF CORE] Using Structured Output: YES"
+            puts "🚀 [RAAF CORE] Response Format Type: #{parameters[:response_format][:type]}"
+            if parameters[:response_format][:json_schema]
+              schema_name = parameters[:response_format][:json_schema][:name]
+              puts "🚀 [RAAF CORE] Schema Name: #{schema_name}"
+              puts "🚀 [RAAF CORE] Schema: #{parameters[:response_format][:json_schema][:schema].to_json[0..500]}..."
+            end
+          else
+            puts "🚀 [RAAF CORE] Using Structured Output: NO"
+          end
+          
           # Debug log the final parameters being sent to OpenAI
           if parameters[:tools]
             log_debug_tools("📤 FINAL PARAMETERS SENT TO OPENAI API",
@@ -166,8 +190,60 @@ module RAAF
               end
             end
           end
-
+          
+          puts "🚀 [RAAF CORE] === CALLING OPENAI API ==="
           response = @client.chat.completions.create(**parameters)
+          
+          # CORE DEBUG: Log exactly what OpenAI returned
+          puts "\n📥 [RAAF CORE] === RECEIVED FROM OPENAI ==="
+          puts "📥 [RAAF CORE] Response ID: #{response.id}"
+          puts "📥 [RAAF CORE] Model: #{response.model}"
+          puts "📥 [RAAF CORE] Finish Reason: #{response.choices.first&.finish_reason}"
+          
+          if response.choices.first&.message&.content
+            content = response.choices.first.message.content
+            puts "📥 [RAAF CORE] Content Type: #{content.class}"
+            puts "📥 [RAAF CORE] Content Length: #{content.to_s.length}"
+            puts "📥 [RAAF CORE] Raw Content (first 1000 chars): #{content.to_s[0..1000]}"
+            
+            # Try to parse as JSON to see structure
+            if content.is_a?(String) && content.strip.start_with?('{', '[')
+              begin
+                parsed = JSON.parse(content)
+                puts "📥 [RAAF CORE] Parsed JSON Type: #{parsed.class}"
+                if parsed.is_a?(Hash)
+                  puts "📥 [RAAF CORE] JSON Keys: #{parsed.keys.inspect}"
+                  if parsed['markets'] || parsed[:markets]
+                    markets = parsed['markets'] || parsed[:markets]
+                    puts "📥 [RAAF CORE] Markets in response: #{markets.length}" if markets.respond_to?(:length)
+                    if markets.respond_to?(:first) && markets.first
+                      puts "📥 [RAAF CORE] First market keys: #{markets.first.keys.inspect}" if markets.first.respond_to?(:keys)
+                      # Check specifically for scoring data
+                      first_market = markets.first
+                      if first_market['scoring'] || first_market[:scoring]
+                        scoring = first_market['scoring'] || first_market[:scoring]
+                        puts "📥 [RAAF CORE] First market scoring type: #{scoring.class}"
+                        puts "📥 [RAAF CORE] First market scoring keys: #{scoring.keys.inspect}" if scoring.respond_to?(:keys)
+                        if scoring.respond_to?(:keys) && scoring.keys.first
+                          first_dimension = scoring[scoring.keys.first]
+                          puts "📥 [RAAF CORE] First dimension (#{scoring.keys.first}): #{first_dimension.inspect}"
+                        end
+                      else
+                        puts "📥 [RAAF CORE] NO SCORING DATA in first market"
+                      end
+                    end
+                  end
+                end
+              rescue JSON::ParserError => e
+                puts "📥 [RAAF CORE] JSON Parse Error: #{e.message}"
+              end
+            end
+          else
+            puts "📥 [RAAF CORE] No content in response"
+          end
+          
+          puts "📥 [RAAF CORE] === END OPENAI RESPONSE ==="
+          
           normalize_response_format(response)
         rescue HTTPClient::Error => e
           handle_openai_error(e)

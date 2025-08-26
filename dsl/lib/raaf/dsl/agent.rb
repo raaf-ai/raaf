@@ -754,6 +754,7 @@ module RAAF
         @circuit_breaker_state = :closed
         @circuit_breaker_failures = 0
         @circuit_breaker_last_failure = nil
+        @pipeline_schema = nil  # Will be set by pipeline if agent is part of one
         
         # If context provided explicitly, use it (backward compatible)
         if context
@@ -778,6 +779,11 @@ module RAAF
                     auto_context: self.class.auto_context?,
                     category: :context)
         end
+      end
+      
+      # Inject pipeline schema from pipeline (called by pipeline execution)
+      def inject_pipeline_schema(schema_block)
+        @pipeline_schema = schema_block
       end
 
       # Context access through dynamic methods - update/set methods removed
@@ -1360,8 +1366,29 @@ module RAAF
 
       # RAAF DSL method - build response schema
       def build_schema
-        # First check if agent has directly defined schema
+        puts "🔍 [Agent Debug] Building schema for #{self.class.name}"
+        puts "📊 [Agent Debug] Pipeline schema present? #{@pipeline_schema.present?}"
+        
+        # First check if pipeline schema is available
+        if @pipeline_schema
+          log_debug "Using schema from pipeline", agent_class: self.class.name
+          puts "✅ [Agent Debug] Using pipeline schema for #{self.class.name}"
+          
+          schema_result = @pipeline_schema.call
+          puts "📊 [Agent Debug] Pipeline schema structure: #{schema_result.inspect[0..800]}..."
+          if schema_result.is_a?(Hash) && schema_result[:config]
+            puts "📊 [Agent Debug] Validation mode: #{schema_result[:config][:mode]}"
+          end
+          if schema_result.is_a?(Hash) && schema_result[:schema] && schema_result[:schema][:properties]
+            puts "📊 [Agent Debug] Schema properties: #{schema_result[:schema][:properties].keys.inspect}"
+          end
+          
+          return schema_result
+        end
+        
+        # Next check if agent has directly defined schema
         if self.class._schema_definition
+          puts "📊 [Agent Debug] Using agent-defined schema for #{self.class.name}"
           return self.class._schema_definition
         end
         
@@ -1369,10 +1396,12 @@ module RAAF
         prompt_spec = determine_prompt_spec
         if prompt_spec && prompt_spec.respond_to?(:has_schema?) && prompt_spec.has_schema?
           log_debug "Using schema from prompt class", prompt_class: prompt_spec.name
+          puts "📊 [Agent Debug] Using prompt class schema for #{self.class.name}"
           return prompt_spec.get_schema
         end
         
         # Fall back to default schema
+        puts "📊 [Agent Debug] Using default schema for #{self.class.name}"
         default_schema
       end
 
@@ -1416,26 +1445,44 @@ module RAAF
       end
 
       def response_format
+        puts "🔍 [Agent Debug] Response format for #{agent_name}"
+        
         # Check if unstructured output is requested
-        return if self.class._agent_config&.dig(:output_format) == :unstructured
+        if self.class._agent_config&.dig(:output_format) == :unstructured
+          puts "📊 [Agent Debug] Unstructured output requested, returning nil"
+          return
+        end
 
         # Check if schema is nil (indicating unstructured output)
         schema_def = build_schema
-        return if schema_def.nil?
+        if schema_def.nil?
+          puts "📊 [Agent Debug] Schema is nil, returning nil response format"
+          return
+        end
 
         # Extract validation mode from schema definition
         validation_mode = schema_def.is_a?(Hash) && schema_def[:config] ? 
                          schema_def[:config][:mode] : :strict
         
+        puts "📊 [Agent Debug] Schema validation mode: #{validation_mode}"
+        puts "📊 [Agent Debug] Using structured output? #{validation_mode == :strict}"
+        
         # In tolerant/partial mode, don't use OpenAI response_format
         # Let the agent return flexible JSON and validate on our side
-        return nil if [:tolerant, :partial].include?(validation_mode)
+        if [:tolerant, :partial].include?(validation_mode)
+          puts "📊 [Agent Debug] Tolerant/partial mode - not using OpenAI structured output"
+          return nil
+        end
         
         # Strict mode uses OpenAI response_format (backward compatible)
         schema_data = schema_def.is_a?(Hash) && schema_def[:schema] ? 
                      schema_def[:schema] : schema_def
         
-        {
+        if schema_data
+          puts "📊 [Agent Debug] Schema being sent to OpenAI: #{schema_data.inspect[0..500]}..."
+        end
+        
+        response_format_obj = {
           type: "json_schema",
           json_schema: {
             name: schema_name,
@@ -1443,6 +1490,9 @@ module RAAF
             schema: schema_data
           }
         }
+        
+        puts "📊 [Agent Debug] Final response_format object created"
+        response_format_obj
       end
 
       def schema_name
@@ -1655,6 +1705,28 @@ module RAAF
         # Build user prompt with context if available
         user_prompt = build_user_prompt_with_context(run_context)
         
+        # ENHANCED DEBUG: Log the prompt being sent
+        puts "\n🎯 [DSL Agent] === PROMPT DETAILS ==="
+        puts "🎯 [DSL Agent] Agent: #{self.class.name}"
+        puts "🎯 [DSL Agent] User Prompt Length: #{user_prompt.to_s.length}"
+        puts "🎯 [DSL Agent] User Prompt (first 500 chars): #{user_prompt.to_s[0..500]}"
+        if user_prompt.to_s.length > 500
+          puts "🎯 [DSL Agent] User Prompt (last 500 chars): #{user_prompt.to_s[-500..-1]}"
+        end
+        
+        # Log context data being passed
+        if run_context && run_context.respond_to?(:to_h)
+          context_hash = run_context.to_h
+          puts "🎯 [DSL Agent] Context Keys: #{context_hash.keys.inspect}"
+          if context_hash['markets'] || context_hash[:markets]
+            markets = context_hash['markets'] || context_hash[:markets]
+            puts "🎯 [DSL Agent] Context Markets Count: #{markets.length}" if markets.respond_to?(:length)
+            if markets.respond_to?(:first) && markets.first
+              puts "🎯 [DSL Agent] First Context Market Keys: #{markets.first.keys.inspect}" if markets.first.respond_to?(:keys)
+            end
+          end
+        end
+        
         # Create RAAF runner and delegate execution
         runner_params = { agent: openai_agent }
         runner_params[:stop_checker] = stop_checker if stop_checker
@@ -1662,7 +1734,31 @@ module RAAF
         runner = RAAF::Runner.new(**runner_params)
         
         # Pure delegation to raaf-ruby
+        puts "🎯 [DSL Agent] === CALLING RAAF RUNNER ==="
         run_result = runner.run(user_prompt, context: run_context)
+        
+        # DEBUG: Show raw AI response before any transformation
+        puts "🎯 [Agent Debug] Raw AI Response for #{agent_name}:"
+        if run_result.respond_to?(:messages)
+          last_message = run_result.messages.reverse.find { |m| m[:role] == "assistant" }
+          if last_message && last_message[:content]
+            puts "📊 [Agent Debug] Raw content type: #{last_message[:content].class}"
+            puts "📊 [Agent Debug] Raw content (first 1500 chars): #{last_message[:content].to_s[0..1500]}"
+            if last_message[:content].is_a?(Hash)
+              puts "📊 [Agent Debug] Content keys: #{last_message[:content].keys.inspect}"
+              if last_message[:content]['markets'] || last_message[:content][:markets]
+                markets = last_message[:content]['markets'] || last_message[:content][:markets]
+                puts "📊 [Agent Debug] Markets count: #{markets.length if markets.is_a?(Array)}"
+                if markets.is_a?(Array) && markets.first
+                  puts "📊 [Agent Debug] First market keys: #{markets.first.keys.inspect}"
+                  puts "📊 [Agent Debug] First market has 'id'? #{markets.first.key?('id')}"
+                  puts "📊 [Agent Debug] First market has :id? #{markets.first.key?(:id)}"
+                  puts "📊 [Agent Debug] First market: #{markets.first.inspect[0..800]}"
+                end
+              end
+            end
+          end
+        end
         
         # Transform result to expected DSL format
         base_result = transform_ai_result(run_result, run_context)
@@ -2048,20 +2144,7 @@ module RAAF
 
         content = last_assistant_message[:content]
 
-        # Since core Agent now handles JSON repair and schema validation automatically,
-        # we can simplify this method. The core Agent's response processing will have
-        # already applied JSON repair and key normalization when enabled.
-        if content.is_a?(String)
-          # Try to parse as JSON, but don't apply additional repair since core handles it
-          begin
-            parsed = JSON.parse(content, symbolize_names: true)
-            parsed
-          rescue JSON::ParserError
-            # If it's not JSON, return as-is (core Agent handles repair internally)
-            content
-          end
-        elsif content.is_a?(Hash)
-          # Symbolize keys for Hashes (from structured outputs)
+        if content.is_a?(Hash)
           deep_symbolize_keys(content)
         else
           content
@@ -2102,10 +2185,29 @@ module RAAF
       def apply_result_transformations(base_result)
         return base_result unless self.class._result_transformations
 
+        # Debug: Show transformation inputs
+        puts "🔄 [Agent Debug] apply_result_transformations for #{agent_name}"
+        puts "📊 [Agent Debug] Base result keys: #{base_result.keys.inspect}" if base_result.respond_to?(:keys)
+        puts "📊 [Agent Debug] Base result type: #{base_result.class}"
+        
         transformations = self.class._result_transformations
+        puts "📊 [Agent Debug] Transformations to apply: #{transformations.keys.inspect}"
+        
         # For AI results, the parsed output is in :parsed_output
         # For other results, it's in :data
         input_data = base_result[:parsed_output] || base_result[:data] || base_result
+        
+        puts "📊 [Agent Debug] Input data type: #{input_data.class}"
+        if input_data.respond_to?(:keys)
+          puts "📊 [Agent Debug] Input data keys: #{input_data.keys.inspect}"
+          if input_data.key?('markets') || input_data.key?(:markets)
+            markets_data = input_data['markets'] || input_data[:markets]
+            puts "📊 [Agent Debug] Input markets found: #{markets_data.length} markets" if markets_data.respond_to?(:length)
+            if markets_data.respond_to?(:first) && markets_data.first
+              puts "📊 [Agent Debug] First market keys: #{markets_data.first.keys.inspect}" if markets_data.first.respond_to?(:keys)
+            end
+          end
+        end
 
         transformed_result = {}
         metadata = {}
@@ -2142,9 +2244,23 @@ module RAAF
         # Merge transformed fields into the original result structure
         # This preserves all original fields (like workflow_status, results, etc.)
         # while adding the new transformed fields
-        base_result.merge(transformed_result).merge(
+        final_result = base_result.merge(transformed_result).merge(
           transformation_metadata: metadata
         )
+        
+        # Debug: Show transformation outputs
+        puts "✅ [Agent Debug] Transformation completed for #{agent_name}"
+        puts "📊 [Agent Debug] Transformed result keys: #{final_result.keys.inspect}"
+        puts "📊 [Agent Debug] Transformation metadata: #{metadata.inspect}"
+        if final_result.key?('markets') || final_result.key?(:markets)
+          markets_output = final_result['markets'] || final_result[:markets]
+          puts "📊 [Agent Debug] Output markets: #{markets_output.length} markets" if markets_output.respond_to?(:length)
+          if markets_output.respond_to?(:first) && markets_output.first
+            puts "📊 [Agent Debug] First output market keys: #{markets_output.first.keys.inspect}" if markets_output.first.respond_to?(:keys)
+          end
+        end
+        
+        final_result
       end
 
       def extract_field_value(input_data, field_config)

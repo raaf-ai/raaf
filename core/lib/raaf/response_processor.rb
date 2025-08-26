@@ -6,6 +6,7 @@ require_relative "logging"
 require_relative "step_errors"
 require_relative "items"
 require_relative "utils"
+require_relative "schema_validator"
 
 module RAAF
 
@@ -323,10 +324,25 @@ module RAAF
     # Create message item from response
     #
     def create_message_item(item, agent)
+      content = item[:content] || ""
+      
+      # Extract JSON from markdown-wrapped responses for schema validation
+      if content.is_a?(String) && content.include?("```")
+        extracted_json = RAAF::JsonRepair.extract_json_from_content(content)
+        if extracted_json && extracted_json.is_a?(Hash)
+          # Use existing SchemaValidator to normalize keys
+          # Creates minimal validator just for key normalization
+          normalizer = RAAF::SchemaValidator.new({}, mode: :tolerant)
+          content = normalizer.normalize_data_keys(extracted_json)
+        elsif extracted_json
+          content = extracted_json
+        end
+      end
+      
       raw_item = {
         type: "message",
         role: item[:role] || "assistant",
-        content: item[:content] || "",
+        content: content,
         agent: agent.name
       }
       Items::MessageOutputItem.new(agent: agent, raw_item: raw_item)

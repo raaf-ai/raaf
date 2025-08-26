@@ -420,6 +420,67 @@ end
 
 👉 **[Complete Pipeline DSL Guide](docs/PIPELINE_DSL_GUIDE.md)** - Comprehensive documentation with patterns, troubleshooting, and best practices
 
+### Pipeline Schema Validation
+
+RAAF pipelines support unified schema validation across all agents, ensuring consistent data structures throughout your workflow:
+
+```ruby
+class DataProcessingPipeline < RAAF::Pipeline
+  flow DataAnalyzer >> ReportGenerator >> SummaryCreator
+  
+  # Define shared schema for all agents in this pipeline
+  pipeline_schema do
+    field :company_name, type: :string, required: true
+    field :analysis_data, type: :object, required: true
+    field :confidence_score, type: :number
+    field :metadata, type: :object
+    
+    # Choose validation mode for all agents
+    validate_mode :tolerant  # :strict, :tolerant, or :partial
+  end
+  
+  context do
+    default :analysis_depth, "standard"
+  end
+end
+
+# Usage - all agents automatically inherit the pipeline schema
+pipeline = DataProcessingPipeline.new(
+  raw_data: "Tesla Inc automotive data...",
+  analysis_depth: "detailed"
+)
+result = pipeline.run
+
+# All agents return consistently structured data
+puts result[:company_name]      # "Tesla Inc" (normalized from any variant)
+puts result[:analysis_data]     # Structured analysis object  
+puts result[:confidence_score]  # Numeric confidence value
+```
+
+**Key Features:**
+
+- **Unified Schema**: Single schema definition shared across all pipeline agents
+- **Automatic JSON Repair**: Handles malformed JSON, trailing commas, markdown wrapping
+- **Smart Key Normalization**: `"Company Name"` → `:company_name` automatically
+- **Schema Priority**: Agents can override pipeline schema with their own if needed
+- **Flexible Validation**: Choose strict, tolerant, or partial validation modes
+- **Nested Objects**: Support for complex data structures and arrays
+
+**Schema Inheritance:**
+```ruby
+# Agent can override pipeline schema when needed
+class SpecializedAnalyzer < RAAF::DSL::Agent
+  # This agent uses its own schema instead of pipeline schema
+  schema do
+    field :specialized_result, type: :array, required: true
+    field :analysis_method, type: :string, required: true
+    validate_mode :strict  # Can use different validation mode
+  end
+end
+
+# Priority order: Agent schema > Pipeline schema > No schema
+```
+
 ### Vector Search Example
 
 ```ruby

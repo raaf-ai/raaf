@@ -1469,7 +1469,7 @@ module RAAF
 
         # Add message to context wrapper only if we have actual content
         # For Responses API, content is in the output array, not top-level
-        response_content = extract_assistant_content_from_response(response)
+        response_content = extract_assistant_content_from_response(response, state[:current_agent])
 
         # Run output guardrails on the response content
         if response_content && !response_content.empty?
@@ -1812,7 +1812,14 @@ module RAAF
     end
 
     # Extract assistant content from OpenAI Responses API format
-    def extract_assistant_content_from_response(response)
+    # 
+    # This method now handles JSON parsing when the agent expects structured output
+    # but receives unstructured text with JSON wrapped in markdown code blocks.
+    #
+    # @param response [Hash] The API response from the provider
+    # @param agent [Agent, nil] The agent that made the request (for response_format checking)
+    # @return [String, Hash, Array] Extracted content, parsed as JSON if appropriate
+    def extract_assistant_content_from_response(response, agent = nil)
       output = response[:output] || response["output"] || []
       assistant_content = ""
 
@@ -1842,6 +1849,18 @@ module RAAF
           elsif content.is_a?(String)
             assistant_content += content
           end
+        end
+      end
+
+      # NEW: Parse JSON if agent expects structured output or content looks like JSON
+      if agent && (agent.response_format || expects_json_content?(assistant_content))
+        parsed_content = extract_and_parse_json(assistant_content)
+        if parsed_content
+          log_debug("🔄 Parsed JSON from AI response in tolerant validation mode",
+                    agent: agent.name,
+                    original_length: assistant_content.length,
+                    parsed_type: parsed_content.class.name)
+          return parsed_content
         end
       end
 
@@ -2884,6 +2903,81 @@ module RAAF
                 total_messages: session.messages.size,
                 last_agent: result.last_agent&.name,
                 memory_stored: !@memory_manager.nil?)
+    end
+
+    ##
+    # Check if content appears to contain JSON that should be parsed
+    #
+    # @param content [String] The content to check
+    # @return [Boolean] true if content looks like it contains JSON
+    #
+    def expects_json_content?(content)
+      return false unless content.is_a?(String)
+      content.strip.match?(/^```(?:json)?\s*\n?\{/) || 
+      content.strip.match?(/^\{.*\}$/m)
+    end
+
+    ##
+    # Extract and parse JSON from content, handling markdown code blocks
+    #
+    # This method handles the case where AI returns JSON wrapped in markdown
+    # code blocks when structured outputs are disabled but JSON is expected.
+    #
+    # @param content [String] The content potentially containing JSON
+    # @return [Hash, Array, nil] Parsed JSON data or nil if parsing fails
+    #
+    def extract_and_parse_json(content)
+      return content unless content.is_a?(String)
+      
+      # Try to extract JSON from markdown blocks first
+      json_match = content.match(/```(?:json)?\s*\n?(.*?)\n?```/m)
+      json_str = json_match ? json_match[1] : content.strip
+      
+      begin
+        parsed = JSON.parse(json_str, symbolize_names: true)
+        
+        # Always normalize keys with spaces to snake_case for all agents
+        normalized = normalize_json_keys(parsed)
+        
+        log_debug("✅ Successfully parsed and normalized JSON from AI response", 
+                  content_type: normalized.class.name,
+                  content_size: json_str.length)
+        normalized
+      rescue JSON::ParserError => e
+        log_debug("⚠️ Failed to parse JSON from AI response", 
+                  error: e.message,
+                  content_preview: json_str[0..200])
+        nil
+      end
+    end
+
+    ##
+    # Normalize JSON keys with spaces to snake_case symbols
+    #
+    # Recursively processes Hash and Array structures to convert keys like
+    # :"Market Name" to :market_name using the RAAF Utils.snake_case method.
+    #
+    # @param data [Object] The data structure to normalize
+    # @return [Object] The normalized data structure
+    #
+    def normalize_json_keys(data)
+      case data
+      when Hash
+        data.transform_keys do |key|
+          key_str = key.to_s
+          # Convert keys with spaces to snake_case
+          if key_str.include?(' ')
+            # Use the existing Utils.snake_case method for consistency
+            Utils.snake_case(key_str).to_sym
+          else
+            key.is_a?(String) ? key.to_sym : key
+          end
+        end.transform_values { |v| normalize_json_keys(v) }
+      when Array
+        data.map { |item| normalize_json_keys(item) }
+      else
+        data
+      end
     end
 
   end

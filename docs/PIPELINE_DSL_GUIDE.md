@@ -3,11 +3,12 @@
 ## Table of Contents
 
 1. [Getting Started with Pipeline DSL](#getting-started-with-pipeline-dsl)
-2. [Cookbook: Common Pipeline Patterns](#cookbook-common-pipeline-patterns)
-3. [Best Practices for Agent Field Naming](#best-practices-for-agent-field-naming)
-4. [Troubleshooting Field Mismatches](#troubleshooting-field-mismatches)
-5. [Performance Optimization](#performance-optimization)
-6. [Pipeline Testing Strategies](#pipeline-testing-strategies)
+2. [Pipeline Schema Validation](#pipeline-schema-validation)
+3. [Cookbook: Common Pipeline Patterns](#cookbook-common-pipeline-patterns)
+4. [Best Practices for Agent Field Naming](#best-practices-for-agent-field-naming)
+5. [Troubleshooting Field Mismatches](#troubleshooting-field-mismatches)
+6. [Performance Optimization](#performance-optimization)
+7. [Pipeline Testing Strategies](#pipeline-testing-strategies)
 
 ---
 
@@ -83,6 +84,327 @@ result = pipeline.run
 
 # 3. Access results from the final context
 puts result[:final_output]
+```
+
+---
+
+## Pipeline Schema Validation
+
+### Overview
+
+Pipeline schema validation provides a unified way to ensure consistent data structures across all agents in a pipeline. When you define a `pipeline_schema` at the pipeline level, it gets automatically injected into all agents during execution, ensuring consistent AI response formats throughout your workflow.
+
+### Why Use Pipeline Schema?
+
+- **Consistency**: All agents in the pipeline use the same response schema
+- **Validation**: Automatic JSON repair and field normalization across the entire pipeline
+- **Maintainability**: Single source of truth for data structure
+- **Flexibility**: Agents can still override with their own schema if needed
+
+### Basic Pipeline Schema Definition
+
+```ruby
+class DataProcessingPipeline < RAAF::Pipeline
+  flow DataAnalyzer >> ReportGenerator >> SummaryCreator
+  
+  # Define shared schema for all agents in this pipeline
+  pipeline_schema do
+    field :company_name, type: :string, required: true
+    field :analysis_data, type: :object, required: true
+    field :confidence_score, type: :number
+    field :metadata, type: :object
+    
+    # Choose validation mode for all agents
+    validate_mode :tolerant  # :strict, :tolerant, or :partial
+  end
+  
+  context do
+    default :analysis_depth, "standard"
+  end
+end
+
+# Usage - all agents automatically inherit the pipeline schema
+pipeline = DataProcessingPipeline.new(
+  raw_data: "Tesla Inc automotive data...",
+  analysis_depth: "detailed"
+)
+result = pipeline.run
+
+# All agents return consistently structured data
+puts result[:company_name]      # "Tesla Inc" (normalized from any variant)
+puts result[:analysis_data]     # Structured analysis object  
+puts result[:confidence_score]  # Numeric confidence value
+```
+
+### Schema Inheritance and Override
+
+```ruby
+class AdvancedPipeline < RAAF::Pipeline
+  flow DataCollector >> SpecializedAnalyzer >> StandardReporter
+  
+  # Pipeline-wide schema
+  pipeline_schema do
+    field :base_data, type: :object, required: true
+    field :processed_at, type: :string
+    validate_mode :tolerant
+  end
+end
+
+# Agent can override pipeline schema if needed
+class SpecializedAnalyzer < RAAF::DSL::Agent
+  agent_name "SpecializedAnalyzer"
+  model "gpt-4o"
+  
+  # This agent uses its own schema instead of pipeline schema
+  schema do
+    field :specialized_result, type: :array, required: true
+    field :analysis_method, type: :string, required: true
+    validate_mode :strict  # Can use different validation mode
+  end
+  
+  instructions "Perform specialized analysis requiring strict schema"
+end
+
+# Other agents in the pipeline still use the pipeline schema
+# Only SpecializedAnalyzer uses its custom schema
+```
+
+### Schema Priority Order
+
+RAAF follows this priority order when determining which schema to use:
+
+1. **Agent-defined schema** (highest priority) - `schema do ... end` in agent class
+2. **Pipeline-injected schema** - `pipeline_schema do ... end` from pipeline  
+3. **No schema** (lowest priority) - Agent runs without response validation
+
+```ruby
+class SchemaTestPipeline < RAAF::Pipeline
+  flow AgentWithSchema >> AgentWithoutSchema >> AnotherAgentWithoutSchema
+  
+  # This schema will be used by agents that don't define their own
+  pipeline_schema do
+    field :shared_output, type: :string, required: true
+    field :pipeline_metadata, type: :object
+  end
+end
+
+class AgentWithSchema < RAAF::DSL::Agent
+  # This agent ignores pipeline schema and uses its own
+  schema do
+    field :custom_field, type: :string, required: true
+  end
+end
+
+# AgentWithoutSchema and AnotherAgentWithoutSchema will use pipeline schema
+# AgentWithSchema uses its own schema definition
+```
+
+### Complex Schema Patterns
+
+#### Nested Object Validation
+
+```ruby
+class ComplexDataPipeline < RAAF::Pipeline
+  flow DataExtractor >> DataEnricher >> DataValidator
+  
+  pipeline_schema do
+    field :company, type: :object do
+      field :name, type: :string, required: true
+      field :sector, type: :string, required: true
+      field :employees, type: :integer
+      field :locations, type: :array do
+        items type: :object do
+          field :city, type: :string, required: true
+          field :country, type: :string, required: true
+          field :employee_count, type: :integer
+        end
+      end
+    end
+    
+    field :analysis, type: :object do
+      field :risk_score, type: :number, required: true
+      field :growth_potential, type: :string, required: true
+      field :market_position, type: :string
+    end
+    
+    validate_mode :tolerant
+  end
+end
+```
+
+#### Conditional Schema Fields
+
+```ruby
+class ConditionalSchemaPipeline < RAAF::Pipeline
+  flow DataAnalyzer >> ConditionalProcessor >> FinalReporter
+  
+  pipeline_schema do
+    field :base_analysis, type: :object, required: true
+    
+    # Optional fields that may or may not be populated
+    field :detailed_metrics, type: :object
+    field :risk_assessment, type: :object
+    field :growth_projections, type: :array
+    
+    # Use partial mode to handle optional data gracefully
+    validate_mode :partial
+  end
+  
+  context do
+    default :include_detailed_analysis, false
+    default :include_risk_assessment, true
+  end
+end
+```
+
+### Schema Validation Modes in Pipelines
+
+#### Pipeline-wide Validation Strategy
+
+```ruby
+class StrictPipeline < RAAF::Pipeline
+  flow CriticalDataProcessor >> ComplianceValidator >> AuditReporter
+  
+  # All agents must return exactly these fields
+  pipeline_schema do
+    field :compliance_status, type: :string, required: true
+    field :audit_trail, type: :array, required: true
+    field :risk_level, type: :string, required: true
+    
+    validate_mode :strict  # Enforces exact schema compliance
+  end
+end
+
+class FlexiblePipeline < RAAF::Pipeline  
+  flow DataCollector >> FlexibleAnalyzer >> AdaptiveReporter
+  
+  # Agents can return additional fields, missing optionals are OK
+  pipeline_schema do
+    field :core_data, type: :object, required: true
+    field :analysis_results, type: :object
+    field :additional_insights, type: :array
+    
+    validate_mode :tolerant  # Required fields strict, others flexible
+  end
+end
+
+class ResilientPipeline < RAAF::Pipeline
+  flow UnreliableSource >> BestEffortProcessor >> RobustReporter
+  
+  # Use whatever validates, ignore what doesn't
+  pipeline_schema do
+    field :primary_data, type: :object, required: true
+    field :secondary_data, type: :object
+    field :metadata, type: :object
+    
+    validate_mode :partial  # Most forgiving, handles unreliable data
+  end
+end
+```
+
+### Debugging Schema Issues
+
+#### Schema Inspection Tools
+
+```ruby
+class DebugSchemaPipeline < RAAF::Pipeline
+  flow DataAgent >> AnalysisAgent >> ReportAgent
+  
+  pipeline_schema do
+    field :debug_data, type: :object, required: true
+    field :processing_info, type: :object
+  end
+  
+  # Add debugging to see schema usage
+  after_run do |result|
+    puts "=== PIPELINE SCHEMA DEBUG ==="
+    puts "Final result keys: #{result.keys}"
+    puts "Schema validation results:"
+    
+    # Log schema validation info
+    if result[:_schema_validation]
+      result[:_schema_validation].each do |agent, validation|
+        puts "  #{agent}: #{validation[:status]} - #{validation[:errors]&.join(', ')}"
+      end
+    end
+  end
+end
+```
+
+#### Mixed Schema Debugging
+
+```ruby
+# Debug pipeline with mixed schema sources
+class MixedSchemaPipeline < RAAF::Pipeline
+  flow AgentWithOwnSchema >> AgentUsingPipelineSchema >> AnotherPipelineAgent
+  
+  pipeline_schema do
+    field :shared_field, type: :string, required: true
+    field :common_metadata, type: :object
+  end
+end
+
+# Agent that uses its own schema
+class AgentWithOwnSchema < RAAF::DSL::Agent
+  schema do
+    field :custom_output, type: :array, required: true
+    field :agent_specific_data, type: :object
+  end
+  
+  def run
+    result = super
+    log_info "Using custom schema: #{build_schema.keys}"
+    result
+  end
+end
+
+# These agents will use pipeline schema
+class AgentUsingPipelineSchema < RAAF::DSL::Agent
+  def run
+    result = super
+    log_info "Using pipeline schema: #{build_schema.keys}" 
+    result
+  end
+end
+```
+
+### Best Practices for Pipeline Schema
+
+1. **Start with Required Fields**: Define only the fields you absolutely need across all agents
+2. **Use Tolerant Mode**: Provides the best balance of validation and flexibility
+3. **Keep Schema Simple**: Complex nested schemas can be hard to debug
+4. **Document Field Purposes**: Use clear field names and add comments
+5. **Test Schema Changes**: Verify that all agents can produce the expected schema
+
+```ruby
+# Example of well-designed pipeline schema
+class WellDesignedPipeline < RAAF::Pipeline
+  flow DataIngestion >> CoreAnalysis >> ReportGeneration
+  
+  # Clear, simple schema with good field names
+  pipeline_schema do
+    # Core business data - required across all agents
+    field :business_entity, type: :object, required: true
+    field :analysis_timestamp, type: :string, required: true
+    
+    # Optional enrichment data - may be added by different agents
+    field :financial_metrics, type: :object      # Added by DataIngestion
+    field :risk_analysis, type: :object          # Added by CoreAnalysis  
+    field :executive_summary, type: :string      # Added by ReportGeneration
+    
+    # Metadata for debugging and auditing
+    field :processing_metadata, type: :object
+    
+    # Tolerant mode allows agents to add extra fields while enforcing required ones
+    validate_mode :tolerant
+  end
+  
+  context do
+    # Clear defaults that work with the schema
+    default :analysis_level, "standard"
+    default :include_metadata, true
+  end
+end
 ```
 
 ---
