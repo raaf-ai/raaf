@@ -128,7 +128,7 @@ puts result.messages.last[:content]
 ### Structured Output Example
 
 ```ruby
-# Universal structured output across ALL providers
+# Universal structured output across ALL providers with smart field mapping
 agent = RAAF::Agent.new(
   name: "DataExtractor",
   instructions: "Extract user information as JSON.",
@@ -160,6 +160,148 @@ result = runner.run("I'm Alice, 25, alice@example.com")
 user_data = JSON.parse(result.messages.last[:content])
 puts "Hello #{user_data['name']}, age #{user_data['age']}!"
 ```
+
+### Advanced Schema Validation with Smart Key Mapping
+
+RAAF agents include powerful schema validation with automatic key normalization:
+
+```ruby
+# Create a DSL agent with flexible schema validation
+class CompanyExtractor < RAAF::DSL::Agent
+  agent_name "CompanyExtractor"
+  model "gpt-4o"
+  
+  # Define schema with snake_case fields
+  schema do
+    field :company_name, type: :string, required: true
+    field :market_sector, type: :string, required: true
+    field :employee_count, type: :integer
+    field :annual_revenue, type: :number
+    
+    # Configure validation mode for flexible field mapping
+    validate_mode :tolerant  # :strict, :tolerant, or :partial
+  end
+  
+  instructions "Extract company information from the text"
+end
+
+# LLM can use natural language field names that get automatically mapped
+agent = CompanyExtractor.new
+result = agent.run(<<~TEXT
+  ACME Corporation is a technology company in the software sector.
+  They have around 500 employees and $50M annual revenue.
+TEXT)
+
+# Even if LLM returns fields like "Company Name", "Market Sector", "Employee Count"
+# They get automatically normalized to :company_name, :market_sector, :employee_count
+puts result[:company_name]    # "ACME Corporation"
+puts result[:market_sector]   # "software"
+puts result[:employee_count]  # 500
+```
+
+**Key Features:**
+
+- **Smart Key Normalization**: `"Company Name"` → `:company_name`, `"API-Key"` → `:api_key`
+- **Three Validation Modes**:
+  - `:strict` - All fields must match exactly (default)
+  - `:tolerant` - Required fields strict, others flexible (recommended)
+  - `:partial` - Use whatever validates, ignore invalid fields
+- **JSON Repair**: Handles malformed JSON, markdown-wrapped responses, trailing commas
+- **Nested Schema Support**: Works with complex nested objects and arrays
+- **Comprehensive Metrics**: Track parsing success rates and common failures
+
+### JSON Handling and Repair
+
+RAAF agents automatically handle malformed JSON responses from LLMs:
+
+```ruby
+# The JsonRepair module handles common LLM output issues automatically
+class DataProcessor < RAAF::DSL::Agent
+  agent_name "DataProcessor"
+  model "gpt-4o"
+  
+  schema do
+    field :processed_data, type: :object
+    field :summary, type: :string
+    validate_mode :tolerant
+  end
+end
+
+# These malformed responses are automatically repaired:
+
+# 1. JSON with trailing commas
+# LLM Output: '{"name": "John", "age": 25,}'
+# Auto-repaired to: {"name": "John", "age": 25}
+
+# 2. JSON wrapped in markdown
+# LLM Output: '```json\n{"valid": true}\n```'  
+# Auto-extracted: {"valid": true}
+
+# 3. Mixed content with JSON
+# LLM Output: 'Here is the data: {"name": "Alice"} as requested.'
+# Auto-extracted: {"name": "Alice"}
+
+# 4. Single quotes instead of double quotes  
+# LLM Output: "{'name': 'Bob', 'active': true}"
+# Auto-repaired to: {"name": "Bob", "active": true}
+
+agent = DataProcessor.new
+result = agent.run("Process this data and return as JSON")
+
+# All repairs happen automatically - you always get clean, parsed data
+puts result[:processed_data]  # Hash with symbolized keys
+```
+
+## Core vs DSL Agents: JSON Handling
+
+**Great News**: JSON repair and schema validation features are now available in **both Core and DSL agents**!
+
+### Core Agents (RAAF::Agent)
+- **Configurable JSON parsing**: Enable fault-tolerant parsing with `json_repair: true`
+- **Smart key normalization**: Enable with `normalize_keys: true`
+- **Multiple validation modes**: Choose `:strict`, `:tolerant`, or `:partial`
+- **Backward compatible**: Default behavior remains strict for existing code
+
+```ruby
+# Core agent with JSON repair and key normalization
+agent = RAAF::Agent.new(
+  name: "DataExtractor", 
+  instructions: "Extract company data",
+  model: "gpt-4o",
+  json_repair: true,      # Enable fault-tolerant JSON parsing
+  normalize_keys: true,   # Enable automatic key normalization
+  validation_mode: :tolerant,  # Allow flexible validation
+  response_format: { 
+    type: "json_schema",
+    json_schema: {
+      properties: {
+        company_name: { type: "string" },
+        employee_count: { type: "integer" }
+      }
+    }
+  }
+)
+```
+
+### DSL Agents (RAAF::DSL::Agent)
+- **Automatic JSON repair**: Enabled by default in DSL context
+- **Built-in key normalization**: Seamlessly maps natural language field names
+- **Schema DSL**: Declarative schema definition with validation modes
+- **Best for**: Rapid development and complex data extraction workflows
+
+```ruby
+# DSL agent - enhanced with declarative syntax
+class FlexibleExtractor < RAAF::DSL::Agent
+  schema do
+    field :company_name, type: :string, required: true
+    field :employee_count, type: :integer
+    validate_mode :tolerant  # Built into schema DSL
+  end
+end
+```
+
+**Choose Core agents** for maximum control and configuration flexibility.  
+**Choose DSL agents** for rapid development with declarative schemas.
 
 ### Multi-Agent Example
 

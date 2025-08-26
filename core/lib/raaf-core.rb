@@ -32,6 +32,8 @@ require_relative "raaf/conversation_manager"
 require_relative "raaf/executor_factory"
 require_relative "raaf/run_executor"
 require_relative "raaf/unified_step_executor"
+require_relative "raaf/json_repair"
+require_relative "raaf/schema_validator"
 require_relative "raaf/agent"
 
 # Try to load retry provider functionality if available

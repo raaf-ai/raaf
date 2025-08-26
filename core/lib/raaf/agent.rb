@@ -140,8 +140,14 @@ module RAAF
     #   @return [Object, nil] dependency injection object for agent run context (compatible with Python SDK)
     # @!attribute [rw] reset_tool_choice
     #   @return [Boolean] whether to reset tool_choice to nil after tool calls (default: true, compatible with Python SDK)
+    # @!attribute [rw] json_repair
+    #   @return [Boolean] whether to use fault-tolerant JSON parsing for agent responses
+    # @!attribute [rw] normalize_keys
+    #   @return [Boolean] whether to normalize field names to match schema expectations
+    # @!attribute [rw] validation_mode
+    #   @return [Symbol] validation mode for schema validation (:strict, :tolerant, :partial)
     attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt,
-                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff
+                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff, :json_repair, :normalize_keys, :validation_mode
 
     ##
     # Creates a new Agent instance
@@ -219,6 +225,11 @@ module RAAF
       @model_settings = ModelSettings.from_hash(options[:model_settings]) if options[:model_settings]
       @context = options[:context]
       @on_handoff = options[:on_handoff]
+      
+      # JSON processing and schema validation options
+      @json_repair = options.fetch(:json_repair, false)
+      @normalize_keys = options.fetch(:normalize_keys, false) 
+      @validation_mode = options.fetch(:validation_mode, :strict)
 
       # Memory system integration (only use if Memory module is available)
       @memory_store = if options[:memory_store]
@@ -1060,8 +1071,14 @@ module RAAF
       @output_type_schema = if @output_type.is_a?(AgentOutputSchemaBase)
                               @output_type
                             else
-                              # Create an AgentOutputSchema from the type
-                              AgentOutputSchema.new(@output_type, strict_json_schema: true)
+                              # Create an AgentOutputSchema from the type with new JSON processing options
+                              AgentOutputSchema.new(
+                                @output_type, 
+                                strict_json_schema: true,
+                                json_repair: @json_repair,
+                                normalize_keys: @normalize_keys,
+                                validation_mode: @validation_mode
+                              )
                             end
     rescue StandardError => e
       log_warn("Could not configure output type: #{e.message}", agent: @name, error_class: e.class.name)

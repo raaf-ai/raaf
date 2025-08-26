@@ -8,8 +8,8 @@ require_relative "config/config"
 require_relative "core/context_variables"
 require_relative "context_access"
 require_relative "context_configuration"
-require_relative "json_repair"
-require_relative "schema_validator"
+# JsonRepair and SchemaValidator are now loaded automatically via raaf-core
+# No need for explicit requires since raaf-core is already loaded in raaf-dsl.rb
 require_relative "pipelineable"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
@@ -1541,8 +1541,9 @@ module RAAF
         # Add output fields as nil (new DSL)
         if rules[:output]
           rules[:output].each do |key|
-            # Initialize output fields as nil to prevent NameError on access
-            builder.with(key, nil)
+            # Initialize output fields as nil to prevent NameError on access during agent execution
+            # BUT only if not already provided in params to avoid overwriting existing data from pipeline context
+            builder.with(key, nil) unless params.key?(key)
           end
         end
         
@@ -1886,90 +1887,21 @@ module RAAF
       def parse_ai_response(content)
         return content unless content.is_a?(String)
         
-        # Get schema configuration for validation mode
-        schema_def = build_schema
-        validation_mode = schema_def && schema_def.is_a?(Hash) && schema_def[:config] ? 
-                         schema_def[:config][:mode] : :strict
-        
-        # Strict mode - use original behavior for backward compatibility
-        if validation_mode == :strict
-          begin
-            parsed = JSON.parse(content, symbolize_names: true)
-            return { success: true, data: parsed }
-          rescue JSON::ParserError => e
-            log_error "❌ [#{self.class.name}] JSON parsing failed: #{e.message}"
-            return { success: false, error: "Failed to parse AI response", raw_content: content }
-          end
-        end
-        
-        # Tolerant/Partial mode - use fault-tolerant parsing
-        result = fault_tolerant_parse(content, schema_def)
-        
-        if result[:valid] || result[:partial]
-          { 
-            success: true, 
-            data: result[:data], 
-            warnings: result[:warnings],
-            partial: result[:partial]
-          }
-        else
-          log_to_dead_letter(content, result[:errors])
-          { 
-            success: false, 
-            error: "Unable to parse or validate response", 
-            errors: result[:errors], 
-            raw_content: content 
-          }
+        # Since core Agent now handles JSON repair and schema validation automatically
+        # when configured, we can simplify this to basic JSON parsing with graceful fallback
+        begin
+          parsed = JSON.parse(content, symbolize_names: true)
+          { success: true, data: parsed }
+        rescue JSON::ParserError => e
+          log_debug "ℹ️ [#{self.class.name}] Content is not JSON, returning as-is: #{e.message}"
+          # Return content as-is since core Agent handles repair when needed
+          { success: true, data: content }
         end
       end
 
-      # Fault-tolerant parsing with JSON repair and schema validation
-      def fault_tolerant_parse(content, schema_def)
-        # Try JSON repair first
-        repaired = JsonRepair.repair(content)
-        
-        unless repaired
-          return {
-            valid: false,
-            errors: ["Unable to parse JSON from content"],
-            data: {},
-            warnings: [],
-            partial: false
-          }
-        end
-        
-        # If we have a schema, validate against it
-        if schema_def && schema_def.is_a?(Hash)
-          validator = SchemaValidator.new(
-            schema_def[:schema],
-            mode: schema_def[:config][:mode],
-            repair_attempts: schema_def[:config][:repair_attempts] || 2
-          )
-          
-          validation_result = validator.validate(repaired)
-          
-          # Log metrics for observability
-          if validation_result[:valid] || validation_result[:partial]
-            log_debug "✅ [#{self.class.name}] Schema validation successful",
-                     mode: schema_def[:config][:mode],
-                     warnings: validation_result[:warnings]&.length || 0
-          else
-            log_warn "⚠️ [#{self.class.name}] Schema validation failed",
-                    errors: validation_result[:errors],
-                    mode: schema_def[:config][:mode]
-          end
-          
-          validation_result
-        else
-          # No schema - just return the repaired JSON
-          {
-            valid: true,
-            data: repaired,
-            warnings: [],
-            partial: false
-          }
-        end
-      end
+      # Note: fault_tolerant_parse functionality has been moved to core Agent
+      # The core Agent now handles JSON repair and schema validation automatically
+      # when json_repair, normalize_keys, and validation_mode options are set
 
       # Log unparseable content for debugging and analysis
       def log_to_dead_letter(content, errors)
@@ -2027,12 +1959,21 @@ module RAAF
         # Build handoffs if configured
         handoff_agents = handoffs
 
+        # Get schema configuration to determine JSON repair options
+        schema_def = build_schema
+        validation_mode = schema_def && schema_def.is_a?(Hash) && schema_def[:config] ? 
+                         schema_def[:config][:mode] : :strict
+
         # Build base configuration
         agent_config = {
           name: agent_name,
           instructions: build_instructions,
           model: model_name,
-          max_turns: max_turns
+          max_turns: max_turns,
+          # Pass JSON repair and schema validation options to core Agent
+          json_repair: [:tolerant, :partial].include?(validation_mode),
+          normalize_keys: [:tolerant, :partial].include?(validation_mode),
+          validation_mode: validation_mode
         }
 
         # Add response format if structured output is requested
@@ -2107,12 +2048,16 @@ module RAAF
 
         content = last_assistant_message[:content]
 
-        # Try to parse as JSON if it looks like JSON
-        if content.is_a?(String) && (content.start_with?("{") || content.start_with?("["))
+        # Since core Agent now handles JSON repair and schema validation automatically,
+        # we can simplify this method. The core Agent's response processing will have
+        # already applied JSON repair and key normalization when enabled.
+        if content.is_a?(String)
+          # Try to parse as JSON, but don't apply additional repair since core handles it
           begin
-            # Parse JSON with symbolized keys for consistent internal processing
-            JSON.parse(content, symbolize_names: true)
+            parsed = JSON.parse(content, symbolize_names: true)
+            parsed
           rescue JSON::ParserError
+            # If it's not JSON, return as-is (core Agent handles repair internally)
             content
           end
         elsif content.is_a?(Hash)

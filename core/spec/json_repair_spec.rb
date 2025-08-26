@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../lib/raaf/dsl/json_repair'
+require_relative '../lib/raaf/json_repair'
 
-RSpec.describe RAAF::DSL::JsonRepair do
+RSpec.describe RAAF::JsonRepair do
   describe ".repair" do
     context "with valid JSON" do
       it "returns parsed hash for valid JSON string" do

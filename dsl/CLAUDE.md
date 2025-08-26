@@ -236,6 +236,105 @@ end
 # end
 ```
 
+### Schema Validation with Smart Key Mapping
+
+RAAF DSL includes powerful schema validation that automatically handles LLM field name variations:
+
+```ruby
+# Define agents with flexible schema validation
+class CompanyAnalyzer < RAAF::DSL::Agent
+  agent_name "CompanyAnalyzer"
+  model "gpt-4o"
+  
+  # Define schema with Ruby naming conventions
+  schema do
+    field :company_name, type: :string, required: true
+    field :market_sector, type: :string, required: true
+    field :employee_count, type: :integer
+    field :annual_revenue, type: :number
+    field :headquarters_location, type: :string
+    
+    # Choose validation mode
+    validate_mode :tolerant  # :strict, :tolerant, or :partial
+  end
+  
+  instructions "Analyze company information and extract key details"
+end
+
+# LLMs can use natural language field names - they get automatically mapped
+agent = CompanyAnalyzer.new
+result = agent.run("Tesla Inc is an automotive company with 127,000 employees...")
+
+# Even if LLM returns:
+# {
+#   "Company Name": "Tesla Inc",
+#   "Market Sector": "automotive", 
+#   "Employee Count": 127000,
+#   "HQ Location": "Austin, Texas"
+# }
+#
+# You get normalized output:
+puts result[:company_name]          # "Tesla Inc"
+puts result[:market_sector]         # "automotive"  
+puts result[:employee_count]        # 127000
+puts result[:headquarters_location] # "Austin, Texas"
+```
+
+### JSON Repair and Error Handling
+
+```ruby
+# RAAF automatically handles malformed JSON from LLMs
+class DataExtractor < RAAF::DSL::Agent
+  agent_name "DataExtractor"
+  model "gpt-4o"
+  
+  schema do
+    field :extracted_data, type: :object
+    field :confidence, type: :number
+    validate_mode :partial  # Most forgiving mode
+  end
+end
+
+# These problematic responses are automatically fixed:
+# 1. '{"name": "John",}' → {"name": "John"}  (trailing comma removed)
+# 2. '```json\n{"valid": true}\n```' → {"valid": true}  (markdown extracted)
+# 3. "{'key': 'value'}" → {"key": "value"}  (single quotes fixed)
+# 4. Mixed text with embedded JSON gets extracted automatically
+
+agent = DataExtractor.new
+result = agent.run("Extract the user data from this messy text...")
+
+# Always get clean, parsed data regardless of LLM output quality
+```
+
+### Validation Mode Comparison
+
+```ruby
+# :strict mode (default) - All fields must match exactly
+schema do
+  field :name, type: :string, required: true
+  validate_mode :strict
+end
+# LLM must return exactly {"name": "value"} or validation fails
+
+# :tolerant mode (recommended) - Required fields strict, others flexible  
+schema do
+  field :name, type: :string, required: true
+  field :age, type: :integer
+  validate_mode :tolerant
+end
+# LLM can return {"Name": "John", "Age": 25, "ExtraField": "ignored"}
+# Gets normalized to {name: "John", age: 25}
+
+# :partial mode - Use whatever validates, ignore the rest
+schema do
+  field :name, type: :string, required: true
+  field :age, type: :integer  
+  validate_mode :partial
+end
+# Even {"Name": "John", "InvalidAge": "not a number"} → {name: "John"}
+```
+
 ## Environment Variables
 
 ```bash

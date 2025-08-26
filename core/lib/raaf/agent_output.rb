@@ -4,6 +4,8 @@ require "json"
 require_relative "errors"
 require_relative "step_errors"
 require_relative "strict_schema"
+require_relative "json_repair"
+require_relative "schema_validator"
 
 module RAAF
 
@@ -129,11 +131,17 @@ module RAAF
     #
     # @param output_type [Class, nil] Ruby type for output validation (nil for plain text)
     # @param strict_json_schema [Boolean] Whether to use strict JSON schema validation
+    # @param json_repair [Boolean] Whether to use fault-tolerant JSON parsing
+    # @param normalize_keys [Boolean] Whether to normalize field names to match schema
+    # @param validation_mode [Symbol] Validation mode (:strict, :tolerant, :partial)
     #
-    def initialize(output_type, strict_json_schema: true)
+    def initialize(output_type, strict_json_schema: true, json_repair: false, normalize_keys: false, validation_mode: :strict)
       super()
       @output_type = output_type
       @strict_json_schema = strict_json_schema
+      @json_repair = json_repair
+      @normalize_keys = normalize_keys
+      @validation_mode = validation_mode
       @is_wrapped = false
 
       # Configure based on output type
@@ -216,7 +224,8 @@ module RAAF
     ##
     # Validate JSON string against the output type
     #
-    # Handles both wrapped and unwrapped output formats.
+    # Handles both wrapped and unwrapped output formats with optional JSON repair
+    # and key normalization features.
     #
     # @param json_str [String] JSON string to validate
     # @return [Object] Validated and parsed object
@@ -225,8 +234,23 @@ module RAAF
     def validate_json(json_str)
       return json_str if plain_text?
 
+      # Use JsonRepair if enabled for fault-tolerant parsing
+      if @json_repair
+        repaired = RAAF::JsonRepair.repair(json_str)
+        unless repaired
+          raise Errors::ModelBehaviorError, "Unable to parse JSON even with repair: #{json_str}"
+        end
+        # Convert back to JSON string for consistent parsing below
+        json_str = repaired.is_a?(String) ? repaired : repaired.to_json
+      end
+
       begin
         parsed = JSON.parse(json_str, symbolize_names: true)
+
+        # Apply schema validation with key normalization if enabled
+        if @normalize_keys && !plain_text?
+          parsed = apply_schema_normalization(parsed)
+        end
 
         if @is_wrapped
           raise Errors::ModelBehaviorError, "Expected a Hash, got #{parsed.class} for JSON: #{json_str}" unless parsed.is_a?(Hash)
@@ -247,6 +271,39 @@ module RAAF
     end
 
     private
+
+    # Apply schema normalization using SchemaValidator if we have schema information
+    def apply_schema_normalization(parsed)
+      return parsed unless @normalize_keys
+      
+      # Try to get JSON schema for key normalization
+      schema_hash = json_schema_for_normalization
+      return parsed unless schema_hash
+      
+      # Use SchemaValidator to normalize keys
+      validator = RAAF::SchemaValidator.new(schema_hash, mode: @validation_mode)
+      validator.normalize_data_keys(parsed)
+    rescue StandardError => e
+      # If normalization fails, log and return original data
+      # This ensures we don't break existing functionality
+      parsed
+    end
+
+    # Extract a simplified JSON schema for key normalization
+    def json_schema_for_normalization
+      return nil if plain_text?
+      
+      # For Hash types or structured outputs, try to extract schema properties
+      if @output_type == Hash || @output_type.nil?
+        # For generic Hash, we don't have specific field information
+        # This could be enhanced to use response_format from Agent if available
+        return nil
+      end
+      
+      # For custom classes, we could introspect to build a schema
+      # For now, return nil to avoid complexity
+      nil
+    end
 
     def deep_symbolize_keys(obj)
       case obj

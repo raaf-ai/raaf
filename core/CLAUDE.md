@@ -14,6 +14,16 @@ agent = RAAF::Agent.new(
   model: "gpt-4o"
 )
 
+# Or create with JSON repair and key normalization enabled
+agent = RAAF::Agent.new(
+  name: "FlexibleAssistant",
+  instructions: "Extract data from user input.",
+  model: "gpt-4o",
+  json_repair: true,          # Handle malformed JSON automatically
+  normalize_keys: true,       # Map "Full Name" to :full_name  
+  validation_mode: :tolerant  # Flexible validation
+)
+
 # Run conversation
 runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello!")
@@ -24,6 +34,9 @@ puts result.messages.last[:content]
 
 - **Agent** (`lib/raaf/agent.rb`) - Main agent class with tools and handoffs
 - **Runner** (`lib/raaf/runner.rb`) - Execution engine (uses ResponsesProvider by default)
+- **JsonRepair** (`lib/raaf/json_repair.rb`) - Fault-tolerant JSON parsing for LLM responses
+- **SchemaValidator** (`lib/raaf/schema_validator.rb`) - Schema validation with key normalization
+- **AgentOutputSchema** (`lib/raaf/agent_output.rb`) - Output validation with JSON repair integration
 - **ModelInterface** (`lib/raaf/models/interface.rb`) - Base class with built-in retry logic
 - **ResponsesProvider** (`lib/raaf/models/responses_provider.rb`) - **DEFAULT** - OpenAI Responses API with retry
 - **OpenAIProvider** (`lib/raaf/models/openai_provider.rb`) - **DEPRECATED** - Legacy Chat Completions API

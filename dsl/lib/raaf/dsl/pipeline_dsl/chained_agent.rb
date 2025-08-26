@@ -166,12 +166,6 @@ module RAAF
           # Execute agent - convert context to keyword arguments to trigger context DSL processing
           context_hash = context.is_a?(RAAF::DSL::ContextVariables) ? context.to_h : context
           
-          # Debug: Log what we're passing to the agent
-          RAAF.logger.debug "🔍 Pipeline DSL executing #{agent_class.name}"
-          RAAF.logger.debug "📊 Context type: #{context.class.name}"
-          RAAF.logger.debug "📊 Context hash keys: #{context_hash.keys.inspect}"
-          RAAF.logger.debug "📊 Agent required fields: #{agent_class.respond_to?(:required_fields) ? agent_class.required_fields : 'none'}"
-          
           agent = agent_class.new(**context_hash)
           
           # Call appropriate execution method based on agent type

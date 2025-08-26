@@ -137,10 +137,20 @@ result = runner.run("Hello")
 RAAF DSL agents now provide automatic context access, eliminating manual context building:
 
 ```ruby
-# Modern DSL agent with automatic context
+# Modern DSL agent with automatic context and schema validation
 class WebSearchAgent < RAAF::DSL::Agent
   instructions "Help users search the web for #{query}"
   model "gpt-4o"
+  
+  # Define schema with smart key normalization
+  schema do
+    field :search_results, type: :array, required: true
+    field :result_count, type: :integer
+    field :search_query, type: :string
+    
+    # Use tolerant mode for flexible field mapping
+    validate_mode :tolerant  # Automatically maps "Search Results" → :search_results
+  end
   
   # Automatic access to context variables like :query
   def search_results
@@ -148,10 +158,34 @@ class WebSearchAgent < RAAF::DSL::Agent
   end
 end
 
-# Usage with automatic context injection
+# Usage with automatic context injection and schema validation
 agent = WebSearchAgent.new(query: "Ruby news")
 result = agent.run
+
+# Even if LLM returns fields like "Search Results", "Result Count"
+# They get automatically normalized to :search_results, :result_count
+puts result[:search_results]  # Array of search results  
+puts result[:result_count]    # Integer count
 ```
+
+## Why JSON Repair and Schema Normalization?
+
+**The Problem**: LLMs frequently return inconsistent JSON output that breaks applications:
+
+- **Field Name Variations**: LLMs use natural language like "Company Name" instead of `company_name`
+- **Malformed JSON**: Trailing commas, single quotes, markdown wrapping are common  
+- **Inconsistent Structure**: Same data returned in different formats across requests
+- **Developer Friction**: Constant manual parsing and error handling
+
+**Our Solution**: RAAF's automatic JSON repair and schema normalization eliminates these issues:
+
+1. **Smart Key Mapping**: Automatically converts `"Company Name"` → `:company_name`  
+2. **JSON Repair**: Fixes malformed JSON (trailing commas, markdown blocks, etc.)
+3. **Validation Modes**: Choose between strict, tolerant, or partial validation
+4. **Zero Configuration**: Works automatically with DSL agents
+5. **Comprehensive Coverage**: Handles nested objects, arrays, and complex structures
+
+**Result**: Developers get consistent, clean data structures regardless of LLM output quality, enabling reliable applications with minimal code.
 
 ### Pipeline DSL for Agent Chaining
 
