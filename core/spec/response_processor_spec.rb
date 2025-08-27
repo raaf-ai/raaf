@@ -622,25 +622,6 @@ RSpec.describe RAAF::ResponseProcessor do
   end
 
   describe "integration with Utils" do
-    it "uses Utils.deep_symbolize_keys for key normalization" do
-      response = {
-        "output" => [
-          {
-            "role" => "assistant",
-            "content" => "Hello"
-          }
-        ]
-      }
-
-      expect(RAAF::Utils).to receive(:deep_symbolize_keys).at_least(:once).and_call_original
-
-      processor.process_model_response(
-        response: response,
-        agent: agent,
-        all_tools: all_tools,
-        handoffs: handoffs
-      )
-    end
 
     it "uses Utils.snake_case for agent name conversion" do
       agent_with_complex_name = RAAF::Agent.new(name: "ComplexAgentName", instructions: "Complex")

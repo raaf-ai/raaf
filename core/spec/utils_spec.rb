@@ -3,245 +3,7 @@
 require "spec_helper"
 
 RSpec.describe RAAF::Utils do
-  describe ".deep_symbolize_keys" do
-    it "converts string keys to symbols in simple hash" do
-      input = { "name" => "John", "age" => 30 }
-      result = described_class.deep_symbolize_keys(input)
 
-      expect(result).to eq(name: "John", age: 30)
-    end
-
-    it "converts keys recursively in nested hashes" do
-      input = {
-        "user" => {
-          "profile" => {
-            "name" => "John",
-            "settings" => {
-              "theme" => "dark"
-            }
-          }
-        }
-      }
-
-      result = described_class.deep_symbolize_keys(input)
-
-      expect(result).to eq(
-        user: {
-          profile: {
-            name: "John",
-            settings: {
-              theme: "dark"
-            }
-          }
-        }
-      )
-    end
-
-    it "processes arrays with hashes recursively" do
-      input = [
-        { "id" => 1, "name" => "First" },
-        { "id" => 2, "name" => "Second" }
-      ]
-
-      result = described_class.deep_symbolize_keys(input)
-
-      expect(result).to eq([
-                             { id: 1, name: "First" },
-                             { id: 2, name: "Second" }
-                           ])
-    end
-
-    it "handles mixed nested arrays and hashes" do
-      input = {
-        "items" => [
-          {
-            "data" => {
-              "values" => [1, 2, { "nested" => "value" }]
-            }
-          }
-        ]
-      }
-
-      result = described_class.deep_symbolize_keys(input)
-
-      expect(result).to eq(
-        items: [
-          {
-            data: {
-              values: [1, 2, { nested: "value" }]
-            }
-          }
-        ]
-      )
-    end
-
-    it "leaves non-hash, non-array objects unchanged" do
-      inputs = [
-        "string",
-        42,
-        3.14,
-        true,
-        false,
-        nil,
-        :symbol,
-        Object.new
-      ]
-
-      inputs.each do |input|
-        result = described_class.deep_symbolize_keys(input)
-        expect(result).to eq(input)
-      end
-    end
-
-    it "handles empty collections" do
-      expect(described_class.deep_symbolize_keys({})).to eq({})
-      expect(described_class.deep_symbolize_keys([])).to eq([])
-    end
-
-    it "preserves original object (creates new objects)" do
-      input = { "name" => "John" }
-      original_input = input.dup
-
-      result = described_class.deep_symbolize_keys(input)
-
-      expect(input).to eq(original_input) # Original unchanged
-      expect(result).not_to be(input) # New object created
-    end
-
-    it "converts symbol keys to symbols (no-op)" do
-      input = { name: "John", age: 30 }
-      result = described_class.deep_symbolize_keys(input)
-
-      expect(result).to eq(input)
-    end
-
-    it "handles mixed string and symbol keys" do
-      input = { "name" => "John", :age => 30, "profile" => { theme: "dark" } }
-      result = described_class.deep_symbolize_keys(input)
-
-      expect(result).to eq(name: "John", age: 30, profile: { theme: "dark" })
-    end
-  end
-
-  describe ".deep_stringify_keys" do
-    it "converts symbol keys to strings in simple hash" do
-      input = { name: "John", age: 30 }
-      result = described_class.deep_stringify_keys(input)
-
-      expect(result).to eq("name" => "John", "age" => 30)
-    end
-
-    it "converts keys recursively in nested hashes" do
-      input = {
-        user: {
-          profile: {
-            name: "John",
-            settings: {
-              theme: "dark"
-            }
-          }
-        }
-      }
-
-      result = described_class.deep_stringify_keys(input)
-
-      expect(result).to eq(
-        "user" => {
-          "profile" => {
-            "name" => "John",
-            "settings" => {
-              "theme" => "dark"
-            }
-          }
-        }
-      )
-    end
-
-    it "processes arrays with hashes recursively" do
-      input = [
-        { id: 1, name: "First" },
-        { id: 2, name: "Second" }
-      ]
-
-      result = described_class.deep_stringify_keys(input)
-
-      expect(result).to eq([
-                             { "id" => 1, "name" => "First" },
-                             { "id" => 2, "name" => "Second" }
-                           ])
-    end
-
-    it "handles mixed nested arrays and hashes" do
-      input = {
-        items: [
-          {
-            data: {
-              values: [1, 2, { nested: "value" }]
-            }
-          }
-        ]
-      }
-
-      result = described_class.deep_stringify_keys(input)
-
-      expect(result).to eq(
-        "items" => [
-          {
-            "data" => {
-              "values" => [1, 2, { "nested" => "value" }]
-            }
-          }
-        ]
-      )
-    end
-
-    it "leaves non-hash, non-array objects unchanged" do
-      inputs = [
-        "string",
-        42,
-        3.14,
-        true,
-        false,
-        nil,
-        :symbol,
-        Object.new
-      ]
-
-      inputs.each do |input|
-        result = described_class.deep_stringify_keys(input)
-        expect(result).to eq(input)
-      end
-    end
-
-    it "handles empty collections" do
-      expect(described_class.deep_stringify_keys({})).to eq({})
-      expect(described_class.deep_stringify_keys([])).to eq([])
-    end
-
-    it "preserves original object (creates new objects)" do
-      input = { name: "John" }
-      original_input = input.dup
-
-      result = described_class.deep_stringify_keys(input)
-
-      expect(input).to eq(original_input) # Original unchanged
-      expect(result).not_to be(input) # New object created
-    end
-
-    it "converts string keys to strings (no-op)" do
-      input = { "name" => "John", "age" => 30 }
-      result = described_class.deep_stringify_keys(input)
-
-      expect(result).to eq(input)
-    end
-
-    it "handles mixed string and symbol keys" do
-      input = { "name" => "John", :age => 30, "profile" => { theme: "dark" } }
-      result = described_class.deep_stringify_keys(input)
-
-      expect(result).to eq("name" => "John", "age" => 30, "profile" => { "theme" => "dark" })
-    end
-  end
 
   describe ".prepare_for_openai" do
     it "correctly converts all keys to strings" do
@@ -386,7 +148,7 @@ RSpec.describe RAAF::Utils do
     before do
       # Mock StrictSchema to avoid dependency issues in tests
       allow(RAAF::StrictSchema).to receive(:ensure_strict_json_schema) do |schema|
-        described_class.deep_stringify_keys(schema)
+        described_class.prepare_for_openai(schema)
       end
     end
 
@@ -512,25 +274,78 @@ RSpec.describe RAAF::Utils do
     end
   end
 
+  describe ".indifferent_access" do
+    it "converts hash to IndifferentHash" do
+      input = { "name" => "John", :age => 30 }
+      result = described_class.indifferent_access(input)
+
+      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result[:name]).to eq("John")
+      expect(result["name"]).to eq("John")
+      expect(result[:age]).to eq(30)
+      expect(result["age"]).to eq(30)
+    end
+
+    it "converts nested hashes recursively" do
+      input = {
+        user: {
+          profile: { name: "John" },
+          settings: { "theme" => "dark" }
+        }
+      }
+      result = described_class.indifferent_access(input)
+
+      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result[:user]).to be_a(RAAF::IndifferentHash)
+      expect(result[:user][:profile]).to be_a(RAAF::IndifferentHash)
+      expect(result["user"]["profile"]["name"]).to eq("John")
+      expect(result[:user][:settings][:theme]).to eq("dark")
+    end
+
+    it "converts arrays with hashes" do
+      input = [{ id: 1 }, { "name" => "test" }]
+      result = described_class.indifferent_access(input)
+
+      expect(result).to be_an(Array)
+      expect(result[0]).to be_a(RAAF::IndifferentHash)
+      expect(result[0][:id]).to eq(1)
+      expect(result[1]["name"]).to eq("test")
+    end
+
+    it "leaves non-hash objects unchanged" do
+      inputs = ["string", 42, true, nil, :symbol]
+      inputs.each do |input|
+        result = described_class.indifferent_access(input)
+        expect(result).to eq(input)
+      end
+    end
+  end
+
   describe ".parse_json" do
-    it "parses valid JSON with symbolized keys" do
+    it "parses valid JSON with indifferent access" do
       json_string = '{"name": "John", "age": 30}'
       result = described_class.parse_json(json_string)
 
-      expect(result).to eq(name: "John", age: 30)
+      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result[:name]).to eq("John")
+      expect(result["name"]).to eq("John")
+      expect(result[:age]).to eq(30)
+      expect(result["age"]).to eq(30)
     end
 
-    it "parses JSON arrays with symbolized keys" do
+    it "parses JSON arrays with indifferent access" do
       json_string = '[{"id": 1, "name": "First"}, {"id": 2, "name": "Second"}]'
       result = described_class.parse_json(json_string)
 
-      expect(result).to eq([
-                             { id: 1, name: "First" },
-                             { id: 2, name: "Second" }
-                           ])
+      expect(result).to be_an(Array)
+      expect(result[0]).to be_a(RAAF::IndifferentHash)
+      expect(result[0][:id]).to eq(1)
+      expect(result[0]["id"]).to eq(1)
+      expect(result[1][:name]).to eq("Second")
+      expect(result[1]["name"]).to eq("Second")
     end
 
-    it "parses nested JSON structures" do
+    it "parses nested JSON structures with indifferent access" do
       json_string = '{
         "user": {
           "profile": {
@@ -542,14 +357,10 @@ RSpec.describe RAAF::Utils do
 
       result = described_class.parse_json(json_string)
 
-      expect(result).to eq(
-        user: {
-          profile: {
-            name: "John",
-            settings: %w[theme notifications]
-          }
-        }
-      )
+      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result[:user]).to be_a(RAAF::IndifferentHash)
+      expect(result["user"]["profile"]["name"]).to eq("John")
+      expect(result[:user][:profile][:settings]).to eq(%w[theme notifications])
     end
 
     it "raises JSON::ParserError for invalid JSON" do
@@ -567,12 +378,17 @@ RSpec.describe RAAF::Utils do
     end
   end
 
+
   describe ".safe_parse_json" do
-    it "parses valid JSON successfully" do
+    it "parses valid JSON successfully with indifferent access" do
       json_string = '{"name": "John", "age": 30}'
       result = described_class.safe_parse_json(json_string)
 
-      expect(result).to eq(name: "John", age: 30)
+      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result[:name]).to eq("John")
+      expect(result["name"]).to eq("John")
+      expect(result[:age]).to eq(30)
+      expect(result["age"]).to eq(30)
     end
 
     it "returns nil for invalid JSON by default" do
@@ -588,7 +404,8 @@ RSpec.describe RAAF::Utils do
     end
 
     it "returns different default types" do
-      expect(described_class.safe_parse_json("invalid", {})).to eq({})
+      empty_hash = RAAF::IndifferentHash.new
+      expect(described_class.safe_parse_json("invalid", empty_hash)).to eq(empty_hash)
       expect(described_class.safe_parse_json("invalid", [])).to eq([])
       expect(described_class.safe_parse_json("invalid", "error")).to eq("error")
       expect(described_class.safe_parse_json("invalid", 0)).to eq(0)
@@ -716,72 +533,7 @@ RSpec.describe RAAF::Utils do
     end
   end
 
-  describe "roundtrip conversions" do
-    it "maintains data integrity through symbolize -> stringify roundtrip" do
-      original = {
-        user: {
-          profile: {
-            name: "John",
-            metadata: [{ id: 1, active: true }]
-          }
-        }
-      }
 
-      stringified = described_class.deep_stringify_keys(original)
-      symbolized_again = described_class.deep_symbolize_keys(stringified)
-
-      expect(symbolized_again).to eq(original)
-    end
-
-    it "maintains data integrity through stringify -> symbolize roundtrip" do
-      original = {
-        "user" => {
-          "profile" => {
-            "name" => "John",
-            "metadata" => [{ "id" => 1, "active" => true }]
-          }
-        }
-      }
-
-      symbolized = described_class.deep_symbolize_keys(original)
-      stringified_again = described_class.deep_stringify_keys(symbolized)
-
-      expect(stringified_again).to eq(original)
-    end
-  end
-
-  describe "performance considerations" do
-    it "handles deeply nested structures without stack overflow" do
-      # Create a deeply nested structure
-      deep_hash = { "level0" => {} }
-      current = deep_hash["level0"]
-
-      100.times do |i|
-        current["level#{i + 1}"] = {}
-        current = current["level#{i + 1}"]
-      end
-      current["value"] = "deep"
-
-      # Should not raise stack overflow
-      expect do
-        result = described_class.deep_symbolize_keys(deep_hash)
-        expect(result.dig(*Array.new(101) { |i| :"level#{i}" }).merge(value: "deep")).to include(value: "deep")
-      end.not_to raise_error
-    end
-
-    it "handles large arrays efficiently" do
-      large_array = Array.new(1000) { |i| { "item_#{i}" => i } }
-
-      result = described_class.deep_symbolize_keys(large_array)
-
-      expect(result).to be_an(Array)
-      expect(result.length).to eq(1000)
-      # rubocop:disable Naming/VariableNumber
-      expect(result[0]).to have_key(:item_0)
-      expect(result[999]).to have_key(:item_999)
-      # rubocop:enable Naming/VariableNumber
-    end
-  end
 
   describe "integration scenarios" do
     it "supports typical API request/response cycle" do
@@ -851,7 +603,9 @@ RSpec.describe RAAF::Utils do
         described_class.safe_parse_json(json, { error: "parse_failed" })
       end
 
-      expect(results[0]).to eq(valid: "json")
+      expect(results[0]).to be_a(RAAF::IndifferentHash)
+      expect(results[0][:valid]).to eq("json")
+      expect(results[0]["valid"]).to eq("json")
       expect(results[1]).to eq(error: "parse_failed")
       expect(results[2]).to eq(error: "parse_failed")
       expect(results[3]).to eq(error: "parse_failed")
