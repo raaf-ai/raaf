@@ -2007,7 +2007,8 @@ module RAAF
         # Since core Agent now handles JSON repair and schema validation automatically
         # when configured, we can simplify this to basic JSON parsing with graceful fallback
         begin
-          parsed = JSON.parse(content, symbolize_names: true)
+          # Use RAAF::Utils.parse_json to get HashWithIndifferentAccess with nested conversion
+          parsed = RAAF::Utils.parse_json(content)
           { success: true, data: parsed }
         rescue JSON::ParserError => e
           log_debug "ℹ️ [#{self.class.name}] Content is not JSON, returning as-is: #{e.message}"
@@ -2165,7 +2166,7 @@ module RAAF
 
         content = last_assistant_message[:content]
 
-        # With IndifferentHash, return content as-is (supports both key types)
+        # With HashWithIndifferentAccess, return content as-is (supports both key types)
         content
       end
 
@@ -2469,7 +2470,7 @@ module RAAF
         lambda do |**args|
           begin
             # Convert string keys to symbol keys to match Ruby keyword argument expectations
-            symbolized_args = args.transform_keys(&:to_sym)
+            symbolized_args = args.symbolize_keys
             result = tool_instance.send(method_to_call, **symbolized_args)
             result.is_a?(Hash) ? result : { result: result }
           rescue => e

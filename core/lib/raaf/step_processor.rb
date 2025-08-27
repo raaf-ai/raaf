@@ -275,7 +275,8 @@ module RAAF
       begin
         # Execute the tool with error handling
         result = ErrorHandling.safe_tool_execution(tool: tool, arguments: arguments, agent: agent) do
-          tool.call(**arguments)
+          # Ensure arguments have symbol keys for Ruby's keyword argument system
+          tool.call(**arguments.symbolize_keys)
         end
 
         # Call tool end hooks
