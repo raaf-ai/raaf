@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'active_support/core_ext/hash/indifferent_access'
+
 # Swarm-style context variables management with debugging support
 #
 # This class provides OpenAI Swarm-compatible context variable handling with
@@ -54,13 +56,20 @@ module RAAF
       #   )
       #
       def initialize(initial_variables = {}, **options)
-        @variables = initial_variables.is_a?(Hash) ? initial_variables.dup : {}
         @debug_enabled = options[:debug] || false
         @validate_enabled = options[:validate] != false # Default to true unless explicitly false
         @change_history = []
 
-        # Convert string keys to symbols for consistency
-        @variables = symbolize_keys(@variables)
+        # Use indifferent access to eliminate string vs symbol key issues
+        @variables = case initial_variables
+                     when ActiveSupport::HashWithIndifferentAccess
+                       initial_variables.dup
+                     when Hash
+                       initial_variables.with_indifferent_access
+                     else
+                       {}.with_indifferent_access
+                     end
+        
         @created_at = Time.now
 
         debug_log("Context Initialized", variables: @variables)
@@ -84,7 +93,8 @@ module RAAF
       def update(new_variables = {})
         return self if new_variables.nil? || new_variables.empty?
 
-        new_variables = symbolize_keys(new_variables)
+        # Convert new variables to indifferent access
+        new_variables = new_variables.with_indifferent_access if new_variables.is_a?(Hash)
         merged_variables = @variables.merge(new_variables)
 
         # Track changes for debugging
@@ -127,7 +137,8 @@ module RAAF
       #   context.get(:product).name # => Lazy loads product.name
       #
       def get(key, default = nil)
-        value = @variables[key.to_sym]
+        # With indifferent access, we can use key as-is (string or symbol)
+        value = @variables[key]
         value.nil? ? default : value
       end
 
@@ -162,7 +173,8 @@ module RAAF
 
         value = @variables
         path.each do |key|
-          value = value&.dig(key.to_sym) || value&.[](key.to_sym)
+          # With indifferent access, no need to convert to symbol
+          value = value&.dig(key)
           break if value.nil?
         end
 
@@ -179,7 +191,8 @@ module RAAF
       #   updated = context.set(:priority, "high")
       #
       def set(key, value)
-        update(key.to_sym => value)
+        # With indifferent access, no need to convert key
+        update(key => value)
       end
 
       # Check if a variable exists
@@ -188,7 +201,7 @@ module RAAF
       # @return [Boolean] True if the variable exists
       #
       def has?(key)
-        @variables.key?(key.to_sym)
+        @variables.key?(key)
       end
       alias key? has?
       alias include? has?
@@ -261,7 +274,7 @@ module RAAF
       # @return [ContextVariables] New instance from JSON
       #
       def self.from_json(json, debug: false)
-        variables = JSON.parse(json, symbolize_names: true)
+        variables = JSON.parse(json)
         new(variables, debug: debug)
       end
 
@@ -367,13 +380,6 @@ module RAAF
 
       private
 
-      # Convert string keys to symbols
-      def symbolize_keys(hash)
-        return hash unless hash.is_a?(Hash)
-
-        hash.transform_keys(&:to_sym)
-      end
-
       # Calculate changes between two variable sets
       def calculate_changes(before, after)
         added = after.reject { |k, _| before.key?(k) }
@@ -442,9 +448,10 @@ module RAAF
         return unless @validate_enabled
 
         @variables.each do |key, value|
-          # Check for invalid keys
-          unless key.is_a?(Symbol) || key.is_a?(String)
-            raise ContextError, "Invalid context key type: #{key.class}. Must be Symbol or String"
+          # With indifferent access, keys are automatically normalized to strings
+          # so we just check for basic validity
+          unless key.respond_to?(:to_s)
+            raise ContextError, "Invalid context key: #{key.inspect}. Must be convertible to string"
           end
 
           # Check for non-serializable values (in strict mode)
