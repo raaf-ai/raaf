@@ -271,7 +271,7 @@ module RAAF
       config = self.class.context_config
       pipeline_required = config && config[:required] ? config[:required] : []
       pipeline_optional = config && config[:optional] ? config[:optional].keys : []
-      provided = @context.keys
+      provided = @context.keys.map(&:to_sym)
       
       # Check Pipeline's required fields
       missing_pipeline_fields = pipeline_required - provided
@@ -280,7 +280,7 @@ module RAAF
           Pipeline initialization error!
           
           Pipeline #{self.class.name} requires: #{pipeline_required.inspect}
-          You have in context: #{provided.inspect}
+          You provided: #{@context.keys.inspect} (as symbols: #{provided.inspect})
           Missing: #{missing_pipeline_fields.inspect}
           
           Either:
@@ -314,7 +314,7 @@ module RAAF
           Pipeline initialization error!
           
           First agent #{first_agent.name} requires: #{all_required.inspect}
-          You have in context: #{provided.inspect}
+          You provided: #{@context.keys.inspect} (as symbols: #{provided.inspect})
           Missing: #{missing_agent_fields.inspect}
           
           Add missing fields when creating the pipeline:
