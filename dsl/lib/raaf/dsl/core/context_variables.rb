@@ -2,24 +2,44 @@
 
 require 'active_support/core_ext/hash/indifferent_access'
 
-# Swarm-style context variables management with debugging support
+# Swarm-style context variables management with debugging support and deep indifferent access
 #
 # This class provides OpenAI Swarm-compatible context variable handling with
-# comprehensive debugging capabilities. It tracks all context state changes,
-# provides serialization for handoffs, and includes detailed logging for
-# debugging multi-agent workflows.
+# comprehensive debugging capabilities and deep HashWithIndifferentAccess support.
+# It tracks all context state changes, provides serialization for handoffs, and
+# includes detailed logging for debugging multi-agent workflows.
 #
 # Key features:
 # - Immutable context updates (Swarm-style)
+# - Deep HashWithIndifferentAccess for nested hashes and arrays
 # - Change tracking and debugging hooks
 # - JSON serialization for persistence
 # - Type validation and contracts
 # - Performance monitoring
 #
-# @example Basic usage
+# @example Basic usage with indifferent access
 #   context = RAAF::DSL::ContextVariables.new(session_id: "123", user_tier: "premium")
 #   updated = context.update(request_analyzed: true, priority: "high")
 #   puts updated.get(:priority) # => "high"
+#   puts updated.get("priority") # => "high" (same result)
+#
+# @example Deep indifferent access for nested structures
+#   context = RAAF::DSL::ContextVariables.new(
+#     user: { profile: { name: "John", settings: { theme: "dark" } } },
+#     items: [{ id: 1, metadata: { type: "document" } }]
+#   )
+#   
+#   # All of these work identically:
+#   puts context[:user][:profile][:name]        # => "John"
+#   puts context["user"]["profile"]["name"]     # => "John"
+#   puts context[:user]["profile"][:name]       # => "John"
+#   
+#   # Arrays containing hashes also support indifferent access:
+#   first_item = context[:items].first
+#   puts first_item[:id]           # => 1
+#   puts first_item["id"]          # => 1
+#   puts first_item[:metadata][:type]  # => "document"
+#   puts first_item["metadata"]["type"] # => "document"
 #
 # @example With debugging
 #   context = RAAF::DSL::ContextVariables.new({ user: "john" }, debug: true)
@@ -56,16 +76,25 @@ module RAAF
       #   )
       #
       def initialize(initial_variables = {}, **options)
-        @debug_enabled = options[:debug] || false
-        @validate_enabled = options[:validate] != false # Default to true unless explicitly false
+        # Extract debug and validation options from keyword arguments
+        @debug_enabled = options.delete(:debug) || false
+        @validate_enabled = options.delete(:validate) != false # Default to true unless explicitly false
         @change_history = []
 
-        # Use indifferent access to eliminate string vs symbol key issues
-        @variables = case initial_variables
+        # If initial_variables is empty but we have keyword arguments,
+        # use the keyword arguments as the initial variables
+        actual_variables = if initial_variables.empty? && !options.empty?
+                            options
+                          else
+                            initial_variables
+                          end
+        
+        # Use deep indifferent access to eliminate string vs symbol key issues in nested structures
+        @variables = case actual_variables
                      when ActiveSupport::HashWithIndifferentAccess
-                       initial_variables.dup
+                       deep_convert_to_indifferent_access(actual_variables.dup)
                      when Hash
-                       initial_variables.with_indifferent_access
+                       deep_convert_to_indifferent_access(actual_variables)
                      else
                        {}.with_indifferent_access
                      end
@@ -93,8 +122,8 @@ module RAAF
       def update(new_variables = {})
         return self if new_variables.nil? || new_variables.empty?
 
-        # Convert new variables to indifferent access
-        new_variables = new_variables.with_indifferent_access if new_variables.is_a?(Hash)
+        # Convert new variables to deep indifferent access
+        new_variables = new_variables.is_a?(Hash) ? deep_convert_to_indifferent_access(new_variables) : new_variables
         merged_variables = @variables.merge(new_variables)
 
         # Track changes for debugging
@@ -137,27 +166,9 @@ module RAAF
       #   context.get(:product).name # => Lazy loads product.name
       #
       def get(key, default = nil)
-        # Debug: Log the key access
-        puts "🔍 [ContextVariables] GET access - key: #{key.inspect} (#{key.class})"
-        puts "🔍 [ContextVariables] Available keys: #{@variables.keys.inspect}"
-        
         # With indifferent access, we can use key as-is (string or symbol)
         value = @variables[key]
-        
-        puts "🔍 [ContextVariables] Raw value found: #{value.nil? ? 'NIL' : value.class}"
-        if value.is_a?(Array)
-          puts "🔍 [ContextVariables] Array size: #{value.length}"
-          if value.first.is_a?(Hash)
-            puts "🔍 [ContextVariables] First item keys: #{value.first.keys.inspect}"
-          end
-        elsif value.is_a?(Hash)
-          puts "🔍 [ContextVariables] Hash keys: #{value.keys.inspect}"
-        end
-        
-        final_value = value.nil? ? default : value
-        puts "🔍 [ContextVariables] Final value: #{final_value.nil? ? 'NIL' : final_value.class}"
-        
-        final_value
+        value.nil? ? default : value
       end
 
       # Array-style access for compatibility with Hash syntax
@@ -173,7 +184,6 @@ module RAAF
       #   context["session_id"] # => "abc-123"
       #
       def [](key)
-        puts "🔍 [ContextVariables] [] access - key: #{key.inspect} (#{key.class})"
         get(key)
       end
 
@@ -210,20 +220,8 @@ module RAAF
       #   updated = context.set(:priority, "high")
       #
       def set(key, value)
-        puts "🔍 [ContextVariables] SET operation - key: #{key.inspect} (#{key.class}), value: #{value.class}"
-        if value.is_a?(Array)
-          puts "🔍 [ContextVariables] Setting array with #{value.length} items"
-          if value.first.is_a?(Hash)
-            puts "🔍 [ContextVariables] First item keys: #{value.first.keys.inspect}"
-          end
-        elsif value.is_a?(Hash)
-          puts "🔍 [ContextVariables] Setting hash with keys: #{value.keys.inspect}"
-        end
-        
         # With indifferent access, no need to convert key
-        result = update(key => value)
-        puts "🔍 [ContextVariables] SET complete - new instance created"
-        result
+        update(key => value)
       end
 
       # Check if a variable exists
@@ -410,6 +408,25 @@ module RAAF
       end
 
       private
+
+      # Deep conversion of nested hashes and arrays to use indifferent access
+      # This ensures that all nested structures support both string and symbol keys
+      #
+      # @param obj [Object] Object to convert
+      # @return [Object] Object with all nested hashes converted to indifferent access
+      def deep_convert_to_indifferent_access(obj)
+        case obj
+        when Hash
+          # Convert hash to indifferent access and recursively convert all values
+          obj.with_indifferent_access.transform_values { |value| deep_convert_to_indifferent_access(value) }
+        when Array
+          # Recursively convert all array elements
+          obj.map { |element| deep_convert_to_indifferent_access(element) }
+        else
+          # Return primitive values as-is
+          obj
+        end
+      end
 
       # Calculate changes between two variable sets
       def calculate_changes(before, after)

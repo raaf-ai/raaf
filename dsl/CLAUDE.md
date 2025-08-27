@@ -163,29 +163,55 @@ end
 - **Clean Errors**: Clear Ruby NameError messages for missing variables
 - **Reusable**: Inherit from base classes
 
-## Context Variables with Indifferent Access
+## Context Variables with Deep Indifferent Access
 
-Context variables in RAAF DSL use `ActiveSupport::HashWithIndifferentAccess` for seamless key handling:
+Context variables in RAAF DSL use **deep** `ActiveSupport::HashWithIndifferentAccess` for seamless key handling throughout all nested structures:
 
 ```ruby
-# Context variables support both string and symbol key access
+# Context variables support both string and symbol key access at ALL levels
 result = agent.run("Research AI trends") do
-  # Set context variables for this run
-  context_variable :search_depth, "deep"
-  context_variable :sources, ["academic", "industry"] 
-  context_variable :time_range, "2024"
+  # Set context variables with nested data
+  context_variable :search_config, {
+    depth: "deep",
+    sources: ["academic", "industry"],
+    filters: { date_range: "2024", topics: ["AI", "ML"] }
+  }
+  context_variable :users, [
+    { name: "John", profile: { role: "researcher", active: true } },
+    { name: "Jane", profile: { role: "analyst", active: false } }
+  ]
 end
 
-# Access with either key type - both work identically
-puts result.context[:search_depth]   # ✅ Works  
-puts result.context["search_depth"]  # ✅ Also works
-puts result.context[:sources]        # ✅ Works
-puts result.context["sources"]       # ✅ Also works
+# Top-level access works with both key types
+puts result.context[:search_config]   # ✅ Works  
+puts result.context["search_config"]  # ✅ Also works
 
-# No more dual access patterns needed:
-# OLD: result.context[:key] || result.context["key"]  ❌ Error-prone
-# NEW: result.context[:key]                           ✅ Always works
+# NESTED hash access now works with both key types too!
+config = result.context[:search_config]
+puts config[:depth]           # ✅ Works
+puts config["depth"]          # ✅ Also works  
+puts config[:filters][:date_range]    # ✅ Works
+puts config["filters"]["date_range"]  # ✅ Also works
+puts config[:filters]["topics"]      # ✅ Mixed access works too
+
+# Arrays containing hashes also support indifferent access
+first_user = result.context[:users].first
+puts first_user[:name]              # ✅ Works
+puts first_user["name"]             # ✅ Also works
+puts first_user[:profile][:role]    # ✅ Works  
+puts first_user["profile"]["role"]  # ✅ Also works
+
+# No more defensive programming patterns needed at ANY level:
+# OLD: config[:filters][:key] || config["filters"]["key"]  ❌ Error-prone
+# NEW: config[:filters][:key]                              ✅ Always works
 ```
+
+### Deep Indifferent Access Benefits
+
+- **Consistent behavior**: Works the same at every nesting level
+- **No surprises**: LLM responses with mixed key types "just work"  
+- **Reduced errors**: Eliminates symbol/string key confusion bugs
+- **Better DX**: Use whatever key style feels natural
 
 ## Web Search Tool
 
