@@ -557,7 +557,7 @@ module RAAF
 
         return {} if response.body.nil? || response.body.empty?
 
-        JSON.parse(response.body)
+        RAAF::Utils.parse_json(response.body)
       end
 
       def format_space(space)

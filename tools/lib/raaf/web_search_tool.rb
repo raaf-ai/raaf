@@ -143,7 +143,7 @@ module RAAF
               next if data == "[DONE]"
 
               begin
-                event = JSON.parse(data)
+                event = RAAF::Utils.parse_json(data)
                 content = process_stream_event(event)
                 if content
                   accumulated_content << content
@@ -248,7 +248,7 @@ module RAAF
       def handle_response(response)
         case response.code
         when "200"
-          data = JSON.parse(response.body)
+          data = RAAF::Utils.parse_json(response.body)
           extract_search_results(data)
         when "401"
           raise "Authentication failed. Check your OpenAI API key."

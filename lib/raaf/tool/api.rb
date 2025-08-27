@@ -193,7 +193,7 @@ module RAAF
         
         content_type = response["Content-Type"]
         if content_type&.include?("application/json")
-          JSON.parse(response.body)
+          RAAF::Utils.parse_json(response.body)
         else
           response.body
         end
