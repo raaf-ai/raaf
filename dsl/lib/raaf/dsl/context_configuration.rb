@@ -154,7 +154,7 @@ module RAAF
         # Extract required fields from context configuration
         #
         # Used by pipeline DSL for field validation and introspection.
-        # Combines explicitly required fields with fields that have default values.
+        # Returns only explicitly required fields - fields with defaults are optional.
         #
         # @return [Array<Symbol>] Array of required field names
         def required_fields
@@ -166,8 +166,8 @@ module RAAF
           # Check both :optional (new format) and :defaults (legacy format)
           defaults = context_rules[:optional] || context_rules[:defaults] || {}
 
-          # Include both explicitly required fields and those with defaults
-          (requirements + defaults.keys).uniq
+          # Return only explicitly required fields (optional fields with defaults are handled separately)
+          requirements.uniq
         end
 
         # Extract externally required fields (required fields WITHOUT defaults)
@@ -229,16 +229,26 @@ module RAAF
           # Get agent defaults if available
           defaults = {}
           if _agent_config[:context_rules]
-            defaults = _agent_config[:context_rules][:defaults] || {}
+            # Check both :optional (new format) and :defaults (legacy format)
+            defaults = _agent_config[:context_rules][:optional] || _agent_config[:context_rules][:defaults] || {}
           end
 
           # Check if context has all required fields (or they have defaults)
           if context.is_a?(Hash)
+            # Ensure context has indifferent access for key checking
+            context_with_indifferent_access = context.is_a?(ActiveSupport::HashWithIndifferentAccess) ? 
+                                               context : 
+                                               context.with_indifferent_access
+            required.all? { |field| context_with_indifferent_access.key?(field) || defaults.key?(field) }
+          elsif context.respond_to?(:keys) && context.respond_to?(:key?)
+            # Handle objects that support both keys and key? (like ContextVariables)
             required.all? { |field| context.key?(field) || defaults.key?(field) }
           elsif context.respond_to?(:keys)
-            required.all? { |field| context.keys.include?(field) || defaults.key?(field) }
+            # Fallback for objects that only support keys (convert to symbols for comparison)
+            context_keys = context.keys.map(&:to_sym)
+            required.all? { |field| context_keys.include?(field.to_sym) || defaults.key?(field) }
           else
-            # For ContextVariables or other context objects
+            # For other context objects
             required.all? do |field|
               context.respond_to?(field) ||
                 (context.respond_to?(:[]) && !context[field].nil?) ||

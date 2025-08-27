@@ -63,6 +63,7 @@ module RAAF
           end
 
           # Check if context has all required fields (or they have defaults)
+          # Handle both string and symbol keys for all context types
           if context.is_a?(Hash)
             required.all? { |field| context.key?(field) || context.key?(field.to_s) || defaults.key?(field) }
           elsif context.respond_to?(:keys)
@@ -294,9 +295,10 @@ module RAAF
         return true if required.empty?
         
         # Check which fields are missing using hash key checking to respect indifferent access
+        # HashWithIndifferentAccess handles both string and symbol keys automatically
         missing_fields = required.reject { |field| 
           if context.is_a?(Hash)
-            context.key?(field) || context.key?(field.to_s)
+            context.key?(field)
           else
             false
           end
