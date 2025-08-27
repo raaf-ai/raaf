@@ -39,7 +39,7 @@ module RAAF
     #
     def process_model_response(response:, agent:, all_tools:, handoffs:)
       # Convert response to indifferent access immediately
-      response = Utils.indifferent_access(response) unless response.is_a?(IndifferentHash)
+      response = Utils.indifferent_access(response) unless response.is_a?(ActiveSupport::HashWithIndifferentAccess)
 
       log_debug("🔄 RESPONSE_PROCESSOR: Processing model response",
                 agent: agent.name, tools_count: all_tools.size, handoffs_count: handoffs.size,

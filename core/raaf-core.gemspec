@@ -39,6 +39,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency "logger", "~> 1.4"
   spec.add_dependency "net-http", "~> 0.3"
 
+  # ActiveSupport for HashWithIndifferentAccess
+  spec.add_dependency "activesupport", "~> 8.0"
+
   # base64 was moved to a bundled gem in Ruby 3.4+
   spec.add_dependency "base64", "~> 0.1"
 

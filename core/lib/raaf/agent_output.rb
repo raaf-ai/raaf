@@ -188,7 +188,7 @@ module RAAF
     def json_schema
       return nil if plain_text?
 
-      # Return schema as-is (IndifferentHash will handle key access)
+      # Return schema as-is (HashWithIndifferentAccess will handle key access)
       @output_schema
     end
 

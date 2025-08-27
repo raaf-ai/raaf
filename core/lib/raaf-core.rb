@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
+require 'active_support/core_ext/hash/indifferent_access'
 require_relative "raaf/version"
-require_relative "raaf/indifferent_hash"
 require_relative "raaf/utils"
 require_relative "raaf/logging"
 require_relative "raaf/errors"

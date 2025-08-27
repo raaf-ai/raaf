@@ -275,11 +275,11 @@ RSpec.describe RAAF::Utils do
   end
 
   describe ".indifferent_access" do
-    it "converts hash to IndifferentHash" do
+    it "converts hash to HashWithIndifferentAccess" do
       input = { "name" => "John", :age => 30 }
       result = described_class.indifferent_access(input)
 
-      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(result[:name]).to eq("John")
       expect(result["name"]).to eq("John")
       expect(result[:age]).to eq(30)
@@ -295,9 +295,9 @@ RSpec.describe RAAF::Utils do
       }
       result = described_class.indifferent_access(input)
 
-      expect(result).to be_a(RAAF::IndifferentHash)
-      expect(result[:user]).to be_a(RAAF::IndifferentHash)
-      expect(result[:user][:profile]).to be_a(RAAF::IndifferentHash)
+      expect(result).to be_a(ActiveSupport::HashWithIndifferentAccess)
+      expect(result[:user]).to be_a(ActiveSupport::HashWithIndifferentAccess)
+      expect(result[:user][:profile]).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(result["user"]["profile"]["name"]).to eq("John")
       expect(result[:user][:settings][:theme]).to eq("dark")
     end
@@ -307,7 +307,7 @@ RSpec.describe RAAF::Utils do
       result = described_class.indifferent_access(input)
 
       expect(result).to be_an(Array)
-      expect(result[0]).to be_a(RAAF::IndifferentHash)
+      expect(result[0]).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(result[0][:id]).to eq(1)
       expect(result[1]["name"]).to eq("test")
     end
@@ -326,7 +326,7 @@ RSpec.describe RAAF::Utils do
       json_string = '{"name": "John", "age": 30}'
       result = described_class.parse_json(json_string)
 
-      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(result[:name]).to eq("John")
       expect(result["name"]).to eq("John")
       expect(result[:age]).to eq(30)
@@ -338,7 +338,7 @@ RSpec.describe RAAF::Utils do
       result = described_class.parse_json(json_string)
 
       expect(result).to be_an(Array)
-      expect(result[0]).to be_a(RAAF::IndifferentHash)
+      expect(result[0]).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(result[0][:id]).to eq(1)
       expect(result[0]["id"]).to eq(1)
       expect(result[1][:name]).to eq("Second")
@@ -357,8 +357,8 @@ RSpec.describe RAAF::Utils do
 
       result = described_class.parse_json(json_string)
 
-      expect(result).to be_a(RAAF::IndifferentHash)
-      expect(result[:user]).to be_a(RAAF::IndifferentHash)
+      expect(result).to be_a(ActiveSupport::HashWithIndifferentAccess)
+      expect(result[:user]).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(result["user"]["profile"]["name"]).to eq("John")
       expect(result[:user][:profile][:settings]).to eq(%w[theme notifications])
     end
@@ -384,7 +384,7 @@ RSpec.describe RAAF::Utils do
       json_string = '{"name": "John", "age": 30}'
       result = described_class.safe_parse_json(json_string)
 
-      expect(result).to be_a(RAAF::IndifferentHash)
+      expect(result).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(result[:name]).to eq("John")
       expect(result["name"]).to eq("John")
       expect(result[:age]).to eq(30)
@@ -404,7 +404,7 @@ RSpec.describe RAAF::Utils do
     end
 
     it "returns different default types" do
-      empty_hash = RAAF::IndifferentHash.new
+      empty_hash = {}.with_indifferent_access
       expect(described_class.safe_parse_json("invalid", empty_hash)).to eq(empty_hash)
       expect(described_class.safe_parse_json("invalid", [])).to eq([])
       expect(described_class.safe_parse_json("invalid", "error")).to eq("error")
@@ -603,7 +603,7 @@ RSpec.describe RAAF::Utils do
         described_class.safe_parse_json(json, { error: "parse_failed" })
       end
 
-      expect(results[0]).to be_a(RAAF::IndifferentHash)
+      expect(results[0]).to be_a(ActiveSupport::HashWithIndifferentAccess)
       expect(results[0][:valid]).to eq("json")
       expect(results[0]["valid"]).to eq("json")
       expect(results[1]).to eq(error: "parse_failed")
