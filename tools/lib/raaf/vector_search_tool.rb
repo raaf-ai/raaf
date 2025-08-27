@@ -2,6 +2,7 @@
 
 begin
   require_relative "../vector_store"
+  require_relative "../../../../core/lib/raaf/utils"
 rescue LoadError
   # Vector store not available, tool will be disabled
 end
@@ -53,10 +54,13 @@ module RAAF
       end
 
       def call(arguments)
-        query = arguments[:query] || arguments["query"]
-        k = arguments[:k] || arguments["k"] || 5
-        namespace = arguments[:namespace] || arguments["namespace"]
-        filter = arguments[:filter] || arguments["filter"]
+        # Convert to indifferent access for consistent key handling
+        args = Utils.indifferent_access(arguments)
+        
+        query = args[:query]
+        k = args[:k] || 5
+        namespace = args[:namespace]
+        filter = args[:filter]
 
         results = @vector_store.search(
           query,
@@ -144,8 +148,11 @@ module RAAF
       end
 
       def call(arguments)
-        documents = arguments[:documents] || arguments["documents"]
-        namespace = arguments[:namespace] || arguments["namespace"]
+        # Convert to indifferent access for consistent key handling
+        args = Utils.indifferent_access(arguments)
+        
+        documents = args[:documents]
+        namespace = args[:namespace]
 
         # Normalize documents
         normalized_docs = documents.map do |doc|
@@ -224,21 +231,24 @@ module RAAF
       end
 
       def call(arguments)
-        action = arguments[:action] || arguments["action"]
+        # Convert to indifferent access for consistent key handling
+        args = Utils.indifferent_access(arguments)
+        
+        action = args[:action]
 
         case action
         when "get"
-          get_document(arguments)
+          get_document(args)
         when "update"
-          update_document(arguments)
+          update_document(args)
         when "delete"
-          delete_documents(arguments)
+          delete_documents(args)
         when "stats"
-          get_stats(arguments)
+          get_stats(args)
         when "namespaces"
           list_namespaces
         when "clear"
-          clear_namespace(arguments)
+          clear_namespace(args)
         else
           { error: "Unknown action: #{action}" }
         end
@@ -249,8 +259,8 @@ module RAAF
       private
 
       def get_document(args)
-        id = args[:id] || args["id"]
-        namespace = args[:namespace] || args["namespace"]
+        id = args[:id]
+        namespace = args[:namespace]
 
         return { error: "Document ID required" } unless id
 
@@ -264,10 +274,10 @@ module RAAF
       end
 
       def update_document(args)
-        id = args[:id] || args["id"]
-        namespace = args[:namespace] || args["namespace"]
-        content = args[:content] || args["content"]
-        metadata = args[:metadata] || args["metadata"]
+        id = args[:id]
+        namespace = args[:namespace]
+        content = args[:content]
+        metadata = args[:metadata]
 
         return { error: "Document ID required" } unless id
         return { error: "Content or metadata required" } unless content || metadata
@@ -287,10 +297,10 @@ module RAAF
       end
 
       def delete_documents(args)
-        id = args[:id] || args["id"]
-        ids = args[:ids] || args["ids"]
-        filter = args[:filter] || args["filter"]
-        namespace = args[:namespace] || args["namespace"]
+        id = args[:id]
+        ids = args[:ids]
+        filter = args[:filter]
+        namespace = args[:namespace]
 
         ids = [id] if id
 
@@ -380,8 +390,11 @@ module RAAF
       end
 
       def call(arguments)
-        operation = arguments[:operation] || arguments["operation"]
-        op_args = arguments[:arguments] || arguments["arguments"] || {}
+        # Convert to indifferent access for consistent key handling
+        args = Utils.indifferent_access(arguments)
+        
+        operation = args[:operation]
+        op_args = args[:arguments] || {}
 
         case operation
         when "search"

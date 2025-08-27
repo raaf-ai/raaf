@@ -167,17 +167,17 @@ module RAAF
       private
 
       def get_space(args)
-        space_key = args[:space_key] || args["space_key"]
+        space_key = args[:space_key]
         raise "Space key required" unless space_key
 
-        expand = args[:expand] || args["expand"] || []
+        expand = args[:expand] || []
 
         result = make_request(:get, "/space/#{space_key}?expand=#{expand.join(",")}")
         format_space(result)
       end
 
       def list_spaces(args)
-        limit = args[:limit] || args["limit"] || 25
+        limit = args[:limit] || 25
 
         result = make_request(:get, "/space?limit=#{limit}")
 
@@ -189,8 +189,8 @@ module RAAF
       end
 
       def create_space(args)
-        space_key = args[:space_key] || args["space_key"]
-        space_name = args[:space_name] || args["space_name"]
+        space_key = args[:space_key]
+        space_name = args[:space_name]
 
         raise "Space key and name required" unless space_key && space_name
 
@@ -217,20 +217,20 @@ module RAAF
       end
 
       def get_page(args)
-        page_id = args[:page_id] || args["page_id"]
+        page_id = args[:page_id]
         raise "Page ID required" unless page_id
 
-        expand = args[:expand] || args["expand"] || ["body.storage", "version"]
+        expand = args[:expand] || ["body.storage", "version"]
 
         result = make_request(:get, "/content/#{page_id}?expand=#{expand.join(",")}")
         format_page(result)
       end
 
       def create_page(args)
-        space_key = args[:space_key] || args["space_key"]
-        title = args[:title] || args["title"]
-        content = args[:content] || args["content"] || ""
-        parent_id = args[:parent_id] || args["parent_id"]
+        space_key = args[:space_key]
+        title = args[:title]
+        content = args[:content] || ""
+        parent_id = args[:parent_id]
 
         raise "Space key and title required" unless space_key && title
 
@@ -260,11 +260,11 @@ module RAAF
       end
 
       def update_page(args)
-        page_id = args[:page_id] || args["page_id"]
-        title = args[:title] || args["title"]
-        content = args[:content] || args["content"]
-        version = args[:version] || args["version"]
-        comment = args[:comment] || args["comment"] || "Updated via API"
+        page_id = args[:page_id]
+        title = args[:title]
+        content = args[:content]
+        version = args[:version]
+        comment = args[:comment] || "Updated via API"
 
         raise "Page ID required" unless page_id
 
@@ -296,7 +296,7 @@ module RAAF
       end
 
       def delete_page(args)
-        page_id = args[:page_id] || args["page_id"]
+        page_id = args[:page_id]
         raise "Page ID required" unless page_id
 
         make_request(:delete, "/content/#{page_id}")
@@ -308,8 +308,8 @@ module RAAF
       end
 
       def search_content(args)
-        query = args[:query] || args["query"]
-        limit = args[:limit] || args["limit"] || 25
+        query = args[:query]
+        limit = args[:limit] || 25
 
         raise "Search query required" unless query
 
@@ -327,7 +327,7 @@ module RAAF
       end
 
       def get_page_content(args)
-        page_id = args[:page_id] || args["page_id"]
+        page_id = args[:page_id]
         raise "Page ID required" unless page_id
 
         result = make_request(:get, "/content/#{page_id}?expand=body.storage,body.view")
@@ -342,7 +342,7 @@ module RAAF
       end
 
       def get_page_children(args)
-        page_id = args[:page_id] || args["page_id"]
+        page_id = args[:page_id]
         raise "Page ID required" unless page_id
 
         result = make_request(:get, "/content/#{page_id}/child/page")
@@ -354,9 +354,9 @@ module RAAF
       end
 
       def add_attachment(args)
-        page_id = args[:page_id] || args["page_id"]
-        file_path = args[:file_path] || args["file_path"]
-        args[:attachment_comment] || args["attachment_comment"] || ""
+        page_id = args[:page_id]
+        file_path = args[:file_path]
+        args[:attachment_comment] || ""
 
         raise "Page ID and file path required" unless page_id && file_path
         raise "File not found: #{file_path}" unless File.exist?(file_path)
@@ -372,7 +372,7 @@ module RAAF
       end
 
       def get_attachments(args)
-        page_id = args[:page_id] || args["page_id"]
+        page_id = args[:page_id]
         raise "Page ID required" unless page_id
 
         result = make_request(:get, "/content/#{page_id}/child/attachment")
@@ -384,8 +384,8 @@ module RAAF
       end
 
       def add_comment(args)
-        page_id = args[:page_id] || args["page_id"]
-        comment = args[:comment] || args["comment"]
+        page_id = args[:page_id]
+        comment = args[:comment]
 
         raise "Page ID and comment required" unless page_id && comment
 
@@ -410,7 +410,7 @@ module RAAF
       end
 
       def get_comments(args)
-        page_id = args[:page_id] || args["page_id"]
+        page_id = args[:page_id]
         raise "Page ID required" unless page_id
 
         result = make_request(:get, "/content/#{page_id}/child/comment?expand=body.storage")
@@ -422,8 +422,8 @@ module RAAF
       end
 
       def add_label(args)
-        page_id = args[:page_id] || args["page_id"]
-        labels = args[:labels] || args["labels"]
+        page_id = args[:page_id]
+        labels = args[:labels]
 
         raise "Page ID and labels required" unless page_id && labels
 
@@ -439,7 +439,7 @@ module RAAF
       end
 
       def get_labels(args)
-        page_id = args[:page_id] || args["page_id"]
+        page_id = args[:page_id]
         raise "Page ID required" unless page_id
 
         result = make_request(:get, "/content/#{page_id}/label")
@@ -451,10 +451,10 @@ module RAAF
       end
 
       def copy_page(args)
-        page_id = args[:page_id] || args["page_id"]
-        new_title = args[:title] || args["title"]
-        space_key = args[:space_key] || args["space_key"]
-        parent_id = args[:parent_id] || args["parent_id"]
+        page_id = args[:page_id]
+        new_title = args[:title]
+        space_key = args[:space_key]
+        parent_id = args[:parent_id]
 
         raise "Page ID and new title required" unless page_id && new_title
 
@@ -473,8 +473,8 @@ module RAAF
       end
 
       def move_page(args)
-        page_id = args[:page_id] || args["page_id"]
-        parent_id = args[:parent_id] || args["parent_id"]
+        page_id = args[:page_id]
+        parent_id = args[:parent_id]
 
         raise "Page ID and parent ID required" unless page_id && parent_id
 
@@ -501,8 +501,8 @@ module RAAF
       end
 
       def export_page(args)
-        page_id = args[:page_id] || args["page_id"]
-        format = args[:format] || args["format"] || "pdf"
+        page_id = args[:page_id]
+        format = args[:format] || "pdf"
 
         raise "Page ID required" unless page_id
 
@@ -623,7 +623,7 @@ module RAAF
       end
 
       def demo_response(args)
-        action = args[:action] || args["action"]
+        action = args[:action]
 
         case action
         when "list_spaces"
