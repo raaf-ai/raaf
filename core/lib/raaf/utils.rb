@@ -6,48 +6,48 @@ module RAAF
   # Utils - General utilities for RAAF
   #
   # This module provides helper methods for common operations in RAAF including:
-  # - Hash key conversion (symbol/string keys)
+  # - Indifferent hash access (seamless string/symbol key handling)
+  # - JSON parsing with IndifferentHash support
   # - String case conversion (snake_case)
   # - OpenAI API preparation utilities
   #
-  # The gem follows Ruby conventions of using symbols internally while respecting
-  # API requirements for string keys.
+  # RAAF uses an **indifferent access strategy** throughout the system to eliminate
+  # the confusion between string and symbol keys.
   #
-  # == Key Conversion Strategy
+  # == Indifferent Access Strategy
   #
-  # The RAAF (Ruby AI Agents Factory) gem uses a dual-key strategy:
-  # - **Internal Processing**: Symbol keys for Ruby idiomatic code and performance
-  # - **API Boundaries**: String keys as required by OpenAI API specifications
-  # - **User Input**: Flexible acceptance of both symbol and string keys
+  # The RAAF (Ruby AI Agents Factory) gem uses indifferent hash access:
+  # - **All Data Structures**: Support both string and symbol keys seamlessly
+  # - **JSON Parsing**: Returns IndifferentHash by default for flexible access
+  # - **API Integration**: Automatic conversion to required formats
+  # - **User Experience**: Never worry about key types - both work identically
   #
   # == Performance Considerations
   #
-  # This module uses recursive transformation which creates new objects. For
-  # large nested structures, consider using streaming or chunked processing
-  # when performance is critical.
+  # IndifferentHash uses string keys internally for consistency while providing
+  # transparent symbol access. For large nested structures, consider using 
+  # streaming or chunked processing when performance is critical.
   #
   # @example API boundary conversion
   #   RAAF::Utils.prepare_for_openai({key: "value", nested: {inner: 123}})
   #   # => {"key" => "value", "nested" => {"inner" => 123}}
   #
-  # @example Response normalization
-  #   api_response = {"message" => {"role" => "assistant", "content" => "Hello"}}
-  #   RAAF::Utils.normalize_response(api_response)
-  #   # => {:message => {:role => "assistant", :content => "Hello"}}
+  # @example Indifferent access conversion
+  #   data = {"message" => {"role" => "assistant", "content" => "Hello"}}
+  #   result = RAAF::Utils.indifferent_access(data)
+  #   result[:message][:content]   # => "Hello"
+  #   result["message"]["content"] # => "Hello" (same result)
   #
   # @example String case conversion
   #   RAAF::Utils.snake_case("CompanyDiscoveryAgent")
   #   # => "company_discovery_agent"
   #
-  # @example Complex nested structures
-  #   data = {
-  #     messages: [
-  #       {role: :user, content: "Hi"},
-  #       {role: :assistant, content: "Hello", metadata: {tokens: 15}}
-  #     ]
-  #   }
-  #   RAAF::Utils.prepare_for_openai(data)
-  #   # => {"messages" => [{"role" => "user", "content" => "Hi"}, ...]}
+  # @example JSON parsing with indifferent access
+  #   json_str = '{"user": {"name": "John", "age": 30}}'
+  #   result = RAAF::Utils.parse_json(json_str)
+  #   result[:user][:name]    # => "John"
+  #   result["user"]["name"]  # => "John" (same result)
+  #   # No more key type confusion!
   #
   # @example Schema preparation for strict mode
   #   schema = {type: "object", properties: {name: {type: "string"}}}
@@ -61,72 +61,7 @@ module RAAF
 
     module_function
 
-    ##
-    # Convert hash keys to symbols recursively
-    #
-    # Transforms all string keys to symbol keys throughout a nested data structure.
-    # Arrays are processed recursively, and non-hash/array objects are returned unchanged.
-    # This method creates new objects rather than modifying in place.
-    #
-    # @param obj [Hash, Array, Object] The object to convert
-    # @return [Hash, Array, Object] Object with symbolized keys
-    #
-    # @example Basic hash conversion
-    #   Utils.deep_symbolize_keys({"name" => "John", "age" => 30})
-    #   # => {:name => "John", :age => 30}
-    #
-    # @example Nested structures
-    #   data = {"user" => {"profile" => {"name" => "John"}}}
-    #   Utils.deep_symbolize_keys(data)
-    #   # => {:user => {:profile => {:name => "John"}}}
-    #
-    # @example Arrays with hashes
-    #   Utils.deep_symbolize_keys([{"id" => 1}, {"id" => 2}])
-    #   # => [{:id => 1}, {:id => 2}]
-    def deep_symbolize_keys(obj)
-      case obj
-      when Hash
-        obj.transform_keys(&:to_sym).transform_values { |v| deep_symbolize_keys(v) }
-      when Array
-        obj.map { |v| deep_symbolize_keys(v) }
-      else
-        obj
-      end
-    end
 
-    ##
-    # Convert hash keys to strings recursively
-    #
-    # Transforms all symbol keys to string keys throughout a nested data structure.
-    # Arrays are processed recursively, and non-hash/array objects are returned unchanged.
-    # This method creates new objects rather than modifying in place.
-    #
-    # @param obj [Hash, Array, Object] The object to convert
-    # @return [Hash, Array, Object] Object with stringified keys
-    #
-    # @example Basic hash conversion
-    #   Utils.deep_stringify_keys({name: "John", age: 30})
-    #   # => {"name" => "John", "age" => 30}
-    #
-    # @example Nested structures
-    #   data = {user: {profile: {name: "John"}}}
-    #   Utils.deep_stringify_keys(data)
-    #   # => {"user" => {"profile" => {"name" => "John"}}}
-    #
-    # @example Mixed key types
-    #   data = {:symbols => "value", "strings" => {nested: :symbol}}
-    #   Utils.deep_stringify_keys(data)
-    #   # => {"symbols" => "value", "strings" => {"nested" => "symbol"}}
-    def deep_stringify_keys(obj)
-      case obj
-      when Hash
-        obj.transform_keys(&:to_s).transform_values { |v| deep_stringify_keys(v) }
-      when Array
-        obj.map { |v| deep_stringify_keys(v) }
-      else
-        obj
-      end
-    end
 
     ##
     # Prepare hash for OpenAI API (convert to string keys)
@@ -148,7 +83,14 @@ module RAAF
     #   Utils.prepare_for_openai(params)
     #   # => {"name" => "weather", "parameters" => {"location" => {"type" => "string"}}}
     def prepare_for_openai(hash)
-      deep_stringify_keys(hash)
+      case hash
+      when Hash
+        hash.transform_keys(&:to_s).transform_values { |v| prepare_for_openai(v) }
+      when Array
+        hash.map { |v| prepare_for_openai(v) }
+      else
+        hash
+      end
     end
 
     ##
@@ -174,7 +116,7 @@ module RAAF
     #   Utils.normalize_response(usage)
     #   # => {:prompt_tokens => 15, :completion_tokens => 10, :total_tokens => 25}
     def normalize_response(response)
-      deep_symbolize_keys(response)
+      indifferent_access(response)
     end
 
     ##
@@ -259,42 +201,107 @@ module RAAF
     end
 
     ##
-    # Parse JSON with symbolized keys
+    # Create IndifferentHash from object
     #
-    # Convenience method for parsing JSON with symbolized keys, which is commonly
-    # used throughout RAAF for internal data processing.
+    # Converts a hash, array, or other object to use indifferent key access.
+    # This is the primary method for creating indifferent access structures
+    # throughout RAAF, eliminating string vs symbol key issues.
     #
-    # @param json_string [String] JSON string to parse
-    # @return [Hash, Array] Parsed data with symbolized keys
+    # @param obj [Hash, Array, Object] The object to convert
+    # @return [IndifferentHash, Array, Object] Object with indifferent access
     #
-    # @example Parse JSON response
-    #   Utils.parse_json('{"name": "John", "age": 30}')
-    #   # => {:name => "John", :age => 30}
+    # @example Basic hash conversion
+    #   Utils.indifferent_access({"name" => "John", :age => 30})
+    #   # => IndifferentHash allowing both hash[:name] and hash["name"]
     #
-    # @example Parse JSON array
-    #   Utils.parse_json('[{"id": 1}, {"id": 2}]')
-    #   # => [{:id => 1}, {:id => 2}]
-    def parse_json(json_string)
-      JSON.parse(json_string, symbolize_names: true)
+    # @example Nested structures
+    #   data = {"user" => {"profile" => {"name" => "John"}}}
+    #   hash = Utils.indifferent_access(data)
+    #   hash[:user][:profile][:name]    # => "John"
+    #   hash["user"]["profile"]["name"] # => "John"
+    #
+    # @example Arrays with hashes
+    #   Utils.indifferent_access([{"id" => 1}, {"id" => 2}])
+    #   # => [IndifferentHash, IndifferentHash] with indifferent access
+    def indifferent_access(obj)
+      case obj
+      when Hash
+        IndifferentHash.new(obj)
+      when Array
+        obj.map { |item| indifferent_access(item) }
+      else
+        obj
+      end
     end
 
     ##
-    # Safe JSON parsing with error handling
+    # Parse JSON with indifferent access
     #
-    # Attempts to parse JSON string and returns nil if parsing fails.
-    # Useful for optional JSON parsing where errors should be handled gracefully.
+    # Primary method for parsing JSON that returns IndifferentHash objects
+    # instead of regular hashes. This eliminates string vs symbol key confusion
+    # throughout your RAAF applications.
+    #
+    # @param json_string [String] JSON string to parse
+    # @return [IndifferentHash, Array] Parsed data with indifferent key access
+    #
+    # @example Basic JSON parsing
+    #   json = '{"name": "John", "age": 30}'
+    #   result = Utils.parse_json(json)
+    #   result[:name]   # => "John"
+    #   result["name"]  # => "John" (same result)
+    #
+    # @example Nested structures
+    #   json = '{"user": {"profile": {"name": "John"}}}'
+    #   result = Utils.parse_json(json)
+    #   result[:user][:profile][:name]      # => "John"
+    #   result["user"]["profile"]["name"]   # => "John" (same result)
+    #
+    # @example Arrays with objects
+    #   json = '[{"id": 1, "name": "Item 1"}, {"id": 2, "name": "Item 2"}]'
+    #   result = Utils.parse_json(json)
+    #   result[0][:id]     # => 1
+    #   result[0]["id"]    # => 1 (same result)
+    #   result[1][:name]   # => "Item 2"
+    #   result[1]["name"]  # => "Item 2" (same result)
+    #
+    # @example Parse JSON response with indifferent access
+    #   result = Utils.parse_json('{"name": "John", "age": 30}')
+    #   result[:name]   # => "John"
+    #   result["name"]  # => "John"
+    #   result[:age]    # => 30
+    #   result["age"]   # => 30
+    #
+    # @example Parse JSON array
+    #   Utils.parse_json('[{"id": 1}, {"id": 2}]')
+    #   # => [IndifferentHash, IndifferentHash] with flexible key access
+    def parse_json(json_string)
+      parsed = JSON.parse(json_string)
+      indifferent_access(parsed)
+    end
+
+
+    ##
+    # Safe JSON parsing with indifferent access
+    #
+    # Attempts to parse JSON string and returns IndifferentHash with indifferent
+    # access. Returns the default value if parsing fails.
     #
     # @param json_string [String] JSON string to parse
     # @param default [Object] Default value to return if parsing fails
-    # @return [Hash, Array, Object] Parsed data or default value
+    # @return [IndifferentHash, Array, Object] Parsed data with indifferent access or default value
     #
     # @example Safe parsing with default
-    #   Utils.safe_parse_json('invalid json', {})
-    #   # => {}
+    #   Utils.safe_parse_json('invalid json', IndifferentHash.new)
+    #   # => IndifferentHash (empty)
     #
     # @example Safe parsing with nil default
     #   Utils.safe_parse_json('invalid json')
     #   # => nil
+    #
+    # @example Successful parsing
+    #   result = Utils.safe_parse_json('{"key": "value"}')
+    #   result[:key]   # => "value"
+    #   result["key"]  # => "value"
     def safe_parse_json(json_string, default = nil)
       parse_json(json_string)
     rescue JSON::ParserError
