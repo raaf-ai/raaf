@@ -292,9 +292,10 @@ module RAAF
         required = self.class.required_fields
         return true if required.empty?
         
-        # Check which fields are missing
-        context_keys = context.is_a?(Hash) ? context.keys : []
-        missing_fields = required.reject { |field| context_keys.include?(field) }
+        # Check which fields are missing using hash key checking to respect indifferent access
+        missing_fields = required.reject { |field| 
+          context.is_a?(Hash) ? context.key?(field) : false
+        }
         
         return true if missing_fields.empty?
         
@@ -311,10 +312,12 @@ module RAAF
         missing_fields -= defaults
         
         if missing_fields.any?
+          # Extract context keys for debugging (preserving original functionality)
+          available_keys = context.is_a?(Hash) ? context.keys : []
           raise RAAF::DSL::Error, 
                 "Pipeline validation failed for #{self.class.name}: " \
                 "missing required context fields: #{missing_fields.inspect}. " \
-                "Available context: #{context_keys.inspect}"
+                "Available context: #{available_keys.inspect}"
         end
         
         true
