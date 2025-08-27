@@ -7,8 +7,10 @@ module RAAF
       attr_reader :current_context, :stage_number, :stage_history
       
       def initialize(initial_context)
-        @initial_context = initial_context.dup
-        @current_context = initial_context.dup
+        # Normalize all keys to symbols for consistent comparison
+        normalized_context = normalize_keys_to_symbols(initial_context)
+        @initial_context = normalized_context.dup
+        @current_context = normalized_context.dup
         @stage_number = 0
         @stage_history = []
       end
@@ -64,6 +66,22 @@ module RAAF
           fields_added: @current_context.keys - @initial_context.keys,
           stage_history: @stage_history
         }
+      end
+      
+      private
+      
+      # Normalize hash keys to symbols for consistent comparison
+      def normalize_keys_to_symbols(hash)
+        case hash
+        when Hash
+          normalized = {}
+          hash.each do |key, value|
+            normalized[key.to_sym] = value
+          end
+          normalized
+        else
+          hash
+        end
       end
     end
   end

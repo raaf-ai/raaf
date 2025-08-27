@@ -64,9 +64,10 @@ module RAAF
 
           # Check if context has all required fields (or they have defaults)
           if context.is_a?(Hash)
-            required.all? { |field| context.key?(field) || defaults.key?(field) }
+            required.all? { |field| context.key?(field) || context.key?(field.to_s) || defaults.key?(field) }
           elsif context.respond_to?(:keys)
-            required.all? { |field| context.keys.include?(field) || defaults.key?(field) }
+            context_keys = context.keys.map(&:to_sym)
+            required.all? { |field| context_keys.include?(field) || defaults.key?(field) }
           else
             # For ContextVariables or other context objects
             required.all? do |field|
@@ -294,7 +295,11 @@ module RAAF
         
         # Check which fields are missing using hash key checking to respect indifferent access
         missing_fields = required.reject { |field| 
-          context.is_a?(Hash) ? context.key?(field) : false
+          if context.is_a?(Hash)
+            context.key?(field) || context.key?(field.to_s)
+          else
+            false
+          end
         }
         
         return true if missing_fields.empty?
