@@ -3,6 +3,7 @@
 require "yaml"
 require "json"
 require_relative "logging"
+require_relative "utils"
 
 module RAAF
 
@@ -527,9 +528,9 @@ module RAAF
 
       case File.extname(file_path).downcase
       when ".yml", ".yaml"
-        YAML.safe_load(content, symbolize_names: true) || {}
+        Utils.indifferent_access(YAML.safe_load(content) || {})
       when ".json"
-        JSON.parse(content, symbolize_names: true)
+        Utils.parse_json(content)
       else
         {}
       end

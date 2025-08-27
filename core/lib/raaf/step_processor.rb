@@ -456,7 +456,7 @@ module RAAF
       arguments_json = tool_call[:arguments] || tool_call.dig(:function, :arguments) || "{}"
 
       begin
-        JSON.parse(arguments_json, symbolize_names: true)
+        Utils.parse_json(arguments_json)
       rescue JSON::ParserError => e
         log_exception(e, message: "Failed to parse tool arguments", arguments: arguments_json)
         {}

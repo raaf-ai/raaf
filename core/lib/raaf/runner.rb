@@ -2934,7 +2934,7 @@ module RAAF
       json_str = json_match ? json_match[1] : content.strip
       
       begin
-        parsed = JSON.parse(json_str, symbolize_names: true)
+        parsed = Utils.parse_json(json_str)
         
         # Always normalize keys with spaces to snake_case for all agents
         normalized = normalize_json_keys(parsed)

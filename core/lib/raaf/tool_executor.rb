@@ -97,7 +97,7 @@ module RAAF
 
         begin
           # Parse arguments
-          arguments = JSON.parse(arguments_str, symbolize_names: true)
+          arguments = Utils.parse_json(arguments_str)
 
           # Execute the tool with optional wrapper
           result = if tool_wrapper

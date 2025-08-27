@@ -20,7 +20,7 @@ module RAAF
     class << self
       # Attempt to repair and parse malformed JSON
       # @param input [String, Hash] Input to repair - strings are parsed, hashes returned as-is
-      # @return [Hash, nil] Parsed JSON as hash with symbolized keys, or nil if unrepairable
+      # @return [IndifferentHash, nil] Parsed JSON with indifferent access, or nil if unrepairable
       def repair(input)
         return input if input.is_a?(Hash)
         return nil unless input.is_a?(String)
@@ -46,7 +46,7 @@ module RAAF
 
       # Extract valid JSON structure from mixed content (text + JSON)
       # @param content [String] Content that may contain JSON
-      # @return [Hash, nil] First valid JSON structure found, or nil
+      # @return [IndifferentHash, nil] First valid JSON structure with indifferent access, or nil
       def extract_json_from_content(content)
         # Try to find complete JSON objects or arrays
         json_patterns = [
@@ -69,13 +69,14 @@ module RAAF
 
       private
 
-      # Safely attempt JSON parsing with symbolized keys
+      # Safely attempt JSON parsing with indifferent access
       # @param str [String] JSON string to parse
-      # @return [Hash, nil] Parsed hash or nil if parsing fails
+      # @return [IndifferentHash, nil] Parsed hash with indifferent access or nil if parsing fails
       def try_parse(str)
         return nil unless str.is_a?(String) && !str.strip.empty?
         
-        JSON.parse(str, symbolize_names: true)
+        parsed = JSON.parse(str)
+        Utils.indifferent_access(parsed)
       rescue JSON::ParserError
         nil
       end

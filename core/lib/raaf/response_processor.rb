@@ -38,9 +38,12 @@ module RAAF
     # @return [ProcessedResponse] Categorized response elements
     #
     def process_model_response(response:, agent:, all_tools:, handoffs:)
+      # Convert response to indifferent access immediately
+      response = Utils.indifferent_access(response) unless response.is_a?(IndifferentHash)
+
       log_debug("🔄 RESPONSE_PROCESSOR: Processing model response",
                 agent: agent.name, tools_count: all_tools.size, handoffs_count: handoffs.size,
-                response_keys: response.keys, response_output: response[:output] || response["output"])
+                response_keys: response.keys, response_output: response[:output])
 
       items = []
       run_handoffs = []
@@ -109,9 +112,9 @@ module RAAF
                 items.concat(message[:tool_calls]) if message[:tool_calls]
 
                 items
-              elsif response[:output] || response["output"]
-                # Responses API format (handle both symbol and string keys)
-                response[:output] || response["output"]
+              elsif response[:output]
+                # Responses API format (with indifferent access)
+                response[:output]
               else
                 # Direct message format
                 [response]
@@ -119,11 +122,11 @@ module RAAF
 
       log_debug("🔍 RESPONSE_PROCESSOR: Extracted response items",
                 items_count: items.length,
-                item_types: items.map { |item| item[:type] || item["type"] || "unknown" },
+                item_types: items.map { |item| item[:type] || "unknown" },
                 response_format: response[:output] ? "responses_api" : "chat_completions")
 
-      # Convert all items to use symbol keys for consistency
-      items.map { |item| Utils.deep_symbolize_keys(item) }
+      # Convert all items to use indifferent access for consistency
+      items.map { |item| Utils.indifferent_access(item) }
     end
 
     ##

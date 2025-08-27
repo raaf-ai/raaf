@@ -671,7 +671,7 @@ module RAAF
       #   # => { data: "{invalid json}", schema: {...}, valid: false, error: "Invalid JSON: ..." }
       #
       def validate_and_format(json_string)
-        data = JSON.parse(json_string, symbolize_names: true)
+        data = Utils.parse_json(json_string)
         format_response(data)
       rescue JSON::ParserError => e
         {

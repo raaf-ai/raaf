@@ -213,7 +213,7 @@ module RAAF
     #
     def self.from_json(json)
       require "json"
-      hash = JSON.parse(json, symbolize_names: true)
+      hash = Utils.parse_json(json)
       from_hash(hash)
     end
 
