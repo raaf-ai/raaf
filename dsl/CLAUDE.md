@@ -1,6 +1,6 @@
 # RAAF DSL - Claude Code Guide
 
-This gem provides a Ruby DSL for building agents with a more declarative syntax, comprehensive debugging tools, and a flexible prompt resolution system.
+This gem provides a Ruby DSL for building agents with a more declarative syntax, comprehensive debugging tools, flexible prompt resolution, and **automatic hash indifferent access** for seamless data handling.
 
 ## Important: Prompt Format Preference
 
@@ -43,10 +43,11 @@ result = runner.run("Search for Ruby programming tutorials")
 
 - **AgentBuilder** - DSL for defining agents
 - **ToolBuilder** - DSL for creating tools
-- **ContextVariables** - Dynamic context management
+- **ContextVariables** - Dynamic context management with **indifferent hash access**
 - **Prompt Resolution** - Flexible prompt loading system
 - **WebSearch** - Built-in web search tool
 - **DebugUtils** - Enhanced debugging capabilities
+- **Indifferent Access** - All data structures support both string and symbol keys seamlessly
 
 ## Agent DSL
 
@@ -162,15 +163,28 @@ end
 - **Clean Errors**: Clear Ruby NameError messages for missing variables
 - **Reusable**: Inherit from base classes
 
-## Context Variables
+## Context Variables with Indifferent Access
+
+Context variables in RAAF DSL use `ActiveSupport::HashWithIndifferentAccess` for seamless key handling:
 
 ```ruby
+# Context variables support both string and symbol key access
 result = agent.run("Research AI trends") do
   # Set context variables for this run
   context_variable :search_depth, "deep"
-  context_variable :sources, ["academic", "industry"]
+  context_variable :sources, ["academic", "industry"] 
   context_variable :time_range, "2024"
 end
+
+# Access with either key type - both work identically
+puts result.context[:search_depth]   # ✅ Works  
+puts result.context["search_depth"]  # ✅ Also works
+puts result.context[:sources]        # ✅ Works
+puts result.context["sources"]       # ✅ Also works
+
+# No more dual access patterns needed:
+# OLD: result.context[:key] || result.context["key"]  ❌ Error-prone
+# NEW: result.context[:key]                           ✅ Always works
 ```
 
 ## Web Search Tool
@@ -273,11 +287,15 @@ result = agent.run("Tesla Inc is an automotive company with 127,000 employees...
 #   "HQ Location": "Austin, Texas"
 # }
 #
-# You get normalized output:
-puts result[:company_name]          # "Tesla Inc"
-puts result[:market_sector]         # "automotive"  
-puts result[:employee_count]        # 127000
-puts result[:headquarters_location] # "Austin, Texas"
+# You get normalized output with indifferent access:
+puts result[:company_name]           # "Tesla Inc"
+puts result["company_name"]          # "Tesla Inc" (same result)
+puts result[:market_sector]          # "automotive"  
+puts result["market_sector"]         # "automotive" (same result)
+puts result[:employee_count]         # 127000
+puts result["employee_count"]        # 127000 (same result)
+puts result[:headquarters_location]  # "Austin, Texas"
+puts result["headquarters_location"] # "Austin, Texas" (same result)
 ```
 
 ### JSON Repair and Error Handling
@@ -304,7 +322,11 @@ end
 agent = DataExtractor.new
 result = agent.run("Extract the user data from this messy text...")
 
-# Always get clean, parsed data regardless of LLM output quality
+# Always get clean, parsed data with indifferent key access regardless of LLM output quality
+puts result[:extracted_data]    # ✅ Works
+puts result["extracted_data"]   # ✅ Also works  
+puts result[:confidence]        # ✅ Works
+puts result["confidence"]       # ✅ Also works
 ```
 
 ### Validation Mode Comparison
@@ -324,7 +346,7 @@ schema do
   validate_mode :tolerant
 end
 # LLM can return {"Name": "John", "Age": 25, "ExtraField": "ignored"}
-# Gets normalized to {name: "John", age: 25}
+# Gets normalized with indifferent access: both result[:name] and result["name"] work
 
 # :partial mode - Use whatever validates, ignore the rest
 schema do
@@ -332,7 +354,8 @@ schema do
   field :age, type: :integer  
   validate_mode :partial
 end
-# Even {"Name": "John", "InvalidAge": "not a number"} → {name: "John"}
+# Even {"Name": "John", "InvalidAge": "not a number"} gets normalized with indifferent access
+# Both result[:name] and result["name"] return "John"
 ```
 
 ## Environment Variables

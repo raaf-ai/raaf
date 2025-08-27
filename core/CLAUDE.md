@@ -1,6 +1,6 @@
 # RAAF Core - Claude Code Guide
 
-This is the **core gem** of the Ruby AI Agents Factory (RAAF), providing the fundamental agent implementation and execution engine.
+This is the **core gem** of the Ruby AI Agents Factory (RAAF), providing the fundamental agent implementation and execution engine with **indifferent hash access** for seamless key handling.
 
 ## Quick Start
 
@@ -14,29 +14,44 @@ agent = RAAF::Agent.new(
   model: "gpt-4o"
 )
 
-# Or create with JSON repair and key normalization enabled
-agent = RAAF::Agent.new(
-  name: "FlexibleAssistant",
-  instructions: "Extract data from user input.",
-  model: "gpt-4o",
-  json_repair: true,          # Handle malformed JSON automatically
-  normalize_keys: true,       # Map "Full Name" to :full_name  
-  validation_mode: :tolerant  # Flexible validation
-)
-
-# Run conversation
+# Run conversation - results support both string and symbol key access
 runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello!")
-puts result.messages.last[:content]
+
+# Access with either key type - no more key confusion!
+puts result.messages.last[:content]  # Symbol key access
+puts result.messages.last["content"] # String key access (same result)
+```
+
+## Indifferent Hash Access
+
+**RAAF Core eliminates string vs symbol key confusion** throughout the entire system:
+
+```ruby
+# All RAAF data structures support indifferent access
+response = agent.run("Get weather data")
+
+# These all work identically:
+response[:output]         # ✅ Works
+response["output"]        # ✅ Works  
+response[:data][:weather] # ✅ Works
+response["data"]["weather"] # ✅ Works
+
+# No more dual access patterns needed:
+# OLD: response[:key] || response["key"]  ❌ Error-prone
+# NEW: response[:key]                     ✅ Always works
 ```
 
 ## Core Components
 
 - **Agent** (`lib/raaf/agent.rb`) - Main agent class with tools and handoffs
-- **Runner** (`lib/raaf/runner.rb`) - Execution engine (uses ResponsesProvider by default)
-- **JsonRepair** (`lib/raaf/json_repair.rb`) - Fault-tolerant JSON parsing for LLM responses
+- **Runner** (`lib/raaf/runner.rb`) - Execution engine (uses ResponsesProvider by default)  
+- **IndifferentHash** (`lib/raaf/indifferent_hash.rb`) - **NEW** - Hash with flexible string/symbol key access
+- **Utils** (`lib/raaf/utils.rb`) - **ENHANCED** - JSON parsing with indifferent access support
+- **JsonRepair** (`lib/raaf/json_repair.rb`) - Fault-tolerant JSON parsing returning IndifferentHash
 - **SchemaValidator** (`lib/raaf/schema_validator.rb`) - Schema validation with key normalization
-- **AgentOutputSchema** (`lib/raaf/agent_output.rb`) - Output validation with JSON repair integration
+- **AgentOutputSchema** (`lib/raaf/agent_output.rb`) - Output validation with indifferent access
+- **ResponseProcessor** (`lib/raaf/response_processor.rb`) - **ENHANCED** - Processes responses with indifferent access
 - **ModelInterface** (`lib/raaf/models/interface.rb`) - Base class with built-in retry logic
 - **ResponsesProvider** (`lib/raaf/models/responses_provider.rb`) - **DEFAULT** - OpenAI Responses API with retry
 - **OpenAIProvider** (`lib/raaf/models/openai_provider.rb`) - **DEPRECATED** - Legacy Chat Completions API
@@ -44,13 +59,60 @@ puts result.messages.last[:content]
 
 ## Key Patterns
 
+### Indifferent Hash Access Patterns
+
+```ruby
+# JSON parsing returns IndifferentHash automatically
+data = RAAF::Utils.parse_json('{"name": "John", "age": 30}')
+data[:name]   # ✅ "John"
+data["name"]  # ✅ "John"
+
+# Tool arguments support both key types
+def process_data(name:, age:, **options)
+  "Processing #{name}, age #{age}"
+end
+
+agent.add_tool(method(:process_data))
+
+# Agent responses have indifferent access
+result = runner.run("Process data for John, age 30")
+result[:output]         # ✅ Works
+result["output"]        # ✅ Works
+result.messages.last[:content]  # ✅ Works
+result.messages.last["content"] # ✅ Works
+```
+
+### Converting Existing Hashes
+
+```ruby
+# Convert any hash to indifferent access
+regular_hash = { "api_key" => "123", :model => "gpt-4o" }
+indifferent = RAAF::Utils.indifferent_access(regular_hash)
+
+indifferent[:api_key]   # ✅ "123" 
+indifferent["api_key"]  # ✅ "123"
+indifferent[:model]     # ✅ "gpt-4o"
+indifferent["model"]    # ✅ "gpt-4o"
+```
+
 ### Agent with Tools
 ```ruby
 def get_weather(location)
-  "Weather in #{location}: sunny, 72°F"
+  # Tool results automatically get indifferent access
+  { 
+    location: location,
+    temperature: "72°F",
+    "condition" => "sunny"  # Mixed keys work fine
+  }
 end
 
 agent.add_tool(method(:get_weather))
+
+# Both key types work in results
+result = runner.run("What's the weather in Tokyo?")
+weather = result[:tool_results].first
+puts weather[:location]     # ✅ "Tokyo"
+puts weather["condition"]   # ✅ "sunny"
 ```
 
 ### Multi-Agent Handoff

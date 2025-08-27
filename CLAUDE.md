@@ -1,6 +1,6 @@
 # Ruby AI Agents Factory (RAAF) - Claude Code Guide
 
-**RAAF** is a comprehensive Ruby implementation of AI Agents with 100% Python OpenAI Agents SDK feature parity, plus enterprise-grade capabilities for building sophisticated multi-agent workflows.
+**RAAF** is a comprehensive Ruby implementation of AI Agents with 100% Python OpenAI Agents SDK feature parity, plus enterprise-grade capabilities for building sophisticated multi-agent workflows. **RAAF eliminates hash key confusion** with indifferent access throughout the entire system.
 
 ## Quick Start
 
@@ -15,7 +15,34 @@ agent = RAAF::Agent.new(
 
 runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Hello!")
-puts result.messages.last[:content]
+
+# Access with either key type - no more symbol/string confusion!
+puts result.messages.last[:content]  # Symbol key access
+puts result.messages.last["content"] # String key access (same result)
+```
+
+## Indifferent Hash Access System
+
+**RAAF solves the string vs symbol key problem** that plagues Ruby applications:
+
+```ruby
+# All RAAF data structures support indifferent access
+result = agent.run("Get weather for Tokyo")
+
+# These all work identically - use whatever feels natural:
+result[:messages]           # ✅ Works
+result["messages"]          # ✅ Works
+result[:output][:weather]   # ✅ Works  
+result["output"]["weather"] # ✅ Works
+
+# No more defensive programming patterns needed:
+# OLD: response[:key] || response["key"]  ❌ Error-prone
+# NEW: response[:key]                     ✅ Always works
+
+# Tool results, context data, configuration - everything supports both key types
+tool_result = result[:tool_calls].first
+puts tool_result[:name]        # ✅ Works
+puts tool_result["arguments"]  # ✅ Works
 ```
 
 ## Provider Requirements
