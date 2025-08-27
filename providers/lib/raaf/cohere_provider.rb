@@ -216,7 +216,7 @@ module RAAF
               data = chunk[6..].strip
               unless data == "[DONE]"
                 begin
-                  parsed = JSON.parse(data)
+                  parsed = RAAF::Utils.parse_json(data)
                   yield convert_stream_chunk(parsed) if block_given?
                 rescue JSON::ParserError => e
                   # Log parse error but continue
@@ -537,7 +537,7 @@ module RAAF
 
         handle_api_error(response, "Cohere") unless response.code.start_with?("2")
 
-        JSON.parse(response.body)
+        RAAF::Utils.parse_json(response.body)
       end
 
       ##

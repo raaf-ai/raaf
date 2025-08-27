@@ -216,7 +216,7 @@ module RAAF
                 end
               else
                 begin
-                  parsed = JSON.parse(data)
+                  parsed = RAAF::Utils.parse_json(data)
 
                   # Extract content from the chunk
                   if parsed.dig("choices", 0, "delta", "content")
@@ -293,7 +293,7 @@ module RAAF
 
         handle_api_error(response, "Groq") unless response.code.start_with?("2")
 
-        JSON.parse(response.body)
+        RAAF::Utils.parse_json(response.body)
       end
 
       ##

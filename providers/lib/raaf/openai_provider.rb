@@ -181,7 +181,7 @@ module RAAF
       def handle_responses_api_response(response)
         case response.code
         when "200"
-          data = JSON.parse(response.body)
+          data = RAAF::Utils.parse_json(response.body)
           log_debug_api("Raw Responses API response", provider: "OpenAI", response_keys: data.keys)
           # Convert to standard chat completion format
           {

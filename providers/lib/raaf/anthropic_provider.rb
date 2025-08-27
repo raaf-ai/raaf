@@ -129,7 +129,7 @@ module RAAF
 
         handle_api_error(response, "Anthropic") unless response.is_a?(Net::HTTPSuccess)
 
-        result = JSON.parse(response.body)
+        result = RAAF::Utils.parse_json(response.body)
         convert_anthropic_to_openai_format(result)
       end
 
@@ -298,7 +298,7 @@ module RAAF
           next if data.empty?
 
           begin
-            json_data = JSON.parse(data)
+            json_data = RAAF::Utils.parse_json(data)
 
             if json_data["type"] == "content_block_delta"
               delta = json_data.dig("delta", "text")

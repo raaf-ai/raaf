@@ -212,7 +212,7 @@ module RAAF
           handle_error(response.code.to_i, error_body)
         end
 
-        JSON.parse(response.body)
+        RAAF::Utils.parse_json(response.body)
       rescue Net::ReadTimeout => e
         raise APIError, "Request timeout: #{e.message}. Consider increasing timeout for large models."
       rescue StandardError => e
@@ -252,7 +252,7 @@ module RAAF
                 next if data == "[DONE]"
 
                 begin
-                  yield JSON.parse(data)
+                  yield RAAF::Utils.parse_json(data)
                 rescue JSON::ParserError
                   # Skip invalid JSON
                 end

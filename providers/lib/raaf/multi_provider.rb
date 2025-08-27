@@ -233,7 +233,7 @@ module RAAF
 
         handle_api_error(response, "Gemini") unless response.is_a?(Net::HTTPSuccess)
 
-        result = JSON.parse(response.body)
+        result = RAAF::Utils.parse_json(response.body)
         convert_gemini_to_openai_format(result)
       end
 

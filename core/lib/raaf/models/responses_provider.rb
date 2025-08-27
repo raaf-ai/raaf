@@ -416,7 +416,7 @@ module RAAF
         return if data == "[DONE]"
 
         begin
-          event_data = JSON.parse(data, symbolize_names: true)
+          event_data = RAAF::Utils.parse_json(data)
 
           # Create and yield appropriate streaming event
           streaming_event = create_streaming_event(event_data)
