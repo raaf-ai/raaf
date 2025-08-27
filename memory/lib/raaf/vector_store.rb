@@ -2,6 +2,7 @@
 
 require "json"
 require "digest"
+require_relative "../../core/lib/raaf/utils"
 begin
   # Suppress matrix deprecation warning
   original_verbose = $VERBOSE
@@ -249,7 +250,7 @@ module RAAF
 
     # Import store from file
     def import(path)
-      data = JSON.parse(File.read(path), symbolize_names: true)
+      data = RAAF::Utils.parse_json(File.read(path))
 
       @name = data[:name]
       @dimensions = data[:dimensions]
@@ -498,7 +499,7 @@ module RAAF
             {
               id: row["id"],
               content: row["content"],
-              metadata: JSON.parse(row["metadata"], symbolize_names: true),
+              metadata: RAAF::Utils.parse_json(row["metadata"]),
               score: row["score"]&.to_f || calculate_similarity(query_embedding, Pgvector.decode(row["embedding"]))
             }
           end
@@ -589,7 +590,7 @@ module RAAF
             id: row["id"],
             content: row["content"],
             embedding: Pgvector.decode(row["embedding"]),
-            metadata: JSON.parse(row["metadata"], symbolize_names: true),
+            metadata: RAAF::Utils.parse_json(row["metadata"]),
             namespace: row["namespace"]
           }
         end
@@ -642,7 +643,7 @@ module RAAF
               id: row["id"],
               content: row["content"],
               embedding: Pgvector.decode(row["embedding"]),
-              metadata: JSON.parse(row["metadata"], symbolize_names: true),
+              metadata: RAAF::Utils.parse_json(row["metadata"]),
               namespace: namespace
             }
           end

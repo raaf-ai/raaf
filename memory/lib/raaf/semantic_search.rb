@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "../../core/lib/raaf/utils"
 begin
   # Suppress matrix deprecation warning
   original_verbose = $VERBOSE
@@ -251,7 +252,7 @@ module RAAF
 
       # Load from file
       def self.load(filename)
-        data = JSON.parse(File.read(filename), symbolize_names: true)
+        data = RAAF::Utils.parse_json(File.read(filename))
 
         db = new(dimension: data[:dimension], index_type: data[:index_type].to_sym)
         db.add(data[:vectors], data[:metadata])

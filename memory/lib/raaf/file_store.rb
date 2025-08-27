@@ -4,6 +4,7 @@ require_relative "base_store"
 require_relative "memory"
 require "json"
 require "fileutils"
+require_relative "../../core/lib/raaf/utils"
 
 module RAAF
   module Memory
@@ -89,7 +90,7 @@ module RAAF
           memory_file = @index[key][:file] || memory_path(key)
           return nil unless File.exist?(memory_file)
 
-          JSON.parse(File.read(memory_file), symbolize_names: true)
+          RAAF::Utils.parse_json(File.read(memory_file))
         rescue JSON::ParserError, Errno::ENOENT
           nil
         end
@@ -248,7 +249,7 @@ module RAAF
 
       def load_index
         if File.exist?(@index_file)
-          @index = JSON.parse(File.read(@index_file), symbolize_names: true)
+          @index = RAAF::Utils.parse_json(File.read(@index_file))
         else
           @index = {}
           save_index
