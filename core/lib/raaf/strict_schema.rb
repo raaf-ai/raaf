@@ -111,66 +111,14 @@ module RAAF
       def ensure_strict_json_schema(schema)
         return empty_schema if schema.nil? || schema.empty?
 
-        # Convert to string keys for processing
-        string_schema = deep_stringify_keys(schema)
+        # Convert to string keys for processing using Utils method
+        string_schema = Utils.prepare_for_openai(schema)
         ensure_strict_json_schema_recursive(string_schema, path: [], root: string_schema)
       end
 
       private
 
-      ##
-      # Convert hash keys to strings recursively (for OpenAI API compatibility)
-      #
-      # OpenAI API expects string keys in JSON schemas, so we convert symbol keys
-      # to strings at the API boundary while preserving the internal symbol usage.
-      # This transformation is applied recursively to handle nested structures.
-      #
-      # @param obj [Hash, Array, Object] The object to convert
-      # @return [Hash, Array, Object] Object with stringified keys
-      #
-      # @example Convert symbol keys to strings
-      #   input = { type: :object, properties: { name: { type: :string } } }
-      #   result = deep_stringify_keys(input)
-      #   # => { "type" => "object", "properties" => { "name" => { "type" => "string" } } }
-      #
-      # @api private
-      def deep_stringify_keys(obj)
-        case obj
-        when Hash
-          obj.transform_keys(&:to_s).transform_values { |v| deep_stringify_keys(v) }
-        when Array
-          obj.map { |v| deep_stringify_keys(v) }
-        else
-          obj
-        end
-      end
 
-      ##
-      # Convert hash keys to symbols recursively (for internal processing)
-      #
-      # This method can be used to convert API responses back to symbol keys
-      # for internal Ruby processing following the symbols-everywhere pattern.
-      # Useful for normalizing external data to Ruby conventions.
-      #
-      # @param obj [Hash, Array, Object] The object to convert
-      # @return [Hash, Array, Object] Object with symbolized keys
-      #
-      # @example Convert string keys to symbols
-      #   input = { "type" => "object", "properties" => { "name" => { "type" => "string" } } }
-      #   result = deep_symbolize_keys(input)
-      #   # => { type: "object", properties: { name: { type: "string" } } }
-      #
-      # @api private
-      def deep_symbolize_keys(obj)
-        case obj
-        when Hash
-          obj.transform_keys(&:to_sym).transform_values { |v| deep_symbolize_keys(v) }
-        when Array
-          obj.map { |v| deep_symbolize_keys(v) }
-        else
-          obj
-        end
-      end
 
       ##
       # Generate an empty strict object schema

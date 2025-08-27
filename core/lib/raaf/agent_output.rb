@@ -188,8 +188,8 @@ module RAAF
     def json_schema
       return nil if plain_text?
 
-      # Convert back to symbol keys for backwards compatibility with tests
-      deep_symbolize_keys(@output_schema)
+      # Return schema as-is (IndifferentHash will handle key access)
+      @output_schema
     end
 
     ##
@@ -245,7 +245,7 @@ module RAAF
       end
 
       begin
-        parsed = JSON.parse(json_str, symbolize_names: true)
+        parsed = Utils.parse_json(json_str)
 
         # Apply schema validation with key normalization if enabled
         if @normalize_keys && !plain_text?
@@ -305,16 +305,6 @@ module RAAF
       nil
     end
 
-    def deep_symbolize_keys(obj)
-      case obj
-      when Hash
-        obj.transform_keys(&:to_sym).transform_values { |v| deep_symbolize_keys(v) }
-      when Array
-        obj.map { |v| deep_symbolize_keys(v) }
-      else
-        obj
-      end
-    end
 
     def configure_schema
       if plain_text?

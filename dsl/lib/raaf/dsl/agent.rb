@@ -2144,29 +2144,10 @@ module RAAF
 
         content = last_assistant_message[:content]
 
-        if content.is_a?(Hash)
-          deep_symbolize_keys(content)
-        else
-          content
-        end
+        # With IndifferentHash, return content as-is (supports both key types)
+        content
       end
 
-      # Deep symbolize all keys in a hash recursively
-      def deep_symbolize_keys(hash)
-        return hash unless hash.is_a?(Hash)
-        
-        hash.each_with_object({}) do |(key, value), result|
-          new_key = key.is_a?(String) ? key.to_sym : key
-          result[new_key] = case value
-                            when Hash
-                              deep_symbolize_keys(value)
-                            when Array
-                              value.map { |v| v.is_a?(Hash) ? deep_symbolize_keys(v) : v }
-                            else
-                              value
-                            end
-        end
-      end
 
       def build_result_summary(final_output)
         case final_output
