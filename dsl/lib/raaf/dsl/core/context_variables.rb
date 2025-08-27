@@ -137,9 +137,27 @@ module RAAF
       #   context.get(:product).name # => Lazy loads product.name
       #
       def get(key, default = nil)
+        # Debug: Log the key access
+        puts "🔍 [ContextVariables] GET access - key: #{key.inspect} (#{key.class})"
+        puts "🔍 [ContextVariables] Available keys: #{@variables.keys.inspect}"
+        
         # With indifferent access, we can use key as-is (string or symbol)
         value = @variables[key]
-        value.nil? ? default : value
+        
+        puts "🔍 [ContextVariables] Raw value found: #{value.nil? ? 'NIL' : value.class}"
+        if value.is_a?(Array)
+          puts "🔍 [ContextVariables] Array size: #{value.length}"
+          if value.first.is_a?(Hash)
+            puts "🔍 [ContextVariables] First item keys: #{value.first.keys.inspect}"
+          end
+        elsif value.is_a?(Hash)
+          puts "🔍 [ContextVariables] Hash keys: #{value.keys.inspect}"
+        end
+        
+        final_value = value.nil? ? default : value
+        puts "🔍 [ContextVariables] Final value: #{final_value.nil? ? 'NIL' : final_value.class}"
+        
+        final_value
       end
 
       # Array-style access for compatibility with Hash syntax
@@ -155,6 +173,7 @@ module RAAF
       #   context["session_id"] # => "abc-123"
       #
       def [](key)
+        puts "🔍 [ContextVariables] [] access - key: #{key.inspect} (#{key.class})"
         get(key)
       end
 
@@ -191,8 +210,20 @@ module RAAF
       #   updated = context.set(:priority, "high")
       #
       def set(key, value)
+        puts "🔍 [ContextVariables] SET operation - key: #{key.inspect} (#{key.class}), value: #{value.class}"
+        if value.is_a?(Array)
+          puts "🔍 [ContextVariables] Setting array with #{value.length} items"
+          if value.first.is_a?(Hash)
+            puts "🔍 [ContextVariables] First item keys: #{value.first.keys.inspect}"
+          end
+        elsif value.is_a?(Hash)
+          puts "🔍 [ContextVariables] Setting hash with keys: #{value.keys.inspect}"
+        end
+        
         # With indifferent access, no need to convert key
-        update(key => value)
+        result = update(key => value)
+        puts "🔍 [ContextVariables] SET complete - new instance created"
+        result
       end
 
       # Check if a variable exists

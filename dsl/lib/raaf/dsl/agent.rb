@@ -1553,12 +1553,24 @@ module RAAF
       def build_auto_context(params, debug = nil)
         require_relative "core/context_builder"
         
+        puts "🔍 [Agent Debug] build_auto_context for #{self.class.name}"
+        puts "🔍 [Agent Debug] Input params: #{params.class} with keys #{params.keys.inspect}" if params.respond_to?(:keys)
+        if params[:markets] || params['markets']
+          markets_data = params[:markets] || params['markets']
+          puts "🔍 [Agent Debug] Markets in params: #{markets_data.class} with #{markets_data.length} items" if markets_data.respond_to?(:length)
+        end
+        
         rules = self.class._agent_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
         
+        # Ensure params has indifferent access for key checking throughout this method
+        params_with_indifferent_access = params.is_a?(ActiveSupport::HashWithIndifferentAccess) ? 
+                                          params : 
+                                          params.with_indifferent_access
+        
         # Validate required fields are provided
         if rules[:required]
-          missing_required = rules[:required] - params.keys
+          missing_required = rules[:required].select { |field| !params_with_indifferent_access.key?(field) }
           if missing_required.any?
             raise ArgumentError, "Missing required context fields: #{missing_required.inspect}"
           end
@@ -1582,7 +1594,7 @@ module RAAF
         if rules[:optional]
           rules[:optional].each do |key, default_value|
             # Only set default if the key wasn't provided in params
-            unless params.key?(key)
+            unless params_with_indifferent_access.key?(key)
               builder.with(key, default_value.is_a?(Proc) ? default_value.call : default_value)
             end
           end
@@ -1593,7 +1605,7 @@ module RAAF
           rules[:output].each do |key|
             # Initialize output fields as nil to prevent NameError on access during agent execution
             # BUT only if not already provided in params to avoid overwriting existing data from pipeline context
-            builder.with(key, nil) unless params.key?(key)
+            builder.with(key, nil) unless params_with_indifferent_access.key?(key)
           end
         end
         
@@ -1601,7 +1613,7 @@ module RAAF
         if rules[:defaults]
           rules[:defaults].each do |key, default_value|
             # Only set default if the key wasn't provided in params
-            unless params.key?(key)
+            unless params_with_indifferent_access.key?(key)
               builder.with(key, default_value.is_a?(Proc) ? default_value.call : default_value)
             end
           end
@@ -1631,6 +1643,15 @@ module RAAF
         # Final build with all values
         final_context = builder.build
         @context = final_context
+        
+        puts "🔍 [Agent Debug] Final context built for #{self.class.name}"
+        puts "🔍 [Agent Debug] Final context keys: #{final_context.keys.inspect}"
+        if final_context[:markets] || final_context['markets']
+          markets_data = final_context[:markets] || final_context['markets']
+          puts "🔍 [Agent Debug] Markets in final context: #{markets_data.class} with #{markets_data.length} items" if markets_data.respond_to?(:length)
+        else
+          puts "🔍 [Agent Debug] No markets found in final context"
+        end
         
         # NEW: Create dynamic methods for all context variables
         define_context_accessors(final_context.keys)
@@ -2447,7 +2468,9 @@ module RAAF
       def create_tool_proc(tool_instance, method_to_call)
         lambda do |**args|
           begin
-            result = tool_instance.send(method_to_call, **args)
+            # Convert string keys to symbol keys to match Ruby keyword argument expectations
+            symbolized_args = args.transform_keys(&:to_sym)
+            result = tool_instance.send(method_to_call, **symbolized_args)
             result.is_a?(Hash) ? result : { result: result }
           rescue => e
             log_error("Tool execution failed: #{e.message}")

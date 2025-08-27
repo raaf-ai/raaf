@@ -181,7 +181,17 @@ module RAAF
           # Execute agent - convert context to keyword arguments to trigger context DSL processing
           context_hash = context.is_a?(RAAF::DSL::ContextVariables) ? context.to_h : context
           
+          puts "🔍 [Pipeline Debug] Context hash type: #{context_hash.class}"
+          puts "🔍 [Pipeline Debug] Context hash keys: #{context_hash.keys.inspect}"
+          if context_hash[:markets] || context_hash['markets']
+            markets_data = context_hash[:markets] || context_hash['markets']
+            puts "🔍 [Pipeline Debug] Markets in context hash: #{markets_data.class} with #{markets_data.length} items" if markets_data.respond_to?(:length)
+          else
+            puts "🔍 [Pipeline Debug] No markets found in context hash"
+          end
+          
           agent = agent_class.new(**context_hash)
+          puts "🔍 [Pipeline Debug] Agent #{agent_class.name} initialized"
           
           # Inject pipeline schema into agent if available
           # Check if we have a pipeline instance with schema available
@@ -220,14 +230,29 @@ module RAAF
             puts "📋 [Pipeline Debug] Provided fields for #{agent_class.name}: #{agent_class.provided_fields.inspect}"
             agent_class.provided_fields.each do |field|
               if result.is_a?(Hash) && result.key?(field)
+                field_value = result[field]
                 puts "📋 [Pipeline Debug] Setting context field #{field} from result"
-                context = context.set(field, result[field])
+                puts "📋 [Pipeline Debug] Field value type: #{field_value.class}"
+                if field_value.is_a?(Array)
+                  puts "📋 [Pipeline Debug] Array size: #{field_value.length}"
+                  if field_value.first.is_a?(Hash)
+                    puts "📋 [Pipeline Debug] First item keys: #{field_value.first.keys.inspect}"
+                  end
+                elsif field_value.is_a?(Hash)
+                  puts "📋 [Pipeline Debug] Hash keys: #{field_value.keys.inspect}"
+                end
+                puts "📋 [Pipeline Debug] Context before set: #{context.class}"
+                context = context.set(field, field_value)
+                puts "📋 [Pipeline Debug] Context after set: #{context.class}"
               elsif result.respond_to?(field)
                 field_value = result.send(field)
                 puts "📋 [Pipeline Debug] Setting context field #{field} from result method"
+                puts "📋 [Pipeline Debug] Method field value type: #{field_value.class}"
                 context = context.set(field, field_value)
               else
                 puts "⚠️  [Pipeline Debug] Field #{field} not found in result"
+                puts "⚠️  [Pipeline Debug] Result keys: #{result.keys.inspect}" if result.respond_to?(:keys)
+                puts "⚠️  [Pipeline Debug] Result methods: #{result.class.instance_methods(false).inspect}" if result.respond_to?(:class)
               end
             end
           else
