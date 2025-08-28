@@ -4,6 +4,8 @@ require_relative 'core/context_variables'
 
 module RAAF
   module DSL
+    # Error raised when attempting to access undeclared context variables in restricted mode
+    class ContextAccessError < NameError; end
     # Shared context access module for consistent variable resolution
     # 
     # This module provides unified context variable access for both Agent and Prompt classes,
@@ -91,7 +93,20 @@ module RAAF
         
         # Handle getter calls (variable)
         if args.empty? && !block_given?
-          # Try multiple context sources in order of preference
+          # FIRST: Check restrictions if context is restricted
+          # This prevents access to undeclared variables even if they exist in the underlying context
+          if context_is_restricted?
+            declared_vars = get_declared_context_variables
+            all_declared = (declared_vars[:required] + declared_vars[:optional] + declared_vars[:output]).map(&:to_sym)
+            
+            unless all_declared.include?(method_name.to_sym)
+              raise_context_restriction_error(method_name)
+            end
+            
+            # Variable is declared - proceed with normal access
+          end
+          
+          # Try multiple context sources in order of preference (only for declared variables or unrestricted contexts)
           
           # 1. Primary context (agent-style with defaults)
           if (method_defined_in_class?(:context) || instance_variable_defined?(:@context)) && 
@@ -116,9 +131,14 @@ module RAAF
             return instance_variable_get(ivar_name)
           end
           
-          # Provide helpful error message with available context
-          available_keys = get_available_context_keys
-          raise NameError, "undefined variable `#{method_name}' - not found in context. Available: #{available_keys.inspect}"
+          # Final fallback: provide helpful error message
+          if context_is_restricted?
+            # This should not happen since we checked restrictions above, but safety net
+            raise_context_restriction_error(method_name)
+          else
+            available_keys = get_available_context_keys
+            raise NameError, "undefined variable `#{method_name}' - not found in context. Available: #{available_keys.inspect}"
+          end
         end
         
         # For all other method calls, delegate to super
@@ -201,7 +221,8 @@ module RAAF
           keys << var_name.to_sym
         end
         
-        keys.uniq.sort
+        # Convert all keys to symbols for consistent comparison
+        keys.map(&:to_sym).uniq.sort
       end
       
       # Get context keys specifically (for backward compatibility)
@@ -258,6 +279,150 @@ module RAAF
         # Ruby instance variables can contain letters, numbers, and underscores
         # but cannot start with a number and cannot contain special chars like ?, !, etc.
         /\A[a-zA-Z_][a-zA-Z0-9_]*\z/.match?(var_part)
+      end
+
+      # Check if context is in restricted mode (has declared context DSL)
+      #
+      # Context is restricted when the class uses context DSL with required or optional declarations.
+      # In restricted mode, only declared variables should be accessible.
+      #
+      # @return [Boolean] true if context access should be restricted to declared variables
+      def context_is_restricted?
+        return false unless respond_to?(:class)
+        
+        # Check if class has context configuration with restrictions
+        if self.class.respond_to?(:_agent_config) && self.class._agent_config
+          context_rules = self.class._agent_config[:context_rules]
+          return false unless context_rules
+          
+          # Context is restricted if it has explicit required or optional declarations
+          has_required = context_rules[:required] && !context_rules[:required].empty?
+          has_optional = context_rules[:optional] && !context_rules[:optional].empty?
+          
+          has_required || has_optional
+        else
+          false
+        end
+      end
+
+      # Get declared context variables from the context DSL
+      #
+      # Returns all variables that have been explicitly declared in the context DSL,
+      # both required and optional ones.
+      #
+      # @return [Hash] Hash with :required and :optional arrays
+      def get_declared_context_variables
+        return { required: [], optional: [] } unless respond_to?(:class)
+        
+        if self.class.respond_to?(:_agent_config) && self.class._agent_config
+          context_rules = self.class._agent_config[:context_rules]
+          return { required: [], optional: [] } unless context_rules
+          
+          required = context_rules[:required] || []
+          optional = (context_rules[:optional] || {}).keys
+          output = context_rules[:output] || []
+          
+          { required: required, optional: optional, output: output }
+        else
+          { required: [], optional: [] }
+        end
+      end
+
+      # Raise a context restriction error with helpful information
+      #
+      # Creates a detailed error message that explains:
+      # 1. What variable was attempted to be accessed
+      # 2. What variables are actually declared
+      # 3. How to fix the issue by updating the context DSL
+      #
+      # @param variable_name [Symbol] The variable that was attempted to be accessed
+      # @raise [ContextAccessError] Always raises with detailed error message
+      def raise_context_restriction_error(variable_name)
+        declared_vars = get_declared_context_variables
+        agent_name = respond_to?(:class) && self.class.respond_to?(:agent_name) ? self.class.agent_name : self.class.name
+        
+        error_message = build_context_restriction_error_message(variable_name, declared_vars, agent_name)
+        
+        raise ContextAccessError, error_message
+      end
+
+      # Build a comprehensive error message for context restriction violations
+      #
+      # @param variable_name [Symbol] The variable that was attempted to be accessed
+      # @param declared_vars [Hash] Hash with declared variables (:required, :optional, :output)
+      # @param agent_name [String] Name of the agent class for context
+      # @return [String] Formatted error message
+      def build_context_restriction_error_message(variable_name, declared_vars, agent_name)
+        lines = []
+        lines << "❌ Context Access Error: Attempted to access undeclared context variable '#{variable_name}'"
+        lines << ""
+        lines << "🔒 #{agent_name} uses restricted context mode with the following declared variables:"
+        
+        if declared_vars[:required].any?
+          lines << "   Required: #{declared_vars[:required].join(', ')}"
+        else
+          lines << "   Required: (none)"
+        end
+        
+        if declared_vars[:optional].any?
+          lines << "   Optional: #{declared_vars[:optional].join(', ')}"
+        else
+          lines << "   Optional: (none)"
+        end
+        
+        if declared_vars[:output].any?
+          lines << "   Output: #{declared_vars[:output].join(', ')}"
+        end
+        
+        lines << ""
+        lines << "💡 To access '#{variable_name}', you must declare it in the context DSL block:"
+        lines << "   context do"
+        
+        if should_be_required?(variable_name)
+          current_required = declared_vars[:required] + [variable_name]
+          lines << "     required #{current_required.map(&:inspect).join(', ')}"
+        else
+          lines << "     # Add to required if this variable must always be provided:"
+          lines << "     # required #{(declared_vars[:required] + [variable_name]).map(&:inspect).join(', ')}"
+          lines << "     # OR add to optional with a default value:"
+          lines << "     # optional #{variable_name}: nil  # or some default value"
+        end
+        
+        lines << "     # ... rest of configuration"
+        lines << "   end"
+        lines << ""
+        
+        available_in_actual_context = get_available_context_keys
+        variable_name_sym = variable_name.to_sym
+        
+        if available_in_actual_context.map(&:to_sym).include?(variable_name_sym)
+          lines << "ℹ️  Note: '#{variable_name}' IS present in the actual context but not declared in the DSL."
+        else
+          lines << "ℹ️  Note: '#{variable_name}' is neither declared in the DSL nor present in the actual context."
+        end
+        
+        if available_in_actual_context.any?
+          lines << "   Available in actual context: #{available_in_actual_context.inspect}"
+        end
+        
+        lines.join("\n")
+      end
+
+      # Heuristic to determine if a variable should be required vs optional
+      #
+      # @param variable_name [Symbol] The variable name to analyze
+      # @return [Boolean] true if the variable seems like it should be required
+      def should_be_required?(variable_name)
+        # Common patterns that suggest a variable should be required
+        required_patterns = %w[
+          id user_id company_id product_id customer_id
+          user company product customer
+          data input query
+          prospect stakeholder
+        ]
+        
+        variable_str = variable_name.to_s
+        required_patterns.any? { |pattern| variable_str.include?(pattern) }
       end
       
     end
