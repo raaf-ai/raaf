@@ -35,6 +35,11 @@ module RAAF
       def build_auto_context(params, debug = nil)
         require_relative "core/context_builder"
         
+        # Detect duplicate context determination before building
+        if self.class.respond_to?(:detect_duplicate_context_determination!)
+          self.class.detect_duplicate_context_determination!
+        end
+        
         rules = self.class._agent_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
         
@@ -104,6 +109,11 @@ module RAAF
       # @return [RAAF::DSL::ContextVariables] Processed context object
       # @raise [ArgumentError] If context parameter is invalid type
       def build_context_from_param(context_param, debug = nil)
+        # Detect duplicate context determination before building
+        if self.class.respond_to?(:detect_duplicate_context_determination!)
+          self.class.detect_duplicate_context_determination!
+        end
+        
         # Only accept ContextVariables instances
         base_context = case context_param
         when RAAF::DSL::ContextVariables
