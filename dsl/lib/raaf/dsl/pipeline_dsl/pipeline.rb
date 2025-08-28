@@ -201,7 +201,24 @@ module RAAF
         execute_callback_with_context(result, &self.class.after_run_block)
       end
       
-      result
+      # Convert ContextVariables result to hash with success flag
+      # This ensures all pipelines return a consistent result structure
+      final_result = if result.respond_to?(:to_h)
+        # Convert ContextVariables to hash while preserving all data
+        result_hash = result.to_h
+        # Add success flag to indicate pipeline completed successfully
+        result_hash[:success] = true
+        result_hash
+      elsif result.is_a?(Hash)
+        # Already a hash, just add success flag if not present
+        result[:success] = true unless result.key?(:success)
+        result
+      else
+        # Fallback for other result types
+        { success: true, result: result }
+      end
+      
+      final_result
     end
     
     private
