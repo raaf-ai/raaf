@@ -18,24 +18,48 @@ module RAAF
 
         include Logger
 
-        attr_reader :first, :second
+        attr_reader :first, :second, :pipeline_context_fields
         
-        def initialize(first, second)
+        def initialize(first, second, pipeline_context_fields: nil)
           @first = first
           @second = second
-          validate_field_compatibility!
+          @pipeline_context_fields = pipeline_context_fields || []
+          
+          # Store validation as a closure to be called later with complete context
+          @validation_proc = proc { validate_field_compatibility! }
+          
+          # Only validate immediately if we have pipeline context fields
+          # Otherwise, defer until pipeline provides them
+          if @pipeline_context_fields.any?
+            @validation_proc.call
+          end
         end
         
         # DSL operator: Chain this agent with the next one in sequence
         # Creates a new ChainedAgent where current chain becomes first, next_agent becomes second
         def >>(next_agent)
-          ChainedAgent.new(self, next_agent)
+          ChainedAgent.new(self, next_agent, pipeline_context_fields: @pipeline_context_fields)
         end
         
         # DSL operator: Run this agent in parallel with another
         # Creates ParallelAgents wrapping both agents for concurrent execution
         def |(parallel_agent)
           ParallelAgents.new([self, parallel_agent])
+        end
+        
+        # Validate with pipeline context fields provided at runtime
+        # This allows the pipeline to pass its context fields after they're defined
+        def validate_with_pipeline_context(pipeline_context_fields)
+          @pipeline_context_fields = pipeline_context_fields if pipeline_context_fields
+          @validation_proc&.call
+          
+          # Recursively validate nested chains
+          if @first.respond_to?(:validate_with_pipeline_context)
+            @first.validate_with_pipeline_context(pipeline_context_fields)
+          end
+          if @second.respond_to?(:validate_with_pipeline_context)
+            @second.validate_with_pipeline_context(pipeline_context_fields)
+          end
         end
         
         def execute(context)
@@ -95,9 +119,9 @@ module RAAF
         # Why early validation: Catches field mismatches during development, not runtime
         # Field mapping decisions:
         # - Producer fields must satisfy consumer requirements (enforced)
-        # - Initial context fields are allowed (from pipeline setup)
+        # - Pipeline context fields are allowed (from pipeline setup)
         # - Fields with context defaults in the agent are allowed
-        # - Missing non-initial fields raise FieldMismatchError
+        # - Missing non-pipeline fields raise FieldMismatchError
         def validate_field_compatibility!
           return unless @first.respond_to?(:provided_fields) && @second.respond_to?(:required_fields)
           
@@ -117,17 +141,20 @@ module RAAF
           
           return if missing.empty?
           
-          # Identify fields that typically come from initial pipeline context
-          # These are commonly provided when creating pipeline instances
-          initial_context_fields = [:product, :company, :market_data, :analysis_depth, :search_terms,
-                                  :target_market, :user, :data, :config, :options, :settings]
+          # Use dynamic pipeline context fields if available
+          # These fields are declared in the pipeline's context block and will be available at runtime
+          pipeline_provided_fields = @pipeline_context_fields
           
-          # Filter out fields that are likely to be provided by initial context
-          non_initial_missing = missing - initial_context_fields
+          # Add common generic context fields that are typically available
+          generic_context_fields = [:user, :data, :config, :options, :settings]
+          available_from_context = pipeline_provided_fields + generic_context_fields
           
-          # Only raise error for fields that can't come from initial context or defaults
-          if non_initial_missing.any?
-            raise FieldMismatchError.new(@first, @second, non_initial_missing, initial_context_fields)
+          # Filter out fields that are provided by pipeline context
+          non_context_missing = missing - available_from_context
+          
+          # Only raise error for fields that can't come from pipeline context or defaults
+          if non_context_missing.any?
+            raise FieldMismatchError.new(@first, @second, non_context_missing, available_from_context)
           end
         end
         
