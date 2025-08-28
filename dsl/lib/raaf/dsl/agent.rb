@@ -1553,12 +1553,7 @@ module RAAF
       def build_auto_context(params, debug = nil)
         require_relative "core/context_builder"
         
-        puts "🔍 [Agent Debug] build_auto_context for #{self.class.name}"
-        puts "🔍 [Agent Debug] Input params: #{params.class} with keys #{params.keys.inspect}" if params.respond_to?(:keys)
-        if params[:markets] || params['markets']
-          markets_data = params[:markets] || params['markets']
-          puts "🔍 [Agent Debug] Markets in params: #{markets_data.class} with #{markets_data.length} items" if markets_data.respond_to?(:length)
-        end
+        log_debug "Building auto context for #{self.class.name}"
         
         rules = self.class._agent_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
@@ -1644,14 +1639,7 @@ module RAAF
         final_context = builder.build
         @context = final_context
         
-        puts "🔍 [Agent Debug] Final context built for #{self.class.name}"
-        puts "🔍 [Agent Debug] Final context keys: #{final_context.keys.inspect}"
-        if final_context[:markets] || final_context['markets']
-          markets_data = final_context[:markets] || final_context['markets']
-          puts "🔍 [Agent Debug] Markets in final context: #{markets_data.class} with #{markets_data.length} items" if markets_data.respond_to?(:length)
-        else
-          puts "🔍 [Agent Debug] No markets found in final context"
-        end
+        log_debug "Final context built for #{self.class.name} with #{final_context.keys.size} keys"
         
         # NEW: Create dynamic methods for all context variables
         define_context_accessors(final_context.keys)
@@ -1726,27 +1714,7 @@ module RAAF
         # Build user prompt with context if available
         user_prompt = build_user_prompt_with_context(run_context)
         
-        # ENHANCED DEBUG: Log the prompt being sent
-        puts "\n🎯 [DSL Agent] === PROMPT DETAILS ==="
-        puts "🎯 [DSL Agent] Agent: #{self.class.name}"
-        puts "🎯 [DSL Agent] User Prompt Length: #{user_prompt.to_s.length}"
-        puts "🎯 [DSL Agent] User Prompt (first 500 chars): #{user_prompt.to_s[0..500]}"
-        if user_prompt.to_s.length > 500
-          puts "🎯 [DSL Agent] User Prompt (last 500 chars): #{user_prompt.to_s[-500..-1]}"
-        end
-        
-        # Log context data being passed
-        if run_context && run_context.respond_to?(:to_h)
-          context_hash = run_context.to_h
-          puts "🎯 [DSL Agent] Context Keys: #{context_hash.keys.inspect}"
-          if context_hash['markets'] || context_hash[:markets]
-            markets = context_hash['markets'] || context_hash[:markets]
-            puts "🎯 [DSL Agent] Context Markets Count: #{markets.length}" if markets.respond_to?(:length)
-            if markets.respond_to?(:first) && markets.first
-              puts "🎯 [DSL Agent] First Context Market Keys: #{markets.first.keys.inspect}" if markets.first.respond_to?(:keys)
-            end
-          end
-        end
+        log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
         
         # Create RAAF runner and delegate execution
         runner_params = { agent: openai_agent }
@@ -1755,31 +1723,11 @@ module RAAF
         runner = RAAF::Runner.new(**runner_params)
         
         # Pure delegation to raaf-ruby
-        puts "🎯 [DSL Agent] === CALLING RAAF RUNNER ==="
+        log_debug "Calling RAAF runner for #{self.class.name}"
         run_result = runner.run(user_prompt, context: run_context)
         
-        # DEBUG: Show raw AI response before any transformation
-        puts "🎯 [Agent Debug] Raw AI Response for #{agent_name}:"
-        if run_result.respond_to?(:messages)
-          last_message = run_result.messages.reverse.find { |m| m[:role] == "assistant" }
-          if last_message && last_message[:content]
-            puts "📊 [Agent Debug] Raw content type: #{last_message[:content].class}"
-            puts "📊 [Agent Debug] Raw content (first 1500 chars): #{last_message[:content].to_s[0..1500]}"
-            if last_message[:content].is_a?(Hash)
-              puts "📊 [Agent Debug] Content keys: #{last_message[:content].keys.inspect}"
-              if last_message[:content]['markets'] || last_message[:content][:markets]
-                markets = last_message[:content]['markets'] || last_message[:content][:markets]
-                puts "📊 [Agent Debug] Markets count: #{markets.length if markets.is_a?(Array)}"
-                if markets.is_a?(Array) && markets.first
-                  puts "📊 [Agent Debug] First market keys: #{markets.first.keys.inspect}"
-                  puts "📊 [Agent Debug] First market has 'id'? #{markets.first.key?('id')}"
-                  puts "📊 [Agent Debug] First market has :id? #{markets.first.key?(:id)}"
-                  puts "📊 [Agent Debug] First market: #{markets.first.inspect[0..800]}"
-                end
-              end
-            end
-          end
-        end
+        # Generic response logging
+        log_debug "Received AI response for #{agent_name}"
         
         # Transform result to expected DSL format
         base_result = transform_ai_result(run_result, run_context)
@@ -2200,17 +2148,7 @@ module RAAF
         # For other results, it's in :data
         input_data = base_result[:parsed_output] || base_result[:data] || base_result
         
-        puts "📊 [Agent Debug] Input data type: #{input_data.class}"
-        if input_data.respond_to?(:keys)
-          puts "📊 [Agent Debug] Input data keys: #{input_data.keys.inspect}"
-          if input_data.key?('markets') || input_data.key?(:markets)
-            markets_data = input_data['markets'] || input_data[:markets]
-            puts "📊 [Agent Debug] Input markets found: #{markets_data.length} markets" if markets_data.respond_to?(:length)
-            if markets_data.respond_to?(:first) && markets_data.first
-              puts "📊 [Agent Debug] First market keys: #{markets_data.first.keys.inspect}" if markets_data.first.respond_to?(:keys)
-            end
-          end
-        end
+        log_debug "Processing transformation input data: #{input_data.class}"
 
         transformed_result = {}
         metadata = {}
@@ -2251,17 +2189,8 @@ module RAAF
           transformation_metadata: metadata
         )
         
-        # Debug: Show transformation outputs
-        puts "✅ [Agent Debug] Transformation completed for #{agent_name}"
-        puts "📊 [Agent Debug] Transformed result keys: #{final_result.keys.inspect}"
-        puts "📊 [Agent Debug] Transformation metadata: #{metadata.inspect}"
-        if final_result.key?('markets') || final_result.key?(:markets)
-          markets_output = final_result['markets'] || final_result[:markets]
-          puts "📊 [Agent Debug] Output markets: #{markets_output.length} markets" if markets_output.respond_to?(:length)
-          if markets_output.respond_to?(:first) && markets_output.first
-            puts "📊 [Agent Debug] First output market keys: #{markets_output.first.keys.inspect}" if markets_output.first.respond_to?(:keys)
-          end
-        end
+        # Generic transformation logging
+        log_debug "Transformation completed for #{agent_name} with #{final_result.keys.size} result keys"
         
         final_result
       end
@@ -2716,16 +2645,103 @@ module RAAF
 
       # Note: LogEventProcessor and MetricsCollector classes were removed as they were not implemented.
 
+      # Context wrapper for run_if blocks that provides automatic variable access
+      # 
+      # This class wraps the context and previous result, providing method_missing
+      # for automatic context variable access similar to prompt classes.
+      #
+      # @example Automatic context access in run_if blocks
+      #   run_if do
+      #     companies.present? && analysis_depth == "deep"
+      #   end
+      #
+      class ConditionContext
+        include RAAF::DSL::ContextAccess
+        
+        attr_reader :previous_result
+        
+        def initialize(context, previous_result = nil)
+          @context = ensure_context_variables(context)
+          @previous_result = previous_result
+        end
+        
+        # Convenience methods for previous result checks
+        def previous_succeeded?
+          @previous_result && @previous_result[:success] != false
+        end
+        
+        def previous_failed?
+          @previous_result && @previous_result[:success] == false
+        end
+        
+        def previous_result_has?(*keys)
+          return false unless @previous_result.is_a?(Hash)
+          keys.all? { |key| @previous_result.key?(key) && @previous_result[key] }
+        end
+        
+        # Access to the raw context for compatibility with existing DSL methods
+        def context
+          @context
+        end
+      end
+
       # Execution conditions for conditional agent execution
+      # 
+      # Supports two execution modes:
+      # 1. Explicit DSL mode (legacy): Uses context_has, context_value, etc.
+      # 2. Automatic context mode (new): Direct variable access with method_missing
+      #
+      # @example Explicit DSL mode
+      #   run_if do
+      #     context_has :companies
+      #     context_value :analysis_depth, equals: "deep"
+      #   end
+      #
+      # @example Automatic context mode  
+      #   run_if do
+      #     companies.present? && analysis_depth == "deep"
+      #   end
+      #
       class ExecutionConditions
         def initialize(negate: false, &block)
           @conditions = []
           @negate = negate
-          instance_eval(&block) if block_given?
+          @block = block
+          @use_automatic_mode = false
+          
+          # Try to detect if block uses explicit DSL methods
+          if block_given?
+            # First try explicit DSL mode
+            begin
+              instance_eval(&block)
+              @use_automatic_mode = false
+            rescue NoMethodError, NameError => e
+              # If we get NoMethodError or NameError during explicit DSL evaluation,
+              # this likely means the block uses automatic context access
+              @conditions.clear  # Clear any partial conditions
+              @use_automatic_mode = true
+            end
+          end
         end
 
         def evaluate(context, previous_result)
-          result = @conditions.empty? || @conditions.all? { |condition| condition.call(context, previous_result) }
+          if @use_automatic_mode
+            # Use automatic context access mode
+            condition_context = ConditionContext.new(context, previous_result)
+            begin
+              result = condition_context.instance_eval(&@block)
+              # Convert result to boolean
+              result = !!result
+            rescue => e
+              # If automatic mode fails, fall back to false
+              Rails.logger&.warn("Execution condition evaluation failed: #{e.message}")
+              result = false
+            end
+          else
+            # Use explicit DSL mode
+            result = @conditions.empty? || @conditions.all? { |condition| condition.call(context, previous_result) }
+          end
+          
           @negate ? !result : result
         end
 
