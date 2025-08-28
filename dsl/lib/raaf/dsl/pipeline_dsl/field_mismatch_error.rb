@@ -16,9 +16,9 @@ module RAAF
         private
         
         def build_message
-          # Check which fields might be available from initial context
-          likely_initial = @missing_fields & [:product, :company, :market_data, :analysis_depth]
-          truly_missing = @missing_fields - likely_initial
+          # Check which fields might be available from pipeline context
+          pipeline_provided = @missing_fields & @context_fields
+          truly_missing = @missing_fields - pipeline_provided
           
           msg = <<~MSG
             Pipeline Field Mismatch Error!
@@ -39,11 +39,11 @@ module RAAF
             MSG
           end
           
-          if likely_initial.any?
+          if pipeline_provided.any?
             msg += <<~MSG
               
-              Note: These fields are typically provided in initial context: #{likely_initial.inspect}
-              Make sure to include them when creating the pipeline instance.
+              Note: These fields are available from pipeline context: #{pipeline_provided.inspect}
+              Make sure they are declared in the pipeline's context block.
             MSG
           end
           
