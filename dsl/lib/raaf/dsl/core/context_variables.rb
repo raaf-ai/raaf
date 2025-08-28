@@ -388,6 +388,24 @@ module RAAF
         }
       end
 
+      # Enable splat operator (**) support for ContextVariables
+      # Returns a hash with symbolized keys that can be splatted into keyword arguments
+      # while preserving all object references (including ActiveRecord objects)
+      #
+      # @return [Hash] Hash with symbol keys suitable for keyword argument expansion
+      #
+      # @example Basic usage
+      #   context = ContextVariables.new(product: product, company: company)
+      #   MyAgent.new(**context)  # Works directly without .to_h conversion
+      #
+      # @example With ActiveRecord objects
+      #   context = ContextVariables.new.set(:product, Product.find(1))
+      #   agent = MyAgent.new(**context)  # product remains an ActiveRecord object
+      #
+      def to_hash
+        @variables.symbolize_keys
+      end
+
       protected
 
       # Add change to history (for debugging)
