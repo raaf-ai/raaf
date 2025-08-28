@@ -78,6 +78,18 @@ module RAAF
         (requirements + defaults.keys).uniq
       end
       
+      # Get all fields declared in context (both required and optional)
+      # These are the fields that will be preserved through the pipeline
+      def context_fields
+        context_config = @context_config || {}
+        requirements = context_config[:requirements] || []
+        defaults = context_config[:defaults] || {}
+        outputs = context_config[:outputs] || []
+        
+        # All context fields are preserved through the pipeline
+        (requirements + defaults.keys + outputs).uniq
+      end
+      
       # Disable validation for this pipeline
       def skip_validation!
         @skip_validation = true
@@ -361,99 +373,32 @@ module RAAF
         return context
       end
       
-      # Convert context to keyword arguments to trigger agent's context DSL processing
-      context_hash = context.is_a?(RAAF::DSL::ContextVariables) ? context.to_h : context
-      
-      # Debug context data flow
-      puts "🔍 [Pipeline Debug] Executing #{agent_class.name}"
-      puts "📊 [Pipeline Debug] Context keys before agent: #{context_hash.keys.inspect}"
-      if context_hash[:markets]
-        puts "📊 [Pipeline Debug] Markets structure:"
-        context_hash[:markets].each_with_index do |m, i|
-          puts "  Market #{i}: keys=#{m.keys.inspect}"
-          puts "    - has market_name? #{m.key?(:market_name)}"
-          puts "    - market_name value: #{m[:market_name] || 'MISSING'}"
-          puts "    - has market_description? #{m.key?(:market_description)}"
-          puts "    - market_description value: #{m[:market_description]&.[](0..50) || 'MISSING'}..."
-        end
-      end
-      
+      # ContextVariables now supports direct splatting via to_hash method
       # Create instance - works for both Agent and Service classes
-      instance = agent_class.new(**context_hash)
+      instance = agent_class.new(**context)
       
-      # Enhanced debug for pipeline schema injection
-      puts "🔍 [Pipeline Debug] Schema injection for #{agent_class.name}:"
-      puts "📊 [Pipeline Debug] Pipeline schema available? #{pipeline_schema.present?}"
-      puts "📊 [Pipeline Debug] Instance responds to inject_pipeline_schema? #{instance.respond_to?(:inject_pipeline_schema)}"
-      
+      # Inject pipeline schema if available
       if pipeline_schema && instance.respond_to?(:inject_pipeline_schema)
-        puts "✅ [Pipeline Debug] Injecting schema into #{agent_class.name}"
-        
-        # Debug the actual schema being injected
-        schema_result = pipeline_schema.call
-        puts "📊 [Pipeline Debug] Pipeline schema structure: #{schema_result.inspect[0..800]}..."
-        if schema_result.is_a?(Hash) && schema_result[:config]
-          puts "📊 [Pipeline Debug] Validation mode: #{schema_result[:config][:mode]}"
-        end
-        if schema_result.is_a?(Hash) && schema_result[:schema] && schema_result[:schema][:properties]
-          markets_props = schema_result[:schema][:properties][:markets]
-          if markets_props && markets_props[:items] && markets_props[:items][:properties]
-            market_fields = markets_props[:items][:properties].keys
-            puts "📊 [Pipeline Debug] Expected market fields from schema: #{market_fields.inspect}"
-          end
-        end
-        
+        logger.debug "Injecting schema into #{agent_class.name}"
         instance.inject_pipeline_schema(pipeline_schema)
-      else
-        puts "❌ [Pipeline Debug] Schema injection skipped for #{agent_class.name}"
-        if !pipeline_schema
-          puts "📊 [Pipeline Debug] Reason: No pipeline schema available"
-        end
-        if !instance.respond_to?(:inject_pipeline_schema)
-          puts "📊 [Pipeline Debug] Reason: Instance doesn't respond to inject_pipeline_schema"
-        end
       end
       
       # Execute based on type - Services use 'call', Agents use 'run'
-      puts "🚀 [Pipeline Debug] Executing #{agent_class.name}..."
+      logger.debug "Executing #{agent_class.name}"
       result = if is_service_class?(agent_class)
         instance.call
       else
         instance.run
       end
       
-      # Debug the result from agent
-      puts "📊 [Pipeline Debug] Result from #{agent_class.name}:"
-      puts "📊 [Pipeline Debug] Result class: #{result.class}"
-      puts "📊 [Pipeline Debug] Result keys: #{result.keys.inspect if result.respond_to?(:keys)}"
-      if result.respond_to?(:keys) && result[:markets]
-        puts "📊 [Pipeline Debug] Result markets structure:"
-        result[:markets].each_with_index do |m, i|
-          puts "  Result Market #{i}: keys=#{m.keys.inspect}"
-          puts "    - has market_name? #{m.key?(:market_name)}"
-          puts "    - market_name value: #{m[:market_name] || 'MISSING'}"
-          puts "    - has market_description? #{m.key?(:market_description)}"
-        end
-      end
-      
       # Merge provisions into context
       if agent_class.respond_to?(:provided_fields)
-        puts "📊 [Pipeline Debug] Merging provided fields from #{agent_class.name}: #{agent_class.provided_fields.inspect}"
         agent_class.provided_fields.each do |field|
           if result.respond_to?(:[]) && result[field]
-            puts "📊 [Pipeline Debug] Setting context[#{field}] from result"
             context[field] = result[field]
-          else
-            puts "⚠️ [Pipeline Debug] Field #{field} not found in result"
           end
         end
-      else
-        puts "📊 [Pipeline Debug] No provided_fields defined for #{agent_class.name}"
       end
-      
-      # Debug final context state
-      puts "📊 [Pipeline Debug] Context after #{agent_class.name}:"
-      puts "📊 [Pipeline Debug] Context keys: #{context.respond_to?(:keys) ? context.keys.inspect : 'N/A'}"
       
       context
     end
