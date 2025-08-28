@@ -1018,17 +1018,17 @@ module RAAF
         return true unless self.class._result_transformations
         
         transformations = self.class._result_transformations
-        mock_data = { "test" => "value", :test => :value }
+        precheck_data = { "test" => "value", :test => :value }
         
         transformations.each do |field_name, field_config|
           next unless field_config[:computed]
           
           method_name = field_config[:computed]
           next unless respond_to?(method_name, true)
-          
+
           begin
             # Attempt dry-run with mock data
-            send(method_name, mock_data)
+            send(method_name, precheck_data)
             
           rescue NameError => e
             if e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
@@ -2570,7 +2570,12 @@ module RAAF
             if block_given?
               nested_builder = SchemaBuilder.new(&block)
               nested_result = nested_builder.build
-              field_schema[:items] = nested_result.is_a?(Hash) && nested_result[:schema] ? nested_result[:schema] : nested_result
+              # For arrays with nested object schemas, use the schema portion and ensure required fields are included
+              if nested_result.is_a?(Hash) && nested_result[:schema]
+                field_schema[:items] = nested_result[:schema]
+              else
+                field_schema[:items] = nested_result
+              end
             end
           when :object
             if block_given?
