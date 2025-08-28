@@ -4,6 +4,9 @@ require_relative "config/config"
 
 module RAAF
   module DSL
+    # Error raised when duplicate context determination methods are detected
+    class DuplicateContextError < StandardError; end
+    
     # ContextConfig class for the context DSL
     class ContextConfig
       def initialize
@@ -264,6 +267,108 @@ module RAAF
         def inherited(subclass)
           super
           subclass._agent_config = {}
+        end
+        
+        # Detect duplicate context determination (both DSL declaration and build_*_context methods)
+        #
+        # This validation ensures that context fields are not determined in multiple ways,
+        # preventing confusion about the source of truth for context values.
+        #
+        # @raise [DuplicateContextError] If any field has both DSL declaration and build method
+        def detect_duplicate_context_determination!
+          return unless _agent_config[:context_rules]
+          
+          context_rules = _agent_config[:context_rules]
+          duplicates = []
+          
+          # Collect all declared fields (required and optional)
+          declared_fields = []
+          declared_fields.concat(context_rules[:required] || [])
+          declared_fields.concat((context_rules[:optional] || {}).keys)
+          
+          # Check for build_*_context methods for declared fields
+          declared_fields.each do |field|
+            build_method = "build_#{field}_context"
+            if instance_methods.include?(build_method.to_sym) || 
+               private_instance_methods.include?(build_method.to_sym)
+              
+              determination_methods = []
+              
+              # Check if it's required
+              if (context_rules[:required] || []).include?(field)
+                determination_methods << "Declared as 'required' in context DSL"
+              end
+              
+              # Check if it's optional with default
+              if (context_rules[:optional] || {}).key?(field)
+                default_value = context_rules[:optional][field]
+                determination_methods << "Declared as 'optional' with default: #{default_value.inspect}"
+              end
+              
+              determination_methods << "Has method '#{build_method}'"
+              
+              duplicates << {
+                field: field,
+                methods: determination_methods
+              }
+            end
+          end
+          
+          # Also check for computed fields that might conflict
+          if context_rules[:computed]
+            context_rules[:computed].each do |field, method_name|
+              if declared_fields.include?(field)
+                duplicates << {
+                  field: field,
+                  methods: [
+                    declared_fields.include?(field) ? "Declared in context DSL" : nil,
+                    "Has computed method '#{method_name}'"
+                  ].compact
+                }
+              end
+            end
+          end
+          
+          if duplicates.any?
+            raise_duplicate_context_error(duplicates)
+          end
+        end
+        
+        private
+        
+        # Raise a detailed error about duplicate context determination
+        #
+        # @param duplicates [Array<Hash>] Array of duplicate field information
+        # @raise [DuplicateContextError] Always raises with detailed error message
+        def raise_duplicate_context_error(duplicates)
+          agent_name = respond_to?(:name) ? name : self.to_s
+          
+          lines = []
+          lines << "RAAF::DSL::DuplicateContextError: Duplicate context determination detected in #{agent_name}!"
+          lines << ""
+          
+          duplicates.each do |duplicate|
+            lines << "Field '#{duplicate[:field]}' has multiple determination methods:"
+            duplicate[:methods].each do |method|
+              lines << "  - #{method}"
+            end
+            lines << ""
+          end
+          
+          lines << "To fix this issue, choose ONE method for each field:"
+          lines << "  Option 1: Remove the field from context DSL and use build_*_context method"
+          lines << "  Option 2: Remove the build_*_context method and use context DSL declaration"
+          lines << ""
+          lines << "Context DSL is preferred for:"
+          lines << "  - Fields that must be provided externally (use 'required')"
+          lines << "  - Fields with simple default values (use 'optional')"
+          lines << ""
+          lines << "build_*_context methods are preferred for:"
+          lines << "  - Fields that require complex computation"
+          lines << "  - Fields that depend on other context values"
+          lines << "  - Fields that need conditional logic"
+          
+          raise DuplicateContextError, lines.join("\n")
         end
       end
     end
