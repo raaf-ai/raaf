@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'field_mismatch_error'
+
 module RAAF
   module DSL
     module PipelineDSL
@@ -13,6 +15,9 @@ module RAAF
       # Why >> operator: Chosen for its visual similarity to shell piping and data flow direction
       # Field mapping: Automatically validates that producer fields match consumer requirements
       class ChainedAgent
+
+        include Logger
+
         attr_reader :first, :second
         
         def initialize(first, second)
@@ -110,15 +115,14 @@ module RAAF
             end
           end
           
-          # Allow certain fields to come from initial context
-          # These fields are typically provided when creating the pipeline instance
-          initial_context_fields = [
-            :product, :company, :market_data, :analysis_depth, 
-            :existing_icps, :focus_areas,
-            :scoring_weights, :scoring_framework_version,
-            :search_limit, :threshold,
-            :min_companies, :max_companies, :limit
-          ]
+          return if missing.empty?
+          
+          # Identify fields that typically come from initial pipeline context
+          # These are commonly provided when creating pipeline instances
+          initial_context_fields = [:product, :company, :market_data, :analysis_depth, :search_terms,
+                                  :target_market, :user, :data, :config, :options, :settings]
+          
+          # Filter out fields that are likely to be provided by initial context
           non_initial_missing = missing - initial_context_fields
           
           # Only raise error for fields that can't come from initial context or defaults
@@ -153,45 +157,21 @@ module RAAF
         end
         
         def execute_single_agent(agent_class, context)
-          # Debug: Show pipeline agent execution start
-          puts "🤖 [Pipeline Debug] Executing agent: #{agent_class.name}"
-          puts "📊 [Pipeline Debug] Context type: #{context.class}"
-          if context.respond_to?(:keys)
-            puts "📊 [Pipeline Debug] Context keys: #{context.keys.inspect}"
-            # Show markets data if available
-            markets_key = context.keys.find { |k| k.to_s.include?('market') }
-            if markets_key && context[markets_key].respond_to?(:length)
-              puts "📊 [Pipeline Debug] Markets in context: #{context[markets_key].length} items"
-              if context[markets_key].first && context[markets_key].first.respond_to?(:keys)
-                puts "📊 [Pipeline Debug] First market keys: #{context[markets_key].first.keys.inspect}"
-              end
-            end
-          end
+          log_debug "Executing agent: #{agent_class.name}"
           
           # Check requirements
           if agent_class.respond_to?(:requirements_met?)
             unless agent_class.requirements_met?(context)
-              RAAF.logger.warn "Skipping #{agent_class.name}: requirements not met"
-              RAAF.logger.debug "  Required: #{agent_class.required_fields}"
-              RAAF.logger.debug "  Available in context: #{context.keys if context.respond_to?(:keys)}"
+              log_warn "Skipping #{agent_class.name}: requirements not met"
+              log_debug "  Required: #{agent_class.required_fields}"
+              log_debug "  Available in context: #{context.keys if context.respond_to?(:keys)}"
               return context
             end
           end
           
-          # Execute agent - convert context to keyword arguments to trigger context DSL processing
-          context_hash = context.is_a?(RAAF::DSL::ContextVariables) ? context.to_h : context
-          
-          puts "🔍 [Pipeline Debug] Context hash type: #{context_hash.class}"
-          puts "🔍 [Pipeline Debug] Context hash keys: #{context_hash.keys.inspect}"
-          if context_hash[:markets] || context_hash['markets']
-            markets_data = context_hash[:markets] || context_hash['markets']
-            puts "🔍 [Pipeline Debug] Markets in context hash: #{markets_data.class} with #{markets_data.length} items" if markets_data.respond_to?(:length)
-          else
-            puts "🔍 [Pipeline Debug] No markets found in context hash"
-          end
-          
-          agent = agent_class.new(**context_hash)
-          puts "🔍 [Pipeline Debug] Agent #{agent_class.name} initialized"
+          # Execute agent - ContextVariables now supports direct splatting via to_hash method
+          agent = agent_class.new(**context)
+          log_debug "Agent #{agent_class.name} initialized"
           
           # Inject pipeline schema into agent if available
           # Check if we have a pipeline instance with schema available
@@ -211,55 +191,20 @@ module RAAF
             result = agent.run
           end
           
-          # Debug: Show agent result
-          puts "📋 [Pipeline Debug] Agent #{agent_class.name} result type: #{result.class}"
-          if result.is_a?(Hash)
-            puts "📋 [Pipeline Debug] Agent result keys: #{result.keys.inspect}"
-            # Show markets in result
-            if result.key?('markets') || result.key?(:markets)
-              markets_result = result['markets'] || result[:markets]
-              puts "📋 [Pipeline Debug] Agent returned markets: #{markets_result.length} items" if markets_result.respond_to?(:length)
-              if markets_result.respond_to?(:first) && markets_result.first && markets_result.first.respond_to?(:keys)
-                puts "📋 [Pipeline Debug] First result market keys: #{markets_result.first.keys.inspect}"
-              end
-            end
-          end
-          
           # Merge provided fields into context
           if agent_class.respond_to?(:provided_fields)
-            puts "📋 [Pipeline Debug] Provided fields for #{agent_class.name}: #{agent_class.provided_fields.inspect}"
             agent_class.provided_fields.each do |field|
               if result.is_a?(Hash) && result.key?(field)
                 field_value = result[field]
-                puts "📋 [Pipeline Debug] Setting context field #{field} from result"
-                puts "📋 [Pipeline Debug] Field value type: #{field_value.class}"
-                if field_value.is_a?(Array)
-                  puts "📋 [Pipeline Debug] Array size: #{field_value.length}"
-                  if field_value.first.is_a?(Hash)
-                    puts "📋 [Pipeline Debug] First item keys: #{field_value.first.keys.inspect}"
-                  end
-                elsif field_value.is_a?(Hash)
-                  puts "📋 [Pipeline Debug] Hash keys: #{field_value.keys.inspect}"
-                end
-                puts "📋 [Pipeline Debug] Context before set: #{context.class}"
                 context = context.set(field, field_value)
-                puts "📋 [Pipeline Debug] Context after set: #{context.class}"
               elsif result.respond_to?(field)
                 field_value = result.send(field)
-                puts "📋 [Pipeline Debug] Setting context field #{field} from result method"
-                puts "📋 [Pipeline Debug] Method field value type: #{field_value.class}"
                 context = context.set(field, field_value)
-              else
-                puts "⚠️  [Pipeline Debug] Field #{field} not found in result"
-                puts "⚠️  [Pipeline Debug] Result keys: #{result.keys.inspect}" if result.respond_to?(:keys)
-                puts "⚠️  [Pipeline Debug] Result methods: #{result.class.instance_methods(false).inspect}" if result.respond_to?(:class)
               end
             end
-          else
-            puts "📋 [Pipeline Debug] No provided fields defined for #{agent_class.name}"
           end
           
-          puts "✅ [Pipeline Debug] Agent #{agent_class.name} execution completed"
+          log_debug "Agent #{agent_class.name} execution completed"
           context
         end
       end
