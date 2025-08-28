@@ -87,7 +87,9 @@ module RAAF
         # @param next_agent [Class] The next agent or service in the chain
         # @return [ChainedAgent] Chained execution wrapper
         def >>(next_agent)
-          PipelineDSL::ChainedAgent.new(self, next_agent)
+          # Get pipeline context fields if available (set by pipeline during flow creation)
+          pipeline_context_fields = Thread.current[:raaf_pipeline_context_fields] || []
+          PipelineDSL::ChainedAgent.new(self, next_agent, pipeline_context_fields: pipeline_context_fields)
         end
 
         # DSL operator: Run this agent/service in parallel with another

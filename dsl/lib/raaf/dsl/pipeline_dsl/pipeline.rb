@@ -32,6 +32,8 @@ module RAAF
       # Stores the chained/parallel agent structure for execution
       def flow(chain)
         @flow_chain = chain
+        # Keep thread-local variable available for ChainedAgent field validation
+        # Thread.current[:raaf_pipeline_context_fields] = nil  # Removed: This was clearing context fields too early
       end
       
       # Define shared schema for all agents in the pipeline using field DSL
@@ -65,6 +67,9 @@ module RAAF
           config = ContextConfig.new
           config.instance_eval(&block)
           @context_config = config.to_h
+          
+          # Make context fields available immediately for flow definition
+          Thread.current[:raaf_pipeline_context_fields] = context_fields
         end
         @context_config ||= {}
       end
@@ -72,8 +77,8 @@ module RAAF
       # Get required fields from context configuration
       def required_fields
         context_config = @context_config || {}
-        requirements = context_config[:requirements] || []
-        defaults = context_config[:defaults] || {}
+        requirements = context_config[:required] || []
+        defaults = context_config[:optional] || {}
         # Include both explicitly required fields and those with defaults
         (requirements + defaults.keys).uniq
       end
@@ -82,9 +87,9 @@ module RAAF
       # These are the fields that will be preserved through the pipeline
       def context_fields
         context_config = @context_config || {}
-        requirements = context_config[:requirements] || []
-        defaults = context_config[:defaults] || {}
-        outputs = context_config[:outputs] || []
+        requirements = context_config[:required] || []
+        defaults = context_config[:optional] || {}
+        outputs = context_config[:output] || []
         
         # All context fields are preserved through the pipeline
         (requirements + defaults.keys + outputs).uniq
@@ -134,6 +139,13 @@ module RAAF
     # Validate all agents in the pipeline with context flow tracking
     def validate_pipeline!
       errors = []
+      
+      # First, provide pipeline context fields to the flow chain for validation
+      # This ensures ChainedAgent knows about all pipeline-level context fields
+      # Single agents don't need this, only ChainedAgent/ParallelAgents do
+      if @flow.respond_to?(:validate_with_pipeline_context)
+        @flow.validate_with_pipeline_context(self.class.context_fields)
+      end
       
       # Track context as it flows through the pipeline
       context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
