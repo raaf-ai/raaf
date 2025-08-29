@@ -308,6 +308,32 @@ module RAAF
     end
     private_class_method :initialize_default_resolvers
 
+    # Eager load all autoloadable constants for Rails production mode
+    #
+    # Rails expects modules added to eager_load_namespaces to implement this method.
+    # This method triggers loading of all autoloaded constants in the RAAF::DSL module
+    # to ensure they are available in production.
+    #
+    # @return [void]
+    def self.eager_load!
+      # Load all autoloaded constants in RAAF::DSL
+      constants.each do |const_name|
+        next if const_name == :Pipeline # Skip problematic constants
+        
+        begin
+          const = const_get(const_name)
+          # Recursively eager load nested modules that also support eager loading
+          if const.is_a?(Module) && const.respond_to?(:eager_load!)
+            const.eager_load!
+          end
+        rescue NameError, LoadError => e
+          # Log any errors but don't fail the entire eager loading process
+          # Use basic warn instead of Rails.logger since logger may not be available during initialization
+          warn "RAAF::DSL eager loading warning for #{const_name}: #{e.message}"
+        end
+      end
+    end
+
     # Configuration object for the gem
     class Configuration
       attr_accessor :config_file, :default_model, :default_max_turns, :default_temperature, :default_tool_choice,
