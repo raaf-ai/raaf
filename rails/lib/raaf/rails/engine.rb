@@ -157,8 +157,8 @@ module RAAF
       initializer "raaf-rails.active_record", after: :load_config_initializers do
         if defined?(ActiveRecord)
           # Ensure tracing models are loaded and available
-          require_relative "../../../app/models/RAAF/rails/tracing/trace"
-          require_relative "../../../app/models/RAAF/rails/tracing/span"
+          require_relative "../../../app/models/RAAF/rails/tracing/trace_record"
+          require_relative "../../../app/models/RAAF/rails/tracing/span_record"
         end
       end
 
