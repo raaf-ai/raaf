@@ -51,11 +51,39 @@ module RAAF
         end
         
         def producer_name
-          @producer.respond_to?(:name) ? @producer.name : @producer.class.name
+          extract_agent_name(@producer)
         end
         
         def consumer_name
-          @consumer.respond_to?(:name) ? @consumer.name : @consumer.class.name
+          extract_agent_name(@consumer)
+        end
+        
+        # Extract actual agent name from pipeline components
+        def extract_agent_name(component)
+          case component
+          when RAAF::DSL::PipelineDSL::ChainedAgent
+            # For chained agents, get the last agent in the chain (the one that provides fields)
+            extract_agent_name(component.second)
+          when RAAF::DSL::PipelineDSL::ParallelAgents
+            # For parallel agents, show all agent names
+            agent_names = component.agents.map { |agent| extract_agent_name(agent) }
+            "(#{agent_names.join(' | ')})"
+          when RAAF::DSL::PipelineDSL::ConfiguredAgent
+            # For configured agents, get the underlying agent class
+            extract_agent_name(component.agent_class)
+          when Class
+            # Regular class - return the name
+            component.name
+          else
+            # Fallback to class name or object inspection
+            if component.respond_to?(:name)
+              component.name
+            elsif component.respond_to?(:class)
+              component.class.name
+            else
+              component.to_s
+            end
+          end
         end
       end
     end

@@ -23,9 +23,10 @@ module RAAF
   class Pipeline
     include RAAF::DSL::Pipelineable
     include RAAF::DSL::ContextAccess
+    include RAAF::DSL::ContextConfiguration
 
     class << self
-      attr_reader :flow_chain, :context_config, :after_run_block, :pipeline_schema_block
+      attr_reader :flow_chain, :after_run_block, :pipeline_schema_block
       attr_accessor :skip_validation
       
       # Define the agent execution flow using DSL operators
@@ -60,36 +61,31 @@ module RAAF
         @after_run_block
       end
       
-      # Context DSL - unified with agents using ContextConfig
-      # Provides enhanced context management with required, optional, and output fields
+      # Context DSL method provided by ContextConfiguration module
+      # Override to add pipeline-specific behavior (thread local variable)
       def context(&block)
-        if block_given?
-          config = ContextConfig.new
-          config.instance_eval(&block)
-          @context_config = config.to_h
-          
-          # Make context fields available immediately for flow definition
-          Thread.current[:raaf_pipeline_context_fields] = context_fields
-        end
-        @context_config ||= {}
+        super(&block)  # Call the ContextConfiguration module's method
+        
+        # Make context fields available immediately for flow definition
+        Thread.current[:raaf_pipeline_context_fields] = context_fields if block_given?
+        _context_config[:context_rules] || {}
       end
       
-      # Get required fields from context configuration
-      def required_fields
-        context_config = @context_config || {}
-        requirements = context_config[:required] || []
-        defaults = context_config[:optional] || {}
-        # Include both explicitly required fields and those with defaults
-        (requirements + defaults.keys).uniq
+      # Backward compatibility method
+      def context_config
+        _context_config[:context_rules] || {}
       end
+      
+      # Get required fields from context configuration - now uses ContextConfiguration module
+      # This method delegates to the module's implementation
       
       # Get all fields declared in context (both required and optional)
       # These are the fields that will be preserved through the pipeline
       def context_fields
-        context_config = @context_config || {}
-        requirements = context_config[:required] || []
-        defaults = context_config[:optional] || {}
-        outputs = context_config[:output] || []
+        context_rules = _context_config[:context_rules] || {}
+        requirements = context_rules[:required] || []
+        defaults = context_rules[:optional] || {}
+        outputs = context_rules[:output] || []
         
         # All context fields are preserved through the pipeline
         (requirements + defaults.keys + outputs).uniq
@@ -196,9 +192,9 @@ module RAAF
       
       result = execute_chain(@flow, @context)
       
-      # Execute after_run hook if defined
+      # Execute after_run hook if defined and capture modified result
       if self.class.after_run_block
-        execute_callback_with_context(result, &self.class.after_run_block)
+        result = execute_callback_with_context(result, &self.class.after_run_block)
       end
       
       # Convert ContextVariables result to hash with success flag
@@ -224,43 +220,40 @@ module RAAF
     private
     
     # Execute callback with universal context access
-    # Creates an execution environment where context variables are available as direct variables
+    # Execute callback in the context of the pipeline instance so instance methods are accessible
+    # FIXED: Use instance_eval instead of instance_exec to preserve natural variable resolution
+    # This allows assignments without self. to work just like in regular agent methods
     def execute_callback_with_context(result, &block)
-      # Create a context-aware object for callback execution
-      callback_context = Object.new
+      # Use the pipeline instance as the callback context so instance methods are accessible
+      callback_context = self
       
-      # Add universal context access to the callback object
-      callback_context.define_singleton_method(:method_missing) do |method_name, *args, &nested_block|
-        if args.empty? && !nested_block
-          # Check if this variable exists in context
-          return @context.get(method_name) if @context&.has?(method_name)
-          
-          # Standard Ruby NameError for missing variables
-          raise NameError, "undefined variable `#{method_name}'"
-        else
-          super(method_name, *args, &nested_block)
-        end
-      end
-      
-      # Add respond_to_missing for Ruby introspection
-      callback_context.define_singleton_method(:respond_to_missing?) do |method_name, include_private = false|
-        @context&.has?(method_name) || super(method_name, include_private)
-      end
-      
-      # Set context for callback (convert to ContextVariables if needed)
-      context_vars = case @context
+      # Use the result (accumulated context) instead of original @context
+      # This allows the callback to access all fields added during pipeline execution
+      context_vars = case result
                      when RAAF::DSL::ContextVariables
-                       @context
+                       result
                      when Hash
-                       RAAF::DSL::ContextVariables.new(@context)
+                       RAAF::DSL::ContextVariables.new(result)
                      else
                        RAAF::DSL::ContextVariables.new({})
                      end
       
+      # Temporarily store the current context if one exists
+      old_context = callback_context.instance_variable_get(:@context)
       callback_context.instance_variable_set(:@context, context_vars)
       
-      # Execute the callback with universal context access
-      callback_context.instance_exec(result, &block)
+      begin
+        # FIXED: Use instance_eval (not instance_exec) to preserve natural variable resolution
+        # This allows variable assignments to work through method_missing just like in regular methods
+        # The result parameter is still accessible via context methods (like 'result' variable access)
+        callback_result = callback_context.instance_eval(&block)
+        
+        # If the block returned a value, use it; otherwise return the potentially modified context
+        callback_result || context_vars
+      ensure
+        # Restore the original context
+        callback_context.instance_variable_set(:@context, old_context)
+      end
     end
     
     def build_context_from_param(context_param)
@@ -279,19 +272,19 @@ module RAAF
       context = provided_context.dup
       
       # Apply enhanced context configuration (unified with agents)
-      config = self.class.context_config
+      context_rules = self.class._context_config[:context_rules] || {}
       
       # Process optional fields with defaults
-      if config && config[:optional]
-        config[:optional].each do |key, default_value|
+      if context_rules[:optional]
+        context_rules[:optional].each do |key, default_value|
           context[key] ||= default_value.is_a?(Proc) ? default_value.call : default_value
         end
       end
       
       # Add any computed context fields (if we have build_*_context methods)
       all_fields = []
-      all_fields.concat(config[:required] || []) if config
-      all_fields.concat(config[:optional]&.keys || []) if config
+      all_fields.concat(context_rules[:required] || [])
+      all_fields.concat(context_rules[:optional]&.keys || [])
       all_fields.concat(self.class.required_fields || [])
       
       all_fields.uniq.each do |field|
@@ -309,9 +302,9 @@ module RAAF
       return unless @flow
       
       # Validate Pipeline's own required fields first
-      config = self.class.context_config
-      pipeline_required = config && config[:required] ? config[:required] : []
-      pipeline_optional = config && config[:optional] ? config[:optional].keys : []
+      context_rules = self.class._context_config[:context_rules] || {}
+      pipeline_required = context_rules[:required] || []
+      pipeline_optional = context_rules[:optional]&.keys || []
       provided = @context.keys.map(&:to_sym)
       
       # Check Pipeline's required fields
@@ -413,7 +406,7 @@ module RAAF
       end
       
       # Execute based on type - Services use 'call', Agents use 'run'
-      logger.debug "Executing #{agent_class.name}"
+      logger&.debug "Executing #{agent_class.name}"
       result = if is_service_class?(agent_class)
         instance.call
       else
@@ -424,7 +417,7 @@ module RAAF
       if agent_class.respond_to?(:provided_fields)
         agent_class.provided_fields.each do |field|
           if result.respond_to?(:[]) && result[field]
-            context[field] = result[field]
+            context = context.set(field, result[field])
           end
         end
       end
@@ -439,6 +432,12 @@ module RAAF
     rescue NameError
       # RAAF::DSL::Service might not be loaded yet
       false
+    end
+    
+    # Simple logger accessor for pipeline
+    def logger
+      return nil unless defined?(RAAF) && RAAF.respond_to?(:logger)
+      RAAF.logger
     end
     
     # Validate flow with context tracking through pipeline stages
@@ -526,50 +525,6 @@ module RAAF
       end
     end
     
-    # ContextConfig class - unified with Agent DSL implementation
-    # Provides enhanced context management with required, optional, and output field declarations
-    class ContextConfig
-      def initialize
-        @rules = {}
-      end
-      
-      # New DSL methods
-      def required(*fields)
-        @rules[:required] ||= []
-        @rules[:required].concat(fields.map(&:to_sym))
-      end
-      
-      def optional(**fields_with_defaults)
-        @rules[:optional] ||= {}
-        fields_with_defaults.each do |field, default_value|
-          @rules[:optional][field.to_sym] = default_value
-        end
-      end
-      
-      def output(*fields)
-        @rules[:output] ||= []
-        @rules[:output].concat(fields.map(&:to_sym))
-      end
-      
-      # Keep existing methods for additional functionality
-      def exclude(*keys)
-        @rules[:exclude] ||= []
-        @rules[:exclude].concat(keys)
-      end
-      
-      def include(*keys)
-        @rules[:include] ||= []
-        @rules[:include].concat(keys)
-      end
-      
-      def validate(key, type: nil, with: nil)
-        @rules[:validations] ||= {}
-        @rules[:validations][key] = { type: type, proc: with }
-      end
-      
-      def to_h
-        @rules
-      end
-    end
+    # ContextConfig class provided by ContextConfiguration module
   end
 end

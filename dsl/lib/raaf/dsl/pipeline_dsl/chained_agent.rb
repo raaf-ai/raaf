@@ -130,8 +130,8 @@ module RAAF
           missing = required - provided
           
           # Check if the second agent has context defaults for missing fields
-          if @second.respond_to?(:_agent_config)
-            agent_config = @second._agent_config
+          if @second.respond_to?(:_context_config)
+            agent_config = @second._context_config
             if agent_config && agent_config[:context_rules] && agent_config[:context_rules][:defaults]
               defaults = agent_config[:context_rules][:defaults]
               # Remove fields that have defaults from the missing list
