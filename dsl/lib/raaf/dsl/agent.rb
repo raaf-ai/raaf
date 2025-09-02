@@ -86,7 +86,7 @@ module RAAF
         # Ensure each subclass gets its own configuration
         def inherited(subclass)
           super
-          subclass._agent_config = {}
+          subclass._context_config = {}
           subclass._tools_config = []
           subclass._schema_config = {}
           subclass._prompt_config = {}
@@ -111,34 +111,34 @@ module RAAF
         # Core DSL methods from AgentDsl
         def agent_name(name = nil)
           if name
-            _agent_config[:name] = name
+            _context_config[:name] = name
           else
-            _agent_config[:name] || inferred_agent_name
+            _context_config[:name] || inferred_agent_name
           end
         end
 
         def model(model_name = nil)
           if model_name
-            _agent_config[:model] = model_name
+            _context_config[:model] = model_name
           else
-            _agent_config[:model] || "gpt-4o"
+            _context_config[:model] || "gpt-4o"
           end
         end
 
 
         def max_turns(turns = nil)
           if turns
-            _agent_config[:max_turns] = turns
+            _context_config[:max_turns] = turns
           else
-            _agent_config[:max_turns] || 5
+            _context_config[:max_turns] || 5
           end
         end
 
         def description(desc = nil)
           if desc
-            _agent_config[:description] = desc
+            _context_config[:description] = desc
           else
-            _agent_config[:description]
+            _context_config[:description]
           end
         end
 
@@ -455,7 +455,7 @@ module RAAF
 
         # Additional configuration methods
         def temperature(temp)
-          _agent_config[:temperature] = temp
+          _context_config[:temperature] = temp
         end
 
         # Set or get execution timeout for this agent
@@ -464,9 +464,21 @@ module RAAF
         # @return [Integer, nil] The execution timeout value
         def execution_timeout(seconds = nil)
           if seconds
-            _agent_config[:execution_timeout] = seconds
+            _context_config[:execution_timeout] = seconds
           else
-            _agent_config[:execution_timeout]
+            _context_config[:execution_timeout]
+          end
+        end
+
+        # Set or get HTTP timeout for OpenAI API calls
+        #
+        # @param seconds [Integer, nil] HTTP timeout in seconds
+        # @return [Integer, nil] The HTTP timeout value
+        def http_timeout(seconds = nil)
+          if seconds
+            _context_config[:http_timeout] = seconds
+          else
+            _context_config[:http_timeout]
           end
         end
 
@@ -768,7 +780,7 @@ module RAAF
         end
         
         validate_context!
-        setup_agent_configuration
+        setup_context_configuration
         setup_logging_and_metrics
         
         if @debug_enabled
@@ -805,7 +817,7 @@ module RAAF
       # @return [Hash] Result from agent execution
       def run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         # Check if execution timeout is configured
-        execution_timeout = self.class._agent_config[:execution_timeout]
+        execution_timeout = self.class._context_config[:execution_timeout]
         
         if execution_timeout
           run_with_timeout(execution_timeout, context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
@@ -817,7 +829,7 @@ module RAAF
       private
 
       def run_with_timeout(timeout_seconds, context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
-        agent_name = self.class._agent_config&.dig(:name) || self.class.name
+        agent_name = self.class._context_config&.dig(:name) || self.class.name
         log_info "⏰ [#{agent_name}] Starting execution with #{timeout_seconds}s timeout"
         
         begin
@@ -838,7 +850,7 @@ module RAAF
 
       def run_without_timeout(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         # Validate prompt context early if configured
-        if self.class._agent_config[:validate_prompt_context] != false
+        if self.class._context_config[:validate_prompt_context] != false
           validate_prompt_context!
         end
         
@@ -865,7 +877,7 @@ module RAAF
           direct_run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker)
         else
           # Smart execution with retries and circuit breaker
-          agent_name = self.class._agent_config&.dig(:name) || self.class.name
+          agent_name = self.class._context_config&.dig(:name) || self.class.name
           log_info "🤖 [#{agent_name}] Starting execution"
 
           begin
@@ -1084,7 +1096,7 @@ module RAAF
         validate_required_context_fields(context)
         
         # Then validate prompt-specific context if this agent has prompts
-        if self.class._agent_config[:validate_prompt_context] != false
+        if self.class._context_config[:validate_prompt_context] != false
           validate_prompt_context!
         end
         
@@ -1351,7 +1363,7 @@ module RAAF
       end
 
       def agent_name
-        self.class._agent_config[:name] || self.class.name.split("::").last
+        self.class._context_config[:name] || self.class.name.split("::").last
       end
 
       public
@@ -1366,21 +1378,22 @@ module RAAF
 
       # RAAF DSL method - build response schema
       def build_schema
-        puts "🔍 [Agent Debug] Building schema for #{self.class.name}"
-        puts "📊 [Agent Debug] Pipeline schema present? #{@pipeline_schema.present?}"
+        log_debug("Building schema", category: :agents, agent_class: self.class.name)
+        log_debug("Pipeline schema present?", category: :agents, present: @pipeline_schema.present?)
         
         # First check if pipeline schema is available
         if @pipeline_schema
-          log_debug "Using schema from pipeline", agent_class: self.class.name
-          puts "✅ [Agent Debug] Using pipeline schema for #{self.class.name}"
+          log_debug("Using schema from pipeline", category: :agents, agent_class: self.class.name)
           
           schema_result = @pipeline_schema.call
-          puts "📊 [Agent Debug] Pipeline schema structure: #{schema_result.inspect[0..800]}..."
+          log_debug("Pipeline schema structure", category: :agents, 
+                    structure: schema_result.inspect[0..800])
           if schema_result.is_a?(Hash) && schema_result[:config]
-            puts "📊 [Agent Debug] Validation mode: #{schema_result[:config][:mode]}"
+            log_debug("Validation mode", category: :agents, mode: schema_result[:config][:mode])
           end
           if schema_result.is_a?(Hash) && schema_result[:schema] && schema_result[:schema][:properties]
-            puts "📊 [Agent Debug] Schema properties: #{schema_result[:schema][:properties].keys.inspect}"
+            log_debug("Schema properties", category: :agents, 
+                      properties: schema_result[:schema][:properties].keys.inspect)
           end
           
           return schema_result
@@ -1388,37 +1401,36 @@ module RAAF
         
         # Next check if agent has directly defined schema
         if self.class._schema_definition
-          puts "📊 [Agent Debug] Using agent-defined schema for #{self.class.name}"
+          log_debug("Using agent-defined schema", category: :agents, agent_class: self.class.name)
           return self.class._schema_definition
         end
         
         # Check if prompt class has a schema
         prompt_spec = determine_prompt_spec
         if prompt_spec && prompt_spec.respond_to?(:has_schema?) && prompt_spec.has_schema?
-          log_debug "Using schema from prompt class", prompt_class: prompt_spec.name
-          puts "📊 [Agent Debug] Using prompt class schema for #{self.class.name}"
+          log_debug("Using schema from prompt class", category: :agents, prompt_class: prompt_spec.name)
           return prompt_spec.get_schema
         end
         
         # Fall back to default schema
-        puts "📊 [Agent Debug] Using default schema for #{self.class.name}"
+        log_debug("Using default schema", category: :agents, agent_class: self.class.name)
         default_schema
       end
 
 
       # Agent configuration methods
       def agent_name
-        self.class._agent_config&.dig(:name) || self.class.name.demodulize
+        self.class._context_config&.dig(:name) || self.class.name.demodulize
       end
 
       def model_name
-        self.class._agent_config&.dig(:model) || 
+        self.class._context_config&.dig(:model) || 
           RAAF::DSL::Config.model_for(agent_name) || 
           "gpt-4o"
       end
 
       def max_turns
-        self.class._agent_config&.dig(:max_turns) || 
+        self.class._context_config&.dig(:max_turns) || 
           RAAF::DSL::Config.max_turns_for(agent_name) || 
           3
       end
@@ -1445,18 +1457,18 @@ module RAAF
       end
 
       def response_format
-        puts "🔍 [Agent Debug] Response format for #{agent_name}"
+        log_debug("Building response format", category: :agents, agent_name: agent_name)
         
         # Check if unstructured output is requested
-        if self.class._agent_config&.dig(:output_format) == :unstructured
-          puts "📊 [Agent Debug] Unstructured output requested, returning nil"
+        if self.class._context_config&.dig(:output_format) == :unstructured
+          log_debug("Unstructured output requested, returning nil", category: :agents)
           return
         end
 
         # Check if schema is nil (indicating unstructured output)
         schema_def = build_schema
         if schema_def.nil?
-          puts "📊 [Agent Debug] Schema is nil, returning nil response format"
+          log_debug("Schema is nil, returning nil response format", category: :agents)
           return
         end
 
@@ -1464,13 +1476,14 @@ module RAAF
         validation_mode = schema_def.is_a?(Hash) && schema_def[:config] ? 
                          schema_def[:config][:mode] : :strict
         
-        puts "📊 [Agent Debug] Schema validation mode: #{validation_mode}"
-        puts "📊 [Agent Debug] Using structured output? #{validation_mode == :strict}"
+        log_debug("Schema validation mode", category: :agents, mode: validation_mode)
+        log_debug("Using structured output?", category: :agents, 
+                  structured: validation_mode == :strict)
         
         # In tolerant/partial mode, don't use OpenAI response_format
         # Let the agent return flexible JSON and validate on our side
         if [:tolerant, :partial].include?(validation_mode)
-          puts "📊 [Agent Debug] Tolerant/partial mode - not using OpenAI structured output"
+          log_debug("Tolerant/partial mode - not using OpenAI structured output", category: :agents)
           return nil
         end
         
@@ -1479,7 +1492,8 @@ module RAAF
                      schema_def[:schema] : schema_def
         
         if schema_data
-          puts "📊 [Agent Debug] Schema being sent to OpenAI: #{schema_data.inspect[0..500]}..."
+          log_debug("Schema being sent to OpenAI", category: :agents, 
+                    schema: schema_data.inspect[0..500])
         end
         
         response_format_obj = {
@@ -1491,7 +1505,7 @@ module RAAF
           }
         }
         
-        puts "📊 [Agent Debug] Final response_format object created"
+        log_debug("Final response_format object created", category: :agents)
         response_format_obj
       end
 
@@ -1533,8 +1547,8 @@ module RAAF
         end
         
         # Apply agent's context defaults if they don't exist in provided context
-        if self.class._agent_config && self.class._agent_config[:context_rules] && self.class._agent_config[:context_rules][:defaults]
-          defaults = self.class._agent_config[:context_rules][:defaults]
+        if self.class._context_config && self.class._context_config[:context_rules] && self.class._context_config[:context_rules][:defaults]
+          defaults = self.class._context_config[:context_rules][:defaults]
           defaults.each do |key, value|
             base_context[key] ||= value.is_a?(Proc) ? value.call : value
           end
@@ -1555,7 +1569,7 @@ module RAAF
         
         log_debug "Building auto context for #{self.class.name}"
         
-        rules = self.class._agent_config[:context_rules] || {}
+        rules = self.class._context_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
         
         # Ensure params has indifferent access for key checking throughout this method
@@ -1719,6 +1733,7 @@ module RAAF
         # Create RAAF runner and delegate execution
         runner_params = { agent: openai_agent }
         runner_params[:stop_checker] = stop_checker if stop_checker
+        runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
         
         runner = RAAF::Runner.new(**runner_params)
         
@@ -1795,7 +1810,7 @@ module RAAF
         end
       end
 
-      def setup_agent_configuration
+      def setup_context_configuration
         # Configuration is already set at class level via DSL
         # No need to apply it again at instance level
       end
@@ -1985,7 +2000,7 @@ module RAAF
       end
 
       def handle_smart_error(error)
-        agent_name = self.class._agent_config&.dig(:name) || self.class.name
+        agent_name = self.class._context_config&.dig(:name) || self.class.name
         
         # Record circuit breaker failure
         record_circuit_breaker_failure!
@@ -2137,12 +2152,14 @@ module RAAF
         return base_result unless self.class._result_transformations
 
         # Debug: Show transformation inputs
-        puts "🔄 [Agent Debug] apply_result_transformations for #{agent_name}"
-        puts "📊 [Agent Debug] Base result keys: #{base_result.keys.inspect}" if base_result.respond_to?(:keys)
-        puts "📊 [Agent Debug] Base result type: #{base_result.class}"
+        log_debug("apply_result_transformations", category: :agents, agent_name: agent_name)
+        log_debug("Base result keys", category: :agents, 
+                  keys: base_result.keys.inspect) if base_result.respond_to?(:keys)
+        log_debug("Base result type", category: :agents, type: base_result.class.name)
         
         transformations = self.class._result_transformations
-        puts "📊 [Agent Debug] Transformations to apply: #{transformations.keys.inspect}"
+        log_debug("Transformations to apply", category: :agents, 
+                  transformations: transformations.keys.inspect)
         
         # For AI results, the parsed output is in :parsed_output
         # For other results, it's in :data
@@ -2426,8 +2443,8 @@ module RAAF
 
       # Handoff building method (consolidated from AgentDsl)
       def build_handoffs_from_config
-        handoff_agent_configs = self.class._agent_config[:handoff_agents] || []
-        handoff_agent_configs.map do |handoff_config|
+        handoff_context_configs = self.class._context_config[:handoff_agents] || []
+        handoff_context_configs.map do |handoff_config|
           if handoff_config.is_a?(Hash)
             handoff_agent_class = handoff_config[:agent]
             options = handoff_config[:options] || {}

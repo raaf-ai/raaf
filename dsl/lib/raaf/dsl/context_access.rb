@@ -76,19 +76,30 @@ module RAAF
           variable_name = method_str.chomp('=').to_sym
           
           # Try to set in primary context
-          if respond_to?(:context, true) && context&.respond_to?(:has?) && context.has?(variable_name)
-            return context.set(variable_name, args[0]) if context.respond_to?(:set)
+          if respond_to?(:context, true) && context&.respond_to?(:set)
+            # For pipelines with output variables, always allow setting
+            if respond_to?(:context_config, true) && 
+               context_config&.respond_to?(:output_variables) && 
+               context_config.output_variables&.include?(variable_name)
+              context.set(variable_name, args[0])
+              return args[0]  # Return the assigned value like normal Ruby assignment
+            end
+            
+            # For existing variables, update them
+            if context.respond_to?(:has?) && context.has?(variable_name)
+              context.set(variable_name, args[0])
+              return args[0]  # Return the assigned value like normal Ruby assignment
+            end
+            
+            # For new variables in unrestricted contexts, add them
+            unless context_is_restricted?
+              context.set(variable_name, args[0])
+              return args[0]  # Return the assigned value like normal Ruby assignment
+            end
           end
           
-          # Handle context DSL output variables (agent-specific)
-          if respond_to?(:context_config, true) && context_config&.respond_to?(:output_variables) && 
-             context_config.output_variables&.include?(variable_name)
-            return context.set(variable_name, args[0]) if context.respond_to?(:set)
-          end
-          
-          # Provide helpful error for unknown assignment
-          available_keys = get_available_context_keys
-          raise NameError, "undefined context variable `#{variable_name}' for assignment. Available: #{available_keys.inspect}"
+          # If we can't set it, provide helpful error (but avoid recursion)
+          raise NameError, "undefined context variable `#{variable_name}' for assignment"
         end
         
         # Handle getter calls (variable)
@@ -189,29 +200,32 @@ module RAAF
       # Get all available context keys for error messages
       # 
       # Collects keys from all context sources to provide helpful error messages
-      # when a variable is not found.
+      # when a variable is not found. This version avoids method_missing recursion.
       #
       # @return [Array<Symbol>] Array of available context variable names
       def get_available_context_keys
         keys = []
         
-        # Collect from primary context (agent-style)
-        if respond_to?(:context, true) && context&.respond_to?(:keys)
-          keys.concat(context.keys)
-        elsif respond_to?(:context, true) && context&.respond_to?(:to_h)
-          keys.concat(context.to_h.keys)
+        # Safely collect from primary context using instance variable
+        if instance_variable_defined?(:@context)
+          ctx = @context
+          if ctx&.respond_to?(:keys)
+            keys.concat(ctx.keys)
+          elsif ctx&.respond_to?(:to_h)
+            keys.concat(ctx.to_h.keys)
+          elsif ctx.is_a?(Hash)
+            keys.concat(ctx.keys)
+          end
         end
         
-        # Collect from context variables (prompt-style from agents)
-        if instance_variable_defined?(:@context_variables) && @context_variables&.respond_to?(:keys)
-          keys.concat(@context_variables.keys)
-        elsif instance_variable_defined?(:@context_variables) && @context_variables&.respond_to?(:to_h)
-          keys.concat(@context_variables.to_h.keys)
-        end
-        
-        # Collect from direct context hash (prompt-style from initialization)  
-        if instance_variable_defined?(:@context) && @context.is_a?(Hash)
-          keys.concat(@context.keys)
+        # Collect from context variables
+        if instance_variable_defined?(:@context_variables) 
+          vars = @context_variables
+          if vars&.respond_to?(:keys)
+            keys.concat(vars.keys)
+          elsif vars&.respond_to?(:to_h)
+            keys.concat(vars.to_h.keys)
+          end
         end
         
         # Collect relevant instance variables (excluding internal ones)
@@ -291,8 +305,8 @@ module RAAF
         return false unless respond_to?(:class)
         
         # Check if class has context configuration with restrictions
-        if self.class.respond_to?(:_agent_config) && self.class._agent_config
-          context_rules = self.class._agent_config[:context_rules]
+        if self.class.respond_to?(:_context_config) && self.class._context_config
+          context_rules = self.class._context_config[:context_rules]
           return false unless context_rules
           
           # Context is restricted if it has explicit required or optional declarations
@@ -314,8 +328,8 @@ module RAAF
       def get_declared_context_variables
         return { required: [], optional: [] } unless respond_to?(:class)
         
-        if self.class.respond_to?(:_agent_config) && self.class._agent_config
-          context_rules = self.class._agent_config[:context_rules]
+        if self.class.respond_to?(:_context_config) && self.class._context_config
+          context_rules = self.class._context_config[:context_rules]
           return { required: [], optional: [] } unless context_rules
           
           required = context_rules[:required] || []

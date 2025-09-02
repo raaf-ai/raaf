@@ -40,7 +40,7 @@ module RAAF
           self.class.detect_duplicate_context_determination!
         end
         
-        rules = self.class._agent_config[:context_rules] || {}
+        rules = self.class._context_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
         
         # Validate required fields are provided
@@ -123,8 +123,8 @@ module RAAF
         end
         
         # Apply agent's context defaults if they don't exist in provided context
-        if self.class._agent_config && self.class._agent_config[:context_rules]
-          rules = self.class._agent_config[:context_rules]
+        if self.class._context_config && self.class._context_config[:context_rules]
+          rules = self.class._context_config[:context_rules]
           
           # Apply optional defaults (new DSL)
           if rules[:optional]
@@ -152,9 +152,9 @@ module RAAF
       # @param context [RAAF::DSL::ContextVariables] Context to validate
       # @raise [ArgumentError] If required fields are missing or validation fails
       def validate_context!(context = @context)
-        return unless self.class._agent_config && self.class._agent_config[:context_rules]
+        return unless self.class._context_config && self.class._context_config[:context_rules]
         
-        rules = self.class._agent_config[:context_rules]
+        rules = self.class._context_config[:context_rules]
         
         # Check required fields
         if rules[:required]

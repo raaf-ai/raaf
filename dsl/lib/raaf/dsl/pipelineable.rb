@@ -58,8 +58,8 @@ module RAAF
 
           # Get defaults if available (from ContextConfiguration module)
           defaults = {}
-          if respond_to?(:_agent_config) && _agent_config && _agent_config[:context_rules]
-            defaults = _agent_config[:context_rules][:defaults] || {}
+          if respond_to?(:_context_config) && _context_config && _context_config[:context_rules]
+            defaults = _context_config[:context_rules][:defaults] || {}
           end
 
           # Check if context has all required fields (or they have defaults)
@@ -223,8 +223,8 @@ module RAAF
         # @return [Array<Symbol>] Array of provided field names
         def provided_fields
           # Check context configuration for output fields (DSL declaration)
-          if respond_to?(:_agent_config) && _agent_config[:context_rules] && _agent_config[:context_rules][:output]
-            return _agent_config[:context_rules][:output]
+          if respond_to?(:_context_config) && _context_config[:context_rules] && _context_config[:context_rules][:output]
+            return _context_config[:context_rules][:output]
           end
           
           # Check if service has been instantiated and run to analyze result
@@ -310,11 +310,11 @@ module RAAF
         
         # Check if missing fields have defaults (from class configuration)
         defaults = []
-        if self.class.respond_to?(:_agent_config) && 
-           self.class._agent_config &&
-           self.class._agent_config[:context_rules] &&
-           self.class._agent_config[:context_rules][:defaults]
-          defaults = self.class._agent_config[:context_rules][:defaults].keys
+        if self.class.respond_to?(:_context_config) && 
+           self.class._context_config &&
+           self.class._context_config[:context_rules] &&
+           self.class._context_config[:context_rules][:defaults]
+          defaults = self.class._context_config[:context_rules][:defaults].keys
         end
         
         # Remove fields that have defaults from missing list

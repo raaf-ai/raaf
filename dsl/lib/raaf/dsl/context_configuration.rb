@@ -102,11 +102,11 @@ module RAAF
         # multi-threaded environments.
         #
         # @return [Hash] Thread-local configuration hash for this class
-        def _agent_config
+        def _context_config
           Thread.current["raaf_dsl_config_#{object_id}"] ||= {}
         end
 
-        def _agent_config=(value)
+        def _context_config=(value)
           Thread.current["raaf_dsl_config_#{object_id}"] = value
         end
 
@@ -117,14 +117,14 @@ module RAAF
         #
         # @param enabled [Boolean] Whether to enable auto-context loading
         def auto_context(enabled = true)
-          _agent_config[:auto_context] = enabled
+          _context_config[:auto_context] = enabled
         end
 
         # Check if auto-context is enabled (default: true)
         #
         # @return [Boolean] True if auto-context is enabled
         def auto_context?
-          _agent_config[:auto_context] != false
+          _context_config[:auto_context] != false
         end
 
         # Configuration for context building rules
@@ -148,9 +148,9 @@ module RAAF
           if block_given?
             config = ContextConfig.new
             config.instance_eval(&block)
-            _agent_config[:context_rules] = config.to_h
+            _context_config[:context_rules] = config.to_h
           else
-            _agent_config[:context_rules] = options
+            _context_config[:context_rules] = options
           end
         end
 
@@ -161,9 +161,9 @@ module RAAF
         #
         # @return [Array<Symbol>] Array of required field names
         def required_fields
-          return [] unless _agent_config[:context_rules]
+          return [] unless _context_config[:context_rules]
 
-          context_rules = _agent_config[:context_rules]
+          context_rules = _context_config[:context_rules]
           # Check both :required (new format) and :requirements (legacy format)
           requirements = context_rules[:required] || context_rules[:requirements] || []
           # Check both :optional (new format) and :defaults (legacy format)
@@ -180,9 +180,9 @@ module RAAF
         #
         # @return [Array<Symbol>] Array of externally required field names
         def externally_required_fields
-          return [] unless _agent_config[:context_rules]
+          return [] unless _context_config[:context_rules]
 
-          context_rules = _agent_config[:context_rules]
+          context_rules = _context_config[:context_rules]
           # Check both :required (new format) and :requirements (legacy format)
           requirements = context_rules[:required] || context_rules[:requirements] || []
           # Check both :optional (new format) and :defaults (legacy format)
@@ -200,8 +200,8 @@ module RAAF
         # @return [Array<Symbol>] Array of provided field names
         def provided_fields
           # Check context configuration for output fields (DSL declaration)
-          if _agent_config[:context_rules] && _agent_config[:context_rules][:output]
-            return _agent_config[:context_rules][:output]
+          if _context_config[:context_rules] && _context_config[:context_rules][:output]
+            return _context_config[:context_rules][:output]
           end
           
           # Check if service has been instantiated and run to analyze result
@@ -231,9 +231,9 @@ module RAAF
 
           # Get agent defaults if available
           defaults = {}
-          if _agent_config[:context_rules]
+          if _context_config[:context_rules]
             # Check both :optional (new format) and :defaults (legacy format)
-            defaults = _agent_config[:context_rules][:optional] || _agent_config[:context_rules][:defaults] || {}
+            defaults = _context_config[:context_rules][:optional] || _context_config[:context_rules][:defaults] || {}
           end
 
           # Check if context has all required fields (or they have defaults)
@@ -266,7 +266,7 @@ module RAAF
         # this module. Ensures that subclasses don't share configuration state.
         def inherited(subclass)
           super
-          subclass._agent_config = {}
+          subclass._context_config = {}
         end
         
         # Detect duplicate context determination (both DSL declaration and build_*_context methods)
@@ -276,9 +276,9 @@ module RAAF
         #
         # @raise [DuplicateContextError] If any field has both DSL declaration and build method
         def detect_duplicate_context_determination!
-          return unless _agent_config[:context_rules]
+          return unless _context_config[:context_rules]
           
-          context_rules = _agent_config[:context_rules]
+          context_rules = _context_config[:context_rules]
           duplicates = []
           
           # Collect all declared fields (required and optional)
