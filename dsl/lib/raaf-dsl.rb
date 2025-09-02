@@ -281,10 +281,30 @@ module RAAF
     def self.prompt_resolvers
       @prompt_resolvers ||= begin
         registry = PromptResolverRegistry.new
-        # Initialize default resolvers
+        # Initialize default resolvers immediately to support eager loading
         initialize_default_resolvers(registry)
         registry
       end
+    end
+
+    # Force initialization of prompt resolvers for eager loading environments
+    #
+    # This method is called by the Railtie to ensure resolvers are available
+    # when classes are eager loaded in production environments
+    #
+    # @return [PromptResolverRegistry] The initialized registry
+    def self.ensure_prompt_resolvers_initialized!
+      # Force initialization by calling the getter
+      prompt_resolvers
+      
+      # Verify resolvers are properly registered
+      if @prompt_resolvers.nil? || @prompt_resolvers.resolvers.empty?
+        # Fallback initialization if something went wrong
+        @prompt_resolvers = PromptResolverRegistry.new
+        initialize_default_resolvers(@prompt_resolvers)
+      end
+      
+      @prompt_resolvers
     end
 
     # Initialize default prompt resolvers

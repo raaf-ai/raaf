@@ -1255,11 +1255,21 @@ module RAAF
           return self.class._prompt_config[:class]
         end
         
+        # Ensure resolvers are initialized before trying to resolve prompts
+        DSL.ensure_prompt_resolvers_initialized!
+        
         # Try to infer prompt class by convention (e.g., Ai::Agents::MyAgent -> Ai::Prompts::MyAgent)
         inferred_prompt_class = infer_prompt_class_name
         if inferred_prompt_class
           log_debug "Trying inferred prompt class", class: inferred_prompt_class.name
           return inferred_prompt_class
+        end
+        
+        # Try multiple naming conventions for prompt class inference
+        alternative_prompt_class = try_alternative_prompt_conventions
+        if alternative_prompt_class
+          log_debug "Found alternative prompt class", class: alternative_prompt_class.name
+          return alternative_prompt_class
         end
         
         # Try to infer from agent name (e.g., MyAgent -> "my_agent.md")
@@ -1283,28 +1293,95 @@ module RAAF
                   agent_class: agent_class_name, 
                   inferred_prompt_class: prompt_class_name
         
-        # Check if the class exists before trying to constantize it
-        if Object.const_defined?(prompt_class_name)
-          # Class exists, now try to load it (this will catch actual errors in the class)
-          begin
+        # In Rails environments, use constantize directly which handles autoloading
+        # In non-Rails environments, fall back to the original behavior
+        begin
+          if defined?(Rails) && Rails.respond_to?(:application)
+            # Rails environment - use constantize which handles autoloading properly
             prompt_class_name.constantize
-          rescue StandardError => e
-            # This is a real error in the class definition (like missing methods, syntax errors, etc.)
-            # Re-raise it so the user can see what's wrong
-            raise e.class, "Error loading prompt class #{prompt_class_name}: #{e.message}", e.backtrace
+          else
+            # Non-Rails environment - use original logic
+            if Object.const_defined?(prompt_class_name)
+              prompt_class_name.constantize
+            else
+              log_debug "Inferred prompt class not found", 
+                        class: prompt_class_name, 
+                        error: "Class does not exist"
+              nil
+            end
           end
-        else
-          # Class doesn't exist, log and return nil for graceful fallback
+        rescue NameError => e
+          # Class doesn't exist - this is expected when no prompt class is defined
           log_debug "Inferred prompt class not found", 
                     class: prompt_class_name, 
-                    error: "Class does not exist"
+                    error: e.message
           nil
+        rescue StandardError => e
+          # This is a real error in the class definition (like missing methods, syntax errors, etc.)
+          # Re-raise it so the user can see what's wrong
+          raise e.class, "Error loading prompt class #{prompt_class_name}: #{e.message}", e.backtrace
         end
       end
       
       def infer_prompt_class_name_string
         agent_class_name = self.class.name
         agent_class_name.gsub(/::Agents::/, "::Prompts::")
+      end
+
+      # Try alternative prompt naming conventions for better auto-discovery
+      # This helps in cases where the standard convention doesn't work
+      def try_alternative_prompt_conventions
+        agent_class_name = self.class.name
+        
+        # Extract the final class name (e.g., "Analysis" from "Ai::Agents::Market::Analysis")
+        final_class_name = agent_class_name.split("::").last
+        
+        alternative_patterns = [
+          # Pattern: Same namespace as agent but under Prompts
+          # Ai::Agents::Market::Analysis -> Ai::Prompts::Market::Analysis
+          agent_class_name.gsub(/::Agents::/, "::Prompts::"),
+          
+          # Pattern: Directly under Ai::Prompts with category
+          # Ai::Agents::Market::Analysis -> Ai::Prompts::MarketAnalysis  
+          "Ai::Prompts::#{agent_class_name.split('::')[2..-1].join}",
+          
+          # Pattern: Under parent module's prompts
+          # Ai::Agents::Market::Analysis -> Ai::Agents::Market::Prompts::Analysis
+          agent_class_name.gsub(/::([^:]+)$/, "::Prompts::\\1"),
+        ]
+        
+        alternative_patterns.each do |pattern|
+          log_debug "Trying alternative prompt pattern", pattern: pattern
+          
+          begin
+            if defined?(Rails) && Rails.respond_to?(:application)
+              # Use Rails constantize for proper autoloading/eager loading
+              prompt_class = pattern.constantize
+              if prompt_class.is_a?(Class)
+                log_debug "Found alternative prompt class", class: prompt_class.name
+                return prompt_class
+              end
+            else
+              # Non-Rails environment
+              if Object.const_defined?(pattern)
+                prompt_class = pattern.constantize
+                if prompt_class.is_a?(Class)
+                  log_debug "Found alternative prompt class", class: prompt_class.name  
+                  return prompt_class
+                end
+              end
+            end
+          rescue NameError => e
+            log_debug "Alternative pattern failed", pattern: pattern, error: e.message
+            # Continue to next pattern
+          rescue StandardError => e
+            log_debug "Unexpected error trying alternative pattern", pattern: pattern, error: e.message
+            # Continue to next pattern
+          end
+        end
+        
+        log_debug "No alternative prompt patterns found", agent_class: agent_class_name
+        nil
       end
 
       # Supporting methods for prompt handling (from AgentDsl) - called by public methods

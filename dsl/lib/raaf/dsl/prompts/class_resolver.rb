@@ -14,22 +14,20 @@ module RAAF
         end
 
         ##
-        # Check if the spec is a Phlex prompt class or instance
+        # Check if the spec is a RAAF prompt class or instance
         #
         def can_resolve?(prompt_spec)
           case prompt_spec
           when Class
-            # Check if it's a subclass of DSL prompt base
-            defined?(RAAF::DSL::Prompts::Base) &&
-              prompt_spec < RAAF::DSL::Prompts::Base
+            # Check if it's a subclass of RAAF DSL prompt base or application-specific base classes
+            is_raaf_prompt_class?(prompt_spec)
           when Hash
             # Check for class specification
             prompt_spec[:type] == :phlex ||
               (prompt_spec[:class] && can_resolve?(prompt_spec[:class]))
           else
-            # Check if it's an instance of a DSL prompt
-            defined?(RAAF::DSL::Prompts::Base) &&
-              prompt_spec.is_a?(RAAF::DSL::Prompts::Base)
+            # Check if it's an instance of a RAAF prompt
+            is_raaf_prompt_instance?(prompt_spec)
           end
         end
 
@@ -80,6 +78,58 @@ module RAAF
         end
 
         private
+
+        # Check if a class is a RAAF prompt class
+        #
+        # This method checks for multiple possible base classes to support
+        # application-specific prompt base classes that inherit from RAAF::DSL::Prompts::Base
+        #
+        # @param prompt_class [Class] The class to check
+        # @return [Boolean] true if the class is a valid prompt class
+        def is_raaf_prompt_class?(prompt_class)
+          return false unless prompt_class.is_a?(Class)
+          
+          # Check if RAAF::DSL::Prompts::Base is defined and class inherits from it
+          if defined?(RAAF::DSL::Prompts::Base) && prompt_class < RAAF::DSL::Prompts::Base
+            return true
+          end
+          
+          # Check for application-specific base classes that might inherit from RAAF::DSL::Prompts::Base
+          # This supports patterns like ApplicationPrompt < RAAF::DSL::Prompts::Base
+          prompt_class.ancestors.each do |ancestor|
+            next if ancestor == prompt_class # Skip self
+            
+            # Check if any ancestor inherits from RAAF::DSL::Prompts::Base
+            if defined?(RAAF::DSL::Prompts::Base) && 
+               ancestor.is_a?(Class) && 
+               ancestor < RAAF::DSL::Prompts::Base
+              return true
+            end
+          end
+          
+          false
+        rescue StandardError
+          # If there's any error checking inheritance, assume it's not a prompt class
+          false
+        end
+
+        # Check if an object is a RAAF prompt instance
+        #
+        # @param prompt_obj [Object] The object to check
+        # @return [Boolean] true if the object is a valid prompt instance
+        def is_raaf_prompt_instance?(prompt_obj)
+          return false if prompt_obj.nil? || prompt_obj.is_a?(Class)
+          
+          # Check if it's an instance of RAAF::DSL::Prompts::Base or a descendant
+          if defined?(RAAF::DSL::Prompts::Base) && prompt_obj.is_a?(RAAF::DSL::Prompts::Base)
+            return true
+          end
+          
+          # Check if it's an instance of a class that inherits from RAAF::DSL::Prompts::Base
+          is_raaf_prompt_class?(prompt_obj.class)
+        rescue StandardError
+          false
+        end
 
         def build_prompt(prompt_instance, _context)
           # Build system and user messages
