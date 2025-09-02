@@ -103,9 +103,9 @@ module RAAF
     #   runner = RAAF::Runner.new(agent: agent, memory_manager: memory_manager)
     #
     def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil,
-                   context_manager: nil, context_config: nil, memory_manager: nil)
+                   context_manager: nil, context_config: nil, memory_manager: nil, http_timeout: nil)
       @agent = agent
-      @provider = provider || create_default_provider
+      @provider = provider || create_default_provider(http_timeout: http_timeout)
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @stop_checker = stop_checker
@@ -1760,9 +1760,12 @@ module RAAF
     #
     # @return [ResponsesProvider] Provider instance with built-in retries
     #
-    def create_default_provider
+    def create_default_provider(http_timeout: nil)
       # ResponsesProvider now has built-in retry functionality via ModelInterface
       provider = Models::ResponsesProvider.new
+      
+      # Set HTTP timeout if provided
+      provider.http_timeout = http_timeout if http_timeout
 
       # Configure retry settings from environment variables if provided
       if ENV["RAAF_PROVIDER_RETRY_ATTEMPTS"] || ENV["RAAF_PROVIDER_RETRY_BASE_DELAY"]

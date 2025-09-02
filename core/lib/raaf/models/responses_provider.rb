@@ -55,6 +55,8 @@ module RAAF
 
       include Logger
 
+      attr_accessor :http_timeout
+
       # Models supported by the Responses API
       SUPPORTED_MODELS = %w[
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4
@@ -286,6 +288,11 @@ module RAAF
           uri = URI("#{@api_base}/responses")
           http = Net::HTTP.new(uri.host, uri.port)
           http.use_ssl = true
+          
+          # Set configurable HTTP timeouts (default to 120 seconds)
+          timeout_value = @http_timeout || 120
+          http.read_timeout = timeout_value
+          http.open_timeout = [timeout_value / 4, 30].min  # 1/4 of read timeout, max 30s
 
           request = Net::HTTP::Post.new(uri)
           request["Authorization"] = "Bearer #{@api_key}"
@@ -360,7 +367,11 @@ module RAAF
         uri = URI("#{@api_base}/responses")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
-        http.read_timeout = 120 # Longer timeout for streaming
+        
+        # Set configurable HTTP timeouts (default to 120 seconds, streaming may need longer)
+        timeout_value = @http_timeout || 120
+        http.read_timeout = timeout_value
+        http.open_timeout = [timeout_value / 4, 30].min  # 1/4 of read timeout, max 30s
 
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
