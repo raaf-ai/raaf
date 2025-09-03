@@ -4,6 +4,7 @@ require_relative "../pipeline_dsl"
 require_relative "../context_flow_tracker"
 require_relative "../pipelineable"
 require_relative "../context_access"
+require_relative "../hooks/hook_context"
 require_relative "../agent"
 
 module RAAF
@@ -24,9 +25,10 @@ module RAAF
     include RAAF::DSL::Pipelineable
     include RAAF::DSL::ContextAccess
     include RAAF::DSL::ContextConfiguration
+    include RAAF::DSL::Hooks::HookContext
 
     class << self
-      attr_reader :flow_chain, :after_run_block, :pipeline_schema_block
+      attr_reader :flow_chain, :on_end_block, :pipeline_schema_block
       attr_accessor :skip_validation
       
       # Define the agent execution flow using DSL operators
@@ -52,13 +54,13 @@ module RAAF
         @pipeline_schema_block
       end
       
-      # Define after_run hook using DSL block
+      # Define on_end hook using DSL block
       # Executes after all agents complete with the final result
-      def after_run(&block)
+      def on_end(&block)
         if block_given?
-          @after_run_block = block
+          @on_end_block = block
         end
-        @after_run_block
+        @on_end_block
       end
       
       # Context DSL method provided by ContextConfiguration module
@@ -192,9 +194,9 @@ module RAAF
       
       result = execute_chain(@flow, @context)
       
-      # Execute after_run hook if defined and capture modified result
-      if self.class.after_run_block
-        result = execute_callback_with_context(result, &self.class.after_run_block)
+      # Execute on_end hook if defined and capture modified result
+      if self.class.on_end_block
+        result = execute_callback_with_parameters(result, &self.class.on_end_block)
       end
       
       # Convert ContextVariables result to hash with success flag
@@ -219,16 +221,10 @@ module RAAF
     
     private
     
-    # Execute callback with universal context access
-    # Execute callback in the context of the pipeline instance so instance methods are accessible
-    # FIXED: Use instance_eval instead of instance_exec to preserve natural variable resolution
-    # This allows assignments without self. to work just like in regular agent methods
-    def execute_callback_with_context(result, &block)
-      # Use the pipeline instance as the callback context so instance methods are accessible
-      callback_context = self
-      
-      # Use the result (accumulated context) instead of original @context
-      # This allows the callback to access all fields added during pipeline execution
+    # Execute callback with parameter signature (matching agent hooks)
+    # Pipeline hooks now use the same signature as agent hooks: |context, pipeline, result|
+    def execute_callback_with_parameters(result, &block)
+      # Convert result to context variables for consistency
       context_vars = case result
                      when RAAF::DSL::ContextVariables
                        result
@@ -238,21 +234,24 @@ module RAAF
                        RAAF::DSL::ContextVariables.new({})
                      end
       
-      # Temporarily store the current context if one exists
-      old_context = callback_context.instance_variable_get(:@context)
-      callback_context.instance_variable_set(:@context, context_vars)
-      
-      begin
-        # FIXED: Use instance_eval (not instance_exec) to preserve natural variable resolution
-        # This allows variable assignments to work through method_missing just like in regular methods
-        # The result parameter is still accessible via context methods (like 'result' variable access)
-        callback_result = callback_context.instance_eval(&block)
+      # Check block arity to maintain backward compatibility
+      if block.arity == 0
+        # Legacy: parameterless block with direct context access (deprecated)
+        # Temporarily store the current context
+        old_context = instance_variable_get(:@context)
+        instance_variable_set(:@context, context_vars)
         
-        # If the block returned a value, use it; otherwise return the potentially modified context
+        begin
+          callback_result = instance_eval(&block)
+          callback_result || context_vars
+        ensure
+          instance_variable_set(:@context, old_context)
+        end
+      else
+        # New: parameter-based signature matching agent hooks
+        # Hook receives: |context, pipeline, result|
+        callback_result = block.call(context_vars, self, context_vars)
         callback_result || context_vars
-      ensure
-        # Restore the original context
-        callback_context.instance_variable_set(:@context, old_context)
       end
     end
     
