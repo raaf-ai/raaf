@@ -14,6 +14,7 @@ require_relative "pipelineable"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
 require_relative "pipeline"
+require_relative "hooks/hook_context"
 
 module RAAF
   module DSL
@@ -46,6 +47,7 @@ module RAAF
       include RAAF::DSL::ContextAccess
       include RAAF::DSL::ContextConfiguration
       include RAAF::DSL::Pipelineable
+      include RAAF::DSL::Hooks::HookContext
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
@@ -2147,6 +2149,13 @@ module RAAF
         # Add handoffs if configured
         if handoff_agents.any?
           agent_config[:handoffs] = handoff_agents
+        end
+
+        # Add hooks if configured (bridge DSL hooks to Core execution)
+        hooks_config = combined_hooks_config
+        if hooks_config
+          require_relative 'hooks/hooks_adapter'
+          agent_config[:hooks] = RAAF::DSL::Hooks::HooksAdapter.new(hooks_config, self)
         end
 
         # Create and return the RAAF agent
