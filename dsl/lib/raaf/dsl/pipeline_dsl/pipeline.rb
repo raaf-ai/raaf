@@ -250,7 +250,7 @@ module RAAF
       else
         # New: parameter-based signature matching agent hooks
         # Hook receives: |context, pipeline, result|
-        callback_result = block.call(context_vars, self, context_vars)
+        callback_result = block.call(@context, self, context_vars)
         callback_result || context_vars
       end
     end
