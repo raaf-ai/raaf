@@ -59,6 +59,7 @@ module RAAF
 
       # Models supported by the Responses API
       SUPPORTED_MODELS = %w[
+        gpt-5 gpt-5-mini gpt-5-nano gpt-5-chat-latest
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4
         gpt-3.5-turbo gpt-3.5-turbo-16k
         o1-preview o1-mini

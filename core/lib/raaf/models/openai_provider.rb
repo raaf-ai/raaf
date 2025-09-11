@@ -18,6 +18,7 @@ module RAAF
     class OpenAIProvider < ModelInterface
 
       SUPPORTED_MODELS = %w[
+        gpt-5 gpt-5-mini gpt-5-nano gpt-5-chat-latest
         gpt-4.1 gpt-4.1-mini gpt-4.1-nano
         gpt-4o gpt-4o-mini gpt-4-turbo gpt-4 gpt-4-32k
         gpt-3.5-turbo gpt-3.5-turbo-16k
