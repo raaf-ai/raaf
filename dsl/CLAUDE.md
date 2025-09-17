@@ -365,7 +365,7 @@ schema do
 end
 # LLM must return exactly {"name": "value"} or validation fails
 
-# :tolerant mode (recommended) - Required fields strict, others flexible  
+# :tolerant mode - Required fields strict, others flexible  
 schema do
   field :name, type: :string, required: true
   field :age, type: :integer

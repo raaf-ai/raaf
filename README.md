@@ -204,7 +204,7 @@ puts result[:employee_count]  # 500
 - **Smart Key Normalization**: `"Company Name"` → `:company_name`, `"API-Key"` → `:api_key`
 - **Three Validation Modes**:
   - `:strict` - All fields must match exactly (default)
-  - `:tolerant` - Required fields strict, others flexible (recommended)
+  - `:tolerant` - Required fields strict, others flexible
   - `:partial` - Use whatever validates, ignore invalid fields
 - **JSON Repair**: Handles malformed JSON, markdown-wrapped responses, trailing commas
 - **Nested Schema Support**: Works with complex nested objects and arrays
