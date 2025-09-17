@@ -1613,7 +1613,11 @@ module RAAF
           log_debug("🔢 TURNS: Incremented turns for tool call continuation", turns: state[:turns], done: process_result[:done])
 
           # Check if max turns exceeded after incrementing
-          raise MaxTurnsError, "Maximum turns (#{state[:max_turns]}) exceeded" if state[:turns] >= state[:max_turns]
+          if state[:turns] >= state[:max_turns]
+            log_warn("⚠️ Maximum turns (#{state[:max_turns]}) reached - returning partial results")
+            state[:max_turns_reached] = true
+            break  # Exit the loop but continue processing to return partial results
+          end
 
           next
         end
@@ -1711,7 +1715,10 @@ module RAAF
         turns: state[:turns],
         usage: state[:accumulated_usage],
         tool_results: tool_results,
-        metadata: { responses: model_responses }
+        metadata: {
+          responses: model_responses,
+          max_turns_reached: state[:max_turns_reached] || false
+        }
       )
     end
 

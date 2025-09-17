@@ -28,7 +28,7 @@ module RAAF
     # @param schema [Hash] JSON schema definition with properties and required fields
     # @param mode [Symbol] Validation mode (:strict, :tolerant, :partial)
     # @param repair_attempts [Integer] Number of repair attempts for failed parsing
-    def initialize(schema, mode: TOLERANT_MODE, repair_attempts: 2)
+    def initialize(schema, mode: STRICT_MODE, repair_attempts: 0)
       @schema = schema || {}
       @mode = mode
       @repair_attempts = repair_attempts

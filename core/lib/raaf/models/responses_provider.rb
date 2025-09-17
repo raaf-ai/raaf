@@ -651,12 +651,20 @@ module RAAF
       def convert_response_format(response_format)
         return unless response_format.is_a?(Hash) && response_format[:type] == "json_schema"
 
+        schema = response_format.dig(:json_schema, :schema)
+        is_strict = response_format.dig(:json_schema, :strict)
+
+        # Process schema through StrictSchema if strict mode is enabled
+        if is_strict && schema
+          schema = RAAF::StrictSchema.ensure_strict_json_schema(schema)
+        end
+
         {
           format: {
             type: "json_schema",
             name: response_format.dig(:json_schema, :name),
-            schema: response_format.dig(:json_schema, :schema),
-            strict: response_format.dig(:json_schema, :strict)
+            schema: schema,
+            strict: is_strict
           }
         }
       end

@@ -66,7 +66,8 @@ module RAAF
         Net::OpenTimeout,
         Net::HTTPTooManyRequests,
         Net::HTTPServiceUnavailable,
-        Net::HTTPGatewayTimeout
+        Net::HTTPGatewayTimeout,
+        ServerError  # Retry on server errors (500, 502, 503, 504, etc.)
       ].freeze
 
       # HTTP status codes that should trigger retry
