@@ -32,6 +32,10 @@ RSpec.describe RAAF::DSL::PipelineDSL do
       expect(defined?(RAAF::DSL::PipelineDSL::ConfiguredAgent)).to be_truthy
     end
 
+    it "loads RemappedAgent class" do
+      expect(defined?(RAAF::DSL::PipelineDSL::RemappedAgent)).to be_truthy
+    end
+
     it "loads FieldMismatchError class" do
       expect(defined?(RAAF::DSL::PipelineDSL::FieldMismatchError)).to be_truthy
     end
