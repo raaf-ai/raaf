@@ -4,6 +4,7 @@ require_relative 'pipeline_dsl/chained_agent'
 require_relative 'pipeline_dsl/parallel_agents'
 require_relative 'pipeline_dsl/configured_agent'
 require_relative 'pipeline_dsl/iterating_agent'
+require_relative 'pipeline_dsl/remapped_agent'
 require_relative 'errors'
 
 module RAAF
@@ -195,6 +196,51 @@ module RAAF
           end
           
           PipelineDSL::IteratingAgent.new(self, field, options)
+        end
+
+        # DSL method: Configure input and output parameter remapping
+        #
+        # Wraps the agent/service with parameter remapping that transforms context
+        # field names both on input (before execution) and output (after execution).
+        # This enables reuse of generic agents in pipelines where field names don't match.
+        #
+        # @example Input remapping only (shorthand syntax)
+        #   Company::GenericEnrichment.with_mapping(company: :prospect)
+        #
+        # @example Input and output remapping (full syntax)
+        #   Company::GenericEnrichment.with_mapping(
+        #     input: { company: :prospect },
+        #     output: { enriched_company: :enriched_prospect }
+        #   )
+        #
+        # @example Multiple field remapping
+        #   DataProcessor.with_mapping(
+        #     input: { data: :raw_data, config: :settings },
+        #     output: { results: :processed_data }
+        #   )
+        #
+        # @param mapping_config [Hash] Mapping configuration
+        # @option mapping_config [Hash] :input Input field remapping (target: source)
+        # @option mapping_config [Hash] :output Output field remapping (source: target)
+        # @return [RemappedAgent] Remapped execution wrapper
+        def with_mapping(mapping_config = {})
+          # Parse the mapping configuration to support multiple calling patterns
+          if mapping_config.key?(:input) || mapping_config.key?(:output)
+            # Full syntax: with_mapping(input: {...}, output: {...})
+            input_mapping = mapping_config[:input] || {}
+            output_mapping = mapping_config[:output] || {}
+          else
+            # Shorthand syntax: with_mapping(field: source_field)
+            # Assumes input-only remapping
+            input_mapping = mapping_config
+            output_mapping = {}
+          end
+
+          PipelineDSL::RemappedAgent.new(
+            self,
+            input_mapping: input_mapping,
+            output_mapping: output_mapping
+          )
         end
 
         # Field introspection methods (can be overridden by including classes)

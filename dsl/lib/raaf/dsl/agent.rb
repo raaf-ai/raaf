@@ -15,6 +15,7 @@ require_relative "pipelineable"
 require_relative "data_merger"
 require_relative "pipeline"
 require_relative "hooks/hook_context"
+require_relative "auto_merge"
 
 module RAAF
   module DSL
@@ -48,6 +49,7 @@ module RAAF
       include RAAF::DSL::ContextConfiguration
       include RAAF::DSL::Pipelineable
       include RAAF::DSL::Hooks::HookContext
+      include RAAF::DSL::AutoMerge
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
@@ -166,6 +168,38 @@ module RAAF
           else
             _prompt_config[:instruction_template]
           end
+        end
+
+        # Configure whether this agent should use AutoMerge functionality
+        # AutoMerge intelligently merges AI agent results with existing pipeline context
+        # using strategies like by_id merging for arrays, deep merge for hashes, etc.
+        #
+        # @param enabled [Boolean] Enable or disable AutoMerge (default: true)
+        # @return [Boolean] Current AutoMerge setting when called without parameters
+        #
+        # @example Enable AutoMerge (default behavior)
+        #   class Market::Scoring < ApplicationAgent
+        #     auto_merge true  # Can be omitted since true is default
+        #   end
+        #
+        # @example Disable AutoMerge for agents that create new data
+        #   class Market::Analysis < ApplicationAgent
+        #     auto_merge false  # Creates new markets, no merging needed
+        #   end
+        def auto_merge(enabled = nil)
+          if enabled.nil?
+            # Getter: return current setting, default to true if never set
+            _context_config.fetch(:auto_merge, true)
+          else
+            # Setter: store the setting
+            _context_config[:auto_merge] = enabled
+          end
+        end
+
+        # Check if AutoMerge is enabled for this agent class
+        # @return [Boolean] true if AutoMerge should be used (default: true)
+        def auto_merge_enabled?
+          auto_merge
         end
 
         # Tool configuration DSL methods (consolidated from AgentDsl)
@@ -484,9 +518,14 @@ module RAAF
           end
         end
 
-        def schema(&block)
-          self._schema_definition = SchemaBuilder.new(&block).build if block_given?
-          self._schema_definition
+        def schema(model: nil, &block)
+          # Always use the modern SchemaBuilder that supports model introspection
+          builder = RAAF::DSL::SchemaBuilder.new(model: model)
+          builder.instance_eval(&block) if block_given?
+          self._schema_definition = {
+            schema: builder.to_schema,
+            config: { mode: :strict, repair_attempts: 0, allow_extra: false }
+          }
         end
 
 
@@ -1567,11 +1606,16 @@ module RAAF
         end
         
         # Strict mode uses OpenAI response_format (backward compatible)
-        schema_data = schema_def.is_a?(Hash) && schema_def[:schema] ? 
+        schema_data = schema_def.is_a?(Hash) && schema_def[:schema] ?
                      schema_def[:schema] : schema_def
-        
+
+        # Process schema through StrictSchema for OpenAI strict mode compliance
+        if validation_mode == :strict && schema_data
+          schema_data = RAAF::StrictSchema.ensure_strict_json_schema(schema_data)
+        end
+
         if schema_data
-          log_debug("Schema being sent to OpenAI", category: :agents, 
+          log_debug("Schema being sent to OpenAI", category: :agents,
                     schema: schema_data.inspect[0..500])
         end
         
@@ -1825,12 +1869,13 @@ module RAAF
         
         # Transform result to expected DSL format
         base_result = transform_ai_result(run_result, run_context)
-        
-        # Apply result transformations if configured
+
+        # Apply result transformations if configured, or auto-generate them for output fields
         if self.class._result_transformations
           apply_result_transformations(base_result)
         else
-          base_result
+          # Automatically extract output fields if they are declared but no transformations exist
+          generate_auto_transformations_for_output_fields(base_result)
         end
       rescue StandardError => e
         log_error("Agent execution failed", 
@@ -2013,11 +2058,12 @@ module RAAF
           { success: true, data: raaf_result }
         end
 
-        # Apply result transformations if configured
+        # Apply result transformations if configured, or auto-generate them for output fields
         if self.class._result_transformations
           apply_result_transformations(base_result)
         else
-          base_result
+          # Automatically extract output fields if they are declared but no transformations exist
+          generate_auto_transformations_for_output_fields(base_result)
         end
       end
 
@@ -2101,6 +2147,44 @@ module RAAF
           log_error "❌ [#{agent_name}] Unexpected error: #{error.message}", stack_trace: error.backtrace.join("\n")
           { success: false, error: "Agent execution failed: #{error.message}", error_type: "unexpected_error" }
         end
+      end
+
+      # Generate automatic transformations for output fields when none are configured
+      def generate_auto_transformations_for_output_fields(base_result)
+        # Check if we have output fields defined but no explicit transformations
+        return base_result unless self.class.respond_to?(:provided_fields)
+
+        output_fields = self.class.provided_fields
+        return base_result if output_fields.nil? || output_fields.empty?
+
+        # Extract data from the appropriate location in base_result
+        source_data = base_result[:parsed_output] || base_result[:data] || base_result
+        return base_result unless source_data.respond_to?(:[])
+
+        log_debug "Auto-generating transformations for output fields: #{output_fields.inspect}"
+
+        # Create result with only declared output fields in :results
+        result = base_result.dup
+        filtered_results = {}
+
+        output_fields.each do |field_name|
+          field_key = field_name.to_s
+          field_symbol = field_name.to_sym
+
+          # Try both string and symbol keys to extract the field
+          field_value = source_data[field_key] || source_data[field_symbol]
+
+          if field_value
+            filtered_results[field_symbol] = field_value
+            log_debug "Auto-extracted field #{field_symbol}: #{field_value.class}"
+          else
+            log_debug "Output field #{field_symbol} not found in AI response"
+          end
+        end
+
+        # Update the :results key with only the declared output fields
+        result[:results] = filtered_results
+        result
       end
 
       def default_schema
@@ -2199,7 +2283,7 @@ module RAAF
         {
           workflow_status: "completed",
           success: true,
-          results: run_result,
+          results: parsed_output || {},  # AutoMerge expects this to be the parsed data hash, not the raw runner
           parsed_output: parsed_output,  # The parsed AI response
           context_variables: run_context,
           summary: build_result_summary(parsed_output)

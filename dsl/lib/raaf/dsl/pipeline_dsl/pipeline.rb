@@ -187,36 +187,29 @@ module RAAF
     end
 
     def run
+      # Initialize result collection for auto-merge
+      @agent_results = []
+
       # Validate pipeline before execution (enabled by default)
       unless self.class.skip_validation
         validate_pipeline!
       end
-      
-      result = execute_chain(@flow, @context)
-      
+
+      # Update @context with accumulated data from agents
+      @context = execute_chain(@flow, @context)
+
+      # Auto-merge all agent results intelligently
+      merged_result = auto_merge_results(@agent_results)
+
       # Execute on_end hook if defined and capture modified result
+      # Now @context contains all accumulated data from agents
       if self.class.on_end_block
-        result = execute_callback_with_parameters(result, &self.class.on_end_block)
+        merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)
       end
-      
-      # Convert ContextVariables result to hash with success flag
-      # This ensures all pipelines return a consistent result structure
-      final_result = if result.respond_to?(:to_h)
-        # Convert ContextVariables to hash while preserving all data
-        result_hash = result.to_h
-        # Add success flag to indicate pipeline completed successfully
-        result_hash[:success] = true
-        result_hash
-      elsif result.is_a?(Hash)
-        # Already a hash, just add success flag if not present
-        result[:success] = true unless result.key?(:success)
-        result
-      else
-        # Fallback for other result types
-        { success: true, result: result }
-      end
-      
-      final_result
+
+      # Ensure success flag is present
+      merged_result[:success] = true unless merged_result.key?(:success)
+      merged_result
     end
     
     private
@@ -250,6 +243,7 @@ module RAAF
       else
         # New: parameter-based signature matching agent hooks
         # Hook receives: |context, pipeline, result|
+        # Use the updated context that contains accumulated data from all agents
         callback_result = block.call(@context, self, context_vars)
         callback_result || context_vars
       end
@@ -367,6 +361,8 @@ module RAAF
         agents.first if agents
       when DSL::PipelineDSL::ConfiguredAgent
         chain.agent_class
+      when DSL::PipelineDSL::RemappedAgent
+        chain.agent_class
       when Class
         chain
       else
@@ -376,10 +372,14 @@ module RAAF
     
     def execute_chain(chain, context)
       case chain
-      when DSL::PipelineDSL::ChainedAgent, DSL::PipelineDSL::ParallelAgents, DSL::PipelineDSL::ConfiguredAgent
-        chain.execute(context)
+      when DSL::PipelineDSL::ChainedAgent, DSL::PipelineDSL::ParallelAgents, DSL::PipelineDSL::ConfiguredAgent, DSL::PipelineDSL::RemappedAgent
+        updated_context = chain.execute(context, @agent_results)
+        # Return updated context if the chain execution updated it, otherwise original context
+        updated_context || context
       when Class
-        execute_agent(chain, context)
+        agent_result, updated_context = execute_agent(chain, context)
+        @agent_results << agent_result if agent_result.is_a?(Hash)
+        updated_context
       when Symbol
         send(chain, context) if respond_to?(chain, true)
         context
@@ -391,28 +391,31 @@ module RAAF
     def execute_agent(agent_class, context)
       unless agent_class.respond_to?(:requirements_met?) && agent_class.requirements_met?(context)
         RAAF.logger.warn "Skipping #{agent_class.name}: requirements not met"
-        return context
+        return [{}, context]  # Return empty result and unchanged context for skipped agents
       end
-      
+
       # ContextVariables now supports direct splatting via to_hash method
       # Create instance - works for both Agent and Service classes
       instance = agent_class.new(**context)
-      
+
       # Inject pipeline schema if available
       if pipeline_schema && instance.respond_to?(:inject_pipeline_schema)
         logger.debug "Injecting schema into #{agent_class.name}"
         instance.inject_pipeline_schema(pipeline_schema)
       end
-      
+
       # Execute based on type - Services use 'call', Agents use 'run'
+      # Prioritize 'call' method if available (for agents with custom processing)
       logger&.debug "Executing #{agent_class.name}"
       result = if is_service_class?(agent_class)
+        instance.call
+      elsif instance.respond_to?(:call)
         instance.call
       else
         instance.run
       end
-      
-      # Merge provisions into context
+
+      # Merge provisions into context (for backward compatibility)
       if agent_class.respond_to?(:provided_fields)
         agent_class.provided_fields.each do |field|
           if result.respond_to?(:[]) && result[field]
@@ -420,8 +423,20 @@ module RAAF
           end
         end
       end
-      
-      context
+
+      # Also merge the entire result into context for pipeline context accumulation
+      if result.respond_to?(:[]) && result.is_a?(Hash)
+        result.each do |key, value|
+          # Only merge non-internal fields (avoid success, errors, etc.)
+          unless key.to_s.match?(/^(success|error|errors|status|metadata)$/i)
+            context = context.set(key, value)
+          end
+        end
+      end
+
+      # Return both the agent's result and the updated context
+      agent_result = result.respond_to?(:to_h) ? result.to_h : (result.is_a?(Hash) ? result : {})
+      [agent_result, context]
     end
     
     # Check if a class is a Service (as opposed to an Agent)
@@ -457,7 +472,11 @@ module RAAF
         
       when DSL::PipelineDSL::ConfiguredAgent
         validate_single_stage(flow.agent_class, tracker, errors)
-        
+
+      when DSL::PipelineDSL::RemappedAgent
+        # For RemappedAgent, validate using the RemappedAgent itself (which handles field mapping)
+        validate_single_stage(flow, tracker, errors)
+
       when Class
         validate_single_stage(flow, tracker, errors)
         
@@ -475,55 +494,158 @@ module RAAF
     
     # Validate a single stage (agent or service) with context tracking
     def validate_single_stage(stage_class, tracker, errors, stage_name = nil)
-      stage_name ||= stage_class.respond_to?(:name) ? stage_class.name : stage_class.to_s
-      
-      # Enter this stage in the tracker
-      tracker.enter_stage(stage_name)
-      
-      begin
-        # FIRST: Add output fields that this stage will provide to the tracker
-        # This allows downstream stages to know these fields will be available
-        if stage_class.respond_to?(:provided_fields)
-          output_fields = stage_class.provided_fields
-          tracker.add_output_fields(output_fields)
-        elsif stage_class.respond_to?(:output_fields)
-          output_fields = stage_class.output_fields
-          tracker.add_output_fields(output_fields)
+      # Handle different stage types
+      if stage_class.is_a?(DSL::PipelineDSL::RemappedAgent)
+        # For RemappedAgent, use its mapped fields and validate the underlying agent
+        stage_name ||= "RemappedAgent(#{stage_class.agent_class.name})"
+
+        # Enter this stage in the tracker
+        tracker.enter_stage(stage_name)
+
+        begin
+          # Add output fields that this stage will provide (after mapping)
+          if stage_class.respond_to?(:provided_fields)
+            output_fields = stage_class.provided_fields
+            tracker.add_output_fields(output_fields)
+          end
+
+          # Validate requirements are met (with input mapping applied)
+          context_hash = tracker.current_context
+          unless stage_class.requirements_met?(context_hash)
+            required = stage_class.required_fields || []
+            available = context_hash.keys
+            missing = required - available
+
+            raise StandardError, "RemappedAgent requirements not met. Required: #{required.inspect}, Available: #{available.inspect}, Missing: #{missing.inspect}"
+          end
+
+        rescue StandardError => e
+          handle_validation_error(e, stage_name, tracker, errors)
         end
-        
-        # THEN: Create test instance with context that includes simulated outputs
-        context_hash = tracker.current_context
-        
-        # Try to create agent/service instance with validation mode enabled
-        # This skips run_if execution conditions during validation
-        test_instance = stage_class.new(validation_mode: true, **context_hash)
-        
-        # Validate using unified Pipelineable interface if supported
-        if test_instance.can_validate_for_pipeline?
-          test_instance.validate_for_pipeline(context_hash)
+      else
+        # Handle regular agent/service classes
+        stage_name ||= stage_class.respond_to?(:name) ? stage_class.name : stage_class.to_s
+
+        # Enter this stage in the tracker
+        tracker.enter_stage(stage_name)
+
+        begin
+          # FIRST: Add output fields that this stage will provide to the tracker
+          # This allows downstream stages to know these fields will be available
+          if stage_class.respond_to?(:provided_fields)
+            output_fields = stage_class.provided_fields
+            tracker.add_output_fields(output_fields)
+          elsif stage_class.respond_to?(:output_fields)
+            output_fields = stage_class.output_fields
+            tracker.add_output_fields(output_fields)
+          end
+
+          # THEN: Create test instance with context that includes simulated outputs
+          context_hash = tracker.current_context
+
+          # Try to create agent/service instance with validation mode enabled
+          # This skips run_if execution conditions during validation
+          test_instance = stage_class.new(validation_mode: true, **context_hash)
+
+          # Validate using unified Pipelineable interface if supported
+          if test_instance.can_validate_for_pipeline?
+            test_instance.validate_for_pipeline(context_hash)
+          end
+
+        rescue StandardError => e
+          handle_validation_error(e, stage_name, tracker, errors)
         end
-        
-      rescue StandardError => e
-        # Capture validation error with context
-        missing_vars = nil
-        
-        # Extract missing variables from error message if it's a context error
-        if e.message.include?("Missing variables:")
-          # Try to extract missing variables from error message
-          match = e.message.match(/Missing variables: \[(.*?)\]/)
-          missing_vars = match ? match[1].split(', ').map(&:strip) : nil
-        end
-        
-        errors << {
-          stage_number: tracker.stage_number,
-          stage: stage_name,
-          message: e.message,
-          available_context: tracker.available_keys,
-          missing_variables: missing_vars
-        }
       end
     end
-    
+
+    # Helper method to handle validation errors consistently
+    def handle_validation_error(error, stage_name, tracker, errors)
+      # Capture validation error with context
+      missing_vars = nil
+
+      # Extract missing variables from error message if it's a context error
+      if error.message.include?("Missing variables:")
+        # Try to extract missing variables from error message
+        match = error.message.match(/Missing variables: \[(.*?)\]/)
+        missing_vars = match ? match[1].split(', ').map(&:strip) : nil
+      end
+
+      errors << {
+        stage_number: tracker.stage_number,
+        stage: stage_name,
+        message: error.message,
+        available_context: tracker.available_keys,
+        missing_variables: missing_vars
+      }
+    end
+
+    # Auto-merge all agent results intelligently
+    # Combines results from all agents in the pipeline, merging arrays by ID and hashes deeply
+    def auto_merge_results(agent_results)
+      return ActiveSupport::HashWithIndifferentAccess.new if agent_results.empty?
+
+      # Start with first result as base
+      merged = agent_results.first.dup
+
+      # Merge each subsequent result
+      agent_results[1..-1].each do |result|
+        merged = deep_merge_results(merged, result)
+      end
+
+      # Wrap final result in HashWithIndifferentAccess for consistent symbol/string access
+      ActiveSupport::HashWithIndifferentAccess.new(merged)
+    end
+
+    # Deep merge two result hashes, handling arrays and nested hashes intelligently
+    def deep_merge_results(base, new_result)
+      new_result.each do |key, value|
+        if base[key].is_a?(Array) && value.is_a?(Array)
+          # Intelligently merge arrays by matching IDs
+          base[key] = merge_arrays_by_id(base[key], value)
+        elsif base[key].is_a?(Hash) && value.is_a?(Hash)
+          # Recursively merge nested hashes with indifferent access
+          base[key] = ActiveSupport::HashWithIndifferentAccess.new(deep_merge_results(base[key], value))
+        elsif value.is_a?(Hash)
+          # Convert new hash values to indifferent access
+          base[key] = ActiveSupport::HashWithIndifferentAccess.new(value)
+        else
+          # Simple replacement or addition for scalars
+          base[key] = value
+        end
+      end
+      base
+    end
+
+    # Merge two arrays by matching ID fields, combining objects with same ID
+    # Handles both symbol and string keys (:id, "id", :name, "name")
+    def merge_arrays_by_id(base_array, new_array)
+      # Build lookup table from base array
+      base_lookup = {}
+      base_array.each do |item|
+        if item.is_a?(Hash)
+          id = item[:id] || item["id"] || item[:name] || item["name"]
+          base_lookup[id] = ActiveSupport::HashWithIndifferentAccess.new(item.dup) if id
+        end
+      end
+
+      # Merge new items into lookup table
+      new_array.each do |new_item|
+        if new_item.is_a?(Hash)
+          id = new_item[:id] || new_item["id"] || new_item[:name] || new_item["name"]
+          if id && base_lookup[id]
+            # Deep merge with existing item
+            base_lookup[id] = ActiveSupport::HashWithIndifferentAccess.new(deep_merge_results(base_lookup[id], new_item))
+          else
+            # Add new item (generate ID if missing) with indifferent access
+            key = id || SecureRandom.uuid
+            base_lookup[key] = ActiveSupport::HashWithIndifferentAccess.new(new_item.dup)
+          end
+        end
+      end
+
+      base_lookup.values
+    end
+
     # ContextConfig class provided by ContextConfiguration module
   end
 end

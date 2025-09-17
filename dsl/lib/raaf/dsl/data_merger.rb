@@ -34,7 +34,7 @@ module RAAF
       # @param block [Proc] Block defining the merge strategy
       #
       def merge_strategy(data_type, &block)
-        strategy = MergeStrategy.new
+        strategy = MergeStrategyConfig.new
         strategy.instance_eval(&block) if block_given?
         @merge_strategies[data_type] = strategy
       end
@@ -182,7 +182,7 @@ module RAAF
     end
 
     # Merge strategy configuration class
-    class MergeStrategy
+    class MergeStrategyConfig
       attr_reader :key_field, :array_merge_fields, :latest_fields, :sum_fields, 
                   :object_merge_fields, :custom_merge_rules
 

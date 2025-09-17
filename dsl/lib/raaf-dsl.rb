@@ -76,9 +76,12 @@ module RAAF
     
     # Auto-require core components
     autoload :AgentBuilder, "raaf/dsl/builders/agent_builder"
+    autoload :AutoMerge, "raaf/dsl/auto_merge"
     autoload :Config, "raaf/dsl/config/config"
     autoload :ConfigurationBuilder, "raaf/dsl/builders/configuration_builder"
     autoload :ContextVariables, "raaf/dsl/core/context_variables"
+    autoload :EdgeCases, "raaf/dsl/edge_cases"
+    autoload :MergeStrategy, "raaf/dsl/merge_strategy"
     autoload :Prompt, "raaf/dsl/prompts"
     autoload :PromptConfiguration, "raaf/dsl/config/prompt_configuration"
     autoload :PromptResolver, "raaf/dsl/prompts/prompt_resolver"
@@ -120,6 +123,17 @@ module RAAF
     # Pipeline DSL for elegant agent chaining
     autoload :Pipeline, "raaf/dsl/pipeline_dsl/pipeline"
     require_relative "raaf/dsl/pipeline_dsl"
+
+    # Schema generation and caching system
+    autoload :Types, "raaf/dsl/types"
+    autoload :SchemaBuilder, "raaf/dsl/schema_builder"
+    autoload :SchemaGenerator, "raaf/dsl/schema_generator"
+    autoload :SchemaCache, "raaf/dsl/schema_cache"
+
+    module Schema
+      autoload :SchemaGenerator, "raaf/dsl/schema/schema_generator"
+      autoload :SchemaCache, "raaf/dsl/schema/schema_cache"
+    end
 
     # Prompt building and template system
     #

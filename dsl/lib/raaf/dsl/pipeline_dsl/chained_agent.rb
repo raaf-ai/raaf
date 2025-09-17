@@ -62,11 +62,11 @@ module RAAF
           end
         end
         
-        def execute(context)
+        def execute(context, agent_results = nil)
           # Execute first part
-          context = execute_part(@first, context)
+          context = execute_part(@first, context, agent_results)
           # Execute second part with validation
-          execute_part(@second, context)
+          execute_part(@second, context, agent_results)
         end
         
         # Extract metadata for chained agents
@@ -158,18 +158,18 @@ module RAAF
           end
         end
         
-        def execute_part(part, context)
+        def execute_part(part, context, agent_results = nil)
           case part
           when ChainedAgent
-            part.execute(context)
+            part.execute(context, agent_results)
           when ParallelAgents
-            part.execute(context)
+            part.execute(context, agent_results)
           when ConfiguredAgent
-            part.execute(context)
+            part.execute(context, agent_results)
           when IteratingAgent
-            part.execute(context)
+            part.execute(context, agent_results)
           when Class
-            execute_single_agent(part, context)
+            execute_single_agent(part, context, agent_results)
           when Symbol
             # Method handler - look for method in pipeline instance
             if context.respond_to?(:pipeline_instance) && context.pipeline_instance
@@ -183,9 +183,9 @@ module RAAF
           end
         end
         
-        def execute_single_agent(agent_class, context)
+        def execute_single_agent(agent_class, context, agent_results = nil)
           log_debug "Executing agent: #{agent_class.name}"
-          
+
           # Check requirements
           if agent_class.respond_to?(:requirements_met?)
             unless agent_class.requirements_met?(context)
@@ -195,31 +195,45 @@ module RAAF
               return context
             end
           end
-          
+
           # Execute agent - ContextVariables now supports direct splatting via to_hash method
           agent = agent_class.new(**context)
           log_debug "Agent #{agent_class.name} initialized"
-          
+
           # Inject pipeline schema into agent if available
           # Check if we have a pipeline instance with schema available
           pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
           if pipeline_instance && pipeline_instance.respond_to?(:pipeline_schema)
             pipeline_schema = pipeline_instance.pipeline_schema
-            
+
             if pipeline_schema && agent.respond_to?(:inject_pipeline_schema)
               agent.inject_pipeline_schema(pipeline_schema)
             end
           end
-          
+
           # Call appropriate execution method based on agent type
           if agent.respond_to?(:call) && agent.class.superclass.name == 'RAAF::DSL::Service'
             result = agent.call
           else
             result = agent.run
           end
-          
-          # Merge provided fields into context
-          if agent_class.respond_to?(:provided_fields)
+
+          # Collect agent result for auto-merge if agent_results array provided
+          if agent_results && result.is_a?(Hash)
+            agent_results << result
+          end
+
+          # Merge provided fields into context (for backward compatibility)
+          # If the agent has AutoMerge enabled, the result already contains properly merged data
+          # and we should use the complete results rather than extracting individual fields
+          if agent_class.respond_to?(:auto_merge_enabled?) && agent_class.auto_merge_enabled? &&
+             result.is_a?(Hash) && result[:results]
+            # Use the complete merged results from AutoMerge
+            result[:results].each do |field, field_value|
+              context = context.set(field, field_value)
+            end
+          elsif agent_class.respond_to?(:provided_fields)
+            # Fallback to individual field extraction for agents without AutoMerge
             agent_class.provided_fields.each do |field|
               if result.is_a?(Hash) && result.key?(field)
                 field_value = result[field]
@@ -230,7 +244,7 @@ module RAAF
               end
             end
           end
-          
+
           log_debug "Agent #{agent_class.name} execution completed"
           context
         end
