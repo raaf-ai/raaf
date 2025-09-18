@@ -94,7 +94,15 @@ module RAAF
           subclass._tools_config = []
           subclass._schema_config = {}
           subclass._prompt_config = {}
-          
+
+          # Copy retry configuration from parent class
+          subclass._retry_config = _retry_config&.dup || {}
+          subclass._circuit_breaker_config = _circuit_breaker_config&.dup
+          subclass._required_context_keys = _required_context_keys&.dup
+          subclass._validation_rules = _validation_rules&.dup
+          subclass._result_transformations = _result_transformations&.dup
+          subclass._execution_conditions = _execution_conditions&.dup
+
           # Enable auto-transform by default with standard patterns
           subclass._auto_discovery_config = {
             patterns: %w[
@@ -105,7 +113,7 @@ module RAAF
             exclude: [],
             enabled: true
           }
-          
+
           # Initialize hooks for subclass
           hooks = {}
           HOOK_TYPES.each { |hook_type| hooks[hook_type] = [] }
@@ -913,18 +921,25 @@ module RAAF
         end
 
         # Check if we should use smart features
+        agent_name = self.class._context_config&.dig(:name) || self.class.name
+        has_smart = has_smart_features?
+        log_debug "🔍 [#{agent_name}] Smart features check: skip_retries=#{skip_retries}, has_smart_features=#{has_smart}"
+        log_debug "🔍 [#{agent_name}] Retry config present: #{self.class._retry_config.present?}"
+        log_debug "🔍 [#{agent_name}] Retry config keys: #{self.class._retry_config&.keys&.inspect}"
+
         if skip_retries || !has_smart_features?
+          log_debug "🔍 [#{agent_name}] Using direct execution (no smart features)"
           # Direct execution without retries/circuit breaker
           direct_run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker)
         else
+          log_debug "🔍 [#{agent_name}] Using smart execution with retries"
           # Smart execution with retries and circuit breaker
-          agent_name = self.class._context_config&.dig(:name) || self.class.name
           log_info "🤖 [#{agent_name}] Starting execution"
 
           begin
             # Check circuit breaker
             check_circuit_breaker!
-            
+
             # Execute with retry logic
             result = execute_with_retry do
               raaf_result = direct_run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker)
@@ -933,7 +948,7 @@ module RAAF
 
             # Reset circuit breaker on success
             reset_circuit_breaker!
-            
+
             log_info "✅ [#{agent_name}] Execution completed successfully"
             result
 
@@ -1979,19 +1994,43 @@ module RAAF
       def find_retry_config(error)
         return nil unless self.class._retry_config
 
+        log_debug "🔍 [#{self.class.name}] Finding retry config for error: #{error.class.name} - #{error.message}"
+        log_debug "🔍 [#{self.class.name}] Available retry configs: #{self.class._retry_config.keys.inspect}"
+
         self.class._retry_config.each do |error_type, config|
+          log_debug "🔍 [#{self.class.name}] Checking error_type: #{error_type} (#{error_type.class.name})"
           case error_type
           when :rate_limit
-            return config if error.message.include?("rate limit")
+            if error.message.include?("rate limit")
+              log_debug "✅ [#{self.class.name}] Matched :rate_limit"
+              return config
+            end
           when :timeout
-            return config if error.is_a?(Timeout::Error)
+            if error.is_a?(Timeout::Error)
+              log_debug "✅ [#{self.class.name}] Matched :timeout"
+              return config
+            end
           when :network
-            return config if error.is_a?(Net::Error) || error.message.include?("connection")
+            network_match = false
+            begin
+              network_match = defined?(Net::Error) && error.is_a?(Net::Error)
+            rescue
+              # Net::Error might not be available
+            end
+            if network_match || error.message.include?("connection") || error.message.include?("503")
+              log_debug "✅ [#{self.class.name}] Matched :network"
+              return config
+            end
           when Class
-            return config if error.is_a?(error_type)
+            log_debug "🔍 [#{self.class.name}] Checking Class match: #{error_type.name} vs #{error.class.name}"
+            if error.is_a?(error_type)
+              log_debug "✅ [#{self.class.name}] Matched Class: #{error_type.name}"
+              return config
+            end
           end
         end
-        
+
+        log_debug "❌ [#{self.class.name}] No retry config found for error: #{error.class.name}"
         nil
       end
 
@@ -2068,6 +2107,18 @@ module RAAF
       end
 
       def extract_result_data(results)
+        # If results is already a Hash with structured data matching agent's output fields, return it
+        if results.is_a?(Hash) && !results.empty?
+          # Check if the hash contains any of the declared output fields for this agent
+          if self.class.respond_to?(:provided_fields) && self.class.provided_fields
+            output_fields = self.class.provided_fields
+            # Check if any of the output fields exist in results (either as symbol or string)
+            if output_fields.any? { |field| results.key?(field.to_sym) || results.key?(field.to_s) }
+              return { success: true, data: results }
+            end
+          end
+        end
+
         if results.respond_to?(:final_output) && results.final_output
           parse_ai_response(results.final_output)
         elsif results.respond_to?(:messages) && results.messages.any?
