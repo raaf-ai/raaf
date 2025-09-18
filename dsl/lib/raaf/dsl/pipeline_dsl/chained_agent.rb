@@ -81,11 +81,13 @@ module RAAF
             @first.required_fields
           when IteratingAgent
             @first.required_fields
+          when RemappedAgent
+            @first.required_fields
           else
             []
           end
         end
-        
+
         def provided_fields
           # Return what the last agent in the chain provides
           case @second
@@ -97,14 +99,16 @@ module RAAF
             @second.provided_fields
           when IteratingAgent
             @second.provided_fields
+          when RemappedAgent
+            @second.provided_fields
           else
             []
           end
         end
-        
+
         def requirements_met?(context)
           case @first
-          when ChainedAgent, ConfiguredAgent, IteratingAgent
+          when ChainedAgent, ConfiguredAgent, IteratingAgent, RemappedAgent
             @first.requirements_met?(context)
           when Class
             @first.respond_to?(:requirements_met?) ? @first.requirements_met?(context) : true
@@ -168,6 +172,8 @@ module RAAF
             part.execute(context, agent_results)
           when IteratingAgent
             part.execute(context, agent_results)
+          when RemappedAgent
+            part.execute(context, agent_results)
           when Class
             execute_single_agent(part, context, agent_results)
           when Symbol
@@ -179,7 +185,7 @@ module RAAF
             end
             context
           else
-            context
+            raise "RAAF Framework Error: Unrecognized pipeline part type: #{part.class.name}. This indicates a bug in the RAAF framework - all pipeline parts must be handled explicitly."
           end
         end
         
