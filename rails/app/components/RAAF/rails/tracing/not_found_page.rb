@@ -22,7 +22,7 @@ module RAAF
                 div(class: "px-6 py-4 bg-gray-50 flex flex-col sm:flex-row sm:justify-center gap-3") do
                   render_preline_button(
                     text: "Dashboard",
-                    href: "/raaf/tracing/dashboard",
+                    href: "/raaf/dashboard",
                     variant: "primary",
                     icon: "bi-house"
                   )

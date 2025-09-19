@@ -3,11 +3,7 @@
 module RAAF
   module Rails
     module Tracing
-      class BaseLayout < Phlex::HTML
-      include Phlex::Rails::Helpers::CSRFMetaTags
-      include Phlex::Rails::Helpers::CSPMetaTag
-      include Phlex::Rails::Helpers::LinkTo
-      include Phlex::Rails::Helpers::Routes
+      class BaseLayout < BaseComponent
 
       def initialize(title: "Dashboard", breadcrumb: nil)
         @title = title
@@ -75,7 +71,7 @@ module RAAF
       def render_sidebar
         aside(id: "hs-application-sidebar", class: "w-64 bg-white border-r border-gray-200 flex-shrink-0") do
           div(class: "px-6 pt-4") do
-            a(href: "/raaf/tracing/dashboard", class: "flex-none text-xl font-semibold text-gray-800") do
+            a(href: dashboard_path, class: "flex-none text-xl font-semibold text-gray-800") do
               "🔍 RAAF Tracing"
             end
           end
@@ -136,61 +132,61 @@ module RAAF
         [
           {
             label: "Dashboard",
-            path: "/raaf/tracing/dashboard",
+            path: dashboard_path,
             icon_name: "chart-bar",
             active: true
           },
           {
             label: "Traces",
-            path: "/raaf/tracing/traces",
+            path: tracing_traces_path,
             icon_name: "squares-2x2",
             active: false
           },
           {
             label: "Spans",
-            path: "/raaf/tracing/spans",
+            path: tracing_spans_path,
             icon_name: "list-bullet",
             active: false
           },
           {
             label: "Tool Spans",
-            path: "/raaf/tracing/spans/tools",
+            path: tools_tracing_spans_path,
             icon_name: "wrench",
             active: false
           },
           {
             label: "Flow Visualization",
-            path: "/raaf/tracing/spans/flows",
+            path: flows_tracing_spans_path,
             icon_name: "diagram-3",
             active: false
           },
           {
             label: "Performance",
-            path: "/raaf/tracing/dashboard/performance",
+            path: dashboard_performance_path,
             icon_name: "speedometer2",
             active: false
           },
           {
             label: "Costs",
-            path: "/raaf/tracing/dashboard/costs",
+            path: dashboard_costs_path,
             icon_name: "currency-dollar",
             active: false
           },
           {
             label: "Errors",
-            path: "/raaf/tracing/dashboard/errors",
+            path: dashboard_errors_path,
             icon_name: "exclamation-triangle",
             active: false
           },
           {
             label: "Timeline",
-            path: "/raaf/tracing/timeline",
+            path: tracing_timeline_path,
             icon_name: "clock-history",
             active: false
           },
           {
             label: "Search",
-            path: "/raaf/tracing/search",
+            path: tracing_search_path,
             icon_name: "search",
             active: false
           }

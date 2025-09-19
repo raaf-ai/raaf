@@ -37,7 +37,7 @@ module RAAF
             div(class: "mt-4 flex sm:mt-0 sm:ml-4") do
               render_preline_button(
                 text: "Export Flow Data",
-                href: "/raaf/tracing/spans/flows.json",
+                href: flows_tracing_spans_path(format: :json),
                 variant: "secondary",
                 icon: "bi-download"
               )
@@ -47,7 +47,7 @@ module RAAF
 
         def render_filters
           div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/spans/flows", method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-5") do |form|
+            form_with(url: flows_tracing_spans_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-5") do |form|
               div do
                 label(class: "block text-sm font-medium text-gray-700 mb-1") { "Agent Name" }
                 form.select(

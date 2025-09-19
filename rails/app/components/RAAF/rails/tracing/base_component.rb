@@ -11,8 +11,64 @@ module RAAF
         include Phlex::Rails::Helpers::FormWith
         include Phlex::Rails::Helpers::ContentFor
         include Phlex::Rails::Helpers::OptionsForSelect
+        include Phlex::Rails::Helpers::Routes
+        include Phlex::Rails::Helpers::CSRFMetaTags
+        include Phlex::Rails::Helpers::CSPMetaTag
 
         private
+
+        # Route helper methods for the RAAF Rails engine
+        def tracing_spans_path(params = {})
+          path = "/raaf/tracing/spans"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def tracing_span_path(id)
+          "/raaf/tracing/spans/#{id}"
+        end
+
+        def tracing_traces_path(params = {})
+          path = "/raaf/tracing/traces"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def tracing_trace_path(id)
+          "/raaf/tracing/traces/#{id}"
+        end
+
+        def tools_tracing_spans_path(params = {})
+          path = "/raaf/tracing/spans/tools"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def flows_tracing_spans_path(params = {})
+          path = "/raaf/tracing/spans/flows"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def dashboard_path
+          "/raaf/dashboard"
+        end
+
+        def dashboard_performance_path
+          "/raaf/dashboard/performance"
+        end
+
+        def dashboard_costs_path
+          "/raaf/dashboard/costs"
+        end
+
+        def dashboard_errors_path
+          "/raaf/dashboard/errors"
+        end
+
+        def tracing_timeline_path
+          "/raaf/tracing/timeline"
+        end
+
+        def tracing_search_path
+          "/raaf/tracing/search"
+        end
 
         def render_status_badge(status)
           badge_class = case status&.to_s&.downcase
@@ -57,21 +113,47 @@ module RAAF
         end
 
         def render_metric_card(title:, value:, color: "blue", icon: nil)
-          div(class: "bg-white overflow-hidden shadow rounded-lg") do
-            div(class: "p-5") do
-              div(class: "flex items-center") do
-                div(class: "flex-shrink-0") do
-                  if icon
-                    div(class: "w-8 h-8 bg-#{color}-500 rounded-md flex items-center justify-center") do
-                      i(class: "bi #{icon} text-white")
+          # Define complete class strings to ensure Tailwind compilation
+          border_class = case color
+                        when "blue" then "border-blue-200"
+                        when "green" then "border-green-200"
+                        when "red" then "border-red-200"
+                        when "yellow" then "border-yellow-200"
+                        when "purple" then "border-purple-200"
+                        else "border-blue-200"
+                        end
+
+          icon_bg_class = case color
+                         when "blue" then "bg-blue-50"
+                         when "green" then "bg-green-50"
+                         when "red" then "bg-red-50"
+                         when "yellow" then "bg-yellow-50"
+                         when "purple" then "bg-purple-50"
+                         else "bg-blue-50"
+                         end
+
+          icon_text_class = case color
+                           when "blue" then "text-blue-600"
+                           when "green" then "text-green-600"
+                           when "red" then "text-red-600"
+                           when "yellow" then "text-yellow-600"
+                           when "purple" then "text-purple-600"
+                           else "text-blue-600"
+                           end
+
+          div(class: "bg-white rounded-xl border #{border_class} shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden") do
+            div(class: "p-6") do
+              div(class: "flex items-center justify-between") do
+                div(class: "flex-1") do
+                  div(class: "flex items-center gap-3 mb-3") do
+                    if icon
+                      div(class: "p-2 #{icon_bg_class} rounded-lg") do
+                        i(class: "bi #{icon} #{icon_text_class} text-lg")
+                      end
                     end
+                    span(class: "text-xs font-semibold text-gray-500 uppercase tracking-wider") { title }
                   end
-                end
-                div(class: "ml-5 w-0 flex-1") do
-                  dt(class: "text-sm font-medium text-gray-500 truncate") { title }
-                  dd do
-                    div(class: "text-lg font-medium text-gray-900") { value }
-                  end
+                  div(class: "text-2xl font-bold text-gray-900") { value.to_s }
                 end
               end
             end

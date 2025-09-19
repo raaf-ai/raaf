@@ -339,13 +339,13 @@ module RAAF
                 }
 
                 getSpanColor(kind, status) {
-                  if (status === 'error') return '#ef4444';
+                  if (status === 'error') return '#6b7280';
 
                   switch (kind) {
-                    case 'agent': return '#3b82f6';
-                    case 'llm': return '#8b5cf6';
-                    case 'tool': return '#10b981';
-                    case 'response': return '#f59e0b';
+                    case 'agent': return '#4b5563';
+                    case 'llm': return '#6b7280';
+                    case 'tool': return '#374151';
+                    case 'response': return '#9ca3af';
                     default: return '#6b7280';
                   }
                 }

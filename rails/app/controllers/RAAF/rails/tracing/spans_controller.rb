@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'set'
+
 module RAAF
   module Rails
     module Tracing
@@ -15,10 +17,18 @@ module RAAF
         # Apply filters
         @spans = filter_spans(@spans)
 
-        # Paginate results
-        @page = params[:page]&.to_i || 1
-        @per_page = [params[:per_page]&.to_i || 50, 100].min
-        @spans = paginate_records(@spans.recent, page: @page, per_page: @per_page)
+        # For hierarchical view, we'll organize spans differently
+        if params[:view] == 'hierarchical'
+          @spans = organize_spans_hierarchically(@spans)
+          # Don't paginate for hierarchical view to maintain structure
+          @page = 1
+          @per_page = @spans.count
+        else
+          # Paginate results for normal view
+          @page = params[:page]&.to_i || 1
+          @per_page = [params[:per_page]&.to_i || 50, 100].min
+          @spans = paginate_records(@spans.recent, page: @page, per_page: @per_page)
+        end
 
         # Calculate pagination info
         @total_count = SpanRecord.count
@@ -56,12 +66,15 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            detail_component = RAAF::Rails::Tracing::NotFoundPage.new(
-              title: "Span Detail",
-              message: "Span detail view is not yet converted to Phlex. Coming soon!"
+            detail_component = RAAF::Rails::Tracing::SpanDetail.new(
+              span: @span,
+              trace: @trace,
+              operation_details: @operation_details,
+              error_details: @error_details,
+              event_timeline: @event_timeline
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Span Detail") do
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Span Detail - #{@span.name}") do
               render detail_component
             end
 
@@ -152,7 +165,7 @@ module RAAF
         # Build flow data structure
         @flow_data = build_flow_data(flow_spans)
         @agents = @flow_data[:nodes].select { |n| n[:type] == "agent" }.pluck(:name).uniq.sort
-        @traces = flow_spans.joins(:trace).distinct.pluck(:trace_id, "raaf_tracing_traces.workflow_name")
+        @traces = flow_spans.joins("INNER JOIN raaf_tracing_traces ON raaf_tracing_traces.trace_id = raaf_tracing_spans.trace_id").distinct.pluck("raaf_tracing_spans.trace_id", "raaf_tracing_traces.workflow_name")
 
         respond_to do |format|
           format.html do
@@ -174,6 +187,122 @@ module RAAF
       end
 
       private
+
+      def organize_spans_hierarchically(spans)
+        # Convert to array if it's an ActiveRecord relation
+        spans_array = spans.to_a
+
+        # Group spans by trace_id for better organization
+        traces_with_spans = spans_array.group_by(&:trace_id)
+
+        organized_spans = []
+
+        # Sort traces by most recent start_time
+        sorted_traces = traces_with_spans.sort_by do |trace_id, trace_spans|
+          trace_spans.map { |s| s.start_time || Time.current }.min
+        end.reverse
+
+        sorted_traces.each do |trace_id, trace_spans|
+          # Calculate correct depth for each span within this trace
+          depth_cache = calculate_depths_for_trace(trace_spans)
+
+          # Assign calculated depths to spans
+          trace_spans.each do |span|
+            span.define_singleton_method(:hierarchy_depth) { depth_cache[span.span_id] }
+          end
+
+          # Find root spans for this trace (no parent within this trace OR top-level pipelines)
+          root_spans = trace_spans.select do |s|
+            s.parent_id.nil? ||
+            !trace_spans.any? { |ts| ts.span_id == s.parent_id } ||
+            is_top_level_pipeline?(s, trace_spans)
+          end
+
+          # Sort root spans by start_time
+          root_spans.sort_by! { |s| s.start_time || Time.current }
+
+          # For each root span, add it and all its descendants
+          root_spans.each do |root_span|
+            organized_spans.concat(build_span_hierarchy(root_span, trace_spans))
+          end
+        end
+
+        organized_spans
+      end
+
+      def calculate_depths_for_trace(trace_spans)
+        depth_cache = {}
+        span_map = trace_spans.index_by(&:span_id)
+
+        # Helper method to calculate depth recursively
+        calculate_depth = lambda do |span_id, visited = Set.new|
+          return 0 if visited.include?(span_id) # Prevent infinite loops
+          return depth_cache[span_id] if depth_cache.key?(span_id)
+
+          span = span_map[span_id]
+          return 0 unless span
+
+          if span.parent_id.nil? || !span_map.key?(span.parent_id) || is_top_level_pipeline?(span, span_map.values)
+            depth_cache[span_id] = 0
+          else
+            visited.add(span_id)
+            parent_depth = calculate_depth.call(span.parent_id, visited)
+            depth_cache[span_id] = parent_depth + 1
+            visited.delete(span_id)
+          end
+
+          depth_cache[span_id]
+        end
+
+        # Calculate depth for each span
+        trace_spans.each do |span|
+          calculate_depth.call(span.span_id)
+        end
+
+        depth_cache
+      end
+
+      def build_span_hierarchy(parent_span, all_spans)
+        result = [parent_span]
+
+        # Find direct children of this span
+        children = all_spans.select { |s| s.parent_id == parent_span.span_id }
+
+        # Sort children by start_time to maintain chronological order
+        children.sort_by! { |c| c.start_time || Time.current }
+
+        # For each child, recursively add its hierarchy
+        children.each do |child|
+          result.concat(build_span_hierarchy(child, all_spans))
+        end
+
+        result
+      end
+
+      def is_top_level_pipeline?(span, all_spans)
+        # Only treat a pipeline as a root if:
+        # 1. It is a pipeline span (name contains "Pipeline" or kind is "pipeline")
+        # 2. AND its parent is NOT another pipeline (allowing nested pipelines)
+        # 3. AND its parent is a non-pipeline span (tool, agent, etc.)
+
+        return false unless is_pipeline_span?(span)
+
+        # If no parent, it's definitely a root
+        return true if span.parent_id.nil?
+
+        # Find the parent span
+        parent_span = all_spans.find { |s| s.span_id == span.parent_id }
+        return true unless parent_span
+
+        # If parent is also a pipeline, this is a nested pipeline - keep the hierarchy
+        # If parent is NOT a pipeline (tool, agent, etc.), treat this pipeline as root
+        !is_pipeline_span?(parent_span)
+      end
+
+      def is_pipeline_span?(span)
+        # Check if span is a pipeline by name or kind
+        span.name.include?("Pipeline") || span.kind&.downcase == "pipeline"
+      end
 
       def build_flow_data(spans) # rubocop:disable Metrics/MethodLength
         nodes = {}
@@ -292,7 +421,7 @@ module RAAF
       def set_span
         @span = SpanRecord.find_by!(span_id: params[:id])
       rescue ActiveRecord::RecordNotFound
-        redirect_to spans_path, alert: "Span not found. It may have been deleted."
+        redirect_to tracing_spans_path, alert: "Span not found. It may have been deleted."
       end
 
       def filter_spans(spans)

@@ -154,7 +154,7 @@ module RAAF
         def render_stats
           return unless @stats
 
-          div(class: "grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6") do
+          div(class: "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8") do
             render_metric_card(
               title: "Total",
               value: @stats[:total],

@@ -16,6 +16,7 @@ module RAAF
         def view_template
           div(class: "p-6") do
             render_header
+            render_hierarchy_legend if @params[:view] == 'hierarchical'
             render_filters
             render_spans_table
           end
@@ -27,13 +28,18 @@ module RAAF
           div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
             div(class: "min-w-0 flex-1") do
               h1(class: "text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate") { "Spans" }
-              p(class: "mt-1 text-sm text-gray-500") { "Detailed view of all execution spans" }
+              if @params[:view] == 'hierarchical'
+                p(class: "mt-1 text-sm text-gray-500") { "Hierarchical view showing parent-child relationships between spans" }
+              else
+                p(class: "mt-1 text-sm text-gray-500") { "Detailed view of all execution spans" }
+              end
             end
 
-            div(class: "mt-4 flex sm:mt-0 sm:ml-4") do
+            div(class: "mt-4 flex space-x-2 sm:mt-0 sm:ml-4") do
+              render_view_toggle
               render_preline_button(
                 text: "Export JSON",
-                href: "/raaf/tracing/spans.json",
+                href: tracing_spans_path(format: :json),
                 variant: "secondary",
                 icon: "bi-download"
               )
@@ -43,7 +49,7 @@ module RAAF
 
         def render_filters
           div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/spans", method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-6") do |form|
+            form_with(url: tracing_spans_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-6") do |form|
               div(class: "sm:col-span-2") do
                 label(class: "block text-sm font-medium text-gray-700 mb-1") { "Search" }
                 form.text_field(
@@ -128,7 +134,7 @@ module RAAF
           thead(class: "bg-gray-50") do
             tr do
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Span Name"
+                "Span Name & Hierarchy"
               end
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
                 "Kind"
@@ -145,9 +151,6 @@ module RAAF
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
                 "Trace"
               end
-              th(scope: "col", class: "relative px-6 py-3") do
-                span(class: "sr-only") { "Actions" }
-              end
             end
           end
         end
@@ -162,9 +165,88 @@ module RAAF
 
         def render_span_row(span)
           tr(class: "hover:bg-gray-50") do
-            td(class: "px-6 py-4 whitespace-nowrap") do
-              div(class: "text-sm font-medium text-gray-900") { span.name }
-              div(class: "text-sm text-gray-500 font-mono") { span.span_id }
+            td(class: "px-6 py-4") do
+              div(class: "flex items-start") do
+                # Hierarchical indentation with proper tree structure
+                current_depth = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : (span.depth || 0)
+
+                if current_depth > 0
+                  div(class: "flex items-center mr-3", style: "min-width: #{current_depth * 24}px") do
+                    # Create indentation with tree lines
+                    current_depth.times do |i|
+                      if i == current_depth - 1
+                        # Last level - show the tree connector
+                        div(class: "w-6 h-full flex items-center justify-start") do
+                          div(class: "w-3 h-3 border-l-2 border-b-2 border-gray-300")
+                        end
+                      else
+                        # Higher levels - just spacing
+                        div(class: "w-6")
+                      end
+                    end
+                  end
+                end
+
+                div(class: "flex-1 min-w-0") do
+                  div(class: "flex items-center mb-1") do
+                    # Parent/child indicator with better icons
+                    current_depth = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : (span.depth || 0)
+                    is_root = current_depth == 0
+                    has_children = span.children.any?
+
+                    if is_root
+                      div(class: "flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full mr-3") do
+                        i(class: "bi bi-house-fill text-blue-600 text-xs", title: "Root span")
+                      end
+                    elsif has_children
+                      div(class: "flex items-center justify-center w-6 h-6 bg-green-100 rounded-full mr-3") do
+                        i(class: "bi bi-node-plus-fill text-green-600 text-xs", title: "Parent span")
+                      end
+                    else
+                      div(class: "flex items-center justify-center w-6 h-6 bg-gray-100 rounded-full mr-3") do
+                        i(class: "bi bi-dot text-gray-500", title: "Child span")
+                      end
+                    end
+
+                    div(class: "min-w-0 flex-1") do
+                      div(class: "text-sm font-medium text-gray-900 truncate") do
+                        link_to(
+                          span.name,
+                          tracing_span_path(span.span_id),
+                          class: "text-blue-600 hover:text-blue-900",
+                          title: span.name
+                        )
+                      end
+                    end
+                  end
+
+                  # Span ID
+                  div(class: "text-xs text-gray-500 font-mono ml-9 mb-1") { span.span_id }
+
+                  # Show hierarchy info
+                  div(class: "ml-9") do
+                    current_depth = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : (span.depth || 0)
+
+                    if current_depth > 0 && span.parent_id && span.parent_span
+                      div(class: "text-xs text-gray-400 mb-1") do
+                        plain "↳ Parent: "
+                        link_to(
+                          span.parent_span.name,
+                          tracing_span_path(span.parent_span.span_id),
+                          class: "text-blue-500 hover:text-blue-700",
+                          title: span.parent_span.name
+                        )
+                      end
+                    end
+
+                    if span.children.any?
+                      div(class: "text-xs text-green-600") do
+                        plain "#{span.children.count} child#{'ren' if span.children.count != 1}"
+                      end
+                    end
+                  end
+                end
+              end
             end
 
             td(class: "px-6 py-4 whitespace-nowrap") do
@@ -187,7 +269,7 @@ module RAAF
               if span.trace
                 link_to(
                   span.trace.workflow_name || span.trace_id,
-                  "/raaf/tracing/traces/#{span.trace_id}",
+                  tracing_trace_path(span.trace_id),
                   class: "text-blue-600 hover:text-blue-500"
                 )
               else
@@ -195,13 +277,6 @@ module RAAF
               end
             end
 
-            td(class: "px-6 py-4 whitespace-nowrap text-right text-sm font-medium") do
-              link_to(
-                "View",
-                "/raaf/tracing/spans/#{span.span_id}",
-                class: "text-blue-600 hover:text-blue-900"
-              )
-            end
           end
         end
 
@@ -223,7 +298,7 @@ module RAAF
               if @page > 1
                 link_to(
                   "Previous",
-                  "/raaf/tracing/spans?#{@params.merge(page: @page - 1).to_query}",
+                  tracing_spans_path(@params.merge(page: @page - 1)),
                   class: "relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
@@ -231,10 +306,67 @@ module RAAF
               if @page < @total_pages
                 link_to(
                   "Next",
-                  "/raaf/tracing/spans?#{@params.merge(page: @page + 1).to_query}",
+                  tracing_spans_path(@params.merge(page: @page + 1)),
                   class: "ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
+            end
+          end
+        end
+
+        def render_hierarchy_legend
+          div(class: "bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6") do
+            h3(class: "text-sm font-medium text-blue-800 mb-2") { "Hierarchy Legend" }
+            div(class: "grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm") do
+              div(class: "flex items-center") do
+                div(class: "flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full mr-3") do
+                  i(class: "bi bi-house-fill text-blue-600 text-xs")
+                end
+                span(class: "text-gray-700") { "Root span (no parent)" }
+              end
+              div(class: "flex items-center") do
+                div(class: "flex items-center justify-center w-6 h-6 bg-green-100 rounded-full mr-3") do
+                  i(class: "bi bi-node-plus-fill text-green-600 text-xs")
+                end
+                span(class: "text-gray-700") { "Parent span with children" }
+              end
+              div(class: "flex items-center") do
+                div(class: "flex items-center justify-center w-6 h-6 bg-gray-100 rounded-full mr-3") do
+                  i(class: "bi bi-dot text-gray-500")
+                end
+                span(class: "text-gray-700") { "Child span" }
+              end
+            end
+            div(class: "mt-3 text-xs text-blue-700") do
+              plain "Tree lines (└) show parent-child relationships. Spans are ordered by trace, then by hierarchy."
+            end
+          end
+        end
+
+        def render_view_toggle
+          div(class: "flex items-center space-x-2") do
+            span(class: "text-sm font-medium text-gray-700") { "View:" }
+
+            # Normal view button
+            current_view = @params[:view]
+            normal_active = current_view != 'hierarchical'
+            hierarchical_active = current_view == 'hierarchical'
+
+            link_to(
+              tracing_spans_path(@params.except(:view)),
+              class: "px-3 py-2 text-sm font-medium rounded-l-md border #{normal_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
+            ) do
+              i(class: "bi bi-list mr-1")
+              plain "List"
+            end
+
+            # Hierarchical view button
+            link_to(
+              tracing_spans_path(@params.merge(view: 'hierarchical')),
+              class: "px-3 py-2 text-sm font-medium rounded-r-md border-t border-r border-b #{hierarchical_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
+            ) do
+              i(class: "bi bi-diagram-3 mr-1")
+              plain "Hierarchy"
             end
           end
         end
@@ -246,7 +378,7 @@ module RAAF
             p(class: "text-gray-500 mb-6") { "No spans match your current filters." }
             render_preline_button(
               text: "Clear Filters",
-              href: "/raaf/tracing/spans",
+              href: tracing_spans_path,
               variant: "secondary"
             )
           end

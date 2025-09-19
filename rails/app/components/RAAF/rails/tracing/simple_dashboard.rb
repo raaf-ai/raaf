@@ -31,7 +31,7 @@ module RAAF
             h1 { "RAAF Tracing Dashboard" }
             nav do
               a(href: "/raaf") { "Main Dashboard" }
-              a(href: "/raaf/tracing/dashboard") { "Tracing" }
+              a(href: "/raaf/dashboard") { "Tracing" }
               a(href: "/raaf/tracing/traces") { "Traces" }
               a(href: "/raaf/tracing/spans") { "Spans" }
               a(href: "/raaf/tracing/costs") { "Costs" }

@@ -48,7 +48,7 @@ module RAAF
 
         def render_time_filter
           div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/dashboard", method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-5") do |form|
+            form_with(url: dashboard_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-5") do |form|
               div(class: "sm:col-span-2") do
                 label(class: "block text-sm font-medium text-gray-700 mb-1") { "Start Time" }
                 form.datetime_local_field(
@@ -74,7 +74,7 @@ module RAAF
                 )
                 link_to(
                   "Reset",
-                  "/raaf/tracing/dashboard",
+                  dashboard_path,
                   class: "flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
@@ -159,7 +159,7 @@ module RAAF
               h3(class: "text-lg leading-6 font-medium text-gray-900") { "Top Workflows" }
               link_to(
                 "View All",
-                "/raaf/tracing/traces",
+                tracing_traces_path,
                 class: "text-sm text-blue-600 hover:text-blue-500"
               )
             end
@@ -183,7 +183,7 @@ module RAAF
                           td(class: "px-4 py-3 text-sm") do
                             link_to(
                               workflow[:workflow_name],
-                              "/raaf/tracing/traces?workflow=#{workflow[:workflow_name]}",
+                              tracing_traces_path(workflow: workflow[:workflow_name]),
                               class: "text-blue-600 hover:text-blue-500"
                             )
                           end
@@ -212,7 +212,7 @@ module RAAF
               h3(class: "text-lg leading-6 font-medium text-gray-900") { "Recent Traces" }
               link_to(
                 "View All",
-                "/raaf/tracing/traces",
+                tracing_traces_path,
                 class: "text-sm text-blue-600 hover:text-blue-500"
               )
             end
@@ -225,7 +225,7 @@ module RAAF
                       div(class: "min-w-0 flex-1") do
                         link_to(
                           trace.workflow_name,
-                          "/raaf/tracing/traces/#{trace.trace_id}",
+                          tracing_trace_path(trace.trace_id),
                           class: "font-medium text-blue-600 hover:text-blue-500"
                         )
                         div(class: "mt-1 text-sm text-gray-500") do
@@ -260,7 +260,7 @@ module RAAF
                 end
                 link_to(
                   "View All",
-                  "/raaf/tracing/dashboard/errors",
+                  dashboard_errors_path,
                   class: "text-sm text-red-600 hover:text-red-500"
                 )
               end
@@ -280,7 +280,7 @@ module RAAF
                             plain "Trace: "
                             link_to(
                               span.trace&.workflow_name || span.trace_id,
-                              "/raaf/tracing/traces/#{span.trace_id}",
+                              tracing_trace_path(span.trace_id),
                               class: "text-red-700 hover:text-red-800"
                             )
                           end

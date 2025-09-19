@@ -34,7 +34,7 @@ module RAAF
       self.primary_key = "span_id"
 
       # Associations
-      belongs_to :trace, primary_key: :trace_id,
+      belongs_to :trace, primary_key: :trace_id, foreign_key: :trace_id,
                          class_name: "RAAF::Rails::Tracing::TraceRecord", optional: true
       belongs_to :parent_span, class_name: "RAAF::Rails::Tracing::SpanRecord",
                                primary_key: :span_id, foreign_key: :parent_id, optional: true
@@ -137,13 +137,14 @@ module RAAF
           query = errors.reorder(nil)
           query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
 
-          error_spans = query.includes(:trace)
+          error_spans = query
 
           # Get errors by workflow using a PostgreSQL-compatible approach
           errors_by_workflow = {}
           if error_spans.any?
             # Use pluck to get the raw data, then group and count in Ruby
-            workflow_data = error_spans.joins(:trace)
+            # Explicitly specify table names to avoid ambiguous column references
+            workflow_data = error_spans.joins("INNER JOIN raaf_tracing_traces ON raaf_tracing_traces.trace_id = raaf_tracing_spans.trace_id")
                                        .pluck("raaf_tracing_traces.workflow_name", "raaf_tracing_spans.span_id")
 
             # Group by workflow name and count unique span IDs

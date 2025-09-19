@@ -21,6 +21,10 @@ module RAAF
             render_filters
             render_tool_spans_table
           end
+
+          content_for :javascript do
+            render_toggle_script
+          end
         end
 
         private
@@ -35,7 +39,7 @@ module RAAF
             div(class: "mt-4 flex sm:mt-0 sm:ml-4") do
               render_preline_button(
                 text: "Export Tool Data",
-                href: "/raaf/tracing/spans/tools.json",
+                href: tools_tracing_spans_path(format: :json),
                 variant: "secondary",
                 icon: "bi-download"
               )
@@ -79,7 +83,7 @@ module RAAF
 
         def render_filters
           div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/spans/tools", method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-6") do |form|
+            form_with(url: tools_tracing_spans_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-6") do |form|
               div(class: "sm:col-span-2") do
                 label(class: "block text-sm font-medium text-gray-700 mb-1") { "Search" }
                 form.text_field(
@@ -167,9 +171,6 @@ module RAAF
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
                 "Trace"
               end
-              th(scope: "col", class: "relative px-6 py-3") do
-                span(class: "sr-only") { "Actions" }
-              end
             end
           end
         end
@@ -189,7 +190,11 @@ module RAAF
             td(class: "px-6 py-4") do
               div(class: "flex flex-col") do
                 div(class: "text-sm font-medium text-gray-900") do
-                  tool_data[:function_name] || span.name
+                  link_to(
+                    tool_data[:function_name] || span.name,
+                    tracing_span_path(span.span_id),
+                    class: "text-blue-600 hover:text-blue-900"
+                  )
                 end
                 div(class: "text-sm text-gray-500 font-mono") { span.span_id }
                 if tool_data[:function_name] != span.name
@@ -210,7 +215,7 @@ module RAAF
               format_duration(span.duration_ms)
             end
 
-            td(class: "px-6 py-4") do
+            td(class: "px-6 py-4 max-w-md") do
               render_input_output_summary(tool_data)
             end
 
@@ -218,7 +223,7 @@ module RAAF
               if span.trace
                 link_to(
                   span.trace.workflow_name || span.trace_id,
-                  "/raaf/tracing/traces/#{span.trace_id}",
+                  tracing_trace_path(span.trace_id),
                   class: "text-blue-600 hover:text-blue-500"
                 )
               else
@@ -226,34 +231,65 @@ module RAAF
               end
             end
 
-            td(class: "px-6 py-4 whitespace-nowrap text-right text-sm font-medium") do
-              link_to(
-                "View",
-                "/raaf/tracing/spans/#{span.span_id}",
-                class: "text-blue-600 hover:text-blue-900"
-              )
-            end
           end
         end
 
         def render_input_output_summary(tool_data)
-          div(class: "text-sm") do
+          div(class: "text-sm space-y-2") do
+            # Input parameters section
             if tool_data[:input]
-              div(class: "text-gray-600") do
-                strong { "Input: " }
-                span { truncate_json(tool_data[:input]) }
+              div(class: "border border-gray-200 rounded-md") do
+                div(class: "bg-blue-50 px-3 py-2 border-b border-gray-200") do
+                  div(class: "flex items-center justify-between") do
+                    strong(class: "text-blue-900") { "Input Parameters" }
+                    button(
+                      class: "text-blue-600 hover:text-blue-800 text-xs",
+                      onclick: "toggleDetails(this)",
+                      data: { target: "input" }
+                    ) { "Show Details" }
+                  end
+                end
+                div(class: "p-3 bg-white hidden", data: { section: "input" }) do
+                  pre(class: "text-xs text-gray-700 whitespace-pre-wrap bg-gray-50 p-2 rounded border overflow-x-auto") do
+                    format_json_display(tool_data[:input])
+                  end
+                end
+                # Preview line
+                div(class: "px-3 py-2 text-xs text-gray-600 bg-gray-50", data: { section: "input-preview" }) do
+                  truncate_json(tool_data[:input])
+                end
               end
             end
 
+            # Output results section
             if tool_data[:output]
-              div(class: "text-gray-600 mt-1") do
-                strong { "Output: " }
-                span { truncate_json(tool_data[:output]) }
+              div(class: "border border-gray-200 rounded-md") do
+                div(class: "bg-green-50 px-3 py-2 border-b border-gray-200") do
+                  div(class: "flex items-center justify-between") do
+                    strong(class: "text-green-900") { "Output Results" }
+                    button(
+                      class: "text-green-600 hover:text-green-800 text-xs",
+                      onclick: "toggleDetails(this)",
+                      data: { target: "output" }
+                    ) { "Show Details" }
+                  end
+                end
+                div(class: "p-3 bg-white hidden", data: { section: "output" }) do
+                  pre(class: "text-xs text-gray-700 whitespace-pre-wrap bg-gray-50 p-2 rounded border overflow-x-auto") do
+                    format_json_display(tool_data[:output])
+                  end
+                end
+                # Preview line
+                div(class: "px-3 py-2 text-xs text-gray-600 bg-gray-50", data: { section: "output-preview" }) do
+                  truncate_json(tool_data[:output])
+                end
               end
             end
 
             if !tool_data[:input] && !tool_data[:output]
-              span(class: "text-gray-400") { "No input/output data" }
+              div(class: "text-center py-4 text-gray-400 border border-gray-200 rounded-md bg-gray-50") do
+                "No input/output data available"
+              end
             end
           end
         end
@@ -276,7 +312,7 @@ module RAAF
               if @page > 1
                 link_to(
                   "Previous",
-                  "/raaf/tracing/spans/tools?#{@params.merge(page: @page - 1).to_query}",
+                  tools_tracing_spans_path(@params.merge(page: @page - 1)),
                   class: "relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
@@ -284,7 +320,7 @@ module RAAF
               if @page < @total_pages
                 link_to(
                   "Next",
-                  "/raaf/tracing/spans/tools?#{@params.merge(page: @page + 1).to_query}",
+                  tools_tracing_spans_path(@params.merge(page: @page + 1)),
                   class: "ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
@@ -299,7 +335,7 @@ module RAAF
             p(class: "text-gray-500 mb-6") { "No tool or custom function calls match your current filters." }
             render_preline_button(
               text: "Clear Filters",
-              href: "/raaf/tracing/spans/tools",
+              href: tools_tracing_spans_path,
               variant: "secondary"
             )
           end
@@ -349,6 +385,24 @@ module RAAF
           end
         end
 
+        def format_json_display(data)
+          return "N/A" if data.nil?
+
+          case data
+          when String
+            # Try to parse as JSON for pretty formatting, fallback to string
+            begin
+              JSON.pretty_generate(JSON.parse(data))
+            rescue JSON::ParserError
+              data
+            end
+          when Hash, Array
+            JSON.pretty_generate(data)
+          else
+            data.to_s
+          end
+        end
+
         def truncate_json(data)
           return "N/A" if data.nil?
 
@@ -362,6 +416,33 @@ module RAAF
                      end
 
           truncate(json_str, length: 100)
+        end
+
+        def render_toggle_script
+          script do
+            plain <<~JAVASCRIPT
+              function toggleDetails(button) {
+                const target = button.getAttribute('data-target');
+                const row = button.closest('tr');
+                const detailsSection = row.querySelector(`[data-section="${target}"]`);
+                const previewSection = row.querySelector(`[data-section="${target}-preview"]`);
+
+                if (detailsSection && previewSection) {
+                  if (detailsSection.classList.contains('hidden')) {
+                    // Show details, hide preview
+                    detailsSection.classList.remove('hidden');
+                    previewSection.classList.add('hidden');
+                    button.textContent = 'Hide Details';
+                  } else {
+                    // Hide details, show preview
+                    detailsSection.classList.add('hidden');
+                    previewSection.classList.remove('hidden');
+                    button.textContent = 'Show Details';
+                  }
+                }
+              }
+            JAVASCRIPT
+          end
         end
       end
     end

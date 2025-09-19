@@ -58,7 +58,7 @@ module RAAF
 
                   render_preline_button(
                     text: "Dashboard",
-                    href: "/raaf/tracing/dashboard",
+                    href: "/raaf/dashboard",
                     variant: "secondary",
                     icon: "bi-house"
                   )

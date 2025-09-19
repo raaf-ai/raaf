@@ -76,7 +76,7 @@ module RAAF
 
         # Trace ID search
         if @query.match?(/\Atrace_[a-f0-9]{32}\z/i)
-          search_conditions << "trace_id ILIKE ?"
+          search_conditions << "raaf_tracing_traces.trace_id ILIKE ?"
           search_params << @query
         end
 
@@ -114,7 +114,7 @@ module RAAF
 
         # Trace ID search
         if @query.match?(/\Atrace_[a-f0-9]{32}\z/i)
-          search_conditions << "trace_id ILIKE ?"
+          search_conditions << "raaf_tracing_spans.trace_id ILIKE ?"
           search_params << @query
         end
 
