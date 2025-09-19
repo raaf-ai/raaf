@@ -3,133 +3,69 @@
 module RAAF
   module Rails
     module Tracing
-      class ErrorPage < Phlex::HTML
-        def initialize(error: nil, title: "Error")
+      class ErrorPage < BaseComponent
+        def initialize(error: nil, title: "Error", error_message: "An error occurred", back_path: "/raaf/tracing")
           @error = error
           @title = title
+          @error_message = error_message
+          @back_path = back_path
         end
 
         def view_template
-          html(lang: "en") do
-            head do
-              meta(charset: "utf-8")
-              meta(name: "viewport", content: "width=device-width, initial-scale=1")
-              title { "RAAF Tracing - #{@title}" }
-              style { plain(css) }
-            end
+          div(class: "min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8") do
+            div(class: "sm:mx-auto sm:w-full sm:max-w-2xl") do
+              div(class: "bg-white shadow-xl rounded-lg overflow-hidden") do
+                div(class: "px-6 py-8 text-center") do
+                  i(class: "bi bi-exclamation-triangle text-6xl text-red-500 mb-4")
+                  h1(class: "text-3xl font-bold text-gray-900 mb-2") { @title }
+                  p(class: "text-lg text-gray-600 mb-6") { @error_message }
+                end
 
-            body do
-              div(class: "container") do
-                div(class: "error-box") do
-                  h1 { "🚨 Error Occurred" }
-                  
-                  if @error
-                    div(class: "error-details") do
-                      h2 { "Error Details:" }
-                      p(class: "error-message") { @error.message }
-                      p(class: "error-class") { "Type: #{@error.class.name}" }
-                      
+                if @error
+                  div(class: "px-6 pb-6") do
+                    div(class: "bg-red-50 border border-red-200 rounded-lg p-4 mb-6") do
+                      h3(class: "text-sm font-medium text-red-800 mb-2") { "Error Details" }
+
+                      div(class: "mb-3") do
+                        p(class: "text-sm text-red-700 font-medium") { "Message:" }
+                        p(class: "text-sm text-red-600 font-mono bg-red-100 p-2 rounded mt-1") { @error.message }
+                      end
+
+                      div(class: "mb-3") do
+                        p(class: "text-sm text-red-700 font-medium") { "Type:" }
+                        p(class: "text-sm text-red-600") { @error.class.name }
+                      end
+
                       if @error.backtrace && @error.backtrace.any?
-                        div(class: "backtrace") do
-                          h3 { "Backtrace:" }
-                          pre do
+                        div do
+                          p(class: "text-sm text-red-700 font-medium mb-2") { "Backtrace:" }
+                          pre(class: "text-xs text-red-600 bg-red-100 p-3 rounded overflow-x-auto max-h-64") do
                             code { @error.backtrace.first(10).join("\n") }
                           end
                         end
                       end
                     end
-                  else
-                    p { "An unexpected error occurred. Please try again later." }
                   end
-                  
-                  div(class: "actions") do
-                    a(href: "/raaf", class: "button") { "← Back to Dashboard" }
-                  end
+                end
+
+                div(class: "px-6 py-4 bg-gray-50 flex justify-center space-x-4") do
+                  render_preline_button(
+                    text: "Go Back",
+                    href: @back_path,
+                    variant: "primary",
+                    icon: "bi-arrow-left"
+                  )
+
+                  render_preline_button(
+                    text: "Dashboard",
+                    href: "/raaf/tracing/dashboard",
+                    variant: "secondary",
+                    icon: "bi-house"
+                  )
                 end
               end
             end
           end
-        end
-
-        private
-
-        def css
-          <<~CSS
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: system-ui, -apple-system, sans-serif; 
-              background: #f5f5f5;
-              color: #333;
-              padding: 20px;
-            }
-            .container {
-              max-width: 800px;
-              margin: 50px auto;
-            }
-            .error-box {
-              background: white;
-              padding: 40px;
-              border-radius: 8px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            h1 {
-              color: #d32f2f;
-              margin-bottom: 20px;
-              font-size: 2em;
-            }
-            h2 {
-              color: #666;
-              margin: 20px 0 10px;
-              font-size: 1.2em;
-            }
-            h3 {
-              color: #666;
-              margin: 15px 0 10px;
-              font-size: 1em;
-            }
-            .error-message {
-              background: #ffebee;
-              color: #c62828;
-              padding: 15px;
-              border-radius: 4px;
-              margin: 10px 0;
-              font-family: monospace;
-            }
-            .error-class {
-              color: #666;
-              margin: 10px 0;
-              font-style: italic;
-            }
-            .backtrace {
-              margin-top: 20px;
-            }
-            pre {
-              background: #f5f5f5;
-              padding: 15px;
-              border-radius: 4px;
-              overflow-x: auto;
-            }
-            code {
-              font-family: 'Monaco', 'Menlo', monospace;
-              font-size: 0.9em;
-              color: #555;
-            }
-            .actions {
-              margin-top: 30px;
-            }
-            .button {
-              display: inline-block;
-              background: #007bff;
-              color: white;
-              padding: 10px 20px;
-              border-radius: 4px;
-              text-decoration: none;
-              transition: background 0.2s;
-            }
-            .button:hover {
-              background: #0056b3;
-            }
-          CSS
         end
       end
     end

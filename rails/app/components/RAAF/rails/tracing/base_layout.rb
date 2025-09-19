@@ -21,6 +21,9 @@ module RAAF
             meta(name: "viewport", content: "width=device-width, initial-scale=1, shrink-to-fit=no")
             title { "Ruby AI Agents Factory Tracing - #{@title}" }
 
+            # Tailwind CSS (required for Preline components)
+            link(href: "https://cdn.tailwindcss.com", rel: "stylesheet")
+
             # Preline CSS
             link(href: "https://preline.co/assets/css/main.min.css", rel: "stylesheet")
 
@@ -34,9 +37,13 @@ module RAAF
           end
 
           body(class: "bg-gray-50") do
-            render_header
-            render_sidebar
-            render_main_content(&block)
+            div(class: "flex h-screen overflow-hidden") do
+              render_sidebar
+              div(class: "flex-1 flex flex-col overflow-hidden") do
+                render_header
+                render_main_content(&block)
+              end
+            end
             render_scripts
           end
         end
@@ -45,8 +52,8 @@ module RAAF
       private
 
       def render_header
-        header(class: "bg-white shadow-sm border-b") do
-          div(class: "container mx-auto") do
+        header(class: "bg-white shadow-sm border-b flex-shrink-0") do
+          div(class: "px-4 sm:px-6") do
             div(class: "flex justify-between items-center py-4") do
               div(class: "me-5 lg:me-0 lg:hidden") do
                 a(href: "#", class: "flex-none text-xl font-semibold text-gray-800") do
@@ -66,7 +73,7 @@ module RAAF
       end
 
       def render_sidebar
-        aside(id: "hs-application-sidebar", class: "w-64 bg-white border-r border-gray-200 h-full") do
+        aside(id: "hs-application-sidebar", class: "w-64 bg-white border-r border-gray-200 flex-shrink-0") do
           div(class: "px-6 pt-4") do
             a(href: "/raaf/tracing/dashboard", class: "flex-none text-xl font-semibold text-gray-800") do
               "🔍 RAAF Tracing"
@@ -83,7 +90,7 @@ module RAAF
       end
 
       def render_main_content(&block)
-        main(class: "w-full lg:ps-64") do
+        main(class: "flex-1 overflow-auto") do
           div(class: "p-4 sm:p-6 space-y-4 sm:space-y-6") do
             # Breadcrumb if provided
             if @breadcrumb
@@ -125,13 +132,13 @@ module RAAF
       end
 
       def sidebar_items
-        # Only include routes that actually exist in the RAAF engine
+        # Complete list of RAAF tracing routes
         [
           {
             label: "Dashboard",
             path: "/raaf/tracing/dashboard",
             icon_name: "chart-bar",
-            active: true  # Default to dashboard being active
+            active: true
           },
           {
             label: "Traces",
@@ -143,6 +150,48 @@ module RAAF
             label: "Spans",
             path: "/raaf/tracing/spans",
             icon_name: "list-bullet",
+            active: false
+          },
+          {
+            label: "Tool Spans",
+            path: "/raaf/tracing/spans/tools",
+            icon_name: "wrench",
+            active: false
+          },
+          {
+            label: "Flow Visualization",
+            path: "/raaf/tracing/spans/flows",
+            icon_name: "diagram-3",
+            active: false
+          },
+          {
+            label: "Performance",
+            path: "/raaf/tracing/dashboard/performance",
+            icon_name: "speedometer2",
+            active: false
+          },
+          {
+            label: "Costs",
+            path: "/raaf/tracing/dashboard/costs",
+            icon_name: "currency-dollar",
+            active: false
+          },
+          {
+            label: "Errors",
+            path: "/raaf/tracing/dashboard/errors",
+            icon_name: "exclamation-triangle",
+            active: false
+          },
+          {
+            label: "Timeline",
+            path: "/raaf/tracing/timeline",
+            icon_name: "clock-history",
+            active: false
+          },
+          {
+            label: "Search",
+            path: "/raaf/tracing/search",
+            icon_name: "search",
             active: false
           }
         ]

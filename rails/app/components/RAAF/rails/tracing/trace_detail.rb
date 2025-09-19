@@ -113,7 +113,7 @@ module RAAF
 
       def render_span_tree(spans, depth = 0)
         # Group spans by parent_id
-        spans_by_parent = spans.group_by(&:parent_span_id)
+        spans_by_parent = spans.group_by(&:parent_id)
         root_spans = spans_by_parent[nil] || []
 
         root_spans.each do |span|
@@ -142,7 +142,7 @@ module RAAF
               if span.attributes.present?
                 Container(class: "mt-2") do
                   span.attributes.each do |key, value|
-                    next if %w[span_id trace_id parent_span_id].include?(key)
+                    next if %w[span_id trace_id parent_id].include?(key)
 
                     Typography(class: "inline-block mr-4", color: :muted, size: :xs) do
                       Typography(tag: :span, weight: :bold) { "#{key}: " }
