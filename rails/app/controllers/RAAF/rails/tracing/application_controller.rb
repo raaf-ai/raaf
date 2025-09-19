@@ -17,8 +17,8 @@ module RAAF
 
       protect_from_forgery with: :exception
       
-      # Use the tracing layout for all controllers in this module
-      layout "raaf_rails/tracing/application"
+      # Disable layout since Phlex components are self-contained
+      layout false
 
       # Include helpers for content_tag
       include ActionView::Helpers::TagHelper
@@ -31,7 +31,12 @@ module RAAF
 
       # Handle record not found errors
       def record_not_found
-        render RAAF::Rails::Tracing::NotFoundPage.new, status: :not_found
+        not_found_component = RAAF::Rails::Tracing::NotFoundPage.new
+        layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Not Found") do
+          render not_found_component
+        end
+
+        render layout, status: :not_found
       end
 
       # Handle general errors
@@ -41,8 +46,12 @@ module RAAF
                   error_class: exception.class.name,
                   backtrace: exception.backtrace&.first(5)&.join("\n"))
 
-        render RAAF::Rails::Tracing::ErrorPage.new(error: exception),
-               status: :internal_server_error
+        error_component = RAAF::Rails::Tracing::ErrorPage.new(error: exception)
+        layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Error") do
+          render error_component
+        end
+
+        render layout, status: :internal_server_error
       end
 
       # Pagination helper

@@ -36,14 +36,32 @@ module RAAF
         respond_to do |format|
           format.html do
             if request.xhr?
-              # For AJAX requests, render just the traces table partial
-              render partial: "traces_table", locals: { traces: @traces }, layout: false
-            else
-              # For regular HTML requests, render the Phlex component directly
-              render RAAF::Rails::Tracing::TracesList.new(
+              # For AJAX requests, render just the traces table component
+              render RAAF::Rails::Tracing::TracesTable.new(
                 traces: @traces,
-                stats: @stats
+                page: @page,
+                total_pages: @total_pages,
+                per_page: @per_page,
+                total_count: @total_count,
+                params: params.permit(:search, :workflow, :status, :start_time, :end_time)
+              ), layout: false
+            else
+              # For regular HTML requests, render the full index component wrapped in layout
+              traces_component = RAAF::Rails::Tracing::TracesIndex.new(
+                traces: @traces,
+                stats: @stats,
+                params: params.permit(:search, :workflow, :status, :start_time, :end_time),
+                total_pages: @total_pages,
+                page: @page,
+                per_page: @per_page,
+                total_count: @total_count
               )
+
+              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Traces") do
+                render traces_component
+              end
+
+              render layout
             end
           end
           format.json { render json: serialize_traces(@traces) }
@@ -60,8 +78,14 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            # Render the Phlex component directly
-            render RAAF::Rails::Tracing::TraceDetail.new(trace: @trace)
+            # Render the Phlex component wrapped in layout
+            trace_component = RAAF::Rails::Tracing::TraceDetail.new(trace: @trace)
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Trace Details") do
+              render trace_component
+            end
+
+            render layout
           end
           format.json { render json: serialize_trace_detail(@trace) }
         end
@@ -92,9 +116,14 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            # For analytics, we can use the same TraceDetail component
-            # with additional data for analytics view
-            render RAAF::Rails::Tracing::TraceDetail.new(trace: @trace)
+            # For analytics, we can use the same TraceDetail component wrapped in layout
+            analytics_component = RAAF::Rails::Tracing::TraceDetail.new(trace: @trace)
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Trace Analytics") do
+              render analytics_component
+            end
+
+            render layout
           end
           format.json do
             render json: {

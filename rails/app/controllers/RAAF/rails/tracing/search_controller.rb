@@ -12,7 +12,18 @@ module RAAF
         @results = perform_search if @query.present?
 
         respond_to do |format|
-          format.html
+          format.html do
+            search_component = RAAF::Rails::Tracing::SearchIndex.new(
+              query: @query,
+              results: @results
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Search") do
+              render search_component
+            end
+
+            render layout
+          end
           format.json { render json: serialize_search_results(@results) }
         end
       end

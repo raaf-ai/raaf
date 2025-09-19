@@ -20,13 +20,26 @@ module RAAF
         @per_page = [params[:per_page]&.to_i || 50, 100].min
         @spans = paginate_records(@spans.recent, page: @page, per_page: @per_page)
 
+        # Calculate pagination info
+        @total_count = SpanRecord.count
+        @total_pages = (@total_count.to_f / @per_page).ceil
+
         respond_to do |format|
           format.html do
-            render RAAF::Rails::Tracing::SpansList.new(
+            spans_component = RAAF::Rails::Tracing::SpansIndex.new(
               spans: @spans,
+              params: params.permit(:search, :kind, :status, :start_time, :end_time, :trace_id),
               page: @page,
-              per_page: @per_page
+              total_pages: @total_pages,
+              per_page: @per_page,
+              total_count: @total_count
             )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Spans") do
+              render spans_component
+            end
+
+            render layout
           end
           format.js { render :index }
           format.json { render json: serialize_spans(@spans) }
@@ -42,7 +55,18 @@ module RAAF
         @event_timeline = @span.event_timeline
 
         respond_to do |format|
-          format.html { render "RAAF/rails/tracing/spans/show" }
+          format.html do
+            detail_component = RAAF::Rails::Tracing::NotFoundPage.new(
+              title: "Span Detail",
+              message: "Span detail view is not yet converted to Phlex. Coming soon!"
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Span Detail") do
+              render detail_component
+            end
+
+            render layout
+          end
           format.js { render :show }
           format.json { render json: serialize_span_detail(@span) }
         end
@@ -79,7 +103,27 @@ module RAAF
         @tool_spans = paginate_records(@tool_spans_base.recent, page: @page, per_page: @per_page)
 
         respond_to do |format|
-          format.html { render "RAAF/rails/tracing/spans/tools" }
+          format.html do
+            # Calculate pagination info
+            @total_count = @tool_spans_base.count
+            @total_pages = (@total_count.to_f / @per_page).ceil
+
+            tools_component = RAAF::Rails::Tracing::ToolSpans.new(
+              tool_spans: @tool_spans,
+              total_tool_spans: @total_tool_spans,
+              params: params.permit(:search, :function_name, :status, :trace_id, :start_time, :end_time),
+              page: @page,
+              total_pages: @total_pages,
+              per_page: @per_page,
+              total_count: @total_count
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Tool Spans") do
+              render tools_component
+            end
+
+            render layout
+          end
           format.js { render :tools }
           format.json { render json: serialize_tool_spans(@tool_spans) }
         end
@@ -111,7 +155,20 @@ module RAAF
         @traces = flow_spans.joins(:trace).distinct.pluck(:trace_id, "raaf_tracing_traces.workflow_name")
 
         respond_to do |format|
-          format.html { render "RAAF/rails/tracing/spans/flows" }
+          format.html do
+            flows_component = RAAF::Rails::Tracing::FlowsVisualization.new(
+              flow_data: @flow_data,
+              agents: @agents,
+              traces: @traces,
+              params: params.permit(:agent_name, :trace_id, :start_time, :end_time)
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Flow Visualization") do
+              render flows_component
+            end
+
+            render layout
+          end
           format.json { render json: @flow_data }
         end
       end
