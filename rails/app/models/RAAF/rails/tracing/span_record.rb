@@ -31,6 +31,7 @@ module RAAF
     #   RAAF::Tracing::Span.performance_metrics('tool')
     class SpanRecord < ActiveRecord::Base
       self.table_name = "raaf_tracing_spans"
+      self.primary_key = "span_id"
 
       # Associations
       belongs_to :trace, primary_key: :trace_id,
@@ -143,7 +144,7 @@ module RAAF
           if error_spans.any?
             # Use pluck to get the raw data, then group and count in Ruby
             workflow_data = error_spans.joins(:trace)
-                                       .pluck("raaf_tracing_traces.workflow_name", "raaf_tracing_spans.id")
+                                       .pluck("raaf_tracing_traces.workflow_name", "raaf_tracing_spans.span_id")
 
             # Group by workflow name and count unique span IDs
             workflow_data.group_by(&:first).each do |workflow_name, entries|
@@ -168,7 +169,7 @@ module RAAF
           query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
 
           # Force evaluation to array to avoid any ordering/grouping issues
-          llm_spans = query.select(:id, :span_attributes).to_a
+          llm_spans = query.select(:span_id, :span_attributes).to_a
 
           total_input_tokens = llm_spans.sum do |span|
             span.span_attributes.dig("llm", "usage", "input_tokens").to_i

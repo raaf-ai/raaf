@@ -33,6 +33,7 @@ module RAAF
     #   trace.performance_summary
     class TraceRecord < ActiveRecord::Base
       self.table_name = "raaf_tracing_traces"
+      self.primary_key = "trace_id"
 
       # Associations
       has_many :spans, primary_key: :trace_id, foreign_key: :trace_id,
