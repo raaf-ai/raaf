@@ -143,13 +143,14 @@ module RAAF
                   viewBox: "0 0 800 600"
                 ) do
                   # Placeholder - actual visualization will be rendered by D3.js or similar
-                  text(
+                  tag "text",
                     x: "400",
                     y: "300",
                     text_anchor: "middle",
                     class: "text-gray-500 text-sm",
-                    fill: "currentColor"
-                  ) { "Flow diagram will render here" }
+                    fill: "currentColor" do
+                    "Flow diagram will render here"
+                  end
                 end
               end
 

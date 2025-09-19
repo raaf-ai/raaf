@@ -63,12 +63,12 @@ module RAAF
               end
 
               div(class: "flex gap-3") do
-                button(
-                  class: "px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-colors duration-200 flex items-center gap-2",
-                  onclick: "navigator.clipboard.writeText('#{@trace.trace_id}')"
+                div(
+                  class: "px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-colors duration-200 flex items-center gap-2 cursor-pointer select-all",
+                  title: "Click to select trace ID"
                 ) do
-                  i(class: "bi bi-clipboard text-sm")
-                  span { "Copy ID" }
+                  i(class: "bi bi-fingerprint text-sm")
+                  span(class: "font-mono text-sm") { @trace.trace_id }
                 end
 
                 link_to(
