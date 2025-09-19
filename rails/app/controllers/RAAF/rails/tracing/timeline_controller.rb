@@ -5,16 +5,40 @@ module RAAF
     module Tracing
     # rubocop:disable Metrics/ClassLength
     class TimelineController < ApplicationController
-      before_action :set_trace, only: %i[show gantt_data timeline_data]
+      before_action :set_trace, only: %i[gantt_data timeline_data]
 
       def show
-        @spans = @trace.spans.includes(:trace).order(:start_time)
-        @timeline_data = generate_timeline_data(@spans)
-        @gantt_data = generate_gantt_data(@spans)
-        @performance_stats = calculate_performance_stats(@spans)
+        if params[:trace_id].present?
+          begin
+            @trace = TraceRecord.find_by!(trace_id: params[:trace_id])
+            @spans = @trace.spans.includes(:trace).order(:start_time)
+            @timeline_data = generate_timeline_data(@spans)
+            @gantt_data = generate_gantt_data(@spans)
+            @performance_stats = calculate_performance_stats(@spans)
+          rescue ActiveRecord::RecordNotFound
+            @trace = nil
+            @timeline_data = nil
+            @gantt_data = nil
+            @performance_stats = nil
+          end
+        end
 
         respond_to do |format|
-          format.html
+          format.html do
+            timeline_component = RAAF::Rails::Tracing::TimelineShow.new(
+              timeline_data: @timeline_data,
+              gantt_data: @gantt_data,
+              performance_stats: @performance_stats,
+              trace: @trace,
+              spans: @spans || []
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Timeline") do
+              render timeline_component
+            end
+
+            render layout
+          end
           format.json { render json: { timeline: @timeline_data, gantt: @gantt_data, stats: @performance_stats } }
         end
       end
@@ -106,7 +130,7 @@ module RAAF
             end_time: span.end_time&.iso8601(3),
             start_offset_ms: start_offset,
             duration_ms: duration,
-            parent_span_id: span.parent_span_id,
+            parent_id: span.parent_id,
             depth: calculate_span_depth(span, spans),
             percentage_start: (start_offset.to_f / total_duration * 100).round(2),
             percentage_width: duration.positive? ? (duration.to_f / total_duration * 100).round(2) : 0.1,
@@ -158,7 +182,7 @@ module RAAF
                       end,
             type: task_type,
             color: color,
-            parent: span.parent_span_id,
+            parent: span.parent_id,
             span_kind: span.kind,
             span_status: span.status,
             details: {
@@ -174,11 +198,11 @@ module RAAF
           tasks << task
 
           # Create dependency links
-          next unless span.parent_span_id
+          next unless span.parent_id
 
           links << {
-            id: "#{span.parent_span_id}_#{span.span_id}",
-            source: span.parent_span_id,
+            id: "#{span.parent_id}_#{span.span_id}",
+            source: span.parent_id,
             target: span.span_id,
             type: "finish_to_start"
           }
@@ -236,7 +260,7 @@ module RAAF
         span_map = spans.index_by(&:span_id)
 
         # Calculate the critical path through the trace
-        root_spans = spans.select { |s| s.parent_span_id.nil? }
+        root_spans = spans.select { |s| s.parent_id.nil? }
         critical_path = []
 
         root_spans.each do |root_span|
@@ -303,14 +327,14 @@ module RAAF
 
       def calculate_span_depth(span, spans)
         depth = 0
-        current_parent = span.parent_span_id
+        current_parent = span.parent_id
 
         while current_parent
           depth += 1
           parent_span = spans.find { |s| s.span_id == current_parent }
           break unless parent_span
 
-          current_parent = parent_span.parent_span_id
+          current_parent = parent_span.parent_id
 
           # Prevent infinite loops
           break if depth > 50
@@ -541,7 +565,7 @@ module RAAF
 
         visited.add(span.span_id)
 
-        children = span_map.values.select { |s| s.parent_span_id == span.span_id }
+        children = span_map.values.select { |s| s.parent_id == span.span_id }
 
         if children.empty?
           [span]
