@@ -273,10 +273,25 @@ module RAAF
       runner.call_hook(:on_tool_start, context_wrapper, agent, tool)
 
       begin
-        # Execute the tool with error handling
+        # Execute the tool with error handling and tracing if available
         result = ErrorHandling.safe_tool_execution(tool: tool, arguments: arguments, agent: agent) do
-          # Ensure arguments have symbol keys for Ruby's keyword argument system
-          tool.call(**arguments.symbolize_keys)
+          # Add tracing support if runner has tracing enabled
+          if runner.respond_to?(:tracing_enabled?) && runner.tracing_enabled? && runner.instance_variable_get(:@tracer)
+            tracer = runner.instance_variable_get(:@tracer)
+            tracer.tool_span(tool.name) do |tool_span|
+              tool_span.set_attribute("function.name", tool.name)
+              tool_span.set_attribute("function.input", arguments.to_json)
+
+              # Ensure arguments have symbol keys for Ruby's keyword argument system
+              result = tool.call(**arguments.symbolize_keys)
+
+              tool_span.set_attribute("function.output", result.to_s[0..1000])
+              result
+            end
+          else
+            # Ensure arguments have symbol keys for Ruby's keyword argument system
+            tool.call(**arguments.symbolize_keys)
+          end
         end
 
         # Call tool end hooks

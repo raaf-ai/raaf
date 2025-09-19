@@ -312,7 +312,9 @@ module RAAF
 
         # Use the runner's execute_responses_api_core method which handles multi-turn properly
         # This delegates the complex multi-turn logic back to the runner
-        result = runner.send(:execute_responses_api_core, messages, config, with_tracing: false)
+        # Enable tracing if runner has tracing enabled
+        tracing_enabled = runner.tracing_enabled?
+        result = runner.send(:execute_responses_api_core, messages, config, with_tracing: tracing_enabled)
 
         # Convert RunResult to the expected format
         {

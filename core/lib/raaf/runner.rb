@@ -2771,7 +2771,7 @@ module RAAF
     def get_default_tracer
       return nil unless defined?(RAAF::Tracing)
 
-      RAAF::Tracing.create_tracer
+      RAAF::Tracing.tracer
     rescue StandardError
       nil
     end

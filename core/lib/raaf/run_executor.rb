@@ -410,21 +410,49 @@ module RAAF
       # Set output on agent span
       return unless @current_agent_span
 
-      message = result[:message]
-      if message && config.trace_include_sensitive_data
-        @current_agent_span.set_attribute("agent.output", message[:content] || "")
-      else
-        @current_agent_span.set_attribute("agent.output", "[REDACTED]")
+      begin
+        message = result[:message]
+        if message && config.trace_include_sensitive_data
+          @current_agent_span.set_attribute("agent.output", message[:content] || "")
+        else
+          @current_agent_span.set_attribute("agent.output", "[REDACTED]")
+        end
+      rescue StandardError => e
+        # Log but don't fail if setting attributes fails
+        if defined?(Rails)
+          Rails.logger.error "❌ Error setting span attributes: #{e.message}"
+        else
+          warn "Error setting span attributes: #{e.message}"
+        end
       end
 
-      # End the agent span
-      @current_agent_span.end_span
-
-      # Restore original span stack
-      return unless @original_span_stack
-
-      tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack,
-                                                                    @original_span_stack)
+      # End the agent span - this is critical for trace completion
+      begin
+        @current_agent_span.end_span
+      rescue StandardError => e
+        # Log the error but ensure we still try to restore span stack
+        if defined?(Rails)
+          Rails.logger.error "❌ CRITICAL: Failed to end agent span: #{e.message}"
+          Rails.logger.error "🔍 Error class: #{e.class.name}"
+          Rails.logger.error "📄 Span: #{@current_agent_span.inspect}"
+        else
+          warn "CRITICAL: Failed to end agent span: #{e.message}"
+        end
+      ensure
+        # Always restore original span stack even if span ending fails
+        if @original_span_stack
+          begin
+            tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack,
+                                                                          @original_span_stack)
+          rescue StandardError => restore_error
+            if defined?(Rails)
+              Rails.logger.error "❌ Error restoring span stack: #{restore_error.message}"
+            else
+              warn "Error restoring span stack: #{restore_error.message}"
+            end
+          end
+        end
+      end
     end
 
     ##
