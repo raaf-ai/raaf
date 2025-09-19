@@ -38,6 +38,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rails", ">= 7.0"
   spec.add_dependency "stimulus-rails", "~> 1.0"
   spec.add_dependency "turbo-rails", "~> 1.0"
+  spec.add_dependency "phlex", "~> 2.0"
+  spec.add_dependency "phlex-rails", "~> 2.0"
+  spec.add_dependency "phlex-preline", "~> 0.1"
 
   # Development dependencies
   spec.add_development_dependency "bundler"
