@@ -8,17 +8,20 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
   let(:producer_agent) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "ProducerAgent"
-      
-      # Context is automatically available through auto-context
-      
+
+      context do
+        required :input_data
+        output :output_data
+      end
+
       result_transform do
         field :output_data, computed: :process
       end
-      
+
       def process(data)
         "processed"
       end
-      
+
       def run
         { output_data: "processed", extra_field: "extra" }
       end
@@ -28,17 +31,20 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
   let(:consumer_agent) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "ConsumerAgent"
-      
-      # Context is automatically available through auto-context
-      
+
+      context do
+        required :output_data
+        output :final_result
+      end
+
       result_transform do
         field :final_result, computed: :finalize
       end
-      
+
       def finalize(data)
         "finalized"
       end
-      
+
       def run
         { final_result: "finalized" }
       end
@@ -48,10 +54,11 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
   let(:incompatible_agent) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "IncompatibleAgent"
-      
-      # Context is automatically available through auto-context
-      # Requires: missing_field
-      
+
+      context do
+        required :missing_field
+      end
+
       def run
         {}
       end
@@ -66,8 +73,9 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     end
     
     it "validates field compatibility" do
+      chain = described_class.new(producer_agent, incompatible_agent)
       expect {
-        described_class.new(producer_agent, incompatible_agent)
+        chain.validate_with_pipeline_context([])
       }.to raise_error(RAAF::DSL::PipelineDSL::FieldMismatchError)
     end
     
@@ -104,31 +112,30 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     it "executes agents in sequence" do
       chain = described_class.new(producer_agent, consumer_agent)
       result = chain.execute(context)
-      
-      expect(result).to include(
-        input_data: "test",
-        output_data: "processed",
-        final_result: "finalized"
-      )
+
+      expect(result[:input_data]).to eq("test")
+      expect(result[:output_data]).to eq("processed")
+      expect(result[:final_result]).to eq("finalized")
     end
     
     it "passes context from first agent to second" do
       chain = described_class.new(producer_agent, consumer_agent)
-      
-      expect_any_instance_of(consumer_agent).to receive(:initialize) do |instance, ctx|
-        expect(ctx).to include(output_data: "processed")
+
+      expect_any_instance_of(consumer_agent).to receive(:initialize) do |instance, **ctx|
+        expect(ctx[:output_data]).to eq("processed")
       end.and_call_original
-      
+
       chain.execute(context)
     end
     
     it "skips agent execution when requirements not met" do
       chain = described_class.new(producer_agent, incompatible_agent)
-      
+
       expect(RAAF.logger).to receive(:warn).with(/Skipping.*IncompatibleAgent.*requirements not met/)
-      
+
       result = chain.execute(context)
-      expect(result).to include(output_data: "processed")
+      expect(result[:output_data]).to eq("processed")
+      expect(result[:input_data]).to eq("test")
     end
   end
   

@@ -86,7 +86,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   end
   
   describe "#execute" do
-    let(:context) { { input: "test" } }
+    let(:context) { RAAF::DSL::ContextVariables.new(input: "test") }
     
     it "executes multiple agents in parallel" do
       parallel = described_class.new([agent1, agent2, agent3])
@@ -160,13 +160,15 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   describe "#required_fields" do
     it "returns union of all agents' requirements" do
       agent_a = Class.new(RAAF::DSL::Agent) do
-        # Context is automatically available through auto-context
-        # Input fields: field_a, common
+        context do
+          required :field_a, :common
+        end
       end
-      
+
       agent_b = Class.new(RAAF::DSL::Agent) do
-        # Context is automatically available through auto-context
-        # Input fields: field_b, common
+        context do
+          required :field_b, :common
+        end
       end
       
       parallel = described_class.new([agent_a, agent_b])

@@ -15,7 +15,7 @@ require "tempfile"
 require "tmpdir"
 
 # Require raaf-testing for prompt matchers (mandatory development gem)
-require "raaf-testing"
+# require "raaf-testing"
 
 # Load support files (excluding the old prompt_matchers which are now in the gem)
 Dir[File.expand_path("support/**/*.rb", __dir__)].each do |f|
@@ -63,7 +63,7 @@ RSpec.configure do |config|
   config.shared_context_metadata_behavior = :apply_to_host_groups
 
   # Include testing matchers
-  config.include RAAF::Testing::Matchers
+  # config.include RAAF::Testing::Matchers
 
   # Clear configuration between tests
   config.before do

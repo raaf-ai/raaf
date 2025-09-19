@@ -34,7 +34,16 @@ RSpec.describe RAAF::DSL::Agent do
     retry_on :rate_limit, max_attempts: 3, backoff: :exponential
     retry_on Timeout::Error, max_attempts: 2
     circuit_breaker threshold: 5, timeout: 60, reset_timeout: 300
-    
+
+    # Context validation requirements
+    context do
+      required :api_key, :endpoint
+    end
+
+    # Add type validation rules
+    validates_context :api_key, type: String
+    validates_context :endpoint, type: String
+
     schema do
       field :status, type: :string, required: true
       field :data, type: :array do
@@ -42,12 +51,14 @@ RSpec.describe RAAF::DSL::Agent do
         field :value, type: :integer, range: 0..100
       end
     end
-    
+
     # Modern agent with static instructions and user prompt
     static_instructions "You are a smart test assistant."
 
     user_prompt do |context|
-      "Process endpoint #{context[:endpoint]} with key..."
+      api_key = context[:api_key] || ""
+      truncated_key = api_key.length > 6 ? "#{api_key[0, 6]}..." : api_key
+      "Process endpoint #{context[:endpoint]} with key #{truncated_key}"
     end
   end
   
@@ -215,13 +226,14 @@ RSpec.describe RAAF::DSL::Agent do
       let(:agent) { SmartTestAgent.new(context: valid_context) }
       
       it "builds schema from DSL" do
-        schema = agent.build_schema
-        
-        expect(schema[:type]).to eq("object")
-        expect(schema[:properties][:status]).to eq({ type: "string" })
-        expect(schema[:properties][:data][:type]).to eq("array")
-        expect(schema[:properties][:data][:items][:properties][:id]).to eq({ type: "string" })
-        expect(schema[:required]).to include("status")
+        schema_def = agent.build_schema
+        schema = schema_def[:schema]
+
+        expect(schema["type"]).to eq("object")
+        expect(schema["properties"]["status"]).to eq({ "type" => "string" })
+        expect(schema["properties"]["data"]["type"]).to eq("array")
+        expect(schema["properties"]["data"]["items"]["properties"]["id"]).to eq({ "type" => "string" })
+        expect(schema["required"]).to include("status")
       end
     end
     
