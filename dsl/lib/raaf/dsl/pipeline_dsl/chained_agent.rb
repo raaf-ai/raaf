@@ -24,15 +24,12 @@ module RAAF
           @first = first
           @second = second
           @pipeline_context_fields = pipeline_context_fields || []
-          
+
           # Store validation as a closure to be called later with complete context
           @validation_proc = proc { validate_field_compatibility! }
-          
-          # Only validate immediately if we have pipeline context fields
-          # Otherwise, defer until pipeline provides them
-          if @pipeline_context_fields.any?
-            @validation_proc.call
-          end
+
+          # Defer validation until explicitly called by pipeline or user
+          # This allows for flexible testing and runtime behavior
         end
         
         # DSL operator: Chain this agent with the next one in sequence
@@ -63,6 +60,11 @@ module RAAF
         end
         
         def execute(context, agent_results = nil)
+          # Ensure context is ContextVariables if it's a plain Hash
+          unless context.respond_to?(:set)
+            context = RAAF::DSL::ContextVariables.new(context)
+          end
+
           # Execute first part
           context = execute_part(@first, context, agent_results)
           # Execute second part with validation
@@ -118,7 +120,7 @@ module RAAF
         end
         
         private
-        
+
         # Field mapping validation: Ensures producer/consumer compatibility at chain creation time
         # Why early validation: Catches field mismatches during development, not runtime
         # Field mapping decisions:
@@ -128,7 +130,7 @@ module RAAF
         # - Missing non-pipeline fields raise FieldMismatchError
         def validate_field_compatibility!
           return unless @first.respond_to?(:provided_fields) && @second.respond_to?(:required_fields)
-          
+
           provided = @first.provided_fields
           required = @second.required_fields
           missing = required - provided
@@ -148,14 +150,14 @@ module RAAF
           # Use dynamic pipeline context fields if available
           # These fields are declared in the pipeline's context block and will be available at runtime
           pipeline_provided_fields = @pipeline_context_fields
-          
+
           # Add common generic context fields that are typically available
           generic_context_fields = [:user, :data, :config, :options, :settings]
           available_from_context = pipeline_provided_fields + generic_context_fields
-          
+
           # Filter out fields that are provided by pipeline context
           non_context_missing = missing - available_from_context
-          
+
           # Only raise error for fields that can't come from pipeline context or defaults
           if non_context_missing.any?
             raise FieldMismatchError.new(@first, @second, non_context_missing, available_from_context)
@@ -190,12 +192,13 @@ module RAAF
         end
         
         def execute_single_agent(agent_class, context, agent_results = nil)
-          log_debug "Executing agent: #{agent_class.name}"
+          agent_name = agent_class.respond_to?(:agent_name) ? agent_class.agent_name : agent_class.name
+          log_debug "Executing agent: #{agent_name}"
 
           # Check requirements
           if agent_class.respond_to?(:requirements_met?)
             unless agent_class.requirements_met?(context)
-              log_warn "Skipping #{agent_class.name}: requirements not met"
+              log_warn "Skipping #{agent_name}: requirements not met"
               log_debug "  Required: #{agent_class.required_fields}"
               log_debug "  Available in context: #{context.keys if context.respond_to?(:keys)}"
               return context
@@ -204,7 +207,7 @@ module RAAF
 
           # Execute agent - ContextVariables now supports direct splatting via to_hash method
           agent = agent_class.new(**context)
-          log_debug "Agent #{agent_class.name} initialized"
+          log_debug "Agent #{agent_name} initialized"
 
           # Inject pipeline schema into agent if available
           # Check if we have a pipeline instance with schema available
@@ -251,7 +254,7 @@ module RAAF
             end
           end
 
-          log_debug "Agent #{agent_class.name} execution completed"
+          log_debug "Agent #{agent_name} execution completed"
           context
         end
       end

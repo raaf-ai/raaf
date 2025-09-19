@@ -100,9 +100,9 @@ module RAAF
           # Copy retry configuration from parent class
           subclass._retry_config = _retry_config&.dup || {}
           subclass._circuit_breaker_config = _circuit_breaker_config&.dup
-          subclass._required_context_keys = _required_context_keys&.dup
-          subclass._validation_rules = _validation_rules&.dup
-          subclass._result_transformations = _result_transformations&.dup
+          subclass._required_context_keys = _required_context_keys&.dup || []
+          subclass._validation_rules = _validation_rules&.dup || {}
+          subclass._result_transformations = _result_transformations&.dup || {}
           subclass._execution_conditions = _execution_conditions&.dup
 
           # Enable auto-transform by default with standard patterns
@@ -589,6 +589,34 @@ module RAAF
             timeout: timeout,
             reset_timeout: reset_timeout
           }
+        end
+
+        # Context DSL method - bridges between new ContextConfiguration and legacy _required_context_keys
+        def context(options = {}, &block)
+          if block_given?
+            # Call the ContextConfiguration method
+            super(options, &block)
+
+            # Bridge to legacy _required_context_keys for backward compatibility with inheritance
+            if _context_config[:context_rules] && _context_config[:context_rules][:required]
+              # Merge with parent's required keys rather than overriding
+              parent_keys = self._required_context_keys || []
+              new_keys = _context_config[:context_rules][:required] || []
+              self._required_context_keys = (parent_keys + new_keys).uniq
+            end
+          else
+            super(options)
+          end
+        end
+
+        # Context validation DSL method
+        def validates_context(key, type: nil, presence: nil, format: nil)
+          self._validation_rules ||= {}
+          self._validation_rules[key.to_sym] = {
+            type: type,
+            presence: presence,
+            format: format
+          }.compact
         end
 
 
@@ -1225,20 +1253,34 @@ module RAAF
 
       # Build base system instructions (original logic)
       def build_base_instructions
+        # First check for DSL-configured static instructions
+        if self.class._prompt_config[:static_instructions]
+          log_debug "Using static instructions from DSL"
+          return self.class._prompt_config[:static_instructions]
+        end
+
+        # Then check for instruction template with context
+        if self.class._prompt_config[:instruction_template]
+          log_debug "Using instruction template from DSL"
+          # TODO: Implement template interpolation with context
+          return self.class._prompt_config[:instruction_template]
+        end
+
+        # Fall back to prompt resolver system
         prompt_spec = determine_prompt_spec
         log_debug "Building system instructions", prompt_spec: prompt_spec, agent_class: self.class.name
-        
+
         error_message = "No system prompt resolved for #{self.class.name}. "
-        
+
         if prompt_spec.nil?
           error_message += "No prompt class configured and could not infer one. " \
                           "Expected to find prompt class at: #{infer_prompt_class_name_string}"
         else
           log_debug "Found prompt spec", spec_class: prompt_spec.class.name, spec_value: prompt_spec.inspect
-          
+
           resolved_prompt = DSL.prompt_resolvers.resolve(prompt_spec, @context.to_h)
           log_debug "Resolver result", resolved: !!resolved_prompt, resolvers_count: DSL.prompt_resolvers.resolvers.count
-          
+
           if resolved_prompt
             system_message = resolved_prompt.messages.find { |m| m[:role] == "system" }
             log_debug "System message found", found: !!system_message
@@ -1316,8 +1358,19 @@ module RAAF
 
       # RAAF DSL method - build user prompt using resolver system
       def build_user_prompt
+        # First check for DSL-configured user prompt block
+        if self.class._user_prompt_block
+          log_debug "Using user prompt block from DSL"
+          begin
+            return self.class._user_prompt_block.call(@context)
+          rescue StandardError => e
+            raise RAAF::DSL::Error, "Failed to execute user prompt block for #{self.class.name}: #{e.message}"
+          end
+        end
+
+        # Fall back to prompt resolver system
         prompt_spec = determine_prompt_spec
-        
+
         if prompt_spec
           begin
             resolved_prompt = DSL.prompt_resolvers.resolve(prompt_spec, @context.to_h)
@@ -1330,7 +1383,7 @@ module RAAF
             raise e.class, "Agent #{self.class.name} failed to build user prompt: #{e.message}", e.backtrace
           end
         end
-        
+
         raise RAAF::DSL::Error, "No user prompt resolved for #{self.class.name}. " \
                                 "Check prompt class configuration or ensure prompt files exist."
       end

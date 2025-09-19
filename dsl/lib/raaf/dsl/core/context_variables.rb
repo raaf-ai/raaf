@@ -317,6 +317,28 @@ module RAAF
         update(other_vars)
       end
 
+      # In-place merge that modifies the current instance
+      #
+      # @param other [Hash, ContextVariables] The data to merge
+      # @return [ContextVariables] Self for chaining
+      def merge!(other)
+        other_vars = other.is_a?(self.class) ? other.to_h : other
+        other_vars.each do |key, value|
+          set(key, value)
+        end
+        self
+      end
+
+      # Hash-style assignment operator for convenience
+      #
+      # @param key [Symbol, String] The key to set
+      # @param value [Object] The value to assign
+      # @return [Object] The assigned value
+      def []=(key, value)
+        set(key, value)
+        value
+      end
+
       # Create a snapshot for debugging
       #
       # @return [Hash] Complete debug snapshot

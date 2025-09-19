@@ -33,8 +33,9 @@ module RAAF
           additionalProperties: false
         }
 
-        # Convert symbols to strings for JSON compatibility
-        convert_symbols_to_strings(schema)
+        # Return schema with symbols for consistency with DSL usage
+        # Convert to strings only when actually sending to OpenAI
+        schema
       end
 
       private
@@ -83,7 +84,7 @@ module RAAF
                       when :boolean
                         { type: :boolean }
                       when :datetime, :timestamp, :date, :time
-                        { type: :string }  # OpenAI Structured Outputs don't support format keyword
+                        { type: :string, format: :datetime }
                       when :json, :jsonb
                         # For JSON/JSONB columns, don't set additionalProperties: false
                         # since we don't know the internal structure
@@ -116,33 +117,34 @@ module RAAF
 
       # Generate list of required fields from validations and database constraints
       #
-      # For OpenAI structured outputs, ALL properties must be in the required array
-      # to ensure strict schema validation works correctly.
-      # EXCEPTION: JSON/JSONB columns without defined structure cannot be required
-      # when additionalProperties is false
+      # Includes fields that are NOT NULL in the database (except id and JSON/JSONB fields)
+      # plus all associations.
       #
       # @param model_class [Class] The Active Record model class
-      # @return [Array<String>] List of ALL field names except JSON/JSONB (for OpenAI compatibility)
+      # @return [Array<Symbol>] List of required field names as symbols
       def self.generate_required_fields(model_class)
-        # For OpenAI structured outputs, we need ALL properties in the required array
-        # This is different from traditional JSON schema where only truly required fields are listed
-        # BUT we must exclude JSON/JSONB columns that don't have defined properties
+        # Include non-null database columns and all associations
+        # Exclude JSON/JSONB columns since they don't have defined properties
         all_properties = []
 
-        # All database columns EXCEPT json/jsonb
+        # All database columns EXCEPT json/jsonb and id
         model_class.columns.each do |column|
           # Skip JSON/JSONB columns since they're objects without defined properties
           # and OpenAI doesn't allow required fields that aren't in properties
           next if [:json, :jsonb].include?(column.type)
-          all_properties << column.name
+          # Skip id field as it's typically auto-generated
+          next if column.name == 'id'
+          # Only include non-null columns as required
+          next if column.null == true
+          all_properties << column.name.to_sym
         end
 
         # All associations
         model_class.reflect_on_all_associations.each do |assoc|
-          all_properties << assoc.name.to_s
+          all_properties << assoc.name.to_sym
         end
 
-        # Return all properties as strings (OpenAI expects strings, not symbols)
+        # Return all properties as symbols for DSL consistency
         all_properties.uniq
       end
 
