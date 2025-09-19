@@ -143,7 +143,7 @@ module RAAF
                   viewBox: "0 0 800 600"
                 ) do
                   # Placeholder - actual visualization will be rendered by D3.js or similar
-                  tag "text",
+                  tag :text,
                     x: "400",
                     y: "300",
                     text_anchor: "middle",
