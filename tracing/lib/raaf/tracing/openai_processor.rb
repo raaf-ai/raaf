@@ -401,6 +401,7 @@ module RAAF
       #
       # Converts nested hashes into dot-notation keys and ensures
       # all values are strings for JSON serialization.
+      # Limits the size of values to prevent exceeding OpenAI's 10KB limit.
       #
       # @param attributes [Hash] Span attributes to flatten
       # @return [Hash] Flattened attributes with string values
@@ -408,14 +409,51 @@ module RAAF
       # @api private
       def flatten_attributes(attributes)
         result = {}
+        max_value_size = 500 # Limit individual value size
+
+        # Fields to exclude entirely to reduce payload size
+        excluded_prefixes = [
+          'pipeline.initial_context',
+          'pipeline.final_result',
+          'pipeline.result_keys',
+          'agent.dialogue',
+          'tool.large_output'
+        ]
+
         attributes.each do |key, value|
+          key_str = key.to_s
+
+          # Skip excluded fields
+          next if excluded_prefixes.any? { |prefix| key_str.start_with?(prefix) }
+
           case value
           when Hash
-            value.each { |k, v| result["#{key}.#{k}"] = v.to_s }
+            value.each do |k, v|
+              nested_key = "#{key}.#{k}"
+              next if excluded_prefixes.any? { |prefix| nested_key.start_with?(prefix) }
+
+              str_value = v.to_s
+              # Truncate large values
+              if str_value.length > max_value_size
+                result[nested_key] = str_value[0...max_value_size] + "...[truncated]"
+              else
+                result[nested_key] = str_value
+              end
+            end
           when Array
-            result[key] = value.inspect
+            arr_str = value.inspect
+            if arr_str.length > max_value_size
+              result[key] = arr_str[0...max_value_size] + "...[truncated]"
+            else
+              result[key] = arr_str
+            end
           else
-            result[key] = value.to_s
+            str_value = value.to_s
+            if str_value.length > max_value_size
+              result[key] = str_value[0...max_value_size] + "...[truncated]"
+            else
+              result[key] = str_value
+            end
           end
         end
         result
@@ -488,9 +526,11 @@ module RAAF
         }
         payload_items << trace_data
 
-        # Then add each span as a separate item
+        # Then add each span as a separate item, but ensure they don't exceed size limits
         spans.each do |span|
-          payload_items << span
+          # Ensure individual span data doesn't exceed limits
+          sanitized_span = sanitize_span_data(span)
+          payload_items << sanitized_span if sanitized_span
         end
 
         payload = {

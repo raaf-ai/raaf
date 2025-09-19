@@ -135,22 +135,14 @@ module RAAF
             h3(class: "text-lg font-medium text-gray-900 mb-4") { "Flow Diagram" }
 
             if @flow_data[:nodes].any?
-              div(id: "flow-diagram", class: "border border-gray-200 rounded-lg p-4 min-h-96 bg-gray-50") do
-                # SVG visualization will be rendered by JavaScript
-                svg(
-                  id: "flow-svg",
-                  class: "w-full h-96",
-                  viewBox: "0 0 800 600"
-                ) do
-                  # Placeholder - actual visualization will be rendered by D3.js or similar
-                  tag :text,
-                    x: "400",
-                    y: "300",
-                    text_anchor: "middle",
-                    class: "text-gray-500 text-sm",
-                    fill: "currentColor" do
-                    "Flow diagram will render here"
+              div(id: "flow-diagram", class: "border border-gray-200 rounded-lg p-4 min-h-96 bg-gray-50 flex items-center justify-center") do
+                # Placeholder for flow visualization - will be rendered by JavaScript
+                div(class: "text-center") do
+                  div(class: "p-4 bg-blue-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center") do
+                    i(class: "bi bi-diagram-3 text-blue-600 text-2xl")
                   end
+                  h4(class: "text-lg font-medium text-gray-900 mb-2") { "Flow Diagram" }
+                  p(class: "text-gray-500") { "Interactive visualization will render here" }
                 end
               end
 
