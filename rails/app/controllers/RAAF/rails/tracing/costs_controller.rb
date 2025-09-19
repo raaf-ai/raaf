@@ -25,8 +25,37 @@ module RAAF
           **@tenant_filters
         )
 
+        # Prepare cost data for the component
+        cost_data = {
+          total_cost: @cost_breakdown[:totals][:total_cost],
+          total_tokens: @cost_breakdown[:totals][:total_input_tokens] + @cost_breakdown[:totals][:total_output_tokens],
+          avg_cost_per_trace: @cost_breakdown[:totals][:avg_cost_per_trace],
+          most_expensive_model: @cost_breakdown[:by_model].max_by { |_, data| data[:cost] }&.first,
+          by_model: @cost_breakdown[:by_model].map do |model, data|
+            {
+              model: model,
+              cost: data[:cost],
+              tokens: data[:input_tokens] + data[:output_tokens],
+              percentage: (data[:cost] / @cost_breakdown[:totals][:total_cost] * 100).round(2)
+            }
+          end,
+          by_workflow: @cost_breakdown[:by_workflow].map do |workflow, data|
+            {
+              workflow: workflow,
+              cost: data[:cost],
+              tokens: data[:tokens] || 0,
+              percentage: (data[:cost] / @cost_breakdown[:totals][:total_cost] * 100).round(2)
+            }
+          end
+        }
+
         respond_to do |format|
-          format.html
+          format.html do
+            render RAAF::Rails::Tracing::CostsIndex.new(
+              cost_data: cost_data,
+              params: params.permit(:start_date, :end_date, :model)
+            )
+          end
           format.json do
             render json: {
               breakdown: @cost_breakdown,

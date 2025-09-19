@@ -27,14 +27,19 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            render RAAF::Rails::Tracing::Dashboard.new(
+            dashboard_component = RAAF::Rails::Tracing::DashboardIndex.new(
               overview_stats: @overview_stats,
               top_workflows: @top_workflows,
               recent_traces: @recent_traces,
               recent_errors: @recent_errors,
-              dashboard_url: tracing_dashboard_path,
-              params: params
+              params: params.permit(:start_time, :end_time)
             )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Dashboard") do
+              render dashboard_component
+            end
+
+            render layout
           end
           format.json do
             render json: {
@@ -70,8 +75,18 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            # Use the existing HTML template for now until Phlex component is created
-            render "RAAF/rails/tracing/dashboard/performance"
+            performance_component = RAAF::Rails::Tracing::PerformanceDashboard.new(
+              performance_by_kind: @performance_by_kind,
+              slowest_spans: @slowest_spans,
+              performance_over_time: @performance_over_time,
+              params: params.permit(:start_time, :end_time, :kind)
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Performance Dashboard") do
+              render performance_component
+            end
+
+            render layout
           end
           format.json do
             render json: {
@@ -145,8 +160,37 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            # Use the existing HTML template for now until Phlex component is created
-            render "RAAF/rails/tracing/dashboard/costs"
+            costs_component = RAAF::Rails::Tracing::CostsIndex.new(
+              cost_data: {
+                total_cost: @total_cost,
+                total_tokens: @cost_analysis[:total_tokens] || 0,
+                avg_cost_per_trace: @total_cost / (@cost_analysis[:total_llm_calls] || 1),
+                most_expensive_model: @model_costs.max_by { |_, data| data[:cost] }&.first || "N/A",
+                by_model: @model_costs.map do |model, data|
+                  {
+                    model: model,
+                    cost: data[:cost],
+                    tokens: data[:input_tokens] + data[:output_tokens],
+                    percentage: @total_cost > 0 ? ((data[:cost] / @total_cost) * 100).round(2) : 0
+                  }
+                end.sort_by { |m| -m[:cost] },
+                by_workflow: @top_consuming_workflows.map do |workflow, data|
+                  {
+                    workflow: workflow,
+                    cost: data[:total_cost],
+                    tokens: data[:total_tokens],
+                    percentage: @total_cost > 0 ? ((data[:total_cost] / @total_cost) * 100).round(2) : 0
+                  }
+                end
+              },
+              params: params.permit(:start_date, :end_date, :model)
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Cost Dashboard") do
+              render costs_component
+            end
+
+            render layout
           end
           format.json do
             render json: {
@@ -178,8 +222,18 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            # Use the existing HTML template for now until Phlex component is created
-            render "RAAF/rails/tracing/dashboard/errors"
+            errors_component = RAAF::Rails::Tracing::ErrorsDashboard.new(
+              error_analysis: @error_analysis,
+              error_trends: @error_trends,
+              recent_errors: @recent_errors,
+              params: params.permit(:start_time, :end_time, :severity)
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Error Dashboard") do
+              render errors_component
+            end
+
+            render layout
           end
           format.json do
             render json: {
