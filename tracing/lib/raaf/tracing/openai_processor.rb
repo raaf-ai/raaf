@@ -3,7 +3,9 @@
 require "net/http"
 require "json"
 require "uri"
+require "set"
 require_relative "version"
+require_relative "base_processor"
 
 module RAAF
   module Tracing
@@ -45,8 +47,7 @@ module RAAF
     #   # Automatically configured when OPENAI_API_KEY is set
     #   runner = RAAF::Runner.new(agent: agent)
     #   runner.run(messages)  # Traces sent automatically
-    class OpenAIProcessor
-      include Logger
+    class OpenAIProcessor < BaseProcessor
       # Creates a new OpenAI processor
       #
       # @param api_key [String, nil] OpenAI API key. Defaults to OPENAI_API_KEY env var
@@ -58,16 +59,40 @@ module RAAF
       #
       # @raise [ArgumentError] If api_key is not provided and OPENAI_API_KEY is not set
       def initialize(api_key: nil, base_url: nil, batch_size: 50, workflow_name: nil, organization: nil, project: nil)
-        @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
-        @organization = organization || ENV.fetch("OPENAI_ORG_ID", nil)
-        @project = project || ENV.fetch("OPENAI_PROJECT_ID", nil)
-        @base_url = base_url || "https://api.openai.com"
+        # Store OpenAI-specific options for post_initialize
+        @openai_options = {
+          api_key: api_key,
+          base_url: base_url,
+          workflow_name: workflow_name,
+          organization: organization,
+          project: project
+        }
+
+        # Initialize base processor with OpenAI options
+        super(batch_size: batch_size, **@openai_options)
+      end
+
+      # Hook for OpenAI-specific initialization after BaseProcessor setup
+      #
+      # @param options [Hash] Options passed to initialize
+      # @return [void]
+      def post_initialize(options)
+        # OpenAI-specific initialization
+        @api_key = options[:api_key] || ENV.fetch("OPENAI_API_KEY", nil)
+
+        raise ArgumentError, "api_key is required (provide via parameter or OPENAI_API_KEY env var)" unless @api_key
+
+        @organization = options[:organization] || ENV.fetch("OPENAI_ORG_ID", nil)
+        @project = options[:project] || ENV.fetch("OPENAI_PROJECT_ID", nil)
+        @base_url = options[:base_url] || "https://api.openai.com"
         @traces_endpoint = "#{@base_url}/v1/traces/ingest"
-        @batch_size = batch_size
-        @span_buffer = []
-        @mutex = Mutex.new
-        @workflow_name = workflow_name || "openai-agents-ruby"
+        @workflow_name = options[:workflow_name] || "openai-agents-ruby"
         @current_trace_id = nil
+
+        log_debug("#{self.class.name} initialized",
+                  processor: self.class.name,
+                  base_url: @base_url,
+                  workflow_name: @workflow_name)
       end
 
       # Called when a span starts
@@ -81,108 +106,74 @@ module RAAF
         # OpenAI processes spans on completion, not on start
       end
 
-      # Called when a span ends
+      protected
+
+      # Determines if a span should be processed by OpenAI
       #
-      # Transforms the span to OpenAI format and adds it to the buffer.
-      # If the buffer reaches the batch size, automatically flushes.
+      # OpenAI requires spans to have end_time to mark them as completed.
+      # Unfinished spans will cause perpetual "Running" status.
       #
-      # @param span [Span] The span that ended
-      # @return [void]
-      def on_span_end(span)
-        @mutex.synchronize do
-          @current_trace_id ||= span.trace_id
+      # @param span [Span] The span to evaluate
+      # @return [Boolean] true if span should be processed
+      def should_process?(span)
+        # Extract values in a way that works for both Span objects and sanitized hashes
+        end_time = span.is_a?(Hash) ? span[:end_time] : span.end_time
+        trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
+        kind = span.is_a?(Hash) ? span[:kind] : span.kind
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
 
-          # Handle trace spans specially
-          if span.kind == :trace && span.attributes["trace.workflow_name"]
-            @workflow_name = span.attributes["trace.workflow_name"]
-          end
+        return false unless end_time
 
-          transformed = transform_span(span)
-          @span_buffer << transformed if transformed
+        # Update trace context for this span
+        @current_trace_id ||= trace_id
 
-          flush_spans if @span_buffer.size >= @batch_size
+        # Handle trace spans specially - extract workflow name
+        if kind == :trace && attributes["trace.workflow_name"]
+          @workflow_name = attributes["trace.workflow_name"]
         end
+
+        true
+      end
+
+      # Transforms a span to OpenAI format
+      #
+      # @param span [Span] The span to transform
+      # @return [Hash, nil] Transformed span data or nil if should be skipped
+      def process_span(span)
+        transform_span(span)
       end
 
       # Exports a batch of spans to OpenAI
       #
-      # This method is typically called by BatchTraceProcessor with accumulated
-      # spans. It groups spans by trace ID and sends them to the OpenAI API.
-      #
-      # @param spans [Array<Span>] Array of spans to export
+      # @param spans [Array] Array of transformed span data
       # @return [void]
-      #
-      # @api private
-      def export(spans)
-        return if spans.empty?
-
-        unless @api_key
-          log_warn("OPENAI_API_KEY is not set, skipping trace export", processor: "OpenAI")
-          return
-        end
-
-        # Group spans by trace_id
-        spans_by_trace = spans.group_by(&:trace_id)
-
-        spans_by_trace.each do |trace_id, trace_spans|
-          @current_trace_id = trace_id
-
-          # Find trace span if any
-          trace_span = trace_spans.find { |s| s.kind == :trace }
-
-          # Extract workflow name from trace span or use default
-          @workflow_name = trace_span.attributes["trace.workflow_name"] || @workflow_name if trace_span
-
-          # Transform spans, filtering out nils
-          transformed_spans = trace_spans.map { |span| transform_span(span) }.compact
-          send_spans(transformed_spans) unless transformed_spans.empty?
-        end
-      rescue StandardError => e
-        log_error("Failed to export spans to OpenAI: #{e.message}", processor: "OpenAI", error_class: e.class.name)
-        log_debug_tracing("Export error backtrace: #{e.backtrace.first(5).join("\n")}",
-                          processor: "OpenAI")
-      end
-
-      # Forces immediate export of any buffered spans
-      #
-      # Call this method to ensure all pending span data is sent to OpenAI,
-      # typically before application shutdown or at critical checkpoints.
-      #
-      # @return [void]
-      #
-      # @example
-      #   processor.force_flush
-      #   sleep(1)  # Allow time for network request
-      def force_flush
-        @mutex.synchronize do
-          flush_spans if @span_buffer.any?
-        end
-      end
-
-      # Shuts down the processor
-      #
-      # Flushes any remaining spans and releases resources.
-      # After shutdown, the processor should not be used.
-      #
-      # @return [void]
-      def shutdown
-        force_flush
+      def export_batch(spans)
+        send_spans(spans)
       end
 
       private
 
-      # Transforms a Ruby span object into OpenAI's expected format
+      # Transforms a Ruby span object or hash into OpenAI's expected format
       #
-      # @param span [Span] The span to transform
+      # @param span [Span, Hash] The span to transform (can be Span object or sanitized hash)
       # @return [Hash, nil] Transformed span data or nil if span should be skipped
       #
       # @api private
       def transform_span(span)
+        # Extract values in a way that works for both Span objects and sanitized hashes
+        kind = span.is_a?(Hash) ? span[:kind] : span.kind
+        span_id = span.is_a?(Hash) ? span[:span_id] : span.span_id
+        trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
+        parent_id = span.is_a?(Hash) ? span[:parent_id] : span.parent_id
+        start_time = span.is_a?(Hash) ? span[:start_time] : span.start_time
+        end_time = span.is_a?(Hash) ? span[:end_time] : span.end_time
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+
         # Skip trace spans - they're handled separately
-        return nil if span.kind == :trace
+        return nil if kind == :trace
 
         # Skip LLM spans without valid usage data
-        if span.kind == :llm
+        if kind == :llm
           usage = extract_usage(span)
           return nil unless usage # OpenAI API requires usage data for LLM spans
         end
@@ -193,13 +184,13 @@ module RAAF
 
         {
           object: "trace.span",
-          id: span.span_id,
-          trace_id: span.trace_id,
-          parent_id: span.parent_id,
-          started_at: span.start_time.utc.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
-          ended_at: span.end_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
+          id: span_id,
+          trace_id: trace_id,
+          parent_id: parent_id,
+          started_at: start_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
+          ended_at: end_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
           span_data: span_data,
-          error: span.attributes["error"] || nil
+          error: attributes["error"] || nil
         }
       end
 
@@ -209,26 +200,31 @@ module RAAF
       # This method extracts the appropriate attributes and formats them
       # according to the API specification.
       #
-      # @param span [Span] The span to process
+      # @param span [Span, Hash] The span to process (can be Span object or sanitized hash)
       # @return [Hash, nil] Type-specific span data or nil
       #
       # @api private
       def create_span_data(span)
-        data = case span.kind
+        # Extract values in a way that works for both Span objects and sanitized hashes
+        kind = span.is_a?(Hash) ? span[:kind] : span.kind
+        name = span.is_a?(Hash) ? span[:name] : span.name
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+
+        data = case kind
                when :trace
                  # Trace spans are handled differently - they become the trace object
                  return nil
                when :agent
                  {
                    type: "agent",
-                   name: span.attributes["agent.name"] || span.name,
-                   handoffs: span.attributes["agent.handoffs"] || [],
-                   tools: span.attributes["agent.tools"] || [],
-                   output_type: span.attributes["agent.output_type"] || "str"
+                   name: attributes["agent.name"] || name,
+                   handoffs: attributes["agent.handoffs"] || [],
+                   tools: attributes["agent.tools"] || [],
+                   output_type: attributes["agent.output_type"] || "str"
                  }.compact
                when :llm
                  # Get input messages as array for OpenAI API compatibility
-                 input_messages = span.attributes["llm.request.messages"] || []
+                 input_messages = attributes["llm.request.messages"] || []
                  # If it's a string, try to parse it, otherwise use as-is
                  parsed_input = if input_messages.is_a?(String)
                                   begin
@@ -244,7 +240,7 @@ module RAAF
                    type: "generation",
                    input: parsed_input,
                    output: format_llm_output(span),
-                   model: span.attributes["llm.request.model"],
+                   model: attributes["llm.request.model"],
                    model_config: extract_model_config(span)
                  }
                  # Only include usage if we have valid data
@@ -253,7 +249,7 @@ module RAAF
                  data
                when :tool
                  # Ensure input is a string for OpenAI API compatibility
-                 tool_input = span.attributes["function.input"]
+                 tool_input = attributes["function.input"]
                  input_string = case tool_input
                                 when String then tool_input
                                 when nil then nil
@@ -262,63 +258,63 @@ module RAAF
 
                  {
                    type: "function",
-                   name: span.attributes["function.name"] || span.name,
+                   name: attributes["function.name"] || name,
                    input: input_string,
-                   output: span.attributes["function.output"],
-                   mcp_data: span.attributes["function.mcp_data"]
+                   output: attributes["function.output"],
+                   mcp_data: attributes["function.mcp_data"]
                  }
                when :handoff
                  {
                    type: "handoff",
-                   from_agent: span.attributes["handoff.from"],
-                   to_agent: span.attributes["handoff.to"]
+                   from_agent: attributes["handoff.from"],
+                   to_agent: attributes["handoff.to"]
                  }
                when :guardrail
                  {
                    type: "guardrail",
-                   name: span.attributes["guardrail.name"] || span.name,
-                   triggered: span.attributes["guardrail.triggered"] || false
+                   name: attributes["guardrail.name"] || name,
+                   triggered: attributes["guardrail.triggered"] || false
                  }
                when :mcp_list_tools
                  {
                    type: "mcp_tools",
-                   server: span.attributes["mcp.server"],
-                   result: span.attributes["mcp.result"] || span.attributes["mcp.tools"] || []
+                   server: attributes["mcp.server"],
+                   result: attributes["mcp.result"] || attributes["mcp.tools"] || []
                  }
                when :response
                  {
                    type: "response",
-                   response_id: span.attributes["response_id"]
+                   response_id: attributes["response_id"]
                  }.compact
                when :speech_group
                  {
                    type: "speech_group",
-                   input: span.attributes["speech_group.input"]
+                   input: attributes["speech_group.input"]
                  }
                when :speech
                  {
                    type: "speech",
-                   input: span.attributes["speech.input"],
-                   output: span.attributes["speech.output"],
-                   output_format: span.attributes["speech.output_format"] || "pcm",
-                   model: span.attributes["speech.model"],
-                   model_config: span.attributes["speech.model_config"],
-                   first_content_at: span.attributes["speech.first_content_at"]
+                   input: attributes["speech.input"],
+                   output: attributes["speech.output"],
+                   output_format: attributes["speech.output_format"] || "pcm",
+                   model: attributes["speech.model"],
+                   model_config: attributes["speech.model_config"],
+                   first_content_at: attributes["speech.first_content_at"]
                  }
                when :transcription
                  {
                    type: "transcription",
-                   input: span.attributes["transcription.input"],
-                   input_format: span.attributes["transcription.input_format"] || "pcm",
-                   output: span.attributes["transcription.output"],
-                   model: span.attributes["transcription.model"],
-                   model_config: span.attributes["transcription.model_config"]
+                   input: attributes["transcription.input"],
+                   input_format: attributes["transcription.input_format"] || "pcm",
+                   output: attributes["transcription.output"],
+                   model: attributes["transcription.model"],
+                   model_config: attributes["transcription.model_config"]
                  }
                else
                  {
                    type: "custom",
-                   name: span.name,
-                   data: flatten_attributes(span.attributes)
+                   name: name,
+                   data: flatten_attributes(attributes)
                  }
                end
 
@@ -328,42 +324,48 @@ module RAAF
 
       # Extracts model configuration from LLM span attributes
       #
-      # @param span [Span] The LLM span
+      # @param span [Span, Hash] The LLM span (can be Span object or sanitized hash)
       # @return [Hash] Model configuration with nil values removed
       #
       # @api private
       def extract_model_config(span)
+        # Extract attributes in a way that works for both Span objects and sanitized hashes
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+
         {
-          temperature: span.attributes["llm.request.temperature"],
-          top_p: span.attributes["llm.request.top_p"],
-          frequency_penalty: span.attributes["llm.request.frequency_penalty"],
-          presence_penalty: span.attributes["llm.request.presence_penalty"],
-          tool_choice: span.attributes["llm.request.tool_choice"],
-          parallel_tool_calls: span.attributes["llm.request.parallel_tool_calls"],
-          truncation: span.attributes["llm.request.truncation"],
-          max_tokens: span.attributes["llm.request.max_tokens"],
-          reasoning: span.attributes["llm.request.reasoning"],
-          metadata: span.attributes["llm.request.metadata"],
-          store: span.attributes["llm.request.store"],
-          include_usage: span.attributes["llm.request.include_usage"],
-          extra_query: span.attributes["llm.request.extra_query"],
-          extra_body: span.attributes["llm.request.extra_body"],
-          extra_headers: span.attributes["llm.request.extra_headers"],
-          extra_args: span.attributes["llm.request.extra_args"],
-          base_url: span.attributes["llm.request.base_url"] || "https://api.openai.com/v1/"
+          temperature: attributes["llm.request.temperature"],
+          top_p: attributes["llm.request.top_p"],
+          frequency_penalty: attributes["llm.request.frequency_penalty"],
+          presence_penalty: attributes["llm.request.presence_penalty"],
+          tool_choice: attributes["llm.request.tool_choice"],
+          parallel_tool_calls: attributes["llm.request.parallel_tool_calls"],
+          truncation: attributes["llm.request.truncation"],
+          max_tokens: attributes["llm.request.max_tokens"],
+          reasoning: attributes["llm.request.reasoning"],
+          metadata: attributes["llm.request.metadata"],
+          store: attributes["llm.request.store"],
+          include_usage: attributes["llm.request.include_usage"],
+          extra_query: attributes["llm.request.extra_query"],
+          extra_body: attributes["llm.request.extra_body"],
+          extra_headers: attributes["llm.request.extra_headers"],
+          extra_args: attributes["llm.request.extra_args"],
+          base_url: attributes["llm.request.base_url"] || "https://api.openai.com/v1/"
         }
       end
 
       # Extracts token usage from LLM span attributes
       #
-      # @param span [Span] The LLM span
+      # @param span [Span, Hash] The LLM span (can be Span object or sanitized hash)
       # @return [Hash] Token usage data with nil values removed
       #
       # @api private
       def extract_usage(span)
+        # Extract attributes in a way that works for both Span objects and sanitized hashes
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+
         # Extract usage data, ensuring we have valid integers
-        input_tokens = span.attributes["llm.usage.input_tokens"]
-        output_tokens = span.attributes["llm.usage.output_tokens"]
+        input_tokens = attributes["llm.usage.input_tokens"]
+        output_tokens = attributes["llm.usage.output_tokens"]
 
         # Skip if we don't have valid token counts
         return nil if input_tokens.nil? || output_tokens.nil?
@@ -377,12 +379,15 @@ module RAAF
 
       # Formats LLM output as expected by OpenAI traces API
       #
-      # @param span [Span] The LLM span
+      # @param span [Span, Hash] The LLM span (can be Span object or sanitized hash)
       # @return [Array<Hash>] Array of message objects
       #
       # @api private
       def format_llm_output(span)
-        content = span.attributes["llm.response.content"]
+        # Extract attributes in a way that works for both Span objects and sanitized hashes
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+
+        content = attributes["llm.response.content"]
         return [] unless content
 
         # The API expects an array of message objects for output (matching Python format)
@@ -459,27 +464,139 @@ module RAAF
         result
       end
 
-      # Flushes buffered spans to the OpenAI API
+      # Sanitizes span data to ensure it doesn't exceed OpenAI's size limits
+      #
+      # @param span [Hash] The span to sanitize
+      # @return [Hash, nil] Sanitized span or nil if it can't be made small enough
       #
       # @api private
-      def flush_spans
-        return if @span_buffer.empty?
+      def sanitize_span_data(span)
+        # Maximum size for individual span data (keeping it under 9KB to be safe)
+        max_span_size = 9000
 
-        unless @api_key
-          log_warn("OPENAI_API_KEY is not set, skipping trace export", processor: "OpenAI")
-          return
+        # First, get the JSON size (with safe generation to avoid circular references)
+        json_size = safe_json_generate(span).bytesize
+
+        # If it's already small enough, return as-is
+        return span if json_size <= max_span_size
+
+        # Make a deep copy to avoid modifying the original
+        sanitized = Marshal.load(Marshal.dump(span))
+
+        # For custom spans with large data fields, truncate aggressively
+        if sanitized[:span_data] && sanitized[:span_data][:type] == "custom"
+          data = sanitized[:span_data][:data]
+          if data.is_a?(Hash)
+            # Keep only essential fields for custom spans
+            essential_fields = %w[
+              pipeline.name pipeline.class pipeline.agent_count
+              pipeline.execution_mode pipeline.success pipeline.agents_executed
+              duration_ms error
+            ]
+
+            filtered_data = {}
+            data.each do |key, value|
+              if essential_fields.any? { |field| key.to_s.start_with?(field) }
+                # Truncate even essential field values if too large
+                value_str = value.to_s
+                if value_str.length > 200
+                  filtered_data[key] = value_str[0...200] + "...[truncated]"
+                else
+                  filtered_data[key] = value_str
+                end
+              end
+            end
+
+            sanitized[:span_data][:data] = filtered_data
+          end
         end
 
-        spans_to_send = @span_buffer.dup
-        @span_buffer.clear
+        # For LLM spans, truncate input/output messages
+        if sanitized[:span_data] && sanitized[:span_data][:type] == "generation"
+          # Truncate input messages
+          if sanitized[:span_data][:input].is_a?(Array)
+            sanitized[:span_data][:input] = sanitized[:span_data][:input].map do |msg|
+              if msg.is_a?(Hash) && msg["content"]
+                content = msg["content"].to_s
+                if content.length > 500
+                  msg.merge("content" => content[0...500] + "...[truncated]")
+                else
+                  msg
+                end
+              else
+                msg
+              end
+            end
+          end
 
-        send_spans(spans_to_send)
+          # Truncate output
+          if sanitized[:span_data][:output].is_a?(Array)
+            sanitized[:span_data][:output] = sanitized[:span_data][:output].map do |msg|
+              if msg.is_a?(Hash) && msg[:content]
+                content = msg[:content].to_s
+                if content.length > 500
+                  msg.merge(content: content[0...500] + "...[truncated]")
+                else
+                  msg
+                end
+              else
+                msg
+              end
+            end
+          end
+        end
+
+        # For tool/function spans, truncate input/output
+        if sanitized[:span_data] && sanitized[:span_data][:type] == "function"
+          if sanitized[:span_data][:input]
+            input_str = sanitized[:span_data][:input].to_s
+            if input_str.length > 500
+              sanitized[:span_data][:input] = input_str[0...500] + "...[truncated]"
+            end
+          end
+
+          if sanitized[:span_data][:output]
+            output_str = sanitized[:span_data][:output].to_s
+            if output_str.length > 500
+              sanitized[:span_data][:output] = output_str[0...500] + "...[truncated]"
+            end
+          end
+        end
+
+        # Final check - if still too large, return minimal span
+        final_size = safe_json_generate(sanitized).bytesize
+        if final_size > max_span_size
+          log_warn("Span still too large after sanitization (#{final_size} bytes), sending minimal data",
+                   processor: "OpenAI",
+                   span_id: span[:id],
+                   original_size: json_size,
+                   final_size: final_size)
+
+          # Return absolute minimum span data
+          {
+            object: "trace.span",
+            id: span[:id],
+            trace_id: span[:trace_id],
+            parent_id: span[:parent_id],
+            started_at: span[:started_at],
+            ended_at: span[:ended_at],
+            span_data: {
+              type: span[:span_data][:type] || "custom",
+              name: span[:span_data][:name] || "unknown",
+              data: { truncated: true, original_size: json_size }
+            },
+            error: span[:error]
+          }
+        else
+          sanitized
+        end
       rescue StandardError => e
-        if $DEBUG
-          log_debug("Failed to send spans to OpenAI: #{e.message}", processor: "OpenAI",
-                                                                    error_class: e.class.name)
-        end
+        log_error("Failed to sanitize span data: #{e.message}",
+                  processor: "OpenAI",
+                  error_class: e.class.name)
+        nil
       end
+
 
       # Sends spans to the OpenAI traces API
       #
@@ -517,13 +634,31 @@ module RAAF
         payload_items = []
 
         # First add the trace object (without spans)
+        # Calculate trace end time from the latest span end time
+        trace_ended_at = nil
+        if spans.any?
+          latest_end_time = spans.map { |span|
+            # Extract end time from the span data
+            if span.is_a?(Hash) && span.dig(:ended_at)
+              Time.parse(span[:ended_at]) rescue nil
+            end
+          }.compact.max
+
+          trace_ended_at = latest_end_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
+        end
+
         trace_data = {
           object: "trace",
           id: @current_trace_id,
           workflow_name: @workflow_name,
           group_id: nil,
           metadata: nil
+          # Note: OpenAI API doesn't accept 'ended_at' field in trace objects
         }
+
+        log_debug("[OpenAI Processor] Sending trace with #{spans.size} spans",
+                 processor: "OpenAI", trace_id: @current_trace_id,
+                 spans_count: spans.size, trace_ended_at: trace_ended_at || "not_set")
         payload_items << trace_data
 
         # Then add each span as a separate item, but ensure they don't exceed size limits
@@ -537,7 +672,7 @@ module RAAF
           data: payload_items
         }
 
-        request.body = JSON.generate(payload)
+        request.body = safe_json_generate(payload)
 
         log_debug_http("HTTP request details", processor: "OpenAI", url: uri.to_s)
         log_debug_http("HTTP request headers", processor: "OpenAI")
@@ -598,6 +733,48 @@ module RAAF
         else
           log_debug_http("OpenAI error response body", processor: "OpenAI", body: response.body)
           log_warn("OpenAI traces API error", processor: "OpenAI", code: response.code, body: response.body)
+        end
+      end
+
+      # Safely generates JSON with circular reference protection
+      #
+      # @param data [Object] Data to convert to JSON
+      # @return [String] JSON string with circular references replaced
+      def safe_json_generate(data)
+        sanitized_data = deep_sanitize_for_json(data)
+        JSON.generate(sanitized_data)
+      rescue StandardError => e
+        log_error("Failed to generate JSON: #{e.message}", processor: "OpenAI")
+        JSON.generate({ error: "Failed to serialize data", message: e.message })
+      end
+
+      # Deep sanitization for JSON conversion with circular reference protection
+      #
+      # @param obj [Object] Object to sanitize
+      # @param visited [Set] Set of visited object IDs
+      # @return [Object] Sanitized object safe for JSON conversion
+      def deep_sanitize_for_json(obj, visited = Set.new)
+        # Handle circular references by tracking object IDs
+        if obj.is_a?(Hash) || obj.is_a?(Array)
+          object_id = obj.object_id
+          return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
+          visited = visited.dup.add(object_id)
+        end
+
+        case obj
+        when Hash
+          result = {}
+          obj.each do |key, value|
+            result[key.to_s] = deep_sanitize_for_json(value, visited)
+          end
+          result
+        when Array
+          obj.map { |item| deep_sanitize_for_json(item, visited) }
+        when String, Integer, Float, TrueClass, FalseClass, NilClass
+          obj
+        else
+          # Convert other objects to string to avoid serialization issues
+          obj.to_s
         end
       end
     end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "concurrent"
+require "set"
 require_relative "../../../../core/lib/raaf/logging"
 
 module RAAF
@@ -283,19 +284,137 @@ module RAAF
       def export_batch(batch)
         return if batch.empty?
 
-        # Debug logging now handled by category system
+        # Sanitize spans before export to prevent circular references in HashWithIndifferentAccess
+        sanitized_batch = batch.map { |span| sanitize_span_for_export(span) }
 
         begin
-          log_debug_tracing("[BatchTraceProcessor] Exporting #{batch.size} spans to #{@exporter.class.name}",
-                            batch_size: batch.size, exporter: @exporter.class.name)
-          @exporter.export(batch)
-          log_debug_tracing("[BatchTraceProcessor] Export completed successfully", batch_size: batch.size)
+          log_debug_tracing("[BatchTraceProcessor] Exporting #{sanitized_batch.size} spans to #{@exporter.class.name}",
+                            batch_size: sanitized_batch.size, exporter: @exporter.class.name)
+          @exporter.export(sanitized_batch)
+          log_debug_tracing("[BatchTraceProcessor] Export completed successfully", batch_size: sanitized_batch.size)
         rescue StandardError => e
           warn "[BatchTraceProcessor] Export error: #{e.message}"
           log_debug_tracing("Export error backtrace", error: e.message, backtrace: e.backtrace.first(5).join("\n"))
         end
 
         @last_flush_time.set(Time.now)
+      end
+
+      # Sanitizes a span for export by converting to plain hash and removing circular references
+      #
+      # @param span [Span] The span to sanitize
+      # @return [Hash] Sanitized span data safe for JSON conversion
+      #
+      # @api private
+      def sanitize_span_for_export(span)
+        # Convert span to plain hash with sanitized attributes
+        {
+          span_id: span.span_id,
+          trace_id: span.trace_id,
+          parent_id: span.parent_id,
+          name: span.name,
+          kind: span.kind,
+          start_time: span.start_time,
+          end_time: span.end_time,
+          status: span.status,
+          attributes: deep_sanitize_hash(span.attributes || {}),
+          events: sanitize_events_for_export(span.events || [])
+        }
+      rescue StandardError => e
+        # If sanitization fails, return minimal span data
+        warn "[BatchTraceProcessor] Failed to sanitize span #{span.span_id}: #{e.message}"
+        {
+          span_id: span.span_id,
+          trace_id: span.trace_id,
+          name: span.name,
+          kind: span.kind,
+          start_time: span.start_time,
+          end_time: span.end_time,
+          status: span.status,
+          attributes: {},
+          events: []
+        }
+      end
+
+      # Deep sanitizes hash data to remove circular references and convert HashWithIndifferentAccess
+      #
+      # @param hash [Hash] The hash to sanitize
+      # @param visited [Set] Set of visited object IDs to prevent circular references
+      # @return [Hash] Sanitized hash safe for JSON conversion
+      #
+      # @api private
+      def deep_sanitize_hash(hash, visited = Set.new)
+        return {} unless hash.respond_to?(:each)
+
+        # Prevent circular references
+        if visited.include?(hash.object_id)
+          return "[CIRCULAR_REFERENCE]"
+        end
+        visited = visited.dup.add(hash.object_id)
+
+        result = {}
+        hash.each do |key, value|
+          sanitized_key = key.to_s
+          result[sanitized_key] = sanitize_value_for_export(value, visited)
+        end
+        result
+      rescue StandardError => e
+        warn "[BatchTraceProcessor] Hash sanitization error: #{e.message}"
+        {}
+      end
+
+      # Sanitizes individual values for export
+      #
+      # @param value [Object] The value to sanitize
+      # @param visited [Set] Set of visited object IDs to prevent circular references
+      # @return [Object] Sanitized value safe for JSON conversion
+      #
+      # @api private
+      def sanitize_value_for_export(value, visited = Set.new)
+        case value
+        when Hash
+          deep_sanitize_hash(value, visited)
+        when Array
+          return "[CIRCULAR_REFERENCE]" if visited.include?(value.object_id)
+          visited = visited.dup.add(value.object_id)
+          value.map { |v| sanitize_value_for_export(v, visited) }
+        when String
+          # Truncate very long strings
+          value.length > 10_000 ? "#{value[0..9997]}..." : value
+        when Time
+          value.utc.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
+        when Numeric, TrueClass, FalseClass, NilClass
+          value
+        else
+          # Convert unknown objects to strings
+          value.to_s
+        end
+      rescue StandardError => e
+        warn "[BatchTraceProcessor] Value sanitization error: #{e.message}"
+        "[SANITIZATION_ERROR]"
+      end
+
+      # Sanitizes events for export
+      #
+      # @param events [Array] The events to sanitize
+      # @return [Array] Sanitized events safe for JSON conversion
+      #
+      # @api private
+      def sanitize_events_for_export(events)
+        return [] unless events.is_a?(Array)
+
+        events.map do |event|
+          next unless event.is_a?(Hash)
+
+          {
+            "name" => event["name"]&.to_s,
+            "timestamp" => event["timestamp"],
+            "attributes" => deep_sanitize_hash(event["attributes"] || {})
+          }
+        end.compact
+      rescue StandardError => e
+        warn "[BatchTraceProcessor] Events sanitization error: #{e.message}"
+        []
       end
 
       # Emergency flush that bypasses normal queueing
@@ -314,9 +433,12 @@ module RAAF
 
         return if emergency_spans.empty?
 
+        # Sanitize spans before export to prevent circular references
+        sanitized_emergency_spans = emergency_spans.map { |span| sanitize_span_for_export(span) }
+
         # Attempt direct export with retries
         3.times do |attempt|
-          @exporter.export(emergency_spans)
+          @exporter.export(sanitized_emergency_spans)
           log_debug_tracing("[BatchTraceProcessor] Emergency flush succeeded on attempt #{attempt + 1}", attempt: attempt + 1)
           return
         rescue StandardError => e
@@ -349,8 +471,11 @@ module RAAF
 
           log_debug_tracing("[BatchTraceProcessor] Synchronous export attempt #{attempts}: #{batch.size} spans", attempt: attempts, batch_size: batch.size)
 
+          # Sanitize spans before export to prevent circular references
+          sanitized_batch = batch.map { |span| sanitize_span_for_export(span) }
+
           begin
-            @exporter.export(batch)
+            @exporter.export(sanitized_batch)
             log_debug_tracing("[BatchTraceProcessor] Synchronous export succeeded", attempt: attempts)
             return # Success, we're done
           rescue StandardError => e
@@ -366,9 +491,12 @@ module RAAF
               @queue.clear # Clear queue to avoid infinite loop
               emergency_spans = batch
 
+              # Sanitize spans before emergency export
+              sanitized_emergency_spans = emergency_spans.map { |span| sanitize_span_for_export(span) }
+
               # Emergency direct export attempt
               begin
-                @exporter.export(emergency_spans)
+                @exporter.export(sanitized_emergency_spans)
                 log_debug_tracing("[BatchTraceProcessor] Emergency export succeeded", emergency_spans: emergency_spans.size)
               rescue StandardError => emergency_error
                 warn "[BatchTraceProcessor] Final emergency export failed: #{emergency_error.message}"

@@ -2,6 +2,7 @@
 
 require "json"
 require "time"
+require "raaf/logging"
 require_relative "tracing/spans"
 require_relative "tracing/trace"
 require_relative "tracing/openai_processor"

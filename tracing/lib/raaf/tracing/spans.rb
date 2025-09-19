@@ -199,6 +199,9 @@ module RAAF
         self
       end
 
+      # Alias for compatibility with run_executor.rb
+      alias end_span finish
+
       # Checks if the span has been finished
       #
       # @return [Boolean] true if span is finished
@@ -369,7 +372,7 @@ module RAAF
     #     # HTTP API call
     #   end
     class SpanTracer
-      include Logger
+      include RAAF::Logger
       # @return [SpanContext] The span context manager
       attr_reader :context
 
@@ -785,7 +788,7 @@ module RAAF
     #   tracer = RAAF::tracer
     #   tracer.add_processor(ConsoleSpanProcessor.new)
     class ConsoleSpanProcessor
-      include Logger
+      include RAAF::Logger
       # Called when a span starts
       #
       # @param span [Span] The started span

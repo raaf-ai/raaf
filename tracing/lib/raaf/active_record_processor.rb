@@ -8,7 +8,10 @@ rescue LoadError
   # Models will be loaded by Rails engine
 end
 
+require "digest"
+require "set"
 require "raaf/logging"
+require_relative "tracing/base_processor"
 
 module RAAF
   module Tracing
@@ -56,8 +59,7 @@ module RAAF
     # - Supports sampling to limit data volume
     # - Optimized for high-throughput applications
     # - Background processing for non-blocking operation
-    class ActiveRecordProcessor
-      include Logger
+    class ActiveRecordProcessor < BaseProcessor
       # Default sampling rate (capture all traces)
       DEFAULT_SAMPLING_RATE = 1.0
 
@@ -78,21 +80,28 @@ module RAAF
       # @param cleanup_older_than [ActiveSupport::Duration] Age threshold for cleanup
       def initialize(sampling_rate: DEFAULT_SAMPLING_RATE, batch_size: DEFAULT_BATCH_SIZE,
                      auto_cleanup: false, cleanup_older_than: 30.days)
-        @sampling_rate = sampling_rate.clamp(0.0, 1.0)
-        @batch_size = batch_size
-        @auto_cleanup = auto_cleanup
-        @cleanup_older_than = cleanup_older_than
 
-        @span_buffer = []
+        # Initialize base processor with ActiveRecord-specific options
+        super(batch_size: batch_size,
+              sampling_rate: sampling_rate,
+              auto_cleanup: auto_cleanup,
+              cleanup_older_than: cleanup_older_than)
+      end
+
+      # Hook for ActiveRecord-specific initialization after BaseProcessor setup
+      #
+      # @param options [Hash] Options passed to initialize
+      # @return [void]
+      def post_initialize(options)
+        @sampling_rate = options[:sampling_rate].clamp(0.0, 1.0)
+        @auto_cleanup = options[:auto_cleanup]
+        @cleanup_older_than = options[:cleanup_older_than]
+
         @trace_buffer = {}
-        @mutex = Mutex.new
         @last_cleanup = Time.current
 
         # Lazy validation flag
         @database_validated = false
-
-        # Start background processing if batch size > 1
-        start_background_processing if @batch_size > 1
 
         log_info("ActiveRecord processor initialized",
           sampling_rate_percent: (@sampling_rate * 100).round(1),
@@ -116,57 +125,100 @@ module RAAF
 
       # Called when a span ends
       #
-      # This is where the main processing happens. The span is saved to the
-      # database (directly or via batching) and the trace status is updated.
+      # BaseProcessor handles the main processing logic. This method just
+      # performs ActiveRecord-specific cleanup tasks.
       #
       # @param span [Span] The span that ended
       # @return [void]
       def on_span_end(span)
-        ensure_database_validated
-        return unless should_sample?(span.trace_id)
-
-        if @batch_size > 1
-          add_to_batch(span)
-        else
-          save_span_immediately(span)
-        end
+        # Call parent class to handle buffering and batching
+        super(span)
 
         # Periodic cleanup if enabled
         perform_cleanup_if_needed
       end
 
-      # Forces immediate processing of all buffered spans
+      protected
+
+      # Determines if a span should be processed (BaseProcessor abstract method)
       #
-      # @return [void]
-      def flush
-        @mutex.synchronize do
-          process_batch(@span_buffer.dup)
-          @span_buffer.clear
-        end
+      # @param span [Span] The span to evaluate
+      # @return [Boolean] true if span should be processed
+      def should_process?(span)
+        return false unless ensure_database_validated
+        # Extract trace_id in a way that works for both Span objects and sanitized hashes
+        trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
+        should_sample?(trace_id)
       end
 
-      # Shuts down the processor
+      # Transforms a span for database storage (BaseProcessor abstract method)
       #
-      # Flushes any remaining spans and stops background processing.
+      # @param span [Span, Hash] The span to transform (can be Span object or sanitized hash)
+      # @return [Hash, nil] Transformed span data or nil to skip
+      def process_span(span)
+        # Extract values in a way that works for both Span objects and sanitized hashes
+        span_id = span.is_a?(Hash) ? span[:span_id] : span.span_id
+        trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
+        parent_id = span.is_a?(Hash) ? span[:parent_id] : span.parent_id
+        name = span.is_a?(Hash) ? span[:name] : span.name
+        kind = span.is_a?(Hash) ? span[:kind] : span.kind
+        start_time = span.is_a?(Hash) ? span[:start_time] : span.start_time
+        end_time = span.is_a?(Hash) ? span[:end_time] : span.end_time
+        status = span.is_a?(Hash) ? span[:status] : span.status
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+        events = span.is_a?(Hash) ? (span[:events] || []) : (span.events || [])
+
+        log_debug_tracing("ActiveRecord process_span", span_kind: kind, span_name: name, span_id: span_id)
+
+        ensure_trace_exists(span, trace_id)
+
+        # Return sanitized span data to prevent circular reference issues
+        # This is critical for BatchTraceProcessor flow where unsanitized spans
+        # can cause stack overflow in HashWithIndifferentAccess
+        sanitized_span_data = {
+          span_id: span_id,
+          trace_id: trace_id,
+          parent_id: parent_id,
+          name: name,
+          kind: kind,
+          start_time: start_time,
+          end_time: end_time,
+          status: status,
+          attributes: sanitize_attributes(attributes),
+          events: sanitize_events(events)
+        }
+
+        log_debug_tracing("ActiveRecord process_span returning sanitized data",
+                          span_kind: sanitized_span_data[:kind],
+                          span_name: sanitized_span_data[:name],
+                          attributes_count: sanitized_span_data[:attributes]&.keys&.size || 0)
+
+        sanitized_span_data
+      end
+
+      # Exports a batch of spans to the database (BaseProcessor abstract method)
       #
+      # @param spans [Array] Array of spans to save
       # @return [void]
-      def shutdown
-        flush
-        @background_thread&.kill
-        log_info("ActiveRecord processor shut down")
+      def export_batch(spans)
+        process_batch(spans)
       end
 
       private
 
       # Ensure database has been validated (lazy loading)
       def ensure_database_validated
-        return if @database_validated
+        return true if @database_validated
 
-        @mutex.synchronize do
-          return if @database_validated
-
+        # NOTE: This method is called from within mutex-synchronized blocks
+        # so additional synchronization is not needed here
+        begin
           validate_database_setup
           @database_validated = true
+          true
+        rescue StandardError => e
+          log_error("Database validation failed", error: e.message, error_class: e.class.name)
+          false
         end
       end
 
@@ -187,33 +239,40 @@ module RAAF
       #
       # @param span [Span] Span containing trace information
       # @return [void]
-      def ensure_trace_exists(span)
-        @mutex.synchronize do
-          return if @trace_buffer[span.trace_id]
+      def ensure_trace_exists(span, trace_id = nil)
+        # NOTE: This method is called from within a mutex-synchronized block in process_span
+        # so no additional synchronization is needed here
 
-          # Check if trace already exists in database
-          existing_trace = ::RAAF::Tracing::TraceRecord.find_by(trace_id: span.trace_id)
-          if existing_trace
-            @trace_buffer[span.trace_id] = existing_trace
-            return
-          end
+        # Extract trace_id - use parameter if provided, otherwise extract from span
+        actual_trace_id = trace_id || (span.is_a?(Hash) ? span[:trace_id] : span.trace_id)
 
-          # Extract trace information from span attributes
-          trace_attrs = extract_trace_attributes(span)
+        return if @trace_buffer[actual_trace_id]
 
-          begin
-            trace = ::RAAF::Tracing::TraceRecord.create!(
-              trace_id: span.trace_id,
-              workflow_name: trace_attrs[:workflow_name] || "Unknown Workflow",
-              group_id: trace_attrs[:group_id],
-              metadata: trace_attrs[:metadata] || {},
-              started_at: span.start_time,
-              status: "running"
-            )
-            @trace_buffer[span.trace_id] = trace
-          rescue ActiveRecord::RecordInvalid => e
-            log_warn("Failed to create trace", error: e.message, error_class: e.class.name)
-          end
+        # Check if trace already exists in database
+        existing_trace = ::RAAF::Tracing::TraceRecord.find_by(trace_id: actual_trace_id)
+        if existing_trace
+          @trace_buffer[actual_trace_id] = existing_trace
+          return
+        end
+
+        # Extract trace information from span attributes
+        trace_attrs = extract_trace_attributes(span)
+
+        begin
+          # Extract start_time for trace creation
+          start_time = span.is_a?(Hash) ? span[:start_time] : span.start_time
+
+          trace = ::RAAF::Tracing::TraceRecord.create!(
+            trace_id: actual_trace_id,
+            workflow_name: trace_attrs[:workflow_name] || "Unknown Workflow",
+            group_id: trace_attrs[:group_id],
+            metadata: trace_attrs[:metadata] || {},
+            started_at: start_time,
+            status: "running"
+          )
+          @trace_buffer[actual_trace_id] = trace
+        rescue ActiveRecord::RecordInvalid => e
+          log_warn("Failed to create trace", error: e.message, error_class: e.class.name)
         end
       end
 
@@ -222,40 +281,20 @@ module RAAF
       # @param span [Span] The span containing trace data
       # @return [Hash] Trace attributes
       def extract_trace_attributes(span)
-        attributes = span.attributes || {}
+        # Extract attributes and name in a way that works for both Span objects and sanitized hashes
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+        name = span.is_a?(Hash) ? span[:name] : span.name
 
         {
           workflow_name: attributes["trace.workflow_name"] ||
             attributes["agent.name"] ||
-            span.name.split(".").first,
+            name.to_s.split(".").first,
           group_id: attributes["trace.group_id"],
           metadata: attributes["trace.metadata"] || {}
         }
       end
 
-      # Add span to batch for later processing
-      #
-      # @param span [Span] The span to add
-      # @return [void]
-      def add_to_batch(span)
-        @mutex.synchronize do
-          @span_buffer << span
 
-          if @span_buffer.size >= @batch_size
-            process_batch(@span_buffer.dup)
-            @span_buffer.clear
-          end
-        end
-      end
-
-      # Save span immediately (non-batched mode)
-      #
-      # @param span [Span] The span to save
-      # @return [void]
-      def save_span_immediately(span)
-        ensure_trace_exists(span)
-        save_span_to_database(span)
-      end
 
       # Process a batch of spans
       #
@@ -266,7 +305,9 @@ module RAAF
 
         begin
           ::RAAF::Tracing::SpanRecord.transaction do
-            spans.each { |span| save_span_to_database(span) }
+            spans.each do |span|
+              save_span_to_database(span)
+            end
           end
 
           log_debug_tracing("Saved batch of spans", spans_count: spans.size)
@@ -277,25 +318,63 @@ module RAAF
 
       # Save individual span to database
       #
-      # @param span [Span] The span to save
+      # @param span [Span, Hash] The span to save (can be Span object or sanitized hash from process_span)
       # @return [void]
       def save_span_to_database(span)
-        # Skip trace-level spans as they're handled separately
-        return if span.kind == :trace
+        # Handle both Span objects and sanitized hash data from process_span
+        if span.is_a?(Hash)
+          # Already sanitized data from process_span
+          span_kind = span[:kind]
+          span_name = span[:name]
+          span_id = span[:span_id]
+        else
+          # Original Span object
+          span_kind = span.kind
+          span_name = span.name
+          span_id = span.span_id
+        end
 
-        span_attributes = {
-          span_id: span.span_id,
-          trace_id: span.trace_id,
-          parent_id: span.parent_id,
-          name: span.name,
-          kind: span.kind.to_s,
-          start_time: span.start_time,
-          end_time: span.end_time,
-          duration_ms: calculate_duration_ms(span),
-          span_attributes: sanitize_attributes(span.attributes),
-          events: sanitize_events(span.events),
-          status: span.status.to_s
-        }
+        log_debug_tracing("ActiveRecord save_span_to_database", span_kind: span_kind, span_name: span_name, span_id: span_id)
+
+        # Skip trace-level spans as they're handled separately
+        if span_kind == :trace
+          log_debug_tracing("ActiveRecord skipping trace-level span", span_kind: span_kind, span_name: span_name)
+          return
+        end
+
+        if span.is_a?(Hash)
+          # Use already sanitized data from process_span (prevents double sanitization)
+          span_attributes = {
+            span_id: span[:span_id],
+            trace_id: span[:trace_id],
+            parent_id: span[:parent_id],
+            name: span[:name],
+            kind: span[:kind].to_s,
+            start_time: span[:start_time],
+            end_time: span[:end_time],
+            duration_ms: calculate_duration_from_times(span[:start_time], span[:end_time]),
+            span_attributes: span[:attributes] || {},  # Already sanitized
+            events: span[:events] || [],               # Already sanitized
+            status: span[:status].to_s
+          }
+        else
+          # Process original Span object with sanitization
+          span_attributes = {
+            span_id: span.span_id,
+            trace_id: span.trace_id,
+            parent_id: span.parent_id,
+            name: span.name,
+            kind: span.kind.to_s,
+            start_time: span.start_time,
+            end_time: span.end_time,
+            duration_ms: calculate_duration_ms(span),
+            span_attributes: sanitize_attributes(span.attributes),
+            events: sanitize_events(span.events),
+            status: span.status.to_s
+          }
+        end
+
+        log_debug_tracing("ActiveRecord creating span record", span_kind: span_attributes[:kind], span_name: span_attributes[:name], span_id: span_attributes[:span_id])
 
         ::RAAF::Tracing::SpanRecord.create!(span_attributes)
       rescue ActiveRecord::RecordInvalid => e
@@ -314,6 +393,17 @@ module RAAF
         ((span.end_time - span.start_time) * 1000).round(2)
       end
 
+      # Calculate duration from separate start and end times
+      #
+      # @param start_time [Time] Start time
+      # @param end_time [Time] End time
+      # @return [Float, nil] Duration in milliseconds
+      def calculate_duration_from_times(start_time, end_time)
+        return nil unless start_time && end_time
+
+        ((end_time - start_time) * 1000).round(2)
+      end
+
       # Sanitize span attributes for database storage
       #
       # @param attributes [Hash] Raw attributes
@@ -323,8 +413,9 @@ module RAAF
 
         # Remove or truncate large values to prevent database issues
         sanitized = {}
+        visited = Set.new
         attributes.each do |key, value|
-          sanitized[key.to_s] = sanitize_value(value)
+          sanitized[key.to_s] = sanitize_value(value, visited)
         end
         sanitized
       end
@@ -350,46 +441,36 @@ module RAAF
       # Sanitize individual value
       #
       # @param value [Object] Value to sanitize
+      # @param visited [Set] Set of visited object IDs to prevent circular references
       # @return [Object] Sanitized value
-      def sanitize_value(value)
+      def sanitize_value(value, visited = Set.new)
+        # Prevent circular references by tracking visited objects
+        if value.is_a?(Hash) || value.is_a?(Array)
+          object_id = value.object_id
+          return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
+          visited = visited.dup.add(object_id)
+        end
+
         case value
         when String
           # Truncate very long strings
           value.length > 10_000 ? "#{value[0..9997]}..." : value
         when Hash
-          # Recursively sanitize nested hashes
-          value.transform_keys(&:to_s).transform_values { |v| sanitize_value(v) }
+          # Recursively sanitize nested hashes with circular reference protection
+          sanitized = {}
+          value.each do |k, v|
+            sanitized[k.to_s] = sanitize_value(v, visited)
+          end
+          sanitized
         when Array
-          # Limit array size and sanitize elements
+          # Limit array size and sanitize elements with circular reference protection
           limited_array = value.first(100)
-          limited_array.map { |v| sanitize_value(v) }
+          limited_array.map { |v| sanitize_value(v, visited) }
         else
           value
         end
       end
 
-      # Start background processing thread
-      #
-      # @return [void]
-      def start_background_processing
-        @background_thread = Thread.new do
-          loop do
-            sleep(5) # Process every 5 seconds
-
-            next if @span_buffer.empty?
-
-            @mutex.synchronize do
-              if @span_buffer.any?
-                process_batch(@span_buffer.dup)
-                @span_buffer.clear
-              end
-            end
-          rescue StandardError => e
-            log_error("Background processing error", error: e.message, error_class: e.class.name)
-          end
-        end
-        @background_thread.name = "OpenAI-Agents-Tracing"
-      end
 
       # Perform cleanup if needed
       #
@@ -406,6 +487,15 @@ module RAAF
         ensure
           @last_cleanup = Time.current
         end
+      end
+
+      # Performs processor-specific shutdown logic (BaseProcessor hook)
+      #
+      # @return [void]
+      def perform_shutdown
+        # Stop background thread if it exists
+        @background_thread&.kill
+        log_debug("#{self.class.name} shut down", processor: self.class.name)
       end
 
       # Validate that database tables exist
