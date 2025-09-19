@@ -5,6 +5,9 @@ RAAF::Rails::Engine.routes.draw do
 
   # Dashboard routes
   get "/dashboard", to: "dashboard#index"
+  get "/dashboard/performance", to: "dashboard#performance"
+  get "/dashboard/costs", to: "dashboard#costs"
+  get "/dashboard/errors", to: "dashboard#errors"
   get "/dashboard/agents", to: "dashboard#agents"
   get "/dashboard/conversations", to: "dashboard#conversations"
   get "/dashboard/analytics", to: "dashboard#analytics"
@@ -53,10 +56,6 @@ RAAF::Rails::Engine.routes.draw do
       end
     end
     
-    get "dashboard", to: "dashboard#index"
-    get "dashboard/performance", to: "dashboard#performance"
-    get "dashboard/costs", to: "dashboard#costs"
-    get "dashboard/errors", to: "dashboard#errors"
     get "timeline", to: "timeline#show"
     get "search", to: "search#index"
     
