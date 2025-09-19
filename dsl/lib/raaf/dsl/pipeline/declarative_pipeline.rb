@@ -32,7 +32,7 @@ module RAAF
       #       needs: [:market_analysis, :competitor_analysis]
       #       
       #     on_step_failure :market_analysis, fallback_to: :simple_market_analysis
-      #     on_pipeline_failure retry: 1, then: :partial_results
+      #     on_pipeline_failure retry_count: 1, then: :partial_results
       #   end
       #
       class DeclarativePipeline < RAAF::DSL::Agent
@@ -111,27 +111,27 @@ module RAAF
           #
           # @param step_name [Symbol] Step that might fail
           # @param fallback_to [Symbol] Method to call as fallback
-          # @param retry [Integer] Number of retries before fallback
+          # @param retry_count [Integer] Number of retries before fallback
           #
-          def on_step_failure(step_name, fallback_to: nil, retry: 0)
+          def on_step_failure(step_name, fallback_to: nil, retry_count: 0)
             self._error_handlers ||= {}
             self._error_handlers[step_name] = {
               type: :step_failure,
               fallback_method: fallback_to,
-              retry_count: retry
+              retry_count: retry_count
             }
           end
 
           # Define what to do when the entire pipeline fails
           #
-          # @param retry [Integer] Number of full pipeline retries
+          # @param retry_count [Integer] Number of full pipeline retries
           # @param then [Symbol] Method to call after retries exhausted
           #
-          def on_pipeline_failure(retry: 0, then: nil)
+          def on_pipeline_failure(retry_count: 0, then: nil)
             self._error_handlers ||= {}
             self._error_handlers[:pipeline] = {
               type: :pipeline_failure,
-              retry_count: retry,
+              retry_count: retry_count,
               fallback_method: binding.local_variable_get(:then)
             }
           end

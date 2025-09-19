@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require "raaf/tool"
-require "raaf/tool_registry"
+require "raaf/function_tool"
 
 module RAAF
   module DSL

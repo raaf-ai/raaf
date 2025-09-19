@@ -439,16 +439,11 @@ RSpec.describe RAAF::DSL::Config, :with_temp_files do
           expect(config).to eq({})
         end
 
-        it "logs warning when Rails logger is available" do
-          # Mock Rails directly in the test
+        it "logs warning when RAAF logger is available" do
+          # Mock RAAF logger instead of Rails logger
           logger = double("Logger")
-          rails_mock = double("Rails")
-          allow(rails_mock).to receive_messages(logger: logger, respond_to?: false) # Default response
-          allow(rails_mock).to receive(:respond_to?).with(:logger).and_return(true)
-          allow(rails_mock).to receive(:respond_to?).with(:env).and_return(false)
-          allow(rails_mock).to receive(:respond_to?).with(:root).and_return(false)
           allow(logger).to receive(:warn)
-          stub_const("Rails", rails_mock)
+          allow(RAAF).to receive(:logger).and_return(logger)
 
           RAAF::DSL.configure { |c| c.config_file = "nonexistent.yml" }
           described_class.global
@@ -466,17 +461,12 @@ RSpec.describe RAAF::DSL::Config, :with_temp_files do
           expect(config).to eq({})
         end
 
-        it "logs error when Rails logger is available" do
-          # Mock Rails directly in the test
+        it "logs error when RAAF logger is available" do
+          # Mock RAAF logger instead of Rails logger
           logger = double("Logger")
-          rails_mock = double("Rails")
-          allow(rails_mock).to receive_messages(logger: logger, respond_to?: false) # Default response
-          allow(rails_mock).to receive(:respond_to?).with(:logger).and_return(true)
-          allow(rails_mock).to receive(:respond_to?).with(:env).and_return(false)
-          allow(rails_mock).to receive(:respond_to?).with(:root).and_return(false)
           allow(logger).to receive(:error)
           allow(logger).to receive(:warn) # Also expect warn in case file doesn't exist
-          stub_const("Rails", rails_mock)
+          allow(RAAF).to receive(:logger).and_return(logger)
 
           invalid_config_path = create_invalid_yaml_file
           RAAF::DSL.configure { |c| c.config_file = invalid_config_path }

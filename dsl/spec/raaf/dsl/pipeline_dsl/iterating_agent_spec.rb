@@ -2,7 +2,6 @@
 
 require 'spec_helper'
 require 'raaf/dsl/pipeline_dsl/iterating_agent'
-require 'raaf/dsl/pipeline_dsl/agent_introspection'
 
 RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
   # Mock agent classes for testing

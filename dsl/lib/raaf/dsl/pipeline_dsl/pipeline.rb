@@ -112,8 +112,9 @@ module RAAF
     # 3. Mixed: Pipeline.new(context: base_context, extra_key: value)
     #
     # @param context [Hash, nil] Optional context hash (like agents)
+    # @param tracer [RAAF::Tracing::SpanTracer, nil] Optional tracer for span creation
     # @param provided_context [Hash] Additional context as keyword arguments
-    def initialize(context: nil, **provided_context)
+    def initialize(context: nil, tracer: nil, **provided_context)
       # Support both context: hash and direct keyword arguments like agents do
       if context
         # Context provided explicitly (like agents)
@@ -122,8 +123,9 @@ module RAAF
         # Use keyword arguments as context
         @context = build_initial_context(provided_context)
       end
-      
+
       @flow = self.class.flow_chain
+      @tracer = tracer || RAAF.tracer
       # Add pipeline instance to context - now works with ContextVariables
       @context = @context.set(:pipeline_instance, self) if @context.respond_to?(:set)
       validate_initial_context!
@@ -187,6 +189,61 @@ module RAAF
     end
 
     def run
+      # Create pipeline span with comprehensive metadata
+      return execute_without_tracing if @tracer.nil?
+
+      @tracer.pipeline_span(pipeline_name) do |span|
+        # Set comprehensive pipeline metadata
+        set_pipeline_span_attributes(span)
+
+        # Initialize result collection for auto-merge
+        @agent_results = []
+        @pipeline_span = span
+
+        # Validate pipeline before execution (enabled by default)
+        unless self.class.skip_validation
+          validate_pipeline!
+        end
+
+        span.add_event("pipeline.validation_completed")
+
+        # Update @context with accumulated data from agents
+        @context = execute_chain(@flow, @context)
+
+        # Auto-merge all agent results intelligently
+        merged_result = auto_merge_results(@agent_results)
+
+        # Capture final result in span
+        capture_pipeline_result(span, merged_result)
+
+        # Execute on_end hook if defined and capture modified result
+        # Now @context contains all accumulated data from agents
+        if self.class.on_end_block
+          span.add_event("pipeline.on_end_hook_start")
+          merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)
+          span.add_event("pipeline.on_end_hook_completed")
+        end
+
+        # Ensure success flag is present
+        merged_result[:success] = true unless merged_result.key?(:success)
+
+        # Update span with final status
+        span.set_status(merged_result[:success] ? :ok : :error)
+        span.set_attribute("pipeline.success", merged_result[:success])
+
+        merged_result
+      end
+    end
+    
+    private
+
+    # Get pipeline name for span creation
+    def pipeline_name
+      self.class.name || "UnknownPipeline"
+    end
+
+    # Execute pipeline without tracing (fallback)
+    def execute_without_tracing
       # Initialize result collection for auto-merge
       @agent_results = []
 
@@ -202,7 +259,6 @@ module RAAF
       merged_result = auto_merge_results(@agent_results)
 
       # Execute on_end hook if defined and capture modified result
-      # Now @context contains all accumulated data from agents
       if self.class.on_end_block
         merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)
       end
@@ -211,9 +267,166 @@ module RAAF
       merged_result[:success] = true unless merged_result.key?(:success)
       merged_result
     end
-    
-    private
-    
+
+    # Set comprehensive pipeline span attributes
+    def set_pipeline_span_attributes(span)
+      # Basic pipeline info
+      span.set_attribute("pipeline.class", self.class.name)
+      span.set_attribute("pipeline.name", pipeline_name)
+
+      # Flow structure
+      flow_structure = flow_structure_description(@flow)
+      span.set_attribute("pipeline.flow_structure", flow_structure)
+      span.set_attribute("pipeline.agent_count", count_agents_in_flow(@flow))
+
+      # Context configuration
+      context_fields = self.class.context_fields || []
+      span.set_attribute("pipeline.context_fields", context_fields)
+
+      required_fields = self.class.required_fields || []
+      span.set_attribute("pipeline.required_fields", required_fields)
+
+      optional_fields = self.class._context_config[:context_rules]&.dig(:optional)&.keys || []
+      span.set_attribute("pipeline.optional_fields", optional_fields)
+
+      # Pipeline configuration
+      span.set_attribute("pipeline.has_schema", !self.class.pipeline_schema_block.nil?)
+      span.set_attribute("pipeline.has_hooks", !self.class.on_end_block.nil?)
+      span.set_attribute("pipeline.validation_enabled", !self.class.skip_validation)
+
+      # Execution mode detection
+      execution_mode = detect_execution_mode(@flow)
+      span.set_attribute("pipeline.execution_mode", execution_mode)
+
+      # Initial context (redacted for sensitive data)
+      initial_context = redact_sensitive_data(@context.respond_to?(:to_h) ? @context.to_h : @context)
+      span.set_attribute("pipeline.initial_context", initial_context)
+    end
+
+    # Capture pipeline result in span
+    def capture_pipeline_result(span, result)
+      # Final result metadata
+      span.set_attribute("pipeline.result_keys", result.keys) if result.is_a?(Hash)
+
+      # Redact sensitive data from final result
+      safe_result = redact_sensitive_data(result)
+      span.set_attribute("pipeline.final_result", safe_result)
+
+      # Agent execution summary
+      span.set_attribute("pipeline.agents_executed", @agent_results.length)
+      span.set_attribute("pipeline.successful_agents", @agent_results.count { |r| r.dig(:success) != false })
+    end
+
+    # Generate flow structure description
+    def flow_structure_description(flow)
+      case flow
+      when DSL::PipelineDSL::ChainedAgent
+        "#{agent_name(flow.first)} >> #{flow_structure_description(flow.second)}"
+      when DSL::PipelineDSL::ParallelAgents
+        agents = flow.agents.map { |a| agent_name(a) }
+        "(#{agents.join(' | ')})"
+      when DSL::PipelineDSL::ConfiguredAgent, DSL::PipelineDSL::RemappedAgent
+        agent_name(flow.agent_class)
+      when Class
+        flow.name || flow.to_s
+      else
+        flow.to_s
+      end
+    end
+
+    # Count total agents in flow
+    def count_agents_in_flow(flow)
+      case flow
+      when DSL::PipelineDSL::ChainedAgent
+        count_agents_in_flow(flow.first) + count_agents_in_flow(flow.second)
+      when DSL::PipelineDSL::ParallelAgents
+        flow.agents.length
+      when DSL::PipelineDSL::ConfiguredAgent, DSL::PipelineDSL::RemappedAgent, Class
+        1
+      else
+        1
+      end
+    end
+
+    # Detect execution mode (sequential, parallel, mixed)
+    def detect_execution_mode(flow)
+      has_sequential = has_chained_agents?(flow)
+      has_parallel = has_parallel_agents?(flow)
+
+      if has_sequential && has_parallel
+        "mixed"
+      elsif has_parallel
+        "parallel"
+      else
+        "sequential"
+      end
+    end
+
+    # Check if flow has chained agents (sequential)
+    def has_chained_agents?(flow)
+      case flow
+      when DSL::PipelineDSL::ChainedAgent
+        true
+      when DSL::PipelineDSL::ParallelAgents
+        flow.agents.any? { |a| has_chained_agents?(a) }
+      else
+        false
+      end
+    end
+
+    # Check if flow has parallel agents
+    def has_parallel_agents?(flow)
+      case flow
+      when DSL::PipelineDSL::ParallelAgents
+        true
+      when DSL::PipelineDSL::ChainedAgent
+        has_parallel_agents?(flow.first) || has_parallel_agents?(flow.second)
+      else
+        false
+      end
+    end
+
+    # Get agent name from flow element
+    def agent_name(agent)
+      case agent
+      when Class
+        agent.name || agent.to_s
+      when DSL::PipelineDSL::ConfiguredAgent, DSL::PipelineDSL::RemappedAgent
+        agent.agent_class.name || agent.agent_class.to_s
+      else
+        agent.to_s
+      end
+    end
+
+    # Redact sensitive data from context/results
+    def redact_sensitive_data(data)
+      return data unless data.is_a?(Hash)
+
+      redacted = {}
+      data.each do |key, value|
+        key_str = key.to_s.downcase
+        if sensitive_key?(key_str)
+          redacted[key] = "[REDACTED]"
+        elsif value.is_a?(Hash)
+          redacted[key] = redact_sensitive_data(value)
+        elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
+          redacted[key] = value.map { |v| v.is_a?(Hash) ? redact_sensitive_data(v) : v }
+        else
+          redacted[key] = value
+        end
+      end
+      redacted
+    end
+
+    # Check if key contains sensitive information
+    def sensitive_key?(key)
+      sensitive_patterns = %w[
+        password token secret key api_key auth credential
+        email phone ssn social_security credit_card
+      ]
+      sensitive_patterns.any? { |pattern| key.include?(pattern) }
+    end
+
     # Execute callback with parameter signature (matching agent hooks)
     # Pipeline hooks now use the same signature as agent hooks: |context, pipeline, result|
     def execute_callback_with_parameters(result, &block)
@@ -396,7 +609,13 @@ module RAAF
 
       # ContextVariables now supports direct splatting via to_hash method
       # Create instance - works for both Agent and Service classes
-      instance = agent_class.new(**context)
+      # Pass tracer and parent span context if available
+      instance_params = context.to_h
+      if @tracer && @pipeline_span
+        instance_params[:tracer] = @tracer
+        instance_params[:parent_span] = @pipeline_span
+      end
+      instance = agent_class.new(**instance_params)
 
       # Inject pipeline schema if available
       if pipeline_schema && instance.respond_to?(:inject_pipeline_schema)

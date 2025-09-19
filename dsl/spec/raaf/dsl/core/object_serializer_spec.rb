@@ -46,8 +46,8 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
     end
   end
   
-  # Test struct
-  TestStruct = Struct.new(:name, :value, :nested) do
+  # Test struct for serializer
+  SerializerSerializerTestStruct = Struct.new(:name, :value, :nested) do
     def custom_method
       "#{name}: #{value}"
     end
@@ -152,7 +152,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
     
     context "with Struct objects" do
       it "serializes struct attributes" do
-        struct = TestStruct.new("test", 42, nil)
+        struct = SerializerTestStruct.new("test", 42, nil)
         
         result = described_class.serialize(struct)
         
@@ -164,7 +164,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
       end
       
       it "includes struct methods when specified" do
-        struct = TestStruct.new("test", 42)
+        struct = SerializerTestStruct.new("test", 42)
         
         result = described_class.serialize(struct, methods: [:custom_method])
         
@@ -241,7 +241,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
       end
       
       it "handles mixed arrays" do
-        mixed = [1, "string", { key: "value" }, TestStruct.new("test", 42)]
+        mixed = [1, "string", { key: "value" }, SerializerTestStruct.new("test", 42)]
         
         result = described_class.serialize(mixed)
         

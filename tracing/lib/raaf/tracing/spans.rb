@@ -576,6 +576,17 @@ module RAAF
                                           "agent.name" => agent_name, **attributes, &)
       end
 
+      # Creates a pipeline execution span
+      #
+      # @param pipeline_name [String] Name of the pipeline
+      # @param attributes [Hash] Additional span attributes
+      # @yield [span] Block to execute within the span
+      # @return [Object] Result of the block
+      def pipeline_span(pipeline_name, **attributes, &)
+        start_span("pipeline.#{pipeline_name}", kind: :pipeline,
+                                                "pipeline.name" => pipeline_name, **attributes, &)
+      end
+
       # Creates a tool/function execution span
       #
       # @param tool_name [String] Name of the tool

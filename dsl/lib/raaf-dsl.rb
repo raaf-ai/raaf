@@ -76,6 +76,7 @@ module RAAF
     
     # Auto-require core components
     autoload :AgentBuilder, "raaf/dsl/builders/agent_builder"
+    autoload :AgentToolIntegration, "raaf/dsl/agent_tool_integration"
     autoload :AutoMerge, "raaf/dsl/auto_merge"
     autoload :Config, "raaf/dsl/config/config"
     autoload :ConfigurationBuilder, "raaf/dsl/builders/configuration_builder"
@@ -112,6 +113,7 @@ module RAAF
     #
     module Agents
       # AgentDsl functionality has been consolidated into the unified Agent class
+      autoload :ContextValidation, "raaf/dsl/agents/context_validation"
     end
 
     # Main Agent class - the unified agent with all features
@@ -185,10 +187,21 @@ module RAAF
       autoload :Base, "raaf/dsl/tools/base"
       autoload :ConventionOverConfiguration, "raaf/dsl/tools/convention_over_configuration"
       autoload :PerformanceOptimizer, "raaf/dsl/tools/performance_optimizer"
+      autoload :Tool, "raaf/dsl/tools/tool"
       autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"
       autoload :WebSearch, "raaf/dsl/tools/web_search"
       autoload :WebSearchPresets, "raaf/dsl/tools/web_search_presets"
       autoload :TavilySearch, "raaf/dsl/tools/tavily_search"
+    end
+
+    # Resilience patterns for error handling and retries
+    #
+    # This module contains resilience patterns and utilities for handling
+    # failures, implementing retries with backoff, circuit breakers, and
+    # other error handling strategies.
+    #
+    module Resilience
+      autoload :SmartRetry, "raaf/dsl/resilience/smart_retry"
     end
 
     # Debugging and inspection capabilities

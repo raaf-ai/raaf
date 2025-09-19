@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'ostruct'
+
 module RAAF
   module DSL
     # ObjectSerializer provides intelligent serialization for different Ruby object types

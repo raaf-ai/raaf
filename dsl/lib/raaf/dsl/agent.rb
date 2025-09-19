@@ -55,6 +55,8 @@ module RAAF
       class << self
 
         def _tools_config
+          # TODO: Consider refactoring thread-local storage to avoid potential memory leaks
+          # with object_id keys in long-running multi-threaded applications
           Thread.current["raaf_dsl_tools_config_#{object_id}"] ||= []
         end
 
@@ -526,6 +528,30 @@ module RAAF
           end
         end
 
+        # Set or get general timeout for this agent (used by pipeline wrappers)
+        #
+        # @param seconds [Integer, nil] Timeout in seconds
+        # @return [Integer, nil] The timeout value
+        def timeout(seconds = nil)
+          if seconds
+            _context_config[:timeout] = seconds
+          else
+            _context_config[:timeout]
+          end
+        end
+
+        # Set or get retry count for this agent (used by pipeline wrappers)
+        #
+        # @param count [Integer, nil] Number of retry attempts
+        # @return [Integer, nil] The retry count value
+        def retry(count = nil)
+          if count
+            _context_config[:retry] = count
+          else
+            _context_config[:retry]
+          end
+        end
+
         def schema(model: nil, &block)
           # Always use the modern SchemaBuilder that supports model introspection
           builder = RAAF::DSL::SchemaBuilder.new(model: model)
@@ -804,11 +830,13 @@ module RAAF
       # Initialize a new agent instance
       #
       # @param context [ContextVariables, Hash, nil] Context for all agent data
-      # @param processing_params [Hash] Parameters that control how the agent processes content  
+      # @param processing_params [Hash] Parameters that control how the agent processes content
       # @param debug [Boolean, nil] Enable debug logging for this agent instance
       # @param validation_mode [Boolean] Skip execution conditions during validation (internal use)
+      # @param tracer [RAAF::Tracing::SpanTracer, nil] Optional tracer for span creation
+      # @param parent_span [RAAF::Tracing::Span, nil] Optional parent span for hierarchy
       # @param kwargs [Hash] Arbitrary keyword arguments that become context when auto-context is enabled
-      def initialize(context: nil, processing_params: {}, debug: nil, validation_mode: false, **kwargs)
+      def initialize(context: nil, processing_params: {}, debug: nil, validation_mode: false, tracer: nil, parent_span: nil, **kwargs)
         @debug_enabled = debug || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?) || false
         @processing_params = processing_params
         @validation_mode = validation_mode
@@ -816,6 +844,8 @@ module RAAF
         @circuit_breaker_failures = 0
         @circuit_breaker_last_failure = nil
         @pipeline_schema = nil  # Will be set by pipeline if agent is part of one
+        @tracer = tracer || (RAAF.respond_to?(:tracer) ? RAAF.tracer : nil)
+        @parent_span = parent_span
         
         # If context provided explicitly, use it (backward compatible)
         if context
@@ -873,6 +903,11 @@ module RAAF
         else
           run_without_timeout(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
         end
+      end
+
+      # Backward compatibility alias for run method
+      def call(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
       end
 
       private
@@ -1375,6 +1410,7 @@ module RAAF
         rescue StandardError => e
           # This is a real error in the class definition (like missing methods, syntax errors, etc.)
           # Re-raise it so the user can see what's wrong
+          # TODO: Consider more defensive error re-raising pattern - e.class constructor might not accept this format
           raise e.class, "Error loading prompt class #{prompt_class_name}: #{e.message}", e.backtrace
         end
       end
@@ -1857,40 +1893,84 @@ module RAAF
       
       # Direct execution without smart features (original run behavior)
       def direct_run(context: nil, input_context_variables: nil, stop_checker: nil)
-        # Resolve context for this run
-        run_context = resolve_run_context(context || input_context_variables)
-        
-        # Create OpenAI agent with DSL configuration
-        openai_agent = create_agent
-        
-        # Build user prompt with context if available
-        user_prompt = build_user_prompt_with_context(run_context)
-        
-        log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
-        
-        # Create RAAF runner and delegate execution
-        runner_params = { agent: openai_agent }
-        runner_params[:stop_checker] = stop_checker if stop_checker
-        runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
-        
-        runner = RAAF::Runner.new(**runner_params)
-        
-        # Pure delegation to raaf-ruby
-        log_debug "Calling RAAF runner for #{self.class.name}"
-        run_result = runner.run(user_prompt, context: run_context)
-        
-        # Generic response logging
-        log_debug "Received AI response for #{agent_name}"
-        
-        # Transform result to expected DSL format
-        base_result = transform_ai_result(run_result, run_context)
+        # Execute with comprehensive tracing if available
+        return execute_without_tracing(context, input_context_variables, stop_checker) unless @tracer
 
-        # Apply result transformations if configured, or auto-generate them for output fields
-        if self.class._result_transformations
-          apply_result_transformations(base_result)
-        else
-          # Automatically extract output fields if they are declared but no transformations exist
-          generate_auto_transformations_for_output_fields(base_result)
+        # Create agent span with full metadata and dialog capture
+        @tracer.agent_span(agent_name) do |span|
+          # Set parent span if provided (from pipeline)
+          span.instance_variable_set(:@parent_id, @parent_span.span_id) if @parent_span
+
+          # Set comprehensive agent metadata
+          set_agent_span_attributes(span)
+
+          # Resolve context for this run
+          run_context = resolve_run_context(context || input_context_variables)
+
+          # Capture initial dialog state
+          capture_initial_dialog_state(span, run_context)
+
+          span.add_event("agent.context_resolved")
+
+          # Create OpenAI agent with DSL configuration
+          openai_agent = create_agent
+
+          span.add_event("agent.openai_agent_created")
+
+          # Build user prompt with context if available
+          user_prompt = build_user_prompt_with_context(run_context)
+
+          # Capture dialog components
+          capture_dialog_components(span, openai_agent, user_prompt, run_context)
+
+          span.add_event("agent.prompt_built", attributes: {
+            prompt_length: user_prompt.to_s.length
+          })
+
+          log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
+
+          # Create RAAF runner and delegate execution
+          runner_params = { agent: openai_agent, tracer: @tracer }
+          runner_params[:stop_checker] = stop_checker if stop_checker
+          runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
+
+          runner = RAAF::Runner.new(**runner_params)
+
+          span.add_event("agent.runner_created")
+
+          # Pure delegation to raaf-ruby
+          log_debug "Calling RAAF runner for #{self.class.name}"
+          run_result = runner.run(user_prompt, context: run_context)
+
+          span.add_event("agent.llm_execution_completed")
+
+          # Capture final dialog state
+          capture_final_dialog_state(span, run_result)
+
+          # Generic response logging
+          log_debug "Received AI response for #{agent_name}"
+
+          # Transform result to expected DSL format
+          base_result = transform_ai_result(run_result, run_context)
+
+          span.add_event("agent.result_transformed")
+
+          # Apply result transformations if configured, or auto-generate them for output fields
+          result = if self.class._result_transformations
+            apply_result_transformations(base_result)
+          else
+            # Automatically extract output fields if they are declared but no transformations exist
+            generate_auto_transformations_for_output_fields(base_result)
+          end
+
+          # Capture final result in span
+          capture_agent_result(span, result)
+
+          # Update span success status
+          span.set_status(result.dig(:success) == false ? :error : :ok)
+          span.set_attribute("agent.success", result.dig(:success) != false)
+
+          result
         end
       rescue StandardError => e
         log_error("Agent execution failed", 
@@ -1908,6 +1988,276 @@ module RAAF
           context_variables: run_context,
           summary: "Agent execution failed: #{e.message}"
         }
+      end
+
+      # Execute agent without tracing (fallback)
+      def execute_without_tracing(context, input_context_variables, stop_checker)
+        # Resolve context for this run
+        run_context = resolve_run_context(context || input_context_variables)
+
+        # Create OpenAI agent with DSL configuration
+        openai_agent = create_agent
+
+        # Build user prompt with context if available
+        user_prompt = build_user_prompt_with_context(run_context)
+
+        log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
+
+        # Create RAAF runner and delegate execution
+        runner_params = { agent: openai_agent }
+        runner_params[:stop_checker] = stop_checker if stop_checker
+        runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
+
+        runner = RAAF::Runner.new(**runner_params)
+
+        # Pure delegation to raaf-ruby
+        log_debug "Calling RAAF runner for #{self.class.name}"
+        run_result = runner.run(user_prompt, context: run_context)
+
+        # Generic response logging
+        log_debug "Received AI response for #{agent_name}"
+
+        # Transform result to expected DSL format
+        base_result = transform_ai_result(run_result, run_context)
+
+        # Apply result transformations if configured, or auto-generate them for output fields
+        if self.class._result_transformations
+          apply_result_transformations(base_result)
+        else
+          # Automatically extract output fields if they are declared but no transformations exist
+          generate_auto_transformations_for_output_fields(base_result)
+        end
+      end
+
+      # Set comprehensive agent span attributes
+      def set_agent_span_attributes(span)
+        # Basic agent info
+        span.set_attribute("agent.class", self.class.name)
+        span.set_attribute("agent.name", agent_name)
+        span.set_attribute("agent.description", self.class.description) if self.class.description
+
+        # Model configuration
+        span.set_attribute("agent.model", self.class.model)
+        span.set_attribute("agent.temperature", self.class._context_config[:temperature]) if self.class._context_config[:temperature]
+        span.set_attribute("agent.max_turns", self.class.max_turns)
+
+        # Timeout configuration
+        span.set_attribute("agent.timeout", self.class._context_config[:timeout]) if self.class._context_config[:timeout]
+        span.set_attribute("agent.execution_timeout", self.class._context_config[:execution_timeout]) if self.class._context_config[:execution_timeout]
+        span.set_attribute("agent.http_timeout", self.class._context_config[:http_timeout]) if self.class._context_config[:http_timeout]
+
+        # Retry configuration
+        span.set_attribute("agent.retry_count", self.class._context_config[:retry]) if self.class._context_config[:retry]
+        if self.class._retry_config&.any?
+          span.set_attribute("agent.retry_config", self.class._retry_config.to_s)
+        end
+
+        # Circuit breaker configuration
+        if self.class._circuit_breaker_config
+          span.set_attribute("agent.circuit_breaker_enabled", true)
+          span.set_attribute("agent.circuit_breaker_threshold", self.class._circuit_breaker_config[:threshold])
+          span.set_attribute("agent.circuit_breaker_timeout", self.class._circuit_breaker_config[:timeout])
+        else
+          span.set_attribute("agent.circuit_breaker_enabled", false)
+        end
+
+        # Schema & validation configuration
+        span.set_attribute("agent.has_schema", !self.class._schema_definition.nil?)
+        if self.class._schema_definition
+          config = self.class._schema_definition[:config] || {}
+          span.set_attribute("agent.schema_mode", config[:mode] || "strict")
+          span.set_attribute("agent.schema_repair_attempts", config[:repair_attempts] || 0)
+        end
+
+        span.set_attribute("agent.auto_merge_enabled", self.class.auto_merge)
+
+        # Tools & handoffs
+        tools = self.class._tools_config || []
+        span.set_attribute("agent.tools", tools.map(&:to_s))
+        span.set_attribute("agent.tool_count", tools.length)
+
+        # Prompt configuration
+        span.set_attribute("agent.prompt_class", self.class.prompt_class.name) if self.class.prompt_class
+        span.set_attribute("agent.has_static_instructions", !self.class.static_instructions.nil?)
+        span.set_attribute("agent.has_instruction_template", !self.class.instruction_template.nil?)
+
+        # Context requirements
+        required_fields = self.class.required_fields || []
+        span.set_attribute("agent.required_fields", required_fields)
+
+        optional_fields = self.class._context_config.dig(:context_rules, :optional)&.keys || []
+        span.set_attribute("agent.optional_fields", optional_fields)
+
+        # Runtime context
+        span.set_attribute("agent.input_size", calculate_input_size)
+        span.set_attribute("agent.parent_pipeline", @parent_span ? "pipeline" : "standalone")
+      end
+
+      # Capture initial dialog state
+      def capture_initial_dialog_state(span, run_context)
+        # Capture context size and keys
+        span.set_attribute("dialog.context_size", run_context.respond_to?(:size) ? run_context.size : run_context.keys.length)
+        span.set_attribute("dialog.context_keys", run_context.respond_to?(:keys) ? run_context.keys : run_context.keys)
+
+        # Redact sensitive context data
+        safe_context = redact_sensitive_dialog_data(run_context.respond_to?(:to_h) ? run_context.to_h : run_context)
+        span.set_attribute("dialog.initial_context", safe_context)
+      end
+
+      # Capture dialog components (prompts, instructions)
+      def capture_dialog_components(span, openai_agent, user_prompt, run_context)
+        # System prompt (instructions)
+        system_prompt = openai_agent.instructions
+        if system_prompt
+          safe_system_prompt = redact_sensitive_content(system_prompt)
+          span.set_attribute("dialog.system_prompt", safe_system_prompt)
+          span.set_attribute("dialog.system_prompt_length", system_prompt.length)
+        end
+
+        # User prompt
+        if user_prompt
+          safe_user_prompt = redact_sensitive_content(user_prompt.to_s)
+          span.set_attribute("dialog.user_prompt", safe_user_prompt)
+          span.set_attribute("dialog.user_prompt_length", user_prompt.to_s.length)
+        end
+
+        # Prompt class info
+        if self.class.prompt_class
+          span.set_attribute("dialog.prompt_class", self.class.prompt_class.name)
+        end
+      end
+
+      # Capture final dialog state from LLM execution
+      def capture_final_dialog_state(span, run_result)
+        if run_result.respond_to?(:messages) && run_result.messages
+          # Capture conversation messages
+          messages = run_result.messages.map do |msg|
+            {
+              role: msg[:role],
+              content: redact_sensitive_content(msg[:content] || ""),
+              timestamp: msg[:timestamp] || Time.now.utc.iso8601
+            }
+          end
+          span.set_attribute("dialog.messages", messages)
+          span.set_attribute("dialog.message_count", messages.length)
+
+          # Tool calls if present
+          tool_calls = extract_tool_calls_from_messages(messages)
+          if tool_calls.any?
+            span.set_attribute("dialog.tool_calls", tool_calls)
+            span.set_attribute("dialog.tool_call_count", tool_calls.length)
+          end
+        end
+
+        # Token usage
+        if run_result.respond_to?(:usage) && run_result.usage
+          usage = run_result.usage
+          span.set_attribute("dialog.total_tokens", {
+            prompt_tokens: usage[:prompt_tokens] || 0,
+            completion_tokens: usage[:completion_tokens] || 0,
+            total_tokens: usage[:total_tokens] || 0
+          })
+        end
+      end
+
+      # Capture final agent result
+      def capture_agent_result(span, result)
+        # Result metadata
+        span.set_attribute("agent.output_size", calculate_output_size(result))
+
+        # Safe result (redacted)
+        safe_result = redact_sensitive_dialog_data(result)
+        span.set_attribute("dialog.final_result", safe_result)
+
+        # Success indicators
+        span.set_attribute("agent.workflow_status", result[:workflow_status]) if result[:workflow_status]
+        if result[:error]
+          span.set_attribute("agent.error_message", result[:error])
+        end
+      end
+
+      # Calculate input data size
+      def calculate_input_size
+        return 0 unless @context
+        context_data = @context.respond_to?(:to_h) ? @context.to_h : @context
+        context_data.to_s.length rescue 0
+      end
+
+      # Calculate output data size
+      def calculate_output_size(result)
+        return 0 unless result
+        result.to_s.length rescue 0
+      end
+
+      # Extract tool calls from conversation messages
+      def extract_tool_calls_from_messages(messages)
+        tool_calls = []
+        messages.each do |msg|
+          if msg[:role] == "assistant" && msg[:content]
+            # Look for function call patterns in content
+            # This is a simplified extraction - real implementation would depend on message format
+            content = msg[:content].to_s
+            if content.include?("function_call") || content.include?("tool_call")
+              tool_calls << {
+                message_content: content[0..200], # First 200 chars
+                timestamp: msg[:timestamp]
+              }
+            end
+          end
+        end
+        tool_calls
+      end
+
+      # Redact sensitive content from dialog
+      def redact_sensitive_dialog_data(data)
+        return data unless data.is_a?(Hash)
+
+        redacted = {}
+        data.each do |key, value|
+          key_str = key.to_s.downcase
+          if sensitive_dialog_key?(key_str)
+            redacted[key] = "[REDACTED]"
+          elsif value.is_a?(Hash)
+            redacted[key] = redact_sensitive_dialog_data(value)
+          elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
+            redacted[key] = value.map { |v| v.is_a?(Hash) ? redact_sensitive_dialog_data(v) : v }
+          else
+            redacted[key] = value
+          end
+        end
+        redacted
+      end
+
+      # Redact sensitive content from strings
+      def redact_sensitive_content(content)
+        return content unless content.is_a?(String)
+
+        # Redact common sensitive patterns
+        redacted = content.dup
+
+        # API keys, tokens
+        redacted.gsub!(/\b[A-Za-z0-9]{32,}\b/, "[REDACTED_TOKEN]")
+
+        # Email addresses
+        redacted.gsub!(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, "[REDACTED_EMAIL]")
+
+        # Phone numbers (simple pattern)
+        redacted.gsub!(/\b\d{3}-\d{3}-\d{4}\b/, "[REDACTED_PHONE]")
+
+        # Credit card numbers (simple pattern)
+        redacted.gsub!(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/, "[REDACTED_CC]")
+
+        redacted
+      end
+
+      # Check if dialog key contains sensitive information
+      def sensitive_dialog_key?(key)
+        sensitive_patterns = %w[
+          password token secret key api_key auth credential
+          email phone ssn social_security credit_card
+          private_key access_token refresh_token
+        ]
+        sensitive_patterns.any? { |pattern| key.include?(pattern) }
       end
 
       def validate_context!
@@ -2014,8 +2364,9 @@ module RAAF
             network_match = false
             begin
               network_match = defined?(Net::Error) && error.is_a?(Net::Error)
-            rescue
-              # Net::Error might not be available
+            rescue NameError
+              # Net::Error class not available in this environment
+              network_match = false
             end
             if network_match || error.message.include?("connection") || error.message.include?("503")
               log_debug "✅ [#{self.class.name}] Matched :network"
@@ -2703,6 +3054,7 @@ module RAAF
         end
 
         # Generic method_missing to handle any configuration option
+        # TODO: Add respond_to_missing? implementation for proper Ruby method resolution
         def method_missing(method_name, *args, &block)
           if args.length == 1
             @config[method_name.to_sym] = args.first

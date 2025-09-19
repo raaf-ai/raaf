@@ -99,8 +99,8 @@ module RAAF
 
         # Execute with input/output remapping
         def execute(context, agent_results = [])
-          timeout_value = @options[:timeout] || 30
-          retry_count = @options[:retry] || 1
+          timeout_value = @options[:timeout] || get_agent_config(:timeout) || 30
+          retry_count = @options[:retry] || get_agent_config(:retry) || 1
 
           Timeout.timeout(timeout_value) do
             attempts = 0
@@ -110,17 +110,9 @@ module RAAF
               # Apply input mapping to context
               remapped_context = apply_input_mapping_to_context(context)
 
-              # Merge any additional options (excluding control options)
-              enhanced_context = remapped_context.dup
-              @options.each do |key, value|
-                unless [:timeout, :retry].include?(key)
-                  enhanced_context[key] = value
-                end
-              end
-
-              # Execute agent with remapped context
-              context_hash = enhanced_context.is_a?(RAAF::DSL::ContextVariables) ?
-                enhanced_context.to_h : enhanced_context
+              # Convert context for agent initialization (no options merging needed!)
+              context_hash = remapped_context.is_a?(RAAF::DSL::ContextVariables) ?
+                remapped_context.to_h : remapped_context
               agent = @agent_class.new(**context_hash)
               result = agent.run
 
@@ -151,6 +143,14 @@ module RAAF
         end
 
         private
+
+        # Extract configuration value from the wrapped agent class
+        # This allows pipeline wrappers to access DSL configurations like timeout, max_turns, etc.
+        def get_agent_config(key)
+          return nil unless @agent_class.respond_to?(:_context_config)
+
+          @agent_class._context_config[key.to_sym]
+        end
 
         # Normalize mapping to ensure consistent symbol keys
         def normalize_mapping(mapping)

@@ -40,6 +40,35 @@ RSpec.describe RAAF::DSL::Schema::SchemaCache do
   before do
     # Clear cache before each test
     described_class.clear_cache!
+
+    # Mock Rails for schema cache tests
+    unless defined?(Rails)
+      rails_double = double('Rails')
+      stub_const('Rails', rails_double)
+    end
+
+    # Mock Rails.logger
+    logger_double = double('Logger')
+    allow(logger_double).to receive(:debug)
+    allow(Rails).to receive(:logger).and_return(logger_double)
+
+    # Mock Rails.root
+    root_double = double('Pathname')
+    allow(root_double).to receive(:join).and_return(root_double)
+    allow(Rails).to receive(:root).and_return(root_double)
+
+    # Mock Rails.env
+    env_double = double('Env')
+    allow(env_double).to receive(:development?).and_return(false)
+    allow(Rails).to receive(:env).and_return(env_double)
+
+    # Mock Rails.application for production environment tests
+    app_double = double('Application')
+    config_double = double('Config')
+    allow(config_double).to receive(:respond_to?).with(:cache_classes_timestamp).and_return(true)
+    allow(config_double).to receive(:cache_classes_timestamp).and_return(Time.current)
+    allow(app_double).to receive(:config).and_return(config_double)
+    allow(Rails).to receive(:application).and_return(app_double)
   end
 
   describe ".get_schema" do
@@ -110,23 +139,31 @@ RSpec.describe RAAF::DSL::Schema::SchemaCache do
   describe "cache invalidation" do
     context "in development environment" do
       before do
-        allow(Rails.env).to receive(:development?).and_return(true)
+        env_double = double('Env')
+        allow(env_double).to receive(:development?).and_return(true)
+        allow(Rails).to receive(:env).and_return(env_double)
         allow(described_class).to receive(:model_class_file).and_return("/path/to/model.rb")
       end
 
       it "invalidates cache when model file timestamp changes" do
         old_time = Time.current - 1.hour
-        new_time = Time.current
+        new_time = Time.current + 1.hour  # Make sure new_time is significantly newer
 
-        allow(File).to receive(:mtime).with("/path/to/model.rb").and_return(old_time, new_time)
+        # Set up the File.mtime mock to return old_time first, then new_time
+        call_count = 0
+        allow(File).to receive(:mtime).with("/path/to/model.rb") do
+          call_count += 1
+          call_count <= 1 ? old_time : new_time
+        end
+
         allow(RAAF::DSL::Schema::SchemaGenerator).to receive(:generate_for_model)
           .with(test_model_class)
           .and_return(expected_schema)
 
-        # First request - cache miss
+        # First request - cache miss, should store with Time.current (which is between old_time and new_time)
         described_class.get_schema(test_model_class)
 
-        # Second request with updated timestamp - cache miss due to invalidation
+        # Second request - File.mtime now returns new_time (future), should invalidate cache
         described_class.get_schema(test_model_class)
 
         expect(RAAF::DSL::Schema::SchemaGenerator).to have_received(:generate_for_model).twice
@@ -150,8 +187,15 @@ RSpec.describe RAAF::DSL::Schema::SchemaCache do
 
     context "in production environment" do
       before do
-        allow(Rails.env).to receive(:development?).and_return(false)
-        allow(Rails.application.config).to receive(:cache_classes_timestamp).and_return(Time.current)
+        env_double = double('Env')
+        allow(env_double).to receive(:development?).and_return(false)
+        allow(Rails).to receive(:env).and_return(env_double)
+
+        app_double = double('Application')
+        config_double = double('Config')
+        allow(config_double).to receive(:cache_classes_timestamp).and_return(Time.current)
+        allow(app_double).to receive(:config).and_return(config_double)
+        allow(Rails).to receive(:application).and_return(app_double)
       end
 
       it "uses application boot time for cache validation" do
@@ -287,7 +331,9 @@ RSpec.describe RAAF::DSL::Schema::SchemaCache do
     end
 
     it "handles file system errors in development" do
-      allow(Rails.env).to receive(:development?).and_return(true)
+      env_double = double('Env')
+      allow(env_double).to receive(:development?).and_return(true)
+      allow(Rails).to receive(:env).and_return(env_double)
       allow(described_class).to receive(:model_class_file).and_raise(StandardError, "File system error")
       allow(RAAF::DSL::Schema::SchemaGenerator).to receive(:generate_for_model)
         .with(test_model_class)

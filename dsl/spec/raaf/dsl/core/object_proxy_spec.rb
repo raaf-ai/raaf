@@ -44,8 +44,8 @@ RSpec.describe RAAF::DSL::ObjectProxy do
     end
   end
   
-  # Test struct
-  TestStruct = Struct.new(:name, :value)
+  # Test struct for proxy
+  ProxyProxyTestStruct = Struct.new(:name, :value)
   
   describe "#initialize" do
     it "creates a proxy for any object" do
@@ -312,7 +312,7 @@ RSpec.describe RAAF::DSL::ObjectProxy do
   
   describe "with various object types" do
     it "works with structs" do
-      struct = TestStruct.new("test", 42)
+      struct = ProxyTestStruct.new("test", 42)
       proxy = described_class.new(struct)
       
       expect(proxy.name).to eq("test")

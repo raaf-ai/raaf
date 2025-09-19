@@ -229,18 +229,49 @@ module RAAF
             # Full syntax: with_mapping(input: {...}, output: {...})
             input_mapping = mapping_config[:input] || {}
             output_mapping = mapping_config[:output] || {}
+            # Extract additional options (excluding input/output mappings)
+            additional_options = mapping_config.except(:input, :output)
           else
             # Shorthand syntax: with_mapping(field: source_field)
             # Assumes input-only remapping
             input_mapping = mapping_config
             output_mapping = {}
+            additional_options = {}
           end
+
+          # Extract DSL configurations from agent class to use as defaults
+          default_options = extract_agent_dsl_config
 
           PipelineDSL::RemappedAgent.new(
             self,
             input_mapping: input_mapping,
-            output_mapping: output_mapping
+            output_mapping: output_mapping,
+            **default_options.merge(additional_options)
           )
+        end
+
+        # Extract DSL configurations from agent class for use as pipeline defaults
+        # This method extracts timeout, retry, and other DSL configurations
+        # so they can be passed to pipeline wrappers like RemappedAgent
+        def extract_agent_dsl_config
+          return {} unless respond_to?(:_context_config)
+
+          config = {}
+
+          # Extract common DSL configurations
+          if _context_config[:timeout]
+            config[:timeout] = _context_config[:timeout]
+          end
+
+          if _context_config[:retry]
+            config[:retry] = _context_config[:retry]
+          end
+
+          if _context_config[:max_turns]
+            config[:max_turns] = _context_config[:max_turns]
+          end
+
+          config
         end
 
         # Field introspection methods (can be overridden by including classes)

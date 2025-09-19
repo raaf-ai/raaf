@@ -68,6 +68,7 @@ module RAAF
       # @param block [Proc] Block argument (should be nil for variable access)
       # @return [Object] The context variable value
       # @raise [NameError] If variable doesn't exist in any context source
+      # TODO: Add respond_to_missing? implementation for proper Ruby method resolution
       def method_missing(method_name, *args, &block)
         method_str = method_name.to_s
         
