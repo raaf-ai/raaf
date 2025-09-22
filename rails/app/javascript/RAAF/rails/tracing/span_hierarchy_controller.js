@@ -6,6 +6,9 @@ export default class extends Controller {
   static classes = ["expanded", "collapsed"]
 
   connect() {
+    console.log('🚀 SpanHierarchyController connected successfully!')
+    console.log('Element:', this.element)
+    console.log('Found expand buttons:', this.element.querySelectorAll('.expand-button').length)
     // Initialize all spans as collapsed (children hidden)
     this.initializeCollapsedState()
   }
@@ -13,6 +16,8 @@ export default class extends Controller {
   initializeCollapsedState() {
     // Find all expand buttons and ensure they start in collapsed state
     const expandButtons = this.element.querySelectorAll('.expand-button')
+    console.debug('🔘 Found ' + expandButtons.length + ' expand buttons')
+
     expandButtons.forEach(button => {
       const chevron = button.querySelector('svg')
       if (chevron) {
@@ -22,12 +27,16 @@ export default class extends Controller {
 
     // Hide all children rows initially
     const childrenRows = this.element.querySelectorAll('tr.span-children')
+    console.debug('👥 Found ' + childrenRows.length + ' children rows to hide')
+
     childrenRows.forEach(row => {
       row.classList.add('hidden')
+      console.debug('🙈 Hiding row for span ' + row.dataset.spanId + ', parent: ' + row.dataset.parentSpanId)
     })
   }
 
   toggleChildren(event) {
+    console.log('🎯 toggleChildren called!', event)
     event.preventDefault()
     event.stopPropagation()
 
@@ -35,13 +44,22 @@ export default class extends Controller {
     const spanId = button.dataset.spanId
     const chevron = button.querySelector('svg')
 
+    console.log('🔍 Toggling span ' + spanId)
+
     // Find all children rows for this span
     const childrenRows = this.element.querySelectorAll(
-      `tr.span-children[data-parent-span-id="${spanId}"]`
+      'tr.span-children[data-parent-span-id="' + spanId + '"]'
     )
 
+    console.debug('📊 Found ' + childrenRows.length + ' children rows for span ' + spanId)
+
+    // Debug: Log all span-children rows to see what we have
+    const allSpanChildren = this.element.querySelectorAll('tr.span-children')
+    console.debug('📋 All span-children rows in table: ' + allSpanChildren.length + ' total')
+
     if (childrenRows.length === 0) {
-      console.warn(`No children rows found for span ${spanId}`)
+      console.warn('⚠️ No children rows found for span ' + spanId)
+      console.debug('🔍 Looking for selector: tr.span-children[data-parent-span-id="' + spanId + '"]')
       return
     }
 
@@ -67,7 +85,7 @@ export default class extends Controller {
         requestAnimationFrame(() => {
           row.style.opacity = '0'
           row.style.transform = 'translateY(-10px)'
-          row.style.transition = `opacity 0.2s ease-out ${index * 0.05}s, transform 0.2s ease-out ${index * 0.05}s`
+          row.style.transition = 'opacity 0.2s ease-out ' + (index * 0.05) + 's, transform 0.2s ease-out ' + (index * 0.05) + 's'
 
           requestAnimationFrame(() => {
             row.style.opacity = '1'
@@ -88,7 +106,7 @@ export default class extends Controller {
 
       // Animate the disappearance
       childrenRows.forEach((row, index) => {
-        row.style.transition = `opacity 0.15s ease-in ${index * 0.02}s, transform 0.15s ease-in ${index * 0.02}s`
+        row.style.transition = 'opacity 0.15s ease-in ' + (index * 0.02) + 's, transform 0.15s ease-in ' + (index * 0.02) + 's'
         row.style.opacity = '0'
         row.style.transform = 'translateY(-5px)'
       })
@@ -105,7 +123,7 @@ export default class extends Controller {
       // Also collapse any expanded grandchildren
       childrenRows.forEach(row => {
         const grandchildrenRows = this.element.querySelectorAll(
-          `tr.span-children[data-parent-span-id="${row.dataset.spanId}"]`
+          'tr.span-children[data-parent-span-id="' + row.dataset.spanId + '"]'
         )
         grandchildrenRows.forEach(grandchildRow => {
           grandchildRow.classList.add('hidden')
@@ -126,7 +144,7 @@ export default class extends Controller {
     allExpandButtons.forEach(button => {
       const spanId = button.dataset.spanId
       const childrenRows = this.element.querySelectorAll(
-        `tr.span-children[data-parent-span-id="${spanId}"]`
+        'tr.span-children[data-parent-span-id="' + spanId + '"]'
       )
 
       if (childrenRows.length > 0 && childrenRows[0].classList.contains('hidden')) {
@@ -142,7 +160,7 @@ export default class extends Controller {
     allExpandButtons.forEach(button => {
       const spanId = button.dataset.spanId
       const childrenRows = this.element.querySelectorAll(
-        `tr.span-children[data-parent-span-id="${spanId}"]`
+        'tr.span-children[data-parent-span-id="' + spanId + '"]'
       )
 
       if (childrenRows.length > 0 && !childrenRows[0].classList.contains('hidden')) {
@@ -155,7 +173,7 @@ export default class extends Controller {
   trackExpansionState(spanId, wasExpanded) {
     // Optional: Track which spans are expanded for analytics or persistence
     const state = wasExpanded ? 'expanded' : 'collapsed'
-    console.debug(`Span ${spanId} ${state}`)
+    console.debug('Span ' + spanId + ' ' + state)
 
     // Could store in localStorage for persistence across page loads
     // or send analytics events here
