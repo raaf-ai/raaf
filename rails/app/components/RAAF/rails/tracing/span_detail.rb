@@ -330,70 +330,169 @@ module RAAF
         def render_structured_attributes(attributes, level = 0)
           return unless attributes
 
-          attributes.each do |key, value|
-            div(class: "border-l-2 #{'border-blue-200 pl-4' if level > 0}") do
-              case value
-              when Hash
-                # Nested object
-                div(class: "mb-3") do
-                  div(class: "flex items-center justify-between mb-2") do
-                    h5(class: "text-sm font-semibold text-gray-800 flex items-center") do
-                      i(class: "bi bi-braces text-blue-600 mr-2")
-                      key.to_s.humanize
-                      span(class: "ml-2 text-xs text-gray-500 font-normal") { "object (#{value.keys.count} keys)" }
-                    end
-                    button(
-                      class: "text-xs text-blue-600 hover:text-blue-800",
-                      data: { action: "toggle", target: "attr-#{key.to_s.parameterize}" }
-                    ) { "Expand" }
-                  end
-                  div(id: "attr-#{key.to_s.parameterize}-content", class: "pl-4 border-l border-gray-200") do
-                    render_structured_attributes(value, level + 1)
-                  end
+          # Group attributes logically for better organization
+          grouped_attrs = group_attributes(attributes)
+
+          grouped_attrs.each do |group_name, group_attrs|
+            div(class: "mb-6") do
+              # Group header
+              if group_name != :other
+                div(class: "mb-3 pb-2 border-b border-gray-200") do
+                  h4(class: "text-md font-semibold text-gray-900") { group_name.to_s.humanize }
                 end
-              when Array
-                # Array value
-                div(class: "mb-3") do
-                  h5(class: "text-sm font-semibold text-gray-800 flex items-center mb-2") do
-                    i(class: "bi bi-list-ul text-green-600 mr-2")
-                    key.to_s.humanize
-                    span(class: "ml-2 text-xs text-gray-500 font-normal") { "array (#{value.length} items)" }
-                  end
-                  div(class: "pl-4 space-y-1") do
-                    if value.length <= 5
-                      value.each_with_index do |item, index|
-                        div(class: "flex items-start") do
-                          span(class: "text-xs text-gray-400 mr-2 mt-1") { "#{index}:" }
-                          render_attribute_value(item)
-                        end
-                      end
-                    else
-                      # Show first few items and collapse the rest
-                      value.first(3).each_with_index do |item, index|
-                        div(class: "flex items-start") do
-                          span(class: "text-xs text-gray-400 mr-2 mt-1") { "#{index}:" }
-                          render_attribute_value(item)
-                        end
-                      end
-                      div(class: "text-xs text-gray-500 italic") { "... and #{value.length - 3} more items" }
-                    end
-                  end
-                end
-              else
-                # Simple key-value pair
-                div(class: "flex items-start justify-between mb-2 py-1") do
-                  div(class: "flex-1") do
-                    dt(class: "text-sm font-medium text-gray-600 flex items-center") do
-                      render_attribute_icon(value)
-                      key.to_s.humanize
-                    end
-                    dd(class: "mt-1") do
-                      render_attribute_value(value)
-                    end
-                  end
+              end
+
+              # Group content
+              div(class: "space-y-3") do
+                group_attrs.each do |key, value|
+                  render_single_attribute(key, value, level)
                 end
               end
             end
+          end
+        end
+
+        def group_attributes(attributes)
+          grouped = {
+            pipeline: {},
+            context: {},
+            execution: {},
+            results: {},
+            other: {}
+          }
+
+          attributes.each do |key, value|
+            key_str = key.to_s
+            case key_str
+            when /^pipeline\./
+              grouped[:pipeline][key] = value
+            when /context|initial_context|market_data|icp_constraints/
+              grouped[:context][key] = value
+            when /execution|duration|agents|success|result_keys/
+              grouped[:execution][key] = value
+            when /result|final_result|transformation/
+              grouped[:results][key] = value
+            else
+              grouped[:other][key] = value
+            end
+          end
+
+          # Remove empty groups
+          grouped.reject { |_, attrs| attrs.empty? }
+        end
+
+        def render_single_attribute(key, value, level = 0)
+          div(class: "bg-gray-50 rounded-lg p-3") do
+            case value
+            when Hash
+              # Nested object
+              div do
+                div(class: "flex items-center justify-between mb-3") do
+                  h5(class: "text-sm font-semibold text-gray-800 flex items-center") do
+                    i(class: "bi bi-braces text-blue-600 mr-2")
+                    key.to_s.humanize
+                    span(class: "ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded") { "#{value.keys.count} keys" }
+                  end
+                  button(
+                    class: "text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50",
+                    data: { action: "toggle", target: "attr-#{key.to_s.parameterize}-#{level}" }
+                  ) { "Toggle" }
+                end
+                div(id: "attr-#{key.to_s.parameterize}-#{level}-content", class: "space-y-2 max-h-64 overflow-y-auto") do
+                  render_nested_object(value)
+                end
+              end
+            when Array
+              # Array value
+              div do
+                h5(class: "text-sm font-semibold text-gray-800 flex items-center mb-2") do
+                  i(class: "bi bi-list-ul text-green-600 mr-2")
+                  key.to_s.humanize
+                  span(class: "ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded") { "#{value.length} items" }
+                end
+                div(class: "space-y-1 max-h-48 overflow-y-auto") do
+                  render_array_items(value)
+                end
+              end
+            else
+              # Simple key-value pair
+              div(class: "flex items-start justify-between") do
+                dt(class: "text-sm font-medium text-gray-700 flex items-center min-w-0 flex-1") do
+                  render_attribute_icon(value)
+                  key.to_s.humanize
+                end
+                dd(class: "ml-4 text-right") do
+                  render_attribute_value(value)
+                end
+              end
+            end
+          end
+        end
+
+        def render_nested_object(obj)
+          obj.each do |k, v|
+            div(class: "flex items-start py-1 border-b border-gray-200 last:border-b-0") do
+              dt(class: "text-xs font-medium text-gray-600 w-1/3") { k.to_s.humanize }
+              dd(class: "text-xs text-gray-800 w-2/3 break-words") do
+                case v
+                when Array
+                  if v.length <= 3
+                    v.each_with_index do |item, idx|
+                      div { render_compact_value(item) }
+                    end
+                  else
+                    div { "#{v.first(2).map { |i| render_compact_value(i) }.join(', ')}... (+#{v.length - 2} more)" }
+                  end
+                when Hash
+                  span(class: "text-gray-500 italic") { "Object with #{v.keys.count} keys" }
+                else
+                  render_compact_value(v)
+                end
+              end
+            end
+          end
+        end
+
+        def render_array_items(array)
+          if array.length <= 5
+            array.each_with_index do |item, index|
+              div(class: "flex items-start py-1") do
+                span(class: "text-xs text-gray-400 mr-2 mt-1 w-8") { "#{index + 1}." }
+                div(class: "flex-1 text-sm") { render_compact_value(item) }
+              end
+            end
+          else
+            array.first(3).each_with_index do |item, index|
+              div(class: "flex items-start py-1") do
+                span(class: "text-xs text-gray-400 mr-2 mt-1 w-8") { "#{index + 1}." }
+                div(class: "flex-1 text-sm") { render_compact_value(item) }
+              end
+            end
+            div(class: "text-xs text-gray-500 italic py-1") { "... and #{array.length - 3} more items" }
+          end
+        end
+
+        def render_compact_value(value)
+          case value
+          when String
+            if value.length > 100
+              truncated = truncate(value, length: 100)
+              span(class: "text-gray-900") { truncated }
+            else
+              span(class: "text-gray-900") { value }
+            end
+          when Numeric
+            span(class: "font-mono text-blue-800") { value.to_s }
+          when TrueClass, FalseClass
+            span(class: "font-mono px-1 py-0.5 rounded text-xs #{value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}") { value.to_s }
+          when Hash
+            span(class: "text-gray-500 italic") { "Object (#{value.keys.count} keys)" }
+          when Array
+            span(class: "text-gray-500 italic") { "Array (#{value.length} items)" }
+          when NilClass
+            span(class: "text-gray-400 italic") { "null" }
+          else
+            span(class: "text-gray-900") { value.to_s }
           end
         end
 

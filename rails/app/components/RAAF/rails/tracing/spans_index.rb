@@ -16,7 +16,11 @@ module RAAF
         def view_template
           div(class: "p-6") do
             render_header
-            render_hierarchy_legend if @params[:view] == 'hierarchical'
+
+            if @params[:view] == 'hierarchical'
+              render_hierarchy_legend
+            end
+
             render_filters
             render_spans_table
           end
@@ -135,11 +139,6 @@ module RAAF
         end
 
         def render_expandable_hierarchy_table
-          # Add debug info
-          div(class: "mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs") do
-            plain "Debug: #{@spans.count} spans, Hierarchical view enabled, Controller: span-hierarchy"
-          end
-
           div(class: "bg-white shadow-sm rounded-lg overflow-hidden", data: { controller: "span-hierarchy" }) do
             table(class: "min-w-full divide-y divide-gray-200") do
               render_hierarchy_table_header
@@ -153,7 +152,7 @@ module RAAF
         def render_hierarchy_table_header
           thead(class: "bg-gray-50") do
             tr do
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
+              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5") do
                 "Span Hierarchy"
               end
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
@@ -195,12 +194,7 @@ module RAAF
             end
 
             # Determine if this span has children
-            has_children = false
-            if index < spans.length - 1
-              next_span = spans[index + 1]
-              next_depth = next_span.respond_to?(:hierarchy_depth) ? next_span.hierarchy_depth : 0
-              has_children = next_depth > depth
-            end
+            has_children = span.children.any?
 
             # Render the row with stronger hidden styling for children
             additional_classes = is_child ? "span-children hidden" : ""
@@ -243,9 +237,9 @@ module RAAF
                     # Visual tree lines
                     level.times do |i|
                       if i == level - 1
-                        div(class: "w-4 h-4 border-l-2 border-b-2 border-gray-300")
+                        div(class: "w-4 h-4 border-l-2 border-b-2 border-gray-400 mr-1")
                       else
-                        div(class: "w-4")
+                        div(class: "w-4 border-l-2 border-gray-200 mr-1")
                       end
                     end
                   end
@@ -256,25 +250,11 @@ module RAAF
                   button(
                     type: "button",
                     class: "expand-button flex items-center justify-center w-6 h-6 mr-2 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300",
-                    data: {
-                      action: "click->span-hierarchy#toggleChildren",
-                      span_id: span.span_id
-                    }
+                    "data-action": "click->span-hierarchy#toggleChildren",
+                    "data-span-id": span.span_id
                   ) do
                     # Chevron right icon (will rotate when expanded)
-                    svg(
-                      class: "w-4 h-4 transform transition-transform duration-200",
-                      fill: "none",
-                      stroke: "currentColor",
-                      viewBox: "0 0 24 24"
-                    ) do
-                      path(
-                        stroke_linecap: "round",
-                        stroke_linejoin: "round",
-                        stroke_width: "2",
-                        d: "M9 5l7 7-7 7"
-                      )
-                    end
+                    plain "›"
                   end
                 else
                   div(class: "w-6 h-6 mr-2") # Spacer for alignment
@@ -287,7 +267,7 @@ module RAAF
                     render_span_type_icon(span, level, has_children)
 
                     div(class: "min-w-0 flex-1 ml-3") do
-                      div(class: "text-sm font-medium text-gray-900 truncate") do
+                      div(class: "text-sm font-medium text-gray-900 break-words") do
                         link_to(
                           span.name,
                           tracing_span_path(span.span_id),
@@ -443,7 +423,7 @@ module RAAF
                     end
 
                     div(class: "min-w-0 flex-1") do
-                      div(class: "text-sm font-medium text-gray-900 truncate") do
+                      div(class: "text-sm font-medium text-gray-900 break-words") do
                         link_to(
                           span.name,
                           tracing_span_path(span.span_id),
@@ -558,13 +538,13 @@ module RAAF
                 button(
                   type: "button",
                   class: "text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md border border-blue-300",
-                  data: { action: "click->span-hierarchy#expandAll" }
+                  "data-action": "click->span-hierarchy#expandAll"
                 ) { "Expand All" }
 
                 button(
                   type: "button",
                   class: "text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md border border-gray-300",
-                  data: { action: "click->span-hierarchy#collapseAll" }
+                  "data-action": "click->span-hierarchy#collapseAll"
                 ) { "Collapse All" }
               end
             end

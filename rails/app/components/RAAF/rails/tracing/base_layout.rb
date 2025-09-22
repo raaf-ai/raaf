@@ -96,7 +96,16 @@ module RAAF
             end
 
             # Main content area
-            div(class: "space-y-6", &block)
+            div(class: "space-y-6") do
+              if block_given?
+                component = block.call
+                if component.respond_to?(:view_template)
+                  render component  # Render Phlex component properly
+                else
+                  component  # For non-component content
+                end
+              end
+            end
           end
         end
       end
@@ -107,7 +116,7 @@ module RAAF
 
         # Custom JS
         script do
-          plain(tracing_scripts)
+          raw(tracing_scripts.html_safe)
         end
       end
 

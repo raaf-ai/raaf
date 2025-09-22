@@ -38,7 +38,7 @@ module RAAF
           format.html do
             spans_component = RAAF::Rails::Tracing::SpansIndex.new(
               spans: @spans,
-              params: params.permit(:search, :kind, :status, :start_time, :end_time, :trace_id),
+              params: params.permit(:search, :kind, :status, :start_time, :end_time, :trace_id, :view),
               page: @page,
               total_pages: @total_pages,
               per_page: @per_page,
