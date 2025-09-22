@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "set"
+require "active_support/core_ext/hash/indifferent_access"
+
 module RAAF
 
   ##
@@ -209,6 +212,7 @@ module RAAF
     # throughout RAAF, eliminating string vs symbol key issues.
     #
     # @param obj [Hash, Array, Object] The object to convert
+    # @param visited [Set] Set of visited object IDs to prevent circular references
     # @return [ActiveSupport::HashWithIndifferentAccess, Array, Object] Object with indifferent access
     #
     # @example Basic hash conversion
@@ -224,18 +228,35 @@ module RAAF
     # @example Arrays with hashes
     #   Utils.indifferent_access([{"id" => 1}, {"id" => 2}])
     #   # => [HashWithIndifferentAccess, HashWithIndifferentAccess] with indifferent access
-    def indifferent_access(obj)
+    def indifferent_access(obj, visited = Set.new)
       case obj
       when Hash
-        # Convert to HashWithIndifferentAccess recursively
-        obj.with_indifferent_access.tap do |hash|
-          hash.transform_values! { |value| indifferent_access(value) }
-        end
+        # Prevent infinite recursion on circular references
+        return "[CIRCULAR_REFERENCE]" if visited.include?(obj.object_id)
+        visited = visited.dup.add(obj.object_id)
+
+        # Convert to HashWithIndifferentAccess and transform values safely
+        # Use transform_values (not transform_values!) to avoid mutating the original hash
+        obj.with_indifferent_access.transform_values { |value| indifferent_access(value, visited) }
       when Array
-        obj.map { |item| indifferent_access(item) }
+        # Prevent infinite recursion on circular array references
+        return "[CIRCULAR_REFERENCE]" if visited.include?(obj.object_id)
+        visited = visited.dup.add(obj.object_id)
+
+        obj.map { |item| indifferent_access(item, visited) }
       else
         obj
       end
+    rescue SystemStackError => e
+      warn "[RAAF::Utils] Stack overflow in indifferent_access conversion: #{e.message}"
+      case obj
+      when Hash then {}.with_indifferent_access
+      when Array then []
+      else obj
+      end
+    rescue StandardError => e
+      warn "[RAAF::Utils] Error in indifferent_access conversion: #{e.message}"
+      obj
     end
 
     ##

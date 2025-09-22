@@ -357,7 +357,7 @@ module RAAF
     ##
     # Start tracing span before each conversation turn
     #
-    # Creates an agent span as a root span (matching Python SDK) and
+    # Creates an agent span with proper parent relationship and
     # sets all required attributes for OpenTelemetry compatibility.
     #
     # @param conversation [Array<Hash>] Current conversation state
@@ -367,15 +367,11 @@ module RAAF
     # @return [void]
     #
     def before_turn(conversation, current_agent, _context_wrapper, _turns)
-      # Create agent span as root span (matching Python implementation)
-      # Store original span stack and clear it to make this span root
-      @original_span_stack = tracer.instance_variable_get(:@context).instance_variable_get(:@span_stack).dup
-      tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack, [])
-
-      # Start the agent span
+      # Create agent span without manipulating the span stack
+      # The tracer's start_span method will automatically set parent_id from current context
       @current_agent_span = tracer.start_span("agent.#{current_agent.name || "agent"}", kind: :agent)
 
-      # Set agent span attributes
+      # Set detailed agent span attributes
       @current_agent_span.set_attribute("agent.name", current_agent.name || "agent")
       @current_agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
       @current_agent_span.set_attribute("agent.tools", safe_map_names(current_agent.tools))
@@ -396,8 +392,8 @@ module RAAF
     ##
     # Complete tracing span after each conversation turn
     #
-    # Sets the agent output attribute and ends the span created in before_turn.
-    # Restores the original span stack to maintain proper span hierarchy.
+    # Sets the agent output attribute and ensures the span is properly finished.
+    # Uses multiple strategies to ensure span completion.
     #
     # @param conversation [Array<Hash>] Current conversation state
     # @param current_agent [Agent] The active agent
@@ -407,51 +403,86 @@ module RAAF
     # @return [void]
     #
     def after_turn(_conversation, _current_agent, _context_wrapper, _turns, result)
-      # Set output on agent span
       return unless @current_agent_span
 
       begin
-        message = result[:message]
-        if message && config.trace_include_sensitive_data
-          @current_agent_span.set_attribute("agent.output", message[:content] || "")
-        else
-          @current_agent_span.set_attribute("agent.output", "[REDACTED]")
+        # Set output on agent span if not already finished
+        unless @current_agent_span.finished?
+          message = result[:message]
+          if message && config.trace_include_sensitive_data
+            @current_agent_span.set_attribute("agent.output", message[:content] || "")
+          else
+            @current_agent_span.set_attribute("agent.output", "[REDACTED]")
+          end
         end
       rescue StandardError => e
         # Log but don't fail if setting attributes fails
-        if defined?(Rails)
-          Rails.logger.error "❌ Error setting span attributes: #{e.message}"
-        else
-          warn "Error setting span attributes: #{e.message}"
+        log_error("Error setting span attributes: #{e.message}", error_class: e.class.name)
+      end
+
+      # Ensure the agent span is finished using multiple strategies
+      finish_agent_span_safely
+    ensure
+      # Always clean up the span reference
+      @current_agent_span = nil
+    end
+
+    private
+
+    ##
+    # Safely finish the agent span using multiple strategies
+    #
+    # This method tries several approaches to ensure the span is finished:
+    # 1. Regular finish if not already finished
+    # 2. Force finish with current time if first approach fails
+    # 3. Direct tracer finish_span call as last resort
+    #
+    # @return [void]
+    #
+    def finish_agent_span_safely
+      return unless @current_agent_span
+
+      # Strategy 1: Use tracer's finish_span method first (manages span stack properly)
+      begin
+        tracer.finish_span(@current_agent_span)
+        log_debug("Agent span finished via tracer", span_id: @current_agent_span.span_id)
+        return
+      rescue StandardError => e
+        log_error("Failed to finish agent span via tracer: #{e.message}",
+                 span_id: @current_agent_span.span_id, error_class: e.class.name)
+      end
+
+      # Strategy 2: Direct span finish if not already finished
+      unless @current_agent_span.finished?
+        begin
+          @current_agent_span.finish
+          log_debug("Agent span finished directly", span_id: @current_agent_span.span_id)
+          return
+        rescue StandardError => e
+          log_error("Failed to finish agent span directly: #{e.message}",
+                   span_id: @current_agent_span.span_id, error_class: e.class.name)
         end
       end
 
-      # End the agent span - this is critical for trace completion
+      # Strategy 3: Force finish with current time
       begin
-        @current_agent_span.end_span
+        @current_agent_span.finish(end_time: Time.now.utc)
+        log_debug("Agent span force-finished with current time", span_id: @current_agent_span.span_id)
+        return
       rescue StandardError => e
-        # Log the error but ensure we still try to restore span stack
-        if defined?(Rails)
-          Rails.logger.error "❌ CRITICAL: Failed to end agent span: #{e.message}"
-          Rails.logger.error "🔍 Error class: #{e.class.name}"
-          Rails.logger.error "📄 Span: #{@current_agent_span.inspect}"
-        else
-          warn "CRITICAL: Failed to end agent span: #{e.message}"
-        end
-      ensure
-        # Always restore original span stack even if span ending fails
-        if @original_span_stack
-          begin
-            tracer.instance_variable_get(:@context).instance_variable_set(:@span_stack,
-                                                                          @original_span_stack)
-          rescue StandardError => restore_error
-            if defined?(Rails)
-              Rails.logger.error "❌ Error restoring span stack: #{restore_error.message}"
-            else
-              warn "Error restoring span stack: #{restore_error.message}"
-            end
-          end
-        end
+        log_error("Failed to force-finish agent span: #{e.message}",
+                 span_id: @current_agent_span.span_id, error_class: e.class.name)
+      end
+
+      # Strategy 4: Last resort - manually set finished state to prevent stuck spans
+      begin
+        @current_agent_span.instance_variable_set(:@finished, true)
+        @current_agent_span.instance_variable_set(:@end_time, Time.now.utc)
+        log_warn("Manually marked span as finished to prevent stuck state",
+                span_id: @current_agent_span.span_id)
+      rescue StandardError => final_error
+        log_error("CRITICAL: Even manual span finishing failed: #{final_error.message}",
+                 span_id: @current_agent_span.span_id, error_class: e.class.name)
       end
     end
 
@@ -467,7 +498,9 @@ module RAAF
     # @return [Object] The tool execution result
     #
     def wrap_tool_execution(tool_name, arguments)
-      tracer.start_span("agent.#{agent.name}.tools.#{tool_name}", kind: :tool) do |tool_span|
+      # Use the tracer's tool_span convenience method which properly handles hierarchy
+      # This ensures tool spans become children of the currently active agent span
+      tracer.tool_span(tool_name) do |tool_span|
         tool_span.set_attribute("tool.name", tool_name)
         tool_span.set_attribute("tool.arguments", arguments.to_json) if config.trace_include_sensitive_data
 
