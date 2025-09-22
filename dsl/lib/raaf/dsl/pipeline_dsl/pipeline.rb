@@ -192,20 +192,22 @@ module RAAF
       # Create pipeline span with comprehensive metadata
       return execute_without_tracing if @tracer.nil?
 
-      @tracer.pipeline_span(pipeline_name) do |span|
+      # Use the tracer's pipeline_span method with explicit parent: nil to ensure pipeline starts as root
+      # This prevents incorrect parent assignment from lingering tool spans in the context stack
+      @tracer.pipeline_span(pipeline_name, parent: nil) do |pipeline_span|
         # Set comprehensive pipeline metadata
-        set_pipeline_span_attributes(span)
+        set_pipeline_span_attributes(pipeline_span)
 
         # Initialize result collection for auto-merge
         @agent_results = []
-        @pipeline_span = span
+        @pipeline_span = pipeline_span
 
         # Validate pipeline before execution (enabled by default)
         unless self.class.skip_validation
           validate_pipeline!
         end
 
-        span.add_event("pipeline.validation_completed")
+        pipeline_span.add_event("pipeline.validation_completed")
 
         # Update @context with accumulated data from agents
         @context = execute_chain(@flow, @context)
@@ -214,22 +216,22 @@ module RAAF
         merged_result = auto_merge_results(@agent_results)
 
         # Capture final result in span
-        capture_pipeline_result(span, merged_result)
+        capture_pipeline_result(pipeline_span, merged_result)
 
         # Execute on_end hook if defined and capture modified result
         # Now @context contains all accumulated data from agents
         if self.class.on_end_block
-          span.add_event("pipeline.on_end_hook_start")
+          pipeline_span.add_event("pipeline.on_end_hook_start")
           merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)
-          span.add_event("pipeline.on_end_hook_completed")
+          pipeline_span.add_event("pipeline.on_end_hook_completed")
         end
 
         # Ensure success flag is present
         merged_result[:success] = true unless merged_result.key?(:success)
 
         # Update span with final status
-        span.set_status(merged_result[:success] ? :ok : :error)
-        span.set_attribute("pipeline.success", merged_result[:success])
+        pipeline_span.set_status(merged_result[:success] ? :ok : :error)
+        pipeline_span.set_attribute("pipeline.success", merged_result[:success])
 
         merged_result
       end

@@ -87,7 +87,7 @@ module RAAF
       # @param parent_id [String, nil] ID of the parent span if this is a child
       # @param kind [Symbol] Type of span (:agent, :llm, :tool, :handoff, :custom, :internal)
       def initialize(name:, trace_id: nil, parent_id: nil, kind: :internal)
-        @span_id = "span_#{SecureRandom.hex(12)}" # 24 chars hex
+        @span_id = "span_#{SecureRandom.hex(16)}" # 32 chars hex
         @trace_id = trace_id || "trace_#{SecureRandom.hex(16)}" # 32 chars hex
         @parent_id = parent_id
         @name = name
@@ -98,6 +98,10 @@ module RAAF
         @events = []
         @status = :ok
         @finished = false
+
+        # Add finalizer to ensure span is finished when object is garbage collected
+        # This prevents stuck spans from remaining in "running" state indefinitely
+        ObjectSpace.define_finalizer(self, self.class.finalizer(@span_id, @name))
       end
 
       # Sets a single attribute on the span
@@ -196,6 +200,13 @@ module RAAF
         # Calculate duration
         @attributes["duration_ms"] = ((@end_time - @start_time) * 1000).round(2)
 
+        # Remove finalizer since span is properly finished
+        begin
+          ObjectSpace.undefine_finalizer(self)
+        rescue StandardError
+          # Ignore errors during finalizer removal
+        end
+
         self
       end
 
@@ -243,6 +254,30 @@ module RAAF
       # @return [String] JSON representation of the span
       def to_json(*)
         JSON.generate(to_h, *)
+      end
+
+      # Creates a finalizer proc for cleaning up unfinished spans
+      #
+      # This finalizer logs when a span is garbage collected without being
+      # properly finished, which helps identify memory leaks and stuck spans.
+      #
+      # @param span_id [String] The span ID for logging
+      # @param name [String] The span name for logging
+      # @return [Proc] The finalizer proc
+      #
+      # @api private
+      def self.finalizer(span_id, name)
+        proc do
+          begin
+            # Log that a span was garbage collected without being finished
+            # This helps identify memory leaks and spans that weren't properly closed
+            if defined?(Rails) && Rails.logger
+              Rails.logger.debug "⚠️ Span garbage collected without being finished: #{name} (#{span_id})"
+            end
+          rescue StandardError
+            # Ignore errors in finalizer to prevent issues during garbage collection
+          end
+        end
       end
     end
 
@@ -430,8 +465,8 @@ module RAAF
       #   ensure
       #     tracer.finish_span(span)
       #   end
-      def start_span(name, kind: :internal, **attributes)
-        span = @context.start_span(name, kind: kind)
+      def start_span(name, kind: :internal, parent: nil, **attributes)
+        span = @context.start_span(name, kind: kind, parent: parent)
         span.attributes = attributes unless attributes.empty?
 
         # Notify processors
@@ -582,11 +617,12 @@ module RAAF
       # Creates a pipeline execution span
       #
       # @param pipeline_name [String] Name of the pipeline
+      # @param parent [Span, nil] Optional parent span (defaults to current span)
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def pipeline_span(pipeline_name, **attributes, &)
-        start_span("pipeline.#{pipeline_name}", kind: :pipeline,
+      def pipeline_span(pipeline_name, parent: nil, **attributes, &)
+        start_span("pipeline.#{pipeline_name}", kind: :pipeline, parent: parent,
                                                 "pipeline.name" => pipeline_name, **attributes, &)
       end
 
@@ -906,6 +942,187 @@ module RAAF
       # @return [void]
       def clear
         @spans.clear
+      end
+    end
+
+    # Span lifecycle monitoring processor for development debugging
+    #
+    # This processor logs detailed information about span lifecycle events,
+    # helping to debug parent-child relationships, timing issues, and
+    # span completion problems. Only intended for development use.
+    #
+    # @example Enable lifecycle monitoring
+    #   processor = SpanLifecycleProcessor.new
+    #   tracer.add_processor(processor)
+    class SpanLifecycleProcessor
+      include RAAF::Logger
+
+      # @return [Hash] Active spans being tracked
+      attr_reader :active_spans
+
+      # Creates a new lifecycle processor
+      def initialize
+        @active_spans = {}
+        @span_hierarchy = {}
+      end
+
+      # Called when a span starts
+      #
+      # @param span [Span] The started span
+      def on_span_start(span)
+        @active_spans[span.span_id] = {
+          span: span,
+          start_time: Time.now.utc,
+          parent_id: span.parent_id,
+          kind: span.kind
+        }
+
+        # Track hierarchy
+        if span.parent_id
+          @span_hierarchy[span.parent_id] ||= []
+          @span_hierarchy[span.parent_id] << span.span_id
+        end
+
+        log_debug_tracing("🚀 SPAN START: #{span.name}",
+          span_id: span.span_id,
+          parent_id: span.parent_id,
+          kind: span.kind,
+          trace_id: span.trace_id,
+          active_count: @active_spans.size
+        )
+
+        # Log hierarchy structure
+        if span.parent_id.nil?
+          log_debug_tracing("📍 ROOT SPAN: #{span.name}", span_id: span.span_id, kind: span.kind)
+        else
+          parent_info = @active_spans[span.parent_id]
+          parent_name = parent_info ? parent_info[:span].name : "UNKNOWN"
+          log_debug_tracing("🔗 CHILD SPAN: #{span.name} → #{parent_name}",
+            span_id: span.span_id,
+            parent_id: span.parent_id,
+            parent_name: parent_name,
+            kind: span.kind
+          )
+        end
+      end
+
+      # Called when a span ends
+      #
+      # @param span [Span] The ended span
+      def on_span_end(span)
+        return unless span
+
+        active_info = @active_spans.delete(span.span_id)
+        duration = active_info ? Time.now.utc - active_info[:start_time] : nil
+
+        status_icon = span.status == :error ? "❌" : "✅"
+        log_debug_tracing("#{status_icon} SPAN END: #{span.name}",
+          span_id: span.span_id,
+          parent_id: span.parent_id,
+          kind: span.kind,
+          duration_ms: duration ? (duration * 1000).round(2) : "unknown",
+          status: span.status,
+          finished: span.finished?,
+          active_count: @active_spans.size
+        )
+
+        # Check for orphaned children
+        children = @span_hierarchy[span.span_id]
+        if children&.any?
+          active_children = children.select { |child_id| @active_spans.key?(child_id) }
+          if active_children.any?
+            log_warn("⚠️ SPAN ended with active children: #{span.name}",
+              span_id: span.span_id,
+              active_children: active_children,
+              children_count: active_children.size
+            )
+          end
+        end
+
+        # Warn about unfinished spans
+        unless span.finished?
+          log_warn("⚠️ SPAN processor called but span not marked as finished: #{span.name}",
+            span_id: span.span_id,
+            status: span.status
+          )
+        end
+
+        # Log if this was a long-running span
+        if duration && duration > 30.0  # More than 30 seconds
+          log_warn("🐌 LONG-RUNNING SPAN: #{span.name}",
+            span_id: span.span_id,
+            duration_seconds: duration.round(2)
+          )
+        end
+      end
+
+      # Check for stuck spans (for periodic monitoring)
+      #
+      # @return [Array<Hash>] Information about potentially stuck spans
+      def check_stuck_spans
+        stuck_spans = []
+        cutoff_time = Time.now.utc - 300  # 5 minutes ago
+
+        @active_spans.each do |span_id, info|
+          if info[:start_time] < cutoff_time
+            stuck_spans << {
+              span_id: span_id,
+              name: info[:span].name,
+              kind: info[:kind],
+              age_seconds: (Time.now.utc - info[:start_time]).round(2),
+              parent_id: info[:parent_id]
+            }
+          end
+        end
+
+        if stuck_spans.any?
+          log_warn("🚨 POTENTIALLY STUCK SPANS detected",
+            stuck_count: stuck_spans.size,
+            stuck_spans: stuck_spans.map { |s| "#{s[:name]} (#{s[:span_id]}, #{s[:age_seconds]}s)" }
+          )
+        end
+
+        stuck_spans
+      end
+
+      # Get current span hierarchy as a tree structure
+      #
+      # @return [Hash] Tree representation of active spans
+      def span_hierarchy_tree
+        roots = @active_spans.values.select { |info| info[:parent_id].nil? }
+
+        tree = roots.map do |root_info|
+          build_tree_node(root_info[:span].span_id)
+        end
+
+        log_debug_tracing("📊 CURRENT SPAN HIERARCHY",
+          tree_structure: tree,
+          total_active: @active_spans.size
+        )
+
+        tree
+      end
+
+      private
+
+      # Build a tree node for hierarchy visualization
+      #
+      # @param span_id [String] The span ID to build the tree for
+      # @return [Hash] Tree node with children
+      def build_tree_node(span_id)
+        info = @active_spans[span_id]
+        return nil unless info
+
+        children = @span_hierarchy[span_id] || []
+        active_children = children.select { |child_id| @active_spans.key?(child_id) }
+
+        {
+          span_id: span_id,
+          name: info[:span].name,
+          kind: info[:kind],
+          age_seconds: (Time.now.utc - info[:start_time]).round(2),
+          children: active_children.map { |child_id| build_tree_node(child_id) }.compact
+        }
       end
     end
   end

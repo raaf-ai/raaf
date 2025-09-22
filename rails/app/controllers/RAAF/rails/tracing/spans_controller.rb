@@ -211,11 +211,11 @@ module RAAF
             span.define_singleton_method(:hierarchy_depth) { depth_cache[span.span_id] }
           end
 
-          # Find root spans for this trace (no parent within this trace OR top-level pipelines)
+          # Find root spans for this trace (no parent within this trace)
+          # Note: Removed pipeline promotion logic to show true parent-child relationships
           root_spans = trace_spans.select do |s|
             s.parent_id.nil? ||
-            !trace_spans.any? { |ts| ts.span_id == s.parent_id } ||
-            is_top_level_pipeline?(s, trace_spans)
+            !trace_spans.any? { |ts| ts.span_id == s.parent_id }
           end
 
           # Sort root spans by start_time
@@ -242,7 +242,7 @@ module RAAF
           span = span_map[span_id]
           return 0 unless span
 
-          if span.parent_id.nil? || !span_map.key?(span.parent_id) || is_top_level_pipeline?(span, span_map.values)
+          if span.parent_id.nil? || !span_map.key?(span.parent_id)
             depth_cache[span_id] = 0
           else
             visited.add(span_id)
@@ -279,30 +279,9 @@ module RAAF
         result
       end
 
-      def is_top_level_pipeline?(span, all_spans)
-        # Only treat a pipeline as a root if:
-        # 1. It is a pipeline span (name contains "Pipeline" or kind is "pipeline")
-        # 2. AND its parent is NOT another pipeline (allowing nested pipelines)
-        # 3. AND its parent is a non-pipeline span (tool, agent, etc.)
-
-        return false unless is_pipeline_span?(span)
-
-        # If no parent, it's definitely a root
-        return true if span.parent_id.nil?
-
-        # Find the parent span
-        parent_span = all_spans.find { |s| s.span_id == span.parent_id }
-        return true unless parent_span
-
-        # If parent is also a pipeline, this is a nested pipeline - keep the hierarchy
-        # If parent is NOT a pipeline (tool, agent, etc.), treat this pipeline as root
-        !is_pipeline_span?(parent_span)
-      end
-
-      def is_pipeline_span?(span)
-        # Check if span is a pipeline by name or kind
-        span.name.include?("Pipeline") || span.kind&.downcase == "pipeline"
-      end
+      # Removed is_top_level_pipeline? and is_pipeline_span? methods
+      # These were causing incorrect hierarchy display by promoting pipeline spans
+      # Now using true parent-child relationships from the database
 
       def build_flow_data(spans) # rubocop:disable Metrics/MethodLength
         nodes = {}
