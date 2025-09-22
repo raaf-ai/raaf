@@ -106,12 +106,84 @@ module RAAF
         # OpenAI processes spans on completion, not on start
       end
 
+      # Called when a span ends
+      #
+      # Ensures the span is properly finished before processing.
+      # Auto-finishes unfinished spans to prevent perpetual "Running" status.
+      #
+      # @param span [Span] The span that ended
+      # @return [void]
+      def on_span_end(span)
+        # Ensure span is finished before any processing
+        ensure_span_finished(span)
+
+        # Call the base processor's on_span_end for standard processing
+        super(span) if defined?(super)
+      end
+
+      # Exports a batch of spans to OpenAI
+      #
+      # Ensures all spans are finished before processing and transforming them.
+      #
+      # @param spans [Array] Array of span objects or transformed span data
+      # @return [void]
+      def export(spans)
+        return if spans.empty?
+
+        # Ensure all spans are finished before processing
+        spans.each { |span| ensure_span_finished(span) unless span.is_a?(Hash) }
+
+        # Call the base class export method for standard processing
+        super(spans)
+      end
+
       protected
+
+      # Ensures a span is finished before processing
+      #
+      # Auto-finishes unfinished spans to prevent perpetual "Running" status.
+      #
+      # @param span [Span] The span to ensure is finished
+      # @return [void]
+      def ensure_span_finished(span)
+        # Skip if already finished or if it's a hash (already processed)
+        return if span.is_a?(Hash) || !span.respond_to?(:finished?) || span.finished?
+
+        begin
+          # Check if span has been running too long (more than 5 minutes)
+          if span.respond_to?(:start_time) && span.start_time
+            duration = Time.now.utc - span.start_time
+            max_duration = 5 * 60  # 5 minutes
+
+            if duration > max_duration
+              span.set_status(:error, description: "Auto-finished by OpenAI processor: exceeded #{max_duration}s duration")
+              log_warn("Auto-finishing stuck span for OpenAI export",
+                      processor: "OpenAI",
+                      span_id: span.span_id,
+                      duration_seconds: duration.round(2))
+            else
+              span.set_status(:ok)
+              log_debug("Auto-finishing unfinished span for OpenAI export",
+                       processor: "OpenAI",
+                       span_id: span.span_id,
+                       duration_seconds: duration.round(2))
+            end
+          else
+            span.set_status(:ok)
+          end
+
+          span.finish(end_time: Time.now.utc)
+        rescue StandardError => e
+          log_error("Failed to auto-finish span for OpenAI export: #{e.message}",
+                   processor: "OpenAI",
+                   span_id: (span.span_id rescue "unknown"),
+                   error_class: e.class.name)
+        end
+      end
 
       # Determines if a span should be processed by OpenAI
       #
       # OpenAI requires spans to have end_time to mark them as completed.
-      # Unfinished spans will cause perpetual "Running" status.
       #
       # @param span [Span] The span to evaluate
       # @return [Boolean] true if span should be processed

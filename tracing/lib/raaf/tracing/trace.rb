@@ -317,10 +317,10 @@ module RAAF
 
       # Generates a valid trace ID
       #
-      # @return [String] A trace ID in format `trace_<32_alphanumeric>`
+      # @return [String] A trace ID in format `trace_<32_hex>`
       # @api private
       def generate_trace_id
-        "trace_#{SecureRandom.alphanumeric(32)}"
+        "trace_#{SecureRandom.hex(16)}"
       end
 
       # Validates the format of a custom trace ID
@@ -328,10 +328,10 @@ module RAAF
       # @raise [ArgumentError] If trace_id doesn't match required format
       # @api private
       def validate_trace_id!
-        return if @trace_id.match?(/\Atrace_[a-zA-Z0-9]{32}\z/)
+        return if @trace_id.match?(/\Atrace_[a-fA-F0-9]{32}\z/)
 
         raise ArgumentError,
-              "Invalid trace_id format. Expected 'trace_<32_alphanumeric>', got '#{@trace_id}'"
+              "Invalid trace_id format. Expected 'trace_<32_hex>', got '#{@trace_id}'"
       end
 
       # Notifies processors that the trace has completed

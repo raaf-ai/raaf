@@ -123,6 +123,19 @@ module RAAF
       def on_span_end(span)
         return if @shutdown.true?
 
+        # Ensure span is finished before queuing
+        unless span.finished?
+          begin
+            span.finish(end_time: Time.now.utc) unless span.end_time
+            log_debug_tracing("[BatchTraceProcessor] Auto-finished span before queuing",
+                              span_id: span.span_id, span_name: span.name)
+          rescue StandardError => e
+            log_debug_tracing("[BatchTraceProcessor] Failed to auto-finish span: #{e.message}",
+                              span_id: span.span_id, error: e.message)
+            return
+          end
+        end
+
         # Drop span if queue is full
         if @queue.size >= @max_queue_size
           warn "[BatchTraceProcessor] Queue full, dropping span: #{span.name}"
@@ -276,6 +289,7 @@ module RAAF
       #
       # Calls the exporter's export method with the batch of spans.
       # Errors are caught and logged to prevent disrupting the worker thread.
+      # Auto-finishes spans that have been running too long as a safety net.
       #
       # @param batch [Array<Span>] The spans to export
       # @return [void]
@@ -284,20 +298,64 @@ module RAAF
       def export_batch(batch)
         return if batch.empty?
 
-        # Sanitize spans before export to prevent circular references in HashWithIndifferentAccess
-        sanitized_batch = batch.map { |span| sanitize_span_for_export(span) }
+        # Auto-finish spans that have been running too long (safety net)
+        processed_batch = batch.map { |span| auto_finish_stuck_spans(span) }
 
         begin
-          log_debug_tracing("[BatchTraceProcessor] Exporting #{sanitized_batch.size} spans to #{@exporter.class.name}",
-                            batch_size: sanitized_batch.size, exporter: @exporter.class.name)
-          @exporter.export(sanitized_batch)
-          log_debug_tracing("[BatchTraceProcessor] Export completed successfully", batch_size: sanitized_batch.size)
+          log_debug_tracing("[BatchTraceProcessor] Exporting #{processed_batch.size} spans to #{@exporter.class.name}",
+                            batch_size: processed_batch.size, exporter: @exporter.class.name)
+
+          # Call the wrapped processor's export method with raw spans
+          # The wrapped processor will handle its own processing and transformation
+          @exporter.export(processed_batch)
+
+          log_debug_tracing("[BatchTraceProcessor] Export completed successfully", batch_size: processed_batch.size)
         rescue StandardError => e
           warn "[BatchTraceProcessor] Export error: #{e.message}"
           log_debug_tracing("Export error backtrace", error: e.message, backtrace: e.backtrace.first(5).join("\n"))
         end
 
         @last_flush_time.set(Time.now)
+      end
+
+      # Auto-finishes spans that have been running too long as a safety net
+      #
+      # This method checks if a span has been running for more than 5 minutes
+      # and automatically finishes it to prevent stuck spans from clogging the system.
+      #
+      # @param span [Span] The span to check and potentially finish
+      # @return [Span] The span (potentially finished)
+      #
+      # @api private
+      def auto_finish_stuck_spans(span)
+        return span unless span.respond_to?(:finished?) && span.respond_to?(:start_time)
+
+        # Skip if already finished
+        return span if span.finished?
+
+        # Check if span has been running too long (5 minutes)
+        max_duration = 5 * 60  # 5 minutes in seconds
+        current_time = Time.now.utc
+        duration = current_time - span.start_time
+
+        if duration > max_duration
+          begin
+            # Auto-finish the stuck span with error status
+            span.set_status(:error, description: "Auto-finished: span exceeded maximum duration of #{max_duration} seconds")
+            span.finish(end_time: current_time)
+
+            log_debug_tracing("[BatchTraceProcessor] Auto-finished stuck span",
+                              span_id: span.span_id,
+                              duration_seconds: duration.round(2),
+                              max_duration: max_duration)
+          rescue StandardError => e
+            log_debug_tracing("[BatchTraceProcessor] Failed to auto-finish stuck span: #{e.message}",
+                              span_id: span.span_id,
+                              error: e.message)
+          end
+        end
+
+        span
       end
 
       # Sanitizes a span for export by converting to plain hash and removing circular references
@@ -353,10 +411,28 @@ module RAAF
         visited = visited.dup.add(hash.object_id)
 
         result = {}
-        hash.each do |key, value|
-          sanitized_key = key.to_s
-          result[sanitized_key] = sanitize_value_for_export(value, visited)
+        begin
+          # Handle HashWithIndifferentAccess safely by iterating directly
+          # instead of calling to_hash which can cause circular reference issues
+          hash.each do |key, value|
+            # Convert key to string safely
+            sanitized_key = case key
+                           when String then key
+                           when Symbol then key.to_s
+                           else key.to_s
+                           end
+
+            # Recursively sanitize values
+            result[sanitized_key] = sanitize_value_for_export(value, visited)
+          end
+        rescue SystemStackError => e
+          warn "[BatchTraceProcessor] Stack overflow in hash sanitization - returning empty hash: #{e.message}"
+          return {}
+        rescue StandardError => e
+          warn "[BatchTraceProcessor] Hash iteration error: #{e.message}"
+          return {}
         end
+
         result
       rescue StandardError => e
         warn "[BatchTraceProcessor] Hash sanitization error: #{e.message}"
@@ -377,7 +453,12 @@ module RAAF
         when Array
           return "[CIRCULAR_REFERENCE]" if visited.include?(value.object_id)
           visited = visited.dup.add(value.object_id)
-          value.map { |v| sanitize_value_for_export(v, visited) }
+          begin
+            value.map { |v| sanitize_value_for_export(v, visited) }
+          rescue SystemStackError => e
+            warn "[BatchTraceProcessor] Stack overflow in array sanitization: #{e.message}"
+            ["[STACK_OVERFLOW_ERROR]"]
+          end
         when String
           # Truncate very long strings
           value.length > 10_000 ? "#{value[0..9997]}..." : value
@@ -386,9 +467,20 @@ module RAAF
         when Numeric, TrueClass, FalseClass, NilClass
           value
         else
-          # Convert unknown objects to strings
-          value.to_s
+          # Convert unknown objects to strings safely
+          begin
+            value.to_s
+          rescue SystemStackError => e
+            warn "[BatchTraceProcessor] Stack overflow in object conversion: #{e.message}"
+            "[OBJECT_CONVERSION_ERROR]"
+          rescue StandardError => e
+            warn "[BatchTraceProcessor] Object conversion error: #{e.message}"
+            "[OBJECT_CONVERSION_ERROR]"
+          end
         end
+      rescue SystemStackError => e
+        warn "[BatchTraceProcessor] Stack overflow in value sanitization: #{e.message}"
+        "[STACK_OVERFLOW_ERROR]"
       rescue StandardError => e
         warn "[BatchTraceProcessor] Value sanitization error: #{e.message}"
         "[SANITIZATION_ERROR]"
@@ -433,12 +525,9 @@ module RAAF
 
         return if emergency_spans.empty?
 
-        # Sanitize spans before export to prevent circular references
-        sanitized_emergency_spans = emergency_spans.map { |span| sanitize_span_for_export(span) }
-
         # Attempt direct export with retries
         3.times do |attempt|
-          @exporter.export(sanitized_emergency_spans)
+          @exporter.export(emergency_spans)
           log_debug_tracing("[BatchTraceProcessor] Emergency flush succeeded on attempt #{attempt + 1}", attempt: attempt + 1)
           return
         rescue StandardError => e
@@ -471,11 +560,9 @@ module RAAF
 
           log_debug_tracing("[BatchTraceProcessor] Synchronous export attempt #{attempts}: #{batch.size} spans", attempt: attempts, batch_size: batch.size)
 
-          # Sanitize spans before export to prevent circular references
-          sanitized_batch = batch.map { |span| sanitize_span_for_export(span) }
-
           begin
-            @exporter.export(sanitized_batch)
+            # Call the wrapped processor's export method with raw spans
+            @exporter.export(batch)
             log_debug_tracing("[BatchTraceProcessor] Synchronous export succeeded", attempt: attempts)
             return # Success, we're done
           rescue StandardError => e
@@ -491,12 +578,9 @@ module RAAF
               @queue.clear # Clear queue to avoid infinite loop
               emergency_spans = batch
 
-              # Sanitize spans before emergency export
-              sanitized_emergency_spans = emergency_spans.map { |span| sanitize_span_for_export(span) }
-
               # Emergency direct export attempt
               begin
-                @exporter.export(sanitized_emergency_spans)
+                @exporter.export(emergency_spans)
                 log_debug_tracing("[BatchTraceProcessor] Emergency export succeeded", emergency_spans: emergency_spans.size)
               rescue StandardError => emergency_error
                 warn "[BatchTraceProcessor] Final emergency export failed: #{emergency_error.message}"

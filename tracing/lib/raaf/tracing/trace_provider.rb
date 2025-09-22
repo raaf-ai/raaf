@@ -382,11 +382,18 @@ module RAAF
       # - RAAF_ENVIRONMENT: Set to "development" for console output
       # - RAAF_TRACE_CONSOLE: Set to "true" to force console output
       # - RAAF_DEBUG_CATEGORIES: Include "tracing" or "http" for debug logging
+      # - RAAF_SKIP_DEFAULT_PROCESSORS: Set to "true" to disable automatic setup
       #
       # @return [void]
       #
       # @api private
       def setup_default_processors
+        # Skip default setup if explicitly disabled (for application control)
+        if ENV["RAAF_SKIP_DEFAULT_PROCESSORS"] == "true"
+          log_debug("Skipping default processor setup (RAAF_SKIP_DEFAULT_PROCESSORS=true)", provider: "TraceProvider")
+          return
+        end
+
         # Add OpenAI processor if API key is available
         if ENV["OPENAI_API_KEY"]
           log_debug("Setting up OpenAI trace processor", provider: "TraceProvider")

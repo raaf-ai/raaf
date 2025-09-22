@@ -138,6 +138,17 @@ module RAAF
         perform_cleanup_if_needed
       end
 
+      # Exports spans to the database (BatchTraceProcessor interface)
+      #
+      # This method provides the same functionality as export_batch but with the
+      # interface expected by BatchTraceProcessor.
+      #
+      # @param spans [Array] Array of spans to save
+      # @return [void]
+      def export(spans)
+        export_batch(spans)
+      end
+
       protected
 
       # Determines if a span should be processed (BaseProcessor abstract method)
@@ -246,17 +257,26 @@ module RAAF
         # Extract trace_id - use parameter if provided, otherwise extract from span
         actual_trace_id = trace_id || (span.is_a?(Hash) ? span[:trace_id] : span.trace_id)
 
-        return if @trace_buffer[actual_trace_id]
+        log_debug_tracing("ActiveRecord ensure_trace_exists called", trace_id: actual_trace_id)
+
+        if @trace_buffer[actual_trace_id]
+          log_debug_tracing("ActiveRecord trace already in buffer", trace_id: actual_trace_id)
+          return
+        end
 
         # Check if trace already exists in database
         existing_trace = ::RAAF::Tracing::TraceRecord.find_by(trace_id: actual_trace_id)
         if existing_trace
+          log_debug_tracing("ActiveRecord found existing trace in DB", trace_id: actual_trace_id)
           @trace_buffer[actual_trace_id] = existing_trace
           return
         end
 
         # Extract trace information from span attributes
         trace_attrs = extract_trace_attributes(span)
+        log_debug_tracing("ActiveRecord creating new trace",
+                          trace_id: actual_trace_id,
+                          workflow_name: trace_attrs[:workflow_name])
 
         begin
           # Extract start_time for trace creation
@@ -271,8 +291,20 @@ module RAAF
             status: "running"
           )
           @trace_buffer[actual_trace_id] = trace
+          log_debug_tracing("ActiveRecord successfully created trace",
+                            trace_id: actual_trace_id,
+                            trace_record_id: trace.id)
         rescue ActiveRecord::RecordInvalid => e
-          log_warn("Failed to create trace", error: e.message, error_class: e.class.name)
+          log_error("ActiveRecord failed to create trace",
+                    trace_id: actual_trace_id,
+                    error: e.message,
+                    error_class: e.class.name)
+          # Don't put failed trace in buffer to allow retry
+        rescue StandardError => e
+          log_error("ActiveRecord unexpected error creating trace",
+                    trace_id: actual_trace_id,
+                    error: e.message,
+                    error_class: e.class.name)
         end
       end
 
@@ -303,14 +335,25 @@ module RAAF
       def process_batch(spans)
         return if spans.empty?
 
+        affected_traces = Set.new
+
         begin
           ::RAAF::Tracing::SpanRecord.transaction do
             spans.each do |span|
               save_span_to_database(span)
+
+              # Track which traces were affected for status updates
+              trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
+              affected_traces.add(trace_id) if trace_id
             end
           end
 
-          log_debug_tracing("Saved batch of spans", spans_count: spans.size)
+          # Update trace statuses for all affected traces
+          affected_traces.each do |trace_id|
+            update_trace_status_for_trace_id(trace_id)
+          end
+
+          log_debug_tracing("Saved batch of spans", spans_count: spans.size, affected_traces: affected_traces.size)
         rescue StandardError => e
           log_error("Failed to save span batch", error: e.message, error_class: e.class.name)
         end
@@ -336,10 +379,14 @@ module RAAF
 
         log_debug_tracing("ActiveRecord save_span_to_database", span_kind: span_kind, span_name: span_name, span_id: span_id)
 
-        # Skip trace-level spans as they're handled separately
+        # Ensure the trace record exists before saving the span
+        ensure_trace_exists(span)
+
+        # Handle trace-level spans by updating the TraceRecord AND saving the span
         if span_kind == :trace
-          log_debug_tracing("ActiveRecord skipping trace-level span", span_kind: span_kind, span_name: span_name)
-          return
+          log_debug_tracing("ActiveRecord updating trace completion", span_kind: span_kind, span_name: span_name)
+          update_trace_completion(span)
+          # Continue to save the trace span as a span record too
         end
 
         if span.is_a?(Hash)
@@ -445,9 +492,12 @@ module RAAF
       # @return [Object] Sanitized value
       def sanitize_value(value, visited = Set.new)
         # Prevent circular references by tracking visited objects
-        if value.is_a?(Hash) || value.is_a?(Array)
-          object_id = value.object_id
-          return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
+        # Track ALL objects, not just Hash/Array, as Rails objects can have complex circular refs
+        object_id = value.object_id
+        return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
+
+        # For complex objects, always track them to prevent infinite recursion
+        if value.is_a?(Hash) || value.is_a?(Array) || value.respond_to?(:as_json)
           visited = visited.dup.add(object_id)
         end
 
@@ -455,19 +505,43 @@ module RAAF
         when String
           # Truncate very long strings
           value.length > 10_000 ? "#{value[0..9997]}..." : value
+        when Numeric, TrueClass, FalseClass, NilClass
+          # Safe primitive values
+          value
         when Hash
-          # Recursively sanitize nested hashes with circular reference protection
+          # Convert HashWithIndifferentAccess to regular hash and sanitize recursively
+          # Use each_pair to avoid triggering to_hash/as_json which can cause stack overflow
           sanitized = {}
-          value.each do |k, v|
-            sanitized[k.to_s] = sanitize_value(v, visited)
+          begin
+            if value.is_a?(ActiveSupport::HashWithIndifferentAccess)
+              # Access keys/values directly without calling to_h which can trigger recursion
+              value.each_pair do |k, v|
+                sanitized[k.to_s] = sanitize_value(v, visited)
+              end
+            else
+              value.each do |k, v|
+                sanitized[k.to_s] = sanitize_value(v, visited)
+              end
+            end
+          rescue SystemStackError, StandardError => e
+            return "[SANITIZATION_ERROR: #{e.class}]"
           end
           sanitized
         when Array
           # Limit array size and sanitize elements with circular reference protection
-          limited_array = value.first(100)
-          limited_array.map { |v| sanitize_value(v, visited) }
+          begin
+            limited_array = value.first(100)
+            limited_array.map { |v| sanitize_value(v, visited) }
+          rescue SystemStackError, StandardError => e
+            ["[SANITIZATION_ERROR: #{e.class}]"]
+          end
         else
-          value
+          # For any other object type, convert to string to prevent serialization issues
+          begin
+            value.respond_to?(:to_s) ? value.to_s.slice(0, 1000) : "[UNSERIALIZABLE:#{value.class}]"
+          rescue SystemStackError, StandardError => e
+            "[SANITIZATION_ERROR: #{e.class}]"
+          end
         end
       end
 
@@ -496,6 +570,61 @@ module RAAF
         # Stop background thread if it exists
         @background_thread&.kill
         log_debug("#{self.class.name} shut down", processor: self.class.name)
+      end
+
+      # Updates the TraceRecord when a trace span completes
+      #
+      # @param span [Span, Hash] The trace span that ended
+      # @return [void]
+      def update_trace_completion(span)
+        # Extract trace information
+        if span.is_a?(Hash)
+          trace_id = span[:trace_id]
+          end_time = span[:end_time]
+          start_time = span[:start_time]
+        else
+          trace_id = span.trace_id
+          end_time = span.end_time
+          start_time = span.start_time
+        end
+
+        return unless trace_id && end_time
+
+        # Find and update the TraceRecord
+        trace_record = ::RAAF::Tracing::TraceRecord.find_by(trace_id: trace_id)
+        if trace_record
+          trace_record.update!(ended_at: end_time)
+
+          log_debug_tracing("ActiveRecord updated trace completion",
+                            trace_id: trace_id,
+                            ended_at: end_time)
+        else
+          log_debug_tracing("ActiveRecord trace not found for completion update",
+                            trace_id: trace_id)
+        end
+      rescue StandardError => e
+        log_error("Failed to update trace completion: #{e.message}",
+                  trace_id: trace_id, error_class: e.class.name)
+      end
+
+      # Updates the status of a trace based on its spans
+      #
+      # @param trace_id [String] The trace ID to update
+      # @return [void]
+      def update_trace_status_for_trace_id(trace_id)
+        trace_record = ::RAAF::Rails::Tracing::TraceRecord.find_by(trace_id: trace_id)
+        return unless trace_record
+
+        # Call the trace record's built-in status update method
+        trace_record.update_trace_status
+
+        log_debug_tracing("Updated trace status",
+                          trace_id: trace_id,
+                          new_status: trace_record.reload.status)
+      rescue StandardError => e
+        log_warn("Failed to update trace status",
+                 trace_id: trace_id,
+                 error: e.message)
       end
 
       # Validate that database tables exist
