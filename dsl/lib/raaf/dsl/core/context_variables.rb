@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'active_support/core_ext/hash/indifferent_access'
+require 'set'
 
 # Swarm-style context variables management with debugging support and deep indifferent access
 #
@@ -453,15 +454,33 @@ module RAAF
       # This ensures that all nested structures support both string and symbol keys
       #
       # @param obj [Object] Object to convert
+      # @param visited [Set] Set of visited object IDs to prevent circular references
       # @return [Object] Object with all nested hashes converted to indifferent access
-      def deep_convert_to_indifferent_access(obj)
+      def deep_convert_to_indifferent_access(obj, visited = Set.new)
+        # Prevent circular references by tracking visited objects
+        if obj.is_a?(Hash) || obj.is_a?(Array)
+          object_id = obj.object_id
+          return obj if visited.include?(object_id)
+          visited = visited.dup.add(object_id)
+        end
+
         case obj
         when Hash
           # Convert hash to indifferent access and recursively convert all values
-          obj.with_indifferent_access.transform_values { |value| deep_convert_to_indifferent_access(value) }
+          # Use a safer approach to avoid infinite loops with circular references
+          converted_hash = {}
+          obj.each do |key, value|
+            # Check if this value would cause a circular reference
+            if (value.is_a?(Hash) || value.is_a?(Array)) && visited.include?(value.object_id)
+              converted_hash[key] = "[CIRCULAR_REFERENCE]"
+            else
+              converted_hash[key] = deep_convert_to_indifferent_access(value, visited)
+            end
+          end
+          converted_hash.with_indifferent_access
         when Array
           # Recursively convert all array elements
-          obj.map { |element| deep_convert_to_indifferent_access(element) }
+          obj.map { |element| deep_convert_to_indifferent_access(element, visited) }
         else
           # Return primitive values as-is
           obj

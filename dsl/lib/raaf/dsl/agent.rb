@@ -974,12 +974,16 @@ module RAAF
           resolved_context = resolve_run_context(context || input_context_variables)
           unless should_execute?(resolved_context, previous_result)
             log_info "⏭️ [#{self.class.name}] Skipping execution due to conditions not met"
-            return {
+
+            # Create a span for the skipped agent to make it visible in traces
+            skip_result = {
               success: true,
               skipped: true,
               reason: "Execution conditions not met",
               workflow_status: "skipped"
             }
+
+            return create_skipped_span("execution_conditions_not_met", skip_result, resolved_context)
           end
         end
 
@@ -2394,6 +2398,55 @@ module RAAF
         end
       end
 
+      # Create a span for skipped agents to make them visible in traces
+      def create_skipped_span(skip_reason, result_data, context)
+        agent_name = self.class._context_config&.dig(:name) || self.class.name
+
+        # Get the tracer from TraceProvider or create a fallback
+        tracer = begin
+          RAAF::Tracing::TraceProvider.tracer
+        rescue NameError, NoMethodError
+          # Fallback if TraceProvider is not available
+          nil
+        end
+
+        if tracer
+          # Create a span for the skipped agent
+          tracer.agent_span(agent_name) do |span|
+            # Add attributes to indicate this agent was skipped
+            span.set_attribute("agent.skipped", true)
+            span.set_attribute("agent.skip_reason", skip_reason)
+            span.set_attribute("agent.name", agent_name)
+            span.set_attribute("agent.class", self.class.name)
+
+            # Add context information for debugging
+            if context
+              available_keys = context.respond_to?(:keys) ? context.keys : []
+              span.set_attribute("agent.available_context_keys", available_keys.join(", "))
+            end
+
+            # Add any required context that might be missing
+            if self.class._required_context_keys && context
+              missing_keys = self.class._required_context_keys.reject do |key|
+                context.respond_to?(:has?) ? context.has?(key) : context.key?(key)
+              end
+              if missing_keys.any?
+                span.set_attribute("agent.missing_required_keys", missing_keys.join(", "))
+              end
+            end
+
+            # Log the skip event
+            log_info "⏭️ [#{agent_name}] Created span for skipped agent: #{skip_reason}"
+          end
+        else
+          # Fallback: just log if no tracer available
+          log_info "⏭️ [#{agent_name}] Skipped (no tracer): #{skip_reason}"
+        end
+
+        # Return the result data
+        result_data
+      end
+
       def find_retry_config(error)
         return nil unless self.class._retry_config
 
@@ -3568,6 +3621,43 @@ module RAAF
               true
             end
           end
+        end
+      end
+
+      # Create a skipped span when agent execution is skipped
+      def create_skipped_span(skip_reason, skip_result, resolved_context)
+        return skip_result unless @tracer
+
+        # Create a short-lived span to make the skip visible in traces
+        @tracer.agent_span(agent_name) do |span|
+          # Set parent span if provided (from pipeline)
+          span.instance_variable_set(:@parent_id, @parent_span.span_id) if @parent_span
+
+          # Mark as skipped with specific attributes
+          span.set_attribute("agent.skipped", true)
+          span.set_attribute("agent.skip_reason", skip_reason)
+          span.set_attribute("agent.class", self.class.name)
+          span.set_attribute("agent.name", agent_name)
+
+          # Add debugging info about available vs required context
+          if resolved_context
+            span.set_attribute("agent.available_context_keys", resolved_context.keys)
+            span.set_attribute("agent.context_size", resolved_context.keys.length)
+          end
+
+          # Set span status to indicate this was intentionally skipped (not an error)
+          span.set_status(:ok)
+          span.set_attribute("agent.success", false)
+          span.set_attribute("agent.workflow_status", "skipped")
+
+          # Add event to show when skip occurred
+          span.add_event("agent.execution_skipped", attributes: {
+            reason: skip_reason,
+            timestamp: Time.now.utc.iso8601
+          })
+
+          # Return the skip result
+          skip_result
         end
       end
     end
