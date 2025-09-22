@@ -302,8 +302,8 @@ module RAAF
         @spans = []
       end
 
-      def start_span(name, kind: :internal, parent: nil)
-        parent_span = parent || @span_stack.last
+      def start_span(name, kind: :internal, parent: :auto)
+        parent_span = parent == :auto ? @span_stack.last : parent
         # Use current trace's ID if available
         current_trace = defined?(Context) ? Context.current_trace : nil
         trace_id = current_trace&.trace_id || parent_span&.trace_id || "trace_#{SecureRandom.hex(16)}"
@@ -465,7 +465,7 @@ module RAAF
       #   ensure
       #     tracer.finish_span(span)
       #   end
-      def start_span(name, kind: :internal, parent: nil, **attributes)
+      def start_span(name, kind: :internal, parent: :auto, **attributes)
         span = @context.start_span(name, kind: kind, parent: parent)
         span.attributes = attributes unless attributes.empty?
 
@@ -617,11 +617,11 @@ module RAAF
       # Creates a pipeline execution span
       #
       # @param pipeline_name [String] Name of the pipeline
-      # @param parent [Span, nil] Optional parent span (defaults to current span)
+      # @param parent [Span, nil, :auto] Optional parent span (:auto uses current span, nil forces root)
       # @param attributes [Hash] Additional span attributes
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
-      def pipeline_span(pipeline_name, parent: nil, **attributes, &)
+      def pipeline_span(pipeline_name, parent: :auto, **attributes, &)
         start_span("pipeline.#{pipeline_name}", kind: :pipeline, parent: parent,
                                                 "pipeline.name" => pipeline_name, **attributes, &)
       end
