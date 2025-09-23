@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# Fixed @span_stack access issue - 2025-09-22 16:43:32
 
 require "securerandom"
 require "time"
@@ -304,9 +305,24 @@ module RAAF
 
       def start_span(name, kind: :internal, parent: :auto)
         parent_span = parent == :auto ? @span_stack.last : parent
-        # Use current trace's ID if available
-        current_trace = defined?(Context) ? Context.current_trace : nil
-        trace_id = current_trace&.trace_id || parent_span&.trace_id || "trace_#{SecureRandom.hex(16)}"
+
+        # CRITICAL FIX: When explicit parent is provided, ensure trace continuity
+        # This fixes the issue where pipeline spans and agent spans get different trace IDs
+        if parent_span
+          trace_id = parent_span.trace_id
+
+          # Ensure parent span is in our spans collection for proper hierarchy
+          unless @spans.include?(parent_span)
+            @spans << parent_span
+          end
+
+          # CRITICAL: Set current trace context to match parent
+          @trace_id = trace_id
+        else
+          # Only use current trace if no parent span is provided
+          current_trace = defined?(Context) ? Context.current_trace : nil
+          trace_id = current_trace&.trace_id || @trace_id || "trace_#{SecureRandom.hex(16)}"
+        end
         parent_id = parent_span&.span_id
 
         span = Span.new(
@@ -609,8 +625,8 @@ module RAAF
       #     span.set_attribute("agent.version", "1.0")
       #     agent.process_request(message)
       #   end
-      def agent_span(agent_name, **attributes, &)
-        start_span("agent.#{agent_name}", kind: :agent,
+      def agent_span(agent_name, parent: :auto, **attributes, &)
+        start_span("agent.#{agent_name}", kind: :agent, parent: parent,
                                           "agent.name" => agent_name, **attributes, &)
       end
 
@@ -633,9 +649,102 @@ module RAAF
       # @yield [span] Block to execute within the span
       # @return [Object] Result of the block
       def tool_span(tool_name, **attributes, &)
-        start_span("tool.#{tool_name}", kind: :tool,
+        # Find the correct parent for tool spans - should be the agent or workflow span
+        # to make all tool spans siblings rather than forming a chain
+        tool_parent = find_tool_parent_span
+
+        start_span("tool.#{tool_name}", kind: :tool, parent: tool_parent,
                                         "tool.name" => tool_name, **attributes, &)
       end
+
+      # Find the correct parent span for tool execution
+      # Tools should be children of the agent span (or workflow span if no agent)
+      # rather than children of other tool spans to make them siblings
+      #
+      # @return [Span, nil] The agent or workflow span to use as parent
+      def find_tool_parent_span
+        # Access span_stack from the context object where it's actually defined
+        span_stack = @context.instance_variable_get(:@span_stack)
+        return nil unless span_stack
+
+        # Look through the span stack from bottom to top to find the right parent
+        # Priority: pipeline span > agent span > workflow/trace span > current span (fallback)
+
+        # First, look for pipeline spans - these should be parents for tools in pipeline context
+        pipeline_span = span_stack.find do |span|
+          begin
+            # Inline validation check to avoid method visibility issues
+            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+            next false if span.kind == :tool  # Skip tool spans to prevent chaining
+            # Pipeline spans typically have "pipeline" in their name or are specifically pipeline spans
+            span.name.include?("pipeline") || span.kind == :pipeline
+          rescue => e
+            # Skip invalid spans silently
+            false
+          end
+        end
+        return pipeline_span if pipeline_span
+
+        # If no pipeline span, find agent span - but ensure it's not a tool span
+        agent_span = span_stack.find do |span|
+          begin
+            # Inline validation check to avoid method visibility issues
+            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+            next false if span.kind == :tool  # Skip tool spans to prevent chaining
+            span.kind == :agent
+          rescue => e
+            # Skip invalid spans silently
+            false
+          end
+        end
+        return agent_span if agent_span
+
+        # If no agent span, look for workflow/trace spans
+        workflow_span = span_stack.find do |span|
+          begin
+            # Inline validation check to avoid method visibility issues
+            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+            next false if span.kind == :tool  # Skip tool spans to prevent chaining
+            span.name.include?("workflow") || span.name.include?("trace") || span.kind == :internal
+          rescue => e
+            # Skip invalid spans silently
+            false
+          end
+        end
+        return workflow_span if workflow_span
+
+        # Fallback to first non-tool span on the stack
+        non_tool_span = span_stack.find do |span|
+          begin
+            # Inline validation check to avoid method visibility issues
+            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+            span.kind != :tool
+          rescue => e
+            # Skip invalid spans silently
+            false
+          end
+        end
+        return non_tool_span if non_tool_span
+
+        # Ultimate fallback - check if the last span is valid before returning it
+        last_span = span_stack.last
+        if last_span && last_span.respond_to?(:kind) && last_span.respond_to?(:name) && last_span.respond_to?(:trace_id)
+          return last_span
+        else
+          return nil  # Return nil instead of invalid object
+        end
+      end
+
+      private
+
+      # Helper method to check if an object is a valid span
+      def is_valid_span?(obj)
+        return false unless obj
+        # Check if it responds to the basic span methods we need
+        obj.respond_to?(:kind) && obj.respond_to?(:name) && obj.respond_to?(:trace_id)
+      end
+
+      public
 
       # Creates an HTTP API request span (matching Python implementation)
       #
@@ -1127,3 +1236,4 @@ module RAAF
     end
   end
 end
+# Updated on ma 22 sep. 2025 19:45:27 CEST
