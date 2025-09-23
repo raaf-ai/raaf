@@ -315,9 +315,10 @@ module RAAF
 
     attr_reader :tracer
 
-    def initialize(runner:, provider:, agent:, config:, tracer:)
+    def initialize(runner:, provider:, agent:, config:, tracer:, parent_span: nil)
       super(runner: runner, provider: provider, agent: agent, config: config)
       @tracer = tracer
+      @parent_span = parent_span
     end
 
     ##
@@ -367,9 +368,18 @@ module RAAF
     # @return [void]
     #
     def before_turn(conversation, current_agent, _context_wrapper, _turns)
-      # Create agent span without manipulating the span stack
-      # The tracer's start_span method will automatically set parent_id from current context
-      @current_agent_span = tracer.start_span("agent.#{current_agent.name || "agent"}", kind: :agent)
+      # If we have a parent_span provided by the DSL layer, use it as the current span
+      # This prevents duplicate agent spans when called from DSL agents
+      if @parent_span && @parent_span.kind == :agent
+        @current_agent_span = @parent_span
+        # Don't create a new span - reuse the DSL agent span
+      else
+        # Create agent span with explicit parent if provided (for pipeline integration)
+        # Otherwise use automatic parent resolution from current context
+        span_params = { kind: :agent }
+        span_params[:parent] = @parent_span if @parent_span
+        @current_agent_span = tracer.start_span("agent.#{current_agent.name || "agent"}", **span_params)
+      end
 
       # Set detailed agent span attributes
       @current_agent_span.set_attribute("agent.name", current_agent.name || "agent")
@@ -420,8 +430,15 @@ module RAAF
         log_error("Error setting span attributes: #{e.message}", error_class: e.class.name)
       end
 
-      # Ensure the agent span is finished using multiple strategies
-      finish_agent_span_safely
+      # Only finish spans that we created ourselves
+      # Don't finish spans provided by the DSL layer - they manage their own lifecycle
+      if @parent_span && @parent_span.kind == :agent && @current_agent_span == @parent_span
+        # This is a DSL-provided span, don't finish it here
+        log_debug("Skipping span finish - DSL agent will handle it", span_id: @current_agent_span.span_id)
+      else
+        # Ensure the agent span is finished using multiple strategies
+        finish_agent_span_safely
+      end
     ensure
       # Always clean up the span reference
       @current_agent_span = nil

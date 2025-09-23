@@ -80,6 +80,7 @@ module RAAF
     # @param agent [Agent] The initial agent to run conversations with
     # @param provider [Models::Interface, nil] The LLM provider (defaults to ResponsesProvider)
     # @param tracer [Tracing::SpanTracer, nil] The tracer for monitoring execution
+    # @param parent_span [Span, nil] Parent span for tracing hierarchy (when called from pipelines)
     # @param disabled_tracing [Boolean] Whether to disable tracing completely
     # @param stop_checker [Proc, nil] A callable that returns true to stop execution
     # @param context_manager [ContextManager, nil] Custom context manager for memory
@@ -102,12 +103,13 @@ module RAAF
     #   memory_manager = RAAF::MemoryManager.new(store: RAAF::Memory.create(:file))
     #   runner = RAAF::Runner.new(agent: agent, memory_manager: memory_manager)
     #
-    def initialize(agent:, provider: nil, tracer: nil, disabled_tracing: false, stop_checker: nil,
+    def initialize(agent:, provider: nil, tracer: nil, parent_span: nil, disabled_tracing: false, stop_checker: nil,
                    context_manager: nil, context_config: nil, memory_manager: nil, http_timeout: nil)
       @agent = agent
       @provider = provider || create_default_provider(http_timeout: http_timeout)
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
+      @parent_span = parent_span
       @stop_checker = stop_checker
       @memory_manager = memory_manager
 
@@ -256,7 +258,8 @@ module RAAF
                      provider: @provider,
                      agent: agent,
                      config: config,
-                     tracer: @tracer
+                     tracer: @tracer,
+                     parent_span: @parent_span
                    )
                  end
 
