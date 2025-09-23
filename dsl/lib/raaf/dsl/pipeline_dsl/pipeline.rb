@@ -604,6 +604,7 @@ module RAAF
     end
     
     def execute_agent(agent_class, context)
+      puts "🔍 [Pipeline] execute_agent called for #{agent_class.name}"
       unless agent_class.respond_to?(:requirements_met?) && agent_class.requirements_met?(context)
         RAAF.logger.warn "Skipping #{agent_class.name}: requirements not met"
         return [{}, context]  # Return empty result and unchanged context for skipped agents
@@ -616,6 +617,9 @@ module RAAF
       if @tracer && @pipeline_span
         instance_params[:tracer] = @tracer
         instance_params[:parent_span] = @pipeline_span
+        puts "🔍 [Pipeline] Passing parent_span to #{agent_class.name}: #{@pipeline_span.span_id} (#{@pipeline_span.name})"
+      else
+        puts "🔍 [Pipeline] No parent_span for #{agent_class.name} - tracer: #{@tracer.present?}, pipeline_span: #{@pipeline_span.present?}"
       end
       instance = agent_class.new(**instance_params)
 

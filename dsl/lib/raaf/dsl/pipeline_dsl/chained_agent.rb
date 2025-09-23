@@ -131,6 +131,8 @@ module RAAF
         def validate_field_compatibility!
           return unless @first.respond_to?(:provided_fields) && @second.respond_to?(:required_fields)
 
+          first_name = @first.respond_to?(:name) ? @first.name : @first.class.name
+          second_name = @second.respond_to?(:name) ? @second.name : @second.class.name
           provided = @first.provided_fields
           required = @second.required_fields
           missing = required - provided
@@ -210,12 +212,32 @@ module RAAF
           end
 
           # Execute agent - ContextVariables now supports direct splatting via to_hash method
-          agent = agent_class.new(**context)
+          # Add tracing information from pipeline if available
+          agent_params = context.to_h
+
+          # Get pipeline instance to extract tracing information
+          pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
+          if pipeline_instance
+            # Pass tracer from pipeline
+            if pipeline_instance.instance_variable_get(:@tracer)
+              agent_params[:tracer] = pipeline_instance.instance_variable_get(:@tracer)
+            end
+
+            # Pass pipeline span as parent_span
+            if pipeline_instance.instance_variable_get(:@pipeline_span)
+              agent_params[:parent_span] = pipeline_instance.instance_variable_get(:@pipeline_span)
+            end
+          end
+
+          # Convert to regular hash first, then transform keys to symbols for RAAF::DSL::Agent compatibility
+          regular_hash = agent_params.to_h
+          symbolized_params = regular_hash.transform_keys(&:to_sym)
+
+          agent = agent_class.new(**symbolized_params)
           log_debug "Agent #{agent_name} initialized"
 
           # Inject pipeline schema into agent if available
-          # Check if we have a pipeline instance with schema available
-          pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
+          # pipeline_instance is already retrieved above
           if pipeline_instance && pipeline_instance.respond_to?(:pipeline_schema)
             pipeline_schema = pipeline_instance.pipeline_schema
 

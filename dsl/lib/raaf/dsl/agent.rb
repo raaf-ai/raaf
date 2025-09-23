@@ -13,7 +13,7 @@ require_relative "context_configuration"
 require_relative "pipelineable"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
-require_relative "pipeline"
+# Note: Old AgentPipeline class removed - use RAAF::Pipeline from pipeline_dsl/pipeline.rb
 require_relative "hooks/hook_context"
 require_relative "auto_merge"
 
@@ -874,6 +874,11 @@ module RAAF
         @pipeline_schema = nil  # Will be set by pipeline if agent is part of one
         @tracer = tracer || (RAAF.respond_to?(:tracer) ? RAAF.tracer : nil)
         @parent_span = parent_span
+
+        # Log parent_span status for debugging tracing issues
+        if @parent_span
+          log_debug "Received parent_span: #{@parent_span.span_id} (#{@parent_span.name})"
+        end
         
         # If context provided explicitly, use it (backward compatible)
         if context
@@ -1954,9 +1959,12 @@ module RAAF
         return execute_without_tracing(context, input_context_variables, stop_checker) unless @tracer
 
         # Create agent span with full metadata and dialog capture
-        @tracer.agent_span(agent_name) do |span|
-          # Set parent span if provided (from pipeline)
-          span.instance_variable_set(:@parent_id, @parent_span.span_id) if @parent_span
+        if @parent_span
+          puts "🔍 [#{self.class.name}] Creating agent span with parent: #{@parent_span.span_id} (#{@parent_span.name})"
+        else
+          puts "🔍 [#{self.class.name}] Creating agent span with no parent"
+        end
+        @tracer.agent_span(agent_name, parent: @parent_span) do |span|
 
           # Set comprehensive agent metadata
           set_agent_span_attributes(span)
@@ -1988,6 +1996,7 @@ module RAAF
 
           # Create RAAF runner and delegate execution
           runner_params = { agent: openai_agent, tracer: @tracer }
+          runner_params[:parent_span] = span  # Pass the current DSL agent span as parent
           runner_params[:stop_checker] = stop_checker if stop_checker
           runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
 
@@ -3629,9 +3638,7 @@ module RAAF
         return skip_result unless @tracer
 
         # Create a short-lived span to make the skip visible in traces
-        @tracer.agent_span(agent_name) do |span|
-          # Set parent span if provided (from pipeline)
-          span.instance_variable_set(:@parent_id, @parent_span.span_id) if @parent_span
+        @tracer.agent_span(agent_name, parent: @parent_span) do |span|
 
           # Mark as skipped with specific attributes
           span.set_attribute("agent.skipped", true)
