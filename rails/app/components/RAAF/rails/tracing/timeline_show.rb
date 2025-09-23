@@ -20,9 +20,8 @@ module RAAF
             render_performance_summary if @performance_stats
           end
 
-          content_for :javascript do
-            render_timeline_script
-          end
+          # JavaScript is handled by Stimulus timeline controller
+          # Data attributes are already set up in render_timeline_chart
         end
 
         private
@@ -124,15 +123,116 @@ module RAAF
         def render_timeline_chart
           div(class: "bg-white rounded-lg shadow") do
             div(class: "px-6 py-4 border-b border-gray-200") do
-              h4(class: "text-lg font-medium text-gray-900") { "Execution Timeline" }
+              div(class: "flex items-center justify-between") do
+                h4(class: "text-lg font-medium text-gray-900") { "Execution Timeline" }
+
+                # View switcher controls
+                div(class: "view-switcher flex space-x-2") do
+                  button(
+                    id: "timeline-view",
+                    type: "button",
+                    class: "btn btn-sm btn-secondary active"
+                  ) { "Timeline" }
+                  button(
+                    id: "gantt-view",
+                    type: "button",
+                    class: "btn btn-sm btn-secondary"
+                  ) { "Gantt" }
+                  button(
+                    id: "critical-path-view",
+                    type: "button",
+                    class: "btn btn-sm btn-secondary"
+                  ) { "Critical Path" }
+                end
+
+                # Zoom controls
+                div(class: "zoom-controls flex space-x-1") do
+                  button(id: "zoom-in", type: "button", class: "btn btn-sm btn-outline") { "+" }
+                  button(id: "zoom-out", type: "button", class: "btn btn-sm btn-outline") { "-" }
+                  button(id: "zoom-fit", type: "button", class: "btn btn-sm btn-outline") { "Fit" }
+                end
+              end
+
+              # Configuration options
+              div(class: "mt-3 flex space-x-4 text-sm") do
+                label(class: "flex items-center space-x-1") do
+                  input(type: "checkbox", id: "show-attributes", checked: true)
+                  span { "Show Attributes" }
+                end
+                label(class: "flex items-center space-x-1") do
+                  input(type: "checkbox", id: "group-by-kind", checked: true)
+                  span { "Group by Kind" }
+                end
+                label(class: "flex items-center space-x-1") do
+                  input(type: "checkbox", id: "highlight-errors", checked: true)
+                  span { "Highlight Errors" }
+                end
+              end
             end
 
-            div(id: "timeline-chart", class: "p-6") do
-              # Timeline visualization will be rendered by JavaScript
-              div(class: "text-center py-12 text-gray-500") do
-                i(class: "bi bi-clock-history text-4xl mb-4")
-                p { "Loading timeline visualization..." }
+            # Timeline visualization container with Stimulus controller
+            div(
+              id: "timeline-chart",
+              class: "p-6",
+              data: {
+                controller: "timeline",
+                timeline_timeline_data_value: @timeline_data.to_json,
+                timeline_gantt_data_value: @gantt_data&.to_json || {}.to_json,
+                timeline_trace_id_value: @trace&.trace_id || "",
+                timeline_config_value: timeline_config.to_json
+              }
+            ) do
+              # Timeline visualization views
+              div(id: "timeline-visualization", style: "display: block;") do
+                div(data: { timeline_target: "timelineCanvas" }, class: "timeline-canvas") do
+                  div(class: "text-center py-12 text-gray-500") do
+                    i(class: "bi bi-clock-history text-4xl mb-4")
+                    p { "Loading timeline visualization..." }
+                  end
+                end
               end
+
+              div(id: "gantt-visualization", style: "display: none;") do
+                div(data: { timeline_target: "ganttChart" }, class: "gantt-chart") do
+                  div(class: "text-center py-12 text-gray-500") do
+                    i(class: "bi bi-diagram-3 text-4xl mb-4")
+                    p { "Loading gantt chart..." }
+                  end
+                end
+              end
+
+              div(id: "critical-path-visualization", style: "display: none;") do
+                div(data: { timeline_target: "criticalPathCanvas" }, class: "critical-path-canvas") do
+                  div(class: "text-center py-12 text-gray-500") do
+                    i(class: "bi bi-diagram-2 text-4xl mb-4")
+                    p { "Loading critical path analysis..." }
+                  end
+                end
+              end
+            end
+          end
+
+          # Span details panel
+          div(
+            id: "span-details-panel",
+            style: "display: none;",
+            class: "fixed right-0 top-0 h-full w-96 bg-white shadow-lg z-50 overflow-y-auto",
+            data: { timeline_target: "spanDetailsPanel" }
+          ) do
+            div(class: "p-4 border-b border-gray-200 flex items-center justify-between") do
+              h3(class: "text-lg font-medium text-gray-900") { "Span Details" }
+              button(
+                id: "close-details",
+                type: "button",
+                class: "text-gray-400 hover:text-gray-600"
+              ) { "×" }
+            end
+            div(
+              id: "span-details-content",
+              class: "p-4",
+              data: { timeline_target: "spanDetailsContent" }
+            ) do
+              # Content will be populated by the controller
             end
           end
         end
@@ -268,106 +368,17 @@ module RAAF
           end
         end
 
-        def render_timeline_script
-          script do
-            plain <<~JAVASCRIPT
-              // Timeline visualization using D3.js or similar library
-              class TimelineVisualization {
-                constructor(containerId, timelineData) {
-                  this.container = document.getElementById(containerId);
-                  this.data = timelineData;
-                  this.width = this.container.clientWidth - 40;
-                  this.height = Math.max(400, this.data.items.length * 25 + 100);
-                  this.init();
-                }
-
-                init() {
-                  if (!this.data || !this.data.items) {
-                    this.container.innerHTML = '<p class="text-center text-gray-500">No timeline data available</p>';
-                    return;
-                  }
-
-                  this.renderSimpleTimeline();
-                }
-
-                renderSimpleTimeline() {
-                  const totalDuration = this.data.total_duration_ms;
-
-                  let html = '<div class="space-y-2">';
-
-                  this.data.items.forEach((item, index) => {
-                    const widthPercent = Math.max(item.percentage_width, 0.5);
-                    const leftPercent = item.percentage_start;
-                    const color = this.getSpanColor(item.kind, item.status);
-                    const depth = item.depth;
-
-                    html += `
-                      <div class="relative" style="margin-left: ${depth * 20}px;">
-                        <div class="flex items-center space-x-2 text-xs text-gray-600 mb-1">
-                          <span class="font-medium">${item.name}</span>
-                          <span class="text-gray-400">(${item.duration_ms}ms)</span>
-                        </div>
-                        <div class="relative h-6 bg-gray-100 rounded">
-                          <div
-                            class="absolute h-full rounded"
-                            style="
-                              left: ${leftPercent}%;
-                              width: ${widthPercent}%;
-                              background-color: ${color};
-                              opacity: 0.8;
-                            "
-                            title="${item.name} - ${item.duration_ms}ms - ${item.kind}"
-                          ></div>
-                        </div>
-                      </div>
-                    `;
-                  });
-
-                  html += '</div>';
-
-                  // Add time scale
-                  html += '<div class="mt-4 relative h-8 border-t border-gray-200">';
-                  html += '<div class="absolute inset-0 flex justify-between text-xs text-gray-500">';
-                  html += '<span>0ms</span>';
-                  html += `<span>${Math.round(totalDuration / 4)}ms</span>`;
-                  html += `<span>${Math.round(totalDuration / 2)}ms</span>`;
-                  html += `<span>${Math.round(totalDuration * 3 / 4)}ms</span>`;
-                  html += `<span>${totalDuration}ms</span>`;
-                  html += '</div></div>';
-
-                  this.container.innerHTML = html;
-                }
-
-                getSpanColor(kind, status) {
-                  if (status === 'error') return '#6b7280';
-
-                  switch (kind) {
-                    case 'agent': return '#4b5563';
-                    case 'llm': return '#6b7280';
-                    case 'tool': return '#374151';
-                    case 'response': return '#9ca3af';
-                    default: return '#6b7280';
-                  }
-                }
-              }
-
-              document.addEventListener('DOMContentLoaded', function() {
-                const timelineData = #{@timeline_data.to_json};
-                if (timelineData && Object.keys(timelineData).length > 0) {
-                  new TimelineVisualization('timeline-chart', timelineData);
-                }
-
-                // Toggle between timeline and gantt view
-                const toggleBtn = document.getElementById('toggle-gantt-view');
-                if (toggleBtn) {
-                  toggleBtn.addEventListener('click', function() {
-                    // Future implementation for Gantt chart view
-                    alert('Gantt view coming soon!');
-                  });
-                }
-              });
-            JAVASCRIPT
-          end
+        # Configuration for timeline visualization
+        def timeline_config
+          {
+            height: 600,
+            margin: { top: 20, right: 20, bottom: 40, left: 150 },
+            zoomLevel: 1.0,
+            showAttributes: true,
+            groupByKind: true,
+            highlightErrors: true,
+            currentView: "timeline"
+          }
         end
       end
     end

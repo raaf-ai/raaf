@@ -55,7 +55,7 @@ module RAAF
       validates :name, presence: true, length: { maximum: 255 }
       validates :kind, inclusion: {
         in: %w[agent llm tool handoff guardrail mcp_list_tools response
-               speech_group speech transcription custom internal trace]
+               speech_group speech transcription custom internal trace pipeline]
       }
       validates :status, inclusion: { in: %w[ok error cancelled] }
 

@@ -32,7 +32,7 @@ module RAAF
             csp_meta_tag
           end
 
-          body(class: "bg-gray-50") do
+          body(class: "bg-gray-50", data: { controller: "auto-refresh", auto_refresh_interval_value: 30000 }) do
             div(class: "flex h-screen overflow-hidden") do
               render_sidebar
               div(class: "flex-1 flex flex-col overflow-hidden") do
@@ -111,13 +111,102 @@ module RAAF
       end
 
       def render_scripts
+        # Simple vanilla JavaScript for expand/collapse functionality using safe()
+        script do
+          safe(<<~JS)
+            document.addEventListener('DOMContentLoaded', function() {
+              console.log('🚀 Hierarchical spans JavaScript loaded!');
+
+              // Initialize collapsed state
+              function initializeCollapsedState() {
+                const childrenRows = document.querySelectorAll('tr.span-children');
+                console.log('👥 Found ' + childrenRows.length + ' children rows to hide');
+
+                childrenRows.forEach(row => {
+                  row.classList.add('hidden');
+                  console.log('🙈 Hiding row for span ' + row.dataset.spanId);
+                });
+              }
+
+              // Toggle children visibility
+              function toggleChildren(button) {
+                console.log('🎯 toggleChildren called for button:', button);
+
+                const spanId = button.dataset.spanId;
+                console.log('🔍 Toggling span ' + spanId);
+
+                const childrenRows = document.querySelectorAll(
+                  'tr.span-children[data-parent-span-id="' + spanId + '"]'
+                );
+
+                console.log('📊 Found ' + childrenRows.length + ' children rows for span ' + spanId);
+
+                if (childrenRows.length === 0) {
+                  console.log('ℹ️ No children rows found for span ' + spanId + ' (may be cross-trace relationship)');
+                  return;
+                }
+
+                const isCurrentlyHidden = childrenRows[0].classList.contains('hidden');
+
+                if (isCurrentlyHidden) {
+                  // Expand: show children and change chevron to down
+                  childrenRows.forEach(row => {
+                    row.classList.remove('hidden');
+                  });
+
+                  button.textContent = '▼';
+                  button.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-800');
+                  button.classList.remove('bg-gray-100', 'border-gray-300');
+
+                } else {
+                  // Collapse: hide children and change chevron to right
+                  button.textContent = '▶';
+                  button.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-800');
+                  button.classList.add('bg-gray-100', 'border-gray-300');
+
+                  childrenRows.forEach(row => {
+                    row.classList.add('hidden');
+                  });
+
+                  // Also collapse any expanded grandchildren
+                  childrenRows.forEach(row => {
+                    const grandchildrenRows = document.querySelectorAll(
+                      'tr.span-children[data-parent-span-id="' + row.dataset.spanId + '"]'
+                    );
+                    grandchildrenRows.forEach(grandchildRow => {
+                      grandchildRow.classList.add('hidden');
+
+                      const grandchildButton = grandchildRow.querySelector('.expand-button');
+                      if (grandchildButton) {
+                        grandchildButton.textContent = '▶';
+                        grandchildButton.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-800');
+                        grandchildButton.classList.add('bg-gray-100', 'border-gray-300');
+                      }
+                    });
+                  });
+                }
+              }
+
+              // Initialize collapsed state
+              initializeCollapsedState();
+
+              // Add click handlers to all expand buttons
+              const expandButtons = document.querySelectorAll('.expand-button');
+              console.log('🔘 Found ' + expandButtons.length + ' expand buttons to handle');
+
+              expandButtons.forEach(button => {
+                button.addEventListener('click', function(event) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  toggleChildren(this);
+                });
+              });
+            });
+          JS
+        end
+
         # Preline JS
         script(src: "https://preline.co/assets/js/preline.js")
-
-        # Custom JS
-        script do
-          raw(tracing_scripts.html_safe)
-        end
       end
 
       def render_sidebar_items
@@ -225,17 +314,6 @@ module RAAF
         CSS
       end
 
-      def tracing_scripts
-        <<~JS
-          // Auto-refresh functionality
-          function enableAutoRefresh(interval = 30000) {
-            setInterval(() => {
-              if (document.hidden) return; // Don't refresh if tab is not active
-              window.location.reload();
-            }, interval);
-          }
-        JS
-      end
     end
     end
   end

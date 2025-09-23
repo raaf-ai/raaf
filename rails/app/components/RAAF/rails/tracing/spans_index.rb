@@ -70,6 +70,7 @@ module RAAF
                   :kind,
                   [
                     ["All Kinds", ""],
+                    ["Pipeline", "pipeline"],
                     ["Agent", "agent"],
                     ["Tool", "tool"],
                     ["Response", "response"],
@@ -123,204 +124,33 @@ module RAAF
         def render_spans_table
           if @spans.any?
             if @params[:view] == 'hierarchical'
-              render_expandable_hierarchy_table
+              render_hierarchical_table
             else
-              render_preline_table do
-                table(class: "min-w-full divide-y divide-gray-200") do
-                  render_table_header
-                  render_table_body
-                end
-              end
-              render_pagination if @total_pages > 1
+              render_list_table
             end
+            render_pagination if @total_pages > 1 && @params[:view] != 'hierarchical'
           else
             render_empty_state
           end
         end
 
-        def render_expandable_hierarchy_table
-          div(class: "bg-white shadow-sm rounded-lg overflow-hidden", data: { controller: "span-hierarchy" }) do
+        def render_hierarchical_table
+          div(class: "bg-white shadow-sm rounded-lg overflow-hidden") do
             table(class: "min-w-full divide-y divide-gray-200") do
-              render_hierarchy_table_header
+              render_table_header("Span Hierarchy")
               tbody(class: "bg-white divide-y divide-gray-200") do
-                render_flat_hierarchy_rows(@spans)
+                render_spans_rows(@spans, hierarchical: true)
               end
             end
           end
         end
 
-        def render_hierarchy_table_header
-          thead(class: "bg-gray-50") do
-            tr do
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5") do
-                "Span Hierarchy"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Kind"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Status"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Duration"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Start Time"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Trace"
-              end
-            end
-          end
-        end
-
-
-        def render_flat_hierarchy_rows(spans)
-          spans.each_with_index do |span, index|
-            # Determine if this span is a child based on hierarchy depth
-            depth = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : 0
-            is_child = depth > 0
-
-            # Find parent span ID for children
-            parent_span_id = nil
-            if is_child && index > 0
-              # Look backwards for a span with depth one less than current
-              parent_depth = depth - 1
-              parent_span = spans[0...index].reverse.find do |s|
-                s_depth = s.respond_to?(:hierarchy_depth) ? s.hierarchy_depth : 0
-                s_depth == parent_depth
-              end
-              parent_span_id = parent_span&.span_id
-            end
-
-            # Determine if this span has children
-            has_children = span.children.any?
-
-            # Render the row with stronger hidden styling for children
-            additional_classes = is_child ? "span-children hidden" : ""
-            if is_child
-              additional_classes += " bg-blue-50"  # Add background color to make children visible when shown
-            end
-
-            render_flat_hierarchy_row(
-              span,
-              depth,
-              has_children,
-              additional_classes: additional_classes,
-              parent_span_id: parent_span_id
-            )
-          end
-        end
-
-        def render_flat_hierarchy_row(span, level, has_children, additional_classes: "", parent_span_id: nil)
-          # Build CSS classes
-          css_classes = ["hover:bg-gray-50", "span-row"]
-          css_classes << additional_classes if additional_classes.present?
-
-          # Build data attributes
-          data_attrs = {
-            span_id: span.span_id,
-            level: level,
-            has_children: has_children
-          }
-          data_attrs[:parent_span_id] = parent_span_id if parent_span_id
-
-          tr(
-            class: css_classes.join(" "),
-            data: data_attrs
-          ) do
-            td(class: "px-6 py-4") do
-              div(class: "flex items-center") do
-                # Indentation for hierarchy level
-                if level > 0
-                  div(class: "flex items-center", style: "width: #{level * 20}px") do
-                    # Visual tree lines
-                    level.times do |i|
-                      if i == level - 1
-                        div(class: "w-4 h-4 border-l-2 border-b-2 border-gray-400 mr-1")
-                      else
-                        div(class: "w-4 border-l-2 border-gray-200 mr-1")
-                      end
-                    end
-                  end
-                end
-
-                # Expand/collapse button
-                if has_children
-                  button(
-                    type: "button",
-                    class: "expand-button flex items-center justify-center w-6 h-6 mr-2 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300",
-                    "data-action": "click->span-hierarchy#toggleChildren",
-                    "data-span-id": span.span_id
-                  ) do
-                    # Chevron right icon (will rotate when expanded)
-                    plain "›"
-                  end
-                else
-                  div(class: "w-6 h-6 mr-2") # Spacer for alignment
-                end
-
-                # Span information
-                div(class: "flex-1 min-w-0") do
-                  # Span name and type icon
-                  div(class: "flex items-center mb-1") do
-                    render_span_type_icon(span, level, has_children)
-
-                    div(class: "min-w-0 flex-1 ml-3") do
-                      div(class: "text-sm font-medium text-gray-900 break-words") do
-                        link_to(
-                          span.name,
-                          tracing_span_path(span.span_id),
-                          class: "text-blue-600 hover:text-blue-900",
-                          title: span.name
-                        )
-                      end
-                    end
-                  end
-
-                  # Span ID
-                  div(class: "text-xs text-gray-500 font-mono ml-9 mb-1") { span.span_id }
-
-                  # Children count if has children
-                  if has_children
-                    div(class: "ml-9") do
-                      div(class: "text-xs text-green-600") do
-                        # Count actual children for this span
-                        children_count = RAAF::Rails::Tracing::SpanRecord.where(parent_id: span.span_id).count
-                        plain "#{children_count} child#{'ren' if children_count != 1}"
-                      end
-                    end
-                  end
-                end
-              end
-            end
-
-            # Other columns remain the same as normal table
-            td(class: "px-6 py-4 whitespace-nowrap") do
-              render_kind_badge(span.kind)
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap") do
-              render_status_badge(span.status)
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap text-sm text-gray-900") do
-              format_duration(span.duration_ms)
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap text-sm text-gray-500") do
-              span.start_time&.strftime("%Y-%m-%d %H:%M:%S.%3N")
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap text-sm") do
-              if span.trace
-                link_to(
-                  span.trace.workflow_name || span.trace_id,
-                  tracing_trace_path(span.trace_id),
-                  class: "text-blue-600 hover:text-blue-500"
-                )
-              else
-                span(class: "text-gray-500") { span.trace_id }
+        def render_list_table
+          render_preline_table do
+            table(class: "min-w-full divide-y divide-gray-200") do
+              render_table_header("Span Name & Hierarchy")
+              tbody(class: "bg-white divide-y divide-gray-200") do
+                render_spans_rows(@spans, hierarchical: false)
               end
             end
           end
@@ -344,11 +174,11 @@ module RAAF
           end
         end
 
-        def render_table_header
+        def render_table_header(title)
           thead(class: "bg-gray-50") do
             tr do
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Span Name & Hierarchy"
+              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider #{'w-2/5' if title.include?('Hierarchy')}") do
+                title
               end
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
                 "Kind"
@@ -369,93 +199,114 @@ module RAAF
           end
         end
 
-        def render_table_body
-          tbody(class: "bg-white divide-y divide-gray-200") do
-            @spans.each do |span|
-              render_span_row(span)
+        def render_spans_rows(spans, hierarchical: false)
+          spans.each_with_index do |span, index|
+            level = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : (span.depth || 0)
+
+            # Calculate has_children based on whether any subsequent spans have this span as parent
+            has_children = if hierarchical
+                            # Check if any span in the entire array has this span as parent
+                            spans.any? { |child_span| child_span.parent_id == span.span_id }
+                          else
+                            span.children.any?
+                          end
+
+            # For hierarchical view, handle expand/collapse behavior
+            additional_classes = ""
+            parent_span_id = nil
+
+            if hierarchical
+              is_child = level > 0
+              if is_child
+                # Use the actual database parent_id instead of depth-based guessing
+                parent_span_id = span.parent_id
+                additional_classes = "span-children hidden bg-blue-50"
+              end
             end
+
+            render_span_row(span, level, has_children, hierarchical: hierarchical, additional_classes: additional_classes, parent_span_id: parent_span_id)
           end
         end
 
-        def render_span_row(span)
-          tr(class: "hover:bg-gray-50") do
+        def render_span_row(span, level, has_children, hierarchical: false, additional_classes: "", parent_span_id: nil)
+          # Build CSS classes
+          css_classes = ["hover:bg-gray-50", "span-row"]
+          css_classes << additional_classes if additional_classes.present?
+
+          # Build data attributes for hierarchical view
+          data_attrs = {}
+          if hierarchical
+            data_attrs = {
+              span_id: span.span_id,
+              level: level,
+              has_children: has_children ? "true" : "false"
+            }
+            data_attrs[:parent_span_id] = parent_span_id if parent_span_id
+          end
+
+          tr(class: css_classes.join(" "), data: data_attrs) do
             td(class: "px-6 py-4") do
               div(class: "flex items-start") do
-                # Hierarchical indentation with proper tree structure
-                current_depth = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : (span.depth || 0)
-
-                if current_depth > 0
-                  div(class: "flex items-center mr-3", style: "min-width: #{current_depth * 24}px") do
-                    # Create indentation with tree lines
-                    current_depth.times do |i|
-                      if i == current_depth - 1
-                        # Last level - show the tree connector
-                        div(class: "w-6 h-full flex items-center justify-start") do
-                          div(class: "w-3 h-3 border-l-2 border-b-2 border-gray-300")
-                        end
-                      else
-                        # Higher levels - just spacing
-                        div(class: "w-6")
-                      end
+                div(class: "flex items-center flex-1", style: "padding-left: #{level * 24}px") do
+                  # Tree connector lines for child spans
+                  if level > 0
+                    div(class: "flex items-center mr-3") do
+                      div(class: "w-4 h-3 border-l-2 border-b-2 border-gray-300")
                     end
                   end
-                end
 
-                div(class: "flex-1 min-w-0") do
-                  div(class: "flex items-center mb-1") do
-                    # Parent/child indicator with better icons
-                    current_depth = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : (span.depth || 0)
-                    is_root = current_depth == 0
-                    has_children = span.children.any?
+                  # Expand/collapse button (only for hierarchical view)
+                  if hierarchical && has_children
+                    render_expand_button(span.span_id)
+                  elsif hierarchical
+                    div(class: "w-6 mr-2") # Spacer for alignment
+                  end
 
-                    if is_root
-                      div(class: "flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full mr-3") do
-                        i(class: "bi bi-house-fill text-blue-600 text-xs", title: "Root span")
-                      end
-                    elsif has_children
-                      div(class: "flex items-center justify-center w-6 h-6 bg-green-100 rounded-full mr-3") do
-                        i(class: "bi bi-node-plus-fill text-green-600 text-xs", title: "Parent span")
+                  # Span type icon
+                  render_span_type_icon(span, level, has_children)
+
+                  # Span information
+                  div(class: "flex-1 min-w-0 ml-3") do
+                    # Span name
+                    div(class: "text-sm font-medium text-gray-900 break-words mb-1") do
+                      link_to(
+                        span.name,
+                        tracing_span_path(span.span_id),
+                        class: "text-blue-600 hover:text-blue-900",
+                        title: span.name
+                      )
+                    end
+
+                    # Span ID
+                    div(class: "text-xs text-gray-500 font-mono mb-1") { span.span_id }
+
+                    # Show hierarchy info (different for each view)
+                    if hierarchical
+                      # Hierarchical view: show children count
+                      if has_children
+                        div(class: "text-xs text-green-600") do
+                          children_count = RAAF::Rails::Tracing::SpanRecord.where(parent_id: span.span_id).count
+                          plain "#{children_count} child#{'ren' if children_count != 1}"
+                        end
                       end
                     else
-                      div(class: "flex items-center justify-center w-6 h-6 bg-gray-100 rounded-full mr-3") do
-                        i(class: "bi bi-dot text-gray-500", title: "Child span")
+                      # List view: show parent and children info
+                      if level > 0 && span.parent_id && span.parent_span
+                        div(class: "text-xs text-gray-400 mb-1") do
+                          plain "↳ Parent: "
+                          link_to(
+                            span.parent_span.name,
+                            tracing_span_path(span.parent_span.span_id),
+                            class: "text-blue-500 hover:text-blue-700",
+                            title: span.parent_span.name
+                          )
+                        end
                       end
-                    end
 
-                    div(class: "min-w-0 flex-1") do
-                      div(class: "text-sm font-medium text-gray-900 break-words") do
-                        link_to(
-                          span.name,
-                          tracing_span_path(span.span_id),
-                          class: "text-blue-600 hover:text-blue-900",
-                          title: span.name
-                        )
-                      end
-                    end
-                  end
-
-                  # Span ID
-                  div(class: "text-xs text-gray-500 font-mono ml-9 mb-1") { span.span_id }
-
-                  # Show hierarchy info
-                  div(class: "ml-9") do
-                    current_depth = span.respond_to?(:hierarchy_depth) ? span.hierarchy_depth : (span.depth || 0)
-
-                    if current_depth > 0 && span.parent_id && span.parent_span
-                      div(class: "text-xs text-gray-400 mb-1") do
-                        plain "↳ Parent: "
-                        link_to(
-                          span.parent_span.name,
-                          tracing_span_path(span.parent_span.span_id),
-                          class: "text-blue-500 hover:text-blue-700",
-                          title: span.parent_span.name
-                        )
-                      end
-                    end
-
-                    if span.children.any?
-                      div(class: "text-xs text-green-600") do
-                        plain "#{span.children.count} child#{'ren' if span.children.count != 1}"
+                      if span.children.any?
+                        div(class: "text-xs text-green-600") do
+                          plain "#{span.children.count} child#{'ren' if span.children.count != 1}"
+                        end
                       end
                     end
                   end
@@ -463,6 +314,7 @@ module RAAF
               end
             end
 
+            # Rest of the columns
             td(class: "px-6 py-4 whitespace-nowrap") do
               render_kind_badge(span.kind)
             end
@@ -490,7 +342,6 @@ module RAAF
                 span(class: "text-gray-500") { span.trace_id }
               end
             end
-
           end
         end
 
@@ -535,17 +386,8 @@ module RAAF
 
               # Expand/Collapse controls
               div(class: "flex space-x-2") do
-                button(
-                  type: "button",
-                  class: "text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md border border-blue-300",
-                  "data-action": "click->span-hierarchy#expandAll"
-                ) { "Expand All" }
-
-                button(
-                  type: "button",
-                  class: "text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md border border-gray-300",
-                  "data-action": "click->span-hierarchy#collapseAll"
-                ) { "Collapse All" }
+                render_expand_all_button
+                render_collapse_all_button
               end
             end
 
@@ -614,6 +456,39 @@ module RAAF
               variant: "secondary"
             )
           end
+        end
+
+        private
+
+        def render_expand_button(span_id)
+          # Use Phlex button helper with text chevron (more reliable than icon font)
+          button(
+            type: "button",
+            class: "expand-button flex items-center justify-center w-6 h-6 mr-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 text-xs font-mono",
+            data: {
+              span_id: span_id
+            }
+          ) do
+            "▶"
+          end
+        end
+
+        def render_expand_all_button
+          # Use Phlex button helper instead of raw HTML
+          button(
+            type: "button",
+            class: "text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md border border-blue-300",
+            class: "expand-all-btn"
+          ) { "Expand All" }
+        end
+
+        def render_collapse_all_button
+          # Use Phlex button helper instead of raw HTML
+          button(
+            type: "button",
+            class: "text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md border border-gray-300",
+            class: "collapse-all-btn"
+          ) { "Collapse All" }
         end
       end
     end

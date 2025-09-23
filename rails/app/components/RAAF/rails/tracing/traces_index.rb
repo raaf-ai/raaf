@@ -15,17 +15,22 @@ module RAAF
         end
 
         def view_template
-          div(id: "tracing-dashboard", class: "p-6") do
+          div(
+            id: "tracing-dashboard",
+            class: "p-6",
+            data: {
+              controller: "dashboard",
+              "dashboard-channel-name-value": "RubyAIAgentsFactory::Tracing::TracesChannel",
+              "dashboard-polling-interval-value": "5000",
+              "dashboard-auto-refresh-value": "true"
+            }
+          ) do
             render_header
             render_connection_status
             render_filters
             render_stats if @stats
             render_traces_table
             render_last_updated
-          end
-
-          content_for :javascript do
-            render_javascript
           end
         end
 
@@ -44,7 +49,8 @@ module RAAF
                   text: "Refresh",
                   variant: "secondary",
                   icon: "bi-arrow-clockwise",
-                  id: "refresh-dashboard"
+                  id: "refresh-dashboard",
+                  data: { "dashboard-target": "refreshButton" }
                 )
 
                 render_preline_button(
@@ -60,7 +66,8 @@ module RAAF
                   type: "checkbox",
                   id: "auto-refresh-toggle",
                   checked: true,
-                  class: "w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  class: "w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500",
+                  data: { "dashboard-target": "autoRefreshToggle" }
                 )
                 label(for: "auto-refresh-toggle", class: "ml-2 text-sm font-medium text-gray-900") do
                   "Auto-refresh"
@@ -74,7 +81,8 @@ module RAAF
           div(
             id: "connection-status",
             class: "hidden mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg",
-            role: "alert"
+            role: "alert",
+            data: { "dashboard-target": "connectionStatus" }
           ) do
             div(class: "flex") do
               div(class: "flex-shrink-0") do
@@ -186,7 +194,10 @@ module RAAF
         end
 
         def render_traces_table
-          div(id: "traces-table-container") do
+          div(
+            id: "traces-table-container",
+            data: { "dashboard-target": "tracesContainer" }
+          ) do
             render TracesTable.new(
               traces: @traces,
               page: @page,
@@ -201,7 +212,10 @@ module RAAF
         def render_last_updated
           div(class: "mt-6 text-right text-sm text-gray-500") do
             plain "Last updated: "
-            span(id: "last-updated") { Time.current.strftime("%Y-%m-%d %H:%M:%S") }
+            span(
+              id: "last-updated",
+              data: { "dashboard-target": "lastUpdated" }
+            ) { Time.current.strftime("%Y-%m-%d %H:%M:%S") }
           end
         end
 
@@ -212,155 +226,6 @@ module RAAF
           []
         end
 
-        def render_javascript
-          script do
-            plain <<~JAVASCRIPT
-              // Live update functionality for traces
-              class TracesLiveUpdate {
-                constructor() {
-                  this.autoRefreshEnabled = true;
-                  this.refreshInterval = 5000; // 5 seconds
-                  this.intervalId = null;
-                  this.initialize();
-                }
-
-                initialize() {
-                  this.setupEventHandlers();
-
-                  if (this.autoRefreshEnabled) {
-                    this.startAutoRefresh();
-                  }
-
-                  this.updateConnectionStatus('polling');
-                }
-
-                setupEventHandlers() {
-                  const refreshBtn = document.getElementById('refresh-dashboard');
-                  if (refreshBtn) {
-                    refreshBtn.addEventListener('click', () => {
-                      this.fetchUpdates();
-                    });
-                  }
-
-                  const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
-                  if (autoRefreshToggle) {
-                    autoRefreshToggle.addEventListener('change', (e) => {
-                      this.autoRefreshEnabled = e.target.checked;
-                      if (this.autoRefreshEnabled) {
-                        this.startAutoRefresh();
-                      } else {
-                        this.stopAutoRefresh();
-                      }
-                    });
-                  }
-                }
-
-                startAutoRefresh() {
-                  this.stopAutoRefresh();
-                  this.intervalId = setInterval(() => {
-                    this.fetchUpdates();
-                  }, this.refreshInterval);
-                }
-
-                stopAutoRefresh() {
-                  if (this.intervalId) {
-                    clearInterval(this.intervalId);
-                    this.intervalId = null;
-                  }
-                }
-
-                async fetchUpdates() {
-                  try {
-                    const response = await fetch(window.location.href, {
-                      headers: {
-                        'Accept': 'text/html',
-                        'X-Requested-With': 'XMLHttpRequest'
-                      }
-                    });
-
-                    if (response.ok) {
-                      const html = await response.text();
-                      this.updateTracesList(html);
-                      this.updateLastUpdated();
-                      const newTraceCount = document.querySelectorAll('[data-trace-id]').length;
-                      if (this.lastTraceCount !== undefined && this.lastTraceCount !== newTraceCount) {
-                        this.updateConnectionStatus('updated');
-                      }
-                      this.lastTraceCount = newTraceCount;
-                    }
-                  } catch (error) {
-                    console.error('Failed to fetch updates:', error);
-                    this.updateConnectionStatus('error');
-                  }
-                }
-
-                updateTracesList(html) {
-                  const container = document.getElementById('traces-table-container');
-                  if (!container) return;
-
-                  const currentTraces = new Set();
-                  document.querySelectorAll('[data-trace-id]').forEach(tr => {
-                    currentTraces.add(tr.dataset.traceId);
-                  });
-
-                  container.innerHTML = html;
-
-                  document.querySelectorAll('[data-trace-id]').forEach(tr => {
-                    if (!currentTraces.has(tr.dataset.traceId)) {
-                      tr.classList.add('bg-green-50');
-                      setTimeout(() => {
-                        tr.classList.remove('bg-green-50');
-                      }, 2000);
-                    }
-                  });
-                }
-
-                updateLastUpdated() {
-                  const lastUpdated = document.getElementById('last-updated');
-                  if (lastUpdated) {
-                    lastUpdated.textContent = new Date().toLocaleString();
-                  }
-                }
-
-                updateConnectionStatus(status) {
-                  const statusElement = document.getElementById('connection-status');
-                  if (statusElement) {
-                    if (status === 'polling') {
-                      statusElement.classList.remove('hidden');
-                      statusElement.className = 'mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg';
-                      statusElement.querySelector('.status-text').textContent = 'Live updates active (refreshing every 5 seconds)';
-                      setTimeout(() => {
-                        statusElement.classList.add('hidden');
-                      }, 3000);
-                    } else if (status === 'error') {
-                      statusElement.classList.remove('hidden');
-                      statusElement.className = 'mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg';
-                      statusElement.querySelector('.status-text').textContent = 'Connection error - retrying...';
-                      setTimeout(() => {
-                        statusElement.classList.add('hidden');
-                      }, 3000);
-                    } else if (status === 'updated') {
-                      statusElement.classList.remove('hidden');
-                      statusElement.className = 'mb-4 p-4 bg-green-50 border border-green-200 rounded-lg';
-                      statusElement.querySelector('.status-text').textContent = 'Updated!';
-                      setTimeout(() => {
-                        statusElement.classList.add('hidden');
-                      }, 1000);
-                    }
-                  }
-                }
-
-                destroy() {
-                  this.stopAutoRefresh();
-                }
-              }
-
-              document.addEventListener('DOMContentLoaded', function() {
-                window.tracesLiveUpdate = new TracesLiveUpdate();
-              });
-            JAVASCRIPT
-          end
-        end
       end
     end
   end

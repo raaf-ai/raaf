@@ -22,7 +22,7 @@ module RAAF
           @spans = organize_spans_hierarchically(@spans)
           # Don't paginate for hierarchical view to maintain structure
           @page = 1
-          @per_page = @spans.count
+          @per_page = [@spans.count, 1].max  # Ensure @per_page is at least 1 to avoid division by zero
         else
           # Paginate results for normal view
           @page = params[:page]&.to_i || 1
@@ -32,7 +32,7 @@ module RAAF
 
         # Calculate pagination info
         @total_count = SpanRecord.count
-        @total_pages = (@total_count.to_f / @per_page).ceil
+        @total_pages = @per_page > 0 ? (@total_count.to_f / @per_page).ceil : 1
 
         respond_to do |format|
           format.html do
