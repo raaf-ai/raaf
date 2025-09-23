@@ -255,10 +255,11 @@ module RAAF
     ##
     # Adds a tool to the agent's available tools
     #
-    # Tools can be Ruby methods, procs, or FunctionTool objects. They extend the agent's
-    # capabilities by allowing it to perform specific actions or retrieve information.
+    # Tools can be Ruby methods, procs, FunctionTool objects, or any object that responds
+    # to :call. They extend the agent's capabilities by allowing it to perform specific
+    # actions or retrieve information.
     #
-    # @param tool [Proc, Method, FunctionTool] the tool to add
+    # @param tool [Proc, Method, FunctionTool, Object] the tool to add (any callable object)
     # @return [void]
     # @raise [ToolError] if the tool type is not supported
     #
@@ -279,6 +280,14 @@ module RAAF
     #     description: "Search the database"
     #   )
     #   agent.add_tool(tool)
+    #
+    # @example Add a DSL tool instance (duck typing)
+    #   class CustomSearchTool
+    #     def call(**kwargs)
+    #       "Search results for: #{kwargs[:query]}"
+    #     end
+    #   end
+    #   agent.add_tool(CustomSearchTool.new)
     def add_tool(tool, **)
       case tool
       when Proc, Method
@@ -286,8 +295,13 @@ module RAAF
       when FunctionTool
         @tools << tool
       else
-        raise ToolError,
-              "Tool must be a Proc, Method, or FunctionTool"
+        # Support duck typing for any object that responds to :call
+        if tool.respond_to?(:call)
+          @tools << FunctionTool.new(tool, **)
+        else
+          raise ToolError,
+                "Tool must be a Proc, Method, FunctionTool, or object that responds to :call"
+        end
       end
     end
 

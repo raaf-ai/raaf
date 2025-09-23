@@ -6,7 +6,7 @@ require_relative "logging"
 module RAAF
 
   ##
-  # FunctionTool wraps Ruby methods and procs to make them available as tools for AI agents
+  # FunctionTool wraps Ruby callables to make them available as tools for AI agents
   #
   # This class provides a standardized interface for agent tools, handling:
   # - Parameter extraction and validation
@@ -16,6 +16,8 @@ module RAAF
   #
   # Tools extend agent capabilities by allowing them to execute code,
   # call APIs, or perform any custom logic defined in Ruby.
+  #
+  # Supports any callable object including Methods, Procs, and DSL tool instances.
   #
   # @example Creating a tool from a method
   #   def get_weather(city:, unit: "celsius")
@@ -39,6 +41,16 @@ module RAAF
   #     }
   #   )
   #
+  # @example Creating a tool from a DSL tool instance
+  #   class CustomTool
+  #     def call(**kwargs)
+  #       "Processed: #{kwargs.inspect}"
+  #     end
+  #   end
+  #
+  #   tool = FunctionTool.new(CustomTool.new, name: "custom")
+  #   result = tool.call(data: "test")  # => "Processed: {:data=>\"test\"}"
+  #
   # @example Dynamic tool enabling based on context
   #   admin_tool = FunctionTool.new(
   #     proc { |action:| perform_admin_action(action) },
@@ -57,7 +69,7 @@ module RAAF
     # @!attribute [r] parameters
     #   @return [Hash] JSON Schema describing the tool's parameters
     # @!attribute [r] callable
-    #   @return [Method, Proc] The underlying Ruby callable
+    #   @return [Method, Proc, Object] The underlying Ruby callable (any object with #call method)
     # @!attribute [rw] is_enabled
     #   @return [Boolean, Proc, nil] Controls whether the tool is available
     attr_reader :name, :description, :parameters, :callable
@@ -66,8 +78,8 @@ module RAAF
     ##
     # Initialize a new FunctionTool
     #
-    # @param callable [Method, Proc] The Ruby method or proc to wrap
-    # @param name [String, nil] Optional tool name (extracted from method if nil)
+    # @param callable [Method, Proc, Object] The Ruby callable to wrap (any object with #call method)
+    # @param name [String, nil] Optional tool name (extracted from callable if nil)
     # @param description [String, nil] Optional description
     # @param parameters [Hash, nil] Optional parameter schema (auto-extracted if nil)
     # @param is_enabled [Boolean, Proc, nil] Optional enablement control
@@ -158,8 +170,12 @@ module RAAF
           args = params.map { |_type, name| kwargs[name] }
           @callable.call(*args)
         end
+      elsif @callable.respond_to?(:call)
+        # Support duck typing for any object that responds to :call
+        # This includes DSL tool instances and other callable objects
+        @callable.call(**kwargs)
       else
-        raise ToolError, "Callable must be a Method or Proc"
+        raise ToolError, "Callable must be a Method, Proc, or object that responds to :call"
       end
     rescue StandardError => e
       raise ToolError, "Error executing tool '#{@name}': #{e.message}"
@@ -197,7 +213,7 @@ module RAAF
     #
     # @return [Boolean] true if tool has a valid callable, false otherwise
     def callable?
-      @callable.is_a?(Method) || @callable.is_a?(Proc)
+      @callable.is_a?(Method) || @callable.is_a?(Proc) || @callable.respond_to?(:call)
     end
 
     ##
@@ -297,12 +313,15 @@ module RAAF
     ##
     # Extract a name from the callable
     #
-    # @param callable [Method, Proc] The callable to extract name from
+    # @param callable [Method, Proc, Object] The callable to extract name from
     # @return [String] The extracted or generated name
     #
     def extract_name(callable)
       if callable.respond_to?(:name) && callable.name
         callable.name.to_s
+      elsif callable.class.respond_to?(:name)
+        # Use class name for instances without their own name
+        callable.class.name.split("::").last.downcase
       else
         "anonymous_function"
       end
@@ -326,7 +345,7 @@ module RAAF
     # This method analyzes the callable's parameters to generate a JSON Schema
     # that describes the expected input format for the tool.
     #
-    # @param callable [Method, Proc] The callable to analyze
+    # @param callable [Method, Proc, Object] The callable to analyze
     # @return [Hash] JSON Schema describing the parameters
     #
     # @example Parameter extraction
