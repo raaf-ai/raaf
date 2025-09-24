@@ -9,6 +9,9 @@ require_relative "raaf/tracing/visualization"
 # Load ActiveRecord models for lazy loading
 require_relative "raaf/tracing/models"
 
+# Load ActiveJob integration
+require_relative "raaf/tracing/traced_job" if defined?(ActiveJob)
+
 module RAAF
   ##
   # Distributed tracing and monitoring for Ruby AI Agents Factory

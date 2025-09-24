@@ -259,8 +259,8 @@ module RAAF
           id: span_id,
           trace_id: trace_id,
           parent_id: parent_id,
-          started_at: start_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
-          ended_at: end_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00"),
+          started_at: format_time_for_openai(start_time),
+          ended_at: format_time_for_openai(end_time),
           span_data: span_data,
           error: attributes["error"] || nil
         }
@@ -287,13 +287,23 @@ module RAAF
                  # Trace spans are handled differently - they become the trace object
                  return nil
                when :agent
-                 {
+                 agent_data = {
                    type: "agent",
                    name: attributes["agent.name"] || name,
                    handoffs: attributes["agent.handoffs"] || [],
                    tools: attributes["agent.tools"] || [],
                    output_type: attributes["agent.output_type"] || "str"
-                 }.compact
+                 }
+
+                 # Include skipped agent metadata
+                 if attributes["agent.status"] == "skipped"
+                   agent_data[:status] = "skipped"
+                   agent_data[:skip_reason] = attributes["agent.skip_reason"]
+                   agent_data[:required_fields] = attributes["agent.required_fields"]
+                   agent_data[:available_fields] = attributes["agent.available_fields"]
+                 end
+
+                 agent_data.compact
                when :llm
                  # Get input messages as array for OpenAI API compatibility
                  input_messages = attributes["llm.request.messages"] || []
@@ -847,6 +857,25 @@ module RAAF
         else
           # Convert other objects to string to avoid serialization issues
           obj.to_s
+        end
+      end
+
+      # Format time for OpenAI API, handling both Time objects and ISO8601 strings
+      #
+      # @param time_value [Time, String, nil] Time value
+      # @return [String, nil] Formatted time string or nil
+      def format_time_for_openai(time_value)
+        return nil unless time_value
+
+        case time_value
+        when Time
+          time_value.utc.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
+        when String
+          # Try to parse the string and format it properly
+          parsed_time = Time.parse(time_value) rescue nil
+          parsed_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
+        else
+          nil
         end
       end
     end

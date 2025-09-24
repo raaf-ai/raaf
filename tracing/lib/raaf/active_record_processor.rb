@@ -391,6 +391,12 @@ module RAAF
 
         if span.is_a?(Hash)
           # Use already sanitized data from process_span (prevents double sanitization)
+          # Determine status - use agent.status if available, otherwise use span status
+          display_status = span[:status].to_s
+          if span[:attributes] && span[:attributes]["agent.status"]
+            display_status = span[:attributes]["agent.status"]
+          end
+
           span_attributes = {
             span_id: span[:span_id],
             trace_id: span[:trace_id],
@@ -402,10 +408,16 @@ module RAAF
             duration_ms: calculate_duration_from_times(span[:start_time], span[:end_time]),
             span_attributes: span[:attributes] || {},  # Already sanitized
             events: span[:events] || [],               # Already sanitized
-            status: span[:status].to_s
+            status: display_status
           }
         else
           # Process original Span object with sanitization
+          # Determine status - use agent.status if available, otherwise use span status
+          display_status = span.status.to_s
+          if span.attributes && span.attributes["agent.status"]
+            display_status = span.attributes["agent.status"]
+          end
+
           span_attributes = {
             span_id: span.span_id,
             trace_id: span.trace_id,
@@ -417,7 +429,7 @@ module RAAF
             duration_ms: calculate_duration_ms(span),
             span_attributes: sanitize_attributes(span.attributes),
             events: sanitize_events(span.events),
-            status: span.status.to_s
+            status: display_status
           }
         end
 
@@ -437,18 +449,41 @@ module RAAF
       def calculate_duration_ms(span)
         return nil unless span.start_time && span.end_time
 
-        ((span.end_time - span.start_time) * 1000).round(2)
+        start_time = parse_time(span.start_time)
+        end_time = parse_time(span.end_time)
+        return nil unless start_time && end_time
+
+        ((end_time - start_time) * 1000).round(2)
       end
 
       # Calculate duration from separate start and end times
       #
-      # @param start_time [Time] Start time
-      # @param end_time [Time] End time
+      # @param start_time [Time, String] Start time
+      # @param end_time [Time, String] End time
       # @return [Float, nil] Duration in milliseconds
       def calculate_duration_from_times(start_time, end_time)
         return nil unless start_time && end_time
 
+        start_time = parse_time(start_time)
+        end_time = parse_time(end_time)
+        return nil unless start_time && end_time
+
         ((end_time - start_time) * 1000).round(2)
+      end
+
+      # Parse time from either Time object or ISO8601 string
+      #
+      # @param time_value [Time, String] Time value
+      # @return [Time, nil] Parsed Time object or nil if invalid
+      def parse_time(time_value)
+        case time_value
+        when Time
+          time_value
+        when String
+          Time.parse(time_value) rescue nil
+        else
+          nil
+        end
       end
 
       # Sanitize span attributes for database storage
