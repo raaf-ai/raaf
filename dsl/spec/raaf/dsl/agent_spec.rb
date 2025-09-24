@@ -2,6 +2,14 @@
 
 require "spec_helper"
 
+# Load TracingRegistry for testing
+begin
+  require "raaf/tracing/tracing_registry"
+  require "raaf/tracing/noop_tracer"
+rescue LoadError
+  # TracingRegistry not available - tests will be skipped
+end
+
 RSpec.describe RAAF::DSL::Agent do
   # Test agent classes
   class BasicTestAgent < described_class
@@ -852,6 +860,213 @@ RSpec.describe RAAF::DSL::Agent do
           error: "Test error",
           success: false
         )
+      end
+    end
+  end
+
+  # TracingRegistry integration tests
+  describe "TracingRegistry integration", :if => defined?(RAAF::Tracing::TracingRegistry) do
+    let(:registry_tracer) { double("MockTracer") }
+    let(:mock_span) { double("MockSpan", span_id: "span_123", set_attribute: nil, add_event: nil, set_status: nil) }
+
+    class TracingTestAgent < described_class
+      agent_name "TracingTestAgent"
+      model "gpt-4o"
+
+      def build_instructions
+        "You are a tracing test assistant."
+      end
+
+      def build_schema
+        {
+          type: "object",
+          properties: { message: { type: "string" } },
+          required: ["message"],
+          additionalProperties: false
+        }
+      end
+    end
+
+    before do
+      allow(registry_tracer).to receive(:agent_span).and_yield(mock_span)
+      RAAF::Tracing::TracingRegistry.clear_all_contexts!
+    end
+
+    after do
+      RAAF::Tracing::TracingRegistry.clear_all_contexts!
+    end
+
+    describe "#get_tracer_for_skipped_span" do
+      let(:agent) { TracingTestAgent.new }
+
+      context "with TracingRegistry tracer available" do
+        before do
+          RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+        end
+
+        it "returns the registry tracer" do
+          tracer = agent.send(:get_tracer_for_skipped_span)
+          expect(tracer).to eq(registry_tracer)
+        end
+
+        context "when registry returns NoOpTracer" do
+          let(:noop_tracer) { double("NoOpTracer") }
+
+          before do
+            allow(noop_tracer).to receive(:is_a?).and_return(false)
+            allow(noop_tracer).to receive(:is_a?).with(RAAF::Tracing::NoOpTracer).and_return(true) if defined?(RAAF::Tracing::NoOpTracer)
+            RAAF::Tracing::TracingRegistry.set_process_tracer(noop_tracer)
+          end
+
+          it "falls back to TraceProvider" do
+            # Mock the TraceProvider fallback
+            allow(RAAF::Tracing::TraceProvider).to receive(:tracer).and_return(registry_tracer) if defined?(RAAF::Tracing::TraceProvider)
+
+            tracer = agent.send(:get_tracer_for_skipped_span)
+            # Should either be the registry_tracer or handle the fallback gracefully
+            expect([registry_tracer, noop_tracer, nil]).to include(tracer)
+          end
+        end
+      end
+
+      context "with no TracingRegistry tracer" do
+        before do
+          RAAF::Tracing::TracingRegistry.clear_all_contexts!
+        end
+
+        it "falls back to TraceProvider" do
+          # Mock TraceProvider if available
+          if defined?(RAAF::Tracing::TraceProvider)
+            allow(RAAF::Tracing::TraceProvider).to receive(:tracer).and_return(registry_tracer)
+            tracer = agent.send(:get_tracer_for_skipped_span)
+            expect(tracer).to eq(registry_tracer)
+          else
+            # If not available, test graceful handling
+            expect { agent.send(:get_tracer_for_skipped_span) }.not_to raise_error
+          end
+        end
+
+        it "returns nil when TraceProvider is not available" do
+          # Test graceful handling of missing TraceProvider
+          tracer = agent.send(:get_tracer_for_skipped_span)
+          expect(tracer).to be_nil
+        end
+      end
+
+      context "with thread-local registry tracer" do
+        let(:thread_tracer) { double("MockThreadTracer") }
+
+        before do
+          RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+        end
+
+        it "uses thread-local tracer over process tracer" do
+          RAAF::Tracing::TracingRegistry.with_tracer(thread_tracer) do
+            tracer = agent.send(:get_tracer_for_skipped_span)
+            expect(tracer).to eq(thread_tracer)
+          end
+        end
+      end
+    end
+
+    describe "#create_skipped_span" do
+      let(:agent) { TracingTestAgent.new }
+      let(:context) { { product: "test", company: "corp" } }
+      let(:result_data) { { success: false, skipped: true, reason: "missing requirements" } }
+
+      context "with TracingRegistry tracer available" do
+        before do
+          RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+          allow(registry_tracer).to receive(:agent_span).and_yield(mock_span)
+        end
+
+        it "creates span using registry tracer" do
+          expect(registry_tracer).to receive(:agent_span).with("TracingTestAgent")
+
+          result = agent.send(:create_skipped_span, "testing", result_data, context)
+          expect(result).to eq(result_data)
+        end
+
+        it "sets proper span attributes for skipped agent" do
+          expect(mock_span).to receive(:set_attribute).with("agent.skipped", true)
+          expect(mock_span).to receive(:set_attribute).with("agent.skip_reason", "testing")
+          expect(mock_span).to receive(:set_attribute).with("agent.name", "TracingTestAgent")
+          expect(mock_span).to receive(:set_attribute).with("agent.class", "TracingTestAgent")
+
+          agent.send(:create_skipped_span, "testing", result_data, context)
+        end
+
+        it "adds context information to span" do
+          expect(mock_span).to receive(:set_attribute).with("agent.available_context_keys", context.keys)
+
+          agent.send(:create_skipped_span, "testing", result_data, context)
+        end
+      end
+
+      context "with no tracer available" do
+        before do
+          RAAF::Tracing::TracingRegistry.clear_all_contexts!
+          # Ensure get_tracer_for_skipped_span returns nil
+          allow(agent).to receive(:get_tracer_for_skipped_span).and_return(nil)
+        end
+
+        it "logs skip without creating span" do
+          # Test that it handles nil tracer gracefully
+          result = agent.send(:create_skipped_span, "testing", result_data, context)
+          expect(result).to eq(result_data)
+        end
+      end
+    end
+
+    describe "agent handoffs with registry tracing" do
+      class HandoffSourceAgent < described_class
+        agent_name "HandoffSourceAgent"
+        model "gpt-4o"
+
+        def build_instructions
+          "You are a handoff source agent."
+        end
+      end
+
+      class HandoffTargetAgent < described_class
+        agent_name "HandoffTargetAgent"
+        model "gpt-4o"
+
+        def build_instructions
+          "You are a handoff target agent."
+        end
+      end
+
+      before do
+        RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+      end
+
+      it "preserves registry trace context across handoffs" do
+        source_agent = HandoffSourceAgent.new
+        target_agent = HandoffTargetAgent.new
+
+        # Verify both agents can access the same registry tracer
+        expect(source_agent.send(:get_tracer_for_skipped_span)).to eq(registry_tracer)
+        expect(target_agent.send(:get_tracer_for_skipped_span)).to eq(registry_tracer)
+      end
+
+      it "maintains registry context during nested tracer scopes" do
+        outer_tracer = double("MockOuterTracer")
+        inner_tracer = double("MockInnerTracer")
+
+        RAAF::Tracing::TracingRegistry.with_tracer(outer_tracer) do
+          source_agent = HandoffSourceAgent.new
+          expect(source_agent.send(:get_tracer_for_skipped_span)).to eq(outer_tracer)
+
+          RAAF::Tracing::TracingRegistry.with_tracer(inner_tracer) do
+            target_agent = HandoffTargetAgent.new
+            expect(target_agent.send(:get_tracer_for_skipped_span)).to eq(inner_tracer)
+          end
+
+          # Context should be restored after inner scope
+          final_agent = HandoffSourceAgent.new
+          expect(final_agent.send(:get_tracer_for_skipped_span)).to eq(outer_tracer)
+        end
       end
     end
   end

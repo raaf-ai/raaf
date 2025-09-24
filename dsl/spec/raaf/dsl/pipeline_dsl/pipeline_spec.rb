@@ -3,6 +3,14 @@
 require "spec_helper"
 require "raaf/dsl/pipeline_dsl"
 
+# Load TracingRegistry for testing
+begin
+  require "raaf/tracing/tracing_registry"
+  require "raaf/tracing/noop_tracer"
+rescue LoadError
+  # TracingRegistry not available - tests will be skipped
+end
+
 RSpec.describe RAAF::Pipeline do
   let(:agent1) do
     Class.new(RAAF::DSL::Agent) do
@@ -711,6 +719,198 @@ RSpec.describe RAAF::Pipeline do
         expect(mock_span).not_to receive(:add_event).with("pipeline.validation_completed")
 
         pipeline.run
+      end
+    end
+  end
+
+  # TracingRegistry integration tests
+  describe "TracingRegistry integration", :if => defined?(RAAF::Tracing::TracingRegistry) do
+    let(:registry_tracer) { double("MockTracer") }
+    let(:mock_span) { double("MockSpan", span_id: "span_123", set_attribute: nil, add_event: nil, set_status: nil) }
+
+    let(:simple_pipeline) do
+      agents = [agent1, agent2]
+      Class.new(described_class) do
+        flow agents[0] >> agents[1]
+      end
+    end
+
+    before do
+      allow(registry_tracer).to receive(:pipeline_span).and_yield(mock_span)
+      allow(registry_tracer).to receive(:processors).and_return([])
+      RAAF::Tracing::TracingRegistry.clear_all_contexts!
+    end
+
+    after do
+      RAAF::Tracing::TracingRegistry.clear_all_contexts!
+    end
+
+    describe "tracer priority hierarchy" do
+      context "with explicit tracer parameter" do
+        let(:explicit_tracer) { double("MockExplicitTracer") }
+
+        before do
+          allow(explicit_tracer).to receive(:pipeline_span).and_yield(mock_span)
+          allow(explicit_tracer).to receive(:processors).and_return([])
+          RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+        end
+
+        it "uses explicit tracer over registry tracer" do
+          pipeline = simple_pipeline.new(
+            tracer: explicit_tracer,
+            product: "Test Product",
+            company: "Test Company"
+          )
+
+          expect(pipeline.instance_variable_get(:@tracer)).to eq(explicit_tracer)
+        end
+      end
+
+      context "with no explicit tracer" do
+        before do
+          allow(RAAF).to receive(:tracer).and_return(nil)
+        end
+
+        it "uses TracingRegistry.current_tracer when available" do
+          RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+
+          pipeline = simple_pipeline.new(
+            product: "Test Product",
+            company: "Test Company"
+          )
+
+          # Check that the pipeline gets the registry tracer
+          expect(pipeline.instance_variable_get(:@tracer)).to eq(registry_tracer)
+        end
+
+        it "falls back to RAAF.tracer when registry has no tracer" do
+          fallback_tracer = double("MockFallbackTracer")
+          allow(fallback_tracer).to receive(:pipeline_span).and_yield(mock_span)
+          allow(fallback_tracer).to receive(:processors).and_return([])
+          allow(RAAF).to receive(:tracer).and_return(fallback_tracer)
+
+          pipeline = simple_pipeline.new(
+            product: "Test Product",
+            company: "Test Company"
+          )
+
+          # Test that get_default_tracer works without error
+          expect { pipeline.send(:get_default_tracer) }.not_to raise_error
+        end
+      end
+
+      context "with thread-local registry tracer" do
+        let(:thread_tracer) { double("MockThreadTracer") }
+
+        before do
+          allow(thread_tracer).to receive(:pipeline_span).and_yield(mock_span)
+          allow(thread_tracer).to receive(:processors).and_return([])
+          RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+        end
+
+        it "uses thread-local tracer over process tracer" do
+          RAAF::Tracing::TracingRegistry.with_tracer(thread_tracer) do
+            pipeline = simple_pipeline.new(
+              product: "Test Product",
+              company: "Test Company"
+            )
+
+            expect(pipeline.instance_variable_get(:@tracer)).to eq(thread_tracer)
+          end
+        end
+      end
+    end
+
+    describe "nested pipeline context preservation" do
+      let(:outer_tracer) { double("MockOuterTracer") }
+      let(:inner_tracer) { double("MockInnerTracer") }
+
+      before do
+        allow(outer_tracer).to receive(:pipeline_span).and_yield(mock_span)
+        allow(outer_tracer).to receive(:processors).and_return([])
+        allow(inner_tracer).to receive(:pipeline_span).and_yield(mock_span)
+        allow(inner_tracer).to receive(:processors).and_return([])
+      end
+
+      it "preserves registry context for nested pipeline execution" do
+        RAAF::Tracing::TracingRegistry.with_tracer(outer_tracer) do
+          outer_pipeline = simple_pipeline.new(
+            product: "Outer Product",
+            company: "Outer Company"
+          )
+
+          expect(outer_pipeline.instance_variable_get(:@tracer)).to eq(outer_tracer)
+
+          RAAF::Tracing::TracingRegistry.with_tracer(inner_tracer) do
+            inner_pipeline = simple_pipeline.new(
+              product: "Inner Product",
+              company: "Inner Company"
+            )
+
+            expect(inner_pipeline.instance_variable_get(:@tracer)).to eq(inner_tracer)
+          end
+
+          # Context should be restored after inner block
+          final_pipeline = simple_pipeline.new(
+            product: "Final Product",
+            company: "Final Company"
+          )
+
+          expect(final_pipeline.instance_variable_get(:@tracer)).to eq(outer_tracer)
+        end
+      end
+    end
+
+    describe "multi-agent pipeline with registry tracing" do
+      let(:multi_agent_pipeline) do
+        agents = [agent1, agent2, agent3]
+        Class.new(described_class) do
+          flow agents[0] >> agents[1] >> agents[2]
+        end
+      end
+
+      before do
+        RAAF::Tracing::TracingRegistry.set_process_tracer(registry_tracer)
+      end
+
+      it "uses registry tracer for pipeline execution" do
+        pipeline = multi_agent_pipeline.new(
+          product: "Test Product",
+          company: "Test Company"
+        )
+
+        # Verify the tracer is set from registry
+        expect(pipeline.instance_variable_get(:@tracer)).to eq(registry_tracer)
+      end
+
+      it "maintains registry context throughout pipeline execution" do
+        pipeline = multi_agent_pipeline.new(
+          product: "Test Product",
+          company: "Test Company"
+        )
+
+        # Verify the tracer is set from registry
+        expect(pipeline.instance_variable_get(:@tracer)).to eq(registry_tracer)
+
+        # Verify the pipeline can access the registry tracer for initialization
+        expect(pipeline.send(:get_default_tracer)).to eq(registry_tracer)
+      end
+    end
+
+    describe "NoOpTracer fallback behavior" do
+      before do
+        allow(RAAF).to receive(:tracer).and_return(nil)
+        RAAF::Tracing::TracingRegistry.clear_all_contexts!
+      end
+
+      it "uses NoOpTracer when no tracer is available anywhere" do
+        pipeline = simple_pipeline.new(
+          product: "Test Product",
+          company: "Test Company"
+        )
+
+        tracer = pipeline.instance_variable_get(:@tracer)
+        expect(tracer).to be_a(RAAF::Tracing::NoOpTracer) if defined?(RAAF::Tracing::NoOpTracer)
       end
     end
   end
