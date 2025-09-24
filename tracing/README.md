@@ -11,12 +11,16 @@ RAAF (Ruby AI Agents Factory) Tracing extends the core tracing capabilities from
 
 ## Features
 
-- **Span-based tracing** - Track agent execution with detailed timing and metadata
-- **Python SDK compatibility** - Maintains exact structural alignment with OpenAI Agents Python SDK
-- **Multiple processors** - Send traces to OpenAI, Datadog, files, console, and more
-- **OpenTelemetry integration** - Full OpenTelemetry support for enterprise monitoring
-- **Performance metrics** - Token usage, response times, and error tracking
-- **Custom processors** - Easy to extend with your own monitoring solutions
+- **🧠 Coherent Tracing System** - Intelligent span lifecycle management with automatic hierarchy creation
+- **🌳 Smart Span Hierarchy** - Proper parent-child relationships across complex multi-agent workflows
+- **🔄 Duplicate Prevention** - Automatic detection and prevention of duplicate spans
+- **🔒 Thread Safety** - Independent trace contexts per thread with no shared mutable state
+- **🎯 Component-Specific Attributes** - Rich metadata collection controlled by each component type
+- **📊 Python SDK Compatibility** - Maintains exact structural alignment with OpenAI Agents Python SDK
+- **🔌 Multiple Processors** - Send traces to OpenAI, Datadog, files, console, and more
+- **📈 OpenTelemetry Integration** - Full OpenTelemetry support for enterprise monitoring
+- **⚡ Performance Metrics** - Token usage, response times, and error tracking
+- **🛠️ Custom Processors** - Easy to extend with your own monitoring solutions
 
 ## Installation
 
@@ -34,7 +38,52 @@ bundle install
 
 ## Quick Start
 
-### Basic Usage
+### Coherent Tracing (Recommended)
+
+The **Coherent Tracing System** provides automatic span management with smart hierarchy creation:
+
+```ruby
+require 'raaf-tracing'
+
+# 1. Include Traceable in your components
+class MyAgent
+  include RAAF::Tracing::Traceable
+  trace_as :agent
+
+  def initialize(name, parent_component: nil)
+    @name = name
+    @parent_component = parent_component
+  end
+
+  def run(message)
+    with_tracing(:run) do
+      process_message(message)
+    end
+  end
+
+  # Define what data goes into spans
+  def collect_span_attributes
+    super.merge({
+      "agent.name" => @name,
+      "agent.model" => "gpt-4"
+    })
+  end
+end
+
+# 2. Create components with proper hierarchy
+pipeline = MyPipeline.new(name: "DataPipeline")
+agent = MyAgent.new("Assistant", parent_component: pipeline)
+
+# 3. Execute - spans are automatically created with proper hierarchy
+pipeline.execute do
+  agent.run("Process this data")
+end
+
+# Traces are automatically sent to OpenAI dashboard
+# View at: https://platform.openai.com/traces
+```
+
+### Traditional Usage
 
 ```ruby
 require 'raaf-tracing'
@@ -234,6 +283,33 @@ After checking out the repo, run:
 bundle install
 bundle exec rspec
 ```
+
+## Coherent Tracing Documentation
+
+The coherent tracing system is extensively documented:
+
+- **[Coherent Tracing Guide](COHERENT_TRACING_GUIDE.md)** - Complete guide to the coherent tracing system
+- **[Coherent Tracing Examples](examples/coherent_tracing_examples.rb)** - Working examples of proper span hierarchies
+- **[Troubleshooting Guide](TROUBLESHOOTING_TRACING.md)** - Debug common tracing issues
+- **[Integration Tests](spec/raaf/tracing/coherent_tracing_integration_spec.rb)** - Comprehensive test suite
+
+### Key Documentation Sections
+
+- **Getting Started**: Basic setup and component integration
+- **Span Hierarchy Examples**: Pipeline → Agent → Tool hierarchies
+- **Component Integration**: Custom components, RAAF DSL agents, tools
+- **Configuration**: Environment variables, processors, advanced options
+- **Troubleshooting**: Common issues, debug tools, performance monitoring
+- **Migration Guide**: Upgrading from manual span creation
+
+### Example Hierarchies
+
+The documentation includes real-world examples:
+- Basic three-level hierarchy (Pipeline → Agent → Tool)
+- Multi-agent parallel execution
+- Nested pipeline architecture
+- Complex multi-tool agents
+- Error handling and recovery patterns
 
 ## Contributing
 

@@ -101,3 +101,15 @@ Available categories:
 - `tools` - Tool execution
 - `handoff` - Agent handoffs
 - `context` - Context management
+
+## Comprehensive Documentation
+
+**RAAF Tracing** includes extensive documentation for the coherent tracing system:
+
+- **[Coherent Tracing Guide](COHERENT_TRACING_GUIDE.md)** - Complete guide with examples and integration patterns
+- **[Troubleshooting Guide](TROUBLESHOOTING_TRACING.md)** - Debug common tracing issues and problems
+- **[Performance Guide](PERFORMANCE_GUIDE.md)** - Optimization strategies for production environments
+- **[Working Examples](examples/coherent_tracing_examples.rb)** - Real-world span hierarchy examples
+- **[Integration Tests](spec/raaf/tracing/coherent_tracing_integration_spec.rb)** - Comprehensive test coverage
+
+The coherent tracing system provides automatic span lifecycle management, proper hierarchy creation, duplicate prevention, and thread safety for production AI agent workflows.
