@@ -861,10 +861,9 @@ module RAAF
       # @param processing_params [Hash] Parameters that control how the agent processes content
       # @param debug [Boolean, nil] Enable debug logging for this agent instance
       # @param validation_mode [Boolean] Skip execution conditions during validation (internal use)
-      # @param tracer [RAAF::Tracing::SpanTracer, nil] Optional tracer for span creation
-      # @param parent_span [RAAF::Tracing::Span, nil] Optional parent span for hierarchy
+      # @param parent_component [Object, nil] Optional parent component for span hierarchy
       # @param kwargs [Hash] Arbitrary keyword arguments that become context when auto-context is enabled
-      def initialize(context: nil, processing_params: {}, debug: nil, validation_mode: false, tracer: nil, parent_span: nil, **kwargs)
+      def initialize(context: nil, processing_params: {}, debug: nil, validation_mode: false, parent_component: nil, **kwargs)
         @debug_enabled = debug || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?) || false
         @processing_params = processing_params
         @validation_mode = validation_mode
@@ -872,12 +871,11 @@ module RAAF
         @circuit_breaker_failures = 0
         @circuit_breaker_last_failure = nil
         @pipeline_schema = nil  # Will be set by pipeline if agent is part of one
-        @tracer = tracer || (RAAF.respond_to?(:tracer) ? RAAF.tracer : nil)
-        @parent_span = parent_span
+        @parent_component = parent_component
 
-        # Log parent_span status for debugging tracing issues
-        if @parent_span
-          log_debug "Received parent_span: #{@parent_span.span_id} (#{@parent_span.name})"
+        # Log parent_component status for tracing hierarchy
+        if @parent_component
+          log_debug "Received parent_component: #{@parent_component.class.name}"
         end
         
         # If context provided explicitly, use it (backward compatible)
@@ -892,8 +890,8 @@ module RAAF
         end
         
         validate_context!
-        setup_context_configuration
-        setup_logging_and_metrics
+        # setup_context_configuration  # REMOVED: Empty method causing method_missing conflicts
+        # setup_logging_and_metrics    # REMOVED: Empty method causing method_missing conflicts
         
         if @debug_enabled
           log_debug("Agent initialized",
@@ -941,6 +939,113 @@ module RAAF
       # Backward compatibility alias for run method
       def call(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+      end
+
+      def handle_smart_error(error)
+        agent_name = self.class._context_config&.dig(:name) || self.class.name
+
+        # Record circuit breaker failure
+        record_circuit_breaker_failure!
+
+        # Categorize and handle error
+        if error.message.include?("rate limit")
+          log_error "🚫 [#{agent_name}] Rate limit exceeded: #{error.message}"
+          { success: false, error: "Rate limit exceeded. Please try again later.", error_type: "rate_limit" }
+        elsif error.is_a?(CircuitBreakerOpenError)
+          log_error "🚫 [#{agent_name}] Circuit breaker open: #{error.message}"
+          { success: false, error: "Service temporarily unavailable", error_type: "circuit_breaker" }
+        elsif error.is_a?(JSON::ParserError)
+          log_error "❌ [#{agent_name}] JSON parsing error: #{error.message}"
+          { success: false, error: "Failed to parse AI response", error_type: "json_error" }
+        elsif error.is_a?(ArgumentError) && error.message.include?("context")
+          log_error "❌ [#{agent_name}] Context validation error: #{error.message}"
+          { success: false, error: error.message, error_type: "validation_error" }
+        else
+          log_error "❌ [#{agent_name}] Unexpected error: #{error.message}", stack_trace: error.backtrace.join("\n")
+          { success: false, error: "Agent execution failed: #{error.message}", error_type: "unexpected_error" }
+        end
+      end
+
+      def check_circuit_breaker!
+        return unless self.class._circuit_breaker_config
+
+        config = self.class._circuit_breaker_config
+
+        if @circuit_breaker_state == :open
+          if Time.current - @circuit_breaker_last_failure > config[:reset_timeout]
+            @circuit_breaker_state = :half_open
+            log_info "🔄 [#{self.class.name}] Circuit breaker transitioning to half-open"
+          else
+            raise CircuitBreakerOpenError, "Circuit breaker is open due to repeated failures"
+          end
+        end
+      end
+
+      def reset_circuit_breaker!
+        return unless self.class._circuit_breaker_config
+
+        @circuit_breaker_state = :closed
+        @circuit_breaker_failures = 0
+        @circuit_breaker_last_failure = nil
+      end
+
+      def record_circuit_breaker_failure!
+        return unless self.class._circuit_breaker_config
+
+        config = self.class._circuit_breaker_config
+        @circuit_breaker_failures += 1
+        @circuit_breaker_last_failure = Time.current
+
+        if @circuit_breaker_failures >= config[:threshold]
+          @circuit_breaker_state = :open
+          log_error "🚫 [#{self.class.name}] Circuit breaker opened after #{@circuit_breaker_failures} failures"
+        end
+      end
+
+      def execute_with_retry(&block)
+        attempts = 0
+        max_attempts = 1  # Default no retry
+
+        begin
+          attempts += 1
+          yield
+        rescue => e
+          retry_config = find_retry_config(e)
+
+          if retry_config && attempts < retry_config[:max_attempts]
+            delay = calculate_retry_delay(retry_config, attempts)
+
+            log_warn "🔄 [#{self.class.name}] Retrying in #{delay}s (attempt #{attempts}/#{retry_config[:max_attempts]}): #{e.message}"
+
+            sleep(delay)
+            retry
+          else
+            raise
+          end
+        end
+      end
+
+      def process_raaf_result(raaf_result)
+        # Handle different RAAF result formats automatically
+        base_result = if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
+          # New RAAF format
+          extract_result_data(raaf_result[:results])
+        elsif raaf_result.is_a?(Hash)
+          # Direct hash result
+          extract_hash_result(raaf_result)
+        else
+          # Unknown format
+          log_warn "🤔 [#{self.class.name}] Unknown result format: #{raaf_result.class}"
+          { success: true, data: raaf_result }
+        end
+
+        # Apply result transformations if configured, or auto-generate them for output fields
+        if self.class._result_transformations
+          apply_result_transformations(base_result)
+        else
+          # Automatically extract output fields if they are declared but no transformations exist
+          generate_auto_transformations_for_output_fields(base_result)
+        end
       end
 
       private
@@ -1770,8 +1875,305 @@ module RAAF
 
       # Context update methods removed - use natural assignment syntax: field = value
 
+      # Context validation method - needs to be public for pipeline validation
+      def validate_context!
+        # Validate required context keys from the _required_context_keys class method
+        if self.class._required_context_keys
+          missing_keys = self.class._required_context_keys.reject do |key|
+            @context.has?(key)
+          end
+
+          if missing_keys.any?
+            raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
+          end
+        end
+      end
+
+      # Find retry configuration for a given error
+      #
+      # @param error [StandardError] The error to find configuration for
+      # @return [Hash, nil] The retry configuration or nil if not retryable
+      def find_retry_config(error)
+        return nil unless self.class._retry_config
+
+        log_debug "🔍 [#{self.class.name}] Finding retry config for error: #{error.class.name} - #{error.message}"
+        log_debug "🔍 [#{self.class.name}] Available retry configs: #{self.class._retry_config.keys.inspect}"
+
+        self.class._retry_config.each do |error_type, config|
+          log_debug "🔍 [#{self.class.name}] Checking error_type: #{error_type} (#{error_type.class.name})"
+          case error_type
+          when :rate_limit
+            if error.message.include?("rate limit")
+              log_debug "✅ [#{self.class.name}] Matched :rate_limit"
+              return config
+            end
+          when :timeout
+            if error.is_a?(Timeout::Error)
+              log_debug "✅ [#{self.class.name}] Matched :timeout"
+              return config
+            end
+          when :network
+            network_match = false
+            begin
+              network_match = defined?(Net::Error) && error.is_a?(Net::Error)
+            rescue NameError
+              # Net::Error class not available in this environment
+              network_match = false
+            end
+            if network_match || error.message.include?("connection") || error.message.include?("503")
+              log_debug "✅ [#{self.class.name}] Matched :network"
+              return config
+            end
+          when Class
+            log_debug "🔍 [#{self.class.name}] Checking Class match: #{error_type.name} vs #{error.class.name}"
+            if error.is_a?(error_type)
+              log_debug "✅ [#{self.class.name}] Matched Class: #{error_type.name}"
+              return config
+            end
+          end
+        end
+
+        log_debug "❌ [#{self.class.name}] No retry config found for error: #{error.class.name}"
+        nil
+      end
+
+      # Calculate retry delay based on configuration and attempt number
+      #
+      # @param config [Hash] The retry configuration
+      # @param attempt [Integer] The current attempt number
+      # @return [Numeric] The delay in seconds
+      def calculate_retry_delay(config, attempt)
+        base_delay = config[:delay] || 1
+
+        case config[:backoff]
+        when :exponential
+          base_delay * (2 ** (attempt - 1))
+        when :linear
+          base_delay * attempt
+        else
+          base_delay
+        end
+      end
+
+      # Execute agent without tracing (fallback)
+      def execute_without_tracing(context, input_context_variables, stop_checker)
+        # Resolve context for this run
+        run_context = resolve_run_context(context || input_context_variables)
+
+        # Create OpenAI agent with DSL configuration
+        openai_agent = create_agent
+
+        # Build user prompt with context if available
+        user_prompt = build_user_prompt_with_context(run_context)
+
+        log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
+
+        # Create RAAF runner and delegate execution
+        runner_params = { agent: openai_agent }
+        runner_params[:stop_checker] = stop_checker if stop_checker
+        runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
+        runner_params[:parent_component] = @parent_component if @parent_component
+
+        runner = RAAF::Runner.new(**runner_params)
+
+        # Pure delegation to raaf-ruby
+        log_debug "Calling RAAF runner for #{self.class.name}"
+        run_result = runner.run(user_prompt, context: run_context)
+
+        # Generic response logging
+        log_debug "Received AI response for #{agent_name}"
+
+        # Transform result to expected DSL format
+        base_result = transform_ai_result(run_result, run_context)
+
+        # Apply result transformations if configured, or auto-generate them for output fields
+        if self.class._result_transformations
+          apply_result_transformations(base_result)
+        else
+          # Automatically extract output fields if they are declared but no transformations exist
+          generate_auto_transformations_for_output_fields(base_result)
+        end
+      end
+
+      # Resolve context for run execution
+      def resolve_run_context(override_context)
+        case override_context
+        when RAAF::DSL::ContextVariables
+          override_context
+        when Hash
+          # Merge override context with instance context
+          merged_data = @context.to_h.merge(override_context)
+          RAAF::DSL::ContextVariables.new(merged_data, debug: @debug_enabled)
+        when nil
+          @context
+        else
+          raise ArgumentError, "Context must be ContextVariables, Hash, or nil"
+        end
+      end
+
+      # Build user prompt with context
+      def build_user_prompt_with_context(run_context)
+        # Set context for prompt access
+        original_context = @context
+        @context = run_context
+
+        # Build prompt
+        prompt = build_user_prompt
+
+        # Restore original context
+        @context = original_context
+
+        prompt
+      end
+
+      # Transform AI result to expected DSL format
+      def transform_ai_result(run_result, run_context)
+        # Extract parsed output from messages (works for any AI provider)
+        parsed_output = extract_final_output(run_result)
+
+        # Build result in expected DSL format
+        {
+          workflow_status: "completed",
+          success: true,
+          results: parsed_output || {},
+          parsed_output: parsed_output,
+          context_variables: run_context,
+          raw_response: run_result,
+          agent_class: self.class.name,
+          agent_name: agent_name,
+          execution_metadata: {
+            executed_at: Time.current,
+            execution_time: nil
+          }
+        }
+      end
+
+      # Apply result transformations if configured
+      def apply_result_transformations(base_result)
+        return base_result unless self.class._result_transformations
+
+        transformations = self.class._result_transformations
+        transformed_result = base_result.dup
+        transformations.each do |field, transformation|
+          begin
+            if transformation.respond_to?(:call)
+              transformed_result[field] = transformation.call(base_result)
+            end
+          rescue => e
+            # Continue with other transformations
+          end
+        end
+
+        transformed_result
+      end
+
+      # Generate automatic transformations for output fields
+      def generate_auto_transformations_for_output_fields(base_result)
+        return base_result unless self.class.respond_to?(:provided_fields)
+
+        output_fields = self.class.provided_fields
+        return base_result if output_fields.nil? || output_fields.empty?
+
+        source_data = base_result[:parsed_output] || base_result[:data] || base_result
+        return base_result unless source_data.respond_to?(:[])
+
+        output_fields.each do |field_name|
+          field_data = source_data[field_name] ||
+                      source_data[field_name.to_s] ||
+                      source_data[field_name.to_sym]
+
+          if field_data
+            base_result[field_name] = field_data
+          end
+        end
+
+        base_result
+      end
+
+      # Build tools from configuration
+      def build_tools_from_config
+        self.class._tools_config.map do |tool_config|
+          create_tool_instance(tool_config[:name], tool_config[:options])
+        end.compact
+      end
+
+      # Create tool instance from name and options
+      def create_tool_instance(tool_name, options)
+        # Check if we have enhanced tool config (from new unified tool method)
+        tool_config = self.class._tools_config.find { |config| config[:name] == tool_name }
+
+        if tool_config && tool_config[:tool_class]
+          # Use the resolved tool class from unified tool method
+          tool_class = tool_config[:tool_class]
+          merged_options = (options || {}).merge(tool_config[:options] || {})
+        else
+          # Fallback to legacy resolve_tool_class for backward compatibility
+          tool_class = resolve_tool_class(tool_name)
+          merged_options = options || {}
+        end
+
+        return nil unless tool_class
+
+        tool_class.new(merged_options)
+      rescue => e
+        log_error("Failed to create tool instance for #{tool_name}: #{e.message}")
+        nil
+      end
+
+      # Resolve tool class from name
+      def resolve_tool_class(tool_name)
+        # Convert tool name to class name (e.g., :web_search -> RAAF::DSL::Tools::WebSearch)
+        class_name = tool_name.to_s.split('_').map(&:capitalize).join
+
+        # Try RAAF::DSL::Tools namespace first
+        if defined?("RAAF::DSL::Tools::#{class_name}")
+          "RAAF::DSL::Tools::#{class_name}".constantize
+        else
+          # Fallback: assume it's a custom tool class
+          tool_name.to_s.classify.constantize
+        end
+      rescue NameError => e
+        log_error("Tool class not found for #{tool_name}: #{e.message}")
+        nil
+      end
+
+      # Convert tool instance to function tool
+      def convert_to_function_tool(tool_instance)
+        return nil unless tool_instance
+
+        # If tool has a function_tool method, use it
+        return tool_instance.function_tool if tool_instance.respond_to?(:function_tool)
+
+        # If tool uses DSL, create RAAF function tool
+        process_dsl_tool(tool_instance)
+      end
+
+      # Process DSL tool and convert to RAAF function tool
+      def process_dsl_tool(tool_instance)
+        return nil unless tool_instance.respond_to?(:tool_configuration)
+
+        config = tool_instance.tool_configuration
+
+        # Create RAAF function tool from DSL tool configuration
+        # Extract the function definition from the configuration
+        function_def = config.is_a?(Hash) && config[:function] ? config[:function] : config
+
+        RAAF::FunctionTool.new(
+          tool_instance,
+          name: function_def.dig(:name) || tool_instance.tool_name,
+          description: function_def.dig(:description) || tool_instance.description,
+          parameters: function_def.dig(:parameters)
+        )
+      end
+
+      # Direct execution without smart features
+      def direct_run(context: nil, input_context_variables: nil, stop_checker: nil)
+        # DSL agents delegate directly to core agents which handle tracing
+        execute_without_tracing(context, input_context_variables, stop_checker)
+      end
+
       private
-      
+
       # Build context from parameter (backward compatibility)
       def build_context_from_param(context_param, debug = nil)
         # Only accept ContextVariables instances
@@ -1953,211 +2355,20 @@ module RAAF
         self.class._validation_rules.present?
       end
       
-      # Direct execution without smart features (original run behavior)
-      def direct_run(context: nil, input_context_variables: nil, stop_checker: nil)
-        # Execute with comprehensive tracing if available
-        return execute_without_tracing(context, input_context_variables, stop_checker) unless @tracer
 
-        # Create agent span with full metadata and dialog capture
-        if @parent_span
-          puts "🔍 [#{self.class.name}] Creating agent span with parent: #{@parent_span.span_id} (#{@parent_span.name})"
-        else
-          puts "🔍 [#{self.class.name}] Creating agent span with no parent"
-        end
-        @tracer.agent_span(agent_name, parent: @parent_span) do |span|
-
-          # Set comprehensive agent metadata
-          set_agent_span_attributes(span)
-
-          # Resolve context for this run
-          run_context = resolve_run_context(context || input_context_variables)
-
-          # Capture initial dialog state
-          capture_initial_dialog_state(span, run_context)
-
-          span.add_event("agent.context_resolved")
-
-          # Create OpenAI agent with DSL configuration
-          openai_agent = create_agent
-
-          span.add_event("agent.openai_agent_created")
-
-          # Build user prompt with context if available
-          user_prompt = build_user_prompt_with_context(run_context)
-
-          # Capture dialog components
-          capture_dialog_components(span, openai_agent, user_prompt, run_context)
-
-          span.add_event("agent.prompt_built", attributes: {
-            prompt_length: user_prompt.to_s.length
-          })
-
-          log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
-
-          # Create RAAF runner and delegate execution
-          runner_params = { agent: openai_agent, tracer: @tracer }
-          runner_params[:parent_span] = span  # Pass the current DSL agent span as parent
-          runner_params[:stop_checker] = stop_checker if stop_checker
-          runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
-
-          runner = RAAF::Runner.new(**runner_params)
-
-          span.add_event("agent.runner_created")
-
-          # Pure delegation to raaf-ruby
-          log_debug "Calling RAAF runner for #{self.class.name}"
-          run_result = runner.run(user_prompt, context: run_context)
-
-          span.add_event("agent.llm_execution_completed")
-
-          # Capture final dialog state
-          capture_final_dialog_state(span, run_result)
-
-          # Generic response logging
-          log_debug "Received AI response for #{agent_name}"
-
-          # Transform result to expected DSL format
-          base_result = transform_ai_result(run_result, run_context)
-
-          span.add_event("agent.result_transformed")
-
-          # Apply result transformations if configured, or auto-generate them for output fields
-          result = if self.class._result_transformations
-            apply_result_transformations(base_result)
-          else
-            # Automatically extract output fields if they are declared but no transformations exist
-            generate_auto_transformations_for_output_fields(base_result)
-          end
-
-          # Capture final result in span
-          capture_agent_result(span, result)
-
-          # Update span success status
-          span.set_status(result.dig(:success) == false ? :error : :ok)
-          span.set_attribute("agent.success", result.dig(:success) != false)
-
-          result
-        end
-      rescue StandardError => e
-        log_error("Agent execution failed", 
-                  error_class: e.class.name,
-                  error_message: e.message,
-                  agent_name: agent_name,
-                  stack_trace: e.backtrace.join("\n"))
-        
-        # Return error result in expected format
-        {
-          workflow_status: "error",
-          error: e.message,
-          success: false,
-          results: nil,
-          context_variables: run_context,
-          summary: "Agent execution failed: #{e.message}"
-        }
+      # Override Traceable collect_span_attributes to include agent-specific metadata
+      def collect_span_attributes
+        super.merge({
+          "agent.name" => agent_name,
+          "agent.model" => self.class._context_config[:model] || "gpt-4o",
+          "agent.max_turns" => self.class._context_config[:max_turns] || 5,
+          "agent.temperature" => self.class._context_config[:temperature],
+          "agent.context_size" => @context&.size || 0,
+          "agent.has_tools" => (@context && @context.size > 0) || false,
+          "agent.execution_mode" => has_smart_features? ? "smart" : "direct"
+        }.compact)
       end
 
-      # Execute agent without tracing (fallback)
-      def execute_without_tracing(context, input_context_variables, stop_checker)
-        # Resolve context for this run
-        run_context = resolve_run_context(context || input_context_variables)
-
-        # Create OpenAI agent with DSL configuration
-        openai_agent = create_agent
-
-        # Build user prompt with context if available
-        user_prompt = build_user_prompt_with_context(run_context)
-
-        log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
-
-        # Create RAAF runner and delegate execution
-        runner_params = { agent: openai_agent }
-        runner_params[:stop_checker] = stop_checker if stop_checker
-        runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
-
-        runner = RAAF::Runner.new(**runner_params)
-
-        # Pure delegation to raaf-ruby
-        log_debug "Calling RAAF runner for #{self.class.name}"
-        run_result = runner.run(user_prompt, context: run_context)
-
-        # Generic response logging
-        log_debug "Received AI response for #{agent_name}"
-
-        # Transform result to expected DSL format
-        base_result = transform_ai_result(run_result, run_context)
-
-        # Apply result transformations if configured, or auto-generate them for output fields
-        if self.class._result_transformations
-          apply_result_transformations(base_result)
-        else
-          # Automatically extract output fields if they are declared but no transformations exist
-          generate_auto_transformations_for_output_fields(base_result)
-        end
-      end
-
-      # Set comprehensive agent span attributes
-      def set_agent_span_attributes(span)
-        # Basic agent info
-        span.set_attribute("agent.class", self.class.name)
-        span.set_attribute("agent.name", agent_name)
-        span.set_attribute("agent.description", self.class.description) if self.class.description
-
-        # Model configuration
-        span.set_attribute("agent.model", self.class.model)
-        span.set_attribute("agent.temperature", self.class._context_config[:temperature]) if self.class._context_config[:temperature]
-        span.set_attribute("agent.max_turns", self.class.max_turns)
-
-        # Timeout configuration
-        span.set_attribute("agent.timeout", self.class._context_config[:timeout]) if self.class._context_config[:timeout]
-        span.set_attribute("agent.execution_timeout", self.class._context_config[:execution_timeout]) if self.class._context_config[:execution_timeout]
-        span.set_attribute("agent.http_timeout", self.class._context_config[:http_timeout]) if self.class._context_config[:http_timeout]
-
-        # Retry configuration
-        span.set_attribute("agent.retry_count", self.class._context_config[:retry]) if self.class._context_config[:retry]
-        if self.class._retry_config&.any?
-          span.set_attribute("agent.retry_config", self.class._retry_config.to_s)
-        end
-
-        # Circuit breaker configuration
-        if self.class._circuit_breaker_config
-          span.set_attribute("agent.circuit_breaker_enabled", true)
-          span.set_attribute("agent.circuit_breaker_threshold", self.class._circuit_breaker_config[:threshold])
-          span.set_attribute("agent.circuit_breaker_timeout", self.class._circuit_breaker_config[:timeout])
-        else
-          span.set_attribute("agent.circuit_breaker_enabled", false)
-        end
-
-        # Schema & validation configuration
-        span.set_attribute("agent.has_schema", !self.class._schema_definition.nil?)
-        if self.class._schema_definition
-          config = self.class._schema_definition[:config] || {}
-          span.set_attribute("agent.schema_mode", config[:mode] || "strict")
-          span.set_attribute("agent.schema_repair_attempts", config[:repair_attempts] || 0)
-        end
-
-        span.set_attribute("agent.auto_merge_enabled", self.class.auto_merge)
-
-        # Tools & handoffs
-        tools = self.class._tools_config || []
-        span.set_attribute("agent.tools", tools.map(&:to_s))
-        span.set_attribute("agent.tool_count", tools.length)
-
-        # Prompt configuration
-        span.set_attribute("agent.prompt_class", self.class.prompt_class.name) if self.class.prompt_class
-        span.set_attribute("agent.has_static_instructions", !self.class.static_instructions.nil?)
-        span.set_attribute("agent.has_instruction_template", !self.class.instruction_template.nil?)
-
-        # Context requirements
-        required_fields = self.class.required_fields || []
-        span.set_attribute("agent.required_fields", required_fields)
-
-        optional_fields = self.class._context_config.dig(:context_rules, :optional)&.keys || []
-        span.set_attribute("agent.optional_fields", optional_fields)
-
-        # Runtime context
-        span.set_attribute("agent.input_size", calculate_input_size)
-        span.set_attribute("agent.parent_pipeline", @parent_span ? "pipeline" : "standalone")
-      end
 
       # Capture initial dialog state
       def capture_initial_dialog_state(span, run_context)
@@ -2326,23 +2537,6 @@ module RAAF
         sensitive_patterns.any? { |pattern| key.include?(pattern) }
       end
 
-      def validate_context!
-        # Validate required context keys from the _required_context_keys class method
-        if self.class._required_context_keys
-          missing_keys = self.class._required_context_keys.reject do |key|
-            @context.has?(key)
-          end
-
-          if missing_keys.any?
-            raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
-          end
-        end
-
-        # Validate context DSL rules if defined  
-        if self.class.respond_to?(:_validation_rules) && self.class._validation_rules
-          validate_context_rules!
-        end
-      end
 
       def validate_context_rules!
         self.class._validation_rules.each do |key, rules|
@@ -2384,40 +2578,13 @@ module RAAF
         self.class._execution_conditions.evaluate(context, previous_result)
       end
 
-      def execute_with_retry(&block)
-        attempts = 0
-        max_attempts = 1  # Default no retry
-        
-        begin
-          attempts += 1
-          yield
-        rescue => e
-          retry_config = find_retry_config(e)
-          
-          if retry_config && attempts < retry_config[:max_attempts]
-            delay = calculate_retry_delay(retry_config, attempts)
-            
-            log_warn "🔄 [#{self.class.name}] Retrying in #{delay}s (attempt #{attempts}/#{retry_config[:max_attempts]}): #{e.message}"
-            
-            sleep(delay)
-            retry
-          else
-            raise
-          end
-        end
-      end
 
       # Create a span for skipped agents to make them visible in traces
       def create_skipped_span(skip_reason, result_data, context)
         agent_name = self.class._context_config&.dig(:name) || self.class.name
 
-        # Get the tracer from TraceProvider or create a fallback
-        tracer = begin
-          RAAF::Tracing::TraceProvider.tracer
-        rescue NameError, NoMethodError
-          # Fallback if TraceProvider is not available
-          nil
-        end
+        # Get the tracer following TracingRegistry priority hierarchy
+        tracer = get_tracer_for_skipped_span
 
         if tracer
           # Create a span for the skipped agent
@@ -2456,99 +2623,6 @@ module RAAF
         result_data
       end
 
-      def find_retry_config(error)
-        return nil unless self.class._retry_config
-
-        log_debug "🔍 [#{self.class.name}] Finding retry config for error: #{error.class.name} - #{error.message}"
-        log_debug "🔍 [#{self.class.name}] Available retry configs: #{self.class._retry_config.keys.inspect}"
-
-        self.class._retry_config.each do |error_type, config|
-          log_debug "🔍 [#{self.class.name}] Checking error_type: #{error_type} (#{error_type.class.name})"
-          case error_type
-          when :rate_limit
-            if error.message.include?("rate limit")
-              log_debug "✅ [#{self.class.name}] Matched :rate_limit"
-              return config
-            end
-          when :timeout
-            if error.is_a?(Timeout::Error)
-              log_debug "✅ [#{self.class.name}] Matched :timeout"
-              return config
-            end
-          when :network
-            network_match = false
-            begin
-              network_match = defined?(Net::Error) && error.is_a?(Net::Error)
-            rescue NameError
-              # Net::Error class not available in this environment
-              network_match = false
-            end
-            if network_match || error.message.include?("connection") || error.message.include?("503")
-              log_debug "✅ [#{self.class.name}] Matched :network"
-              return config
-            end
-          when Class
-            log_debug "🔍 [#{self.class.name}] Checking Class match: #{error_type.name} vs #{error.class.name}"
-            if error.is_a?(error_type)
-              log_debug "✅ [#{self.class.name}] Matched Class: #{error_type.name}"
-              return config
-            end
-          end
-        end
-
-        log_debug "❌ [#{self.class.name}] No retry config found for error: #{error.class.name}"
-        nil
-      end
-
-      def calculate_retry_delay(config, attempt)
-        base_delay = config[:delay] || 1
-        
-        case config[:backoff]
-        when :exponential
-          base_delay * (2 ** (attempt - 1))
-        when :linear
-          base_delay * attempt
-        else
-          base_delay
-        end
-      end
-
-      def check_circuit_breaker!
-        return unless self.class._circuit_breaker_config
-        
-        config = self.class._circuit_breaker_config
-        
-        if @circuit_breaker_state == :open
-          if Time.current - @circuit_breaker_last_failure > config[:reset_timeout]
-            @circuit_breaker_state = :half_open
-            log_info "🔄 [#{self.class.name}] Circuit breaker transitioning to half-open"
-          else
-            raise CircuitBreakerOpenError, "Circuit breaker is open due to repeated failures"
-          end
-        end
-      end
-
-      def reset_circuit_breaker!
-        return unless self.class._circuit_breaker_config
-        
-        @circuit_breaker_state = :closed
-        @circuit_breaker_failures = 0
-        @circuit_breaker_last_failure = nil
-      end
-
-      def record_circuit_breaker_failure!
-        return unless self.class._circuit_breaker_config
-        
-        config = self.class._circuit_breaker_config
-        @circuit_breaker_failures += 1
-        @circuit_breaker_last_failure = Time.current
-        
-        if @circuit_breaker_failures >= config[:threshold]
-          @circuit_breaker_state = :open
-          log_error "🚫 [#{self.class.name}] Circuit breaker opened after #{@circuit_breaker_failures} failures"
-        end
-      end
-
       def process_raaf_result(raaf_result)
         # Handle different RAAF result formats automatically
         base_result = if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
@@ -2580,7 +2654,8 @@ module RAAF
             output_fields = self.class.provided_fields
             # Check if any of the output fields exist in results (either as symbol or string)
             if output_fields.any? { |field| results.key?(field.to_sym) || results.key?(field.to_s) }
-              return { success: true, data: results }
+              # Don't wrap in 'data' key - merge directly to avoid double-wrapping
+              return { success: true }.merge(results)
             end
           end
         end
@@ -2641,30 +2716,6 @@ module RAAF
         # )
       end
 
-      def handle_smart_error(error)
-        agent_name = self.class._context_config&.dig(:name) || self.class.name
-        
-        # Record circuit breaker failure
-        record_circuit_breaker_failure!
-        
-        # Categorize and handle error
-        if error.message.include?("rate limit")
-          log_error "🚫 [#{agent_name}] Rate limit exceeded: #{error.message}"
-          { success: false, error: "Rate limit exceeded. Please try again later.", error_type: "rate_limit" }
-        elsif error.is_a?(CircuitBreakerOpenError)
-          log_error "🚫 [#{agent_name}] Circuit breaker open: #{error.message}"
-          { success: false, error: "Service temporarily unavailable", error_type: "circuit_breaker" }
-        elsif error.is_a?(JSON::ParserError)
-          log_error "❌ [#{agent_name}] JSON parsing error: #{error.message}"
-          { success: false, error: "Failed to parse AI response", error_type: "json_error" }
-        elsif error.is_a?(ArgumentError) && error.message.include?("context")
-          log_error "❌ [#{agent_name}] Context validation error: #{error.message}"
-          { success: false, error: error.message, error_type: "validation_error" }
-        else
-          log_error "❌ [#{agent_name}] Unexpected error: #{error.message}", stack_trace: error.backtrace.join("\n")
-          { success: false, error: "Agent execution failed: #{error.message}", error_type: "unexpected_error" }
-        end
-      end
 
       # Generate automatic transformations for output fields when none are configured
       def generate_auto_transformations_for_output_fields(base_result)
@@ -2715,6 +2766,75 @@ module RAAF
         }
       end
 
+      # Collect DSL-specific metadata for tracing spans
+      #
+      # @return [Hash] DSL metadata to include in agent spans
+      def collect_dsl_metadata
+        metadata = {}
+
+        # Retry configuration
+        if self.class._retry_config
+          retry_config = self.class._retry_config
+          metadata["retry_max_attempts"] = retry_config[:max_attempts] if retry_config[:max_attempts]
+          metadata["retry_delay"] = retry_config[:delay] if retry_config[:delay]
+          metadata["retry_backoff"] = retry_config[:backoff] if retry_config[:backoff]
+          metadata["retry_enabled"] = "true"
+        else
+          metadata["retry_enabled"] = "false"
+        end
+
+        # Circuit breaker state
+        if self.class._circuit_breaker_config
+          cb_config = self.class._circuit_breaker_config
+          metadata["circuit_breaker_enabled"] = "true"
+          metadata["circuit_breaker_threshold"] = cb_config[:failure_threshold] if cb_config[:failure_threshold]
+          metadata["circuit_breaker_timeout"] = cb_config[:timeout] if cb_config[:timeout]
+        else
+          metadata["circuit_breaker_enabled"] = "false"
+        end
+
+        # Timeout settings
+        if self.class._context_config[:http_timeout]
+          metadata["http_timeout"] = self.class._context_config[:http_timeout].to_s
+        end
+
+        # Execution conditions
+        if self.class._execution_conditions
+          metadata["execution_conditions"] = "true"
+          metadata["conditions_count"] = self.class._execution_conditions.length.to_s
+        else
+          metadata["execution_conditions"] = "false"
+        end
+
+        # Prompt information
+        prompt_spec = determine_prompt_spec
+        if prompt_spec
+          case prompt_spec
+          when Class
+            metadata["prompt_type"] = "class"
+            metadata["prompt_class"] = prompt_spec.name
+          when String, Symbol
+            metadata["prompt_type"] = "file"
+            metadata["prompt_file"] = prompt_spec.to_s
+          end
+        else
+          metadata["prompt_type"] = "inline"
+        end
+
+        # Schema validation mode
+        schema_def = build_schema
+        if schema_def && schema_def.is_a?(Hash) && schema_def[:config]
+          metadata["validation_mode"] = schema_def[:config][:mode].to_s
+        end
+
+        # Temperature setting
+        if self.class._context_config[:temperature]
+          metadata["temperature"] = self.class._context_config[:temperature].to_s
+        end
+
+        metadata
+      end
+
       # Methods from Base class
       def create_openai_agent_instance
         # Build handoffs if configured
@@ -2758,6 +2878,12 @@ module RAAF
           require_relative 'hooks/hooks_adapter'
           agent_config[:hooks] = RAAF::DSL::Hooks::HooksAdapter.new(hooks_config, self)
         end
+
+        # Collect DSL metadata for tracing
+        agent_config[:trace_metadata] = collect_dsl_metadata
+
+        # Pass parent component for tracing hierarchy
+        agent_config[:parent_component] = @parent_component if @parent_component
 
         # Create and return the RAAF agent
         RAAF::Agent.new(**agent_config)
@@ -2816,7 +2942,33 @@ module RAAF
 
         content = last_assistant_message[:content]
 
-        # With HashWithIndifferentAccess, return content as-is (supports both key types)
+        # Parse JSON strings and ensure HashWithIndifferentAccess for all hash data
+        if content.is_a?(String)
+          # Try to parse as JSON if it looks like JSON
+          if content.strip.match?(/\A[\[{].*[\]}]\z/m)
+            begin
+              # Use Utils.parse_json which returns HashWithIndifferentAccess
+              content = RAAF::Utils.parse_json(content)
+              log_debug "Parsed JSON content to HashWithIndifferentAccess",
+                        content_type: content.class.name,
+                        keys_sample: content.is_a?(Hash) ? content.keys.first(3).inspect : nil
+            rescue JSON::ParserError => e
+              log_debug "Content looks like JSON but failed to parse: #{e.message}"
+              # Return as-is if parsing fails
+            end
+          end
+        elsif content.is_a?(Hash)
+          # Ensure existing hashes also have indifferent access
+          content = RAAF::Utils.indifferent_access(content)
+          log_debug "Converted Hash to HashWithIndifferentAccess",
+                    content_type: content.class.name
+        elsif content.is_a?(Array)
+          # For arrays, convert any nested hashes to indifferent access
+          content = content.map { |item|
+            item.is_a?(Hash) ? RAAF::Utils.indifferent_access(item) : item
+          }
+        end
+
         content
       end
 
@@ -2975,158 +3127,6 @@ module RAAF
         end
       end
 
-      # Tool building methods (consolidated from AgentDsl)
-      def build_tools_from_config
-        self.class._tools_config.map do |tool_config|
-          create_tool_instance(tool_config[:name], tool_config[:options])
-        end.compact
-      end
-
-      def create_tool_instance(tool_name, options)
-        # Check if we have enhanced tool config (from new unified tool method)
-        tool_config = self.class._tools_config.find { |config| config[:name] == tool_name }
-        
-        if tool_config && tool_config[:tool_class]
-          # Use the resolved tool class from unified tool method
-          tool_class = tool_config[:tool_class]
-          merged_options = (options || {}).merge(tool_config[:options] || {})
-        else
-          # Fallback to legacy resolve_tool_class for backward compatibility
-          tool_class = resolve_tool_class(tool_name)
-          merged_options = options || {}
-        end
-        
-        return nil unless tool_class
-        
-        tool_class.new(merged_options)
-      rescue => e
-        log_error("Failed to create tool instance for #{tool_name}: #{e.message}")
-        nil
-      end
-
-      def resolve_tool_class(tool_name)
-        # Convert tool name to class name (e.g., :web_search -> RAAF::DSL::Tools::WebSearch)
-        class_name = tool_name.to_s.split('_').map(&:capitalize).join
-        
-        # Try RAAF::DSL::Tools namespace first
-        if defined?("RAAF::DSL::Tools::#{class_name}")
-          "RAAF::DSL::Tools::#{class_name}".constantize
-        else
-          # Fallback: assume it's a custom tool class
-          tool_name.to_s.classify.constantize
-        end
-      rescue NameError => e
-        log_error("Tool class not found for #{tool_name}: #{e.message}")
-        nil
-      end
-
-      def convert_to_function_tool(tool_instance)
-        return nil unless tool_instance
-        
-        # If tool has a function_tool method, use it
-        return tool_instance.function_tool if tool_instance.respond_to?(:function_tool)
-        
-        # If tool uses DSL, create RAAF function tool
-        process_dsl_tool(tool_instance)
-      end
-
-      def process_dsl_tool(tool_instance)
-        return tool_instance unless tool_instance.respond_to?(:tool_definition)
-
-        tool_def = tool_instance.tool_definition
-        tool_name = extract_tool_name(tool_def, tool_instance)
-        tool_description = extract_tool_description(tool_def)
-        tool_parameters = extract_tool_parameters(tool_def)
-
-        method_to_call = find_executable_method(tool_name, tool_instance)
-        return handle_no_executable_method(tool_name, tool_instance) unless method_to_call
-
-        return tool_instance unless defined?(::RAAF::FunctionTool)
-
-        tool_proc = create_tool_proc(tool_instance, method_to_call)
-        validate_tool_parameters(tool_name, tool_parameters)
-        create_raaf_function_tool(tool_name, tool_description, tool_parameters, tool_proc)
-      end
-
-      def extract_tool_name(tool_def, tool_instance)
-        if tool_def.is_a?(Hash) && tool_def.dig(:function, :name)
-          tool_def[:function][:name]
-        elsif tool_instance.respond_to?(:tool_name)
-          tool_instance.tool_name
-        elsif tool_instance.respond_to?(:name)
-          tool_instance.name
-        else
-          tool_instance.class.name.demodulize.underscore
-        end
-      end
-
-      def extract_tool_description(tool_def)
-        if tool_def.is_a?(Hash) && tool_def.dig(:function, :description)
-          tool_def[:function][:description]
-        else
-          "Tool: #{extract_tool_name(tool_def, nil)}"
-        end
-      end
-
-      def extract_tool_parameters(tool_def)
-        if tool_def.is_a?(Hash) && tool_def.dig(:function, :parameters)
-          tool_def[:function][:parameters]
-        else
-          { type: "object", properties: {}, required: [] }
-        end
-      end
-
-      def find_executable_method(tool_name, tool_instance)
-        # Look for execute method first, then call (Ruby callable convention), then tool name method
-        if tool_instance.respond_to?(:execute)
-          :execute
-        elsif tool_instance.respond_to?(:call)
-          :call
-        elsif tool_instance.respond_to?(tool_name)
-          tool_name.to_sym
-        else
-          # Debug output to understand what methods are available
-          log_error("Tool instance class: #{tool_instance.class}")
-          log_error("Tool instance methods: #{tool_instance.public_methods(false).sort.join(', ')}")
-          log_error("Tool instance responds to call?: #{tool_instance.respond_to?(:call)}")
-          log_error("Tool instance responds to execute?: #{tool_instance.respond_to?(:execute)}")
-          nil
-        end
-      end
-
-      def handle_no_executable_method(tool_name, tool_instance)
-        log_error("Tool #{tool_name} has no executable method (execute, call, or #{tool_name})")
-        nil
-      end
-
-      def create_tool_proc(tool_instance, method_to_call)
-        lambda do |**args|
-          begin
-            # Convert string keys to symbol keys to match Ruby keyword argument expectations
-            symbolized_args = args.symbolize_keys
-            result = tool_instance.send(method_to_call, **symbolized_args)
-            result.is_a?(Hash) ? result : { result: result }
-          rescue => e
-            log_error("Tool execution failed: #{e.message}")
-            { error: e.message }
-          end
-        end
-      end
-
-      def validate_tool_parameters(tool_name, parameters)
-        unless parameters.is_a?(Hash) && parameters.key?(:type)
-          log_warn("Tool #{tool_name} has invalid parameter schema")
-        end
-      end
-
-      def create_raaf_function_tool(tool_name, description, parameters, tool_proc)
-        RAAF::FunctionTool.new(
-          tool_proc,
-          name: tool_name,
-          description: description,
-          parameters: parameters
-        )
-      end
 
       # Handoff building method (consolidated from AgentDsl)
       def build_handoffs_from_config
@@ -3228,101 +3228,6 @@ module RAAF
         end
       end
 
-      # Schema builder for inline schema definitions with fault-tolerant validation support
-      class SchemaBuilder
-        def initialize(&block)
-          @schema = { type: "object", properties: {}, required: [], additionalProperties: false }
-          @validation_config = { mode: :tolerant, repair_attempts: 2, allow_extra: true }
-          instance_eval(&block) if block_given?
-        end
-
-        def build
-          { schema: @schema, config: @validation_config }
-        end
-
-        def field(name, type:, required: false, description: nil, **options, &block)
-          field_schema = { type: type.to_s }
-          field_schema[:description] = description if description
-          
-          # Add new fault-tolerance field options
-          field_schema[:default] = options[:default] if options.key?(:default)
-          field_schema[:flexible] = options[:flexible] if options[:flexible]
-          field_schema[:passthrough] = options[:passthrough] if options[:passthrough]
-          field_schema[:enum] = options[:enum] if options[:enum]
-          field_schema[:fallback] = options[:fallback] if options[:fallback]
-          
-          # Handle union types for flexible schema support
-          if type == :union && options[:schemas]
-            field_schema = { oneOf: options[:schemas] }
-          end
-          
-          # Handle type-specific options (existing functionality)
-          case type
-          when :integer, :number
-            field_schema[:minimum] = options[:min] if options[:min]
-            field_schema[:maximum] = options[:max] if options[:max]
-            if options[:range]
-              field_schema[:minimum] = options[:range].min
-              field_schema[:maximum] = options[:range].max
-            end
-          when :string
-            field_schema[:minLength] = options[:min_length] if options[:min_length]
-            field_schema[:maxLength] = options[:max_length] if options[:max_length]
-          when :array
-            field_schema[:items] = { type: (options[:items_type] || :string).to_s }
-            field_schema[:minItems] = options[:min_items] if options[:min_items]
-            field_schema[:maxItems] = options[:max_items] if options[:max_items]
-            if block_given?
-              nested_builder = SchemaBuilder.new(&block)
-              nested_result = nested_builder.build
-              # For arrays with nested object schemas, use the schema portion and ensure required fields are included
-              if nested_result.is_a?(Hash) && nested_result[:schema]
-                field_schema[:items] = nested_result[:schema]
-              else
-                field_schema[:items] = nested_result
-              end
-            end
-          when :object
-            if block_given?
-              nested_builder = SchemaBuilder.new(&block)
-              nested_result = nested_builder.build
-              field_schema = nested_result.is_a?(Hash) && nested_result[:schema] ? nested_result[:schema] : nested_result
-            end
-          end
-
-          @schema[:properties][name] = field_schema
-          @schema[:required] << name.to_s if required
-        end
-
-        # Configure validation behavior
-        def validation(mode)
-          unless [:strict, :tolerant, :partial].include?(mode)
-            raise ArgumentError, "Invalid validation mode: #{mode}. Must be :strict, :tolerant, or :partial"
-          end
-          @validation_config[:mode] = mode
-        end
-
-        # Allow extra fields in the response
-        def allow_extra_fields(allow = true)
-          @schema[:additionalProperties] = allow
-          @validation_config[:allow_extra] = allow
-        end
-
-        # Set number of repair attempts for malformed JSON
-        def repair_attempts(count)
-          @validation_config[:repair_attempts] = count
-        end
-
-        # Enable automatic defaults for missing fields
-        def auto_defaults(enabled = true)
-          @validation_config[:auto_defaults] = enabled
-        end
-
-        # Configure dead letter queue for unparseable responses
-        def dead_letter_queue(enabled = true)
-          @validation_config[:dead_letter] = enabled
-        end
-      end
 
       # Result transformation builder for defining field mappings and transformations
       class ResultTransformBuilder
@@ -3635,10 +3540,12 @@ module RAAF
 
       # Create a skipped span when agent execution is skipped
       def create_skipped_span(skip_reason, skip_result, resolved_context)
-        return skip_result unless @tracer
+        tracer = get_tracer_for_skipped_span
+        return skip_result unless tracer
 
         # Create a short-lived span to make the skip visible in traces
-        @tracer.agent_span(agent_name, parent: @parent_span) do |span|
+        # Let tracer determine parent automatically (no manual parent passing)
+        tracer.agent_span(agent_name) do |span|
 
           # Mark as skipped with specific attributes
           span.set_attribute("agent.skipped", true)
@@ -3665,6 +3572,33 @@ module RAAF
 
           # Return the skip result
           skip_result
+        end
+      end
+
+      # Get tracer for skipped span creation following TracingRegistry priority hierarchy:
+      # 1. RAAF::Tracing::TracingRegistry.current_tracer
+      # 2. RAAF::Tracing::TraceProvider.tracer (existing behavior)
+      # 3. nil (if nothing available)
+      def get_tracer_for_skipped_span
+        # Try TracingRegistry first if available
+        if defined?(RAAF::Tracing::TracingRegistry)
+          begin
+            current_tracer = RAAF::Tracing::TracingRegistry.current_tracer
+            # Don't use NoOpTracer for skipped spans - we want visibility
+            unless defined?(RAAF::Tracing::NoOpTracer) && current_tracer.is_a?(RAAF::Tracing::NoOpTracer)
+              return current_tracer
+            end
+          rescue StandardError
+            # Fall through to TraceProvider if registry access fails
+          end
+        end
+
+        # Fall back to existing TraceProvider behavior
+        begin
+          RAAF::Tracing::TraceProvider.tracer
+        rescue NameError, NoMethodError
+          # Final fallback if TraceProvider is not available
+          nil
         end
       end
     end

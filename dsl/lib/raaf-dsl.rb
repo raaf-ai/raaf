@@ -4,6 +4,13 @@ require "raaf-core"
 require_relative "raaf/dsl/core/version"
 require "active_support/all"
 
+# Load tracing functionality
+begin
+  require "raaf/tracing/traceable"
+rescue LoadError
+  # Tracing functionality is optional - gracefully handle missing tracing gem
+end
+
 # AI Agent DSL - A Ruby framework for building intelligent AI agents
 #
 # This gem provides a declarative DSL for configuring AI agents with:

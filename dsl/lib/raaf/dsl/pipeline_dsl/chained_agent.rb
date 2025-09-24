@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'ostruct'
+require 'securerandom'
 require_relative 'field_mismatch_error'
 
 module RAAF
@@ -67,7 +69,17 @@ module RAAF
 
           # Execute first part
           context = execute_part(@first, context, agent_results)
-          # Execute second part with validation
+
+          # Check if first part was skipped - for now, continue execution anyway
+          # Future improvement: could make this configurable per agent
+          if context.respond_to?(:get) && context.get(:_agent_skipped)
+            puts "🔍 [CHAINED_AGENT] First part was skipped, but continuing with second part"
+            # Clean up the skip marker for next agent
+            context = context.set(:_agent_skipped, nil)
+          end
+
+          # Execute second part regardless of first part skip status
+          # This allows pipeline to continue even if some agents are skipped
           execute_part(@second, context, agent_results)
         end
         
@@ -195,38 +207,84 @@ module RAAF
         
         def execute_single_agent(agent_class, context, agent_results = nil)
           agent_name = agent_class.respond_to?(:agent_name) ? agent_class.agent_name : agent_class.name
+          puts "🔍 [CHAINED_AGENT] Starting execute_single_agent for: #{agent_name}"
+          puts "🔍 [CHAINED_AGENT] Agent class: #{agent_class.name}"
+          puts "🔍 [CHAINED_AGENT] Context keys: #{context.respond_to?(:keys) ? context.keys : 'unknown'}"
           log_debug "Executing agent: #{agent_name}"
 
           # Check requirements
           if agent_class.respond_to?(:requirements_met?)
-            unless agent_class.requirements_met?(context)
+            puts "🔍 [CHAINED_AGENT] Agent has requirements_met? method"
+            puts "🔍 [CHAINED_AGENT] Required fields: #{agent_class.required_fields rescue 'error getting required fields'}"
+
+            requirements_met = agent_class.requirements_met?(context)
+            puts "🔍 [CHAINED_AGENT] Requirements met?: #{requirements_met}"
+
+            unless requirements_met
+              puts "🔍 [CHAINED_AGENT] ⚠️ REQUIREMENTS NOT MET - SKIPPING AGENT: #{agent_name}"
               log_warn "Skipping #{agent_name}: requirements not met"
               log_debug "  Required: #{agent_class.required_fields}"
               log_debug "  Available in context: #{context.keys if context.respond_to?(:keys)}"
 
-              # Create skipped span for pipeline agents
-              create_pipeline_skipped_span(agent_class, agent_name, context)
+              # Create a span for the skipped agent to make it visible in traces
+              pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
+              puts "🔍 [CHAINED_AGENT] Pipeline instance found: #{pipeline_instance&.class&.name || 'nil'}"
+              puts "🔍 [CHAINED_AGENT] Pipeline responds to with_tracing?: #{pipeline_instance&.respond_to?(:with_tracing)}"
 
+              if pipeline_instance && pipeline_instance.respond_to?(:with_tracing)
+                puts "🔍 [CHAINED_AGENT] Creating span for skipped agent: #{agent_name}"
+                puts "🔍 [CHAINED_AGENT] Pipeline current span: #{pipeline_instance.current_span&.dig(:span_id) || 'nil'}"
+
+                # Create a proper agent-like object that can create agent spans
+                require 'ostruct'
+
+                # Create a minimal agent-like object with tracing capability
+                skipped_agent = Class.new do
+                  include RAAF::Tracing::Traceable
+                  trace_as :agent  # This is crucial - sets the span kind to :agent
+
+                  def initialize(name, parent_component)
+                    @name = name
+                    @parent_component = parent_component
+                  end
+
+                  attr_reader :name, :parent_component
+                end.new(agent_name, pipeline_instance)
+
+                # Use the fake agent to create a proper agent span with correct hierarchy
+                skipped_agent.with_tracing(:execute,
+                                          parent_component: pipeline_instance,
+                                          agent_name: agent_name,
+                                          "agent.status" => "skipped",
+                                          "agent.skip_reason" => "requirements_not_met",
+                                          "agent.required_fields" => agent_class.required_fields.join(", "),
+                                          "agent.available_fields" => (context.respond_to?(:keys) ? context.keys.join(", ") : "unknown")) do
+                  # No-op - just create the span to show the agent was considered
+                  puts "🔍 [CHAINED_AGENT] Inside skipped agent span block"
+                  log_debug "Created span for skipped agent: #{agent_name}"
+                  nil  # Return nil from span block
+                end
+                puts "🔍 [CHAINED_AGENT] Completed span creation for skipped agent: #{agent_name}"
+              else
+                puts "🔍 [CHAINED_AGENT] ❌ Cannot create span for skipped agent - no pipeline instance or no with_tracing method"
+              end
+
+              # Mark context as having a skipped agent to propagate skip condition
+              context = context.set(:_agent_skipped, true) if context.respond_to?(:set)
+              puts "🔍 [CHAINED_AGENT] Returning context with _agent_skipped marker"
               return context
             end
+          else
+            puts "🔍 [CHAINED_AGENT] Agent does NOT have requirements_met? method, proceeding with execution"
           end
 
           # Execute agent - ContextVariables now supports direct splatting via to_hash method
-          # Add tracing information from pipeline if available
           agent_params = context.to_h
 
-          # Get pipeline instance to extract tracing information
+          # Pass pipeline instance as parent_component for tracing hierarchy
           pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
           if pipeline_instance
-            # Pass tracer from pipeline
-            if pipeline_instance.instance_variable_get(:@tracer)
-              agent_params[:tracer] = pipeline_instance.instance_variable_get(:@tracer)
-            end
-
-            # Pass pipeline span as parent_span
-            if pipeline_instance.instance_variable_get(:@pipeline_span)
-              agent_params[:parent_span] = pipeline_instance.instance_variable_get(:@pipeline_span)
-            end
+            agent_params[:parent_component] = pipeline_instance
           end
 
           # Convert to regular hash first, then transform keys to symbols for RAAF::DSL::Agent compatibility
@@ -284,52 +342,6 @@ module RAAF
           context
         end
 
-        # Create a skipped span for pipeline agents when requirements are not met
-        def create_pipeline_skipped_span(agent_class, agent_name, context)
-          # Get tracer from global RAAF instance to avoid context access issues
-          # The pipeline_instance.tracer call was triggering context restrictions
-          tracer = RAAF.tracer
-
-          # Only create span if tracer is available
-          return unless tracer
-
-          # Get pipeline instance for parent span information (without accessing tracer)
-          pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
-
-          # Create a short-lived span to make the skip visible in traces
-          tracer.agent_span(agent_name) do |span|
-            # Get parent span from pipeline instance if available
-            parent_span = pipeline_instance&.respond_to?(:parent_span) ? pipeline_instance.parent_span : nil
-            span.instance_variable_set(:@parent_id, parent_span.span_id) if parent_span
-
-            # Mark as skipped with specific attributes
-            span.set_attribute("agent.skipped", true)
-            span.set_attribute("agent.skip_reason", "requirements_not_met")
-            span.set_attribute("agent.class", agent_class.name)
-            span.set_attribute("agent.name", agent_name)
-
-            # Add debugging info about requirements vs available context
-            required_fields = agent_class.respond_to?(:required_fields) ? agent_class.required_fields : []
-            available_keys = context.respond_to?(:keys) ? context.keys : []
-
-            span.set_attribute("agent.required_fields", required_fields)
-            span.set_attribute("agent.available_context_keys", available_keys)
-            span.set_attribute("agent.missing_fields", required_fields - available_keys)
-
-            # Set span status to indicate this was intentionally skipped (not an error)
-            span.set_status(:ok)
-            span.set_attribute("agent.success", false)
-            span.set_attribute("agent.workflow_status", "skipped")
-
-            # Add event to show when skip occurred
-            span.add_event("agent.execution_skipped", attributes: {
-              reason: "requirements_not_met",
-              required_fields: required_fields,
-              available_fields: available_keys,
-              timestamp: Time.now.utc.iso8601
-            })
-          end
-        end
       end
     end
   end

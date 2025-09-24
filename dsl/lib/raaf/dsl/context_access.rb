@@ -71,7 +71,7 @@ module RAAF
       # TODO: Add respond_to_missing? implementation for proper Ruby method resolution
       def method_missing(method_name, *args, &block)
         method_str = method_name.to_s
-        
+
         # Handle assignment calls (variable = value)
         if method_str.end_with?('=') && args.size == 1 && !block_given?
           variable_name = method_str.chomp('=').to_sym
@@ -105,16 +105,22 @@ module RAAF
         
         # Handle getter calls (variable)
         if args.empty? && !block_given?
+          # Skip context variable handling for method calls (ending with ! or ?)
+          # These should be handled by the class's actual methods, not context access
+          if method_str.end_with?('!', '?')
+            return super
+          end
+
           # FIRST: Check restrictions if context is restricted
           # This prevents access to undeclared variables even if they exist in the underlying context
           if context_is_restricted?
             declared_vars = get_declared_context_variables
             all_declared = (declared_vars[:required] + declared_vars[:optional] + declared_vars[:output]).map(&:to_sym)
-            
+
             unless all_declared.include?(method_name.to_sym)
               raise_context_restriction_error(method_name)
             end
-            
+
             # Variable is declared - proceed with normal access
           end
           

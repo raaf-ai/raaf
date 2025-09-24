@@ -27,9 +27,20 @@ module RAAF
     include RAAF::DSL::ContextConfiguration
     include RAAF::DSL::Hooks::HookContext
 
+    # Include Traceable module for proper span hierarchy
+    include RAAF::Tracing::Traceable
+    trace_as :pipeline
+
+    attr_reader :current_span
+
     class << self
       attr_reader :flow_chain, :on_end_block, :pipeline_schema_block
       attr_accessor :skip_validation
+
+      # Traceable component type
+      def trace_component_type
+        :pipeline
+      end
       
       # Define the agent execution flow using DSL operators
       # Stores the chained/parallel agent structure for execution
@@ -125,7 +136,7 @@ module RAAF
       end
 
       @flow = self.class.flow_chain
-      @tracer = tracer || RAAF.tracer
+      @tracer = tracer || get_default_tracer
       # Add pipeline instance to context - now works with ContextVariables
       @context = @context.set(:pipeline_instance, self) if @context.respond_to?(:set)
       validate_initial_context!
@@ -189,63 +200,16 @@ module RAAF
     end
 
     def run
-      # Create pipeline span with comprehensive metadata
-      return execute_without_tracing if @tracer.nil?
-
-      # Use the tracer's pipeline_span method with explicit parent: nil to ensure pipeline starts as root
-      # This prevents incorrect parent assignment from lingering tool spans in the context stack
-      @tracer.pipeline_span(pipeline_name, parent: nil) do |pipeline_span|
-        # Set comprehensive pipeline metadata
-        set_pipeline_span_attributes(pipeline_span)
-
-        # Initialize result collection for auto-merge
-        @agent_results = []
-        @pipeline_span = pipeline_span
-
-        # Validate pipeline before execution (enabled by default)
-        unless self.class.skip_validation
-          validate_pipeline!
-        end
-
-        pipeline_span.add_event("pipeline.validation_completed")
-
-        # Update @context with accumulated data from agents
-        @context = execute_chain(@flow, @context)
-
-        # Auto-merge all agent results intelligently
-        merged_result = auto_merge_results(@agent_results)
-
-        # Capture final result in span
-        capture_pipeline_result(pipeline_span, merged_result)
-
-        # Execute on_end hook if defined and capture modified result
-        # Now @context contains all accumulated data from agents
-        if self.class.on_end_block
-          pipeline_span.add_event("pipeline.on_end_hook_start")
-          merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)
-          pipeline_span.add_event("pipeline.on_end_hook_completed")
-        end
-
-        # Ensure success flag is present
-        merged_result[:success] = true unless merged_result.key?(:success)
-
-        # Update span with final status
-        pipeline_span.set_status(merged_result[:success] ? :ok : :error)
-        pipeline_span.set_attribute("pipeline.success", merged_result[:success])
-
-        merged_result
+      # Use Traceable module for proper span management (always available)
+      with_tracing(:run) do
+        execute_pipeline_logic
       end
     end
-    
+
     private
 
-    # Get pipeline name for span creation
-    def pipeline_name
-      self.class.name || "UnknownPipeline"
-    end
-
-    # Execute pipeline without tracing (fallback)
-    def execute_without_tracing
+    # Core pipeline execution logic (used by both traced and untraced execution)
+    def execute_pipeline_logic
       # Initialize result collection for auto-merge
       @agent_results = []
 
@@ -270,54 +234,12 @@ module RAAF
       merged_result
     end
 
-    # Set comprehensive pipeline span attributes
-    def set_pipeline_span_attributes(span)
-      # Basic pipeline info
-      span.set_attribute("pipeline.class", self.class.name)
-      span.set_attribute("pipeline.name", pipeline_name)
-
-      # Flow structure
-      flow_structure = flow_structure_description(@flow)
-      span.set_attribute("pipeline.flow_structure", flow_structure)
-      span.set_attribute("pipeline.agent_count", count_agents_in_flow(@flow))
-
-      # Context configuration
-      context_fields = self.class.context_fields || []
-      span.set_attribute("pipeline.context_fields", context_fields)
-
-      required_fields = self.class.required_fields || []
-      span.set_attribute("pipeline.required_fields", required_fields)
-
-      optional_fields = self.class._context_config[:context_rules]&.dig(:optional)&.keys || []
-      span.set_attribute("pipeline.optional_fields", optional_fields)
-
-      # Pipeline configuration
-      span.set_attribute("pipeline.has_schema", !self.class.pipeline_schema_block.nil?)
-      span.set_attribute("pipeline.has_hooks", !self.class.on_end_block.nil?)
-      span.set_attribute("pipeline.validation_enabled", !self.class.skip_validation)
-
-      # Execution mode detection
-      execution_mode = detect_execution_mode(@flow)
-      span.set_attribute("pipeline.execution_mode", execution_mode)
-
-      # Initial context (redacted for sensitive data)
-      initial_context = redact_sensitive_data(@context.respond_to?(:to_h) ? @context.to_h : @context)
-      span.set_attribute("pipeline.initial_context", initial_context)
+    # Get pipeline name for span creation
+    def pipeline_name
+      self.class.name || "UnknownPipeline"
     end
 
-    # Capture pipeline result in span
-    def capture_pipeline_result(span, result)
-      # Final result metadata
-      span.set_attribute("pipeline.result_keys", result.keys) if result.is_a?(Hash)
 
-      # Redact sensitive data from final result
-      safe_result = redact_sensitive_data(result)
-      span.set_attribute("pipeline.final_result", safe_result)
-
-      # Agent execution summary
-      span.set_attribute("pipeline.agents_executed", @agent_results.length)
-      span.set_attribute("pipeline.successful_agents", @agent_results.count { |r| r.dig(:success) != false })
-    end
 
     # Generate flow structure description
     def flow_structure_description(flow)
@@ -612,15 +534,12 @@ module RAAF
 
       # ContextVariables now supports direct splatting via to_hash method
       # Create instance - works for both Agent and Service classes
-      # Pass tracer and parent span context if available
+      # Pass parent_component (this pipeline) for proper span hierarchy
       instance_params = context.to_h
-      if @tracer && @pipeline_span
-        instance_params[:tracer] = @tracer
-        instance_params[:parent_span] = @pipeline_span
-        puts "🔍 [Pipeline] Passing parent_span to #{agent_class.name}: #{@pipeline_span.span_id} (#{@pipeline_span.name})"
-      else
-        puts "🔍 [Pipeline] No parent_span for #{agent_class.name} - tracer: #{@tracer.present?}, pipeline_span: #{@pipeline_span.present?}"
-      end
+      instance_params[:parent_component] = self  # Pass pipeline object, not span
+
+      # Don't pass tracer explicitly - let agents discover via TracingRegistry (ambient context pattern)
+      puts "🔍 [Pipeline] Creating #{agent_class.name} - will discover tracer via TracingRegistry"
       instance = agent_class.new(**instance_params)
 
       # Inject pipeline schema if available
@@ -869,6 +788,44 @@ module RAAF
       end
 
       base_lookup.values
+    end
+
+    # Provide span attributes for Traceable module
+    def collect_span_attributes
+      # Flow structure
+      flow_structure = flow_structure_description(@flow)
+
+      {
+        "pipeline.class" => self.class.name,
+        "pipeline.name" => pipeline_name,
+        "pipeline.flow_structure" => flow_structure,
+        "pipeline.agent_count" => count_agents_in_flow(@flow),
+        "pipeline.context_fields" => self.class.context_fields || [],
+        "pipeline.required_fields" => self.class.required_fields || [],
+        "pipeline.execution_mode" => detect_execution_mode(@flow),
+        "pipeline.validation_enabled" => !self.class.skip_validation
+      }
+    end
+
+    # Get the default tracer following TracingRegistry priority hierarchy:
+    # 1. Explicit tracer parameter (already handled in initialize)
+    # 2. RAAF::Tracing::TracingRegistry.current_tracer
+    # 3. RAAF.tracer (existing fallback)
+    # 4. nil (if nothing available)
+    def get_default_tracer
+      # Try TracingRegistry first if available
+      if defined?(RAAF::Tracing::TracingRegistry)
+        begin
+          current_tracer = RAAF::Tracing::TracingRegistry.current_tracer
+          # Only use if it's not a NoOpTracer or if that's the best we can get
+          return current_tracer
+        rescue StandardError
+          # Fall through to RAAF.tracer if registry access fails
+        end
+      end
+
+      # Fall back to RAAF.tracer
+      RAAF.tracer
     end
 
     # ContextConfig class provided by ContextConfiguration module
