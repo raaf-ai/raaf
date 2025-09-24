@@ -275,21 +275,25 @@ module RAAF
       begin
         # Execute the tool with error handling and tracing if available
         result = ErrorHandling.safe_tool_execution(tool: tool, arguments: arguments, agent: agent) do
-          # Add tracing support if runner has tracing enabled
-          if runner.respond_to?(:tracing_enabled?) && runner.tracing_enabled? && runner.instance_variable_get(:@tracer)
-            tracer = runner.instance_variable_get(:@tracer)
-            tracer.tool_span(tool.name) do |tool_span|
-              tool_span.set_attribute("function.name", tool.name)
-              tool_span.set_attribute("function.input", arguments.to_json)
-
-              # Ensure arguments have symbol keys for Ruby's keyword argument system
-              result = tool.call(**arguments.symbolize_keys)
-
-              tool_span.set_attribute("function.output", result.to_s[0..1000])
-              result
+          # Check if tracing is available and tool supports integration
+          if defined?(RAAF::Tracing::ToolIntegration) && runner.respond_to?(:tracing_enabled?) && runner.tracing_enabled?
+            # Use tool integration for proper span parenting
+            RAAF::Tracing::ToolIntegration.with_agent_context(agent) do
+              # If tool supports tracing integration, use it
+              if tool.respond_to?(:with_tool_tracing)
+                tool.with_tool_tracing(:call, tool_name: tool.name, tool_arguments: arguments) do
+                  tool.call(**arguments.symbolize_keys)
+                end
+              else
+                # Use agent's tracing for tool execution
+                # Pass the agent as parent to let with_tracing decide about spans
+                agent.with_tracing(:execute_tool, parent_component: agent) do
+                  tool.call(**arguments.symbolize_keys)
+                end
+              end
             end
           else
-            # Ensure arguments have symbol keys for Ruby's keyword argument system
+            # No tracing available - direct execution
             tool.call(**arguments.symbolize_keys)
           end
         end

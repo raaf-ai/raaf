@@ -104,12 +104,13 @@ module RAAF
     #   runner = RAAF::Runner.new(agent: agent, memory_manager: memory_manager)
     #
     def initialize(agent:, provider: nil, tracer: nil, parent_span: nil, disabled_tracing: false, stop_checker: nil,
-                   context_manager: nil, context_config: nil, memory_manager: nil, http_timeout: nil)
+                   context_manager: nil, context_config: nil, memory_manager: nil, http_timeout: nil, parent_component: nil)
       @agent = agent
       @provider = provider || create_default_provider(http_timeout: http_timeout)
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @parent_span = parent_span
+      @parent_component = parent_component
       @stop_checker = stop_checker
       @memory_manager = memory_manager
 
@@ -244,24 +245,13 @@ module RAAF
       # Handle session processing
       messages = process_session(session, messages) if session
 
-      # Create appropriate executor based on tracing configuration
-      executor = if config.tracing_disabled || @disabled_tracing || @tracer.nil?
-                   BasicRunExecutor.new(
-                     runner: self,
-                     provider: @provider,
-                     agent: agent,
-                     config: config
-                   )
-                 else
-                   TracedRunExecutor.new(
-                     runner: self,
-                     provider: @provider,
-                     agent: agent,
-                     config: config,
-                     tracer: @tracer,
-                     parent_span: @parent_span
-                   )
-                 end
+      # Create executor (Traceable module handles tracing automatically)
+      executor = RunExecutor.new(
+        runner: self,
+        provider: @provider,
+        agent: agent,
+        config: config
+      )
 
       # Execute the conversation
       result = executor.execute(messages)
@@ -916,14 +906,9 @@ module RAAF
                   tool_name: tool_name)
 
         result = if @tracer && !@disabled_tracing
-                   @tracer.tool_span(tool_name) do |tool_span|
-                     tool_span.set_attribute("function.name", tool_name)
-                     tool_span.set_attribute("function.input", arguments)
-
-                     res = tool.call(**arguments.transform_keys(&:to_sym))
-
-                     tool_span.set_attribute("function.output", res.to_s)
-                     res
+                   # Use agent's tracing to create tool span with proper hierarchy
+                   agent.with_tracing(:execute_tool) do
+                     tool.call(**arguments.transform_keys(&:to_sym))
                    end
                  else
                    tool.call(**arguments.transform_keys(&:to_sym))
@@ -1420,7 +1405,21 @@ module RAAF
         }
         api_params[:tools] = tools if tools&.any?
 
-        response = @provider.responses_completion(**api_params)
+        # Wrap API call with tracing to create LLM span
+        if with_tracing && tracing_enabled? && state[:current_agent].respond_to?(:with_tracing)
+          response = state[:current_agent].with_tracing(:llm_call,
+                                                       parent_component: state[:current_agent],
+                                                       "llm.model" => model,
+                                                       "llm.provider" => @provider.class.name,
+                                                       "llm.input_tokens" => api_params[:input]&.length || 0,
+                                                       "llm.tools_count" => tools&.length || 0) do
+            puts "🔍 [RUNNER] Creating LLM span for agent: #{state[:current_agent].name}"
+            @provider.responses_completion(**api_params)
+          end
+        else
+          puts "🔍 [RUNNER] No tracing - with_tracing: #{with_tracing}, tracing_enabled?: #{tracing_enabled?}, has with_tracing method?: #{state[:current_agent].respond_to?(:with_tracing)}"
+          response = @provider.responses_completion(**api_params)
+        end
 
         # Validate response structure for Responses API
         raise StandardError, "Invalid response structure: missing 'output' field" unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
@@ -2211,25 +2210,11 @@ module RAAF
         # Extract the actual results from the response if available
         tool_result = extract_openai_tool_result(tool_call["id"], full_response)
 
-        # Create a detailed trace for the OpenAI-hosted tool
+        # Create a detailed trace for the OpenAI-hosted tool using agent's tracing
         if @tracer && !@disabled_tracing
-          @tracer.tool_span(tool_name) do |tool_span|
-            tool_span.set_attribute("function.name", tool_name)
-            tool_span.set_attribute("function.input", arguments)
-
-            # Add the actual results if we found them
-            if tool_result
-              tool_span.set_attribute("function.output", tool_result)
-              tool_span.set_attribute("function.has_results", true)
-            else
-              tool_span.set_attribute("function.output", "[Results embedded in assistant response]")
-              tool_span.set_attribute("function.has_results", false)
-            end
-
-            tool_span.add_event("openai_hosted_tool")
-
-            # Add detailed attributes for web_search
-            tool_span.set_attribute("web_search.query", arguments["query"]) if tool_name == "web_search" && arguments["query"]
+          agent.with_tracing(:execute_openai_tool) do
+            # Tool execution already happened on OpenAI side, just record the trace
+            # The tool result is already available
           end
         end
 
@@ -2330,30 +2315,14 @@ module RAAF
     end
 
     def execute_tool_with_tracing(tool_name, arguments, agent)
-      # Get config from instance variable set by run methods
-      trace_sensitive = @current_config&.trace_include_sensitive_data != false
-
-      @tracer.tool_span(tool_name) do |tool_span|
-        tool_span.set_attribute("function.name", tool_name)
-
-        if trace_sensitive
-          tool_span.set_attribute("function.input", arguments)
-        else
-          tool_span.set_attribute("function.input", "[REDACTED]")
+      # Use agent's tracing to create tool span with proper hierarchy if available
+      if agent.respond_to?(:with_tracing)
+        agent.with_tracing(:execute_tool) do
+          agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
         end
-
-        tool_span.add_event("function.start")
-
-        res = agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
-
-        if trace_sensitive
-          tool_span.set_attribute("function.output", format_tool_result(res)[0..1000]) # Limit size
-        else
-          tool_span.set_attribute("function.output", "[REDACTED]")
-        end
-
-        tool_span.add_event("function.complete")
-        res
+      else
+        # Fallback for core agents without tracing
+        agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
       end
     end
 
@@ -2769,11 +2738,30 @@ module RAAF
     ##
     # Get default tracer if available, otherwise return nil
     # This method gracefully handles the case where tracing is not available
+    # Priority order:
+    # 1. RAAF::Tracing::TracingRegistry.current_tracer (if available and not NoOpTracer)
+    # 2. RAAF::Tracing.tracer (existing fallback)
+    # 3. nil (no tracing available)
     #
     # @return [Object, nil] The default tracer or nil if not available
     def get_default_tracer
       return nil unless defined?(RAAF::Tracing)
 
+      # Check TracingRegistry first if available
+      if defined?(RAAF::Tracing::TracingRegistry)
+        registry_tracer = RAAF::Tracing::TracingRegistry.current_tracer
+        if registry_tracer
+          # Only return if it's not a NoOpTracer (if NoOpTracer is defined)
+          if defined?(RAAF::Tracing::NoOpTracer)
+            return registry_tracer unless registry_tracer.is_a?(RAAF::Tracing::NoOpTracer)
+          else
+            # If NoOpTracer is not defined, return any non-nil registry tracer
+            return registry_tracer
+          end
+        end
+      end
+
+      # Fallback to existing logic
       RAAF::Tracing.tracer
     rescue StandardError
       nil

@@ -101,6 +101,10 @@ module RAAF
 
     include Logger
 
+    # Include Traceable for proper span hierarchy
+    include RAAF::Tracing::Traceable
+    trace_as :agent
+
     ##
     # @!attribute [rw] name
     #   @return [String] the unique name identifier for this agent
@@ -146,8 +150,10 @@ module RAAF
     #   @return [Boolean] whether to normalize field names to match schema expectations
     # @!attribute [rw] validation_mode
     #   @return [Symbol] validation mode for schema validation (:strict, :tolerant, :partial)
+    # @!attribute [rw] trace_metadata
+    #   @return [Hash, nil] additional metadata to include in tracing spans (from DSL layer)
     attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt,
-                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff, :json_repair, :normalize_keys, :validation_mode
+                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff, :json_repair, :normalize_keys, :validation_mode, :trace_metadata
 
     ##
     # Creates a new Agent instance
@@ -228,8 +234,14 @@ module RAAF
       
       # JSON processing and schema validation options
       @json_repair = options.fetch(:json_repair, false)
-      @normalize_keys = options.fetch(:normalize_keys, false) 
+      @normalize_keys = options.fetch(:normalize_keys, false)
       @validation_mode = options.fetch(:validation_mode, :strict)
+
+      # Tracing metadata from DSL layer
+      @trace_metadata = options[:trace_metadata] || {}
+
+      # Parent component for tracing hierarchy
+      @parent_component = options[:parent_component]
 
       # Memory system integration (only use if Memory module is available)
       @memory_store = if options[:memory_store]
@@ -1256,6 +1268,36 @@ module RAAF
         description: description,
         parameters: parameters
       )
+    end
+
+    # Override Traceable's collect_span_attributes to include DSL metadata
+    #
+    # @return [Hash] Agent-specific attributes including DSL metadata for tracing spans
+    def collect_span_attributes
+      attributes = {
+        "agent.name" => name,
+        "agent.model" => model,
+        "agent.max_turns" => max_turns.to_s,
+        "agent.tools_count" => tools.length.to_s,
+        "agent.handoffs_count" => handoffs.length.to_s
+      }
+
+      # Inherit job's workflow name if running within a job context
+      # This ensures the trace is named after the job, not the agent
+      job_span = Thread.current[:raaf_job_span]
+      if job_span && job_span.respond_to?(:class) && job_span.class.name
+        attributes["trace.workflow_name"] = job_span.class.name
+      end
+
+      # Add DSL metadata if available
+      if trace_metadata && !trace_metadata.empty?
+        trace_metadata.each do |key, value|
+          # Prefix DSL metadata to distinguish it from core agent attributes
+          attributes["dsl.#{key}"] = value.to_s
+        end
+      end
+
+      attributes
     end
 
   end

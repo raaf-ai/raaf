@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-require_relative "executor_factory"
 require_relative "executor_hooks"
 require_relative "logging"
+
+# Note: Traceable module is now provided by raaf-core.rb centrally
 
 module RAAF
 
@@ -45,7 +46,8 @@ module RAAF
     include Logger
     include Execution::ExecutorHooks
 
-    attr_reader :runner, :provider, :agent, :config, :services
+
+    attr_reader :runner, :provider, :agent, :config, :services, :tracer
 
     ##
     # Initialize a new executor
@@ -61,10 +63,8 @@ module RAAF
       @agent = agent
       @config = config
 
-      # Create service bundle via factory
-      @services = Execution::ExecutorFactory.create_service_bundle(
-        runner: runner, provider: provider, agent: agent, config: config
-      )
+      # Create service bundle directly
+      @services = create_service_bundle
     end
 
     ##
@@ -79,6 +79,28 @@ module RAAF
     # @raise [ExecutionStoppedError] If execution is stopped
     #
     def execute(messages)
+      # Delegate to agent's tracing for proper span hierarchy
+      # Pass agent name as metadata to ensure proper span naming
+      agent_name = @agent.respond_to?(:name) && @agent.name ? @agent.name : @agent.class.name
+      puts "🔍 [EXECUTOR] Agent: #{@agent.class.name}, detected name: #{agent_name}"
+      puts "🔍 [EXECUTOR] Parent component: #{@agent.instance_variable_get(:@parent_component)&.class&.name || 'nil'}"
+      @agent.with_tracing(:execute,
+                         parent_component: @agent.instance_variable_get(:@parent_component),
+                         agent_name: agent_name) do
+        execute_core_logic(messages)
+      end
+    end
+
+    private
+
+
+    ##
+    # Core execution logic shared by all execution paths
+    #
+    # @param messages [Array<Hash>] The conversation messages
+    # @return [RunResult] The execution result
+    #
+    def execute_core_logic(messages)
       services[:error_handler].with_error_handling(context: { executor: self.class.name }) do
         # Use API strategy to handle provider-specific execution
         if provider.is_a?(Models::ResponsesProvider)
@@ -88,6 +110,7 @@ module RAAF
         end
       end
     end
+
 
     protected
 
@@ -287,285 +310,45 @@ module RAAF
       )
     end
 
-  end
-
-  ##
-  # Executor that adds distributed tracing capabilities
-  #
-  # This executor extends the base executor to add OpenTelemetry-compatible
-  # tracing spans for monitoring and debugging agent execution. It creates
-  # spans for:
-  # - Agent turns (as root spans)
-  # - Tool executions (as child spans)
-  # - API calls (handled by providers)
-  #
-  # The trace structure matches the Python RAAF SDK for compatibility.
-  #
-  # @example
-  #   tracer = Tracing::SpanTracer.new
-  #   executor = TracedRunExecutor.new(
-  #     runner: runner,
-  #     provider: provider,
-  #     agent: agent,
-  #     config: config,
-  #     tracer: tracer
-  #   )
-  #
-  class TracedRunExecutor < RunExecutor
-
-    attr_reader :tracer
-
-    def initialize(runner:, provider:, agent:, config:, tracer:, parent_span: nil)
-      super(runner: runner, provider: provider, agent: agent, config: config)
-      @tracer = tracer
-      @parent_span = parent_span
-    end
-
-    ##
-    # Execute conversation with tracing context
-    #
-    # Overrides the base execute method to wrap execution in a trace
-    # context if one doesn't already exist.
-    #
-    # @param messages [Array<Hash>] The conversation messages
-    # @return [RunResult] The execution result
-    #
-    def execute(messages)
-      require "raaf-tracing"
-      current_trace = Tracing::Context.current_trace
-
-      if current_trace&.active?
-        # We're inside an existing trace, just run normally
-        super
-      else
-        # Create a new trace for this run
-        workflow_name = config.workflow_name || "Agent workflow"
-
-        Tracing.trace(workflow_name,
-                      trace_id: config.trace_id,
-                      group_id: config.group_id,
-                      metadata: config.metadata) do |_trace|
-          super(messages)
-        end
-      end
-    rescue LoadError
-      # Tracing gem not available, execute without tracing
-      super
-    end
-
-    protected
-
-    ##
-    # Start tracing span before each conversation turn
-    #
-    # Creates an agent span with proper parent relationship and
-    # sets all required attributes for OpenTelemetry compatibility.
-    #
-    # @param conversation [Array<Hash>] Current conversation state
-    # @param current_agent [Agent] The active agent
-    # @param context_wrapper [RunContextWrapper] Execution context
-    # @param turns [Integer] Current turn number
-    # @return [void]
-    #
-    def before_turn(conversation, current_agent, _context_wrapper, _turns)
-      # If we have a parent_span provided by the DSL layer, use it as the current span
-      # This prevents duplicate agent spans when called from DSL agents
-      if @parent_span && @parent_span.kind == :agent
-        @current_agent_span = @parent_span
-        # Don't create a new span - reuse the DSL agent span
-      else
-        # Create agent span with explicit parent if provided (for pipeline integration)
-        # Otherwise use automatic parent resolution from current context
-        span_params = { kind: :agent }
-        span_params[:parent] = @parent_span if @parent_span
-        @current_agent_span = tracer.start_span("agent.#{current_agent.name || "agent"}", **span_params)
-      end
-
-      # Set detailed agent span attributes
-      @current_agent_span.set_attribute("agent.name", current_agent.name || "agent")
-      @current_agent_span.set_attribute("agent.handoffs", safe_map_names(current_agent.handoffs))
-      @current_agent_span.set_attribute("agent.tools", safe_map_names(current_agent.tools))
-      @current_agent_span.set_attribute("agent.output_type", "str")
-
-      # Add sensitive data if configured
-      if config.trace_include_sensitive_data
-        @current_agent_span.set_attribute("agent.instructions", current_agent.instructions || "")
-        @current_agent_span.set_attribute("agent.input", conversation.last&.dig(:content) || "")
-      else
-        @current_agent_span.set_attribute("agent.instructions", "[REDACTED]")
-        @current_agent_span.set_attribute("agent.input", "[REDACTED]")
-      end
-
-      @current_agent_span.set_attribute("agent.model", config.model || current_agent.model)
-    end
-
-    ##
-    # Complete tracing span after each conversation turn
-    #
-    # Sets the agent output attribute and ensures the span is properly finished.
-    # Uses multiple strategies to ensure span completion.
-    #
-    # @param conversation [Array<Hash>] Current conversation state
-    # @param current_agent [Agent] The active agent
-    # @param context_wrapper [RunContextWrapper] Execution context
-    # @param turns [Integer] Current turn number
-    # @param result [Hash] Turn result with :message, :usage, :response
-    # @return [void]
-    #
-    def after_turn(_conversation, _current_agent, _context_wrapper, _turns, result)
-      return unless @current_agent_span
-
-      begin
-        # Set output on agent span if not already finished
-        unless @current_agent_span.finished?
-          message = result[:message]
-          if message && config.trace_include_sensitive_data
-            @current_agent_span.set_attribute("agent.output", message[:content] || "")
-          else
-            @current_agent_span.set_attribute("agent.output", "[REDACTED]")
-          end
-        end
-      rescue StandardError => e
-        # Log but don't fail if setting attributes fails
-        log_error("Error setting span attributes: #{e.message}", error_class: e.class.name)
-      end
-
-      # Only finish spans that we created ourselves
-      # Don't finish spans provided by the DSL layer - they manage their own lifecycle
-      if @parent_span && @parent_span.kind == :agent && @current_agent_span == @parent_span
-        # This is a DSL-provided span, don't finish it here
-        log_debug("Skipping span finish - DSL agent will handle it", span_id: @current_agent_span.span_id)
-      else
-        # Ensure the agent span is finished using multiple strategies
-        finish_agent_span_safely
-      end
-    ensure
-      # Always clean up the span reference
-      @current_agent_span = nil
-    end
-
     private
 
     ##
-    # Safely finish the agent span using multiple strategies
+    # Create service bundle for the executor
     #
-    # This method tries several approaches to ensure the span is finished:
-    # 1. Regular finish if not already finished
-    # 2. Force finish with current time if first approach fails
-    # 3. Direct tracer finish_span call as last resort
+    # Creates all the service objects that the executor needs and
+    # wires them together with proper dependencies.
     #
-    # @return [void]
+    # @return [Hash] Service bundle with all dependencies
     #
-    def finish_agent_span_safely
-      return unless @current_agent_span
+    def create_service_bundle
+      require_relative "conversation_manager"
+      require_relative "tool_executor"
+      require_relative "api_strategies"
+      require_relative "error_handler"
+      require_relative "turn_executor"
 
-      # Strategy 1: Use tracer's finish_span method first (manages span stack properly)
-      begin
-        tracer.finish_span(@current_agent_span)
-        log_debug("Agent span finished via tracer", span_id: @current_agent_span.span_id)
-        return
-      rescue StandardError => e
-        log_error("Failed to finish agent span via tracer: #{e.message}",
-                 span_id: @current_agent_span.span_id, error_class: e.class.name)
-      end
+      agent_name = agent.respond_to?(:name) ? agent.name : agent.class.name
+      log_debug("Creating service bundle", provider: provider.class.name, agent: agent_name)
 
-      # Strategy 2: Direct span finish if not already finished
-      unless @current_agent_span.finished?
-        begin
-          @current_agent_span.finish
-          log_debug("Agent span finished directly", span_id: @current_agent_span.span_id)
-          return
-        rescue StandardError => e
-          log_error("Failed to finish agent span directly: #{e.message}",
-                   span_id: @current_agent_span.span_id, error_class: e.class.name)
-        end
-      end
+      # Create core services
+      conversation_manager = Execution::ConversationManager.new(config)
+      tool_executor = Execution::ToolExecutor.new(agent, runner)
+      api_strategy = Execution::ApiStrategyFactory.create(provider, config)
+      error_handler = Execution::ErrorHandler.new
 
-      # Strategy 3: Force finish with current time
-      begin
-        @current_agent_span.finish(end_time: Time.now.utc)
-        log_debug("Agent span force-finished with current time", span_id: @current_agent_span.span_id)
-        return
-      rescue StandardError => e
-        log_error("Failed to force-finish agent span: #{e.message}",
-                 span_id: @current_agent_span.span_id, error_class: e.class.name)
-      end
+      # Create turn executor that coordinates other services
+      turn_executor = Execution::TurnExecutor.new(tool_executor, api_strategy)
 
-      # Strategy 4: Last resort - manually set finished state to prevent stuck spans
-      begin
-        @current_agent_span.instance_variable_set(:@finished, true)
-        @current_agent_span.instance_variable_set(:@end_time, Time.now.utc)
-        log_warn("Manually marked span as finished to prevent stuck state",
-                span_id: @current_agent_span.span_id)
-      rescue StandardError => final_error
-        log_error("CRITICAL: Even manual span finishing failed: #{final_error.message}",
-                 span_id: @current_agent_span.span_id, error_class: e.class.name)
-      end
-    end
-
-    ##
-    # Wrap tool execution with tracing span
-    #
-    # Creates a child span for tool execution, capturing tool name,
-    # arguments, and results (when sensitive data is allowed).
-    #
-    # @param tool_name [String] Name of the tool being executed
-    # @param arguments [Hash] Tool arguments
-    # @yield The tool execution block
-    # @return [Object] The tool execution result
-    #
-    def wrap_tool_execution(tool_name, arguments)
-      # Use the tracer's tool_span convenience method which properly handles hierarchy
-      # This ensures tool spans become children of the currently active agent span
-      tracer.tool_span(tool_name) do |tool_span|
-        tool_span.set_attribute("tool.name", tool_name)
-        tool_span.set_attribute("tool.arguments", arguments.to_json) if config.trace_include_sensitive_data
-
-        result = yield
-
-        tool_span.set_attribute("tool.result", result.to_s) if config.trace_include_sensitive_data
-
-        result
-      end
-    end
-
-    private
-
-    ##
-    # Safely extract names from a collection
-    #
-    # @param collection [Array, nil] Collection of objects
-    # @return [Array<String>] Array of names as strings
-    #
-    def safe_map_names(collection)
-      return [] unless collection
-
-      collection.map { |item| item.respond_to?(:name) ? item.name : item.to_s }
+      {
+        conversation_manager: conversation_manager,
+        tool_executor: tool_executor,
+        api_strategy: api_strategy,
+        error_handler: error_handler,
+        turn_executor: turn_executor
+      }
     end
 
   end
 
-  ##
-  # Basic executor without additional features
-  #
-  # This executor provides the standard execution flow without
-  # any additional features like tracing. It's the most lightweight
-  # option for running agents.
-  #
-  # All functionality is inherited from the base RunExecutor class.
-  #
-  # @example
-  #   executor = BasicRunExecutor.new(
-  #     runner: runner,
-  #     provider: provider,
-  #     agent: agent,
-  #     config: config
-  #   )
-  #   result = executor.execute(messages)
-  #
-  class BasicRunExecutor < RunExecutor
-    # Inherits all functionality from base class
-    # No additional behavior needed
-  end
 
 end

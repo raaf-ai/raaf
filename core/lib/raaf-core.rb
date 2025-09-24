@@ -30,8 +30,61 @@ require_relative "raaf/response_processor"
 require_relative "raaf/handoff_context"
 require_relative "raaf/agent_orchestrator"
 require_relative "raaf/conversation_manager"
-require_relative "raaf/executor_factory"
 require_relative "raaf/run_executor"
+# Try to require raaf-tracing if available, provide no-op if not BEFORE loading agent
+tracing_path = File.expand_path("../../../tracing/lib/raaf-tracing", __dir__)
+if File.exist?(tracing_path)
+  require tracing_path
+else
+  # Tracing not available, define empty module with no-op methods
+  module RAAF
+    module Tracing
+      module Traceable
+        def self.included(base)
+          base.extend(ClassMethods) if defined?(ClassMethods)
+        end
+
+        module ClassMethods
+          # No-op trace_as when tracing not available
+          def trace_as(component_type)
+            @trace_component_type = component_type
+          end
+
+          # No-op trace_component_type when tracing not available
+          def trace_component_type
+            @trace_component_type || :component
+          end
+        end
+
+        # No-op traced_run - just executes the block
+        def traced_run(*args, **kwargs, &block)
+          yield if block_given?
+        end
+
+        # No-op with_tracing - just executes the block
+        def with_tracing(method_name = nil, **kwargs, &block)
+          yield if block_given?
+        end
+
+        # Provide current_span accessor (returns nil when no tracing)
+        def current_span
+          nil
+        end
+
+        # No-op traced? check
+        def traced?
+          false
+        end
+
+        # No-op collect_span_attributes
+        def collect_span_attributes
+          {}
+        end
+      end
+    end
+  end
+end
+
 require_relative "raaf/unified_step_executor"
 require_relative "raaf/json_repair"
 require_relative "raaf/schema_validator"
