@@ -25,11 +25,7 @@ RSpec.describe "RAAF Run Executors" do
         expect(executor.config).to eq(config)
       end
 
-      it "creates service bundle via factory" do
-        expect(RAAF::Execution::ExecutorFactory).to receive(:create_service_bundle)
-          .with(runner: runner, provider: mock_provider, agent: agent, config: config)
-          .and_call_original
-
+      it "creates service bundle directly" do
         executor = described_class.new(runner: runner, provider: mock_provider, agent: agent, config: config)
 
         expect(executor.services).to be_a(Hash)
@@ -38,6 +34,20 @@ RSpec.describe "RAAF Run Executors" do
         expect(executor.services).to have_key(:error_handler)
         expect(executor.services).to have_key(:api_strategy)
         expect(executor.services).to have_key(:turn_executor)
+      end
+
+      it "accepts optional tracer parameter" do
+        tracer = double("Tracer")
+        executor = described_class.new(runner: runner, provider: mock_provider, agent: agent, config: config, tracer: tracer)
+
+        expect(executor.tracer).to eq(tracer)
+      end
+
+      it "accepts optional parent_span parameter" do
+        parent_span = double("ParentSpan")
+        executor = described_class.new(runner: runner, provider: mock_provider, agent: agent, config: config, parent_span: parent_span)
+
+        expect(executor.instance_variable_get(:@parent_span)).to eq(parent_span)
       end
     end
 
@@ -198,6 +208,49 @@ RSpec.describe "RAAF Run Executors" do
         end
       end
 
+      context "with tracer support" do
+        let(:tracer) { double("Tracer") }
+        let(:traced_executor) { described_class.new(runner: runner, provider: mock_provider, agent: agent, config: config, tracer: tracer) }
+
+        before do
+          # Mock services
+          services_double = {
+            error_handler: double("ErrorHandler", with_error_handling: nil),
+            api_strategy: double("ApiStrategy", execute: { final_result: true, conversation: [], usage: {}, last_agent: agent })
+          }
+          allow(traced_executor).to receive(:services).and_return(services_double)
+        end
+
+        it "handles trace creation when tracer is provided" do
+          allow(traced_executor).to receive(:require).with("raaf-tracing")
+          allow(RAAF::Tracing::Context).to receive(:current_trace).and_return(nil)
+
+          expect(RAAF::Tracing).to receive(:trace)
+            .with("Agent workflow", hash_including(:trace_id, :group_id, :metadata))
+            .and_yield
+
+          traced_executor.execute(messages)
+        end
+
+        it "uses existing trace when available" do
+          active_trace = double("trace", active?: true)
+          allow(RAAF::Tracing::Context).to receive(:current_trace).and_return(active_trace)
+
+          expect(RAAF::Tracing).not_to receive(:trace)
+
+          traced_executor.execute(messages)
+        end
+
+        it "falls back to normal execution if tracing gem not available" do
+          allow(traced_executor).to receive(:require).with("raaf-tracing").and_raise(LoadError)
+
+          expect(RAAF::Tracing).not_to receive(:trace)
+
+          result = traced_executor.execute(messages)
+          expect(result).to be_a(RAAF::RunResult)
+        end
+      end
+
       context "error handling integration" do
         it "wraps execution in error handler" do
           error_handler = double("ErrorHandler")
@@ -284,65 +337,6 @@ RSpec.describe "RAAF Run Executors" do
         result = basic_executor.send(:create_result, conversation, usage, nil, other_agent)
 
         expect(result.last_agent).to eq(other_agent)
-      end
-    end
-  end
-
-  describe RAAF::TracedRunExecutor do
-    let(:agent) { create_test_agent(name: "TracedAgent") }
-    let(:mock_provider) { create_mock_provider }
-    let(:runner) { RAAF::Runner.new(agent: agent, provider: mock_provider) }
-    let(:config) { RAAF::RunConfig.new }
-    let(:tracer) { double("Tracer") }
-
-    let(:traced_executor) { described_class.new(runner: runner, provider: mock_provider, agent: agent, config: config, tracer: tracer) }
-
-    describe "#initialize" do
-      it "inherits from RunExecutor" do
-        expect(traced_executor).to be_a(RAAF::RunExecutor)
-      end
-
-      it "stores tracer reference" do
-        expect(traced_executor.tracer).to eq(tracer)
-      end
-
-      it "calls parent constructor" do
-        expect(traced_executor.runner).to eq(runner)
-        expect(traced_executor.provider).to eq(mock_provider)
-        expect(traced_executor.agent).to eq(agent)
-        expect(traced_executor.config).to eq(config)
-      end
-
-      it "creates service bundle through parent" do
-        expect(traced_executor.services).to be_a(Hash)
-        expect(traced_executor.services).to have_key(:conversation_manager)
-      end
-    end
-
-    describe "tracing integration" do
-      let(:messages) { [{ role: "user", content: "trace test" }] }
-
-      before do
-        # Mock the services for clean testing
-        allow(traced_executor.services).to receive(:[]).with(:error_handler).and_return(
-          double("ErrorHandler", with_error_handling: nil)
-        )
-        allow(traced_executor.services).to receive(:[]).with(:api_strategy).and_return(
-          double("ApiStrategy", execute: { final_result: false })
-        )
-      end
-
-      it "maintains all parent functionality with tracing context" do
-        # The TracedRunExecutor should execute the same way as RunExecutor
-        # but with additional tracing context (implementation details would be tested
-        # when the tracing functionality is fully implemented)
-
-        expect { traced_executor.execute(messages) }.not_to raise_error
-      end
-
-      it "provides tracer access for tracing implementations" do
-        # Verify that tracer is accessible for implementations that add tracing
-        expect(traced_executor.tracer).to be_truthy
       end
     end
   end

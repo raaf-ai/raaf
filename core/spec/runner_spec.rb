@@ -887,6 +887,249 @@ RSpec.describe RAAF::Runner do
     end
   end
 
+  describe "#get_default_tracer" do
+    context "when tracing registry is not available" do
+      it "returns nil when RAAF::Tracing is not defined" do
+        # Temporarily hide RAAF::Tracing if it exists
+        original_tracing = nil
+        tracing_was_defined = false
+
+        if Object.const_defined?("RAAF") && RAAF.const_defined?("Tracing")
+          tracing_was_defined = true
+          original_tracing = RAAF::Tracing
+          RAAF.send(:remove_const, "Tracing")
+        end
+
+        begin
+          result = runner.send(:get_default_tracer)
+          expect(result).to be_nil
+        ensure
+          # Restore RAAF::Tracing if it was defined
+          if tracing_was_defined && original_tracing
+            RAAF.const_set("Tracing", original_tracing)
+          end
+        end
+      end
+
+      it "returns nil when RAAF::Tracing is defined but TracingRegistry is not" do
+        skip "Requires RAAF::Tracing to be available" unless Object.const_defined?("RAAF") && RAAF.const_defined?("Tracing")
+
+        # Temporarily hide TracingRegistry if it exists
+        original_registry = nil
+        registry_was_defined = false
+
+        if RAAF::Tracing.const_defined?("TracingRegistry")
+          registry_was_defined = true
+          original_registry = RAAF::Tracing::TracingRegistry
+          RAAF::Tracing.send(:remove_const, "TracingRegistry")
+        end
+
+        begin
+          # Stub RAAF::Tracing.tracer to return something
+          allow(RAAF::Tracing).to receive(:tracer).and_return("fallback_tracer")
+
+          result = runner.send(:get_default_tracer)
+          expect(result).to eq("fallback_tracer")
+        ensure
+          # Restore TracingRegistry if it was defined
+          if registry_was_defined && original_registry
+            RAAF::Tracing.const_set("TracingRegistry", original_registry)
+          end
+        end
+      end
+
+      it "handles exceptions gracefully and returns nil" do
+        skip "Requires RAAF::Tracing to be available" unless Object.const_defined?("RAAF") && RAAF.const_defined?("Tracing")
+
+        # Create a fresh runner for this test to avoid interference
+        fresh_runner = described_class.new(agent: agent)
+
+        # Stub RAAF::Tracing.tracer to raise an exception
+        allow(RAAF::Tracing).to receive(:tracer).and_raise(StandardError, "Tracing error")
+
+        result = fresh_runner.send(:get_default_tracer)
+        expect(result).to be_nil
+      end
+    end
+
+    context "when tracing registry is available" do
+      before do
+        skip "Requires RAAF::Tracing to be available" unless Object.const_defined?("RAAF") && RAAF.const_defined?("Tracing")
+      end
+
+      it "returns registry tracer when available and not NoOp" do
+        # Create fresh runner for this test
+        test_runner = described_class.new(agent: agent)
+        mock_registry_tracer = double("RegistryTracer")
+
+        # Mock defined? to return true
+        allow(Object).to receive(:defined?).and_call_original
+        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+
+        # Create a mock registry class and set it
+        mock_registry_class = Class.new do
+          def self.current_tracer
+            nil
+          end
+        end
+        allow(mock_registry_class).to receive(:current_tracer).and_return(mock_registry_tracer)
+
+        # Temporarily set the registry
+        stub_const("RAAF::Tracing::TracingRegistry", mock_registry_class)
+
+        result = test_runner.send(:get_default_tracer)
+        expect(result).to eq(mock_registry_tracer)
+      end
+
+      it "falls back to RAAF::Tracing.tracer when registry returns NoOpTracer" do
+        test_runner = described_class.new(agent: agent)
+        mock_no_op_tracer = double("NoOpTracer")
+        mock_fallback_tracer = double("FallbackTracer")
+
+        # Mock defined? to return true
+        allow(Object).to receive(:defined?).and_call_original
+        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+        allow(Object).to receive(:defined?).with('RAAF::Tracing::NoOpTracer').and_return(true)
+
+        # Create mock classes
+        mock_no_op_class = Class.new
+        mock_registry_class = Class.new do
+          def self.current_tracer
+            nil
+          end
+        end
+
+        allow(mock_registry_class).to receive(:current_tracer).and_return(mock_no_op_tracer)
+        allow(mock_no_op_tracer).to receive(:is_a?).with(mock_no_op_class).and_return(true)
+        allow(RAAF::Tracing).to receive(:tracer).and_return(mock_fallback_tracer)
+
+        # Set the temporary constants
+        stub_const("RAAF::Tracing::TracingRegistry", mock_registry_class)
+        stub_const("RAAF::Tracing::NoOpTracer", mock_no_op_class)
+
+        result = test_runner.send(:get_default_tracer)
+        expect(result).to eq(mock_fallback_tracer)
+      end
+
+      it "falls back to RAAF::Tracing.tracer when registry returns nil" do
+        test_runner = described_class.new(agent: agent)
+        mock_fallback_tracer = double("FallbackTracer")
+
+        # Mock defined? to return true
+        allow(Object).to receive(:defined?).and_call_original
+        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+
+        # Create mock registry class
+        mock_registry_class = Class.new do
+          def self.current_tracer
+            nil
+          end
+        end
+        allow(mock_registry_class).to receive(:current_tracer).and_return(nil)
+        allow(RAAF::Tracing).to receive(:tracer).and_return(mock_fallback_tracer)
+
+        # Set the temporary constant
+        stub_const("RAAF::Tracing::TracingRegistry", mock_registry_class)
+
+        result = test_runner.send(:get_default_tracer)
+        expect(result).to eq(mock_fallback_tracer)
+      end
+
+      it "handles TracingRegistry exceptions gracefully" do
+        test_runner = described_class.new(agent: agent)
+
+        # Mock defined? to return true
+        allow(Object).to receive(:defined?).and_call_original
+        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+
+        # Create mock registry class that raises
+        mock_registry_class = Class.new do
+          def self.current_tracer
+            raise StandardError, "Registry error"
+          end
+        end
+
+        # Set the temporary constant
+        stub_const("RAAF::Tracing::TracingRegistry", mock_registry_class)
+
+        result = test_runner.send(:get_default_tracer)
+        expect(result).to be_nil
+      end
+    end
+
+    context "tracer priority integration tests" do
+      before do
+        skip "Requires RAAF::Tracing to be available" unless Object.const_defined?("RAAF") && RAAF.const_defined?("Tracing")
+      end
+
+      it "explicit tracer parameter takes precedence over all auto-detection" do
+        explicit_tracer = double("ExplicitTracer")
+        registry_tracer = double("RegistryTracer")
+        fallback_tracer = double("FallbackTracer")
+
+        # Mock defined? to return true
+        allow(Object).to receive(:defined?).and_call_original
+        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+
+        # Create mock registry class
+        mock_registry_class = Class.new do
+          def self.current_tracer
+            nil
+          end
+        end
+        allow(mock_registry_class).to receive(:current_tracer).and_return(registry_tracer)
+        allow(RAAF::Tracing).to receive(:tracer).and_return(fallback_tracer)
+
+        # Set the temporary constant
+        stub_const("RAAF::Tracing::TracingRegistry", mock_registry_class)
+
+        # Create runner with explicit tracer
+        runner_with_explicit = described_class.new(agent: agent, tracer: explicit_tracer)
+
+        # Should use explicit tracer, not auto-detected ones
+        expect(runner_with_explicit.tracer).to eq(explicit_tracer)
+      end
+
+      it "auto-detection works when no explicit tracer provided" do
+        registry_tracer = double("RegistryTracer")
+
+        # Create mock registry class that returns our test tracer
+        mock_registry_class = Class.new do
+          class << self
+            attr_accessor :test_tracer
+          end
+
+          def self.current_tracer
+            test_tracer
+          end
+        end
+
+        # Set the test tracer and constant
+        mock_registry_class.test_tracer = registry_tracer
+        stub_const("RAAF::Tracing::TracingRegistry", mock_registry_class)
+
+        # Verify the constant is set and working
+        expect(RAAF::Tracing.const_defined?("TracingRegistry")).to be true
+        expect(RAAF::Tracing::TracingRegistry.current_tracer).to eq(registry_tracer)
+
+        # Temporarily clear the environment variable if it's set
+        original_env = ENV["RAAF_DISABLE_TRACING"]
+        ENV["RAAF_DISABLE_TRACING"] = nil
+
+        begin
+          # Create runner without explicit tracer but ensure tracing is not disabled
+          runner_auto_detect = described_class.new(agent: agent, disabled_tracing: false)
+
+          # Should have auto-detected registry tracer
+          expect(runner_auto_detect.instance_variable_get(:@tracer)).to eq(registry_tracer)
+        ensure
+          # Restore the original environment value
+          ENV["RAAF_DISABLE_TRACING"] = original_env
+        end
+      end
+    end
+  end
+
   describe "complex execution flows" do
     describe "input validation" do
       let(:mock_provider) { instance_double(RAAF::Models::ResponsesProvider) }

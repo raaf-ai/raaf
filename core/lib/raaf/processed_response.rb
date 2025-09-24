@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "agent"
-
 module RAAF
 
   ##
@@ -81,8 +79,7 @@ module RAAF
   #
   ToolRunHandoff = Data.define(:handoff, :tool_call) do
     def to_s
-      agent_name = case handoff
-                   when Agent
+      agent_name = if handoff.class.name == "RAAF::Agent"
                      handoff.name
                    else
                      # Handoff object - access the agent attribute

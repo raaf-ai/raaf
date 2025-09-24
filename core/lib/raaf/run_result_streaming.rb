@@ -280,21 +280,14 @@ module RAAF
     private
 
     def run_agent_with_streaming(task)
-      # Start agent span
-      span = @tracer&.start_span("agent.#{@agent.name}")
+      @events_queue << AgentStartEvent.new(agent: @agent)
 
-      begin
-        @events_queue << AgentStartEvent.new(agent: @agent)
+      # Initialize conversation
+      messages = normalize_input(@input)
+      context = build_run_context(messages)
 
-        # Initialize conversation
-        messages = normalize_input(@input)
-        context = build_run_context(messages)
-
-        # Start streaming execution
-        stream_agent_execution(context, messages, task)
-      ensure
-        span&.finish
-      end
+      # Start streaming execution
+      stream_agent_execution(context, messages, task)
     end
 
     def stream_agent_execution(context, messages, task)
