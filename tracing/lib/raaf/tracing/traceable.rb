@@ -87,27 +87,18 @@ module RAAF
       # @yield Block to execute within the span context
       # @return [Object] Result of the block execution
       def with_tracing(method_name = nil, parent_component: nil, **metadata, &block)
-        puts "🔍 [TRACEABLE] Starting with_tracing for #{self.class.name}.#{method_name}"
-        puts "🔍 [TRACEABLE] Full metadata: #{metadata.inspect}"
-        puts "🔍 [TRACEABLE] Parent component: #{parent_component&.class&.name || 'nil'}"
-        puts "🔍 [TRACEABLE] Current span: #{@current_span&.dig(:span_id) || 'nil'}"
-
         # Smart span lifecycle management: detect if we're already in a compatible span
         existing_span = detect_existing_span(method_name, parent_component)
-        puts "🔍 [TRACEABLE] Existing span detected: #{!existing_span.nil?}"
 
         if existing_span
           # Reuse existing span, just add metadata and execute
           existing_span[:attributes].merge!(metadata)
-          puts "🔍 [TRACEABLE] Reusing existing span: #{existing_span[:name]}"
           return block.call
         end
 
-        puts "🔍 [TRACEABLE] Creating new span..."
         span_data = create_span(method_name, parent_component, metadata)
-        puts "🔍 [TRACEABLE] Created span: #{span_data[:name]} (ID: #{span_data[:span_id]}, Parent: #{span_data[:parent_id]})"
 
-        previous_span = @current_span
+        push_span(span_data)
 
         begin
           # Ask class what attributes it wants to store
@@ -116,9 +107,6 @@ module RAAF
 
           # Add any method-specific metadata
           span_data[:attributes].merge!(metadata)
-
-          # Store current span for child components
-          @current_span = span_data
 
           # Execute the block
           result = block.call
@@ -138,8 +126,8 @@ module RAAF
           send_span(span_data)
           raise
         ensure
-          # Clean up current span - restore previous span if nested
-          @current_span = previous_span
+          # Clean up current span - remove from stack for this fiber/thread
+          pop_span
         end
       end
 
@@ -204,7 +192,13 @@ module RAAF
       # All Traceable components MUST implement this interface for consistent hierarchy
 
       # Expose current_span for child components to access
-      attr_reader :current_span
+      def current_span
+        fiber_store = span_storage[Fiber.current.object_id]
+        return nil unless fiber_store
+
+        stack = fiber_store[self.object_id]
+        stack&.last
+      end
 
       # Interface method: get the component's trace-propagation data
       #
@@ -245,6 +239,31 @@ module RAAF
 
       private
 
+      def push_span(span_data)
+        fiber_store = span_storage[Fiber.current.object_id] ||= {}
+        stack = fiber_store[self.object_id] ||= []
+        stack.push(span_data)
+      end
+
+      def pop_span
+        fiber_store = span_storage[Fiber.current.object_id]
+        return unless fiber_store
+
+        stack = fiber_store[self.object_id]
+        return unless stack
+
+        stack.pop
+
+        if stack.empty?
+          fiber_store.delete(self.object_id)
+          span_storage.delete(Fiber.current.object_id) if fiber_store.empty?
+        end
+      end
+
+      def span_storage
+        Thread.current[:raaf_traceable_span_storage] ||= {}
+      end
+
       # Detect if there's an existing compatible span that should be reused
       # This prevents duplicate spans in nested execution contexts
       #
@@ -253,16 +272,17 @@ module RAAF
       # @return [Hash, nil] Existing span data if reusable, nil if new span needed
       def detect_existing_span(method_name, parent_component_arg)
         # Check if we already have an active span for this component
-        return nil unless @current_span
+        current = current_span
+        return nil unless current
 
         # Check if the existing span is for the same component type and method
         component_type = self.class.trace_component_type
-        existing_component_type = @current_span[:kind]
+        existing_component_type = current[:kind]
 
         # Allow reuse if same component type and method
         if existing_component_type == component_type
           # Check method compatibility
-          existing_name = @current_span[:name] || ""
+          existing_name = current[:name] || ""
           method_str = method_name&.to_s
 
           # Reuse span if:
@@ -273,7 +293,7 @@ module RAAF
              existing_name.include?(method_str) ||
              (method_str == "run" && existing_name.include?("run")) ||
              (method_str == "execute" && existing_name.include?("execute"))
-            return @current_span
+            return current
           end
         end
 
@@ -291,46 +311,49 @@ module RAAF
         component_name = self.class.name
         span_id = "span_#{SecureRandom.hex(16)}"
 
-        puts "🔍 [CREATE_SPAN] Creating span for class: #{component_name}"
-        puts "🔍 [CREATE_SPAN] Component type: #{component_type}"
-        puts "🔍 [CREATE_SPAN] Method name: #{method_name}"
-        puts "🔍 [CREATE_SPAN] Parent component arg: #{parent_component_arg&.class&.name || 'nil'}"
-        puts "🔍 [CREATE_SPAN] Metadata keys: #{metadata.keys}"
-        puts "🔍 [CREATE_SPAN] Agent name in metadata: #{metadata[:agent_name]}"
 
         parent_span_id = get_parent_span_id(parent_component_arg)
-        puts "🔍 [CREATE_SPAN] Resolved parent span ID: #{parent_span_id}"
-
         trace_id = get_trace_id(parent_component_arg)
-        puts "🔍 [CREATE_SPAN] Resolved trace ID: #{trace_id}"
 
-        # Use agent_name from metadata if available, otherwise use class name
-        display_name = metadata[:agent_name] || component_name
-        puts "🔍 [CREATE_SPAN] Display name: #{display_name} (from metadata: #{!metadata[:agent_name].nil?})"
+        # Override span kind and name for specific method types
+        if method_name == :execute_tool && metadata[:tool_name]
+          # This is a tool execution, override the component type and display name
+          actual_kind = :tool
+          display_name = metadata[:tool_name]
+        elsif method_name == :llm_call
+          # This is an LLM API call, use more descriptive naming
+          actual_kind = :llm
 
-        span_name = build_span_name(component_type, display_name, method_name)
-        puts "🔍 [CREATE_SPAN] Built span name: #{span_name}"
+          # Determine the type of LLM operation from metadata
+          if metadata[:streaming]
+            display_name = "streaming"
+          elsif metadata[:tool_calls]
+            display_name = "tool_call"
+          else
+            display_name = "completion"
+          end
 
-        span = {
+          # Set method_name to match display_name to prevent duplication
+          method_name = display_name
+        else
+          # Use agent_name from metadata if available, otherwise use class name
+          actual_kind = component_type
+          display_name = metadata[:agent_name] || component_name
+        end
+
+        span_name = build_span_name(actual_kind, display_name, method_name)
+
+        {
           span_id: span_id,
           trace_id: trace_id,
           parent_id: parent_span_id,
           name: span_name,
-          kind: component_type,
+          kind: actual_kind,
           start_time: Time.now.utc,
           attributes: {}, # Classes will populate this via collect_span_attributes
           events: [],
           status: :ok
         }
-
-        puts "🔍 [CREATE_SPAN] Final span structure:"
-        puts "  span_id: #{span[:span_id]}"
-        puts "  trace_id: #{span[:trace_id]}"
-        puts "  parent_id: #{span[:parent_id]}"
-        puts "  name: #{span[:name]}"
-        puts "  kind: #{span[:kind]}"
-
-        span
       end
 
       # Determine parent span ID using priority order:
@@ -342,61 +365,50 @@ module RAAF
       # @param parent_component_arg [Object, nil] Explicit parent component
       # @return [String, nil] Parent span ID or nil for root spans
       def get_parent_span_id(parent_component_arg)
-        puts "🔍 [PARENT_SPAN] Looking for parent span ID"
-        puts "🔍 [PARENT_SPAN] Parent component arg: #{parent_component_arg&.class&.name || 'nil'}"
-        puts "🔍 [PARENT_SPAN] Instance @parent_component: #{@parent_component&.class&.name || 'nil'}"
-
-        # Priority: explicit parent_component > @parent_component > job context > no parent
+        # Priority: explicit parent_component > @parent_component > job context > agent context > no parent
         parent_component = parent_component_arg || @parent_component
-        puts "🔍 [PARENT_SPAN] Using parent component: #{parent_component&.class&.name || 'nil'}"
 
-        parent_id = case parent_component
+        case parent_component
         when nil
-          puts "🔍 [PARENT_SPAN] No parent component, checking job span context"
+          # CRITICAL FIX: For tool execution within agent context, use ORIGINAL agent span as parent
+          # Check for original agent span first (prevents tool-to-tool nesting)
+          original_agent_span = Thread.current[:original_agent_span]
+          if original_agent_span && original_agent_span[:span_id]
+            return original_agent_span[:span_id]
+          end
+
+          # Fallback: Check if we're in an agent context (thread-local storage)
+          agent_context = Thread.current[:current_agent]
+          if agent_context&.respond_to?(:current_span) && agent_context.current_span
+            return agent_context.current_span[:span_id]
+          end
+
           # Check for job span context (for nested operations in jobs)
           job_span = Thread.current[:raaf_job_span]
           if job_span && job_span.respond_to?(:current_span) && job_span.current_span
-            result = job_span.current_span[:span_id]
-            puts "🔍 [PARENT_SPAN] Got parent span ID from job context: #{result}"
-            result
+            job_span.current_span[:span_id]
           else
-            puts "🔍 [PARENT_SPAN] No job span context, this will be a root span"
             # No parent = root span
             nil
           end
         when Hash
-          puts "🔍 [PARENT_SPAN] Parent is a Hash, extracting span_id"
           # Legacy: span hash directly (backward compatibility)
-          result = parent_component[:span_id] || parent_component["span_id"]
-          puts "🔍 [PARENT_SPAN] Got parent span ID from hash: #{result}"
-          result
+          parent_component[:span_id] || parent_component["span_id"]
         else
-          puts "🔍 [PARENT_SPAN] Parent is object, checking for current_span method"
-          puts "🔍 [PARENT_SPAN] Parent responds to current_span?: #{parent_component.respond_to?(:current_span)}"
           # Extract span from component object
           if parent_component.respond_to?(:current_span) && parent_component.current_span
-            result = parent_component.current_span[:span_id]
-            puts "🔍 [PARENT_SPAN] Got parent span ID from component: #{result}"
-            puts "🔍 [PARENT_SPAN] Parent component current span: #{parent_component.current_span[:name]}"
-            result
+            parent_component.current_span[:span_id]
           else
-            puts "🔍 [PARENT_SPAN] Parent component has no current span, checking job context fallback"
             # Check for job span context as fallback
             job_span = Thread.current[:raaf_job_span]
             if job_span && job_span.respond_to?(:current_span) && job_span.current_span
-              result = job_span.current_span[:span_id]
-              puts "🔍 [PARENT_SPAN] Got parent span ID from job context fallback: #{result}"
-              result
+              job_span.current_span[:span_id]
             else
-              puts "🔍 [PARENT_SPAN] No valid parent found, this will be a root span"
               # No valid parent = root span
               nil
             end
           end
         end
-
-        puts "🔍 [PARENT_SPAN] Final parent span ID: #{parent_id}"
-        parent_id
       end
 
       # Get trace ID from parent component or create new one
@@ -407,19 +419,31 @@ module RAAF
         parent_component = parent_component_arg || @parent_component
 
         if parent_component&.respond_to?(:current_span) && parent_component.current_span
-          parent_component.current_span[:trace_id]
+          return parent_component.current_span[:trace_id]
         elsif parent_component.is_a?(Hash) && parent_component[:trace_id]
-          parent_component[:trace_id]
-        else
-          # Check for job span context to continue the same trace
-          job_span = Thread.current[:raaf_job_span]
-          if job_span && job_span.respond_to?(:current_span) && job_span.current_span
-            job_span.current_span[:trace_id]
-          else
-            # Create new trace
-            "trace_#{SecureRandom.hex(16)}"
-          end
+          return parent_component[:trace_id]
         end
+
+        # CRITICAL FIX: Check for original agent span first (prevents trace fragmentation)
+        original_agent_span = Thread.current[:original_agent_span]
+        if original_agent_span && original_agent_span[:trace_id]
+          return original_agent_span[:trace_id]
+        end
+
+        # Fallback: Check agent context for trace ID inheritance
+        agent_context = Thread.current[:current_agent]
+        if agent_context&.respond_to?(:current_span) && agent_context.current_span
+          return agent_context.current_span[:trace_id]
+        end
+
+        # Check for job span context to continue the same trace
+        job_span = Thread.current[:raaf_job_span]
+        if job_span && job_span.respond_to?(:current_span) && job_span.current_span
+          return job_span.current_span[:trace_id]
+        end
+
+        # Create new trace
+        "trace_#{SecureRandom.hex(16)}"
       end
 
       # Build standardized span name
@@ -429,19 +453,27 @@ module RAAF
       # @param method_name [Symbol, String, nil] Name of the method being traced
       # @return [String] Formatted span name
       def build_span_name(component_type, component_name, method_name)
-        base_name = "run.workflow.#{component_type}"
+        if defined?(RAAF::Tracing::SpanNamingConfig) && RAAF::Tracing.span_naming_config
+          RAAF::Tracing.span_naming_config.build_name(component_type, component_name, method_name)
+        else
+          # Fallback to improved default implementation from Phase 1
+          base_name = "run.workflow.#{component_type}"
 
-        # Always include component name if available
-        if component_name && component_name != "Runner"
-          base_name = "#{base_name}.#{component_name}"
+          # Always include component name if available and not "Runner"
+          if component_name && component_name != "Runner"
+            base_name = "#{base_name}.#{component_name}"
+          end
+
+          # Add method name if it's not the default 'run' method
+          # AND it's not the same as the component name (prevents duplication)
+          if method_name &&
+             method_name.to_s != "run" &&
+             method_name.to_s != component_name&.to_s
+            base_name = "#{base_name}.#{method_name}"
+          end
+
+          base_name
         end
-
-        # Add method name if it's not the default 'run' method
-        if method_name && method_name.to_s != "run"
-          base_name = "#{base_name}.#{method_name}"
-        end
-
-        base_name
       end
 
       # Mark span as completed successfully
@@ -489,7 +521,10 @@ module RAAF
 
           # Create actual Span object for processor compatibility
           span_obj = create_span_object(normalized_span)
-          tracer.processors.each { |processor| processor.on_span_end(span_obj) if processor.respond_to?(:on_span_end) }
+
+          tracer.processors.each do |processor|
+            processor.on_span_end(span_obj) if processor.respond_to?(:on_span_end)
+          end
 
           # Mark span as sent
           mark_span_as_sent(span_data)
@@ -572,41 +607,48 @@ module RAAF
       def get_tracer_for_span_sending
         # Priority order:
         # 1. Instance tracer (@tracer)
-        # 2. RAAF::Tracing::TracingRegistry.current_tracer (NEW)
+        # 2. Parent component tracer (critical for tool execution context)
         # 3. TraceProvider singleton
-        # 4. RAAF global tracer
-        # 5. nil (no tracing)
+        # 4. TracingRegistry current tracer (but reject NoOpTracer)
+        # 5. RAAF global tracer
+        # 6. nil (no tracing)
 
         # 1. Check instance tracer first
         return @tracer if defined?(@tracer) && @tracer
 
-        # 2. Try TracingRegistry current tracer
-        begin
-          if defined?(RAAF::Tracing::TracingRegistry)
-            registry_tracer = RAAF::Tracing::TracingRegistry.current_tracer
-            # Return any tracer from registry, including NoOpTracer (which is a valid tracer for disabled tracing)
-            return registry_tracer if registry_tracer
+        # 2. Try parent component tracer (critical for tool execution context)
+        if defined?(@parent_component) && @parent_component&.respond_to?(:trace_parent_span)
+          parent_span = @parent_component.trace_parent_span
+          if parent_span && @parent_component.respond_to?(:get_tracer_for_span_sending)
+            parent_tracer = @parent_component.get_tracer_for_span_sending
+            return parent_tracer if parent_tracer && !parent_tracer.is_a?(RAAF::Tracing::NoOpTracer)
           end
-        rescue StandardError
-          # TracingRegistry not available or failed, continue to next priority
         end
 
-        # 3. Try TraceProvider singleton
+        # 3. Try TraceProvider singleton (prioritize over TracingRegistry to avoid NoOpTracer)
         if defined?(RAAF::Tracing::TraceProvider)
           begin
             provider = RAAF::Tracing::TraceProvider.instance
-            return provider if provider&.respond_to?(:processors)
+            return provider if provider&.respond_to?(:processors) && provider.processors.any?
           rescue StandardError
             # TraceProvider not available or failed
           end
         end
 
-        # 4. Try RAAF global tracer
-        if defined?(RAAF) && RAAF.respond_to?(:tracer) && RAAF.tracer
-          return RAAF.tracer
+        # 4. Try TracingRegistry current tracer (but reject NoOpTracer)
+        begin
+          if defined?(RAAF::Tracing::TracingRegistry)
+            registry_tracer = RAAF::Tracing::TracingRegistry.current_tracer
+            return registry_tracer if registry_tracer && !registry_tracer.is_a?(RAAF::Tracing::NoOpTracer)
+          end
+        rescue StandardError
+          # TracingRegistry not available or failed, continue to next priority
         end
 
-        # 5. No tracer available
+        # 5. Try RAAF global tracer
+        return RAAF.tracer if defined?(RAAF) && RAAF.respond_to?(:tracer) && RAAF.tracer
+
+        # 6. No tracer available
         nil
       end
 
