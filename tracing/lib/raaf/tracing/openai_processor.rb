@@ -295,13 +295,9 @@ module RAAF
                    output_type: attributes["agent.output_type"] || "str"
                  }
 
-                 # Include skipped agent metadata
-                 if attributes["agent.status"] == "skipped"
-                   agent_data[:status] = "skipped"
-                   agent_data[:skip_reason] = attributes["agent.skip_reason"]
-                   agent_data[:required_fields] = attributes["agent.required_fields"]
-                   agent_data[:available_fields] = attributes["agent.available_fields"]
-                 end
+                 # Note: All skip-related metadata (status, skip_reason, required_fields, available_fields)
+                 # is excluded from OpenAI API payload per user requirement.
+                 # This metadata is maintained in the local ActiveRecord database only.
 
                  agent_data.compact
                when :llm
