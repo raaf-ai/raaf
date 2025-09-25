@@ -9,9 +9,6 @@ export default class extends Controller {
   }
 
   connect() {
-    console.log("🔄 RAAF Auto-Refresh Controller connected")
-    console.log(`Refresh interval: ${this.intervalValue}ms, Enabled: ${this.enabledValue}`)
-
     this.refreshIntervalId = null
 
     if (this.enabledValue) {
@@ -24,7 +21,6 @@ export default class extends Controller {
   }
 
   disconnect() {
-    console.log("🔄 RAAF Auto-Refresh Controller disconnecting")
     this.stopAutoRefresh()
     document.removeEventListener('visibilitychange', this.visibilityChangeHandler)
   }
@@ -34,8 +30,6 @@ export default class extends Controller {
       this.stopAutoRefresh()
     }
 
-    console.log(`🔄 Starting auto-refresh with ${this.intervalValue}ms interval`)
-
     this.refreshIntervalId = setInterval(() => {
       this.performRefresh()
     }, this.intervalValue)
@@ -43,7 +37,6 @@ export default class extends Controller {
 
   stopAutoRefresh() {
     if (this.refreshIntervalId) {
-      console.log("⏹️ Stopping auto-refresh")
       clearInterval(this.refreshIntervalId)
       this.refreshIntervalId = null
     }
@@ -52,20 +45,14 @@ export default class extends Controller {
   performRefresh() {
     // Only refresh if the document is visible (tab is active)
     if (document.hidden) {
-      console.log("📱 Tab not active, skipping refresh")
       return
     }
 
-    console.log("🔄 Auto-refreshing page...")
     window.location.reload()
   }
 
   handleVisibilityChange() {
-    if (document.hidden) {
-      console.log("👁️ Tab hidden, auto-refresh will pause")
-    } else {
-      console.log("👁️ Tab visible, auto-refresh will resume")
-    }
+    // Auto-refresh behavior adjusts based on tab visibility
   }
 
   // Action method to manually trigger refresh
@@ -73,7 +60,6 @@ export default class extends Controller {
     if (event) {
       event.preventDefault()
     }
-    console.log("🔄 Manual refresh triggered")
     this.performRefresh()
   }
 
@@ -86,10 +72,8 @@ export default class extends Controller {
     this.enabledValue = !this.enabledValue
 
     if (this.enabledValue) {
-      console.log("▶️ Auto-refresh enabled")
       this.startAutoRefresh()
     } else {
-      console.log("⏸️ Auto-refresh disabled")
       this.stopAutoRefresh()
     }
   }
@@ -102,7 +86,6 @@ export default class extends Controller {
   // Setter for interval value with restart
   intervalValueChanged() {
     if (this.enabledValue && this.refreshIntervalId) {
-      console.log(`🔄 Interval changed to ${this.intervalValue}ms, restarting auto-refresh`)
       this.startAutoRefresh()
     }
   }

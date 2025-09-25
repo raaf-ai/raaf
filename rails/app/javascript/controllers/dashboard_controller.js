@@ -29,7 +29,6 @@ export default class extends Controller {
   }
 
   connect() {
-    console.log("🚀 RAAF Dashboard Controller connected successfully!")
 
     // Initialize connection state
     this.consumer = null
@@ -43,7 +42,6 @@ export default class extends Controller {
   }
 
   disconnect() {
-    console.log("🔌 RAAF Dashboard Controller disconnecting...")
     this.destroy()
   }
 
@@ -52,7 +50,6 @@ export default class extends Controller {
     if (typeof createConsumer !== 'undefined') {
       this.setupActionCable()
     } else {
-      console.warn("ActionCable not available, using polling fallback")
       this.setupPolling()
     }
 
@@ -67,12 +64,10 @@ export default class extends Controller {
 
   setupActionCable() {
     try {
-      console.log(`🔗 Setting up ActionCable connection to ${this.channelNameValue}`)
       this.consumer = createConsumer()
 
       this.subscription = this.consumer.subscriptions.create(this.channelNameValue, {
         connected: () => {
-          console.log("✅ Connected to TracesChannel")
           this.isConnected = true
           this.reconnectAttempts = 0
           this.updateConnectionStatus('connected')
@@ -82,14 +77,12 @@ export default class extends Controller {
         },
 
         disconnected: () => {
-          console.log("❌ Disconnected from TracesChannel")
           this.isConnected = false
           this.updateConnectionStatus('disconnected')
           this.attemptReconnect()
         },
 
         received: (data) => {
-          console.log("📨 Received data:", data)
           this.handleReceived(data)
         },
 
@@ -105,7 +98,6 @@ export default class extends Controller {
   }
 
   setupPolling() {
-    console.log("📊 Setting up polling fallback")
     this.stopPolling() // Clear any existing polling
 
     this.pollingIntervalId = setInterval(() => {
@@ -182,7 +174,6 @@ export default class extends Controller {
         break
 
       default:
-        console.log('❓ Unknown message type:', data.type)
     }
   }
 
@@ -531,7 +522,6 @@ export default class extends Controller {
     const delay = this.reconnectDelayValue * Math.pow(2, this.reconnectAttempts - 1)
 
     setTimeout(() => {
-      console.log(`🔄 Reconnection attempt ${this.reconnectAttempts}`)
       this.setupActionCable()
     }, delay)
   }
@@ -619,6 +609,5 @@ export default class extends Controller {
     this.stopPolling()
     this.stopAutoRefresh()
 
-    console.log("🧹 RAAF Dashboard Controller cleaned up")
   }
 }
