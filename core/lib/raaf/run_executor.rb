@@ -82,12 +82,26 @@ module RAAF
       # Delegate to agent's tracing for proper span hierarchy
       # Pass agent name as metadata to ensure proper span naming
       agent_name = @agent.respond_to?(:name) && @agent.name ? @agent.name : @agent.class.name
-      puts "🔍 [EXECUTOR] Agent: #{@agent.class.name}, detected name: #{agent_name}"
-      puts "🔍 [EXECUTOR] Parent component: #{@agent.instance_variable_get(:@parent_component)&.class&.name || 'nil'}"
-      @agent.with_tracing(:execute,
-                         parent_component: @agent.instance_variable_get(:@parent_component),
-                         agent_name: agent_name) do
-        execute_core_logic(messages)
+
+      # CRITICAL FIX: Wrap the entire execution in agent context to establish root span for tools
+      if defined?(RAAF::Tracing::ToolIntegration) && @runner.respond_to?(:tracing_enabled?) && @runner.tracing_enabled?
+        @agent.with_tracing(:execute,
+                           parent_component: @agent.instance_variable_get(:@parent_component),
+                           agent_name: agent_name) do
+          # Capture the agent span IMMEDIATELY and set it as the permanent root for tools
+          root_agent_span = @agent.current_span
+
+          # Set this as the PERMANENT root span for ALL tool executions - never change it
+          RAAF::Tracing::ToolIntegration.with_agent_context(@agent, root_agent_span) do
+            execute_core_logic(messages)
+          end
+        end
+      else
+        @agent.with_tracing(:execute,
+                           parent_component: @agent.instance_variable_get(:@parent_component),
+                           agent_name: agent_name) do
+          execute_core_logic(messages)
+        end
       end
     end
 

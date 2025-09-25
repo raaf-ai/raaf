@@ -238,12 +238,17 @@ module RAAF
 
       log_debug("🔧 STEP_PROCESSOR: Executing function tools", count: functions.size)
 
+      # CRITICAL FIX: Capture agent span BEFORE Async block
+      # Async tasks don't inherit Thread.current variables, so we need to capture
+      # the current agent span context before entering the async execution
+      captured_agent_span = agent.current_span if agent.respond_to?(:current_span)
+
       # Execute tools in parallel
       begin
         task_results = Async do |task|
           functions.map do |func_run|
             task.async do
-              result = execute_single_function_tool(func_run, agent, context_wrapper, runner, config)
+              result = execute_single_function_tool(func_run, agent, context_wrapper, runner, config, captured_agent_span)
               log_debug("🔧 STEP_PROCESSOR: Tool execution completed", result_class: result.class.name)
               result
             end
@@ -262,7 +267,7 @@ module RAAF
     ##
     # Execute a single function tool
     #
-    def execute_single_function_tool(func_run, agent, context_wrapper, runner, _config)
+    def execute_single_function_tool(func_run, agent, context_wrapper, runner, _config, captured_agent_span = nil)
       tool = func_run.function_tool
       tool_call = func_run.tool_call
       arguments = parse_tool_arguments(tool_call)
@@ -277,19 +282,21 @@ module RAAF
         result = ErrorHandling.safe_tool_execution(tool: tool, arguments: arguments, agent: agent) do
           # Check if tracing is available and tool supports integration
           if defined?(RAAF::Tracing::ToolIntegration) && runner.respond_to?(:tracing_enabled?) && runner.tracing_enabled?
-            # Use tool integration for proper span parenting
-            RAAF::Tracing::ToolIntegration.with_agent_context(agent) do
-              # If tool supports tracing integration, use it
-              if tool.respond_to?(:with_tool_tracing)
+            # If tool supports tracing integration, use it with agent context
+            if tool.respond_to?(:with_tool_tracing)
+              RAAF::Tracing::ToolIntegration.with_agent_context(agent, captured_agent_span) do
                 tool.with_tool_tracing(:call, tool_name: tool.name, tool_arguments: arguments) do
                   tool.call(**arguments.symbolize_keys)
                 end
-              else
-                # Use agent's tracing for tool execution
-                # Pass the agent as parent to let with_tracing decide about spans
-                agent.with_tracing(:execute_tool, parent_component: agent) do
-                  tool.call(**arguments.symbolize_keys)
-                end
+              end
+            else
+              # Direct agent tracing with explicit parent - no context wrapping needed
+              agent.with_tracing(:execute_tool,
+                                 parent_component: captured_agent_span,
+                                 tool_name: tool.name,
+                                 "function" => { "name" => tool.name },
+                                 tool_arguments: arguments) do
+                tool.call(**arguments.symbolize_keys)
               end
             end
           else
@@ -561,6 +568,7 @@ module RAAF
       # Return JSON format like Python implementation
       { assistant: target_agent.name }.to_json
     end
+
 
   end
 

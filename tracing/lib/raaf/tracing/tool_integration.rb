@@ -128,8 +128,9 @@ module RAAF
       # @param agent [Object] The agent instance to set as context
       # @return [void]
       #
-      def self.set_agent_context(agent)
+      def self.set_agent_context(agent, root_span = nil)
         Thread.current[:current_agent] = agent
+        Thread.current[:original_agent_span] = root_span
       end
 
       # Clears the current agent context
@@ -141,6 +142,8 @@ module RAAF
       #
       def self.clear_agent_context
         Thread.current[:current_agent] = nil
+        Thread.current[:original_agent_span] = nil
+        Thread.current[:raaf_agent_context_stack] = nil
       end
 
       # Executes a block with agent context set for tools
@@ -152,15 +155,45 @@ module RAAF
       # @yield Block to execute with agent context
       # @return [Object] Result of the block execution
       #
-      def self.with_agent_context(agent, &block)
+      def self.with_agent_context(agent, root_span = nil, &block)
+        stack = Thread.current[:raaf_agent_context_stack] ||= []
         previous_agent = Thread.current[:current_agent]
+        previous_original_span = Thread.current[:original_agent_span]
+
+        original_agent_span = root_span
+        original_agent_span ||= agent.current_span if agent.respond_to?(:current_span)
+
+        stack.push({ agent: agent, span: original_agent_span })
+
         Thread.current[:current_agent] = agent
-        
+        Thread.current[:original_agent_span] = original_agent_span
+
         begin
           block.call
         ensure
+          stack.pop
           Thread.current[:current_agent] = previous_agent
+          Thread.current[:original_agent_span] = previous_original_span
         end
+      end
+
+      # Captures the active agent context for propagation across threads/fibers.
+      # Returns nil if no context is available.
+      def self.capture_context
+        agent = Thread.current[:current_agent]
+        return nil unless agent
+
+        {
+          agent: agent,
+          span: Thread.current[:original_agent_span]
+        }
+      end
+
+      # Re-establishes a previously captured agent context for the duration of the block.
+      def self.with_captured_context(context, &block)
+        return block.call unless context && context[:agent]
+
+        with_agent_context(context[:agent], context[:span], &block)
       end
 
       private
