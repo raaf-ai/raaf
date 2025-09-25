@@ -11,6 +11,7 @@ require_relative "tracing/traceable"
 require_relative "tracing/tool_integration"
 require_relative "tracing/no_op_tracer"
 require_relative "tracing/tracing_registry"
+require_relative "tracing/span_naming_config"
 require_relative "cost_manager"
 
 # Load Rails engine and ActiveRecord processor if Rails and ActiveRecord are available
@@ -80,6 +81,9 @@ module RAAF
     class << self
       # Configuration object for tracing settings
       attr_accessor :configuration
+
+      # Configuration object for span naming
+      attr_accessor :span_naming_config
 
       # Configure the tracing module
       def configure
