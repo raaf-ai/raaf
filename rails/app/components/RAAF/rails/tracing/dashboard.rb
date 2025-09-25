@@ -242,7 +242,17 @@ module RAAF
                   end
 
                   div(class: "text-end") do
-                    render_status_badge(trace.status)
+                    # Get skip reasons summary for traces that have skipped spans
+                    skip_reason = if trace.respond_to?(:skip_reasons_summary)
+                                    begin
+                                      trace.skip_reasons_summary
+                                    rescue StandardError => e
+                                      Rails.logger.warn "Failed to get skip_reasons_summary for trace #{trace.trace_id}: #{e.message}"
+                                      nil
+                                    end
+                                  end
+
+                    render_status_badge(trace.status, skip_reason: skip_reason)
                     br
                     small(class: "text-muted") { format_duration(trace.duration_ms) }
                   end
@@ -297,15 +307,8 @@ module RAAF
         end
       end
 
-      def render_status_badge(status)
-        badge_class = case status
-                      when "completed", "ok" then "bg-success"
-                      when "failed", "error" then "bg-danger"
-                      when "running", "pending" then "bg-warning text-dark"
-                      else "bg-secondary"
-                      end
-
-        span(class: "badge #{badge_class}") { status.to_s.capitalize }
+      def render_status_badge(status, skip_reason: nil)
+        render RAAF::Rails::Tracing::SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason)
       end
 
       def render_kind_badge(kind)

@@ -32,7 +32,7 @@ module RAAF
             csp_meta_tag
           end
 
-          body(class: "bg-gray-50", data: { controller: "auto-refresh", auto_refresh_interval_value: 30000 }) do
+          body(class: "bg-gray-50", data: { controller: "auto-refresh tooltip", auto_refresh_interval_value: 30000 }) do
             div(class: "flex h-screen overflow-hidden") do
               render_sidebar
               div(class: "flex-1 flex flex-col overflow-hidden") do
@@ -207,6 +207,39 @@ module RAAF
 
         # Preline JS
         script(src: "https://preline.co/assets/js/preline.js")
+
+        # Debug script for tooltip troubleshooting
+        script do
+          safe(<<~JS)
+            // Debug tooltips after all scripts load
+            window.addEventListener('load', function() {
+              console.log('🔧 RAAF Tooltip Debug: Window loaded');
+
+              setTimeout(function() {
+                // Check if Preline is loaded
+                if (typeof window.HSTooltip !== 'undefined') {
+                  console.log('✅ HSTooltip available:', typeof window.HSTooltip);
+
+                  try {
+                    window.HSTooltip.autoInit();
+                    console.log('✅ HSTooltip.autoInit() called');
+                  } catch (e) {
+                    console.error('❌ HSTooltip.autoInit() error:', e);
+                  }
+
+                  // Count tooltip elements
+                  const tooltips = document.querySelectorAll('.hs-tooltip');
+                  const toggles = document.querySelectorAll('.hs-tooltip-toggle');
+                  console.log(`🎯 Found ${tooltips.length} tooltip containers, ${toggles.length} toggles`);
+
+                } else {
+                  console.warn('⚠️ HSTooltip not available');
+                  console.log('Available HS objects:', Object.keys(window).filter(k => k.startsWith('HS')));
+                }
+              }, 500);
+            });
+          JS
+        end
       end
 
       def render_sidebar_items

@@ -14,6 +14,7 @@ module RAAF
         include Phlex::Rails::Helpers::Routes
         include Phlex::Rails::Helpers::CSRFMetaTags
         include Phlex::Rails::Helpers::CSPMetaTag
+        include RAAF::Logging
 
         private
 
@@ -71,27 +72,7 @@ module RAAF
         end
 
         def render_status_badge(status, skip_reason: nil)
-          badge_class = case status&.to_s&.downcase
-                       when "completed" then "bg-green-100 text-green-800"
-                       when "failed" then "bg-red-100 text-red-800"
-                       when "running" then "bg-yellow-100 text-yellow-800"
-                       when "pending" then "bg-blue-100 text-blue-800"
-                       when "skipped", "cancelled" then "bg-orange-100 text-orange-800"
-                       else "bg-gray-100 text-gray-800"
-                       end
-
-          # Show skip reason as tooltip if provided, regardless of status
-          title_attr = skip_reason.present? ? skip_reason : nil
-
-
-          span_attributes = {
-            class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{badge_class}"
-          }
-          span_attributes[:title] = title_attr if title_attr
-
-          span(**span_attributes) do
-            status&.to_s&.capitalize || "Unknown"
-          end
+          render SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason, style: :modern)
         end
 
         def render_kind_badge(kind)
@@ -233,6 +214,8 @@ module RAAF
             end
           end
         end
+
+        private
       end
     end
   end

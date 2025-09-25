@@ -38,7 +38,18 @@ module RAAF
                   end
                   div do
                     h1(class: "text-2xl font-semibold text-gray-900 mb-1") { @trace.workflow_name }
-                    render_status_badge(@trace.status)
+
+                    # Get skip reasons summary for traces that have skipped spans
+                    skip_reason = if @trace.respond_to?(:skip_reasons_summary)
+                                    begin
+                                      @trace.skip_reasons_summary
+                                    rescue StandardError => e
+                                      Rails.logger.warn "Failed to get skip_reasons_summary for trace #{@trace.trace_id}: #{e.message}"
+                                      nil
+                                    end
+                                  end
+
+                    render_status_badge(@trace.status, skip_reason: skip_reason)
                   end
                 end
 
@@ -977,29 +988,8 @@ module RAAF
         end
       end
 
-      def render_status_badge(status)
-        classes = case status
-                  when "ok", "completed"
-                    "px-2 py-1 bg-gray-100 text-gray-700 border border-gray-200"
-                  when "error", "failed"
-                    "px-2 py-1 bg-gray-200 text-gray-800 border border-gray-300"
-                  when "running"
-                    "px-2 py-1 bg-gray-100 text-gray-700 border border-gray-200"
-                  else
-                    "px-2 py-1 bg-gray-100 text-gray-700 border border-gray-200"
-                  end
-
-        icon = case status
-               when "ok", "completed" then "check-circle-fill"
-               when "error", "failed" then "x-circle-fill"
-               when "running" then "arrow-clockwise"
-               else "clock"
-               end
-
-        span(class: "#{classes} rounded text-xs font-medium flex items-center gap-1") do
-          i(class: "bi bi-#{icon}")
-          span { status.capitalize }
-        end
+      def render_status_badge(status, skip_reason: nil)
+        render RAAF::Rails::Tracing::SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason, style: :detailed)
       end
 
       def render_modern_status_badge(status)

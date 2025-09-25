@@ -130,15 +130,8 @@ module RAAF
         end
       end
 
-      def render_status_badge(status)
-        badge_class = case status
-                      when "ok", "completed" then "bg-success"
-                      when "error", "failed" then "bg-danger"
-                      when "running" then "bg-warning text-dark"
-                      else "bg-secondary"
-                      end
-
-        span(class: "badge #{badge_class}") { status.to_s.capitalize }
+      def render_status_badge(status, skip_reason: nil)
+        render RAAF::Rails::Tracing::SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason)
       end
 
       def render_kind_badge(kind)

@@ -257,7 +257,19 @@ module RAAF
               div(class: "flex-1 min-w-0") do
                 div(class: "flex items-center space-x-3") do
                   render_kind_badge(span_item[:kind])
-                  render_status_badge(span_item[:status])
+
+                  # Get skip reason if this is a skipped/cancelled span
+                  skip_reason = if %w[cancelled skipped].include?(span_item[:status])
+                                  begin
+                                    span = RAAF::Rails::Tracing::SpanRecord.find_by(span_id: span_item[:id])
+                                    span&.skip_reason
+                                  rescue StandardError => e
+                                    Rails.logger.warn "Failed to get skip_reason for span #{span_item[:id]}: #{e.message}"
+                                    nil
+                                  end
+                                end
+
+                  render_status_badge(span_item[:status], skip_reason: skip_reason)
 
                   div do
                     div(class: "text-sm font-medium text-gray-900") do

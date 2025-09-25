@@ -220,7 +220,7 @@ module RAAF
               if is_child
                 # Use the actual database parent_id instead of depth-based guessing
                 parent_span_id = span.parent_id
-                additional_classes = "span-children hidden bg-blue-50"
+                additional_classes = "span-children hidden" + (hierarchical ? " bg-blue-50" : "")
               end
             end
 
@@ -247,9 +247,9 @@ module RAAF
           tr(class: css_classes.join(" "), data: data_attrs) do
             td(class: "px-6 py-4") do
               div(class: "flex items-start") do
-                div(class: "flex items-center flex-1", style: "padding-left: #{level * 24}px") do
-                  # Tree connector lines for child spans
-                  if level > 0
+                div(class: "flex items-center flex-1", style: hierarchical ? "padding-left: #{level * 24}px" : "") do
+                  # Tree connector lines for child spans (only in hierarchical view)
+                  if hierarchical && level > 0
                     div(class: "flex items-center mr-3") do
                       div(class: "w-4 h-3 border-l-2 border-b-2 border-gray-300")
                     end
