@@ -1405,19 +1405,27 @@ module RAAF
         }
         api_params[:tools] = tools if tools&.any?
 
-        # Wrap API call with tracing to create LLM span
+        # Wrap API call with tracing to create LLM span within agent context
         if with_tracing && tracing_enabled? && state[:current_agent].respond_to?(:with_tracing)
+          # Enhanced metadata for better span naming and display
+          metadata = {
+            "llm.model" => model,
+            "llm.provider" => @provider.class.name,
+            "llm.input_tokens" => api_params[:input]&.length || 0,
+            "llm.tools_count" => tools&.length || 0,
+            model: model,
+            streaming: api_params[:stream] || false,
+            tool_calls: tools&.any? || false
+          }
+
           response = state[:current_agent].with_tracing(:llm_call,
                                                        parent_component: state[:current_agent],
-                                                       "llm.model" => model,
-                                                       "llm.provider" => @provider.class.name,
-                                                       "llm.input_tokens" => api_params[:input]&.length || 0,
-                                                       "llm.tools_count" => tools&.length || 0) do
-            puts "🔍 [RUNNER] Creating LLM span for agent: #{state[:current_agent].name}"
+                                                       **metadata) do
+            puts "🔍 [RUNNER] Creating LLM span within agent context for model: #{model}"
             @provider.responses_completion(**api_params)
           end
         else
-          puts "🔍 [RUNNER] No tracing - with_tracing: #{with_tracing}, tracing_enabled?: #{tracing_enabled?}, has with_tracing method?: #{state[:current_agent].respond_to?(:with_tracing)}"
+          puts "🔍 [RUNNER] No tracing - with_tracing: #{with_tracing}, tracing_enabled?: #{tracing_enabled?}, has tracer?: #{!@tracer.nil?}"
           response = @provider.responses_completion(**api_params)
         end
 

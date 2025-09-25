@@ -57,7 +57,7 @@ module RAAF
         in: %w[agent llm tool handoff guardrail mcp_list_tools response
                speech_group speech transcription custom internal trace pipeline]
       }
-      validates :status, inclusion: { in: %w[ok error cancelled] }
+      validates :status, inclusion: { in: %w[ok error cancelled skipped] }
 
       # Callbacks
       before_validation :ensure_span_id
@@ -71,6 +71,8 @@ module RAAF
       scope :by_status, ->(status) { where(status: status) }
       scope :errors, -> { where(status: "error") }
       scope :successful, -> { where(status: "ok") }
+      scope :cancelled, -> { where(status: "cancelled") }
+      scope :skipped, -> { where(status: "skipped") }
       scope :slow, ->(threshold_ms = 1000) { where("duration_ms > ?", threshold_ms) }
       scope :within_timeframe, lambda { |start_time, end_time|
         where(start_time: start_time..end_time)
@@ -223,6 +225,20 @@ module RAAF
         status == "ok"
       end
 
+      # Check if span was cancelled/skipped
+      #
+      # @return [Boolean] True if span status is cancelled or skipped
+      def cancelled?
+        status == "cancelled" || status == "skipped"
+      end
+
+      # Check if span was skipped
+      #
+      # @return [Boolean] True if span status is skipped
+      def skipped?
+        status == "skipped"
+      end
+
       # Get span duration in seconds
       #
       # @return [Float, nil] Duration or nil if not available
@@ -265,6 +281,18 @@ module RAAF
           exception_message: events&.find { |e| e["name"] == "exception" }&.dig("attributes", "exception.message"),
           exception_stacktrace: events&.find { |e| e["name"] == "exception" }&.dig("attributes", "exception.stacktrace")
         }.compact
+      end
+
+      # Get skip reason if span was skipped
+      #
+      # @return [String, nil] Skip reason or nil if not skipped
+      def skip_reason
+        return nil unless skipped? || cancelled?
+
+        span_attributes&.dig("agent.skip_reason") ||
+        span_attributes&.dig("skip_reason") ||
+        span_attributes&.dig("cancelled_reason") ||
+        "No reason provided"
       end
 
       # Get summary of span for error reporting
@@ -316,12 +344,37 @@ module RAAF
         end.compact
       end
 
-      # Get all events of a specific type
+      # Get display name for span, showing tool function names when available
       #
-      # @param event_name [String] Name of event to filter by
-      # @return [Array<Hash>] Matching events
-      def events_by_name(event_name)
-        (events || []).select { |e| e["name"] == event_name }
+      # @return [String] Human-readable span name
+      def display_name
+        case kind
+        when "tool"
+          # Check multiple possible locations for tool name
+          tool_name = span_attributes&.dig("function", "name") ||
+                      span_attributes&.dig("tool_name") ||
+                      span_attributes&.dig("tool", "name")
+          tool_name.presence || extract_readable_name || "Tool Call"
+        when "agent"
+          agent_name = span_attributes&.dig("agent", "name")
+          agent_name.presence || extract_agent_name || extract_readable_name || "Agent Execution"
+        when "pipeline"
+          extract_pipeline_name || extract_readable_name || "Pipeline Execution"
+        when "llm"
+          # New: Extract meaningful LLM operation name
+          operation = extract_llm_operation
+          model = span_attributes&.dig("model") || span_attributes&.dig("llm", "model")
+
+          if model && operation
+            "#{model} - #{operation.humanize}"
+          elsif operation
+            "LLM #{operation.humanize}"
+          else
+            "LLM Operation"
+          end
+        else
+          extract_readable_name || "#{kind.to_s.capitalize} Operation"
+        end
       end
 
       # Get timeline of events within this span
@@ -329,6 +382,70 @@ module RAAF
       # @return [Array<Hash>] Chronological list of events
       def event_timeline
         (events || []).sort_by { |e| e["timestamp"] }
+      end
+
+      private
+
+      # Extract readable name from technical span names
+      def extract_readable_name
+        return nil unless name
+
+        # Extract class name from patterns like "run.workflow.agent.MarketAnalysisAgent.execute"
+        if name.match(/\.([A-Z][a-zA-Z]+)\./)
+          $1
+        elsif name.match(/([A-Z][a-zA-Z]+)/)
+          $1
+        else
+          name
+        end
+      end
+
+      # Extract agent name from span name
+      def extract_agent_name
+        return nil unless name
+
+        if name.match(/\.agent\.([A-Za-z:]+)\./)
+          class_name = $1.split("::").last
+          # Handle special cases like "RAAF::Agent.llm_call"
+          if class_name == "Agent"
+            # Check for method name at the end
+            if name.match(/\.([a-z_]+)$/)
+              $1.gsub("_", " ").titleize
+            else
+              "LLM Call"
+            end
+          else
+            class_name&.gsub("Agent", "")
+          end
+        end
+      end
+
+      # Extract pipeline name from span name
+      def extract_pipeline_name
+        return nil unless name
+
+        if name.match(/\.pipeline\.([A-Za-z:]+)/)
+          class_name = $1.split("::").last
+          class_name&.gsub("Pipeline", "")
+        end
+      end
+
+      # Extract LLM operation from span name
+      def extract_llm_operation
+        return nil unless name
+
+        # Extract operation from patterns like "run.workflow.llm.completion"
+        if name.match(/\.llm\.([a-z_]+)/)
+          $1
+        end
+      end
+
+      # Get all events of a specific type
+      #
+      # @param event_name [String] Name of event to filter by
+      # @return [Array<Hash>] Matching events
+      def events_by_name(event_name)
+        (events || []).select { |e| e["name"] == event_name }
       end
 
       private
