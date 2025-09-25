@@ -132,6 +132,26 @@ module RAAF
         def cleanup_old_traces(older_than: 30.days)
           where(started_at: ...older_than.ago).delete_all
         end
+
+        # Fix stuck traces that should be completed but are still marked as running
+        #
+        # @param older_than [ActiveSupport::Duration] Only fix traces older than this
+        # @return [Integer] Number of traces fixed
+        def fix_stuck_traces(older_than: 5.minutes)
+          stuck_traces = running.where("started_at < ?", older_than.ago)
+
+          fixed_count = 0
+          stuck_traces.find_each do |trace|
+            old_status = trace.status
+            trace.update_trace_status
+            if trace.status != old_status
+              Rails.logger.info "Fixed stuck trace #{trace.trace_id}: #{old_status} -> #{trace.status}"
+              fixed_count += 1
+            end
+          end
+
+          fixed_count
+        end
       end
 
       # Instance methods
@@ -242,6 +262,37 @@ module RAAF
         }
       end
 
+      # Get skip reasons from any skipped spans in this trace
+      #
+      # @return [String, nil] Skip reasons from skipped spans, or nil if none
+      def skip_reasons_summary
+        # Reload spans to ensure we have the latest data
+        spans.reload if spans.respond_to?(:reload)
+
+        # Find all skipped or cancelled spans
+        skipped_spans = spans.select { |span| %w[cancelled skipped].include?(span.status) }
+
+        return nil if skipped_spans.empty?
+
+        # Extract skip reasons from all skipped spans
+        reasons = skipped_spans.map do |span|
+          reason = span.span_attributes&.dig("agent.skip_reason") ||
+                   span.span_attributes&.dig("skip_reason") ||
+                   span.span_attributes&.dig("cancelled_reason") ||
+                   "No reason provided"
+
+          # Include span name for context if multiple spans are skipped
+          if skipped_spans.count > 1
+            span_name = span.display_name rescue span.name
+            "#{span_name}: #{reason}"
+          else
+            reason
+          end
+        end.compact
+
+        reasons.join("; ")
+      end
+
       # Update trace status based on span states
       def update_trace_status
         return unless persisted?
@@ -252,8 +303,13 @@ module RAAF
                        "pending"
                      elsif span_statuses.include?("error")
                        "failed"
-                     elsif span_statuses.all? { |s| s == "ok" }
-                       "completed"
+                     elsif span_statuses.all? { |s| %w[ok error cancelled skipped].include?(s) }
+                       # All spans are in final states - determine overall status
+                       if span_statuses.any? { |s| s == "error" }
+                         "failed"
+                       else
+                         "completed"
+                       end
                      else
                        "running"
                      end

@@ -83,7 +83,8 @@ module RAAF
         tr do
           td do
             div do
-              strong { span.name }
+              display_name = span.respond_to?(:display_name) ? span.display_name : span.name
+              strong { display_name }
               if span.span_attributes.present? && span.span_attributes["description"]
                 br
                 small(class: "text-muted") { truncate(span.span_attributes["description"], length: 60) }
@@ -96,7 +97,15 @@ module RAAF
           end
 
           td do
-            render_status_badge(span.status)
+            skip_reason = if %w[cancelled skipped].include?(span.status) && span.respond_to?(:skip_reason)
+                            begin
+                              span.skip_reason
+                            rescue StandardError => e
+                              Rails.logger.warn "Failed to get skip_reason for span #{span.span_id}: #{e.message}"
+                              nil
+                            end
+                          end
+            render_status_badge(span.status, skip_reason: skip_reason)
           end
 
           td do

@@ -94,7 +94,16 @@ module RAAF
             end
 
             td(class: "px-6 py-4 whitespace-nowrap") do
-              render_status_badge(trace.status)
+              # Show skip reasons for any trace that has skipped spans (even if trace is completed)
+              skip_reason = if trace.respond_to?(:skip_reasons_summary)
+                              begin
+                                trace.skip_reasons_summary
+                              rescue StandardError => e
+                                Rails.logger.warn "Failed to get skip_reasons_summary for trace #{trace.trace_id}: #{e.message}"
+                                nil
+                              end
+                            end
+              render_status_badge(trace.status, skip_reason: skip_reason)
             end
 
             td(class: "px-6 py-4 whitespace-nowrap") do
@@ -220,14 +229,25 @@ module RAAF
             tr do
               td(class: "px-4 py-3 text-sm") do
                 div(style: "padding-left: #{level * 20}px;") do
-                  link_to(span.name, "/raaf/tracing/spans/#{span.span_id}", class: "text-blue-600 hover:text-blue-500")
+                  display_name = span.respond_to?(:display_name) ? span.display_name : span.name
+                  link_to(display_name, "/raaf/tracing/spans/#{span.span_id}", class: "text-blue-600 hover:text-blue-500")
                   if level > 0
                     small(class: "text-gray-400 ml-2") { "↳" }
                   end
                 end
               end
               td(class: "px-4 py-3 text-sm") { render_kind_badge(span.kind) }
-              td(class: "px-4 py-3 text-sm") { render_status_badge(span.status) }
+              td(class: "px-4 py-3 text-sm") do
+                skip_reason = if %w[cancelled skipped].include?(span.status) && span.respond_to?(:skip_reason)
+                                begin
+                                  span.skip_reason
+                                rescue StandardError => e
+                                  Rails.logger.warn "Failed to get skip_reason for span #{span.span_id}: #{e.message}"
+                                  "Error retrieving skip reason"
+                                end
+                              end
+                render_status_badge(span.status, skip_reason: skip_reason)
+              end
               td(class: "px-4 py-3 text-sm text-gray-900") { format_duration(span.duration_ms) }
               td(class: "px-4 py-3 text-sm text-gray-500") { span.start_time&.strftime("%H:%M:%S.%3N") }
             end

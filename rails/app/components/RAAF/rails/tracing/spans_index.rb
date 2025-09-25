@@ -269,11 +269,12 @@ module RAAF
                   div(class: "flex-1 min-w-0 ml-3") do
                     # Span name
                     div(class: "text-sm font-medium text-gray-900 break-words mb-1") do
+                      display_name = span.respond_to?(:display_name) ? span.display_name : span.name
                       link_to(
-                        span.name,
+                        display_name,
                         tracing_span_path(span.span_id),
                         class: "text-blue-600 hover:text-blue-900",
-                        title: span.name
+                        title: display_name
                       )
                     end
 
@@ -320,7 +321,15 @@ module RAAF
             end
 
             td(class: "px-6 py-4 whitespace-nowrap") do
-              render_status_badge(span.status)
+              skip_reason = if %w[cancelled skipped].include?(span.status) && span.respond_to?(:skip_reason)
+                              begin
+                                span.skip_reason
+                              rescue StandardError => e
+                                Rails.logger.warn "Failed to get skip_reason for span #{span.span_id}: #{e.message}"
+                                nil
+                              end
+                            end
+              render_status_badge(span.status, skip_reason: skip_reason)
             end
 
             td(class: "px-6 py-4 whitespace-nowrap text-sm text-gray-900") do
