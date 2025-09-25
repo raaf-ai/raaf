@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospect_radar/vendor/local_gems/raaf/dsl/lib/raaf/dsl/pipeline/**)",
+      "Read(//Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospect_radar/vendor/local_gems/raaf/dsl/lib/raaf/dsl/**)",
+      "Read(//Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospect_radar/vendor/local_gems/raaf/dsl/**)",
+      "Read(//Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospect_radar/vendor/local_gems/raaf/core/**)",
+      "Read(//Users/hajee/enterprisemodules/work/prospect_radar/vendor/local_gems/raaf/core/lib/raaf/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

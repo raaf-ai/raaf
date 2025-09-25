@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/hajee/enterprisemodules/work/prospect_radar/**)",
+      "Bash(gem list:*)",
+      "Bash(gem specification:*)",
+      "Bash(gem search:*)",
+      "Bash(cp:*)",
+      "Bash(bin/rails:*)",
+      "Bash(ruby test:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

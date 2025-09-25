@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ruby:*)",
+      "Bash(chmod:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "WebSearch",
+      "Bash(bundle exec rspec:*)",
+      "Read(//Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospect_radar/**)",
+      "Bash(bundle exec rails console:*)",
+      "Bash(bundle exec rails runner:*)",
+      "Bash(head:*)",
+      "Read(//Users/hajee/**)",
+      "Bash(cd:*)",
+      "Bash(curl:*)",
+      "Bash(rake routes)",
+      "Bash(bundle show:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(bin/rails server:*)",
+      "Bash(rm:*)",
+      "Bash(bundle exec ruby:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(RAAF_DEBUG_CATEGORIES=http,tracing bundle exec rails runner '\n# Enable detailed debug output to see what is sent to OpenAI\nputs \"\"Testing with HTTP debug enabled...\"\"\n\nagent = RAAF::Agent.new(\n  name: \"\"TestAgent\"\",\n  instructions: \"\"You are a test agent\"\",\n  model: \"\"gpt-4o\"\"\n)\n\nrunner = RAAF::Runner.new(agent: agent)\nresult = runner.run(\"\"Just say OK\"\")\n\nputs \"\"Agent responded: #{result.final_output}\"\"\n\n# Force flush to send spans immediately\nif defined?(RAAF::Tracing::TraceProvider)\n  provider = RAAF::Tracing::TraceProvider.instance\n  provider.processors.each do |processor|\n    processor.force_flush if processor.respond_to?(:force_flush)\n  end\n  sleep(2)\nend\n\nputs \"\"Check OpenAI dashboard now!\"\"\n')",
+      "Read(///**)",
+      "Bash(awk:*)",
+      "Bash(git log:*)",
+      "Bash(bin/rails runner:*)",
+      "Bash(RAAF_DEBUG_CATEGORIES=http,tracing bundle exec rails runner '\n# Enable detailed debug output to see what is sent to OpenAI\nputs \"\"\"\"Testing with HTTP debug enabled...\"\"\"\"\n\nagent = RAAF::Agent.new(\n  name: \"\"\"\"TestAgent\"\"\"\",\n  instructions: \"\"\"\"You are a test agent\"\"\"\",\n  model: \"\"\"\"gpt-4o\"\"\"\"\n)\n\nrunner = RAAF::Runner.new(agent: agent)\nresult = runner.run(\"\"\"\"Just say OK\"\"\"\")\n\nputs \"\"\"\"Agent responded: #{result.final_output}\"\"\"\"\n\n# Force flush to send spans immediately\nif defined?(RAAF::Tracing::TraceProvider)\n  provider = RAAF::Tracing::TraceProvider.instance\n  provider.processors.each do |processor|\n    processor.force_flush if processor.respond_to?(:force_flush)\n  end\n  sleep(2)\nend\n\nputs \"\"\"\"Check OpenAI dashboard now!\"\"\"\"\n')",
+      "Bash(xargs:*)",
+      "Read(//etc/ssh/**)",
+      "Read(//private/etc/ssh/sshd_config.d/**)",
+      "Bash(pfctl:*)",
+      "Bash(dscl:*)",
+      "Bash(last:*)",
+      "Bash(log show:*)",
+      "Bash(launchctl:*)",
+      "Bash(sudo systemsetup:*)"
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "/Users/hajee/.claude",
+      "/Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospect_radar"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/hajee/**)",
+      "Bash(sed:*)",
+      "Read(//Users/hajee/**)",
+      "Bash(mkdir:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "/Users/hajee"
+    ]
+  }
+}
