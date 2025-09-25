@@ -1956,7 +1956,7 @@ module RAAF
       end
 
       # Execute agent without tracing (fallback)
-      def execute_without_tracing(context, input_context_variables, stop_checker)
+      def execute(context, input_context_variables, stop_checker)
         # Resolve context for this run
         run_context = resolve_run_context(context || input_context_variables)
 
@@ -2035,7 +2035,7 @@ module RAAF
         {
           workflow_status: "completed",
           success: true,
-          results: parsed_output || {},
+          message: parsed_output || {},
           parsed_output: parsed_output,
           context_variables: run_context,
           raw_response: run_result,
@@ -2169,7 +2169,7 @@ module RAAF
       # Direct execution without smart features
       def direct_run(context: nil, input_context_variables: nil, stop_checker: nil)
         # DSL agents delegate directly to core agents which handle tracing
-        execute_without_tracing(context, input_context_variables, stop_checker)
+        execute(context, input_context_variables, stop_checker)
       end
 
       private
@@ -2655,7 +2655,7 @@ module RAAF
             # Check if any of the output fields exist in results (either as symbol or string)
             if output_fields.any? { |field| results.key?(field.to_sym) || results.key?(field.to_s) }
               # Don't wrap in 'data' key - merge directly to avoid double-wrapping
-              return { success: true }.merge(results)
+              return ActiveSupport::HashWithIndifferentAccess.new({ success: true }.merge(results))
             end
           end
         end
@@ -2750,8 +2750,8 @@ module RAAF
           end
         end
 
-        # Update the :results key with only the declared output fields
-        result[:results] = filtered_results
+        # Update the :message key with only the declared output fields
+        result[:message] = filtered_results
         result
       end
 

@@ -73,7 +73,6 @@ module RAAF
           # Check if first part was skipped - for now, continue execution anyway
           # Future improvement: could make this configurable per agent
           if context.respond_to?(:get) && context.get(:_agent_skipped)
-            puts "🔍 [CHAINED_AGENT] First part was skipped, but continuing with second part"
             # Clean up the skip marker for next agent
             context = context.set(:_agent_skipped, nil)
           end
@@ -207,33 +206,21 @@ module RAAF
         
         def execute_single_agent(agent_class, context, agent_results = nil)
           agent_name = agent_class.respond_to?(:agent_name) ? agent_class.agent_name : agent_class.name
-          puts "🔍 [CHAINED_AGENT] Starting execute_single_agent for: #{agent_name}"
-          puts "🔍 [CHAINED_AGENT] Agent class: #{agent_class.name}"
-          puts "🔍 [CHAINED_AGENT] Context keys: #{context.respond_to?(:keys) ? context.keys : 'unknown'}"
           log_debug "Executing agent: #{agent_name}"
 
           # Check requirements
           if agent_class.respond_to?(:requirements_met?)
-            puts "🔍 [CHAINED_AGENT] Agent has requirements_met? method"
-            puts "🔍 [CHAINED_AGENT] Required fields: #{agent_class.required_fields rescue 'error getting required fields'}"
-
             requirements_met = agent_class.requirements_met?(context)
-            puts "🔍 [CHAINED_AGENT] Requirements met?: #{requirements_met}"
 
             unless requirements_met
-              puts "🔍 [CHAINED_AGENT] ⚠️ REQUIREMENTS NOT MET - SKIPPING AGENT: #{agent_name}"
               log_warn "Skipping #{agent_name}: requirements not met"
               log_debug "  Required: #{agent_class.required_fields}"
               log_debug "  Available in context: #{context.keys if context.respond_to?(:keys)}"
 
               # Create a span for the skipped agent to make it visible in traces
               pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
-              puts "🔍 [CHAINED_AGENT] Pipeline instance found: #{pipeline_instance&.class&.name || 'nil'}"
-              puts "🔍 [CHAINED_AGENT] Pipeline responds to with_tracing?: #{pipeline_instance&.respond_to?(:with_tracing)}"
 
               if pipeline_instance && pipeline_instance.respond_to?(:with_tracing)
-                puts "🔍 [CHAINED_AGENT] Creating span for skipped agent: #{agent_name}"
-                puts "🔍 [CHAINED_AGENT] Pipeline current span: #{pipeline_instance.current_span&.dig(:span_id) || 'nil'}"
 
                 # Create a proper agent-like object that can create agent spans
                 require 'ostruct'
@@ -260,22 +247,17 @@ module RAAF
                                           "agent.required_fields" => agent_class.required_fields.join(", "),
                                           "agent.available_fields" => (context.respond_to?(:keys) ? context.keys.join(", ") : "unknown")) do
                   # No-op - just create the span to show the agent was considered
-                  puts "🔍 [CHAINED_AGENT] Inside skipped agent span block"
                   log_debug "Created span for skipped agent: #{agent_name}"
                   nil  # Return nil from span block
                 end
-                puts "🔍 [CHAINED_AGENT] Completed span creation for skipped agent: #{agent_name}"
               else
-                puts "🔍 [CHAINED_AGENT] ❌ Cannot create span for skipped agent - no pipeline instance or no with_tracing method"
               end
 
               # Mark context as having a skipped agent to propagate skip condition
               context = context.set(:_agent_skipped, true) if context.respond_to?(:set)
-              puts "🔍 [CHAINED_AGENT] Returning context with _agent_skipped marker"
               return context
             end
           else
-            puts "🔍 [CHAINED_AGENT] Agent does NOT have requirements_met? method, proceeding with execution"
           end
 
           # Execute agent - ContextVariables now supports direct splatting via to_hash method
@@ -319,6 +301,11 @@ module RAAF
           # Merge provided fields into context (for backward compatibility)
           # If the agent has AutoMerge enabled, the result already contains properly merged data
           # and we should use the complete results rather than extracting individual fields
+          if agent_class.respond_to?(:provided_fields)
+          end
+          if agent_class.respond_to?(:auto_merge_enabled?)
+          end
+
           if agent_class.respond_to?(:auto_merge_enabled?) && agent_class.auto_merge_enabled? &&
              result.is_a?(Hash) && result[:results]
             # Use the complete merged results from AutoMerge
@@ -328,15 +315,19 @@ module RAAF
           elsif agent_class.respond_to?(:provided_fields)
             # Fallback to individual field extraction for agents without AutoMerge
             agent_class.provided_fields.each do |field|
+
               if result.is_a?(Hash) && result.key?(field)
                 field_value = result[field]
                 context = context.set(field, field_value)
               elsif result.respond_to?(field)
                 field_value = result.send(field)
                 context = context.set(field, field_value)
+              else
               end
             end
+          else
           end
+
 
           log_debug "Agent #{agent_name} execution completed"
           context
