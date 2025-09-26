@@ -295,10 +295,47 @@ module RAAF
               }
             }
 
+            // JSON highlighting controller
+            class JsonHighlightController extends Controller {
+              static targets = ["json"]
+
+              connect() {
+                console.log("🎨 JSON highlight controller connected")
+                this.highlightAll()
+              }
+
+              highlightAll() {
+                this.jsonTargets.forEach(element => {
+                  this.highlightElement(element)
+                })
+              }
+
+              highlightElement(element) {
+                if (!window.hljs) {
+                  // If highlight.js hasn't loaded yet, retry after a short delay
+                  setTimeout(() => this.highlightElement(element), 100)
+                  return
+                }
+
+                try {
+                  // Ensure the element has the correct class for JSON highlighting
+                  element.classList.add('language-json')
+
+                  // Apply syntax highlighting
+                  window.hljs.highlightElement(element)
+
+                  console.log("🎨 Applied JSON syntax highlighting to element")
+                } catch (error) {
+                  console.warn('Failed to highlight JSON:', error)
+                }
+              }
+            }
+
             // Register all controllers
             application.register("span-detail", SpanDetailController)
             application.register("auto-refresh", AutoRefreshController)
             application.register("tooltip", TooltipController)
+            application.register("json-highlight", JsonHighlightController)
 
             console.log("✅ All RAAF Stimulus controllers registered")
 
