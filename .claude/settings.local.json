@@ -37,7 +37,8 @@
       "Bash(last:*)",
       "Bash(log show:*)",
       "Bash(launchctl:*)",
-      "Bash(sudo systemsetup:*)"
+      "Bash(sudo systemsetup:*)",
+      "Bash(bin/rails:*)"
     ],
     "deny": [],
     "additionalDirectories": [

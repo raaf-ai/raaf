@@ -66,7 +66,7 @@ module RAAF
 
         respond_to do |format|
           format.html do
-            detail_component = RAAF::Rails::Tracing::SpanDetail.new(
+            detail_component = RAAF::Rails::Tracing::SpanDetail::Component.new(
               span: @span,
               trace: @trace,
               operation_details: @operation_details,
