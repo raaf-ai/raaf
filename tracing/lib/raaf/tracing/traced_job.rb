@@ -270,24 +270,6 @@ module RAAF
         sensitive_patterns.any? { |pattern| field_name.include?(pattern) }
       end
 
-      # Override collect_span_attributes to include job-specific data
-      #
-      # @return [Hash] Span attributes including job metadata
-      def collect_span_attributes
-        base_attributes = super
-
-        # Add job-specific attributes
-        base_attributes.merge({
-          "job.queue" => queue_name,
-          "job.priority" => priority_for_tracing,
-          "job.executions" => executions_for_tracing,
-          "job.provider" => self.class.queue_adapter.class.name
-        }.compact)
-      rescue StandardError => e
-        # If we can't collect job attributes, just use base attributes
-        Rails.logger.warn "Failed to collect job span attributes: #{e.message}" if defined?(Rails)
-        base_attributes
-      end
     end
   end
 end

@@ -2356,18 +2356,6 @@ module RAAF
       end
       
 
-      # Override Traceable collect_span_attributes to include agent-specific metadata
-      def collect_span_attributes
-        super.merge({
-          "agent.name" => agent_name,
-          "agent.model" => self.class._context_config[:model] || "gpt-4o",
-          "agent.max_turns" => self.class._context_config[:max_turns] || 5,
-          "agent.temperature" => self.class._context_config[:temperature],
-          "agent.context_size" => @context&.size || 0,
-          "agent.has_tools" => (@context && @context.size > 0) || false,
-          "agent.execution_mode" => has_smart_features? ? "smart" : "direct"
-        }.compact)
-      end
 
 
       # Capture initial dialog state

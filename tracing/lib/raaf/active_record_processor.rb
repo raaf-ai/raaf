@@ -497,7 +497,12 @@ module RAAF
         sanitized = {}
         visited = Set.new
         attributes.each do |key, value|
-          sanitized[key.to_s] = sanitize_value(value, visited)
+          # Special handling for conversation messages - don't truncate JSON structure
+          if key.to_s.include?("conversation_messages") && value.is_a?(String)
+            sanitized[key.to_s] = value  # Keep conversation messages intact
+          else
+            sanitized[key.to_s] = sanitize_value(value, visited)
+          end
         end
         sanitized
       end

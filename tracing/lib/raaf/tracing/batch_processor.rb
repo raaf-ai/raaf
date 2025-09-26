@@ -422,8 +422,8 @@ module RAAF
                            else key.to_s
                            end
 
-            # Recursively sanitize values
-            result[sanitized_key] = sanitize_value_for_export(value, visited)
+            # Recursively sanitize values, passing key context
+            result[sanitized_key] = sanitize_value_for_export(value, visited, sanitized_key)
           end
         rescue SystemStackError => e
           warn "[BatchTraceProcessor] Stack overflow in hash sanitization - returning empty hash: #{e.message}"
@@ -443,10 +443,11 @@ module RAAF
       #
       # @param value [Object] The value to sanitize
       # @param visited [Set] Set of visited object IDs to prevent circular references
+      # @param key [String] The key name for context-aware processing
       # @return [Object] Sanitized value safe for JSON conversion
       #
       # @api private
-      def sanitize_value_for_export(value, visited = Set.new)
+      def sanitize_value_for_export(value, visited = Set.new, key = nil)
         case value
         when Hash
           deep_sanitize_hash(value, visited)
@@ -454,14 +455,19 @@ module RAAF
           return "[CIRCULAR_REFERENCE]" if visited.include?(value.object_id)
           visited = visited.dup.add(value.object_id)
           begin
-            value.map { |v| sanitize_value_for_export(v, visited) }
+            value.map { |v| sanitize_value_for_export(v, visited, key) }
           rescue SystemStackError => e
             warn "[BatchTraceProcessor] Stack overflow in array sanitization: #{e.message}"
             ["[STACK_OVERFLOW_ERROR]"]
           end
         when String
-          # Truncate very long strings
-          value.length > 10_000 ? "#{value[0..9997]}..." : value
+          # Skip truncation for conversation messages to preserve JSON integrity
+          if key&.include?("conversation_messages")
+            value  # Keep conversation messages intact
+          else
+            # Truncate very long strings
+            value.length > 10_000 ? "#{value[0..9997]}..." : value
+          end
         when Time
           value.utc.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
         when Numeric, TrueClass, FalseClass, NilClass

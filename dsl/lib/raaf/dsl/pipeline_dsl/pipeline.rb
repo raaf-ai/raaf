@@ -790,22 +790,6 @@ module RAAF
       base_lookup.values
     end
 
-    # Provide span attributes for Traceable module
-    def collect_span_attributes
-      # Flow structure
-      flow_structure = flow_structure_description(@flow)
-
-      {
-        "pipeline.class" => self.class.name,
-        "pipeline.name" => pipeline_name,
-        "pipeline.flow_structure" => flow_structure,
-        "pipeline.agent_count" => count_agents_in_flow(@flow),
-        "pipeline.context_fields" => self.class.context_fields || [],
-        "pipeline.required_fields" => self.class.required_fields || [],
-        "pipeline.execution_mode" => detect_execution_mode(@flow),
-        "pipeline.validation_enabled" => !self.class.skip_validation
-      }
-    end
 
     # Get the default tracer following TracingRegistry priority hierarchy:
     # 1. Explicit tracer parameter (already handled in initialize)
