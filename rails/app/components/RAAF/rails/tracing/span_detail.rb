@@ -3,7 +3,10 @@
 module RAAF
   module Rails
     module Tracing
-      class SpanDetail < BaseComponent
+      # Module for organizing span detail components
+      module SpanDetail
+        # Main component class for rendering span details
+        class Component < RAAF::Rails::Tracing::BaseComponent
         def initialize(span:, trace: nil, operation_details: nil, error_details: nil, event_timeline: nil)
           @span = span
           @trace = trace
@@ -13,21 +16,91 @@ module RAAF
         end
 
         def view_template
-          div(class: "p-6") do
+          div(
+            class: "p-6",
+            data: {
+              controller: "span-detail",
+              span_detail_debug_value: ::Rails.env.development?
+            }
+          ) do
             render_header
-            render_overview_section
-            render_timing_section
-            render_attributes_section
-            render_tool_details_section if tool_or_custom_span?
+            render_type_specific_component
             render_children_section if @span.children.any?
             render_events_section if @span.events.any?
             render_error_section if @error_details
           end
-
-          render_detail_script
         end
 
         private
+
+        # Component routing logic - routes to type-specific components based on span.kind
+        def render_type_specific_component
+          case @span.kind&.downcase
+          when "tool", "custom"
+            render_tool_span_component
+          when "agent"
+            render_agent_span_component
+          when "llm"
+            render_llm_span_component
+          when "handoff"
+            render_handoff_span_component
+          when "guardrail"
+            render_guardrail_span_component
+          when "pipeline"
+            render_pipeline_span_component
+          when "response"
+            render_response_span_component
+          when "speech_group", "speech", "transcription", "mcp_list_tools"
+            render_specialized_span_component
+          else
+            render_generic_span_component
+          end
+        end
+
+        # Render dedicated component classes for each span type
+        def render_tool_span_component
+          render ToolSpanComponent.new(span: @span, trace: @trace)
+        end
+
+        def render_agent_span_component
+          render AgentSpanComponent.new(span: @span, trace: @trace)
+        end
+
+        def render_llm_span_component
+          render LlmSpanComponent.new(span: @span, trace: @trace)
+        end
+
+        def render_handoff_span_component
+          render HandoffSpanComponent.new(span: @span, trace: @trace)
+        end
+
+        def render_guardrail_span_component
+          render SpanDetail::GuardrailSpanComponent.new(span: @span, trace: @trace)
+        end
+
+        def render_pipeline_span_component
+          render SpanDetail::PipelineSpanComponent.new(span: @span, trace: @trace)
+        end
+
+        def render_response_span_component
+          base_component = SpanDetailBase.new(span: @span, trace: @trace)
+          render base_component.render_span_overview
+          render base_component.render_timing_details
+          render_attributes_section
+          # Response-specific sections will be added in later tasks
+        end
+
+        def render_specialized_span_component
+          base_component = SpanDetailBase.new(span: @span, trace: @trace)
+          render base_component.render_span_overview
+          render base_component.render_timing_details
+          render_attributes_section
+          # Specialized span sections will be added in later tasks
+        end
+
+        def render_generic_span_component
+          render SpanDetail::GenericSpanComponent.new(span: @span, trace: @trace)
+        end
 
         def render_header
           div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
@@ -119,8 +192,14 @@ module RAAF
                   span(class: "text-xs text-gray-500") { "#{@span.span_attributes.keys.count} attributes" }
                   button(
                     class: "text-blue-600 hover:text-blue-800 text-sm",
-                    data: { action: "toggle", target: "attributes" }
-                  ) { "Toggle View" }
+                    data: {
+                      action: "click->span-detail#toggleAttributesView",
+                      expanded_text: "Show Structured",
+                      collapsed_text: "Show Raw JSON"
+                    }
+                  ) do
+                    span(class: "button-text") { "Toggle View" }
+                  end
                 end
               end
             end
@@ -137,7 +216,10 @@ module RAAF
                   h4(class: "text-sm font-medium text-gray-700") { "Raw JSON" }
                   button(
                     class: "text-xs text-blue-600 hover:text-blue-800",
-                    data: { action: "copy-json", target: "attributes-json" }
+                    data: {
+                      action: "click->span-detail#copyJson",
+                      target: "attributes-json"
+                    }
                   ) { "Copy JSON" }
                 end
                 pre(id: "attributes-json", class: "text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded border overflow-x-auto") do
@@ -174,11 +256,19 @@ module RAAF
                   div(class: "flex items-center justify-between mb-2") do
                     dt(class: "text-sm font-medium text-gray-500") { "Input Parameters" }
                     button(
-                      class: "text-blue-600 hover:text-blue-800 text-xs",
-                      data: { action: "toggle", target: "tool-input" }
-                    ) { "Toggle Details" }
+                      class: "text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1",
+                      data: {
+                        action: "click->span-detail#toggleToolInput",
+                        target: "tool-input-section-#{@span.span_id}",
+                        expanded_text: "Collapse",
+                        collapsed_text: "Expand"
+                      }
+                    ) do
+                      i(class: "bi bi-chevron-right toggle-icon")
+                      span(class: "button-text") { "Toggle Details" }
+                    end
                   end
-                  dd(id: "tool-input-content", class: "mt-1") do
+                  dd(id: "tool-input-section-#{@span.span_id}", class: "mt-1 hidden", data: { initially_collapsed: "true" }) do
                     div(class: "border border-blue-200 rounded-md") do
                       div(class: "bg-blue-50 px-3 py-2 border-b border-blue-200") do
                         strong(class: "text-blue-900") { "Input Data" }
@@ -199,11 +289,19 @@ module RAAF
                   div(class: "flex items-center justify-between mb-2") do
                     dt(class: "text-sm font-medium text-gray-500") { "Output Results" }
                     button(
-                      class: "text-green-600 hover:text-green-800 text-xs",
-                      data: { action: "toggle", target: "tool-output" }
-                    ) { "Toggle Details" }
+                      class: "text-green-600 hover:text-green-800 text-xs flex items-center gap-1",
+                      data: {
+                        action: "click->span-detail#toggleToolOutput",
+                        target: "tool-output-section-#{@span.span_id}",
+                        expanded_text: "Collapse",
+                        collapsed_text: "Expand"
+                      }
+                    ) do
+                      i(class: "bi bi-chevron-right toggle-icon")
+                      span(class: "button-text") { "Toggle Details" }
+                    end
                   end
-                  dd(id: "tool-output-content", class: "mt-1") do
+                  dd(id: "tool-output-section-#{@span.span_id}", class: "mt-1 hidden", data: { initially_collapsed: "true" }) do
                     div(class: "border border-green-200 rounded-md") do
                       div(class: "bg-green-50 px-3 py-2 border-b border-green-200") do
                         strong(class: "text-green-900") { "Output Data" }
@@ -269,13 +367,21 @@ module RAAF
                   "Events (#{@span.events.count})"
                 end
                 button(
-                  class: "text-blue-600 hover:text-blue-800 text-sm",
-                  data: { action: "toggle", target: "events" }
-                ) { "Toggle Details" }
+                  class: "text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1",
+                  data: {
+                    action: "click->span-detail#toggleSection",
+                    target: "events-content",
+                    expanded_text: "Collapse",
+                    collapsed_text: "Expand"
+                  }
+                ) do
+                  i(class: "bi bi-chevron-right toggle-icon")
+                  span(class: "button-text") { "Toggle Details" }
+                end
               end
             end
 
-            div(id: "events-content", class: "px-4 py-5 sm:p-6") do
+            div(id: "events-content", class: "px-4 py-5 sm:p-6 hidden", data: { initially_collapsed: "true" }) do
               pre(class: "text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded border overflow-x-auto") do
                 JSON.pretty_generate(@span.events)
               end
@@ -302,7 +408,10 @@ module RAAF
                           div(id: "error-#{key}-full", class: "hidden") { value }
                           button(
                             class: "text-red-600 hover:text-red-800 text-xs mt-1",
-                            data: { action: "toggle-error", target: "error-#{key}" }
+                            data: {
+                              action: "click->span-detail#toggleErrorDetail",
+                              target: "error-#{key}"
+                            }
                           ) { "Show More" }
                         end
                       else
@@ -394,11 +503,19 @@ module RAAF
                     span(class: "ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded") { "#{value.keys.count} keys" }
                   end
                   button(
-                    class: "text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50",
-                    data: { action: "toggle", target: "attr-#{key.to_s.parameterize}-#{level}" }
-                  ) { "Toggle" }
+                    class: "text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50 flex items-center gap-1",
+                    data: {
+                      action: "click->span-detail#toggleAttributeGroup",
+                      target: "attr-#{key.to_s.parameterize}-#{level}-content",
+                      expanded_text: "Collapse",
+                      collapsed_text: "Expand"
+                    }
+                  ) do
+                    i(class: "bi bi-chevron-right toggle-icon")
+                    span(class: "button-text") { "Toggle" }
+                  end
                 end
-                div(id: "attr-#{key.to_s.parameterize}-#{level}-content", class: "space-y-2 max-h-64 overflow-y-auto") do
+                div(id: "attr-#{key.to_s.parameterize}-#{level}-content", class: "space-y-2 max-h-64 overflow-y-auto hidden", data: { initially_collapsed: "true" }) do
                   render_nested_object(value)
                 end
               end
@@ -520,7 +637,10 @@ module RAAF
                 end
                 button(
                   class: "text-xs text-blue-600 hover:text-blue-800 ml-2",
-                  data: { action: "toggle-value", target: "value-#{value.object_id}" }
+                  data: {
+                    action: "click->span-detail#toggleValue",
+                    target: "value-#{value.object_id}"
+                  }
                 ) { "Show More" }
               end
             else
@@ -575,130 +695,8 @@ module RAAF
           end
         end
 
-        def render_detail_script
-          script do
-            plain <<~JAVASCRIPT
-              document.addEventListener('DOMContentLoaded', function() {
-                // Use event delegation for all button clicks
-                document.addEventListener('click', function(e) {
-                  if (e.target.matches('[data-action]')) {
-                    e.preventDefault();
-                    const action = e.target.getAttribute('data-action');
-                    const target = e.target.getAttribute('data-target');
-
-                    switch(action) {
-                      case 'toggle':
-                        if (target === 'attributes') {
-                          toggleAttributesView();
-                        } else {
-                          toggleSection(target);
-                        }
-                        break;
-                      case 'toggle-error':
-                        toggleErrorDetail(target);
-                        break;
-                      case 'toggle-value':
-                        toggleValue(target);
-                        break;
-                      case 'copy-json':
-                        copyToClipboard(target);
-                        break;
-                    }
-                  }
-                });
-              });
-
-              function toggleAttributesView() {
-                const structured = document.getElementById('attributes-structured');
-                const raw = document.getElementById('attributes-raw');
-                const button = document.querySelector('[data-target="attributes"]');
-
-                if (structured && raw && button) {
-                  if (structured.style.display === 'none') {
-                    structured.style.display = 'block';
-                    raw.style.display = 'none';
-                    button.textContent = 'Toggle View';
-                  } else {
-                    structured.style.display = 'none';
-                    raw.style.display = 'block';
-                    button.textContent = 'Toggle View';
-                  }
-                }
-              }
-
-              function toggleSection(sectionId) {
-                const content = document.getElementById(sectionId + '-content');
-                const button = document.querySelector('[data-target="' + sectionId + '"]');
-
-                if (content) {
-                  if (content.style.display === 'none') {
-                    content.style.display = 'block';
-                    if (button) button.textContent = 'Collapse';
-                  } else {
-                    content.style.display = 'none';
-                    if (button) button.textContent = 'Expand';
-                  }
-                }
-              }
-
-              function toggleErrorDetail(errorId) {
-                const preview = document.getElementById(errorId + '-preview');
-                const full = document.getElementById(errorId + '-full');
-                const button = document.querySelector('[data-target="' + errorId + '"]');
-
-                if (preview && full && button) {
-                  if (preview.style.display === 'none') {
-                    preview.style.display = 'block';
-                    full.style.display = 'none';
-                    button.textContent = 'Show More';
-                  } else {
-                    preview.style.display = 'none';
-                    full.style.display = 'block';
-                    button.textContent = 'Show Less';
-                  }
-                }
-              }
-
-              function toggleValue(valueId) {
-                const preview = document.getElementById(valueId + '-preview');
-                const full = document.getElementById(valueId + '-full');
-                const button = document.querySelector('[data-target="' + valueId + '"]');
-
-                if (preview && full && button) {
-                  if (full.classList.contains('hidden')) {
-                    // Show full content, hide preview
-                    preview.classList.add('hidden');
-                    full.classList.remove('hidden');
-                    button.textContent = 'Show Less';
-                  } else {
-                    // Show preview, hide full content
-                    preview.classList.remove('hidden');
-                    full.classList.add('hidden');
-                    button.textContent = 'Show More';
-                  }
-                }
-              }
-
-              function copyToClipboard(targetId) {
-                const element = document.getElementById(targetId);
-                if (element) {
-                  navigator.clipboard.writeText(element.textContent).then(function() {
-                    // Show temporary feedback
-                    const button = document.querySelector('[data-target="' + targetId + '"]');
-                    if (button) {
-                      const originalText = button.textContent;
-                      button.textContent = 'Copied!';
-                      button.classList.add('text-green-600');
-                      setTimeout(function() {
-                        button.textContent = originalText;
-                        button.classList.remove('text-green-600');
-                      }, 2000);
-                    }
-                  });
-                }
-              }
-            JAVASCRIPT
-          end
+        # Removed inline JavaScript - now using Stimulus controller
+        # All interactive functionality is handled by span_detail_controller.js
         end
       end
     end

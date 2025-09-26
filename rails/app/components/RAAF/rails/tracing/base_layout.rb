@@ -23,6 +23,9 @@ module RAAF
             # Preline CSS
             link(href: "https://preline.co/assets/css/main.min.css", rel: "stylesheet")
 
+            # Highlight.js CSS for syntax highlighting
+            link(href: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css", rel: "stylesheet")
+
             # Custom CSS for tracing-specific styles
             style do
               plain(tracing_styles)
@@ -111,9 +114,194 @@ module RAAF
       end
 
       def render_scripts
-        # Simple vanilla JavaScript for expand/collapse functionality using safe()
-        script do
+        # Use ES6 modules to properly load and initialize Stimulus
+        script(type: "module") do
           safe(<<~JS)
+            // Import and initialize Stimulus properly
+            import { Application, Controller } from "https://unpkg.com/@hotwired/stimulus/dist/stimulus.js"
+
+            // Start Stimulus application
+            const application = Application.start()
+
+            // Register span-detail controller
+            class SpanDetailController extends Controller {
+                  static targets = ["toggleIcon", "section"]
+                  static values = { debug: { type: Boolean, default: false } }
+
+                  connect() {
+                    if (this.debugValue) {
+                      console.log("🔍 SpanDetail controller connected")
+                    }
+                    this.initializeSectionStates()
+                  }
+
+                  toggleSection(event) {
+                    event.preventDefault()
+
+                    const button = event.currentTarget
+                    const targetId = button.dataset.target
+                    const section = document.getElementById(targetId)
+                    const previewSection = document.getElementById(targetId + '-preview')
+                    const icon = button.querySelector('.toggle-icon')
+
+                    // Check if this is an expandable text section (has both preview and full sections)
+                    if (previewSection && section) {
+                      this.toggleExpandableText(previewSection, section, button)
+                      return
+                    }
+
+                    // Regular section toggle
+                    if (!section) {
+                      console.warn(`No section found with ID: ${targetId}`)
+                      return
+                    }
+
+                    this.performToggle(section, icon, button)
+                  }
+
+                  toggleExpandableText(previewSection, fullSection, button) {
+                    const isShowingPreview = !previewSection.classList.contains('hidden')
+
+                    if (isShowingPreview) {
+                      // Show full text, hide preview
+                      previewSection.classList.add('hidden')
+                      fullSection.classList.remove('hidden')
+                      button.textContent = 'Show Less'
+                    } else {
+                      // Show preview, hide full text
+                      previewSection.classList.remove('hidden')
+                      fullSection.classList.add('hidden')
+                      button.textContent = 'Show Full Text'
+                    }
+
+                    if (this.debugValue) {
+                      console.log(`🔍 Toggled expandable text: showing ${isShowingPreview ? 'full' : 'preview'}`)
+                    }
+                  }
+
+                  performToggle(section, icon, button) {
+                    if (section.classList.contains('hidden')) {
+                      section.classList.remove('hidden')
+                      if (icon) {
+                        icon.classList.remove('bi-chevron-right')
+                        icon.classList.add('bi-chevron-down')
+                      }
+                    } else {
+                      section.classList.add('hidden')
+                      if (icon) {
+                        icon.classList.remove('bi-chevron-down')
+                        icon.classList.add('bi-chevron-right')
+                      }
+                    }
+                  }
+
+                  initializeSectionStates() {
+                    const collapsedSections = this.element.querySelectorAll('[data-initially-collapsed="true"]')
+                    collapsedSections.forEach(section => {
+                      section.classList.add('hidden')
+                    })
+                  }
+
+                  copyToClipboard(event) {
+                    event.preventDefault()
+
+                    const button = event.currentTarget
+                    const value = button.dataset.value
+
+                    if (!value) {
+                      console.warn('No value found to copy')
+                      return
+                    }
+
+                    navigator.clipboard.writeText(value).then(() => {
+                      const icon = button.querySelector('i')
+                      if (icon) {
+                        icon.classList.remove('bi-clipboard')
+                        icon.classList.add('bi-clipboard-check', 'text-green-600')
+
+                        setTimeout(() => {
+                          icon.classList.remove('bi-clipboard-check', 'text-green-600')
+                          icon.classList.add('bi-clipboard')
+                        }, 1500)
+                      }
+                    }).catch(err => {
+                      console.error('Failed to copy value: ', err)
+                    })
+                  }
+
+                  toggleValue(event) {
+                    event.preventDefault()
+
+                    const button = event.currentTarget
+                    const targetId = button.dataset.target
+                    const preview = document.getElementById(`${targetId}-preview`)
+                    const full = document.getElementById(`${targetId}-full`)
+
+                    if (this.debugValue) {
+                      console.log(`🔍 toggleValue called with targetId: ${targetId}`)
+                      console.log(`🔍 Looking for preview element: ${targetId}-preview`)
+                      console.log(`🔍 Looking for full element: ${targetId}-full`)
+                      console.log(`🔍 Preview element found:`, preview)
+                      console.log(`🔍 Full element found:`, full)
+                    }
+
+                    if (!preview || !full) {
+                      console.warn(`Value elements not found for: ${targetId}`)
+                      console.warn(`Preview element (${targetId}-preview):`, preview)
+                      console.warn(`Full element (${targetId}-full):`, full)
+                      return
+                    }
+
+                    if (full.classList.contains('hidden')) {
+                      preview.classList.add('hidden')
+                      full.classList.remove('hidden')
+                      // Store original text if not already stored
+                      if (!button.dataset.originalText) {
+                        button.dataset.originalText = button.textContent
+                      }
+                      button.textContent = 'Show Less'
+                    } else {
+                      preview.classList.remove('hidden')
+                      full.classList.add('hidden')
+                      // Restore original text if available, otherwise use generic text
+                      button.textContent = button.dataset.originalText || 'Show More'
+                    }
+
+                    if (this.debugValue) {
+                      console.log(`🔍 Toggle completed. Full element hidden: ${full.classList.contains('hidden')}`)
+                    }
+                  }
+
+                  disconnect() {
+                    if (this.debugValue) {
+                      console.log("🔍 SpanDetail controller disconnected")
+                    }
+                  }
+            }
+
+            // Register auto-refresh controller (basic implementation)
+            class AutoRefreshController extends Controller {
+              static values = { interval: Number }
+
+              connect() {
+                console.log("🔄 Auto-refresh controller connected")
+              }
+            }
+
+            // Register tooltip controller (basic implementation)
+            class TooltipController extends Controller {
+              connect() {
+                console.log("💬 Tooltip controller connected")
+              }
+            }
+
+            // Register all controllers
+            application.register("span-detail", SpanDetailController)
+            application.register("auto-refresh", AutoRefreshController)
+            application.register("tooltip", TooltipController)
+
+            console.log("✅ All RAAF Stimulus controllers registered")
+
             document.addEventListener('DOMContentLoaded', function() {
               console.log('🚀 Hierarchical spans JavaScript loaded!');
 
@@ -201,6 +389,25 @@ module RAAF
                   toggleChildren(this);
                 });
               });
+            });
+          JS
+        end
+
+        # Highlight.js for syntax highlighting
+        script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js")
+        script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js")
+
+        # Initialize highlight.js after loading
+        script do
+          safe(<<~JS)
+            // Initialize highlight.js when it loads
+            document.addEventListener('DOMContentLoaded', function() {
+              if (typeof hljs !== 'undefined') {
+                console.log('✅ Highlight.js loaded, initializing syntax highlighting');
+                hljs.highlightAll();
+              } else {
+                console.warn('⚠️ Highlight.js not loaded');
+              }
             });
           JS
         end
@@ -343,6 +550,169 @@ module RAAF
           .metric-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          }
+
+          /* Markdown prose styles for RAAF tracing */
+          .prose {
+            color: #374151;
+            max-width: none;
+          }
+
+          .prose h1 {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin: 0.67em 0;
+            color: #111827;
+          }
+
+          .prose h2 {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin: 0.6em 0 0.4em 0;
+            color: #1f2937;
+          }
+
+          .prose h3 {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 0.5em 0 0.3em 0;
+            color: #374151;
+          }
+
+          .prose p {
+            margin: 0.75em 0;
+            line-height: 1.6;
+          }
+
+          .prose ul, .prose ol {
+            margin: 0.75em 0;
+            padding-left: 1.5em;
+          }
+
+          .prose li {
+            margin: 0.25em 0;
+          }
+
+          .prose code {
+            background-color: #f3f4f6;
+            padding: 0.125em 0.25em;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+            font-family: ui-monospace, SFMono-Regular, 'Cascadia Code', 'Roboto Mono', Menlo, Monaco, Consolas, monospace;
+            color: #dc2626;
+          }
+
+          .prose pre {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1em 0;
+            font-size: 0.875em;
+          }
+
+          .prose pre code {
+            background-color: transparent;
+            padding: 0;
+            color: #374151;
+          }
+
+          .prose blockquote {
+            border-left: 4px solid #e5e7eb;
+            margin: 1em 0;
+            padding-left: 1rem;
+            color: #6b7280;
+            font-style: italic;
+          }
+
+          .prose strong {
+            font-weight: 600;
+            color: #111827;
+          }
+
+          .prose em {
+            font-style: italic;
+          }
+
+          .prose a {
+            color: #2563eb;
+            text-decoration: underline;
+          }
+
+          .prose a:hover {
+            color: #1d4ed8;
+          }
+
+          .prose table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+          }
+
+          .prose th, .prose td {
+            border: 1px solid #e5e7eb;
+            padding: 0.5em;
+            text-align: left;
+          }
+
+          .prose th {
+            background-color: #f9fafb;
+            font-weight: 600;
+          }
+
+          /* Smaller prose for compact areas */
+          .prose-sm {
+            font-size: 0.875rem;
+          }
+
+          .prose-sm h1 { font-size: 1.25em; }
+          .prose-sm h2 { font-size: 1.125em; }
+          .prose-sm h3 { font-size: 1em; }
+          .prose-sm p { margin: 0.5em 0; }
+          .prose-sm ul, .prose-sm ol { margin: 0.5em 0; }
+          .prose-sm pre { padding: 0.75rem; font-size: 0.8125em; }
+          .prose-sm code { font-size: 0.8125em; }
+
+          /* Custom highlight.js overrides for better JSON visibility */
+          .hljs {
+            background: white !important;
+            color: #24292e !important;
+          }
+
+          .hljs-string {
+            color: #032f62 !important;
+          }
+
+          .hljs-number {
+            color: #005cc5 !important;
+          }
+
+          .hljs-literal {
+            color: #005cc5 !important;
+          }
+
+          .hljs-attr {
+            color: #6f42c1 !important;
+          }
+
+          .hljs-punctuation {
+            color: #24292e !important;
+          }
+
+          .hljs-keyword {
+            color: #d73a49 !important;
+          }
+
+          .hljs-built_in {
+            color: #005cc5 !important;
+          }
+
+          /* Ensure JSON braces and brackets are visible */
+          .language-json .hljs-punctuation,
+          .language-json .hljs-bracket {
+            color: #24292e !important;
+            font-weight: bold;
           }
         CSS
       end
