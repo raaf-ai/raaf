@@ -12,6 +12,12 @@ require_relative "tracing/tool_integration"
 require_relative "tracing/no_op_tracer"
 require_relative "tracing/tracing_registry"
 require_relative "tracing/span_naming_config"
+require_relative "tracing/span_collectors/base_collector"
+require_relative "tracing/span_collectors/agent_collector"
+require_relative "tracing/span_collectors/dsl/agent_collector"
+require_relative "tracing/span_collectors/tool_collector"
+require_relative "tracing/span_collectors/pipeline_collector"
+require_relative "tracing/span_collectors/job_collector"
 require_relative "cost_manager"
 
 # Load Rails engine and ActiveRecord processor if Rails and ActiveRecord are available

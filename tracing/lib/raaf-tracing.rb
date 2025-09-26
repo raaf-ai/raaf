@@ -5,6 +5,7 @@ require_relative "raaf/tracing"
 require_relative "raaf/tracing/datadog_processor"
 require_relative "raaf/tracing/opentelemetry_integration"
 require_relative "raaf/tracing/visualization"
+require_relative "raaf/tracing/span_collectors"
 
 # Load ActiveRecord models for lazy loading
 require_relative "raaf/tracing/models"

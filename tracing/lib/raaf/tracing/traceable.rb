@@ -137,7 +137,20 @@ module RAAF
       #
       # @return [Hash] Attributes to include in the span
       def collect_span_attributes
-        # Base implementation provides minimal framework data
+        # Delegate to collector system if available, fallback to original implementation
+        if defined?(RAAF::Tracing::SpanCollectors)
+          begin
+            collector = RAAF::Tracing::SpanCollectors.collector_for(self)
+            return collector.collect_attributes(self)
+          rescue StandardError => e
+            # Log error and fall back to original implementation
+            # Note: Using puts for now since logger may not be available
+            # TODO: Replace with proper logging when available
+            puts "Warning: Collector error, falling back to original implementation: #{e.message}" if ENV['RAAF_DEBUG_CATEGORIES']&.include?('tracing')
+          end
+        end
+
+        # Base implementation provides minimal framework data (fallback)
         {
           "component.type" => self.class.trace_component_type.to_s,
           "component.name" => self.class.name
@@ -149,7 +162,20 @@ module RAAF
       # @param result [Object] The result returned by the traced operation
       # @return [Hash] Result-specific attributes to include in the span
       def collect_result_attributes(result)
-        # Base implementation provides basic result summary
+        # Delegate to collector system if available, fallback to original implementation
+        if defined?(RAAF::Tracing::SpanCollectors)
+          begin
+            collector = RAAF::Tracing::SpanCollectors.collector_for(self)
+            return collector.collect_result(self, result)
+          rescue StandardError => e
+            # Log error and fall back to original implementation
+            # Note: Using puts for now since logger may not be available
+            # TODO: Replace with proper logging when available
+            puts "Warning: Collector error, falling back to original implementation: #{e.message}" if ENV['RAAF_DEBUG_CATEGORIES']&.include?('tracing')
+          end
+        end
+
+        # Base implementation provides basic result summary (fallback)
         {
           "result.type" => result.class.name,
           "result.success" => !result.nil?
