@@ -10,28 +10,8 @@ require_relative "raaf/guardrails"
 require_relative "raaf/configuration"
 require_relative "raaf/http_client"
 require_relative "raaf/tool_use_behavior"
-require_relative "raaf/function_tool"
-require_relative "raaf/handoff_tool"
-require_relative "raaf/models/interface"
-require_relative "raaf/models/responses_provider"
-require_relative "raaf/models/openai_provider"
-require_relative "raaf/structured_output"
-require_relative "raaf/result"
-require_relative "raaf/handoffs"
-require_relative "raaf/context_manager"
-require_relative "raaf/context_config"
-require_relative "raaf/execution_config"
-require_relative "raaf/run_context"
-require_relative "raaf/api_strategies"
-require_relative "raaf/step_errors"
-require_relative "raaf/items"
-require_relative "raaf/processed_response"
-require_relative "raaf/response_processor"
-require_relative "raaf/handoff_context"
-require_relative "raaf/agent_orchestrator"
-require_relative "raaf/conversation_manager"
-require_relative "raaf/run_executor"
-# Try to require raaf-tracing if available, provide no-op if not BEFORE loading agent
+
+# Try to require raaf-tracing if available, provide no-op if not BEFORE loading function_tool
 tracing_path = File.expand_path("../../../tracing/lib/raaf-tracing", __dir__)
 if File.exist?(tracing_path)
   require tracing_path
@@ -76,14 +56,32 @@ else
           false
         end
 
-        # No-op collect_span_attributes
-        def collect_span_attributes
-          {}
-        end
       end
     end
   end
 end
+
+require_relative "raaf/function_tool"
+require_relative "raaf/handoff_tool"
+require_relative "raaf/models/interface"
+require_relative "raaf/models/responses_provider"
+require_relative "raaf/models/openai_provider"
+require_relative "raaf/structured_output"
+require_relative "raaf/result"
+require_relative "raaf/handoffs"
+require_relative "raaf/context_manager"
+require_relative "raaf/context_config"
+require_relative "raaf/execution_config"
+require_relative "raaf/run_context"
+require_relative "raaf/api_strategies"
+require_relative "raaf/step_errors"
+require_relative "raaf/items"
+require_relative "raaf/processed_response"
+require_relative "raaf/response_processor"
+require_relative "raaf/handoff_context"
+require_relative "raaf/agent_orchestrator"
+require_relative "raaf/conversation_manager"
+require_relative "raaf/run_executor"
 
 require_relative "raaf/unified_step_executor"
 require_relative "raaf/json_repair"

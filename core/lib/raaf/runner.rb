@@ -2323,13 +2323,11 @@ module RAAF
     end
 
     def execute_tool_with_tracing(tool_name, arguments, agent)
-      # Use agent's tracing to create tool span with proper hierarchy if available
-      if agent.respond_to?(:with_tracing)
-        agent.with_tracing(:execute_tool) do
-          agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
-        end
-      else
-        # Fallback for core agents without tracing
+      # Find the actual tool object to trace it directly
+      tool = agent.instance_variable_get(:@tools).find { |t| t.name == tool_name }
+
+      # Trace the tool object directly - uses ToolCollector
+      tool.with_tracing(:execute_tool, tool_name: tool_name) do
         agent.execute_tool(tool_name, **arguments.transform_keys(&:to_sym))
       end
     end

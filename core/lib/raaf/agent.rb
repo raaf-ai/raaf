@@ -1270,35 +1270,7 @@ module RAAF
       )
     end
 
-    # Override Traceable's collect_span_attributes to include DSL metadata
-    #
-    # @return [Hash] Agent-specific attributes including DSL metadata for tracing spans
-    def collect_span_attributes
-      attributes = {
-        "agent.name" => name,
-        "agent.model" => model,
-        "agent.max_turns" => max_turns.to_s,
-        "agent.tools_count" => tools.length.to_s,
-        "agent.handoffs_count" => handoffs.length.to_s
-      }
 
-      # Inherit job's workflow name if running within a job context
-      # This ensures the trace is named after the job, not the agent
-      job_span = Thread.current[:raaf_job_span]
-      if job_span && job_span.respond_to?(:class) && job_span.class.name
-        attributes["trace.workflow_name"] = job_span.class.name
-      end
-
-      # Add DSL metadata if available
-      if trace_metadata && !trace_metadata.empty?
-        trace_metadata.each do |key, value|
-          # Prefix DSL metadata to distinguish it from core agent attributes
-          attributes["dsl.#{key}"] = value.to_s
-        end
-      end
-
-      attributes
-    end
 
   end
 

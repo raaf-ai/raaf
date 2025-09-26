@@ -61,6 +61,8 @@ module RAAF
   class FunctionTool
 
     include Logger
+    include RAAF::Tracing::Traceable
+    trace_as :tool
 
     # @!attribute [r] name
     #   @return [String] The tool's name used for identification

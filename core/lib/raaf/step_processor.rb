@@ -290,12 +290,12 @@ module RAAF
                 end
               end
             else
-              # Direct agent tracing with explicit parent - no context wrapping needed
-              agent.with_tracing(:execute_tool,
-                                 parent_component: captured_agent_span,
-                                 tool_name: tool.name,
-                                 "function" => { "name" => tool.name },
-                                 tool_arguments: arguments) do
+              # Direct tool tracing with explicit parent - uses ToolCollector instead of AgentCollector
+              tool.with_tracing(:execute_tool,
+                               parent_component: captured_agent_span,
+                               tool_name: tool.name,
+                               "function" => { "name" => tool.name },
+                               tool_arguments: arguments) do
                 tool.call(**arguments.symbolize_keys)
               end
             end

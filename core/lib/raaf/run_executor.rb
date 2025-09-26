@@ -79,6 +79,7 @@ module RAAF
     # @raise [ExecutionStoppedError] If execution is stopped
     #
     def execute(messages)
+
       # Delegate to agent's tracing for proper span hierarchy
       # Pass agent name as metadata to ensure proper span naming
       agent_name = @agent.respond_to?(:name) && @agent.name ? @agent.name : @agent.class.name
