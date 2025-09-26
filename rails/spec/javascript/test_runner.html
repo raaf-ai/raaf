@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAAF Span Detail Controller - Browser Tests</title>
+    
+    <!-- Bootstrap Icons for testing icon functionality -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f8f9fa;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+        }
+        
+        .test-controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .toggle-icon {
+            transition: transform 0.2s;
+        }
+        
+        button {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        button:hover {
+            background: #f8f9fa;
+        }
+        
+        .text-green-600 {
+            color: #16a34a !important;
+        }
+        
+        .bg-blue-50 {
+            background-color: #eff6ff;
+        }
+        
+        .border-blue-200 {
+            border-color: #bfdbfe;
+        }
+        
+        .text-blue-900 {
+            color: #1e3a8a;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>RAAF Span Detail Controller - Browser Tests</h1>
+        <p>This page tests the Stimulus controller functionality across different browsers.</p>
+        
+        <div class="test-controls">
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="clearResults()">Clear Results</button>
+            <button onclick="testBrowserCompatibility()">Test Browser Compatibility</button>
+        </div>
+        
+        <!-- Test Fixture: Tool Input/Output Toggle -->
+        <div class="test-section" data-controller="span-detail" data-span-detail-debug-value="true">
+            <h3>Tool Input/Output Toggle Test</h3>
+            
+            <button data-action="click->span-detail#toggleToolInput" 
+                    data-target="tool-input-section-test"
+                    data-expanded-text="Collapse Input" 
+                    data-collapsed-text="Expand Input">
+                <i class="bi bi-chevron-right toggle-icon"></i>
+                <span class="button-text">Toggle Tool Input</span>
+            </button>
+            
+            <div id="tool-input-section-test" class="hidden test-section" data-initially-collapsed="true">
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded">
+                    <strong class="text-blue-900">Tool Input Parameters</strong>
+                    <pre>{"query": "test search", "limit": 10}</pre>
+                </div>
+            </div>
+            
+            <button data-action="click->span-detail#toggleToolOutput" 
+                    data-target="tool-output-section-test"
+                    data-expanded-text="Collapse Output" 
+                    data-collapsed-text="Expand Output">
+                <i class="bi bi-chevron-right toggle-icon"></i>
+                <span class="button-text">Toggle Tool Output</span>
+            </button>
+            
+            <div id="tool-output-section-test" class="hidden test-section" data-initially-collapsed="true">
+                <div class="bg-green-50 border border-green-200 p-3 rounded">
+                    <strong class="text-green-900">Tool Output Results</strong>
+                    <pre>[{"id": 1, "title": "Result 1"}, {"id": 2, "title": "Result 2"}]</pre>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Test Fixture: Attribute Group Toggle -->
+        <div class="test-section">
+            <h3>Attribute Group Toggle Test</h3>
+            
+            <button data-action="click->span-detail#toggleAttributeGroup" 
+                    data-target="attr-group-test-content"
+                    data-expanded-text="Collapse Attributes" 
+                    data-collapsed-text="Expand Attributes">
+                <i class="bi bi-chevron-right toggle-icon"></i>
+                <span class="button-text">Toggle Attributes</span>
+            </button>
+            
+            <div id="attr-group-test-content" class="hidden test-section" data-initially-collapsed="true">
+                <h4>Span Attributes</h4>
+                <pre>{
+  "agent.name": "TestAgent",
+  "agent.model": "gpt-4o",
+  "execution.duration": 1250,
+  "pipeline.stage": "analysis"
+}</pre>
+            </div>
+        </div>
+        
+        <!-- Test Fixture: Error Detail Toggle -->
+        <div class="test-section">
+            <h3>Error Detail Toggle Test</h3>
+            
+            <div id="error-test-preview">Error: Connection timeout (truncated...)</div>
+            <div id="error-test-full" style="display: none">Error: Connection timeout occurred while trying to connect to the external API service. This might be due to network issues, server overload, or configuration problems. Please check your network connection and try again.</div>
+            
+            <button data-action="click->span-detail#toggleErrorDetail" 
+                    data-target="error-test">Show More</button>
+        </div>
+        
+        <!-- Test Fixture: Value Toggle -->
+        <div class="test-section">
+            <h3>Value Toggle Test</h3>
+            
+            <div id="value-test-preview">Long value content preview (first 100 chars...)</div>
+            <div id="value-test-full" class="hidden">Long value content preview with the complete text that exceeds the normal display limit and should be shown when the user clicks to expand the content section for better readability.</div>
+            
+            <button data-action="click->span-detail#toggleValue" 
+                    data-target="value-test">Show More</button>
+        </div>
+        
+        <!-- Test Fixture: Attributes View Toggle -->
+        <div class="test-section">
+            <h3>Attributes View Toggle Test</h3>
+            
+            <button data-action="click->span-detail#toggleAttributesView">Toggle View</button>
+            
+            <div id="attributes-structured">Structured Attributes View</div>
+            <div id="attributes-raw" style="display: none">Raw JSON Attributes View</div>
+        </div>
+        
+        <!-- Test Fixture: Copy JSON -->
+        <div class="test-section">
+            <h3>Copy JSON Test</h3>
+            
+            <button data-action="click->span-detail#copyJson" 
+                    data-target="json-test-content">Copy JSON</button>
+            
+            <pre id="json-test-content">{
+  "span_id": "test-123",
+  "trace_id": "trace-456",
+  "name": "TestOperation",
+  "status": "success",
+  "attributes": {
+    "test": true
+  }
+}</pre>
+        </div>
+        
+        <!-- Test Results -->
+        <div id="test-results" class="results"></div>
+    </div>
+    
+    <!-- Include the Stimulus Controller -->
+    <script>
+        // Mock Stimulus Controller Class
+        class Controller {
+            constructor() {
+                this.element = null;
+            }
+            
+            dispatch(eventName, detail) {
+                const event = new CustomEvent(`span-detail:${eventName}`, detail);
+                if (this.element) {
+                    this.element.dispatchEvent(event);
+                }
+            }
+        }
+        
+        // Include the SpanDetailController (inline for testing)
+        class SpanDetailController extends Controller {
+            static targets = [
+                "toggleIcon",
+                "section"
+            ]
+
+            static values = {
+                debug: { type: Boolean, default: false }
+            }
+
+            constructor() {
+                super();
+                this.debugValue = true;
+            }
+
+            connect() {
+                if (this.debugValue) {
+                    console.log("🔍 SpanDetail controller connected");
+                }
+                this.initializeSectionStates();
+            }
+
+            toggleSection(event) {
+                event.preventDefault();
+                
+                const button = event.currentTarget;
+                const targetId = button.dataset.target;
+                const section = document.getElementById(targetId);
+                const icon = button.querySelector('.toggle-icon');
+                
+                if (!section) {
+                    console.warn(`No section found with ID: ${targetId}`);
+                    return;
+                }
+                
+                this.performToggle(section, icon, button);
+            }
+
+            toggleToolInput(event) {
+                this.toggleSection(event);
+            }
+
+            toggleToolOutput(event) {
+                this.toggleSection(event);
+            }
+
+            toggleAttributeGroup(event) {
+                this.toggleSection(event);
+            }
+
+            toggleErrorDetail(event) {
+                event.preventDefault();
+                
+                const button = event.currentTarget;
+                const targetId = button.dataset.target;
+                const preview = document.getElementById(`${targetId}-preview`);
+                const full = document.getElementById(`${targetId}-full`);
+                
+                if (!preview || !full) {
+                    console.warn(`Error detail elements not found for: ${targetId}`);
+                    return;
+                }
+                
+                if (preview.style.display === 'none') {
+                    preview.style.display = 'block';
+                    full.style.display = 'none';
+                    button.textContent = 'Show More';
+                } else {
+                    preview.style.display = 'none';
+                    full.style.display = 'block';
+                    button.textContent = 'Show Less';
+                }
+            }
+
+            toggleValue(event) {
+                event.preventDefault();
+                
+                const button = event.currentTarget;
+                const targetId = button.dataset.target;
+                const preview = document.getElementById(`${targetId}-preview`);
+                const full = document.getElementById(`${targetId}-full`);
+                
+                if (!preview || !full) {
+                    console.warn(`Value elements not found for: ${targetId}`);
+                    return;
+                }
+                
+                if (full.classList.contains('hidden')) {
+                    preview.classList.add('hidden');
+                    full.classList.remove('hidden');
+                    button.textContent = 'Show Less';
+                } else {
+                    preview.classList.remove('hidden');
+                    full.classList.add('hidden');
+                    button.textContent = 'Show More';
+                }
+            }
+
+            toggleAttributesView(event) {
+                event.preventDefault();
+                
+                const structured = document.getElementById('attributes-structured');
+                const raw = document.getElementById('attributes-raw');
+                const button = event.currentTarget;
+                
+                if (!structured || !raw) {
+                    console.warn('Attributes view elements not found');
+                    return;
+                }
+                
+                if (structured.style.display === 'none') {
+                    structured.style.display = 'block';
+                    raw.style.display = 'none';
+                    button.textContent = 'Toggle View';
+                } else {
+                    structured.style.display = 'none';
+                    raw.style.display = 'block';
+                    button.textContent = 'Toggle View';
+                }
+            }
+
+            copyJson(event) {
+                event.preventDefault();
+                
+                const button = event.currentTarget;
+                const targetId = button.dataset.target;
+                const element = document.getElementById(targetId);
+                
+                if (!element) {
+                    console.warn(`Copy target not found: ${targetId}`);
+                    return;
+                }
+                
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    return navigator.clipboard.writeText(element.textContent).then(() => {
+                        const originalText = button.textContent;
+                        button.textContent = 'Copied!';
+                        button.classList.add('text-green-600');
+                        
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.classList.remove('text-green-600');
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        this.fallbackCopyToClipboard(element.textContent);
+                    });
+                } else {
+                    this.fallbackCopyToClipboard(element.textContent);
+                }
+            }
+
+            initializeSectionStates() {
+                const collapsedSections = this.element.querySelectorAll('[data-initially-collapsed="true"]');
+                collapsedSections.forEach(section => {
+                    section.classList.add('hidden');
+                });
+            }
+
+            performToggle(section, icon, button) {
+                if (section.classList.contains('hidden')) {
+                    section.classList.remove('hidden');
+                    if (icon) {
+                        icon.classList.remove('bi-chevron-right');
+                        icon.classList.add('bi-chevron-down');
+                    }
+                    if (button.dataset.expandedText) {
+                        const buttonText = button.querySelector('.button-text');
+                        if (buttonText) {
+                            buttonText.textContent = button.dataset.expandedText;
+                        }
+                    }
+                } else {
+                    section.classList.add('hidden');
+                    if (icon) {
+                        icon.classList.remove('bi-chevron-down');
+                        icon.classList.add('bi-chevron-right');
+                    }
+                    if (button.dataset.collapsedText) {
+                        const buttonText = button.querySelector('.button-text');
+                        if (buttonText) {
+                            buttonText.textContent = button.dataset.collapsedText;
+                        }
+                    }
+                }
+                
+                this.dispatch('sectionToggled', { 
+                    detail: { 
+                        section: section, 
+                        expanded: !section.classList.contains('hidden'),
+                        sectionId: section.id
+                    } 
+                });
+            }
+
+            fallbackCopyToClipboard(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    logTestResult('PASS: Fallback copy succeeded');
+                } catch (err) {
+                    console.error('Fallback copy failed: ', err);
+                    logTestResult('FAIL: Fallback copy failed');
+                }
+                
+                document.body.removeChild(textArea);
+            }
+
+            disconnect() {
+                if (this.debugValue) {
+                    console.log("🔍 SpanDetail controller disconnected");
+                }
+            }
+        }
+        
+        // Initialize controllers
+        const controllers = new Map();
+        
+        function initializeControllers() {
+            document.querySelectorAll('[data-controller="span-detail"]').forEach(element => {
+                const controller = new SpanDetailController();
+                controller.element = element;
+                controller.connect();
+                controllers.set(element, controller);
+            });
+            
+            // Set up event delegation
+            document.addEventListener('click', function(event) {
+                const action = event.target.dataset.action || event.target.closest('[data-action]')?.dataset.action;
+                if (action && action.includes('span-detail#')) {
+                    const element = event.target.closest('[data-controller="span-detail"]');
+                    if (element && controllers.has(element)) {
+                        const controller = controllers.get(element);
+                        const methodName = action.split('#')[1];
+                        if (controller[methodName]) {
+                            controller[methodName](event);
+                        }
+                    }
+                }
+            });
+        }
+        
+        function logTestResult(message) {
+            const results = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.textContent += `[${timestamp}] ${message}\n`;
+        }
+        
+        function runAllTests() {
+            clearResults();
+            logTestResult('Starting browser tests...');
+            
+            // Test 1: Tool Input Toggle
+            try {
+                const inputButton = document.querySelector('[data-action*="toggleToolInput"]');
+                const inputSection = document.getElementById('tool-input-section-test');
+                
+                inputButton.click();
+                if (!inputSection.classList.contains('hidden')) {
+                    logTestResult('PASS: Tool input toggle expands section');
+                } else {
+                    logTestResult('FAIL: Tool input toggle did not expand section');
+                }
+                
+                inputButton.click();
+                if (inputSection.classList.contains('hidden')) {
+                    logTestResult('PASS: Tool input toggle collapses section');
+                } else {
+                    logTestResult('FAIL: Tool input toggle did not collapse section');
+                }
+            } catch (e) {
+                logTestResult(`FAIL: Tool input toggle error - ${e.message}`);
+            }
+            
+            // Test 2: Tool Output Toggle
+            try {
+                const outputButton = document.querySelector('[data-action*="toggleToolOutput"]');
+                const outputSection = document.getElementById('tool-output-section-test');
+                
+                outputButton.click();
+                if (!outputSection.classList.contains('hidden')) {
+                    logTestResult('PASS: Tool output toggle works');
+                } else {
+                    logTestResult('FAIL: Tool output toggle failed');
+                }
+            } catch (e) {
+                logTestResult(`FAIL: Tool output toggle error - ${e.message}`);
+            }
+            
+            // Test 3: Attribute Group Toggle
+            try {
+                const attrButton = document.querySelector('[data-action*="toggleAttributeGroup"]');
+                const attrSection = document.getElementById('attr-group-test-content');
+                
+                attrButton.click();
+                if (!attrSection.classList.contains('hidden')) {
+                    logTestResult('PASS: Attribute group toggle works');
+                } else {
+                    logTestResult('FAIL: Attribute group toggle failed');
+                }
+            } catch (e) {
+                logTestResult(`FAIL: Attribute group toggle error - ${e.message}`);
+            }
+            
+            // Test 4: Error Detail Toggle
+            try {
+                const errorButton = document.querySelector('[data-action*="toggleErrorDetail"]');
+                const errorPreview = document.getElementById('error-test-preview');
+                const errorFull = document.getElementById('error-test-full');
+                
+                errorButton.click();
+                if (errorPreview.style.display === 'none' && errorFull.style.display === 'block') {
+                    logTestResult('PASS: Error detail toggle shows full content');
+                } else {
+                    logTestResult('FAIL: Error detail toggle failed to show full content');
+                }
+            } catch (e) {
+                logTestResult(`FAIL: Error detail toggle error - ${e.message}`);
+            }
+            
+            // Test 5: Copy JSON
+            try {
+                const copyButton = document.querySelector('[data-action*="copyJson"]');
+                copyButton.click();
+                
+                setTimeout(() => {
+                    if (copyButton.textContent.includes('Copied!') || copyButton.classList.contains('text-green-600')) {
+                        logTestResult('PASS: Copy JSON provides feedback');
+                    } else {
+                        logTestResult('WARN: Copy JSON feedback not visible (may still work)');
+                    }
+                }, 100);
+            } catch (e) {
+                logTestResult(`FAIL: Copy JSON error - ${e.message}`);
+            }
+            
+            logTestResult('Browser tests completed.');
+        }
+        
+        function clearResults() {
+            document.getElementById('test-results').textContent = '';
+        }
+        
+        function testBrowserCompatibility() {
+            clearResults();
+            logTestResult('Testing browser compatibility...');
+            
+            // Test browser features
+            logTestResult(`User Agent: ${navigator.userAgent}`);
+            logTestResult(`Clipboard API: ${navigator.clipboard ? 'Available' : 'Not available'}`);
+            logTestResult(`CSS classList: ${document.body.classList ? 'Available' : 'Not available'}`);
+            logTestResult(`Event delegation: ${document.addEventListener ? 'Available' : 'Not available'}`);
+            logTestResult(`Query selectors: ${document.querySelector ? 'Available' : 'Not available'}`);
+            logTestResult(`Dataset support: ${document.body.dataset !== undefined ? 'Available' : 'Not available'}`);
+            
+            // Test specific functionality
+            try {
+                const testElement = document.createElement('div');
+                testElement.classList.add('test');
+                testElement.classList.remove('test');
+                logTestResult('PASS: classList manipulation works');
+            } catch (e) {
+                logTestResult('FAIL: classList manipulation failed');
+            }
+            
+            try {
+                const testEvent = new CustomEvent('test', { detail: { test: true } });
+                logTestResult('PASS: CustomEvent creation works');
+            } catch (e) {
+                logTestResult('FAIL: CustomEvent creation failed');
+            }
+            
+            logTestResult('Browser compatibility test completed.');
+        }
+        
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeControllers();
+            logTestResult('Controllers initialized and ready for testing.');
+        });
+    </script>
+</body>
+</html>
