@@ -502,11 +502,9 @@ module RAAF
                   end
 
                   if tool_exec["result"]
-                    div do
+                    div(class: "mb-2") do
                       div(class: "text-sm font-medium text-gray-700 mb-1") { "Result:" }
-                      div(class: "bg-white p-2 rounded border text-sm font-mono") do
-                        plain tool_exec["result"]
-                      end
+                      render_json_section("", tool_exec["result"], collapsed: true, compact: true, use_json_highlighter: true)
                     end
                   end
                 end
