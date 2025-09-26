@@ -286,7 +286,7 @@ module RAAF
               end
             end
             div(class: "px-4 py-5 sm:p-6") do
-              render_json_section("Agent Context", context_data, collapsed: true)
+              render_json_section("Agent Context", context_data, collapsed: true, use_json_highlighter: true)
             end
           end
         end
@@ -497,7 +497,7 @@ module RAAF
                   if tool_exec["arguments"] && tool_exec["arguments"] != "{}"
                     div(class: "mb-2") do
                       div(class: "text-sm font-medium text-gray-700 mb-1") { "Arguments:" }
-                      render_json_section("", tool_exec["arguments"], collapsed: true, compact: true)
+                      render_json_section("", tool_exec["arguments"], collapsed: true, compact: true, use_json_highlighter: true)
                     end
                   end
 

@@ -141,9 +141,9 @@ module RAAF
                 end
                 
                 # Full context data (collapsible)
-                render_json_section("Full Context Data", context_transfer_data, collapsed: true)
+                render_json_section("Full Context Data", context_transfer_data, collapsed: true, use_json_highlighter: true)
               else
-                render_json_section("Context Data", context_transfer_data, collapsed: false)
+                render_json_section("Context Data", context_transfer_data, collapsed: false, use_json_highlighter: true)
               end
             end
           end
@@ -168,7 +168,7 @@ module RAAF
                   end
                 end
               when Hash, Array
-                render_json_section("Reason Data", handoff_reason, collapsed: false)
+                render_json_section("Reason Data", handoff_reason, collapsed: false, use_json_highlighter: true)
               else
                 div(class: "bg-orange-50 p-3 rounded border text-sm") do
                   plain handoff_reason.to_s

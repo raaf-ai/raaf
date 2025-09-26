@@ -195,7 +195,7 @@ module RAAF
                   end
                 end
               else
-                render_json_section("Usage Data", usage_data, collapsed: false)
+                render_json_section("Usage Data", usage_data, collapsed: false, use_json_highlighter: true)
               end
             end
           end
@@ -234,7 +234,7 @@ module RAAF
               when Numeric
                 render_detail_item("Estimated Cost", format_cost(cost_data))
               else
-                render_json_section("Cost Data", cost_data, collapsed: false)
+                render_json_section("Cost Data", cost_data, collapsed: false, use_json_highlighter: true)
               end
             end
           end

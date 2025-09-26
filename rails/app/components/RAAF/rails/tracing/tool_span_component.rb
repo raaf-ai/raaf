@@ -92,7 +92,7 @@ module RAAF
                   end
                 end
                 div(class: "px-4 py-5 sm:p-6") do
-                  render_json_section("Input Data", input_data, collapsed: false)
+                  render_json_section("Input Data", input_data, collapsed: false, use_json_highlighter: true)
                 end
               end
             else
@@ -119,7 +119,7 @@ module RAAF
                   end
                 end
                 div(class: "px-4 py-5 sm:p-6") do
-                  render_json_section("Output Data", output_data, collapsed: false)
+                  render_json_section("Output Data", output_data, collapsed: false, use_json_highlighter: true)
                 end
               end
             elsif result_metadata.any?
