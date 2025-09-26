@@ -272,7 +272,7 @@ module RAAF
           end
 
           def render_json_content(data, element_id)
-            div(class: "bg-gray-50 border border-gray-200 rounded") do
+            div(class: "bg-gray-50 border border-gray-200 rounded", data: { controller: "json-highlight" }) do
               div(class: "flex items-center justify-between p-2 bg-gray-100 border-b border-gray-200") do
                 span(class: "text-xs font-medium text-gray-600") { "JSON Data" }
                 button(
@@ -280,7 +280,11 @@ module RAAF
                   data: { action: "click->span-detail#copyJson", target: element_id }
                 ) { "Copy" }
               end
-              pre(id: element_id, class: "p-3 text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap") do
+              pre(
+                id: element_id,
+                class: "p-3 text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap",
+                data: { json_highlight_target: "json" }
+              ) do
                 format_json_display(data)
               end
             end
