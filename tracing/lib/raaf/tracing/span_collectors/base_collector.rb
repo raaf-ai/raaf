@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 module RAAF
   module Tracing
     module SpanCollectors
@@ -291,57 +293,35 @@ module RAAF
         #   safe_value(ActiveRecord.new)  # => {"id" => 1, "name" => "test"}
         #   safe_value(CustomObject.new)  # => "#<CustomObject:0x123> (CustomObject)"
         #
-        # @note Arrays are limited to first 20 elements to prevent huge serializations
-        # @note Complex objects are processed via to_h, as_json, or attributes if available
-        # @note Infinite recursion is prevented via max_depth limiting
+        # @note Uses Ruby's built-in JSON generation with max_nesting to handle complex objects
+        # @note Gracefully falls back for circular references and non-JSON-serializable objects
         def safe_value(value, max_depth: 5)
-          safe_value_recursive(value, depth: 0, max_depth: max_depth)
+          # Simply try to convert to JSON with max_nesting
+          # This handles most cases automatically
+          JSON.parse(JSON.generate(value, max_nesting: max_depth))
+        rescue JSON::NestingError
+          # Hit max nesting - return a simple representation
+          "[Max nesting depth exceeded]"
+        rescue SystemStackError
+          # Circular reference detected
+          "[Circular reference detected]"
+        rescue => e
+          # For any other objects that can't be converted to JSON,
+          # just return a string representation
+          case value
+          when NilClass, TrueClass, FalseClass, Numeric, String
+            value
+          when Array
+            "[Array with #{value.size} items]"
+          when Hash
+            "[Hash with #{value.size} keys]"
+          else
+            "#{value.class.name}##{value.object_id}"
+          end
         end
 
         private
 
-        # Recursively process values with depth tracking
-        #
-        # @param value [Object] Value to process
-        # @param depth [Integer] Current nesting depth
-        # @param max_depth [Integer] Maximum allowed depth
-        # @return [Object] Safe representation of the value
-        def safe_value_recursive(value, depth:, max_depth:)
-          # Prevent infinite recursion
-          return "[Max depth reached]" if depth > max_depth
-
-          case value
-          when String, Numeric, TrueClass, FalseClass, NilClass
-            value
-          when Array
-            # Limit array size and recursively process elements
-            value.first(20).map { |v| safe_value_recursive(v, depth: depth + 1, max_depth: max_depth) }
-          when Hash
-            # Recursively process hash values
-            safe_hash = {}
-            value.each do |k, v|
-              safe_key = k.to_s
-              safe_hash[safe_key] = safe_value_recursive(v, depth: depth + 1, max_depth: max_depth)
-            end
-            safe_hash
-          else
-            # Handle complex objects
-            if value.respond_to?(:to_h)
-              safe_value_recursive(value.to_h, depth: depth + 1, max_depth: max_depth)
-            elsif value.respond_to?(:as_json)
-              safe_value_recursive(value.as_json, depth: depth + 1, max_depth: max_depth)
-            elsif value.respond_to?(:attributes)
-              # Handle ActiveRecord and similar objects
-              safe_value_recursive(value.attributes, depth: depth + 1, max_depth: max_depth)
-            else
-              # Fallback to string representation with class info
-              "#{value.to_s} (#{value.class.name})"
-            end
-          end
-        rescue => e
-          # Fallback if processing fails
-          "[Serialization error: #{e.message}]"
-        end
       end
 
       # Module-level discovery methods for automatic collector selection

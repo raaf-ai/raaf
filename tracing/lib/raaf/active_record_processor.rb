@@ -542,6 +542,9 @@ module RAAF
         end
 
         case value
+        when defined?(ActiveRecord::Base) && ActiveRecord::Base
+          # Use Rails' built-in serializable_hash for ActiveRecord objects
+          sanitize_value(value.serializable_hash, visited)
         when String
           # Truncate very long strings
           value.length > 10_000 ? "#{value[0..9997]}..." : value
