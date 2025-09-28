@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "set"
 require_relative "../pipeline_dsl"
 require_relative "../context_flow_tracker"
 require_relative "../pipelineable"
@@ -231,14 +232,16 @@ module RAAF
 
       # Ensure success flag is present
       merged_result[:success] = true unless merged_result.key?(:success)
-      merged_result
+
+      # Sanitize the result to ensure it's serializable and free of circular references
+      # This converts ActiveRecord objects to plain hashes and maintains HashWithIndifferentAccess
+      sanitize_result(merged_result)
     end
 
     # Get pipeline name for span creation
     def pipeline_name
       self.class.name || "UnknownPipeline"
     end
-
 
 
     # Generate flow structure description
@@ -790,6 +793,32 @@ module RAAF
       base_lookup.values
     end
 
+    # Sanitize pipeline result using Rails' built-in serializable_hash for ActiveRecord objects
+    # This leverages Rails' battle-tested implementation for handling serialization and circular references
+    def sanitize_result(result)
+      case result
+      when defined?(ActiveRecord::Base) && ActiveRecord::Base
+        # Use Rails' built-in method - it handles circular references automatically
+        ActiveSupport::HashWithIndifferentAccess.new(result.serializable_hash)
+      when Hash
+        # Recursively sanitize hash values while preserving indifferent access
+        ActiveSupport::HashWithIndifferentAccess.new(
+          result.transform_values { |v| sanitize_result(v) }
+        )
+      when Array
+        # Recursively sanitize array items
+        result.map { |item| sanitize_result(item) }
+      when Time, Date, DateTime
+        # Convert time objects to ISO strings
+        result.respond_to?(:iso8601) ? result.iso8601 : result.to_s
+      else
+        # Basic types pass through unchanged
+        result
+      end
+    rescue => e
+      Rails.logger.error "Pipeline sanitization error: #{e.message}" if defined?(Rails)
+      result.to_s
+    end
 
     # Get the default tracer following TracingRegistry priority hierarchy:
     # 1. Explicit tracer parameter (already handled in initialize)

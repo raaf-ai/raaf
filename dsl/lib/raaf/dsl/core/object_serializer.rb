@@ -12,7 +12,7 @@ module RAAF
     #
     module ObjectSerializer
       # Default maximum serialization depth to prevent infinite recursion
-      DEFAULT_MAX_DEPTH = 2
+      DEFAULT_MAX_DEPTH = 5
 
       # Build primitive types list
       primitive_list = [
