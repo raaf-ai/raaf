@@ -16,6 +16,10 @@ module RAAF
           def view_template
             div(class: "space-y-6", data: { controller: "span-detail" }) do
               render_pipeline_overview
+              render_initial_context if initial_context.present?
+              render_execution_summary if execution_metrics.present?
+              render_execution_flow if execution_flow.present?
+              render_final_result if final_result.present?
               render_stage_execution if pipeline_stages.present?
               render_data_flow if data_flow.present?
               render_pipeline_metadata if pipeline_metadata.present?
@@ -32,8 +36,23 @@ module RAAF
                 i(class: "bi bi-diagram-3 text-purple-600 text-xl")
                 div(class: "flex-1") do
                   h3(class: "text-lg font-semibold text-purple-900") { "Pipeline Execution" }
-                  p(class: "text-sm text-purple-700") do
-                    "Pipeline: #{pipeline_name} | Stages: #{total_stages} | Status: #{pipeline_status}"
+                  p(class: "text-sm text-purple-700 mb-2") do
+                    parts = [extract_short_pipeline_name]
+                    parts << "#{total_agents} agents" if total_agents > 0
+                    parts << "#{execution_mode.humanize} execution" if execution_mode != "unknown"
+                    parts.join(" | ")
+                  end
+                  if flow_structure.present?
+                    div(class: "text-xs text-purple-600 font-mono bg-white px-2 py-1 rounded border") do
+                      flow_structure
+                    end
+                  else
+                    # Show inferred flow from pipeline name if available
+                    if inferred_flow.present?
+                      div(class: "text-xs text-purple-600 bg-white px-2 py-1 rounded border") do
+                        "Inferred flow: #{inferred_flow}"
+                      end
+                    end
                   end
                 end
                 render_pipeline_status_badge
@@ -244,6 +263,145 @@ module RAAF
             end
           end
 
+          def render_initial_context
+            div(class: "bg-white border border-gray-200 rounded-lg shadow") do
+              render_collapsible_header("Input Context", "initial-context", "bi-arrow-down-circle")
+              div(id: "initial-context-content", class: "p-4 border-t border-gray-200") do
+                if initial_context.any?
+                  div(class: "text-sm text-gray-600 mb-3") do
+                    "Variables provided when the pipeline was initialized:"
+                  end
+                  render_json_content(initial_context, "initial-context-data")
+                else
+                  div(class: "text-gray-500 italic text-sm") { "No initial context data available" }
+                end
+              end
+            end
+          end
+
+          def render_execution_summary
+            div(class: "bg-white border border-gray-200 rounded-lg shadow") do
+              render_collapsible_header("Execution Summary", "execution-summary", "bi-speedometer2")
+              div(id: "execution-summary-content", class: "p-4 border-t border-gray-200") do
+                div(class: "grid grid-cols-2 md:grid-cols-4 gap-4") do
+                  render_metric_card("Agents", execution_metrics["total_agents_executed"] || 0, "bi-cpu", "text-blue-600")
+                  render_metric_card("Success", execution_metrics["successful_agents"] || 0, "bi-check-circle", "text-green-600")
+                  render_metric_card("Failed", execution_metrics["failed_agents"] || 0, "bi-x-circle", "text-red-600")
+                  render_metric_card("Total Time", format_duration(execution_metrics["total_execution_time_ms"] || 0), "bi-clock", "text-purple-600")
+                end
+                if execution_metrics["average_agent_time_ms"] && execution_metrics["average_agent_time_ms"] > 0
+                  div(class: "mt-4 text-sm text-gray-600") do
+                    "Average agent execution time: #{format_duration(execution_metrics["average_agent_time_ms"])}"
+                  end
+                end
+              end
+            end
+          end
+
+          def render_execution_flow
+            div(class: "bg-white border border-gray-200 rounded-lg shadow") do
+              render_collapsible_header("Agent Execution Flow", "execution-flow", "bi-arrow-right-circle")
+              div(id: "execution-flow-content", class: "p-4 border-t border-gray-200") do
+                if execution_flow.any?
+                  div(class: "space-y-4") do
+                    execution_flow.each_with_index do |step, index|
+                      render_execution_step(step, index)
+                    end
+                  end
+                else
+                  div(class: "text-gray-500 italic text-sm") { "No execution flow data available" }
+                end
+              end
+            end
+          end
+
+          def render_final_result
+            div(class: "bg-white border border-gray-200 rounded-lg shadow") do
+              render_collapsible_header("Pipeline Output", "final-result", "bi-collection", expanded: true)
+              div(id: "final-result-content", class: "p-4 border-t border-gray-200") do
+                if final_result.any?
+                  div(class: "text-sm text-gray-600 mb-3") do
+                    "Final output from the pipeline execution:"
+                  end
+                  render_json_content(final_result, "final-result-data")
+                else
+                  div(class: "text-gray-500 italic text-sm") { "No output data available" }
+                end
+              end
+            end
+          end
+
+          def render_metric_card(title, value, icon, color_class)
+            div(class: "bg-gray-50 rounded-lg p-3 text-center") do
+              div(class: "flex items-center justify-center mb-2") do
+                i(class: "#{icon} #{color_class} text-lg")
+              end
+              div(class: "text-lg font-semibold text-gray-900") { value.to_s }
+              div(class: "text-xs text-gray-500") { title }
+            end
+          end
+
+          def render_execution_step(step, index)
+            status_color = case step["status"]&.downcase
+                          when "completed" then "bg-green-100 border-green-200 text-green-800"
+                          when "failed" then "bg-red-100 border-red-200 text-red-800"
+                          else "bg-gray-100 border-gray-200 text-gray-800"
+                          end
+
+            div(class: "flex items-start gap-4 p-3 rounded-lg border #{status_color}") do
+              # Step number
+              div(class: "flex-shrink-0 w-8 h-8 rounded-full bg-white border-2 border-current flex items-center justify-center text-sm font-bold") do
+                step["step_number"] || (index + 1)
+              end
+
+              # Step content
+              div(class: "flex-1 min-w-0") do
+                div(class: "flex items-center justify-between mb-1") do
+                  h5(class: "text-sm font-medium") { step["agent_name"] || "Unknown Agent" }
+                  if step["execution_time_ms"]
+                    span(class: "text-xs opacity-75") { format_duration(step["execution_time_ms"]) }
+                  end
+                end
+
+                if step["agent_class"]
+                  div(class: "text-xs opacity-75 mb-2") { step["agent_class"] }
+                end
+
+                if step["input_summary"] || step["output_summary"]
+                  div(class: "text-xs space-y-1") do
+                    if step["input_summary"]
+                      div { "Input: #{truncate_data(step["input_summary"])}" }
+                    end
+                    if step["output_summary"]
+                      div { "Output: #{truncate_data(step["output_summary"])}" }
+                    end
+                  end
+                end
+              end
+
+              # Arrow to next step (except for last step)
+              unless index == execution_flow.length - 1
+                div(class: "flex-shrink-0 pt-2") do
+                  i(class: "bi bi-arrow-down opacity-50")
+                end
+              end
+            end
+          end
+
+          def format_duration(ms)
+            return "0ms" unless ms && ms > 0
+
+            if ms < 1000
+              "#{ms.round}ms"
+            elsif ms < 60000
+              "#{(ms / 1000.0).round(1)}s"
+            else
+              minutes = (ms / 60000).to_i
+              seconds = ((ms % 60000) / 1000.0).round(1)
+              "#{minutes}m #{seconds}s"
+            end
+          end
+
           def render_raw_attributes
             return unless @span.span_attributes&.any?
 
@@ -314,14 +472,15 @@ module RAAF
 
           # Data extraction methods
           def pipeline_name
-            @pipeline_name ||= @span.span_attributes&.dig("pipeline", "name") ||
+            @pipeline_name ||= @span.span_attributes&.dig("pipeline.name") ||
                               @span.span_attributes&.dig("pipeline_name") ||
+                              @span.span_attributes&.dig("component.name") ||
                               @span.name ||
                               "Unknown Pipeline"
           end
 
           def pipeline_status
-            @pipeline_status ||= @span.span_attributes&.dig("pipeline", "status") ||
+            @pipeline_status ||= @span.span_attributes&.dig("result.execution_status") ||
                                 @span.span_attributes&.dig("status") ||
                                 @span.status ||
                                 "unknown"
@@ -368,6 +527,40 @@ module RAAF
                              @span.span_attributes&.dig("step_results")
           end
 
+          # Enhanced data extraction methods using collector data structure
+
+          def initial_context
+            @initial_context ||= @span.span_attributes&.dig("pipeline.initial_context") || {}
+          end
+
+          def final_result
+            @final_result ||= @span.span_attributes&.dig("result.final_result") || {}
+          end
+
+          def execution_flow
+            @execution_flow ||= @span.span_attributes&.dig("pipeline.execution_flow") || []
+          end
+
+          def execution_metrics
+            @execution_metrics ||= @span.span_attributes&.dig("pipeline.metrics") || {}
+          end
+
+          def flow_structure
+            @flow_structure ||= @span.span_attributes&.dig("pipeline.flow_structure") || ""
+          end
+
+          def execution_mode
+            @execution_mode ||= @span.span_attributes&.dig("pipeline.execution_mode") || "unknown"
+          end
+
+          def total_agents
+            @total_agents ||= @span.span_attributes&.dig("pipeline.total_agents") || 0
+          end
+
+          def pipeline_class
+            @pipeline_class ||= @span.span_attributes&.dig("class") || ""
+          end
+
           def debug_mode?
             @span.span_attributes&.dig("debug") == true ||
             ENV["RAAF_DEBUG"] == "true" ||
@@ -385,6 +578,29 @@ module RAAF
             return text unless text.is_a?(String) && text.length > length
             "#{text[0, length]}..."
           end
+
+          def extract_short_pipeline_name
+            name = pipeline_name
+            # Extract just the class name from full namespaced name
+            if name.include?('::')
+              name.split('::').last
+            else
+              name
+            end
+          end
+
+          def inferred_flow
+            # Try to infer flow from pipeline name
+            name = pipeline_name
+            if name.include?('MarketDiscovery')
+              "Market Analysis → Scoring → Search Terms"
+            elsif name.include?('Discovery')
+              "Discovery Pipeline"
+            else
+              nil
+            end
+          end
+
         end
       end
     end
