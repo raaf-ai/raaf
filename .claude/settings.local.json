@@ -38,7 +38,9 @@
       "Bash(log show:*)",
       "Bash(launchctl:*)",
       "Bash(sudo systemsetup:*)",
-      "Bash(bin/rails:*)"
+      "Bash(bin/rails:*)",
+      "WebFetch(domain:openkvk.nl)",
+      "WebFetch(domain:overheid.io)"
     ],
     "deny": [],
     "additionalDirectories": [
