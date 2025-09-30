@@ -84,15 +84,6 @@ module RAAF
           include_domains ||= options[:include_domains]
           exclude_domains ||= options[:exclude_domains]
 
-          # DEBUG: Log search query construction
-          puts "\n🔍 [TAVILY SEARCH] Query Construction:"
-          puts "   Query: #{query.inspect}"
-          puts "   Search Depth: #{search_depth}"
-          puts "   Max Results: #{max_results}"
-          puts "   Include Answer: #{include_answer}"
-          puts "   Include Domains: #{include_domains&.any? ? include_domains.join(', ') : 'None'}"
-          puts "   Exclude Domains: #{exclude_domains&.any? ? exclude_domains.join(', ') : 'None'}"
-
           # Build request parameters
           params = {
             api_key: api_key,
@@ -107,49 +98,33 @@ module RAAF
           params[:include_domains] = include_domains if include_domains&.any?
           params[:exclude_domains] = exclude_domains if exclude_domains&.any?
 
-          # DEBUG: Log final request parameters (without API key)
-          debug_params = params.dup
-          debug_params[:api_key] = "[REDACTED]"
-          puts "\n📤 [TAVILY SEARCH] Request Parameters:"
-          puts "   #{debug_params.inspect}"
-
           # Make the API request
-          puts "\n⏳ [TAVILY SEARCH] Making API request to Tavily..."
+          RAAF.logger.debug "[TAVILY SEARCH] Making API request to Tavily..."
           start_time = Time.now
           response = make_request(params)
           end_time = Time.now
-          
-          # DEBUG: Log API response details
-          puts "\n📥 [TAVILY SEARCH] API Response (#{((end_time - start_time) * 1000).round(2)}ms):"
+
+          # Log API response details (debug level only)
+          duration_ms = ((end_time - start_time) * 1000).round(2)
           if response["error"]
-            puts "   ❌ ERROR: #{response['error']}"
+            RAAF.logger.error "[TAVILY SEARCH] API Error (#{duration_ms}ms): #{response['error']}"
           else
-            puts "   ✅ SUCCESS"
-            puts "   Results Count: #{(response['results'] || []).length}"
-            puts "   Has Answer: #{response['answer'] ? 'Yes' : 'No'}"
-            puts "   Follow-up Questions: #{(response['follow_up_questions'] || []).length}"
-            
-            # Log basic info about each result
+            results_count = (response['results'] || []).length
+            has_answer = response['answer'] ? 'Yes' : 'No'
+            followup_count = (response['follow_up_questions'] || []).length
+
+            RAAF.logger.debug "[TAVILY SEARCH] API Response (#{duration_ms}ms): #{results_count} results, Answer: #{has_answer}, Follow-ups: #{followup_count}"
+
+            # Log detailed info about each result (debug level only)
             if response["results"]&.any?
-              puts "   📋 Results Summary:"
               response["results"].each_with_index do |result, index|
-                puts "      #{index + 1}. #{result['title']} (Score: #{result['score']})"
-                puts "         URL: #{result['url']}"
-                puts "         Content Length: #{result['content']&.length || 0} chars"
+                RAAF.logger.debug "[TAVILY SEARCH] Result #{index + 1}: #{result['title']} (Score: #{result['score']}, URL: #{result['url']}, Content: #{result['content']&.length || 0} chars)"
               end
             end
           end
-          
+
           # Return structured results
-          formatted_response = format_response(response, query)
-          
-          # DEBUG: Log formatted response
-          puts "\n🔄 [TAVILY SEARCH] Formatted Response:"
-          puts "   Success: #{formatted_response[:success]}"
-          puts "   Results Count: #{formatted_response[:results_count] || 0}"
-          puts "   Has Answer: #{formatted_response[:answer] ? 'Yes' : 'No'}"
-          
-          formatted_response
+          format_response(response, query)
         end
 
         # Alias for compatibility

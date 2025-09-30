@@ -57,6 +57,39 @@ module RAAF
       class Base
         attr_reader :options
 
+        # Auto-register tools when they are defined
+        #
+        # This hook sets up auto-registration monitoring for tool subclasses.
+        # The actual registration happens when tool_name is set via ToolDsl.
+        #
+        # @param subclass [Class] The subclass inheriting from Base
+        #
+        def self.inherited(subclass)
+          super
+
+          # Store reference to subclass for ToolDsl to use
+          # ToolDsl will call register_tool when tool_name is set
+          subclass.instance_variable_set(:@raaf_auto_register, true)
+        end
+
+        # Register a tool with the RAAF ToolRegistry
+        #
+        # This is called automatically by ToolDsl when tool_name is set,
+        # ensuring tools are registered immediately during class definition.
+        #
+        # @param tool_name_value [String] The tool name to register
+        # @param tool_class [Class] The tool class to register
+        #
+        def self.register_tool(tool_name_value, tool_class = self)
+          return unless tool_name_value.present?
+
+          tool_symbol = tool_name_value.to_sym
+          RAAF::DSL::ToolRegistry.register(tool_symbol, tool_class)
+          RAAF.logger.info "🔧 Auto-registered tool: #{tool_symbol} → #{tool_class.name}"
+        rescue => e
+          RAAF.logger.debug "Failed to auto-register tool #{tool_name_value}: #{e.message}"
+        end
+
         # Initialize a tool configuration
         #
         # @param options [Hash] Configuration options for the tool

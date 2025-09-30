@@ -79,6 +79,14 @@ module RAAF
         def tool_name(name = nil)
           if name
             _tool_config[:name] = name
+
+            # Auto-register the tool immediately if this class supports it
+            # This ensures tools are registered BEFORE any agent tries to use them
+            if instance_variable_get(:@raaf_auto_register) &&
+               respond_to?(:register_tool) &&
+               ancestors.any? { |a| a.name == "RAAF::DSL::Tools::Base" }
+              register_tool(name, self)
+            end
           else
             _tool_config[:name] || self.name.demodulize.underscore
           end

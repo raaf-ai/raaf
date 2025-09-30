@@ -230,12 +230,7 @@ end
 
 The examples show how to:
 
-1. **Enable debug logging:**
-   ```ruby
-   RAAF.logger.level = Logger::DEBUG
-   ```
-
-2. **Monitor registry statistics:**
+1. **Monitor registry statistics:**
    ```ruby
    stats = RAAF::DSL::Tools::ToolRegistry.statistics
    puts "Cache hit ratio: #{stats[:cache_hit_ratio]}"
