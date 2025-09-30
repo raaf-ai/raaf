@@ -189,10 +189,17 @@ module RAAF
 
           raise ArgumentError, "additionalProperties should not be set to true for strict schemas" if json_schema["additionalProperties"] == true
 
+          # OpenAI strict mode requires ALL object types to have 'properties' defined
+          json_schema["properties"] = {} unless json_schema.key?("properties")
+
           # All properties must be required in strict mode (like Python implementation)
+          # BUT: Don't override existing required arrays that were carefully crafted
           properties = json_schema["properties"]
           if properties.is_a?(Hash)
-            json_schema["required"] = properties.keys.map(&:to_s)
+            # Only set required if no explicit required array was provided
+            if json_schema["required"].nil? || json_schema["required"].empty?
+              json_schema["required"] = properties.keys.map(&:to_s)
+            end
             json_schema["properties"] = properties.transform_values do |prop_schema|
               ensure_strict_json_schema_recursive(prop_schema, path: [*path, "properties"], root: root)
             end
