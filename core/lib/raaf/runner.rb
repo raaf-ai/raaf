@@ -406,10 +406,13 @@ module RAAF
       hooks_class_name = hooks&.class&.name
       log_debug("Calling hook", hook: hook_method, config_class: hooks_class_name)
 
+      run_level_result = nil
+      agent_level_result = nil
+
       # Call run-level hooks
       if @current_config&.hooks.respond_to?(hook_method)
         log_debug("Executing run-level hook", hook: hook_method)
-        @current_config.hooks.send(hook_method, context_wrapper, *args)
+        run_level_result = @current_config.hooks.send(hook_method, context_wrapper, *args)
       end
 
       # Call agent-level hooks if applicable
@@ -417,10 +420,15 @@ module RAAF
       agent_hook_method = hook_method.to_s.sub("on_agent_", "on_")
       if agent&.hooks.respond_to?(agent_hook_method)
         log_debug("Executing agent-level hook", hook: agent_hook_method, agent: agent.name)
-        agent.hooks.send(agent_hook_method, context_wrapper, *args)
+        agent_level_result = agent.hooks.send(agent_hook_method, context_wrapper, *args)
       end
+
+      # Return agent-level result if present, otherwise run-level result
+      # This allows agent-specific hooks to override run-level hook results
+      agent_level_result || run_level_result
     rescue StandardError => e
       log_exception(e, message: "Error in hook #{hook_method}", hook: hook_method)
+      nil
     end
 
     ##
@@ -1645,9 +1653,10 @@ module RAAF
         log_debug("🔢 TURNS: No responses to count", turns: state[:turns])
       end
 
-      # Call agent end hook
+      # Call agent end hook with properly extracted content from Responses API
       final_output = if model_responses.last
-                       model_responses.last[:content] || model_responses.last["content"] || ""
+                       # Extract text content from Responses API output structure
+                       extract_assistant_content_from_response(model_responses.last, state[:current_agent])
                      else
                        ""
                      end

@@ -74,8 +74,12 @@ module RAAF
           message[:content] = filtered_content if filtered_content != message[:content]
         end
 
-        # Call agent end hook
-        runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)
+        # Call agent end hook and capture any modified message/output
+        # Hooks can return modified data to replace the message
+        hook_result = runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)
+        if hook_result && hook_result.is_a?(Hash)
+          message = hook_result
+        end
 
         # Handle tool calls if present
         if @tool_executor.tool_calls?(message)
