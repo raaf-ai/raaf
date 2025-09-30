@@ -50,6 +50,7 @@ module RAAF
         # @param context [RunContext] The current run context
         # @param agent [Agent] This agent
         # @param output [Object] The final output produced
+        # @return [Object, nil] Modified output from hook, or nil if hook doesn't return anything
         def on_end(context, agent, output)
           # Use DSL agent if available, otherwise fall back to Core agent
           agent_for_hook = @dsl_agent || agent
@@ -100,12 +101,15 @@ module RAAF
 
         private
 
-        # Execute all hooks for a given hook type
-        # 
+        # Execute all hooks for a given hook type and return the last hook's result
+        #
         # @param hooks [Array] Array of hooks to execute (methods or blocks)
         # @param args [Array] Arguments to pass to the hooks
+        # @return [Object, nil] The return value from the last hook, or nil if no hooks or all failed
         def execute_hooks(hooks, *args)
-          return unless hooks&.any?
+          return nil unless hooks&.any?
+
+          last_result = nil
 
           hooks.each do |hook|
             begin
@@ -115,15 +119,15 @@ module RAAF
                 # Note: We need access to the DSL agent instance to call the method
                 # This would need to be passed during adapter creation
                 RAAF.logger.warn "Method hooks not yet implemented in adapter: #{hook}"
-                
+
               when Proc
-                # Block - call directly with arguments
-                hook.call(*args)
-                
+                # Block - call directly with arguments and capture result
+                last_result = hook.call(*args)
+
               else
                 RAAF.logger.warn "Unknown hook type: #{hook.class}"
               end
-              
+
             rescue => e
               RAAF.logger.error "❌ Hook execution failed: #{e.message}"
               RAAF.logger.error "🔍 Hook: #{hook.inspect}"
@@ -131,6 +135,8 @@ module RAAF
               # Continue with other hooks even if one fails
             end
           end
+
+          last_result
         end
       end
     end
