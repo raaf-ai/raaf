@@ -12,7 +12,7 @@ module RAAF
 
         protected
 
-        def render_json_section(title, data, collapsed: true, use_json_highlighter: false)
+        def render_json_section(title, data, collapsed: true, use_json_highlighter: false, compact: false)
           return unless data
 
           section_id = "section-#{title.parameterize}-#{@span.span_id}"
@@ -61,17 +61,17 @@ module RAAF
                   end
                 end
               else
-                render_json_content(data, data_size, is_large_data, use_json_highlighter)
+                render_json_content(data, data_size, is_large_data, use_json_highlighter, compact)
               end
             end
           end
         end
 
         # Render JSON content with performance optimizations
-        def render_json_content(data, data_size, is_large_data, use_json_highlighter = false)
+        def render_json_content(data, data_size, is_large_data, use_json_highlighter = false, compact = false)
           if is_large_data
             # Truncated view for large data with expand option
-            render_truncated_json_view(data, data_size, use_json_highlighter)
+            render_truncated_json_view(data, data_size, use_json_highlighter, compact)
           else
             # Standard JSON view
             json_data_attrs = use_json_highlighter ? {
@@ -83,13 +83,13 @@ module RAAF
               class: "bg-white p-3 rounded border text-xs overflow-x-auto font-mono max-h-96 overflow-y-auto text-gray-900",
               data: json_data_attrs
             ) do
-              format_json_display(data)
+              format_json_display(data, compact)
             end
           end
         end
 
         # Render truncated view for large JSON data
-        def render_truncated_json_view(data, data_size, use_json_highlighter = false)
+        def render_truncated_json_view(data, data_size, use_json_highlighter = false, compact = false)
           truncated_data = truncate_large_data(data)
           truncate_id = "truncate-#{SecureRandom.hex(4)}"
 
@@ -113,7 +113,7 @@ module RAAF
                 class: "bg-white p-3 rounded border text-xs overflow-x-auto font-mono max-h-48 overflow-y-auto text-gray-900",
                 data: json_data_attrs
               ) do
-                format_json_display(truncated_data) + "\n\n... (truncated)"
+                format_json_display(truncated_data, compact) + "\n\n... (truncated)"
               end
             end
 
@@ -123,7 +123,7 @@ module RAAF
                 class: "bg-white p-3 rounded border text-xs overflow-x-auto font-mono max-h-96 overflow-y-auto text-gray-900",
                 data: json_data_attrs
               ) do
-                format_json_display(data)
+                format_json_display(data, compact)
               end
             end
 
@@ -218,19 +218,19 @@ module RAAF
           end
         end
 
-        def format_json_display(data)
+        def format_json_display(data, compact = false)
           return "N/A" if data.nil?
 
           case data
           when String
             begin
               parsed = JSON.parse(data)
-              JSON.pretty_generate(parsed)
+              compact ? JSON.generate(parsed) : JSON.pretty_generate(parsed)
             rescue JSON::ParserError
               data
             end
           when Hash, Array
-            JSON.pretty_generate(data)
+            compact ? JSON.generate(data) : JSON.pretty_generate(data)
           else
             data.to_s
           end
@@ -284,7 +284,7 @@ module RAAF
 
             error_data = extract_span_attribute("error") || "Unknown error"
             pre(class: "text-sm text-red-900 bg-red-100 p-3 rounded border overflow-x-auto") do
-              format_json_display(error_data)
+              format_json_display(error_data, false)
             end
           end
         end
