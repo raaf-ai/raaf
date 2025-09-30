@@ -839,9 +839,6 @@ tools.each { |tool_class| tool_class.new }  # Triggers auto-registration
 Enable debug logging to troubleshoot issues:
 
 ```ruby
-# Enable debug mode for tool registry
-RAAF.logger.level = Logger::DEBUG
-
 # Check registry contents
 pp RAAF::DSL::Tools::ToolRegistry.tool_info
 

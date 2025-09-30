@@ -324,6 +324,47 @@ puts result[:headquarters_location]  # "Austin, Texas"
 puts result["headquarters_location"] # "Austin, Texas" (same result)
 ```
 
+### OpenAI Responses API Schema Requirements
+
+**CRITICAL**: When using OpenAI Responses API (RAAF's default provider), nested array object schemas have stricter validation requirements:
+
+```ruby
+# ❌ INCORRECT: OpenAI validation will fail
+schema do
+  field :companies, type: :array, required: true do
+    field :id, type: :integer, required: true
+    field :name, type: :string, required: true
+    field :description, type: :string, required: false  # ❌ Causes error
+    field :location, type: :string, required: false     # ❌ Causes error
+  end
+end
+
+# ✅ CORRECT: All nested array fields must be required: true
+schema do
+  field :companies, type: :array, required: true do
+    field :id, type: :integer, required: true
+    field :name, type: :string, required: true
+    field :description, type: :string, required: true  # ✅ Must be true
+    field :location, type: :string, required: true     # ✅ Must be true
+  end
+end
+```
+
+**Why This Happens:**
+- OpenAI Responses API requires ALL properties in nested objects to be in the required array
+- This applies even to logically optional fields
+- Standard JSON Schema allows partial required arrays, but OpenAI does not
+
+**Common Error Messages:**
+```
+"Invalid schema for response_format 'agent_response':
+In context=('properties', 'companies', 'items'),
+'required' is required to be supplied and to be an array
+including every key in properties. Missing 'description'"
+```
+
+**Solution**: Mark ALL nested array object fields as `required: true` when using OpenAI, regardless of logical necessity.
+
 ### JSON Repair and Error Handling
 
 ```ruby

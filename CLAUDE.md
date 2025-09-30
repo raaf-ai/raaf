@@ -49,6 +49,40 @@ puts tool_result["arguments"]  # ✅ Works
 
 **All providers used with RAAF must support tool/function calling.** Providers that don't support tool calling (like Ollama) have been removed to ensure consistent handoff behavior across all deployments.
 
+### OpenAI Responses API Schema Requirements
+
+**CRITICAL**: When using OpenAI Responses API (default provider), schemas for nested array objects have stricter validation requirements than standard JSON Schema:
+
+- **ALL properties in nested objects MUST be listed in the required array**
+- **This applies even to fields that are logically optional**
+- **Standard JSON Schema allows partial required arrays, but OpenAI does not**
+
+```ruby
+# ❌ INCORRECT: Will fail OpenAI validation
+schema do
+  field :companies, type: :array, required: true do
+    field :id, type: :integer, required: true
+    field :name, type: :string, required: true
+    field :description, type: :string, required: false  # ❌ Causes validation error
+  end
+end
+
+# ✅ CORRECT: All fields in required array for OpenAI compatibility
+schema do
+  field :companies, type: :array, required: true do
+    field :id, type: :integer, required: true
+    field :name, type: :string, required: true
+    field :description, type: :string, required: true  # ✅ Must be true for OpenAI
+  end
+end
+```
+
+**Error Symptoms:**
+- `"Invalid schema for response_format '..._response': Missing '[field_name]'"`
+- `"'required' is required to be supplied and to be an array including every key in properties"`
+
+**Solution**: Mark ALL nested array object fields as `required: true` when using OpenAI Responses API, regardless of logical requirement.
+
 ## Architecture Overview
 
 RAAF is organized as a **mono-repo** with focused gems:
