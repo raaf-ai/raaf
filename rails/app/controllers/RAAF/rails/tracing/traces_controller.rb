@@ -136,6 +136,31 @@ module RAAF
         end
       end
 
+      # POST /traces/destroy_all
+      # Deletes all traces and their associated spans from the database
+      def destroy_all
+        trace_count = TraceRecord.count
+        span_count = SpanRecord.count
+
+        # Delete all spans first (they reference traces)
+        SpanRecord.delete_all
+        # Then delete all traces
+        TraceRecord.delete_all
+
+        respond_to do |format|
+          format.html do
+            redirect_to tracing_traces_path, notice: "Successfully deleted #{trace_count} trace(s) and #{span_count} span(s)"
+          end
+          format.json do
+            render json: {
+              message: "Successfully deleted #{trace_count} trace(s) and #{span_count} span(s)",
+              traces_deleted: trace_count,
+              spans_deleted: span_count
+            }
+          end
+        end
+      end
+
       private
 
       def set_trace

@@ -186,6 +186,20 @@ module RAAF
         end
       end
 
+      # POST /spans/destroy_all
+      # Deletes all spans from the database
+      def destroy_all
+        count = SpanRecord.count
+        SpanRecord.delete_all
+
+        respond_to do |format|
+          format.html do
+            redirect_to tracing_spans_path, notice: "Successfully deleted #{count} span(s)"
+          end
+          format.json { render json: { message: "Successfully deleted #{count} span(s)", count: count } }
+        end
+      end
+
       private
 
       def organize_spans_hierarchically(spans)

@@ -43,6 +43,9 @@ RAAF::Rails::Engine.routes.draw do
   # Tracing routes
   namespace :tracing do
     resources :traces do
+      collection do
+        post :destroy_all
+      end
       member do
         get :spans
         get :analytics
@@ -53,6 +56,7 @@ RAAF::Rails::Engine.routes.draw do
       collection do
         get :tools
         get :flows
+        post :destroy_all
       end
     end
     
