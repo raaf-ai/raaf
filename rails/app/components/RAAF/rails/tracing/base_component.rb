@@ -5,6 +5,7 @@ module RAAF
     module Tracing
       class BaseComponent < Phlex::HTML
         include Phlex::Rails::Helpers::LinkTo
+        include Phlex::Rails::Helpers::ButtonTo
         include Phlex::Rails::Helpers::TimeAgoInWords
         include Phlex::Rails::Helpers::Pluralize
         include Phlex::Rails::Helpers::Truncate
@@ -45,6 +46,14 @@ module RAAF
         def flows_tracing_spans_path(params = {})
           path = "/raaf/tracing/spans/flows"
           params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def destroy_all_tracing_spans_path
+          "/raaf/tracing/spans/destroy_all"
+        end
+
+        def destroy_all_tracing_traces_path
+          "/raaf/tracing/traces/destroy_all"
         end
 
         def dashboard_path
