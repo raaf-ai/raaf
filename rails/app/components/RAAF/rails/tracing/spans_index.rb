@@ -47,6 +47,13 @@ module RAAF
                 variant: "secondary",
                 icon: "bi-download"
               )
+              button_to(
+                "Clear All Spans",
+                destroy_all_tracing_spans_path,
+                method: :post,
+                data: { confirm: "Are you sure you want to delete all spans? This cannot be undone." },
+                class: "inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              )
             end
           end
         end
