@@ -99,7 +99,7 @@ module RAAF
     autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
     autoload :ToolBuilder, "raaf/dsl/builders/tool_builder"
     autoload :ToolDsl, "raaf/dsl/tool_dsl"
-    autoload :ToolRegistry, "raaf/dsl/core/tool_registry"
+    autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"  # Use comprehensive registry
     autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
     
     # Builder classes

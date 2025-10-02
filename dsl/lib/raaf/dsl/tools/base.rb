@@ -84,7 +84,7 @@ module RAAF
           return unless tool_name_value.present?
 
           tool_symbol = tool_name_value.to_sym
-          RAAF::DSL::ToolRegistry.register(tool_symbol, tool_class)
+          ToolRegistry.register(tool_symbol, tool_class)  # Use local ToolRegistry (RAAF::DSL::Tools::ToolRegistry)
           RAAF.logger.info "🔧 Auto-registered tool: #{tool_symbol} → #{tool_class.name}"
         rescue => e
           RAAF.logger.debug "Failed to auto-register tool #{tool_name_value}: #{e.message}"
