@@ -5,6 +5,7 @@ require_relative 'pipeline_dsl/parallel_agents'
 require_relative 'pipeline_dsl/configured_agent'
 require_relative 'pipeline_dsl/iterating_agent'
 require_relative 'pipeline_dsl/remapped_agent'
+require_relative 'pipeline_dsl/batched_agent'
 require_relative 'errors'
 
 module RAAF
@@ -248,6 +249,31 @@ module RAAF
             output_mapping: output_mapping,
             **default_options.merge(additional_options)
           )
+        end
+
+        # DSL method: Process data in chunks for large batch operations
+        #
+        # Wraps the agent/service with batching logic that processes large arrays
+        # in smaller chunks. This is especially useful for AI agents that have
+        # context window limitations or rate limits.
+        #
+        # @example Auto-detect array field
+        #   QuickFitAnalyzer.in_chunks_of(50)
+        #
+        # @example Explicit array field
+        #   DeepIntelligence.in_chunks_of(30, array_field: :companies)
+        #
+        # @example Multi-stage batching pipeline
+        #   flow CompanyDiscovery >>
+        #        QuickFitAnalyzer.in_chunks_of(50) >>
+        #        DeepIntelligence.in_chunks_of(30) >>
+        #        Scoring.in_chunks_of(50)
+        #
+        # @param chunk_size [Integer] Size of each chunk to process
+        # @param array_field [Symbol, nil] Optional explicit array field name
+        # @return [BatchedAgent] Batched execution wrapper
+        def in_chunks_of(chunk_size, array_field: nil)
+          PipelineDSL::BatchedAgent.new(self, chunk_size, array_field: array_field)
         end
 
         # Extract DSL configurations from agent class for use as pipeline defaults
