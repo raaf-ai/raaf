@@ -317,12 +317,13 @@ module RAAF
             case data
             when String
               begin
-                JSON.pretty_generate(JSON.parse(data))
+                parsed = JSON.parse(data)
+                format_json_with_depth_limit(parsed)
               rescue JSON::ParserError
                 data
               end
             when Hash, Array
-              JSON.pretty_generate(data)
+              format_json_with_depth_limit(data)
             else
               data.to_s
             end

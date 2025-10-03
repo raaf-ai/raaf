@@ -225,14 +225,38 @@ module RAAF
           when String
             begin
               parsed = JSON.parse(data)
-              compact ? JSON.generate(parsed) : JSON.pretty_generate(parsed)
+              format_json_with_depth_limit(parsed, compact)
             rescue JSON::ParserError
               data
             end
           when Hash, Array
-            compact ? JSON.generate(data) : JSON.pretty_generate(data)
+            format_json_with_depth_limit(data, compact)
           else
             data.to_s
+          end
+        end
+
+        def format_json_with_depth_limit(data, compact = false, max_depth = 100)
+          begin
+            compact ? JSON.generate(data, max_nesting: max_depth) : JSON.pretty_generate(data, max_nesting: max_depth)
+          rescue JSON::NestingError
+            # Truncate deeply nested structures and try again
+            truncated_data = truncate_deep_nesting(data, max_depth - 1)
+            result = compact ? JSON.generate(truncated_data) : JSON.pretty_generate(truncated_data)
+            "#{result}\n\n... (some deeply nested content truncated at depth #{max_depth})"
+          end
+        end
+
+        def truncate_deep_nesting(obj, max_depth, current_depth = 0)
+          return "[TRUNCATED: max depth reached]" if current_depth >= max_depth
+
+          case obj
+          when Hash
+            obj.transform_values { |v| truncate_deep_nesting(v, max_depth, current_depth + 1) }
+          when Array
+            obj.map { |item| truncate_deep_nesting(item, max_depth, current_depth + 1) }
+          else
+            obj
           end
         end
 

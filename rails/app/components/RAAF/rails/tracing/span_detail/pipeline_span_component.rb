@@ -534,7 +534,20 @@ module RAAF
           end
 
           def final_result
-            @final_result ||= @span.span_attributes&.dig("result.final_result") || {}
+            @final_result ||= begin
+              result = @span.span_attributes&.dig("result.final_result")
+              # Ensure we always return a Hash or convert String to Hash
+              case result
+              when Hash
+                result
+              when String
+                { "result" => result }
+              when Array
+                { "items" => result }
+              else
+                result.present? ? { "value" => result.to_s } : {}
+              end
+            end
           end
 
           def execution_flow

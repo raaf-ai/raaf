@@ -169,8 +169,7 @@ module RAAF
         def user_prompt_content
           @user_prompt_content ||= extract_span_attribute("agent.initial_user_prompt") ||
                                    extract_span_attribute("initial_user_prompt") ||
-                                   extract_span_attribute("user_prompt") ||
-                                   extract_dialogue_user_prompt
+                                   extract_span_attribute("user_prompt")
         end
 
         def extract_dialogue_system_prompt
