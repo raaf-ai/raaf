@@ -34,57 +34,64 @@ module RAAF
       # @raise [ArgumentError] If required fields are missing
       def build_auto_context(params, debug = nil)
         require_relative "core/context_builder"
-        
+
         # Detect duplicate context determination before building
         if self.class.respond_to?(:detect_duplicate_context_determination!)
           self.class.detect_duplicate_context_determination!
         end
-        
+
         rules = self.class._context_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
-        
+
+        # Ensure params has indifferent access for key checking throughout this method
+        params_with_indifferent_access = params.is_a?(ActiveSupport::HashWithIndifferentAccess) ?
+                                          params :
+                                          params.with_indifferent_access
+
         # Validate required fields are provided
         if rules[:required]
-          missing_required = rules[:required] - params.keys
+          missing_required = rules[:required].select { |field| !params_with_indifferent_access.key?(field) }
           if missing_required.any?
             raise ArgumentError, "Missing required context fields: #{missing_required.inspect}"
           end
         end
-        
+
         # Add provided parameters (with exclusion/inclusion rules)
         params.each do |key, value|
           # Apply exclusion rules
           next if rules[:exclude]&.include?(key)
           next if rules[:include]&.any? && !rules[:include].include?(key)
-          
+
           # Check for custom preparation method
           if respond_to?("prepare_#{key}_for_context", true)
             value = send("prepare_#{key}_for_context", value)
           end
-          
+
           builder.with(key, value)
         end
-        
+
         # Add optional fields with defaults (new DSL)
         if rules[:optional]
           rules[:optional].each do |key, default_value|
-            next if builder.context.key?(key) # Don't override provided values
-            
-            final_value = default_value.is_a?(Proc) ? default_value.call : default_value
-            builder.with(key, final_value)
+            # Only set default if the key wasn't provided in params (use indifferent access)
+            unless params_with_indifferent_access.key?(key)
+              final_value = default_value.is_a?(Proc) ? default_value.call : default_value
+              builder.with(key, final_value)
+            end
           end
         end
-        
+
         # Apply legacy defaults for backward compatibility
         if rules[:defaults]
           rules[:defaults].each do |key, default_value|
-            next if builder.context.key?(key) # Don't override provided values
-            
+            # Don't override provided values (use indifferent access)
+            next if params_with_indifferent_access.key?(key)
+
             final_value = default_value.is_a?(Proc) ? default_value.call : default_value
             builder.with(key, final_value)
           end
         end
-        
+
         # Apply computed fields if configured
         if rules[:computed]
           rules[:computed].each do |field_name, method_name|
@@ -94,7 +101,7 @@ module RAAF
             end
           end
         end
-        
+
         RAAF::DSL::ContextVariables.new(builder.context.to_h, debug: debug)
       end
       
@@ -153,12 +160,18 @@ module RAAF
       # @raise [ArgumentError] If required fields are missing or validation fails
       def validate_context!(context = @context)
         return unless self.class._context_config && self.class._context_config[:context_rules]
-        
+
         rules = self.class._context_config[:context_rules]
-        
-        # Check required fields
+
+        # Ensure context has indifferent access for consistent key checking
+        context_hash = context.respond_to?(:to_h) ? context.to_h : context
+        context_with_indifferent_access = context_hash.is_a?(ActiveSupport::HashWithIndifferentAccess) ?
+                                           context_hash :
+                                           context_hash.with_indifferent_access
+
+        # Check required fields using indifferent access
         if rules[:required]
-          missing_keys = rules[:required].reject { |key| context.has?(key) }
+          missing_keys = rules[:required].reject { |key| context_with_indifferent_access.key?(key) }
           if missing_keys.any?
             raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
           end
@@ -167,10 +180,10 @@ module RAAF
         # Run validation rules if configured
         if rules[:validations]
           rules[:validations].each do |key, validation_config|
-            next unless context.has?(key)
-            
-            value = context.get(key)
-            
+            next unless context_with_indifferent_access.key?(key)
+
+            value = context_with_indifferent_access[key]
+
             # Type validation
             if validation_config[:type]
               expected_type = validation_config[:type]
@@ -178,7 +191,7 @@ module RAAF
                 raise ArgumentError, "Context key '#{key}' must be #{expected_type}, got #{value.class}"
               end
             end
-            
+
             # Custom validation proc
             if validation_config[:proc]
               validation_proc = validation_config[:proc]

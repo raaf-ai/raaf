@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'thread'
+require_relative 'pipeline_failure_error'
 
 module RAAF
   module DSL
@@ -37,24 +38,19 @@ module RAAF
         
         # Parallel execution: Create thread for each agent, merge results
         # Field merging strategy: Union of all agent results (last writer wins for conflicts)
-        # Error handling: Individual agent failures don't stop other agents
+        # Error handling: Any failure in parallel agents stops the entire pipeline
         def execute(context)
           results = @agents.map do |agent|
             Thread.new do
-              begin
-                execute_single(agent, context.dup)  # Each agent gets own context copy
-              rescue => e
-                RAAF.logger.error "Error in parallel agent #{agent_name(agent)}: #{e.message}"
-                {}  # Return empty hash on failure to avoid breaking merge
-              end
+              execute_single(agent, context.dup)  # Each agent gets own context copy
             end
           end.map(&:value)
-          
+
           # Merge all results into context - field conflicts resolved by last writer wins
           results.each do |result|
             context.merge!(result) if result.is_a?(Hash)
           end
-          
+
           context
         end
         
@@ -115,10 +111,16 @@ module RAAF
           when Class
             return {} unless agent.respond_to?(:requirements_met?)
             return {} unless agent.requirements_met?(context)
-            
+
             agent_instance = agent.new(context: context)
             result = agent_instance.run
-            
+
+            # Check for failure in result - propagate immediately if agent failed
+            if result.is_a?(Hash) && result.key?(:success) && result[:success] == false
+              agent_name = agent.respond_to?(:agent_name) ? agent.agent_name : agent.name
+              raise PipelineFailureError.new(agent_name, result)
+            end
+
             # Extract only the provided fields
             provided_data = {}
             if agent.respond_to?(:provided_fields)
@@ -126,7 +128,7 @@ module RAAF
                 provided_data[field] = result[field] if result.respond_to?(:[]) && result[field]
               end
             end
-            
+
             provided_data
           else
             {}

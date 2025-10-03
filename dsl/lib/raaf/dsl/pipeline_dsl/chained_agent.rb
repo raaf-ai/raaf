@@ -3,6 +3,7 @@
 require 'ostruct'
 require 'securerandom'
 require_relative 'field_mismatch_error'
+require_relative 'pipeline_failure_error'
 
 module RAAF
   module DSL
@@ -189,6 +190,8 @@ module RAAF
             part.execute(context, agent_results)
           when RemappedAgent
             part.execute(context, agent_results)
+          when BatchedAgent
+            part.execute(context, agent_results)
           when Class
             execute_single_agent(part, context, agent_results)
           when Symbol
@@ -291,6 +294,11 @@ module RAAF
             result = agent.call
           else
             result = agent.run
+          end
+
+          # Check for failure in result - propagate immediately if agent failed
+          if result.is_a?(Hash) && result.key?(:success) && result[:success] == false
+            raise PipelineFailureError.new(agent_name, result)
           end
 
           # Collect agent result for auto-merge if agent_results array provided
