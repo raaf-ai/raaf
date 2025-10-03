@@ -7,6 +7,7 @@ require_relative "../pipelineable"
 require_relative "../context_access"
 require_relative "../hooks/hook_context"
 require_relative "../agent"
+require_relative "pipeline_failure_error"
 
 module RAAF
   # New Pipeline base class for elegant DSL
@@ -219,23 +220,40 @@ module RAAF
         validate_pipeline!
       end
 
-      # Update @context with accumulated data from agents
-      @context = execute_chain(@flow, @context)
+      begin
+        # Update @context with accumulated data from agents
+        @context = execute_chain(@flow, @context)
 
-      # Auto-merge all agent results intelligently
-      merged_result = auto_merge_results(@agent_results)
+        # Auto-merge all agent results intelligently
+        merged_result = auto_merge_results(@agent_results)
 
-      # Execute on_end hook if defined and capture modified result
-      if self.class.on_end_block
-        merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)
+        # Execute on_end hook if defined and capture modified result
+        if self.class.on_end_block
+          merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)
+        end
+
+        # Ensure success flag is present
+        merged_result[:success] = true unless merged_result.key?(:success)
+
+        # Sanitize the result to ensure it's serializable and free of circular references
+        # This converts ActiveRecord objects to plain hashes and maintains HashWithIndifferentAccess
+        sanitize_result(merged_result)
+
+      rescue RAAF::DSL::PipelineDSL::PipelineFailureError => e
+        # Pipeline failed - return structured error result
+        RAAF.logger.error "Pipeline #{pipeline_name} failed at agent '#{e.agent_name}': #{e.error_message}"
+
+        error_result = ActiveSupport::HashWithIndifferentAccess.new({
+          success: false,
+          error: e.error_message,
+          error_type: e.error_type || "pipeline_failure",
+          failed_at: e.agent_name,
+          pipeline: pipeline_name,
+          full_error_details: e.full_result
+        })
+
+        sanitize_result(error_result)
       end
-
-      # Ensure success flag is present
-      merged_result[:success] = true unless merged_result.key?(:success)
-
-      # Sanitize the result to ensure it's serializable and free of circular references
-      # This converts ActiveRecord objects to plain hashes and maintains HashWithIndifferentAccess
-      sanitize_result(merged_result)
     end
 
     # Get pipeline name for span creation
@@ -562,6 +580,12 @@ module RAAF
         instance.run
       end
 
+      # Check for failure in result - propagate immediately if agent/service failed
+      if result.is_a?(Hash) && result.key?(:success) && result[:success] == false
+        agent_name = agent_class.respond_to?(:agent_name) ? agent_class.agent_name : agent_class.name
+        raise RAAF::DSL::PipelineDSL::PipelineFailureError.new(agent_name, result)
+      end
+
       # Merge provisions into context (for backward compatibility)
       if agent_class.respond_to?(:provided_fields)
         agent_class.provided_fields.each do |field|
@@ -623,6 +647,16 @@ module RAAF
       when DSL::PipelineDSL::RemappedAgent
         # For RemappedAgent, validate using the RemappedAgent itself (which handles field mapping)
         validate_single_stage(flow, tracker, errors)
+
+      when DSL::PipelineDSL::BatchedAgent
+        # BatchedAgent wraps a component and processes in chunks
+        # Validate the wrapped component
+        validate_flow_with_tracking(flow.wrapped_component, tracker, errors)
+
+      when DSL::PipelineDSL::IteratingAgent
+        # IteratingAgent wraps an agent and iterates over array
+        # Validate the wrapped agent class
+        validate_single_stage(flow.agent_class, tracker, errors)
 
       when Class
         validate_single_stage(flow, tracker, errors)
