@@ -295,13 +295,14 @@ module RAAF
         #
         # @note Uses Ruby's built-in JSON generation with max_nesting to handle complex objects
         # @note Gracefully falls back for circular references and non-JSON-serializable objects
-        def safe_value(value, max_depth: 5)
+        def safe_value(value, max_depth: 100)
           # Simply try to convert to JSON with max_nesting
           # This handles most cases automatically
           JSON.parse(JSON.generate(value, max_nesting: max_depth))
         rescue JSON::NestingError
-          # Hit max nesting - return a simple representation
-          "[Max nesting depth exceeded]"
+          # Hit max nesting - truncate deeply nested parts and try again
+          truncated = truncate_deep_nesting(value, max_depth - 1)
+          JSON.parse(JSON.generate(truncated))
         rescue SystemStackError
           # Circular reference detected
           "[Circular reference detected]"
@@ -317,6 +318,19 @@ module RAAF
             "[Hash with #{value.size} keys]"
           else
             "#{value.class.name}##{value.object_id}"
+          end
+        end
+
+        def truncate_deep_nesting(obj, max_depth, current_depth = 0)
+          return "[TRUNCATED: max depth reached]" if current_depth >= max_depth
+
+          case obj
+          when Hash
+            obj.transform_values { |v| truncate_deep_nesting(v, max_depth, current_depth + 1) }
+          when Array
+            obj.map { |item| truncate_deep_nesting(item, max_depth, current_depth + 1) }
+          else
+            obj
           end
         end
 
