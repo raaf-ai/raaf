@@ -249,50 +249,87 @@ result = cohere.chat_completion(
 
 Perplexity AI provides **web-grounded search** with automatic citations, making it ideal for research tasks requiring real-time information and source attribution.
 
-#### Basic Usage
+#### Basic Usage with RAAF DSL
 
 ```ruby
+# Define a search agent using RAAF DSL (recommended approach)
+class RubySearchAgent < RAAF::DSL::Agent
+  instructions "Search for Ruby programming information with citations"
+  model "sonar-pro"
+  provider :perplexity  # Automatic provider detection
+
+  schema do
+    field :content, type: :string, required: true
+    field :citations, type: :array, required: true
+    field :sources, type: :array, required: true
+  end
+end
+
+# Use the agent
+agent = RubySearchAgent.new
+result = agent.run("Latest Ruby news")
+
+# Access citations and sources
+puts "Content: #{result[:content]}"
+puts "Citations: #{result[:citations]}"
+result[:sources].each do |source|
+  puts "- #{source[:title]}: #{source[:url]}"
+end
+```
+
+#### Alternative: Direct Provider Usage
+
+```ruby
+# Lower-level API for advanced use cases
 perplexity = RAAF::Models::PerplexityProvider.new(
   api_key: ENV['PERPLEXITY_API_KEY']
 )
 
-# Web-grounded search with citations
 result = perplexity.chat_completion(
   messages: [{ role: "user", content: "Latest Ruby news" }],
   model: "sonar-pro"
 )
-
-# Access citations and sources
-puts "Citations: #{result['citations']}"
-puts "Web results: #{result['web_results']}"
 ```
 
 #### Available Models
 
 ```ruby
 # sonar - Fast web search (best for quick queries)
-perplexity.chat_completion(
-  messages: [{ role: "user", content: "Ruby 3.4 features" }],
-  model: "sonar"
-)
+class QuickSearchAgent < RAAF::DSL::Agent
+  instructions "Quick web search"
+  model "sonar"
+  provider :perplexity
+end
 
 # sonar-pro - Advanced search with structured output support
-perplexity.chat_completion(
-  messages: [{ role: "user", content: "Compare Ruby vs Python performance" }],
-  model: "sonar-pro"
-)
+class AdvancedSearchAgent < RAAF::DSL::Agent
+  instructions "Advanced search with structured results"
+  model "sonar-pro"
+  provider :perplexity
+
+  schema do
+    field :results, type: :array, required: true
+  end
+end
 
 # sonar-reasoning - Deep reasoning with web search
-perplexity.chat_completion(
-  messages: [{ role: "user", content: "Analyze trends in Ruby development" }],
-  model: "sonar-reasoning"
-)
+class ReasoningSearchAgent < RAAF::DSL::Agent
+  instructions "Deep reasoning with web-grounded information"
+  model "sonar-reasoning"
+  provider :perplexity
+end
 
 # sonar-reasoning-pro - Premium reasoning with structured output
-perplexity.chat_completion(
-  messages: [{ role: "user", content: "Technical analysis of Rails 8" }],
-  model: "sonar-reasoning-pro"
-)
+class PremiumReasoningAgent < RAAF::DSL::Agent
+  instructions "Premium reasoning with structured analysis"
+  model "sonar-reasoning-pro"
+  provider :perplexity
+
+  schema do
+    field :analysis, type: :string, required: true
+    field :evidence, type: :array, required: true
+  end
+end
 ```
 
 #### Structured Output with JSON Schema
@@ -300,76 +337,9 @@ perplexity.chat_completion(
 **Only available on `sonar-pro` and `sonar-reasoning-pro` models:**
 
 ```ruby
-# Define structured schema
-schema = {
-  type: "object",
-  properties: {
-    news_items: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          summary: { type: "string" },
-          date: { type: "string" }
-        },
-        required: ["title", "summary"]
-      }
-    },
-    total: { type: "integer" },
-    sources: { type: "array" }
-  },
-  required: ["news_items", "total"]
-}
-
-result = perplexity.chat_completion(
-  messages: [{ role: "user", content: "Find top 3 Ruby news items from this month" }],
-  model: "sonar-pro",
-  response_format: schema
-)
-
-# Result automatically parsed to match schema
-puts result[:news_items].first[:title]
-puts result[:total]
-```
-
-#### Web Search Filtering
-
-```ruby
-# Domain filtering - restrict to specific websites
-result = perplexity.chat_completion(
-  messages: [{ role: "user", content: "Ruby updates" }],
-  model: "sonar",
-  web_search_options: {
-    search_domain_filter: ["ruby-lang.org", "github.com/rails"],
-    search_recency_filter: "week"
-  }
-)
-
-# Recency filtering options:
-# - "hour" - Last hour
-# - "day" - Last 24 hours
-# - "week" - Last 7 days
-# - "month" - Last 30 days
-# - "year" - Last 365 days
-
-# Combine filters for precise results
-result = perplexity.chat_completion(
-  messages: [{ role: "user", content: "Ruby security advisories" }],
-  model: "sonar-pro",
-  web_search_options: {
-    search_domain_filter: ["ruby-lang.org", "github.com"],
-    search_recency_filter: "month"
-  }
-)
-```
-
-#### RAAF DSL Integration
-
-```ruby
-# Use Perplexity in DSL agents
-class RubyNewsAgent < RAAF::DSL::Agent
-  instructions "Search for recent Ruby programming news"
+# Define agent with structured schema using RAAF DSL
+class RubyNewsSearchAgent < RAAF::DSL::Agent
+  instructions "Search for recent Ruby programming news and structure the results"
   model "sonar-pro"
   provider :perplexity
 
@@ -378,19 +348,129 @@ class RubyNewsAgent < RAAF::DSL::Agent
       field :title, type: :string, required: true
       field :summary, type: :string, required: true
       field :url, type: :string, required: true
+      field :date, type: :string, required: true
     end
     field :total, type: :integer, required: true
+    field :sources, type: :array, required: true
   end
 end
 
-# Run with automatic provider
-agent = RubyNewsAgent.new
-runner = RAAF::Runner.new(agent: agent)
-result = runner.run("Find latest Ruby 3.4 news")
+# Use the agent
+agent = RubyNewsSearchAgent.new
+result = agent.run("Find top 3 Ruby news items from this month")
 
-# Access structured results
+# Access structured data
+puts "Found #{result[:total]} items"
 result[:news_items].each do |item|
-  puts "#{item[:title]}: #{item[:url]}"
+  puts "#{item[:title]}: #{item[:url]} (#{item[:date]})"
+end
+```
+
+#### Web Search Filtering with DSL
+
+```ruby
+# Domain filtering - restrict to specific websites
+class OfficialRubyNewsAgent < RAAF::DSL::Agent
+  instructions "Search official Ruby sources for updates"
+  model "sonar"
+  provider :perplexity
+
+  # Configure web search options
+  provider_options(
+    web_search_options: {
+      search_domain_filter: ["ruby-lang.org", "github.com/rails"],
+      search_recency_filter: "week"
+    }
+  )
+end
+
+# Recency filtering options:
+# - "hour" - Last hour
+# - "day" - Last 24 hours
+# - "week" - Last 7 days
+# - "month" - Last 30 days
+# - "year" - Last 365 days
+
+# Security-focused agent with combined filters
+class RubySecurityAgent < RAAF::DSL::Agent
+  instructions "Search for Ruby security advisories and vulnerabilities"
+  model "sonar-pro"
+  provider :perplexity
+
+  provider_options(
+    web_search_options: {
+      search_domain_filter: ["ruby-lang.org", "github.com", "cve.org"],
+      search_recency_filter: "month"
+    }
+  )
+
+  schema do
+    field :advisories, type: :array, required: true do
+      field :title, type: :string, required: true
+      field :severity, type: :string, required: true
+      field :description, type: :string, required: true
+    end
+  end
+end
+
+# Use the security agent
+agent = RubySecurityAgent.new
+result = agent.run("Latest Ruby security vulnerabilities")
+result[:advisories].each do |advisory|
+  puts "#{advisory[:severity]}: #{advisory[:title]}"
+end
+```
+
+#### Complete DSL Integration Example
+
+```ruby
+# Full-featured Perplexity agent with all capabilities
+class ComprehensiveRubyResearchAgent < RAAF::DSL::Agent
+  instructions <<~PROMPT
+    Search for Ruby programming information with comprehensive details.
+    Provide structured results with citations and recent sources.
+  PROMPT
+
+  model "sonar-pro"
+  provider :perplexity
+
+  # Configure search filters
+  provider_options(
+    web_search_options: {
+      search_domain_filter: ["ruby-lang.org", "github.com", "rubygems.org"],
+      search_recency_filter: "week"
+    }
+  )
+
+  # Define structured output
+  schema do
+    field :news_items, type: :array, required: true do
+      field :title, type: :string, required: true
+      field :summary, type: :string, required: true
+      field :url, type: :string, required: true
+      field :date, type: :string, required: true
+      field :source, type: :string, required: true
+    end
+    field :total, type: :integer, required: true
+    field :search_query, type: :string, required: true
+  end
+end
+
+# Use the agent (no explicit provider needed - automatic detection)
+agent = ComprehensiveRubyResearchAgent.new
+result = agent.run("Find latest Ruby 3.4 news")
+
+# Access structured results with citations
+puts "Search query: #{result[:search_query]}"
+puts "Found #{result[:total]} items\n\n"
+
+result[:news_items].each do |item|
+  puts "#{item[:title]}"
+  puts "  Source: #{item[:source]}"
+  puts "  Date: #{item[:date]}"
+  puts "  URL: #{item[:url]}"
+  puts "  Summary: #{item[:summary]}"
+  puts
 end
 ```
 
@@ -401,118 +481,144 @@ Perplexity works best with **search-optimized prompts**. Follow these best pract
 ##### 1. Be Specific and Contextual
 
 ```ruby
-# ❌ BAD: Too generic
-result = perplexity.chat_completion(
-  messages: [{ role: "user", content: "Tell me about climate models" }],
-  model: "sonar"
-)
+# ❌ BAD: Too generic agent
+class GenericSearchAgent < RAAF::DSL::Agent
+  instructions "Search for information"
+  model "sonar"
+  provider :perplexity
+end
 
-# ✅ GOOD: Specific with context
-result = perplexity.chat_completion(
-  messages: [{
-    role: "user",
-    content: "Explain recent advances in climate prediction models for urban planning"
-  }],
-  model: "sonar"
-)
+agent = GenericSearchAgent.new
+result = agent.run("Tell me about climate models")
+
+# ✅ GOOD: Specific with context (add 2-3 extra words)
+class ClimateResearchAgent < RAAF::DSL::Agent
+  instructions "Search for recent advances in climate science with specific applications"
+  model "sonar"
+  provider :perplexity
+end
+
+agent = ClimateResearchAgent.new
+result = agent.run("Explain recent advances in climate prediction models for urban planning")
 ```
 
 ##### 2. Structure Prompts Like Web Searches
 
 ```ruby
-# ✅ Think like a search user
-prompts = [
+# ✅ Think like a search user - structured like search queries
+class SearchOptimizedAgent < RAAF::DSL::Agent
+  instructions "Search using web-search-optimized query structure"
+  model "sonar"
+  provider :perplexity
+end
+
+agent = SearchOptimizedAgent.new
+
+# Search-optimized prompts (specific, keyword-focused)
+search_queries = [
   "Latest Ruby on Rails security vulnerabilities 2024",
   "Best practices Ruby microservices architecture",
   "Compare Rails 7 vs Rails 8 performance benchmarks"
 ]
 
-prompts.each do |prompt|
-  result = perplexity.chat_completion(
-    messages: [{ role: "user", content: prompt }],
-    model: "sonar"
-  )
+search_queries.each do |query|
+  result = agent.run(query)
   puts result[:content]
+  puts "---"
 end
 ```
 
 ##### 3. Use System Prompts for Style/Tone
 
 ```ruby
-# Set style with system prompt
-result = perplexity.chat_completion(
-  messages: [
-    { role: "system", content: "Provide clear, concise, expert-level technical information" },
-    { role: "user", content: "Ruby 3.4 performance improvements" }
-  ],
-  model: "sonar-pro"
-)
+# Set style with instructions (system prompt equivalent in DSL)
+class ExpertTechnicalAgent < RAAF::DSL::Agent
+  instructions "Provide clear, concise, expert-level technical information"
+  model "sonar-pro"
+  provider :perplexity
+end
+
+agent = ExpertTechnicalAgent.new
+result = agent.run("Ruby 3.4 performance improvements")
 ```
 
 ##### 4. Prevent Hallucinations
 
 ```ruby
 # Include explicit instructions about limitations
-result = perplexity.chat_completion(
-  messages: [{
-    role: "user",
-    content: <<~PROMPT
-      Find information about Ruby 4.0 roadmap.
+class FactualResearchAgent < RAAF::DSL::Agent
+  instructions <<~PROMPT
+    Search for factual information with these requirements:
+    - If information is not available or uncertain, clearly state that
+    - Only use publicly accessible sources
+    - Acknowledge when information is limited or unavailable
+  PROMPT
 
-      If information is not available or uncertain, clearly state that.
-      Only use publicly accessible sources.
-      Acknowledge when information is limited or unavailable.
-    PROMPT
-  }],
-  model: "sonar-pro"
-)
+  model "sonar-pro"
+  provider :perplexity
+end
+
+agent = FactualResearchAgent.new
+result = agent.run("Find information about Ruby 4.0 roadmap")
 ```
 
 ##### 5. Single-Topic Focus
 
 ```ruby
-# ❌ BAD: Multiple unrelated topics
-result = perplexity.chat_completion(
-  messages: [{
-    role: "user",
-    content: "Tell me about Ruby performance, Rails security, and Python comparisons"
-  }],
-  model: "sonar"
-)
+# ❌ BAD: Multiple unrelated topics in one agent
+class MultiTopicAgent < RAAF::DSL::Agent
+  instructions "Search for multiple topics"
+  model "sonar"
+  provider :perplexity
+end
 
-# ✅ GOOD: One focused topic
-result = perplexity.chat_completion(
-  messages: [{
-    role: "user",
-    content: "Ruby vs Python performance benchmarks for web applications"
-  }],
-  model: "sonar"
-)
+agent = MultiTopicAgent.new
+result = agent.run("Tell me about Ruby performance, Rails security, and Python comparisons")
+
+# ✅ GOOD: One focused topic per agent
+class PerformanceComparisonAgent < RAAF::DSL::Agent
+  instructions "Compare programming language performance for web applications"
+  model "sonar"
+  provider :perplexity
+end
+
+agent = PerformanceComparisonAgent.new
+result = agent.run("Ruby vs Python performance benchmarks for web applications")
 ```
 
 ##### 6. Never Request URLs in Prompts
 
 ```ruby
 # ❌ BAD: Requesting URLs directly
-result = perplexity.chat_completion(
-  messages: [{
-    role: "user",
-    content: "Find URLs for Ruby documentation"
-  }],
-  model: "sonar"
-)
+class URLSearchAgent < RAAF::DSL::Agent
+  instructions "Find URLs for documentation"
+  model "sonar"
+  provider :perplexity
+end
 
-# ✅ GOOD: Use search_results field for source information
-result = perplexity.chat_completion(
-  messages: [{
-    role: "user",
-    content: "Ruby 3.4 documentation and guides"
-  }],
-  model: "sonar"
-)
+agent = URLSearchAgent.new
+result = agent.run("Find URLs for Ruby documentation")
 
-# Access sources programmatically
-result[:web_results].each do |source|
+# ✅ GOOD: Search for content and extract URLs from schema
+class DocumentationSearchAgent < RAAF::DSL::Agent
+  instructions "Search for documentation and guides"
+  model "sonar"
+  provider :perplexity
+
+  schema do
+    field :results, type: :array, required: true do
+      field :title, type: :string, required: true
+      field :url, type: :string, required: true
+      field :description, type: :string, required: true
+    end
+  end
+end
+
+agent = DocumentationSearchAgent.new
+result = agent.run("Ruby 3.4 documentation and guides")
+
+# Access sources programmatically from structured output
+result[:results].each do |source|
   puts "#{source[:title]}: #{source[:url]}"
 end
 ```
@@ -520,79 +626,121 @@ end
 ##### 7. Use Built-in Parameters Instead of Prompt Instructions
 
 ```ruby
-# ❌ BAD: Using prompt to filter
-result = perplexity.chat_completion(
-  messages: [{
-    role: "user",
-    content: "Search only ruby-lang.org for Ruby news from this week"
-  }],
-  model: "sonar"
-)
+# ❌ BAD: Using prompt to specify filters
+class PromptFilterAgent < RAAF::DSL::Agent
+  instructions "Search only specific domains"
+  model "sonar"
+  provider :perplexity
+end
 
-# ✅ GOOD: Use API parameters
-result = perplexity.chat_completion(
-  messages: [{ role: "user", content: "Ruby news" }],
-  model: "sonar",
-  web_search_options: {
-    search_domain_filter: ["ruby-lang.org"],
-    search_recency_filter: "week"
-  }
-)
+agent = PromptFilterAgent.new
+result = agent.run("Search only ruby-lang.org for Ruby news from this week")
+
+# ✅ GOOD: Use provider_options for filters
+class FilteredNewsAgent < RAAF::DSL::Agent
+  instructions "Search for Ruby news with domain and recency filters"
+  model "sonar"
+  provider :perplexity
+
+  provider_options(
+    web_search_options: {
+      search_domain_filter: ["ruby-lang.org"],
+      search_recency_filter: "week"
+    }
+  )
+end
+
+agent = FilteredNewsAgent.new
+result = agent.run("Ruby news")
 ```
 
 #### Advanced Perplexity Patterns
 
-##### Research Pipeline
+##### Research Pipeline with DSL Agents
 
 ```ruby
-# Multi-stage research with Perplexity
+# Multi-stage research pipeline using DSL agents
 class ResearchPipeline
-  def initialize
-    @perplexity = RAAF::Models::PerplexityProvider.new(
-      api_key: ENV['PERPLEXITY_API_KEY']
+  # Stage 1: Overview agent (broad search)
+  class OverviewAgent < RAAF::DSL::Agent
+    instructions "Search for overview and recent developments"
+    model "sonar-pro"
+    provider :perplexity
+
+    provider_options(
+      web_search_options: { search_recency_filter: "week" }
     )
+
+    schema do
+      field :overview, type: :string, required: true
+      field :key_points, type: :array, required: true
+    end
+  end
+
+  # Stage 2: Technical details agent (authoritative sources)
+  class TechnicalAgent < RAAF::DSL::Agent
+    instructions "Search for technical details and implementation information"
+    model "sonar-pro"
+    provider :perplexity
+
+    provider_options(
+      web_search_options: { search_recency_filter: "month" }
+    )
+
+    schema do
+      field :technical_details, type: :string, required: true
+      field :implementation_notes, type: :array, required: true
+    end
+  end
+
+  # Stage 3: Expert opinions agent (specific domains)
+  class ExpertOpinionAgent < RAAF::DSL::Agent
+    instructions "Search expert analysis and best practices from authoritative sources"
+    model "sonar-pro"
+    provider :perplexity
+
+    provider_options(
+      web_search_options: {
+        search_domain_filter: ["thoughtworks.com", "martinfowler.com", "ruby-lang.org"],
+        search_recency_filter: "month"
+      }
+    )
+
+    schema do
+      field :expert_opinions, type: :array, required: true do
+        field :source, type: :string, required: true
+        field :opinion, type: :string, required: true
+      end
+    end
   end
 
   def research(topic)
-    # Stage 1: Broad search
-    overview = search("#{topic} overview recent developments")
-
-    # Stage 2: Specific details from top sources
-    details = search(
-      "#{topic} technical details implementation",
-      recency: "month"
-    )
-
-    # Stage 3: Expert opinions
-    opinions = search(
-      "#{topic} expert analysis best practices",
-      domains: ["thoughtworks.com", "martinfowler.com"]
-    )
+    # Execute three-stage research pipeline
+    overview_result = OverviewAgent.new.run("#{topic} overview recent developments")
+    technical_result = TechnicalAgent.new.run("#{topic} technical details implementation")
+    expert_result = ExpertOpinionAgent.new.run("#{topic} expert analysis best practices")
 
     {
-      overview: overview,
-      details: details,
-      opinions: opinions
+      overview: overview_result,
+      technical_details: technical_result,
+      expert_opinions: expert_result
     }
-  end
-
-  private
-
-  def search(query, recency: "week", domains: nil)
-    options = { search_recency_filter: recency }
-    options[:search_domain_filter] = domains if domains
-
-    @perplexity.chat_completion(
-      messages: [{ role: "user", content: query }],
-      model: "sonar-pro",
-      web_search_options: options
-    )
   end
 end
 
 # Usage
 pipeline = ResearchPipeline.new
 results = pipeline.research("Ruby 3.4 YJIT improvements")
+
+puts "Overview: #{results[:overview][:overview]}"
+puts "\nKey Points:"
+results[:overview][:key_points].each { |point| puts "- #{point}" }
+
+puts "\nTechnical Details: #{results[:technical_details][:technical_details]}"
+puts "\nExpert Opinions:"
+results[:expert_opinions][:expert_opinions].each do |opinion|
+  puts "#{opinion[:source]}: #{opinion[:opinion]}"
+end
 ```
 
 ##### Fact-Checking Agent
