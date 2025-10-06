@@ -239,6 +239,12 @@ module RAAF
         instance_variables.each do |ivar|
           var_name = ivar.to_s.sub('@', '')
           next if var_name.start_with?('_') || %w[context context_variables].include?(var_name)
+
+          # Skip instance variables that have corresponding instance methods
+          # These are not context variables, they're regular attributes
+          next if self.class.method_defined?(var_name.to_sym) ||
+                  self.class.private_method_defined?(var_name.to_sym)
+
           keys << var_name.to_sym
         end
         
