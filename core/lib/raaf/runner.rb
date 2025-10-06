@@ -106,7 +106,9 @@ module RAAF
     def initialize(agent:, provider: nil, tracer: nil, parent_span: nil, disabled_tracing: false, stop_checker: nil,
                    context_manager: nil, context_config: nil, memory_manager: nil, http_timeout: nil, parent_component: nil)
       @agent = agent
-      @provider = provider || create_default_provider(http_timeout: http_timeout)
+      @provider = provider ||
+                  extract_provider_from_agent(agent) ||
+                  create_default_provider(http_timeout: http_timeout)
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @parent_span = parent_span
@@ -1780,6 +1782,22 @@ module RAAF
     # REMOVED: Custom context extraction and injection
     # The OpenAI agents framework handles context natively through structured outputs
     # and conversation continuity. The DSL should be a pure configuration layer.
+
+    ##
+    # Extract provider from agent if available
+    #
+    # @param agent [Object] The agent instance
+    # @return [Object, nil] Provider instance from agent or nil
+    #
+    def extract_provider_from_agent(agent)
+      return nil unless agent.respond_to?(:provider)
+
+      provider = agent.provider
+      return nil unless provider
+
+      log_debug "Using provider from agent: #{provider.class.name}"
+      provider
+    end
 
     ##
     # Create default provider with built-in retry capabilities

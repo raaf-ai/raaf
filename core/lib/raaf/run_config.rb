@@ -248,7 +248,8 @@ module RAAF
 
     def extract_model_params(kwargs)
       model_keys = %i[temperature max_tokens model top_p stop frequency_penalty
-                      presence_penalty user stream previous_response_id parallel_tool_calls]
+                      presence_penalty user stream previous_response_id parallel_tool_calls
+                      response_format]
 
       model_params = kwargs.slice(*model_keys)
 

@@ -65,6 +65,9 @@ module RAAF
       # @return [Boolean, nil] Whether to allow parallel tool calls
       attr_accessor :parallel_tool_calls
 
+      # @return [Hash, nil] Response format schema for structured output
+      attr_accessor :response_format
+
       def initialize(
         temperature: nil,
         max_tokens: nil,
@@ -77,6 +80,7 @@ module RAAF
         stream: false,
         previous_response_id: nil,
         parallel_tool_calls: nil,
+        response_format: nil,
         **model_kwargs
       )
         @temperature = temperature
@@ -91,6 +95,7 @@ module RAAF
         @model_kwargs = model_kwargs
         @previous_response_id = previous_response_id
         @parallel_tool_calls = parallel_tool_calls
+        @response_format = response_format
       end
 
       ##
@@ -101,7 +106,7 @@ module RAAF
       def to_model_params
         # Define parameters that should be included in model calls
         model_params = %i[temperature max_tokens top_p stop frequency_penalty presence_penalty user stream
-                          parallel_tool_calls]
+                          parallel_tool_calls response_format]
 
         # Use Ruby's send method for dynamic parameter mapping
         params = model_params.each_with_object({}) do |param, hash|
@@ -135,6 +140,8 @@ module RAAF
           user: other.user || user,
           stream: other.stream.nil? ? stream : other.stream,
           previous_response_id: other.previous_response_id || previous_response_id,
+          parallel_tool_calls: other.parallel_tool_calls.nil? ? parallel_tool_calls : other.parallel_tool_calls,
+          response_format: other.response_format || response_format,
           **model_kwargs.merge(other.model_kwargs || {})
         )
       end
@@ -156,7 +163,9 @@ module RAAF
           user: user,
           stream: stream,
           model_kwargs: model_kwargs,
-          previous_response_id: previous_response_id
+          previous_response_id: previous_response_id,
+          parallel_tool_calls: parallel_tool_calls,
+          response_format: response_format
         }
       end
 
