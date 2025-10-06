@@ -156,6 +156,70 @@ module RAAF
           end
         end
 
+        # Configure which provider to use for this agent
+        #
+        # @param provider_name [Symbol, String, nil] Short name of the provider
+        # @return [Symbol, nil] Current provider setting when called without parameters
+        #
+        # @example Explicit provider specification
+        #   class ClaudeAgent < RAAF::DSL::Agent
+        #     model "claude-3-5-sonnet-20241022"
+        #     provider :anthropic
+        #   end
+        #
+        # @example Auto-detection (default)
+        #   class GPTAgent < RAAF::DSL::Agent
+        #     model "gpt-4o"
+        #     # Provider auto-detected as :openai (ResponsesProvider)
+        #   end
+        #
+        def provider(provider_name = nil)
+          if provider_name
+            _context_config[:provider] = provider_name.to_sym
+          else
+            _context_config[:provider]
+          end
+        end
+
+        # Configure provider-specific options
+        #
+        # @param options [Hash] Options to pass to provider constructor
+        # @return [Hash] Current provider options when called without parameters
+        #
+        # @example Configure provider options
+        #   class ClaudeAgent < RAAF::DSL::Agent
+        #     provider :anthropic
+        #     provider_options api_key: ENV['CUSTOM_ANTHROPIC_KEY'], max_tokens: 4000
+        #   end
+        #
+        def provider_options(**options)
+          if options.any?
+            _context_config[:provider_options] = options
+          else
+            _context_config[:provider_options] || {}
+          end
+        end
+
+        # Enable or disable automatic provider detection from model name
+        #
+        # @param enabled [Boolean, nil] Whether to enable auto-detection
+        # @return [Boolean] Current auto-detection setting when called without parameters
+        #
+        # @example Disable auto-detection
+        #   class MyAgent < RAAF::DSL::Agent
+        #     model "gpt-4o"
+        #     auto_detect_provider false
+        #     # Will use Runner's default provider instead
+        #   end
+        #
+        def auto_detect_provider(enabled = nil)
+          if enabled.nil?
+            _context_config.fetch(:auto_detect_provider, true)
+          else
+            _context_config[:auto_detect_provider] = enabled
+          end
+        end
+
         def prompt_class(klass = nil)
           if klass
             _prompt_config[:class] = klass
@@ -877,7 +941,7 @@ module RAAF
         if @parent_component
           log_debug "Received parent_component: #{@parent_component.class.name}"
         end
-        
+
         # If context provided explicitly, use it (backward compatible)
         if context
           @context = build_context_from_param(context, @debug_enabled)
@@ -888,17 +952,21 @@ module RAAF
           # Auto-context disabled, empty context
           @context = RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
         end
-        
+
+        # Setup provider instance if configured
+        @provider = setup_provider
+
         validate_context!
         # setup_context_configuration  # REMOVED: Empty method causing method_missing conflicts
         # setup_logging_and_metrics    # REMOVED: Empty method causing method_missing conflicts
-        
+
         if @debug_enabled
           log_debug("Agent initialized",
                     agent_class: self.class.name,
                     context_size: @context.size,
                     context_keys: @context.keys.inspect,
                     auto_context: self.class.auto_context?,
+                    provider: @provider ? @provider.class.name : "none",
                     category: :context)
         end
       end
@@ -939,6 +1007,14 @@ module RAAF
       # Backward compatibility alias for run method
       def call(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+      end
+
+      # Public accessor for provider instance
+      #
+      # @return [Object, nil] The provider instance if configured
+      #
+      def provider
+        @provider
       end
 
       def handle_smart_error(error)
@@ -1106,8 +1182,9 @@ module RAAF
 
         if skip_retries || !has_smart_features?
           log_debug "🔍 [#{agent_name}] Using direct execution (no smart features)"
-          # Direct execution without retries/circuit breaker
-          direct_run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker)
+          # Direct execution without retries/circuit breaker, but still apply transformations
+          raaf_result = direct_run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker)
+          process_raaf_result(raaf_result)
         else
           log_debug "🔍 [#{agent_name}] Using smart execution with retries"
           # Smart execution with retries and circuit breaker
@@ -1970,6 +2047,7 @@ module RAAF
 
         # Create RAAF runner and delegate execution
         runner_params = { agent: openai_agent }
+        runner_params[:provider] = @provider if @provider  # Pass agent's provider if configured
         runner_params[:stop_checker] = stop_checker if stop_checker
         runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
         runner_params[:parent_component] = @parent_component if @parent_component
@@ -2318,38 +2396,86 @@ module RAAF
       # This enables natural Ruby assignment syntax: results = value
       def define_context_accessors(context_keys)
         context_keys.each do |key|
+          # Skip creating singleton accessor if instance method already exists
+          # This prevents shadowing real methods like 'provider', 'agent_name', etc.
+          if self.class.method_defined?(key) || self.class.private_method_defined?(key)
+            next
+          end
+
           # Remove any existing methods to avoid warnings (check if method exists first)
           begin
             singleton_class.remove_method(key) if singleton_class.method_defined?(key)
           rescue NameError
             # Method doesn't exist, which is fine
           end
-          
+
           begin
             singleton_class.remove_method("#{key}=") if singleton_class.method_defined?("#{key}=")
           rescue NameError
             # Method doesn't exist, which is fine
           end
-          
+
           # Define getter method
           define_singleton_method(key) do
             @context.get(key)
           end
-          
+
           # Define setter method
           define_singleton_method("#{key}=") do |value|
             @context = @context.set(key, value)
             value
           end
         end
-        
+
         # Track what we've defined for debugging
         @defined_context_keys = context_keys
       end
       
+      # Setup provider instance based on agent configuration
+      #
+      # @return [Object, nil] Provider instance or nil if not configured
+      #
+      def setup_provider
+        # Check if auto-detection is enabled (default: true)
+        auto_detect = self.class.auto_detect_provider
+
+        # Get explicit provider from configuration
+        provider_name = self.class.provider
+
+        # If no explicit provider and auto-detection enabled, detect from model
+        if provider_name.nil? && auto_detect
+          model_name = self.class.model
+          provider_name = RAAF::ProviderRegistry.detect(model_name) if model_name
+
+          if @debug_enabled && provider_name
+            log_debug("Auto-detected provider",
+                      model: model_name,
+                      provider: provider_name,
+                      category: :provider)
+          end
+        end
+
+        # If we have a provider name, create the instance
+        if provider_name
+          provider_opts = self.class.provider_options
+
+          begin
+            RAAF::ProviderRegistry.create(provider_name, **provider_opts)
+          rescue => e
+            log_error("Failed to create provider",
+                      provider: provider_name,
+                      error: e.message,
+                      category: :provider)
+            nil
+          end
+        else
+          nil  # No provider configured
+        end
+      end
+
       # Check if agent has any smart features configured
       def has_smart_features?
-        self.class._retry_config.present? || 
+        self.class._retry_config.present? ||
         self.class._circuit_breaker_config.present? ||
         self.class._required_context_keys.present? ||
         self.class._validation_rules.present?
@@ -2648,16 +2774,39 @@ module RAAF
           end
         end
 
-        if results.respond_to?(:final_output) && results.final_output
-          parse_ai_response(results.final_output)
-        elsif results.respond_to?(:messages) && results.messages.any?
-          parse_ai_response(results.messages.last[:content])
-        elsif results.respond_to?(:data)
-          results.data
-        else
-          log_warn "🤔 [#{self.class.name}] Could not extract result data"
-          { success: false, error: "Could not extract result data" }
+        # Handle RunResult objects from RAAF Core
+        if results.respond_to?(:final_output)
+          content = results.final_output
+          return parse_ai_response(content) if content && !content.to_s.empty?
         end
+
+        if results.respond_to?(:messages)
+          messages = results.messages
+          if messages && messages.respond_to?(:any?) && messages.any?
+            last_message = messages.last
+            content = last_message[:content] || last_message["content"]
+            return parse_ai_response(content) if content
+          end
+        end
+
+        # Handle Result objects with .data
+        if results.respond_to?(:data)
+          return results.data if results.data
+        end
+
+        # Fallback: if results is a RunResult with empty messages, try to extract from raw response
+        if defined?(RAAF::RunResult) && results.is_a?(RAAF::RunResult) && results.respond_to?(:to_h)
+          result_hash = results.to_h
+          # Try to get content from the hash representation
+          if result_hash[:messages]&.any?
+            content = result_hash[:messages].last[:content]
+            return parse_ai_response(content) if content
+          end
+        end
+
+        log_warn "🤔 [#{self.class.name}] Could not extract result data from #{results.class.name}"
+        log_debug "Result details: #{results.inspect[0..500]}" if @debug_enabled
+        { success: false, error: "Could not extract result data", transformation_metadata: {} }
       end
 
       def extract_hash_result(hash)

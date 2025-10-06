@@ -56,23 +56,92 @@ agent = RAAF::DSL::AgentBuilder.build do
   name "ResearchAgent"
   instructions "Research and analyze topics"
   model "gpt-4o"
-  
+
   # Add built-in tools
   use_web_search
   use_file_search
-  
+
   # Custom tool
   tool :analyze_sentiment do |text|
     # Sentiment analysis logic
     { sentiment: "positive", confidence: 0.85 }
   end
-  
+
   # Configuration
   config do
     max_tokens 1000
     temperature 0.7
   end
 end
+```
+
+## Provider Configuration
+
+**NEW:** RAAF DSL agents now support automatic provider detection and configuration using short names:
+
+```ruby
+# Automatic provider detection from model name (default)
+class GPTAgent < RAAF::DSL::Agent
+  agent_name "Assistant"
+  model "gpt-4o"  # Auto-detects :openai provider (ResponsesProvider)
+  static_instructions "You are a helpful assistant"
+end
+
+# Explicit provider with short name
+class ClaudeAgent < RAAF::DSL::Agent
+  agent_name "Claude Assistant"
+  model "claude-3-5-sonnet-20241022"
+  provider :anthropic  # Explicit provider specification
+  static_instructions "You are Claude, an AI assistant"
+end
+
+# Provider with custom options
+class CustomAgent < RAAF::DSL::Agent
+  agent_name "Custom Assistant"
+  provider :anthropic
+  provider_options api_key: ENV['CUSTOM_ANTHROPIC_KEY'], max_tokens: 4000
+end
+
+# Disable auto-detection (use Runner's default provider)
+class NoProviderAgent < RAAF::DSL::Agent
+  agent_name "Default Provider Agent"
+  model "gpt-4o"
+  auto_detect_provider false  # Won't auto-detect provider
+end
+
+# Usage - provider is automatically used
+agent = ClaudeAgent.new
+runner = RAAF::Runner.new(agent: agent)  # Uses AnthropicProvider automatically
+result = runner.run("Hello!")
+```
+
+### Provider Short Names
+
+- `:openai` - OpenAI ResponsesProvider (auto-detected for gpt-*, o1-*, o3-*)
+- `:anthropic` - Anthropic Claude (auto-detected for claude-*)
+- `:cohere` - Cohere (auto-detected for command-*)
+- `:groq` - Groq (auto-detected for mixtral-*, llama-*, gemma-*)
+- `:perplexity` - Perplexity (auto-detected for sonar-*)
+- `:together` - Together AI
+- `:litellm` - LiteLLM (universal provider)
+
+### Provider Precedence
+
+1. **Explicit provider at Runner level** (highest priority)
+2. **Agent's explicit provider** (via `provider :name`)
+3. **Auto-detected provider** (from model name)
+4. **Runner's default provider** (ResponsesProvider)
+
+```ruby
+agent = ClaudeAgent.new  # Has :anthropic provider
+
+# Agent's provider used
+runner1 = RAAF::Runner.new(agent: agent)
+# Uses AnthropicProvider from agent
+
+# Explicit provider overrides agent's provider
+runner2 = RAAF::Runner.new(agent: agent, provider: RAAF::Models::GroqProvider.new)
+# Uses GroqProvider (explicit override)
 ```
 
 ## Tool DSL
