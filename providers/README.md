@@ -38,6 +38,11 @@ RAAF (Ruby AI Agents Factory) Providers extends the provider interfaces from `ra
 - **Features**: High-speed inference, streaming
 - **API**: Chat Completions API
 
+### Perplexity
+- **Models**: Sonar, Sonar Pro, Sonar Reasoning Pro, Sonar Deep Research
+- **Features**: Web-grounded search, citations, JSON schema support
+- **API**: Chat Completions API with web search
+
 ### Mistral
 - **Models**: Mistral 7B, Mistral 8x7B, Mistral Large
 - **Features**: Chat completions, function calling
@@ -239,6 +244,54 @@ result = cohere.chat_completion(
   ]
 )
 ```
+
+### Perplexity Features
+
+```ruby
+perplexity = RAAF::Models::PerplexityProvider.new(
+  api_key: ENV['PERPLEXITY_API_KEY']
+)
+
+# Web-grounded search with citations
+result = perplexity.chat_completion(
+  messages: [{ role: "user", content: "Latest Ruby news" }],
+  model: "sonar-pro"
+)
+
+# Access citations
+puts "Citations: #{result['citations']}"
+puts "Web results: #{result['web_results']}"
+
+# JSON schema for structured output (sonar-pro, sonar-reasoning-pro)
+schema = {
+  type: "object",
+  properties: {
+    news_items: { type: "array" },
+    total: { type: "integer" }
+  }
+}
+
+result = perplexity.chat_completion(
+  messages: [{ role: "user", content: "Find top 3 Ruby news" }],
+  model: "sonar-pro",
+  response_format: schema
+)
+
+# Web search filtering
+result = perplexity.chat_completion(
+  messages: [{ role: "user", content: "Ruby updates" }],
+  model: "sonar",
+  web_search_options: {
+    search_domain_filter: ["ruby-lang.org", "github.com"],
+    search_recency_filter: "week"
+  }
+)
+```
+
+**Perplexity Limitations:**
+- No function/tool calling support (cannot participate in multi-agent handoffs)
+- Streaming not yet implemented
+- JSON schema only on sonar-pro and sonar-reasoning-pro models
 
 ## Relationship with Other Gems
 
