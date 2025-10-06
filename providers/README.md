@@ -247,6 +247,10 @@ result = cohere.chat_completion(
 
 ### Perplexity Features
 
+Perplexity AI provides **web-grounded search** with automatic citations, making it ideal for research tasks requiring real-time information and source attribution.
+
+#### Basic Usage
+
 ```ruby
 perplexity = RAAF::Models::PerplexityProvider.new(
   api_key: ENV['PERPLEXITY_API_KEY']
@@ -258,40 +262,387 @@ result = perplexity.chat_completion(
   model: "sonar-pro"
 )
 
-# Access citations
+# Access citations and sources
 puts "Citations: #{result['citations']}"
 puts "Web results: #{result['web_results']}"
+```
 
-# JSON schema for structured output (sonar-pro, sonar-reasoning-pro)
+#### Available Models
+
+```ruby
+# sonar - Fast web search (best for quick queries)
+perplexity.chat_completion(
+  messages: [{ role: "user", content: "Ruby 3.4 features" }],
+  model: "sonar"
+)
+
+# sonar-pro - Advanced search with structured output support
+perplexity.chat_completion(
+  messages: [{ role: "user", content: "Compare Ruby vs Python performance" }],
+  model: "sonar-pro"
+)
+
+# sonar-reasoning - Deep reasoning with web search
+perplexity.chat_completion(
+  messages: [{ role: "user", content: "Analyze trends in Ruby development" }],
+  model: "sonar-reasoning"
+)
+
+# sonar-reasoning-pro - Premium reasoning with structured output
+perplexity.chat_completion(
+  messages: [{ role: "user", content: "Technical analysis of Rails 8" }],
+  model: "sonar-reasoning-pro"
+)
+```
+
+#### Structured Output with JSON Schema
+
+**Only available on `sonar-pro` and `sonar-reasoning-pro` models:**
+
+```ruby
+# Define structured schema
 schema = {
   type: "object",
   properties: {
-    news_items: { type: "array" },
-    total: { type: "integer" }
-  }
+    news_items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          summary: { type: "string" },
+          date: { type: "string" }
+        },
+        required: ["title", "summary"]
+      }
+    },
+    total: { type: "integer" },
+    sources: { type: "array" }
+  },
+  required: ["news_items", "total"]
 }
 
 result = perplexity.chat_completion(
-  messages: [{ role: "user", content: "Find top 3 Ruby news" }],
+  messages: [{ role: "user", content: "Find top 3 Ruby news items from this month" }],
   model: "sonar-pro",
   response_format: schema
 )
 
-# Web search filtering
+# Result automatically parsed to match schema
+puts result[:news_items].first[:title]
+puts result[:total]
+```
+
+#### Web Search Filtering
+
+```ruby
+# Domain filtering - restrict to specific websites
 result = perplexity.chat_completion(
   messages: [{ role: "user", content: "Ruby updates" }],
   model: "sonar",
   web_search_options: {
+    search_domain_filter: ["ruby-lang.org", "github.com/rails"],
+    search_recency_filter: "week"
+  }
+)
+
+# Recency filtering options:
+# - "hour" - Last hour
+# - "day" - Last 24 hours
+# - "week" - Last 7 days
+# - "month" - Last 30 days
+# - "year" - Last 365 days
+
+# Combine filters for precise results
+result = perplexity.chat_completion(
+  messages: [{ role: "user", content: "Ruby security advisories" }],
+  model: "sonar-pro",
+  web_search_options: {
     search_domain_filter: ["ruby-lang.org", "github.com"],
+    search_recency_filter: "month"
+  }
+)
+```
+
+#### RAAF DSL Integration
+
+```ruby
+# Use Perplexity in DSL agents
+class RubyNewsAgent < RAAF::DSL::Agent
+  instructions "Search for recent Ruby programming news"
+  model "sonar-pro"
+  provider :perplexity
+
+  schema do
+    field :news_items, type: :array, required: true do
+      field :title, type: :string, required: true
+      field :summary, type: :string, required: true
+      field :url, type: :string, required: true
+    end
+    field :total, type: :integer, required: true
+  end
+end
+
+# Run with automatic provider
+agent = RubyNewsAgent.new
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("Find latest Ruby 3.4 news")
+
+# Access structured results
+result[:news_items].each do |item|
+  puts "#{item[:title]}: #{item[:url]}"
+end
+```
+
+#### Prompt Engineering for Perplexity
+
+Perplexity works best with **search-optimized prompts**. Follow these best practices:
+
+##### 1. Be Specific and Contextual
+
+```ruby
+# ❌ BAD: Too generic
+result = perplexity.chat_completion(
+  messages: [{ role: "user", content: "Tell me about climate models" }],
+  model: "sonar"
+)
+
+# ✅ GOOD: Specific with context
+result = perplexity.chat_completion(
+  messages: [{
+    role: "user",
+    content: "Explain recent advances in climate prediction models for urban planning"
+  }],
+  model: "sonar"
+)
+```
+
+##### 2. Structure Prompts Like Web Searches
+
+```ruby
+# ✅ Think like a search user
+prompts = [
+  "Latest Ruby on Rails security vulnerabilities 2024",
+  "Best practices Ruby microservices architecture",
+  "Compare Rails 7 vs Rails 8 performance benchmarks"
+]
+
+prompts.each do |prompt|
+  result = perplexity.chat_completion(
+    messages: [{ role: "user", content: prompt }],
+    model: "sonar"
+  )
+  puts result[:content]
+end
+```
+
+##### 3. Use System Prompts for Style/Tone
+
+```ruby
+# Set style with system prompt
+result = perplexity.chat_completion(
+  messages: [
+    { role: "system", content: "Provide clear, concise, expert-level technical information" },
+    { role: "user", content: "Ruby 3.4 performance improvements" }
+  ],
+  model: "sonar-pro"
+)
+```
+
+##### 4. Prevent Hallucinations
+
+```ruby
+# Include explicit instructions about limitations
+result = perplexity.chat_completion(
+  messages: [{
+    role: "user",
+    content: <<~PROMPT
+      Find information about Ruby 4.0 roadmap.
+
+      If information is not available or uncertain, clearly state that.
+      Only use publicly accessible sources.
+      Acknowledge when information is limited or unavailable.
+    PROMPT
+  }],
+  model: "sonar-pro"
+)
+```
+
+##### 5. Single-Topic Focus
+
+```ruby
+# ❌ BAD: Multiple unrelated topics
+result = perplexity.chat_completion(
+  messages: [{
+    role: "user",
+    content: "Tell me about Ruby performance, Rails security, and Python comparisons"
+  }],
+  model: "sonar"
+)
+
+# ✅ GOOD: One focused topic
+result = perplexity.chat_completion(
+  messages: [{
+    role: "user",
+    content: "Ruby vs Python performance benchmarks for web applications"
+  }],
+  model: "sonar"
+)
+```
+
+##### 6. Never Request URLs in Prompts
+
+```ruby
+# ❌ BAD: Requesting URLs directly
+result = perplexity.chat_completion(
+  messages: [{
+    role: "user",
+    content: "Find URLs for Ruby documentation"
+  }],
+  model: "sonar"
+)
+
+# ✅ GOOD: Use search_results field for source information
+result = perplexity.chat_completion(
+  messages: [{
+    role: "user",
+    content: "Ruby 3.4 documentation and guides"
+  }],
+  model: "sonar"
+)
+
+# Access sources programmatically
+result[:web_results].each do |source|
+  puts "#{source[:title]}: #{source[:url]}"
+end
+```
+
+##### 7. Use Built-in Parameters Instead of Prompt Instructions
+
+```ruby
+# ❌ BAD: Using prompt to filter
+result = perplexity.chat_completion(
+  messages: [{
+    role: "user",
+    content: "Search only ruby-lang.org for Ruby news from this week"
+  }],
+  model: "sonar"
+)
+
+# ✅ GOOD: Use API parameters
+result = perplexity.chat_completion(
+  messages: [{ role: "user", content: "Ruby news" }],
+  model: "sonar",
+  web_search_options: {
+    search_domain_filter: ["ruby-lang.org"],
     search_recency_filter: "week"
   }
 )
 ```
 
+#### Advanced Perplexity Patterns
+
+##### Research Pipeline
+
+```ruby
+# Multi-stage research with Perplexity
+class ResearchPipeline
+  def initialize
+    @perplexity = RAAF::Models::PerplexityProvider.new(
+      api_key: ENV['PERPLEXITY_API_KEY']
+    )
+  end
+
+  def research(topic)
+    # Stage 1: Broad search
+    overview = search("#{topic} overview recent developments")
+
+    # Stage 2: Specific details from top sources
+    details = search(
+      "#{topic} technical details implementation",
+      recency: "month"
+    )
+
+    # Stage 3: Expert opinions
+    opinions = search(
+      "#{topic} expert analysis best practices",
+      domains: ["thoughtworks.com", "martinfowler.com"]
+    )
+
+    {
+      overview: overview,
+      details: details,
+      opinions: opinions
+    }
+  end
+
+  private
+
+  def search(query, recency: "week", domains: nil)
+    options = { search_recency_filter: recency }
+    options[:search_domain_filter] = domains if domains
+
+    @perplexity.chat_completion(
+      messages: [{ role: "user", content: query }],
+      model: "sonar-pro",
+      web_search_options: options
+    )
+  end
+end
+
+# Usage
+pipeline = ResearchPipeline.new
+results = pipeline.research("Ruby 3.4 YJIT improvements")
+```
+
+##### Fact-Checking Agent
+
+```ruby
+class FactCheckAgent < RAAF::DSL::Agent
+  instructions <<~PROMPT
+    You are a fact-checking assistant.
+    Verify claims using recent, authoritative sources.
+    Always acknowledge uncertainty when sources conflict.
+  PROMPT
+
+  model "sonar-reasoning-pro"
+  provider :perplexity
+
+  schema do
+    field :claim, type: :string, required: true
+    field :verdict, type: :string, required: true  # "True", "False", "Uncertain"
+    field :confidence, type: :string, required: true  # "High", "Medium", "Low"
+    field :evidence, type: :array, required: true do
+      field :source, type: :string, required: true
+      field :quote, type: :string, required: true
+    end
+  end
+end
+
+# Verify technical claims
+agent = FactCheckAgent.new
+result = agent.run("Ruby 3.4 has 40% faster performance than Ruby 3.3")
+
+puts "Verdict: #{result[:verdict]} (#{result[:confidence]} confidence)"
+result[:evidence].each do |e|
+  puts "- #{e[:source]}: #{e[:quote]}"
+end
+```
+
+**Perplexity Capabilities:**
+- ✅ Web-grounded search with real-time information
+- ✅ Automatic citations and source tracking
+- ✅ JSON schema support (sonar-pro, sonar-reasoning-pro)
+- ✅ Web search filtering (domain and recency)
+- ✅ RAAF DSL agent compatibility
+- ✅ Multi-stage research workflows
+
 **Perplexity Limitations:**
-- No function/tool calling support (cannot participate in multi-agent handoffs)
-- Streaming not yet implemented
-- JSON schema only on sonar-pro and sonar-reasoning-pro models
+- ❌ No function/tool calling support (cannot participate in multi-agent handoffs)
+- ❌ Streaming not yet implemented
+- ❌ JSON schema limited to specific models (sonar-pro, sonar-reasoning-pro)
+- ⚠️ Real-time search may not always follow system prompt precisely
+- ⚠️ Avoid traditional LLM techniques like few-shot prompting
 
 ## Relationship with Other Gems
 
