@@ -56,6 +56,40 @@ response["data"]["weather"] # ✅ Works
 - **ResponsesProvider** (`lib/raaf/models/responses_provider.rb`) - **DEFAULT** - OpenAI Responses API with retry
 - **OpenAIProvider** (`lib/raaf/models/openai_provider.rb`) - **DEPRECATED** - Legacy Chat Completions API
 - **FunctionTool** (`lib/raaf/function_tool.rb`) - Tool wrapper for Ruby methods
+- **ProviderRegistry** (`lib/raaf/provider_registry.rb`) - **NEW** - Provider detection and instantiation from short names
+
+## Provider Registry
+
+The **ProviderRegistry** provides automatic provider detection and a clean DSL for provider configuration:
+
+```ruby
+# Automatic provider detection from model names
+provider = RAAF::ProviderRegistry.detect("gpt-4o")        # => :openai
+provider = RAAF::ProviderRegistry.detect("claude-3-5-sonnet")  # => :anthropic
+provider = RAAF::ProviderRegistry.detect("sonar-pro")     # => :perplexity
+
+# Create provider instances using short names
+openai_provider = RAAF::ProviderRegistry.create(:openai)
+anthropic_provider = RAAF::ProviderRegistry.create(:anthropic, api_key: ENV['ANTHROPIC_API_KEY'])
+
+# Register custom providers
+RAAF::ProviderRegistry.register(:custom, MyApp::CustomProvider)
+custom_provider = RAAF::ProviderRegistry.create(:custom, api_key: "key")
+
+# Check available providers
+RAAF::ProviderRegistry.providers  # => [:openai, :responses, :anthropic, :cohere, :groq, ...]
+RAAF::ProviderRegistry.registered?(:anthropic)  # => true
+```
+
+### Supported Provider Short Names
+
+- `:openai` or `:responses` → `ResponsesProvider` (default for gpt-*, o1-*, o3-*)
+- `:anthropic` → `AnthropicProvider` (default for claude-*)
+- `:cohere` → `CohereProvider` (default for command-*)
+- `:groq` → `GroqProvider` (default for mixtral-*, llama-*, gemma-*)
+- `:perplexity` → `PerplexityProvider` (default for sonar-*)
+- `:together` → `TogetherProvider`
+- `:litellm` → `LiteLLMProvider`
 
 ## Key Patterns
 

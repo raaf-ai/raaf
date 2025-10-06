@@ -74,6 +74,70 @@ end
 runner = RAAF::Runner.new(agent: agent, provider: groq_provider)
 ```
 
+### Perplexity Provider
+```ruby
+# Web-grounded AI search with citations
+perplexity_provider = RAAF::Models::PerplexityProvider.new(
+  api_key: ENV['PERPLEXITY_API_KEY']
+)
+
+agent = RAAF::Agent.new(
+  name: "Search Assistant",
+  instructions: "Provide factual information with citations",
+  model: "sonar-pro"
+)
+
+runner = RAAF::Runner.new(agent: agent, provider: perplexity_provider)
+result = runner.run("Latest Ruby developments")
+
+# Access citations
+puts "Citations: #{result[:citations]}"
+puts "Web results: #{result[:web_results]}"
+
+# JSON schema for structured output (sonar-pro, sonar-reasoning-pro only)
+schema = { type: "object", properties: { items: { type: "array" } } }
+result = runner.run("Find Ruby news", response_format: schema)
+
+# Web search filtering
+result = runner.run(
+  "Ruby updates",
+  web_search_options: {
+    search_domain_filter: ["ruby-lang.org"],
+    search_recency_filter: "week"
+  }
+)
+
+# RAAF DSL Agent Integration
+class RubyNewsAgent < RAAF::DSL::Agent
+  instructions "Search for Ruby news"
+  model "sonar-pro"
+
+  schema do
+    field :news_items, type: :array, required: true do
+      field :title, type: :string, required: true
+      field :summary, type: :string, required: true
+    end
+    field :total, type: :integer, required: true
+  end
+end
+
+dsl_agent = RubyNewsAgent.new
+dsl_runner = RAAF::Runner.new(agent: dsl_agent, provider: perplexity_provider)
+result = dsl_runner.run("Latest Ruby news")
+```
+
+**Perplexity Capabilities:**
+- ✅ Web-grounded search with real-time information
+- ✅ Automatic citations and source tracking
+- ✅ JSON schema support (sonar-pro, sonar-reasoning-pro)
+- ✅ Web search filtering (domain and recency)
+- ✅ RAAF DSL agent compatibility
+
+**Perplexity Limitations:**
+- ❌ No function/tool calling (cannot participate in multi-agent handoffs)
+- ❌ Streaming not yet implemented
+- ❌ JSON schema limited to specific models
+
 ### Together AI Provider
 ```ruby
 together_provider = RAAF::Models::TogetherProvider.new do |config|

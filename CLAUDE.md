@@ -83,6 +83,52 @@ end
 
 **Solution**: Mark ALL nested array object fields as `required: true` when using OpenAI Responses API, regardless of logical requirement.
 
+## Provider Configuration (NEW)
+
+**RAAF now supports automatic provider detection and configuration** using short symbolic names:
+
+```ruby
+require 'raaf-dsl'
+
+# Automatic provider detection from model name
+class GPTAgent < RAAF::DSL::Agent
+  agent_name "Assistant"
+  model "gpt-4o"  # Auto-detects :openai provider
+  static_instructions "You are a helpful assistant"
+end
+
+# Explicit provider with short name
+class ClaudeAgent < RAAF::DSL::Agent
+  agent_name "Claude"
+  model "claude-3-5-sonnet-20241022"
+  provider :anthropic  # Explicit provider
+end
+
+# Run without specifying provider - automatically used
+agent = ClaudeAgent.new
+runner = RAAF::Runner.new(agent: agent)  # Uses AnthropicProvider
+result = runner.run("Hello!")
+```
+
+### Provider Short Names
+
+- `:openai` / `:responses` → ResponsesProvider (gpt-*, o1-*, o3-*)
+- `:anthropic` → AnthropicProvider (claude-*)
+- `:cohere` → CohereProvider (command-*)
+- `:groq` → GroqProvider (mixtral-*, llama-*, gemma-*)
+- `:perplexity` → PerplexityProvider (sonar-*)
+- `:together` → TogetherProvider
+- `:litellm` → LiteLLMProvider
+
+### Provider Precedence
+
+1. Explicit provider at Runner level (highest)
+2. Agent's explicit provider (`provider :name`)
+3. Auto-detected from model name
+4. Runner's default (ResponsesProvider)
+
+**See**: `dsl/CLAUDE.md` for complete provider configuration documentation.
+
 ## Architecture Overview
 
 RAAF is organized as a **mono-repo** with focused gems:
