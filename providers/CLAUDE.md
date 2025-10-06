@@ -310,45 +310,76 @@ result = runner.run(
 
 #### Advanced Perplexity Patterns
 
-##### Multi-Stage Research Pipeline
+##### Multi-Stage Research Pipeline with DSL
 
 ```ruby
+# Three specialized agents for comprehensive research
 class ResearchPipeline
-  def initialize
-    @perplexity = RAAF::Models::PerplexityProvider.new(
-      api_key: ENV['PERPLEXITY_API_KEY']
+  # Stage 1: Overview agent
+  class OverviewAgent < RAAF::DSL::Agent
+    instructions "Search for overview and recent developments"
+    model "sonar-pro"
+    provider :perplexity
+
+    provider_options(
+      web_search_options: { search_recency_filter: "week" }
     )
-    @agent = RAAF::Agent.new(
-      name: "Researcher",
-      instructions: "Provide comprehensive research with citations",
-      model: "sonar-pro"
-    )
+
+    schema do
+      field :overview, type: :string, required: true
+      field :key_points, type: :array, required: true
+      field :sources, type: :array, required: true
+    end
   end
 
-  def research(topic)
-    runner = RAAF::Runner.new(agent: @agent, provider: @perplexity)
+  # Stage 2: Technical details agent
+  class TechnicalAgent < RAAF::DSL::Agent
+    instructions "Search for technical details and implementation"
+    model "sonar-pro"
+    provider :perplexity
 
-    # Stage 1: Broad overview
-    overview = runner.run("#{topic} overview recent developments")
-
-    # Stage 2: Technical details from authoritative sources
-    details = runner.run(
-      "#{topic} technical details implementation",
+    provider_options(
       web_search_options: { search_recency_filter: "month" }
     )
 
-    # Stage 3: Expert opinions from specific domains
-    opinions = runner.run(
-      "#{topic} expert analysis best practices",
+    schema do
+      field :technical_details, type: :string, required: true
+      field :implementation_notes, type: :array, required: true
+    end
+  end
+
+  # Stage 3: Expert opinions agent
+  class ExpertOpinionAgent < RAAF::DSL::Agent
+    instructions "Search expert analysis and best practices"
+    model "sonar-pro"
+    provider :perplexity
+
+    provider_options(
       web_search_options: {
-        search_domain_filter: ["thoughtworks.com", "martinfowler.com"]
+        search_domain_filter: ["thoughtworks.com", "martinfowler.com", "ruby-lang.org"],
+        search_recency_filter: "month"
       }
     )
 
+    schema do
+      field :expert_opinions, type: :array, required: true do
+        field :source, type: :string, required: true
+        field :opinion, type: :string, required: true
+        field :url, type: :string, required: true
+      end
+    end
+  end
+
+  def research(topic)
+    # Execute three specialized agents
+    overview = OverviewAgent.new.run("#{topic} overview recent developments")
+    details = TechnicalAgent.new.run("#{topic} technical details implementation")
+    opinions = ExpertOpinionAgent.new.run("#{topic} expert analysis best practices")
+
     {
       overview: overview,
-      details: details,
-      opinions: opinions
+      technical_details: details,
+      expert_opinions: opinions
     }
   end
 end
@@ -356,6 +387,18 @@ end
 # Usage
 pipeline = ResearchPipeline.new
 results = pipeline.research("Ruby 3.4 YJIT improvements")
+
+# Access structured results
+puts "Overview: #{results[:overview][:overview]}"
+results[:overview][:key_points].each { |point| puts "- #{point}" }
+
+puts "\nTechnical: #{results[:technical_details][:technical_details]}"
+
+puts "\nExpert Opinions:"
+results[:expert_opinions][:expert_opinions].each do |op|
+  puts "#{op[:source]}: #{op[:opinion]}"
+  puts "  URL: #{op[:url]}"
+end
 ```
 
 ##### Fact-Checking Agent
