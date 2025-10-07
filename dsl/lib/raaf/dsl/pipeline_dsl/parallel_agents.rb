@@ -39,7 +39,7 @@ module RAAF
         # Parallel execution: Create thread for each agent, merge results
         # Field merging strategy: Union of all agent results (last writer wins for conflicts)
         # Error handling: Any failure in parallel agents stops the entire pipeline
-        def execute(context)
+        def execute(context, agent_results = nil)
           results = @agents.map do |agent|
             Thread.new do
               execute_single(agent, context.dup)  # Each agent gets own context copy

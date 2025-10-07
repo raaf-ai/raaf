@@ -257,23 +257,46 @@ module RAAF
         # in smaller chunks. This is especially useful for AI agents that have
         # context window limitations or rate limits.
         #
+        # Supports field name transformation when the input field name differs
+        # from the output field name (e.g., reading :company_list but outputting :prospects).
+        #
         # @example Auto-detect array field
         #   QuickFitAnalyzer.in_chunks_of(50)
         #
-        # @example Explicit array field
+        # @example Explicit array field (input and output use same name)
         #   DeepIntelligence.in_chunks_of(30, array_field: :companies)
         #
-        # @example Multi-stage batching pipeline
+        # @example Field name transformation (input differs from output)
+        #   QuickFitAnalyzer.in_chunks_of(20,
+        #     input_field: :company_list,   # Read from :company_list
+        #     output_field: :prospects       # Write to :prospects
+        #   )
+        #
+        # @example Multi-stage batching pipeline with field transformation
         #   flow CompanyDiscovery >>
-        #        QuickFitAnalyzer.in_chunks_of(50) >>
-        #        DeepIntelligence.in_chunks_of(30) >>
-        #        Scoring.in_chunks_of(50)
+        #        QuickFitAnalyzer.in_chunks_of(50, input_field: :company_list, output_field: :prospects) >>
+        #        DeepIntelligence.in_chunks_of(30, array_field: :prospects) >>
+        #        Scoring.in_chunks_of(50, array_field: :prospects)
         #
         # @param chunk_size [Integer] Size of each chunk to process
-        # @param array_field [Symbol, nil] Optional explicit array field name
+        # @param array_field [Symbol, nil] Field name for both input and output (legacy, backward compatible)
+        # @param input_field [Symbol, nil] Explicit input field name (reads from this field)
+        # @param output_field [Symbol, nil] Explicit output field name (writes to this field)
         # @return [BatchedAgent] Batched execution wrapper
-        def in_chunks_of(chunk_size, array_field: nil)
-          PipelineDSL::BatchedAgent.new(self, chunk_size, array_field: array_field)
+        #
+        # @note Backward Compatibility
+        #   - array_field: uses same field for input and output (existing behavior)
+        #   - input_field/output_field: enables field transformation (new behavior)
+        #   - If only input_field specified, output_field defaults to input_field
+        #   - If only output_field specified, input_field must be provided or auto-detected
+        def in_chunks_of(chunk_size, array_field: nil, input_field: nil, output_field: nil)
+          PipelineDSL::BatchedAgent.new(
+            self,
+            chunk_size,
+            array_field: array_field,
+            input_field: input_field,
+            output_field: output_field
+          )
         end
 
         # Extract DSL configurations from agent class for use as pipeline defaults

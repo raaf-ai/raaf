@@ -5,31 +5,66 @@ module RAAF
     module PipelineDSL
       # Wraps any pipeline component to execute in chunks over an array field
       #
+      # Supports field name transformation when input and output field names differ.
+      # This is useful when an agent reads from one field (e.g., :company_list) but
+      # outputs to a different field (e.g., :prospects) as defined in its schema.
+      #
       # @example Basic usage with auto-detection
       #   flow CompanyDiscovery >> QuickFitAnalyzer.in_chunks_of(50)
       #
-      # @example Explicit array field
+      # @example Explicit array field (same input/output)
       #   flow DataLoader >> Analyzer.in_chunks_of(100, array_field: :companies)
       #
-      # @example Multiple batched stages
+      # @example Field name transformation (different input/output)
       #   flow CompanyDiscovery >>
-      #        QuickFitAnalyzer.in_chunks_of(50) >>
-      #        DeepIntelligence.in_chunks_of(30) >>
-      #        Scoring.in_chunks_of(50)
+      #        QuickFitAnalyzer.in_chunks_of(50, input_field: :company_list, output_field: :prospects) >>
+      #        DeepIntelligence.in_chunks_of(30, array_field: :prospects)
+      #
+      # @example Multiple batched stages with field transformation
+      #   flow CompanyDiscovery >>
+      #        QuickFitAnalyzer.in_chunks_of(50, input_field: :company_list, output_field: :prospects) >>
+      #        DeepIntelligence.in_chunks_of(30, array_field: :prospects) >>
+      #        Scoring.in_chunks_of(50, array_field: :prospects)
       class BatchedAgent
         include RAAF::Logger
 
-        attr_reader :wrapped_component, :chunk_size, :array_field
+        attr_reader :wrapped_component, :chunk_size, :input_field, :output_field
 
         # Initialize a new BatchedAgent wrapper
         #
         # @param wrapped_component [Class, Agent, Service] Component to execute in chunks
         # @param chunk_size [Integer] Size of each chunk to process
-        # @param array_field [Symbol, nil] Explicit array field name (auto-detected if nil)
-        def initialize(wrapped_component, chunk_size, array_field: nil)
+        # @param array_field [Symbol, nil] Field for both input and output (legacy, backward compatible)
+        # @param input_field [Symbol, nil] Explicit input field name (reads from this context field)
+        # @param output_field [Symbol, nil] Explicit output field name (writes to this context field)
+        #
+        # @note Field Resolution Logic
+        #   Priority order for determining input field:
+        #   1. explicit input_field parameter
+        #   2. array_field parameter (backward compatibility)
+        #   3. auto-detection from agent's required fields
+        #
+        #   Priority order for determining output field:
+        #   1. explicit output_field parameter
+        #   2. array_field parameter (backward compatibility)
+        #   3. input_field parameter (if no output_field specified)
+        #   4. auto-detection from agent's provided fields
+        #
+        # @example Backward compatible usage
+        #   BatchedAgent.new(MyAgent, 50, array_field: :items)
+        #   # Same as: input_field: :items, output_field: :items
+        #
+        # @example Field transformation usage
+        #   BatchedAgent.new(MyAgent, 50, input_field: :raw_data, output_field: :processed_data)
+        #   # Reads from context[:raw_data], writes to context[:processed_data]
+        def initialize(wrapped_component, chunk_size, array_field: nil, input_field: nil, output_field: nil)
           @wrapped_component = wrapped_component
           @chunk_size = chunk_size
-          @array_field = array_field
+
+          # Resolve input and output fields with backward compatibility
+          # Priority: explicit params > array_field > auto-detection
+          @input_field = input_field || array_field
+          @output_field = output_field || array_field || input_field
 
           validate_chunk_size!
         end
@@ -54,7 +89,6 @@ module RAAF
         # @param agent_results [Array, nil] Optional results accumulator
         # @return [ContextVariables] Updated context with merged results
         def execute(context, agent_results = nil)
-          require 'byebug';debugger
           # Ensure context is ContextVariables
           unless context.respond_to?(:set)
             context = RAAF::DSL::ContextVariables.new(context)
@@ -70,7 +104,7 @@ module RAAF
             raise ArgumentError, "Field #{field_to_batch} must be an array, got #{full_array.class}"
           end
 
-          log_info "🔄 [BatchedAgent] Processing #{full_array.size} items in chunks of #{chunk_size}"
+          log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items in chunks of #{chunk_size}"
 
           # Split into chunks
           chunks = full_array.each_slice(chunk_size).to_a
@@ -78,7 +112,7 @@ module RAAF
           # Process each chunk
           accumulated_results = []
           chunks.each_with_index do |chunk, index|
-            log_debug "📦 [BatchedAgent] Processing chunk #{index + 1}/#{chunks.size} (#{chunk.size} items)"
+            log_debug "📦 [#{wrapped_agent_name}] Processing chunk #{index + 1}/#{chunks.size} (#{chunk.size} items)"
 
             # Create chunk context with this chunk
             chunk_context = context.set(field_to_batch, chunk)
@@ -86,20 +120,32 @@ module RAAF
             # Execute wrapped component on chunk
             chunk_result = execute_wrapped_component(chunk_context, agent_results)
 
-            # Extract and accumulate results
-            extracted_data = extract_result_data(chunk_result, field_to_batch)
+            # CRITICAL FIX: Use output_field for extraction when field transformation is configured
+            # When input_field != output_field, the agent returns data under the output field name
+            extraction_field = @output_field || field_to_batch
+            extracted_data = extract_result_data(chunk_result, extraction_field)
             accumulated_results << extracted_data if extracted_data
 
-            log_debug "✅ [BatchedAgent] Chunk #{index + 1} completed (#{extracted_data&.size || 0} results)"
+            log_debug "✅ [#{wrapped_agent_name}] Chunk #{index + 1} completed (#{extracted_data&.size || 0} results)"
           end
 
-          # Merge all chunk results
-          merged_result = merge_chunk_results(accumulated_results, field_to_batch)
+          # Merge all chunk results (use same extraction field for consistency)
+          extraction_field = @output_field || field_to_batch
+          merged_result = merge_chunk_results(accumulated_results, extraction_field)
 
-          log_info "✅ [BatchedAgent] Completed processing #{chunks.size} chunks, #{merged_result.size} total results"
+          log_info "✅ [#{wrapped_agent_name}] Completed processing #{chunks.size} chunks, #{merged_result.size} total results"
 
-          # Return updated context with merged results
-          context.set(field_to_batch, merged_result)
+          # Determine output field (supports field transformation)
+          # Use explicit output_field if set, otherwise fall back to input field (backward compatible)
+          output_field_name = @output_field || field_to_batch
+
+          # Log field transformation if input and output differ
+          if output_field_name != field_to_batch
+            log_info "🔄 [#{wrapped_agent_name}] Field transformation: #{field_to_batch} → #{output_field_name}"
+          end
+
+          # Return updated context with merged results written to output field
+          context.set(output_field_name, merged_result)
         end
 
         # Delegate required fields to wrapped component
@@ -131,21 +177,51 @@ module RAAF
           end
         end
 
-        # Detect which array field to batch over
+        # Extract the actual agent name from the wrapped component
+        def wrapped_agent_name
+          case @wrapped_component
+          when Class
+            # Agent class - try to get configured name or use class name
+            if @wrapped_component.respond_to?(:_context_config)
+              @wrapped_component._context_config[:name] || @wrapped_component.name.split("::").last
+            else
+              @wrapped_component.name.split("::").last
+            end
+          else
+            # Agent instance or other wrapper - try agent_name method
+            if @wrapped_component.respond_to?(:agent_name)
+              @wrapped_component.agent_name
+            elsif @wrapped_component.respond_to?(:wrapped_component)
+              # Nested wrapper - recurse
+              @wrapped_component.respond_to?(:wrapped_agent_name) ?
+                @wrapped_component.wrapped_agent_name :
+                @wrapped_component.class.name.split("::").last
+            else
+              @wrapped_component.class.name.split("::").last
+            end
+          end
+        end
+
+        # Detect which array field to batch over (INPUT field)
+        #
+        # This determines which context field contains the array to be batched.
+        # Separate from output field which determines where merged results are written.
+        #
         # Priority order:
-        # 1. Explicit array_field parameter
-        # 2. Single array in context (automatic detection)
-        # 3. Infer from component's provided_fields
-        # 4. Error if ambiguous
+        # 1. Explicit input_field parameter (NEW - supports field transformation)
+        # 2. Explicit array_field parameter (backward compatibility)
+        # 3. Single array in context (automatic detection)
+        # 4. Infer from component's provided_fields
+        # 5. Error if ambiguous
         def detect_array_field(context)
-          # Priority 1: Explicit parameter
-          return array_field if array_field
+          # Priority 1: Explicit input_field (NEW - highest priority for field transformation)
+          return input_field if input_field
 
           # Priority 2: Single array in context
           array_fields = context.to_h.select { |_k, v| v.is_a?(Array) }.keys
 
           if array_fields.size == 1
-            log_debug "🔍 [BatchedAgent] Auto-detected array field: #{array_fields.first}"
+            log_debug "🔍 [#{wrapped_agent_name}] Auto-detected array field: #{array_fields.first}"
             return array_fields.first
           end
 
@@ -155,7 +231,7 @@ module RAAF
             array_candidates = array_fields & provided
 
             if array_candidates.size == 1
-              log_debug "🔍 [BatchedAgent] Inferred array field from provided_fields: #{array_candidates.first}"
+              log_debug "🔍 [#{wrapped_agent_name}] Inferred array field from provided_fields: #{array_candidates.first}"
               return array_candidates.first
             end
           end
@@ -222,7 +298,7 @@ module RAAF
             return result.send(field_name)
           end
 
-          log_warn "⚠️ [BatchedAgent] Could not extract #{field_name} from result of type #{result.class}"
+          log_warn "⚠️ [#{wrapped_agent_name}] Could not extract #{field_name} from result of type #{result.class}"
           nil
         end
 
@@ -233,14 +309,14 @@ module RAAF
           valid_results = chunk_results.compact
 
           if valid_results.empty?
-            log_warn "⚠️ [BatchedAgent] No valid results to merge"
+            log_warn "⚠️ [#{wrapped_agent_name}] No valid results to merge"
             return []
           end
 
           # Flatten all arrays into single result array
           merged = valid_results.flatten
 
-          log_debug "🔀 [BatchedAgent] Merged #{valid_results.size} chunks into #{merged.size} total items"
+          log_debug "🔀 [#{wrapped_agent_name}] Merged #{valid_results.size} chunks into #{merged.size} total items"
 
           merged
         end
