@@ -59,13 +59,17 @@ module RAAF
       #
       # @param api_key [String, nil] Perplexity API key (defaults to PERPLEXITY_API_KEY env var)
       # @param api_base [String, nil] API base URL (defaults to standard Perplexity endpoint)
+      # @param timeout [Integer, nil] Read timeout in seconds (default: 180)
+      # @param open_timeout [Integer, nil] Connection timeout in seconds (default: 30)
       # @param options [Hash] Additional options for the provider
       # @raise [AuthenticationError] if API key is not provided
       #
-      def initialize(api_key: nil, api_base: nil, **options)
+      def initialize(api_key: nil, api_base: nil, timeout: nil, open_timeout: nil, **options)
         super
         @api_key ||= ENV.fetch("PERPLEXITY_API_KEY", nil)
         @api_base ||= api_base || API_BASE
+        @timeout = timeout || ENV.fetch("PERPLEXITY_TIMEOUT", "180").to_i
+        @open_timeout = open_timeout || ENV.fetch("PERPLEXITY_OPEN_TIMEOUT", "30").to_i
 
         raise AuthenticationError, "Perplexity API key is required" unless @api_key
       end
@@ -205,6 +209,8 @@ module RAAF
         uri = URI("#{@api_base}/chat/completions")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
+        http.read_timeout = @timeout
+        http.open_timeout = @open_timeout
 
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
