@@ -28,6 +28,7 @@ RSpec.describe RAAF::ProviderRegistry do
     end
 
     it "detects Perplexity models" do
+      expect(described_class.detect("sonar")).to eq(:perplexity)
       expect(described_class.detect("sonar-pro")).to eq(:perplexity)
       expect(described_class.detect("sonar-reasoning")).to eq(:perplexity)
     end

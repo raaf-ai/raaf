@@ -48,7 +48,9 @@ module RAAF
       /^mixtral-/i => :groq,
       /^llama-/i => :groq,
       /^gemma-/i => :groq,
-      /^sonar-/i => :perplexity
+      /^sonar-/i => :perplexity,
+      /^sonar$/i => :perplexity,  # Support plain "sonar" as model name
+      /^perplexity$/i => :perplexity  # Support plain "perplexity" as model name
     }.freeze
 
     class << self
