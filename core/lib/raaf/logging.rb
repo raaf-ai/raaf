@@ -602,23 +602,23 @@ module RAAF
         @config = config
       end
 
-      def debug(message)
+      def debug(message, **context)
         @rails_logger.debug(message)
       end
 
-      def info(message)
+      def info(message, **context)
         @rails_logger.info(message)
       end
 
-      def warn(message)
+      def warn(message, **context)
         @rails_logger.warn(message)
       end
 
-      def error(message)
+      def error(message, **context)
         @rails_logger.error(message)
       end
 
-      def fatal(message)
+      def fatal(message, **context)
         @rails_logger.fatal(message)
       end
 
@@ -631,23 +631,23 @@ module RAAF
         @config = config
       end
 
-      def debug(message)
+      def debug(message, **context)
         puts "[DEBUG] #{message}" if @config.log_level == :debug
       end
 
-      def info(message)
+      def info(message, **context)
         puts "[INFO] #{message}"
       end
 
-      def warn(message)
+      def warn(message, **context)
         puts "[WARN] #{message}"
       end
 
-      def error(message)
+      def error(message, **context)
         puts "[ERROR] #{message}"
       end
 
-      def fatal(message)
+      def fatal(message, **context)
         puts "[FATAL] #{message}"
       end
 
@@ -661,23 +661,23 @@ module RAAF
         @logger = create_file_logger
       end
 
-      def debug(message)
+      def debug(message, **context)
         @logger.debug(message)
       end
 
-      def info(message)
+      def info(message, **context)
         @logger.info(message)
       end
 
-      def warn(message)
+      def warn(message, **context)
         @logger.warn(message)
       end
 
-      def error(message)
+      def error(message, **context)
         @logger.error(message)
       end
 
-      def fatal(message)
+      def fatal(message, **context)
         @logger.fatal(message)
       end
 
