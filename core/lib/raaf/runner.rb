@@ -1355,6 +1355,7 @@ module RAAF
         # Prepare model parameters
         model = config.model&.model || state[:current_agent].model
         model_params = config.to_model_params
+        model_params[:max_tokens] ||= state[:current_agent].max_tokens if state[:current_agent].max_tokens
         model_params[:response_format] = state[:current_agent].response_format if state[:current_agent].response_format
         model_params[:tool_choice] = state[:current_agent].tool_choice if state[:current_agent].tool_choice
 
@@ -1431,11 +1432,9 @@ module RAAF
           response = state[:current_agent].with_tracing(:llm_call,
                                                        parent_component: state[:current_agent],
                                                        **metadata) do
-            puts "🔍 [RUNNER] Creating LLM span within agent context for model: #{model}"
             @provider.responses_completion(**api_params)
           end
         else
-          puts "🔍 [RUNNER] No tracing - with_tracing: #{with_tracing}, tracing_enabled?: #{tracing_enabled?}, has tracer?: #{!@tracer.nil?}"
           response = @provider.responses_completion(**api_params)
         end
 
