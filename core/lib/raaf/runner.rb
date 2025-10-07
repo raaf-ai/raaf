@@ -1802,12 +1802,49 @@ module RAAF
     ##
     # Create default provider with built-in retry capabilities
     #
-    # @return [ResponsesProvider] Provider instance with built-in retries
+    # Attempts to auto-detect the appropriate provider based on the agent's model name.
+    # Falls back to ResponsesProvider if detection fails.
+    #
+    # @return [ModelInterface] Provider instance with built-in retries
     #
     def create_default_provider(http_timeout: nil)
-      # ResponsesProvider now has built-in retry functionality via ModelInterface
+      # Try to auto-detect provider from agent's model
+      if @agent.respond_to?(:model) && @agent.model
+        detected_provider = RAAF::ProviderRegistry.detect(@agent.model)
+
+        if detected_provider
+          log_debug "Auto-detected provider #{detected_provider} for model #{@agent.model}"
+
+          begin
+            provider = RAAF::ProviderRegistry.create(detected_provider)
+
+            # Set HTTP timeout if provided and supported
+            provider.http_timeout = http_timeout if http_timeout && provider.respond_to?(:http_timeout=)
+
+            # Configure retry settings from environment variables if provider supports it
+            if provider.respond_to?(:configure_retry) &&
+               (ENV["RAAF_PROVIDER_RETRY_ATTEMPTS"] || ENV["RAAF_PROVIDER_RETRY_BASE_DELAY"])
+              provider.configure_retry(
+                max_attempts: (ENV["RAAF_PROVIDER_RETRY_ATTEMPTS"] || 3).to_i,
+                base_delay: (ENV["RAAF_PROVIDER_RETRY_BASE_DELAY"] || 1.0).to_f,
+                max_delay: (ENV["RAAF_PROVIDER_RETRY_MAX_DELAY"] || 30.0).to_f,
+                multiplier: (ENV["RAAF_PROVIDER_RETRY_MULTIPLIER"] || 2.0).to_f,
+                jitter: (ENV["RAAF_PROVIDER_RETRY_JITTER"] || 0.1).to_f
+              )
+            end
+
+            return provider
+          rescue StandardError => e
+            log_warn "Failed to create detected provider #{detected_provider}: #{e.message}. Falling back to ResponsesProvider."
+          end
+        else
+          log_debug "No provider auto-detected for model #{@agent.model}. Using default ResponsesProvider."
+        end
+      end
+
+      # Fall back to ResponsesProvider with built-in retry functionality via ModelInterface
       provider = Models::ResponsesProvider.new
-      
+
       # Set HTTP timeout if provided
       provider.http_timeout = http_timeout if http_timeout
 
