@@ -3,6 +3,7 @@
 require 'timeout'
 require 'active_support/core_ext/hash/keys'
 require 'active_support/hash_with_indifferent_access'
+require_relative 'wrapper_dsl'
 
 module RAAF
   module DSL
@@ -23,6 +24,8 @@ module RAAF
       #   )
       #
       class RemappedAgent
+        include WrapperDSL
+
         attr_reader :agent_class, :input_mapping, :output_mapping, :options
 
         def initialize(agent_class, input_mapping: {}, output_mapping: {}, **options)
@@ -32,37 +35,12 @@ module RAAF
           @options = options
         end
 
-        # DSL operators for chaining and parallel execution
-        def >>(next_agent)
-          ChainedAgent.new(self, next_agent)
-        end
-
-        def |(other_agent)
-          ParallelAgents.new([self, other_agent])
-        end
-
-        # Additional DSL configuration methods
-        def timeout(seconds)
+        # Create a new wrapper with merged options (required by WrapperDSL)
+        def create_wrapper(**new_options)
           RemappedAgent.new(@agent_class,
             input_mapping: @input_mapping,
             output_mapping: @output_mapping,
-            **@options.merge(timeout: seconds)
-          )
-        end
-
-        def retry(times)
-          RemappedAgent.new(@agent_class,
-            input_mapping: @input_mapping,
-            output_mapping: @output_mapping,
-            **@options.merge(retry: times)
-          )
-        end
-
-        def limit(count)
-          RemappedAgent.new(@agent_class,
-            input_mapping: @input_mapping,
-            output_mapping: @output_mapping,
-            **@options.merge(limit: count)
+            **@options.merge(new_options)
           )
         end
 

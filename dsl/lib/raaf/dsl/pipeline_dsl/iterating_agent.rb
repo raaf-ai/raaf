@@ -3,6 +3,7 @@
 require 'thread'
 require 'timeout'
 require_relative '../core/context_variables'
+require_relative 'wrapper_dsl'
 
 module RAAF
   module DSL
@@ -22,6 +23,8 @@ module RAAF
       #
       # Field Flow: input_field (array) -> processed_field_name (array of results)
       class IteratingAgent
+        include WrapperDSL
+
         attr_reader :agent_class, :field, :options
 
         def initialize(agent_class, field, options = {})
@@ -31,41 +34,24 @@ module RAAF
           @parallel = @options.delete(:parallel) || false
           @custom_output_field = @options.delete(:to)&.to_sym
           @custom_field_name = @options.delete(:as)&.to_sym
-          
+
           RAAF.logger.debug "IteratingAgent initialized: class=#{agent_class}, field=#{field}, as=#{@custom_field_name}, to=#{@custom_output_field}, options=#{options.inspect}"
         end
 
-        # DSL operator: Chain this iterating agent with the next one
-        def >>(next_agent)
-          ChainedAgent.new(self, next_agent)
-        end
+        # Create a new wrapper with merged options (required by WrapperDSL)
+        def create_wrapper(**new_options)
+          # Restore special options that were extracted in initialize
+          merged_options = @options.merge(new_options)
+          merged_options[:parallel] = @parallel if @parallel
+          merged_options[:to] = @custom_output_field if @custom_output_field
+          merged_options[:as] = @custom_field_name if @custom_field_name
 
-        # DSL operator: Run this iterating agent in parallel with another
-        def |(other_agent)
-          ParallelAgents.new([self, other_agent])
+          IteratingAgent.new(@agent_class, @field, merged_options)
         end
 
         # DSL method: Enable parallel execution
         def parallel
           @parallel = true
-          self
-        end
-
-        # DSL method: Configure timeout for each iteration
-        def timeout(seconds)
-          @options[:timeout] = seconds
-          self
-        end
-
-        # DSL method: Configure retry count for each iteration
-        def retry(times)
-          @options[:retry] = times
-          self
-        end
-
-        # DSL method: Limit number of items to process
-        def limit(count)
-          @options[:limit] = count
           self
         end
 
