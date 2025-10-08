@@ -139,10 +139,12 @@ module RAAF
       @id = SecureRandom.uuid
       @created_at = Time.now
       @metadata = metadata
-      @data = initial_data.dup
+      # Use HashWithIndifferentAccess for consistent key handling
+      @data = {}.with_indifferent_access
+      @data.update(initial_data) if initial_data.any?
       @track_executions = track_executions
       @execution_history = []
-      @shared_memory = {}
+      @shared_memory = {}.with_indifferent_access
       @locks = {}
       @parent = parent
       @children = []
@@ -153,9 +155,9 @@ module RAAF
 
     # Get a value from context
     def get(key, default = nil)
-      # First check own data
-      if @data.key?(key.to_s)
-        @data[key.to_s]
+      # HashWithIndifferentAccess handles symbol/string conversion automatically
+      if @data.key?(key)
+        @data[key]
       elsif @parent
         # Fall back to parent
         @parent.get(key, default)
@@ -166,17 +168,17 @@ module RAAF
 
     # Set a value in context
     def set(key, value)
-      @data[key.to_s] = value
+      @data[key] = value
     end
 
     # Delete a value from context
     def delete(key)
-      @data.delete(key.to_s)
+      @data.delete(key)
     end
 
     # Check if key exists
     def has?(key)
-      @data.key?(key.to_s)
+      @data.key?(key)
     end
 
     # Get all context data
@@ -186,8 +188,61 @@ module RAAF
 
     # Merge data into context
     def merge!(data)
-      @data.merge!(data.transform_keys(&:to_s))
+      @data.merge!(data)
     end
+
+    ##
+    # Unified interface methods for RAAF context harmonization
+    #
+
+    ##
+    # Array-style read access (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @return [Object, nil] The stored value or nil
+    #
+    def [](key)
+      @data[key]
+    end
+
+    ##
+    # Array-style write access (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @param value [Object] The value to store
+    # @return [Object] The stored value
+    #
+    def []=(key, value)
+      @data[key] = value
+    end
+
+    ##
+    # Get all storage keys (unified interface)
+    #
+    # @return [Array<Symbol, String>] All keys in storage
+    #
+    def keys
+      @data.keys
+    end
+
+    ##
+    # Get all storage values (unified interface)
+    #
+    # @return [Array<Object>] All values in storage
+    #
+    def values
+      @data.values
+    end
+
+    ##
+    # Update storage with multiple values (unified interface)
+    #
+    # Alias for merge! to match RunContext interface
+    #
+    # @param hash [Hash] Hash of key-value pairs to merge
+    # @return [Hash] The updated storage
+    #
+    alias_method :update, :merge!
 
     # Clear all context data
     def clear!

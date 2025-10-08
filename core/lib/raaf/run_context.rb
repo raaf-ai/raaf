@@ -66,7 +66,8 @@ module RAAF
       @current_agent = nil
       @current_turn = 0
       @custom_data = {}
-      @storage = {}
+      # Use HashWithIndifferentAccess for consistent key handling
+      @storage = {}.with_indifferent_access
     end
 
     ##
@@ -160,6 +161,104 @@ module RAAF
     #
     def key?(key)
       @storage.key?(key)
+    end
+
+    ##
+    # Unified interface methods for RAAF context harmonization
+    #
+
+    ##
+    # Get value from storage (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @param default [Object] Default value if key not found
+    # @return [Object] The stored value or default
+    #
+    alias_method :get, :fetch
+
+    ##
+    # Set value in storage (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @param value [Object] The value to store
+    # @return [Object] The stored value
+    #
+    alias_method :set, :store
+
+    ##
+    # Check if key exists (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @return [Boolean] true if key exists
+    #
+    alias_method :has?, :key?
+
+    ##
+    # Array-style read access (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @return [Object, nil] The stored value or nil
+    #
+    def [](key)
+      @storage[key]
+    end
+
+    ##
+    # Array-style write access (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @param value [Object] The value to store
+    # @return [Object] The stored value
+    #
+    def []=(key, value)
+      @storage[key] = value
+    end
+
+    ##
+    # Get all storage keys (unified interface)
+    #
+    # @return [Array<Symbol, String>] All keys in storage
+    #
+    def keys
+      @storage.keys
+    end
+
+    ##
+    # Get all storage values (unified interface)
+    #
+    # @return [Array<Object>] All values in storage
+    #
+    def values
+      @storage.values
+    end
+
+    ##
+    # Export storage as hash (unified interface)
+    #
+    # @return [Hash] The storage hash with indifferent access
+    #
+    def to_h
+      @storage.to_h
+    end
+
+    ##
+    # Delete a key from storage (unified interface)
+    #
+    # @param key [Symbol, String] The storage key
+    # @return [Object, nil] The deleted value or nil
+    #
+    def delete(key)
+      @storage.delete(key)
+    end
+
+    ##
+    # Update storage with multiple values (unified interface)
+    #
+    # @param hash [Hash] Hash of key-value pairs to merge
+    # @return [Hash] The updated storage
+    #
+    def update(hash)
+      @storage.update(hash)
     end
 
     ##

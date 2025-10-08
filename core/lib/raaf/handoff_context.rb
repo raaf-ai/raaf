@@ -18,8 +18,9 @@ module RAAF
     def initialize(current_agent: nil)
       @current_agent = current_agent
       @target_agent = nil
-      @handoff_data = {}
-      @shared_context = {}
+      # Use HashWithIndifferentAccess for consistent key handling
+      @handoff_data = {}.with_indifferent_access
+      @shared_context = {}.with_indifferent_access
       @handoff_timestamp = nil
     end
 
@@ -96,7 +97,7 @@ module RAAF
     #
     def clear_handoff
       @target_agent = nil
-      @handoff_data = {}
+      @handoff_data = {}.with_indifferent_access
       @handoff_timestamp = nil
     end
 
@@ -107,7 +108,112 @@ module RAAF
     # @return [Object] Handoff data or specific value
     #
     def get_handoff_data(key = nil)
-      key ? @handoff_data[key.to_s] || @handoff_data[key.to_sym] : @handoff_data
+      # HashWithIndifferentAccess handles symbol/string conversion automatically
+      key ? @handoff_data[key] : @handoff_data
+    end
+
+    ##
+    # Unified interface methods for RAAF context harmonization
+    #
+
+    ##
+    # Get value from handoff data (unified interface)
+    #
+    # @param key [Symbol, String] The data key
+    # @param default [Object] Default value if key not found
+    # @return [Object] The stored value or default
+    #
+    def get(key, default = nil)
+      @handoff_data.fetch(key, default)
+    end
+
+    ##
+    # Set value in handoff data (unified interface)
+    #
+    # @param key [Symbol, String] The data key
+    # @param value [Object] The value to store
+    # @return [Object] The stored value
+    #
+    def set(key, value)
+      @handoff_data[key] = value
+    end
+
+    ##
+    # Check if key exists in handoff data (unified interface)
+    #
+    # @param key [Symbol, String] The data key
+    # @return [Boolean] true if key exists
+    #
+    def has?(key)
+      @handoff_data.key?(key)
+    end
+
+    ##
+    # Array-style read access (unified interface)
+    #
+    # @param key [Symbol, String] The data key
+    # @return [Object, nil] The stored value or nil
+    #
+    def [](key)
+      @handoff_data[key]
+    end
+
+    ##
+    # Array-style write access (unified interface)
+    #
+    # @param key [Symbol, String] The data key
+    # @param value [Object] The value to store
+    # @return [Object] The stored value
+    #
+    def []=(key, value)
+      @handoff_data[key] = value
+    end
+
+    ##
+    # Get all handoff data keys (unified interface)
+    #
+    # @return [Array<Symbol, String>] All keys in handoff data
+    #
+    def keys
+      @handoff_data.keys
+    end
+
+    ##
+    # Get all handoff data values (unified interface)
+    #
+    # @return [Array<Object>] All values in handoff data
+    #
+    def values
+      @handoff_data.values
+    end
+
+    ##
+    # Export handoff data as hash (unified interface)
+    #
+    # @return [Hash] The handoff data hash with indifferent access
+    #
+    def to_h
+      @handoff_data.to_h
+    end
+
+    ##
+    # Delete a key from handoff data (unified interface)
+    #
+    # @param key [Symbol, String] The data key
+    # @return [Object, nil] The deleted value or nil
+    #
+    def delete(key)
+      @handoff_data.delete(key)
+    end
+
+    ##
+    # Update handoff data with multiple values (unified interface)
+    #
+    # @param hash [Hash] Hash of key-value pairs to merge
+    # @return [Hash] The updated handoff data
+    #
+    def update(hash)
+      @handoff_data.update(hash)
     end
 
     ##
