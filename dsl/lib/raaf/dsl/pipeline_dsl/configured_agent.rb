@@ -1,40 +1,25 @@
 # frozen_string_literal: true
 
 require 'timeout'
+require_relative 'wrapper_dsl'
 
 module RAAF
   module DSL
     module PipelineDSL
       # Wrapper for agents with inline configuration
       class ConfiguredAgent
+        include WrapperDSL
+
         attr_reader :agent_class, :options
-        
+
         def initialize(agent_class, options)
           @agent_class = agent_class
           @options = options
         end
-        
-        def >>(next_agent)
-          ChainedAgent.new(self, next_agent)
-        end
-        
-        def |(other_agent)
-          ParallelAgents.new([self, other_agent])
-        end
-        
-        def timeout(seconds)
-          @options[:timeout] = seconds
-          self
-        end
-        
-        def retry(times)
-          @options[:retry] = times
-          self
-        end
-        
-        def limit(count)
-          @options[:limit] = count
-          self
+
+        # Create a new wrapper with merged options (required by WrapperDSL)
+        def create_wrapper(**new_options)
+          ConfiguredAgent.new(@agent_class, @options.merge(new_options))
         end
         
         # Delegate metadata methods

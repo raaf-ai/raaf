@@ -68,6 +68,15 @@ module RAAF
             # For parallel agents, show all agent names
             agent_names = component.agents.map { |agent| extract_agent_name(agent) }
             "(#{agent_names.join(' | ')})"
+          when RAAF::DSL::PipelineDSL::BatchedAgent
+            # For batched agents, get the wrapped component's name
+            extract_agent_name(component.wrapped_component)
+          when RAAF::DSL::PipelineDSL::IteratingAgent
+            # For iterating agents, get the underlying agent class
+            extract_agent_name(component.agent_class)
+          when RAAF::DSL::PipelineDSL::RemappedAgent
+            # For remapped agents, get the underlying agent class
+            extract_agent_name(component.agent_class)
           when RAAF::DSL::PipelineDSL::ConfiguredAgent
             # For configured agents, get the underlying agent class
             extract_agent_name(component.agent_class)

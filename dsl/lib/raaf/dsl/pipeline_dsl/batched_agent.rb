@@ -104,10 +104,15 @@ module RAAF
             raise ArgumentError, "Field #{field_to_batch} must be an array, got #{full_array.class}"
           end
 
-          log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items in chunks of #{chunk_size}"
-
           # Split into chunks
           chunks = full_array.each_slice(chunk_size).to_a
+
+          # Log appropriate message based on whether chunking actually occurs
+          if chunks.size > 1
+            log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items in #{chunks.size} chunks of #{chunk_size}"
+          else
+            log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items (no chunking needed)"
+          end
 
           # Process each chunk
           accumulated_results = []
@@ -179,25 +184,28 @@ module RAAF
 
         # Extract the actual agent name from the wrapped component
         def wrapped_agent_name
-          case @wrapped_component
+          # Unwrap nested wrappers to get the real agent name
+          component = @wrapped_component
+
+          # Keep unwrapping until we find the real agent class
+          while component.respond_to?(:agent_class)
+            component = component.agent_class
+          end
+
+          case component
           when Class
             # Agent class - try to get configured name or use class name
-            if @wrapped_component.respond_to?(:_context_config)
-              @wrapped_component._context_config[:name] || @wrapped_component.name.split("::").last
+            if component.respond_to?(:_context_config)
+              component._context_config[:name] || component.name.split("::").last
             else
-              @wrapped_component.name.split("::").last
+              component.name.split("::").last
             end
           else
-            # Agent instance or other wrapper - try agent_name method
-            if @wrapped_component.respond_to?(:agent_name)
-              @wrapped_component.agent_name
-            elsif @wrapped_component.respond_to?(:wrapped_component)
-              # Nested wrapper - recurse
-              @wrapped_component.respond_to?(:wrapped_agent_name) ?
-                @wrapped_component.wrapped_agent_name :
-                @wrapped_component.class.name.split("::").last
+            # Agent instance - try agent_name method
+            if component.respond_to?(:agent_name)
+              component.agent_name
             else
-              @wrapped_component.class.name.split("::").last
+              component.class.name.split("::").last
             end
           end
         end
@@ -286,6 +294,12 @@ module RAAF
         # Handles both hash-based and object-based results
         def extract_result_data(result, field_name)
           return nil unless result
+
+          # ContextVariables result (from RemappedAgent or other wrappers)
+          if result.is_a?(RAAF::DSL::ContextVariables)
+            # Get the field value from ContextVariables
+            return result.get(field_name)
+          end
 
           # Hash-like result (most common)
           if result.is_a?(Hash)
