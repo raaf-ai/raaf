@@ -235,12 +235,12 @@ module RAAF
         body[:text] = convert_response_format(response_format) if response_format
 
         # Debug logging - including detailed input inspection for duplicate debugging
-        log_info("Calling OpenAI Responses API",
-                 model: model,
-                 input_length: list_input.length,
-                 tools_count: converted_tools[:tools]&.length || 0,
-                 previous_response_id: previous_response_id,
-                 stream: stream)
+        log_debug("Calling OpenAI Responses API",
+                  model: model,
+                  input_length: list_input.length,
+                  tools_count: converted_tools[:tools]&.length || 0,
+                  previous_response_id: previous_response_id,
+                  stream: stream)
 
         # DETAILED INPUT DEBUGGING - Check for duplicates in the actual API request
         all_input_ids = list_input.map { |item| item[:id] || item["id"] }.compact
@@ -340,10 +340,10 @@ module RAAF
         parsed_response = JSON.parse(response.body)
 
         # Debug logging for successful responses
-        log_info("OpenAI Responses API Success",
-                 response_id: parsed_response["id"],
-                 output_items: parsed_response["output"]&.length || 0,
-                 usage: parsed_response["usage"])
+        log_debug("OpenAI Responses API Success",
+                  response_id: parsed_response["id"],
+                  output_items: parsed_response["output"]&.length || 0,
+                  usage: parsed_response["usage"])
 
         # Return the raw Responses API response
         # The runner will need to handle the items-based format

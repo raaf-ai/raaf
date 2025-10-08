@@ -108,6 +108,11 @@ module RAAF
           for_agent(agent_name, environment: environment)["timeout"] || 120
         end
 
+        # Get max_tokens for a specific agent
+        def max_tokens_for(agent_name, environment: current_environment)
+          for_agent(agent_name, environment: environment)["max_tokens"]
+        end
+
         # Get tool choice for a specific agent
         #
         # Returns the configured tool choice behavior for the specified agent.
@@ -245,6 +250,10 @@ module RAAF
 
       def temperature_for(agent_name)
         self.class.temperature_for(agent_name, environment: @environment)
+      end
+
+      def max_tokens_for(agent_name)
+        self.class.max_tokens_for(agent_name, environment: @environment)
       end
 
       def tool_choice_for(agent_name)
