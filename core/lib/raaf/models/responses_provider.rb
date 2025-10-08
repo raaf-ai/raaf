@@ -337,7 +337,7 @@ module RAAF
           handle_api_error(response, provider_name)
         end
 
-        parsed_response = JSON.parse(response.body)
+        parsed_response = RAAF::Utils.parse_json(response.body)
 
         # Debug logging for successful responses
         log_debug("OpenAI Responses API Success",
@@ -345,7 +345,7 @@ module RAAF
                   output_items: parsed_response["output"]&.length || 0,
                   usage: parsed_response["usage"])
 
-        # Return the raw Responses API response
+        # Return the raw Responses API response with indifferent access
         # The runner will need to handle the items-based format
         parsed_response
       end
