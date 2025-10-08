@@ -152,7 +152,7 @@ module RAAF
     #   @return [Symbol] validation mode for schema validation (:strict, :tolerant, :partial)
     # @!attribute [rw] trace_metadata
     #   @return [Hash, nil] additional metadata to include in tracing spans (from DSL layer)
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :output_type, :hooks, :prompt,
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :max_tokens, :output_type, :hooks, :prompt,
                   :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff, :json_repair, :normalize_keys, :validation_mode, :trace_metadata
 
     ##
@@ -220,6 +220,7 @@ module RAAF
       @handoffs = (options[:handoffs] || []).dup
       @model = options[:model] || "gpt-4"
       @max_turns = options[:max_turns] || 10
+      @max_tokens = options[:max_tokens]
       @output_type = options[:output_type]
       @hooks = options[:hooks]
       @prompt = options[:prompt]

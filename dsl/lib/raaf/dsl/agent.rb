@@ -148,6 +148,14 @@ module RAAF
           end
         end
 
+        def max_tokens(tokens = nil)
+          if tokens
+            _context_config[:max_tokens] = tokens
+          else
+            _context_config[:max_tokens]
+          end
+        end
+
         def description(desc = nil)
           if desc
             _context_config[:description] = desc
@@ -1843,9 +1851,15 @@ module RAAF
       end
 
       def max_turns
-        self.class._context_config&.dig(:max_turns) || 
-          RAAF::DSL::Config.max_turns_for(agent_name) || 
+        self.class._context_config&.dig(:max_turns) ||
+          RAAF::DSL::Config.max_turns_for(agent_name) ||
           3
+      end
+
+      def max_tokens
+        self.class._context_config&.dig(:max_tokens) ||
+          RAAF::DSL::Config.max_tokens_for(agent_name) ||
+          nil  # No default - let provider use its default
       end
 
 
@@ -2064,13 +2078,9 @@ module RAAF
         # Transform result to expected DSL format
         base_result = transform_ai_result(run_result, run_context)
 
-        # Apply result transformations if configured, or auto-generate them for output fields
-        if self.class._result_transformations
-          apply_result_transformations(base_result)
-        else
-          # Automatically extract output fields if they are declared but no transformations exist
-          generate_auto_transformations_for_output_fields(base_result)
-        end
+        # Return base_result WITHOUT applying transformations
+        # Transformations will be applied by process_raaf_result() to avoid double execution
+        base_result
       end
 
       # Resolve context for run execution
@@ -2737,29 +2747,6 @@ module RAAF
         result_data
       end
 
-      def process_raaf_result(raaf_result)
-        # Handle different RAAF result formats automatically
-        base_result = if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
-          # New RAAF format
-          extract_result_data(raaf_result[:results])
-        elsif raaf_result.is_a?(Hash)
-          # Direct hash result
-          extract_hash_result(raaf_result)
-        else
-          # Unknown format
-          log_warn "🤔 [#{self.class.name}] Unknown result format: #{raaf_result.class}"
-          { success: true, data: raaf_result }
-        end
-
-        # Apply result transformations if configured, or auto-generate them for output fields
-        if self.class._result_transformations
-          apply_result_transformations(base_result)
-        else
-          # Automatically extract output fields if they are declared but no transformations exist
-          generate_auto_transformations_for_output_fields(base_result)
-        end
-      end
-
       def extract_result_data(results)
         # If results is already a Hash with structured data matching agent's output fields, return it
         if results.is_a?(Hash) && !results.empty?
@@ -2988,6 +2975,7 @@ module RAAF
           instructions: build_instructions,
           model: model_name,
           max_turns: max_turns,
+          max_tokens: max_tokens,
           # Pass JSON repair and schema validation options to core Agent
           json_repair: [:tolerant, :partial].include?(validation_mode),
           normalize_keys: [:tolerant, :partial].include?(validation_mode),
@@ -3237,7 +3225,21 @@ module RAAF
 
         # Custom transformation
         if value && field_config[:transform]
-          value = field_config[:transform].call(value)
+          transform = field_config[:transform]
+          value = case transform
+                  when Proc, Method
+                    # Callable objects (Proc, lambda, Method)
+                    transform.call(value)
+                  when Symbol
+                    # Symbol method name - call as instance method
+                    if respond_to?(transform, true)
+                      send(transform, value)
+                    else
+                      raise ArgumentError, "Transform method '#{transform}' not found on #{self.class.name}"
+                    end
+                  else
+                    raise ArgumentError, "Transform must be a Proc, Method, or Symbol, got #{transform.class}"
+                  end
         end
 
         value
