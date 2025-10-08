@@ -21,29 +21,35 @@ puts result.messages.last[:content]  # Symbol key access
 puts result.messages.last["content"] # String key access (same result)
 ```
 
-## Indifferent Hash Access System
+## Unified Context System with Indifferent Access
 
-**RAAF solves the string vs symbol key problem** that plagues Ruby applications:
+**RAAF provides a harmonized context system** that eliminates string vs symbol key confusion across all 12 context classes:
 
 ```ruby
-# All RAAF data structures support indifferent access
-result = agent.run("Get weather for Tokyo")
+# All RAAF contexts now support deep indifferent access
+run_context = RAAF::RunContext.new
+run_context.set(:user, { profile: { name: "John" } })
 
-# These all work identically - use whatever feels natural:
-result[:messages]           # ✅ Works
-result["messages"]          # ✅ Works
-result[:output][:weather]   # ✅ Works  
-result["output"]["weather"] # ✅ Works
+# These all work identically at every nesting level:
+run_context[:user][:profile][:name]      # ✅ Works
+run_context["user"]["profile"]["name"]   # ✅ Works
+run_context[:user]["profile"][:name]     # ✅ Mixed works!
 
 # No more defensive programming patterns needed:
-# OLD: response[:key] || response["key"]  ❌ Error-prone
-# NEW: response[:key]                     ✅ Always works
+# OLD: context[:key] || context["key"]  ❌ Error-prone
+# NEW: context[:key]                     ✅ Always works
 
-# Tool results, context data, configuration - everything supports both key types
-tool_result = result[:tool_calls].first
-puts tool_result[:name]        # ✅ Works
-puts tool_result["arguments"]  # ✅ Works
+# Unified interface across all contexts:
+run_context.set(:key, "value")     # RunContext
+tool_context.set(:key, "value")    # ToolContext (same method!)
+handoff_context.set(:key, "value") # HandoffContext (consistent!)
 ```
+
+**Complete Context Harmonization Guide:** See **[CONTEXT_HARMONIZATION.md](core/CONTEXT_HARMONIZATION.md)** for:
+- Unified interface specification
+- Two-tier mutable/immutable pattern
+- Migration guide from old patterns
+- Deep dive into all 12 context classes
 
 ## Provider Requirements
 
