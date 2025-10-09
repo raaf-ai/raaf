@@ -143,6 +143,9 @@ module RAAF
         services[:turn_executor].execute_turn(turn_data, self, runner)
       end
 
+      # Finalize conversation and call on_agent_end hook
+      finalize_conversation(final_state[:context_wrapper], agent, final_state[:conversation])
+
       create_result(
         final_state[:conversation],
         final_state[:usage],
@@ -186,6 +189,42 @@ module RAAF
     private
 
     ##
+    # Finalize conversation by extracting output and calling on_agent_end hook
+    #
+    # Handles different data formats (ResponsesAPI response, message hash, or conversation array)
+    # and extracts the final output string before calling the hook.
+    #
+    # @param context_wrapper [ContextWrapper] The context wrapper
+    # @param agent [Agent] The agent that executed
+    # @param final_data [Hash, Array, nil] Final data (response, message, or conversation array)
+    # @return [void]
+    #
+    def finalize_conversation(context_wrapper, agent, final_data)
+      # Extract output consistently for all provider types
+      # This ensures both StandardAPI and ResponsesAPI paths pass the same format to hooks
+      final_output = case final_data
+                     when Array
+                       # Conversation array from StandardAPI path
+                       # Extract last message and process it the same way as ResponsesAPI
+                       last_message = final_data.last
+                       if last_message
+                         runner.extract_assistant_content_from_response(last_message, agent)
+                       else
+                         ""
+                       end
+                     when Hash
+                       # Response format (from ResponsesAPI) or single message
+                       # Use the same extraction method for consistency
+                       runner.extract_assistant_content_from_response(final_data, agent)
+                     else
+                       ""
+                     end
+
+      # Call hook with extracted output
+      runner.call_hook(:on_agent_end, context_wrapper, agent, final_output)
+    end
+
+    ##
     # Create final execution result
     #
     # @param conversation [Array<Hash>] Final conversation state
@@ -195,7 +234,6 @@ module RAAF
     #
     def create_result(conversation, usage, context_wrapper, final_agent = nil, turns: nil, tool_results: nil)
       effective_agent = final_agent || @agent
-
       # Debug: Check what's coming into create_result
       log_debug("🔍 DEBUG: create_result input",
                 conversation_count: conversation.size,

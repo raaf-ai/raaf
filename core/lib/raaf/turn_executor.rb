@@ -74,12 +74,9 @@ module RAAF
           message[:content] = filtered_content if filtered_content != message[:content]
         end
 
-        # Call agent end hook and capture any modified message/output
-        # Hooks can return modified data to replace the message
-        hook_result = runner.call_hook(:on_agent_end, context_wrapper, current_agent, message)
-        if hook_result && hook_result.is_a?(Hash)
-          message = hook_result
-        end
+        # NOTE: on_agent_end hook is NOT called here - it should only be called
+        # once when the agent is completely done, not after each turn.
+        # The ConversationManager will call it after the conversation completes.
 
         # Handle tool calls if present
         if @tool_executor.tool_calls?(message)

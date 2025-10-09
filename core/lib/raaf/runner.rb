@@ -1654,14 +1654,8 @@ module RAAF
         log_debug("🔢 TURNS: No responses to count", turns: state[:turns])
       end
 
-      # Call agent end hook with properly extracted content from Responses API
-      final_output = if model_responses.last
-                       # Extract text content from Responses API output structure
-                       extract_assistant_content_from_response(model_responses.last, state[:current_agent])
-                     else
-                       ""
-                     end
-      call_hook(:on_agent_end, context_wrapper, state[:current_agent], final_output)
+      # Finalize agent execution and call on_agent_end hook
+      finalize_agent_execution(context_wrapper, state[:current_agent], model_responses.last)
 
       # Debug: Check what's in messages before building final_messages
       log_debug("🔍 DEBUG: messages before final_messages creation",
@@ -1893,9 +1887,10 @@ module RAAF
 
       agent_identifier.to_s
     end
+    public
 
     # Extract assistant content from OpenAI Responses API format
-    # 
+    #
     # This method now handles JSON parsing when the agent expects structured output
     # but receives unstructured text with JSON wrapped in markdown code blocks.
     #
@@ -1903,9 +1898,42 @@ module RAAF
     # @param agent [Agent, nil] The agent that made the request (for response_format checking)
     # @return [String, Hash, Array] Extracted content, parsed as JSON if appropriate
     def extract_assistant_content_from_response(response, agent = nil)
-      output = response[:output] || response["output"] || []
-      assistant_content = ""
+      # Handle both ResponsesAPI format (with :output array) and plain message format
+      output = response[:output] || response["output"]
 
+      assistant_content = if output && output.is_a?(Array)
+                            # ResponsesAPI format with :output array
+                            extract_from_output_array(output)
+                          else
+                            # Plain message format from StandardAPI providers
+                            extract_from_message_hash(response)
+                          end
+
+      # Parse JSON if agent expects structured output or content looks like JSON
+      if agent && (agent.response_format || expects_json_content?(assistant_content))
+        parsed_content = extract_and_parse_json(assistant_content)
+        if parsed_content
+          log_debug("🔄 Parsed JSON from AI response in tolerant validation mode",
+                    agent: agent.name,
+                    original_length: assistant_content.to_s.length,
+                    parsed_type: parsed_content.class.name)
+          return parsed_content
+        end
+      end
+
+      assistant_content
+    end
+
+    private
+
+    ##
+    # Extract content from ResponsesAPI output array format
+    #
+    # @param output [Array] Output array from ResponsesAPI
+    # @return [String] Extracted assistant content
+    #
+    def extract_from_output_array(output)
+      assistant_content = ""
       output.each do |item|
         item_type = item[:type] || item["type"]
         next unless %w[message text output_text].include?(item_type)
@@ -1934,21 +1962,35 @@ module RAAF
           end
         end
       end
-
-      # NEW: Parse JSON if agent expects structured output or content looks like JSON
-      if agent && (agent.response_format || expects_json_content?(assistant_content))
-        parsed_content = extract_and_parse_json(assistant_content)
-        if parsed_content
-          log_debug("🔄 Parsed JSON from AI response in tolerant validation mode",
-                    agent: agent.name,
-                    original_length: assistant_content.length,
-                    parsed_type: parsed_content.class.name)
-          return parsed_content
-        end
-      end
-
       assistant_content
     end
+
+    ##
+    # Extract content from plain message hash format (StandardAPI providers)
+    #
+    # @param message [Hash] Message hash with :role and :content
+    # @return [String] Extracted content
+    #
+    def extract_from_message_hash(message)
+      content = message[:content] || message["content"]
+
+      if content.is_a?(String)
+        content
+      elsif content.is_a?(Array)
+        # Handle array of content items (some providers use this format)
+        content.map do |item|
+          if item.is_a?(Hash)
+            item[:text] || item["text"] || item[:content] || item["content"] || ""
+          else
+            item.to_s
+          end
+        end.join
+      else
+        content.to_s
+      end
+    end
+
+    public
 
     def build_system_prompt(agent, context_wrapper = nil)
       return nil unless agent
@@ -2766,6 +2808,26 @@ module RAAF
     end
 
     private
+
+    ##
+    # Finalize agent execution by extracting output and calling on_agent_end hook
+    #
+    # Extracts the final output from ResponsesAPI response format and calls the
+    # on_agent_end hook with the extracted string content.
+    #
+    # @param context_wrapper [ContextWrapper] The context wrapper
+    # @param agent [Agent] The agent that executed
+    # @param response_data [Hash, nil] Final response data from ResponsesAPI
+    # @return [void]
+    #
+    def finalize_agent_execution(context_wrapper, agent, response_data)
+      final_output = if response_data
+                       extract_assistant_content_from_response(response_data, agent)
+                     else
+                       ""
+                     end
+      call_hook(:on_agent_end, context_wrapper, agent, final_output)
+    end
 
     ##
     # Safely extract tool name from either FunctionTool or hash
