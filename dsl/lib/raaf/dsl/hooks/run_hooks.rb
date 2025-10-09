@@ -31,6 +31,16 @@ module RAAF
           on_tool_start
           on_tool_end
           on_error
+          on_context_built
+          on_validation_failed
+          on_result_ready
+          on_prompt_generated
+          on_tokens_counted
+          on_circuit_breaker_open
+          on_circuit_breaker_closed
+          on_retry_attempt
+          on_execution_slow
+          on_pipeline_stage_complete
         ].freeze
 
         # Thread-safe storage for global hooks
@@ -110,6 +120,122 @@ module RAAF
           #
           def on_error(method_name = nil, &block)
             register_hook(:on_error, method_name, &block)
+          end
+
+          # DSL-LEVEL HOOKS (Tier 1: Essential)
+
+          # Register a callback for after context assembly
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called after context is built
+          # @yieldparam data [Hash] Context data with :context key
+          #
+          def on_context_built(method_name = nil, &block)
+            register_hook(:on_context_built, method_name, &block)
+          end
+
+          # Register a callback for when schema validation fails
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called when validation fails
+          # @yieldparam data [Hash] Validation error data
+          #
+          def on_validation_failed(method_name = nil, &block)
+            register_hook(:on_validation_failed, method_name, &block)
+          end
+
+          # Register a callback for after all result transformations complete
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called after transformations complete
+          # @yieldparam data [Hash] Result data with :result and :timestamp keys
+          #
+          def on_result_ready(method_name = nil, &block)
+            register_hook(:on_result_ready, method_name, &block)
+          end
+
+          # DSL-LEVEL HOOKS (Tier 2: High-Value Development)
+
+          # Register a callback for after prompt generation
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called after prompts are generated
+          # @yieldparam data [Hash] Prompt data with :system_prompt, :user_prompt, :context keys
+          #
+          def on_prompt_generated(method_name = nil, &block)
+            register_hook(:on_prompt_generated, method_name, &block)
+          end
+
+          # Register a callback for after token counting
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called after token counting
+          # @yieldparam data [Hash] Token usage data with costs
+          #
+          def on_tokens_counted(method_name = nil, &block)
+            register_hook(:on_tokens_counted, method_name, &block)
+          end
+
+          # Register a callback for when circuit breaker opens
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called when circuit breaker opens
+          # @yieldparam data [Hash] Circuit breaker state data
+          #
+          def on_circuit_breaker_open(method_name = nil, &block)
+            register_hook(:on_circuit_breaker_open, method_name, &block)
+          end
+
+          # Register a callback for when circuit breaker closes
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called when circuit breaker closes
+          # @yieldparam data [Hash] Circuit breaker state data
+          #
+          def on_circuit_breaker_closed(method_name = nil, &block)
+            register_hook(:on_circuit_breaker_closed, method_name, &block)
+          end
+
+          # DSL-LEVEL HOOKS (Tier 3: Specialized Operations)
+
+          # Register a callback for before each retry attempt
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called before retry
+          # @yieldparam data [Hash] Retry context data
+          #
+          def on_retry_attempt(method_name = nil, &block)
+            register_hook(:on_retry_attempt, method_name, &block)
+          end
+
+          # Register a callback for when execution exceeds threshold
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called when execution is slow
+          # @yieldparam data [Hash] Execution timing data
+          #
+          def on_execution_slow(method_name = nil, &block)
+            register_hook(:on_execution_slow, method_name, &block)
+          end
+
+          # Register a callback for after pipeline stages complete
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          # @yield [data] Block called after pipeline stage
+          # @yieldparam data [Hash] Pipeline stage data
+          #
+          def on_pipeline_stage_complete(method_name = nil, &block)
+            register_hook(:on_pipeline_stage_complete, method_name, &block)
           end
 
           # Get hook configuration for RAAF SDK

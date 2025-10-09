@@ -372,6 +372,16 @@ module RAAF
           on_tool_start
           on_tool_end
           on_error
+          on_context_built
+          on_validation_failed
+          on_result_ready
+          on_prompt_generated
+          on_tokens_counted
+          on_circuit_breaker_open
+          on_circuit_breaker_closed
+          on_retry_attempt
+          on_execution_slow
+          on_pipeline_stage_complete
         ].freeze
 
         def _agent_hooks
@@ -409,6 +419,52 @@ module RAAF
 
         def on_error(method_name = nil, &block)
           register_agent_hook(:on_error, method_name, &block)
+        end
+
+        # DSL-LEVEL HOOKS (Tier 1: Essential)
+
+        def on_context_built(method_name = nil, &block)
+          register_agent_hook(:on_context_built, method_name, &block)
+        end
+
+        def on_validation_failed(method_name = nil, &block)
+          register_agent_hook(:on_validation_failed, method_name, &block)
+        end
+
+        def on_result_ready(method_name = nil, &block)
+          register_agent_hook(:on_result_ready, method_name, &block)
+        end
+
+        # DSL-LEVEL HOOKS (Tier 2: High-Value Development)
+
+        def on_prompt_generated(method_name = nil, &block)
+          register_agent_hook(:on_prompt_generated, method_name, &block)
+        end
+
+        def on_tokens_counted(method_name = nil, &block)
+          register_agent_hook(:on_tokens_counted, method_name, &block)
+        end
+
+        def on_circuit_breaker_open(method_name = nil, &block)
+          register_agent_hook(:on_circuit_breaker_open, method_name, &block)
+        end
+
+        def on_circuit_breaker_closed(method_name = nil, &block)
+          register_agent_hook(:on_circuit_breaker_closed, method_name, &block)
+        end
+
+        # DSL-LEVEL HOOKS (Tier 3: Specialized Operations)
+
+        def on_retry_attempt(method_name = nil, &block)
+          register_agent_hook(:on_retry_attempt, method_name, &block)
+        end
+
+        def on_execution_slow(method_name = nil, &block)
+          register_agent_hook(:on_execution_slow, method_name, &block)
+        end
+
+        def on_pipeline_stage_complete(method_name = nil, &block)
+          register_agent_hook(:on_pipeline_stage_complete, method_name, &block)
         end
 
         # Hook configuration methods
@@ -1041,8 +1097,30 @@ module RAAF
         elsif error.is_a?(JSON::ParserError)
           log_error "❌ [#{agent_name}] JSON parsing error: #{error.message}"
           { success: false, error: "Failed to parse AI response", error_type: "json_error" }
+        elsif error.is_a?(RAAF::DSL::SchemaError) || error.is_a?(RAAF::DSL::ValidationError)
+          log_error "❌ [#{agent_name}] Schema validation error: #{error.message}"
+
+          # Fire DSL hook: on_validation_failed
+          fire_dsl_hook(:on_validation_failed, {
+            error: error.message,
+            error_type: error.is_a?(RAAF::DSL::SchemaError) ? "schema_validation" : "data_validation",
+            field: error.respond_to?(:field) ? error.field : nil,
+            value: error.respond_to?(:value) ? error.value : nil,
+            expected_type: error.respond_to?(:expected_type) ? error.expected_type : nil,
+            timestamp: Time.now
+          })
+
+          { success: false, error: error.message, error_type: "validation_error" }
         elsif error.is_a?(ArgumentError) && error.message.include?("context")
           log_error "❌ [#{agent_name}] Context validation error: #{error.message}"
+
+          # Fire DSL hook: on_validation_failed
+          fire_dsl_hook(:on_validation_failed, {
+            error: error.message,
+            error_type: "context_validation",
+            timestamp: Time.now
+          })
+
           { success: false, error: error.message, error_type: "validation_error" }
         else
           log_error "❌ [#{agent_name}] Unexpected error: #{error.message}", stack_trace: error.backtrace.join("\n")
@@ -1124,15 +1202,94 @@ module RAAF
         end
 
         # Apply result transformations if configured, or auto-generate them for output fields
-        if self.class._result_transformations
+        final_result = if self.class._result_transformations
           apply_result_transformations(base_result)
         else
           # Automatically extract output fields if they are declared but no transformations exist
           generate_auto_transformations_for_output_fields(base_result)
         end
+
+        # Fire DSL hook: on_result_ready - After all transformations complete
+        fire_dsl_hook(:on_result_ready, {
+          result: final_result,
+          timestamp: Time.now
+        })
+
+        final_result
       end
 
       private
+
+      # Fire a DSL-level hook with error handling
+      #
+      # DSL hooks fire during DSL processing (after context building, validation, transformations)
+      # while core hooks fire during RAAF agent execution. This separation ensures hooks
+      # receive appropriate data for their execution context.
+      #
+      # @param hook_name [Symbol] The name of the hook to fire
+      # @param hook_data [Hash] Data to pass to the hook (automatically converted to HashWithIndifferentAccess)
+      # @return [void]
+      def fire_dsl_hook(hook_name, hook_data = {})
+        return unless self.class.respond_to?(:_agent_hooks) && self.class._agent_hooks[hook_name]
+
+        # Ensure hook data uses HashWithIndifferentAccess for consistent key access
+        normalized_data = ActiveSupport::HashWithIndifferentAccess.new(hook_data)
+
+        # Execute each registered hook for this type
+        self.class._agent_hooks[hook_name].each do |hook|
+          begin
+            if hook.is_a?(Proc)
+              # Use instance_exec to execute block in agent's context
+              # This allows hook blocks to set instance variables on the agent
+              instance_exec(normalized_data, &hook)
+            elsif hook.is_a?(Symbol)
+              send(hook, normalized_data)
+            end
+          rescue StandardError => e
+            # Log hook errors but don't crash agent execution
+            log_error "❌ [#{self.class.name}] Hook #{hook_name} failed: #{e.message}"
+            log_debug "Hook error details", error: e.class.name, backtrace: e.backtrace.first(5)
+          end
+        end
+      end
+
+      # Calculate estimated cost based on token usage and model
+      #
+      # @param usage [Hash] Token usage data with :input_tokens and :output_tokens
+      # @param model [String] Model identifier (e.g., "gpt-4o", "claude-3-5-sonnet")
+      # @return [Float] Estimated cost in USD
+      def calculate_estimated_cost(usage, model)
+        input_tokens = (usage[:input_tokens] || usage["input_tokens"] || 0).to_f
+        output_tokens = (usage[:output_tokens] || usage["output_tokens"] || 0).to_f
+
+        # Pricing per 1M tokens (approximate, as of 2025)
+        pricing = case model.to_s.downcase
+        when /gpt-4o-mini/
+          { input: 0.15, output: 0.60 }
+        when /gpt-4o/
+          { input: 2.50, output: 10.00 }
+        when /gpt-4-turbo/, /gpt-4-1106/
+          { input: 10.00, output: 30.00 }
+        when /gpt-4/, /gpt-4-0613/
+          { input: 30.00, output: 60.00 }
+        when /gpt-3.5-turbo/
+          { input: 0.50, output: 1.50 }
+        when /claude-3-5-sonnet/,  /claude-3\.5-sonnet/
+          { input: 3.00, output: 15.00 }
+        when /claude-3-sonnet/, /claude-3-opus/
+          { input: 3.00, output: 15.00 }
+        when /claude-3-haiku/
+          { input: 0.25, output: 1.25 }
+        else
+          # Default pricing for unknown models
+          { input: 1.00, output: 2.00 }
+        end
+
+        input_cost = (input_tokens / 1_000_000.0) * pricing[:input]
+        output_cost = (output_tokens / 1_000_000.0) * pricing[:output]
+
+        (input_cost + output_cost).round(6)
+      end
 
       def run_with_timeout(timeout_seconds, context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         agent_name = self.class._context_config&.dig(:name) || self.class.name
@@ -1628,7 +1785,10 @@ module RAAF
       # Transforms Ai::Agents::Category::AgentName to Ai::Prompts::Category::AgentName
       def infer_prompt_class_name
         agent_class_name = self.class.name
-        
+
+        # Return nil if class name is not available (e.g., anonymous classes in tests)
+        return nil if agent_class_name.nil?
+
         # Replace "Agents" with "Prompts" in the module path
         prompt_class_name = agent_class_name.gsub(/::Agents::/, "::Prompts::")
         
@@ -1669,6 +1829,7 @@ module RAAF
       
       def infer_prompt_class_name_string
         agent_class_name = self.class.name
+        return nil if agent_class_name.nil?
         agent_class_name.gsub(/::Agents::/, "::Prompts::")
       end
 
@@ -1676,7 +1837,10 @@ module RAAF
       # This helps in cases where the standard convention doesn't work
       def try_alternative_prompt_conventions
         agent_class_name = self.class.name
-        
+
+        # Return nil if class name is not available (e.g., anonymous classes in tests)
+        return nil if agent_class_name.nil?
+
         # Extract the final class name (e.g., "Analysis" from "Ai::Agents::Market::Analysis")
         final_class_name = agent_class_name.split("::").last
         
@@ -2051,11 +2215,21 @@ module RAAF
         # Resolve context for this run
         run_context = resolve_run_context(context || input_context_variables)
 
+        # Fire DSL hook: on_context_built - After context assembly, before AI call
+        fire_dsl_hook(:on_context_built, { context: run_context })
+
         # Create OpenAI agent with DSL configuration
         openai_agent = create_agent
 
         # Build user prompt with context if available
         user_prompt = build_user_prompt_with_context(run_context)
+
+        # Fire DSL hook: on_prompt_generated - After prompts are generated
+        fire_dsl_hook(:on_prompt_generated, {
+          system_prompt: openai_agent.instructions,
+          user_prompt: user_prompt,
+          context: run_context
+        })
 
         log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
 
@@ -2074,6 +2248,19 @@ module RAAF
 
         # Generic response logging
         log_debug "Received AI response for #{agent_name}"
+
+        # Fire DSL hook: on_tokens_counted - After token counting
+        if run_result.respond_to?(:usage) && run_result.usage
+          usage = run_result.usage
+          fire_dsl_hook(:on_tokens_counted, {
+            input_tokens: usage[:input_tokens] || usage["input_tokens"],
+            output_tokens: usage[:output_tokens] || usage["output_tokens"],
+            total_tokens: usage[:total_tokens] || usage["total_tokens"],
+            estimated_cost: calculate_estimated_cost(usage, openai_agent.model),
+            model: openai_agent.model,
+            timestamp: Time.now
+          })
+        end
 
         # Transform result to expected DSL format
         base_result = transform_ai_result(run_result, run_context)
