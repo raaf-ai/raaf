@@ -508,6 +508,107 @@ end
 - ❌ General conversational tasks
 - ❌ Streaming real-time responses
 
+### Perplexity Common Code Integration
+
+**PerplexityProvider uses common code from RAAF Core** for consistent behavior with PerplexityTool.
+
+#### Common Modules Used
+
+```ruby
+require 'raaf/perplexity/common'
+require 'raaf/perplexity/search_options'
+require 'raaf/perplexity/result_parser'
+
+class PerplexityProvider < ModelInterface
+  def chat_completion(messages:, model:, **kwargs)
+    # 1. Validate model using common code
+    RAAF::Perplexity::Common.validate_model(model)
+
+    # 2. Validate schema support (for sonar-pro, sonar-reasoning-pro)
+    if kwargs[:response_format]
+      RAAF::Perplexity::Common.validate_schema_support(model)
+    end
+
+    # 3. Build search options using common code
+    if kwargs[:web_search_options]
+      options = RAAF::Perplexity::SearchOptions.build(
+        domain_filter: kwargs[:web_search_options][:search_domain_filter],
+        recency_filter: kwargs[:web_search_options][:search_recency_filter]
+      )
+      body[:search_domain_filter] = options[:search_domain_filter] if options
+      body[:search_recency_filter] = options[:search_recency_filter] if options
+    end
+
+    # 4. Make API call
+    response = make_api_call(body)
+
+    # 5. Format response using common code
+    RAAF::Perplexity::ResultParser.format_search_result(response)
+  end
+end
+```
+
+#### Single Source of Truth
+
+All Perplexity constants and validation logic live in RAAF Core:
+
+```ruby
+# Model constants - single source of truth
+RAAF::Perplexity::Common::SUPPORTED_MODELS
+# => ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]
+
+RAAF::Perplexity::Common::SCHEMA_CAPABLE_MODELS
+# => ["sonar-pro", "sonar-reasoning-pro"]
+
+# Recency filters - single source of truth
+RAAF::Perplexity::Common::RECENCY_FILTERS
+# => ["hour", "day", "week", "month", "year"]
+
+# Validation methods used by provider
+RAAF::Perplexity::Common.validate_model("sonar-pro")          # => true
+RAAF::Perplexity::Common.validate_schema_support("sonar-pro") # => true
+```
+
+#### Result Formatting
+
+Both provider and tool use identical result formatting:
+
+```ruby
+# Provider response structure (formatted by ResultParser)
+{
+  success: true,
+  content: "Search result text...",
+  citations: ["https://source1.com", "https://source2.com"],
+  web_results: [
+    {
+      "title" => "Article Title",
+      "url" => "https://article.com",
+      "snippet" => "Article preview..."
+    }
+  ],
+  model: "sonar-pro"
+}
+
+# Tool response structure (same format via ResultParser)
+{
+  success: true,
+  content: "Search result text...",
+  citations: [...],
+  web_results: [...],
+  model: "sonar-pro"
+}
+```
+
+#### Benefits of Common Code
+
+1. **Consistent Validation**: Same model and filter validation across provider and tool
+2. **Single Source of Truth**: Constants defined once in RAAF Core
+3. **Identical Response Format**: Provider and tool return same structure
+4. **Easy Maintenance**: Update validation/formatting logic in one place
+5. **No Code Duplication**: SearchOptions and ResultParser shared between both
+
+**See also:** `@raaf/core/CLAUDE.md` for detailed common code documentation.
+
 ### Together AI Provider
 ```ruby
 together_provider = RAAF::Models::TogetherProvider.new do |config|

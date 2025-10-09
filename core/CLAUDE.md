@@ -206,6 +206,441 @@ ruby examples/basic_usage.rb
 RAAF_LOG_LEVEL=debug ruby your_script.rb
 ```
 
+## Perplexity Common Code
+
+**RAAF Core provides shared Perplexity functionality** used by both PerplexityProvider and PerplexityTool for consistent behavior and single source of truth.
+
+### Common Modules
+
+Located in `lib/raaf/perplexity/`:
+
+#### RAAF::Perplexity::Common
+
+**Constants and validation methods:**
+
+```ruby
+require 'raaf/perplexity/common'
+
+# Model constants
+RAAF::Perplexity::Common::SUPPORTED_MODELS
+# => ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]
+
+RAAF::Perplexity::Common::SCHEMA_CAPABLE_MODELS
+# => ["sonar-pro", "sonar-reasoning-pro"]
+
+RAAF::Perplexity::Common::RECENCY_FILTERS
+# => ["hour", "day", "week", "month", "year"]
+
+# Validation methods
+RAAF::Perplexity::Common.validate_model("sonar")          # => true
+RAAF::Perplexity::Common.validate_model("invalid")       # => raises ArgumentError
+
+RAAF::Perplexity::Common.validate_schema_support("sonar-pro")  # => true
+RAAF::Perplexity::Common.validate_schema_support("sonar")      # => raises ArgumentError
+```
+
+#### RAAF::Perplexity::SearchOptions
+
+**Builds web_search_options hash with validation:**
+
+```ruby
+require 'raaf/perplexity/search_options'
+
+# Build with domain filter
+options = RAAF::Perplexity::SearchOptions.build(
+  domain_filter: ["ruby-lang.org", "github.com"]
+)
+# => { search_domain_filter: ["ruby-lang.org", "github.com"] }
+
+# Build with recency filter
+options = RAAF::Perplexity::SearchOptions.build(
+  recency_filter: "week"
+)
+# => { search_recency_filter: "week" }
+
+# Build with both filters
+options = RAAF::Perplexity::SearchOptions.build(
+  domain_filter: ["ruby-lang.org"],
+  recency_filter: "month"
+)
+# => { search_domain_filter: ["ruby-lang.org"], search_recency_filter: "month" }
+
+# Returns nil if both filters are nil
+options = RAAF::Perplexity::SearchOptions.build(
+  domain_filter: nil,
+  recency_filter: nil
+)
+# => nil
+```
+
+#### RAAF::Perplexity::ResultParser
+
+**Formats API responses consistently:**
+
+```ruby
+require 'raaf/perplexity/result_parser'
+
+# Parse provider response
+api_response = {
+  "choices" => [
+    { "message" => { "content" => "Ruby 3.4 includes..." } }
+  ],
+  "citations" => ["https://ruby-lang.org/..."],
+  "web_results" => [
+    { "title" => "Ruby 3.4 Released", "url" => "..." }
+  ],
+  "model" => "sonar"
+}
+
+result = RAAF::Perplexity::ResultParser.format_search_result(api_response)
+# => {
+#   success: true,
+#   content: "Ruby 3.4 includes...",
+#   citations: ["https://ruby-lang.org/..."],
+#   web_results: [...],
+#   model: "sonar"
+# }
+
+# Handles missing citations/web_results gracefully
+result = RAAF::Perplexity::ResultParser.format_search_result(response_without_citations)
+# => { success: true, content: "...", citations: [], web_results: [], model: "sonar" }
+```
+
+### Usage Pattern
+
+Both PerplexityProvider and PerplexityTool use these common modules:
+
+```ruby
+# In PerplexityProvider
+class PerplexityProvider < ModelInterface
+  def chat_completion(messages:, model:, **kwargs)
+    # Validate model using common code
+    RAAF::Perplexity::Common.validate_model(model)
+
+    # Build search options using common code
+    if kwargs[:web_search_options]
+      options = RAAF::Perplexity::SearchOptions.build(
+        domain_filter: kwargs[:web_search_options][:search_domain_filter],
+        recency_filter: kwargs[:web_search_options][:search_recency_filter]
+      )
+    end
+
+    # ... make API call ...
+
+    # Format response using common code
+    RAAF::Perplexity::ResultParser.format_search_result(response)
+  end
+end
+
+# In PerplexityTool
+class PerplexityTool
+  def call(query:, model: "sonar", **kwargs)
+    # Build search options using common code
+    options = RAAF::Perplexity::SearchOptions.build(
+      domain_filter: kwargs[:search_domain_filter],
+      recency_filter: kwargs[:search_recency_filter]
+    )
+
+    # Call provider
+    result = @provider.chat_completion(messages: messages, model: model, **kwargs)
+
+    # Format result using common code
+    RAAF::Perplexity::ResultParser.format_search_result(result)
+  end
+end
+```
+
+**Benefits:**
+- Single source of truth for models, filters, and validation
+- Consistent behavior between provider and tool
+- Easy to maintain and extend
+- No code duplication
+
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     RAAF Perplexity Stack                    │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐                        ┌──────────────────┐
+│  Applications    │                        │  Applications    │
+│   using RAAF     │                        │   using RAAF     │
+└────────┬─────────┘                        └────────┬─────────┘
+         │                                           │
+         │ uses                                      │ uses
+         ▼                                           ▼
+┌─────────────────────────────────────────┬─────────────────────┐
+│      raaf-providers gem                 │   raaf-tools gem    │
+│  ┌────────────────────────────────┐    │ ┌─────────────────┐ │
+│  │   PerplexityProvider           │    │ │ PerplexityTool  │ │
+│  │  (lib/raaf/perplexity_provider)│    │ │ (lib/raaf/tools)│ │
+│  │                                 │    │ │                 │ │
+│  │  - chat_completion()            │    │ │ - call()        │ │
+│  │  - validate model               │◄───┼─┤ - uses provider │ │
+│  │  - build search options         │    │ │ - wraps in      │ │
+│  │  - format response              │    │ │   FunctionTool  │ │
+│  └────────────────────────────────┘    │ └─────────────────┘ │
+│              │                          │         │           │
+└──────────────┼──────────────────────────┴─────────┼───────────┘
+               │                                    │
+               │ imports                   imports  │
+               ▼                                    ▼
+┌──────────────────────────────────────────────────────────────┐
+│                     raaf-core gem                            │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │            lib/raaf/perplexity/                      │   │
+│  │                                                       │   │
+│  │  ┌─────────────────────────────────────────────┐    │   │
+│  │  │  Common (common.rb)                         │    │   │
+│  │  │  - SUPPORTED_MODELS constant                │    │   │
+│  │  │  - SCHEMA_CAPABLE_MODELS constant           │    │   │
+│  │  │  - RECENCY_FILTERS constant                 │    │   │
+│  │  │  - validate_model(model)                    │    │   │
+│  │  │  - validate_schema_support(model)           │    │   │
+│  │  └─────────────────────────────────────────────┘    │   │
+│  │                                                       │   │
+│  │  ┌─────────────────────────────────────────────┐    │   │
+│  │  │  SearchOptions (search_options.rb)          │    │   │
+│  │  │  - build(domain_filter:, recency_filter:)   │    │   │
+│  │  │  - Returns { search_domain_filter: [...],   │    │   │
+│  │  │             search_recency_filter: "..." }  │    │   │
+│  │  └─────────────────────────────────────────────┘    │   │
+│  │                                                       │   │
+│  │  ┌─────────────────────────────────────────────┐    │   │
+│  │  │  ResultParser (result_parser.rb)            │    │   │
+│  │  │  - format_search_result(response)           │    │   │
+│  │  │  - Returns { success:, content:,            │    │   │
+│  │  │             citations:, web_results:,       │    │   │
+│  │  │             model: }                        │    │   │
+│  │  └─────────────────────────────────────────────┘    │   │
+│  └──────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
+
+Data Flow:
+──────────
+
+1. Application calls PerplexityProvider.chat_completion() or PerplexityTool.call()
+2. Provider/Tool uses Common.validate_model() to check model name
+3. Provider/Tool uses SearchOptions.build() to create web_search_options hash
+4. Provider makes API call to Perplexity AI
+5. Provider/Tool uses ResultParser.format_search_result() to format response
+6. Formatted response returned to application
+
+Key Relationships:
+─────────────────
+
+• Both PerplexityProvider and PerplexityTool depend on RAAF Core
+• Both use identical validation, option building, and result formatting
+• Common code lives in RAAF Core (lib/raaf/perplexity/)
+• Single source of truth for constants and behavior
+• No code duplication between provider and tool
+```
+
+### Benefits of Common Code Extraction
+
+#### 1. Single Source of Truth
+
+**Before**: Duplicate constants in provider and tool
+```ruby
+# In PerplexityProvider
+SUPPORTED_MODELS = ["sonar", "sonar-pro", ...].freeze
+
+# In PerplexityTool
+SUPPORTED_MODELS = ["sonar", "sonar-pro", ...].freeze  # Duplicate!
+```
+
+**After**: Constants defined once in RAAF Core
+```ruby
+# In RAAF::Perplexity::Common (RAAF Core)
+SUPPORTED_MODELS = ["sonar", "sonar-pro", ...].freeze
+
+# Both provider and tool reference
+RAAF::Perplexity::Common::SUPPORTED_MODELS
+```
+
+**Benefit**: Add new model once, available everywhere immediately.
+
+#### 2. Consistent Validation
+
+**Before**: Duplicate validation logic
+```ruby
+# In PerplexityProvider
+def validate_model(model)
+  unless SUPPORTED_MODELS.include?(model)
+    raise ArgumentError, "Invalid model..."
+  end
+end
+
+# In PerplexityTool
+def validate_model(model)
+  unless SUPPORTED_MODELS.include?(model)  # Duplicate logic
+    raise ArgumentError, "Invalid model..."
+  end
+end
+```
+
+**After**: Validation in one place
+```ruby
+# In RAAF::Perplexity::Common (RAAF Core)
+def self.validate_model(model)
+  unless SUPPORTED_MODELS.include?(model)
+    raise ArgumentError, "Invalid model..."
+  end
+end
+
+# Both use same validation
+RAAF::Perplexity::Common.validate_model(model)
+```
+
+**Benefit**: Fix validation bug once, fixed everywhere.
+
+#### 3. Identical Response Format
+
+**Before**: Different formatting logic in provider and tool
+```ruby
+# Provider formatting
+def format_response(resp)
+  {
+    content: resp.dig("choices", 0, "message", "content"),
+    citations: resp["citations"] || []
+  }
+end
+
+# Tool formatting (slightly different!)
+def format_result(resp)
+  {
+    success: true,
+    content: resp.dig("choices", 0, "message", "content"),
+    citations: resp["citations"] || [],
+    web_results: resp["web_results"] || []  # Different fields!
+  }
+end
+```
+
+**After**: Single ResultParser used by both
+```ruby
+# In RAAF::Perplexity::ResultParser (RAAF Core)
+def self.format_search_result(response)
+  {
+    success: true,
+    content: response.dig("choices", 0, "message", "content") || "",
+    citations: response["citations"] || [],
+    web_results: response["web_results"] || [],
+    model: response["model"]
+  }
+end
+
+# Both use identical formatting
+RAAF::Perplexity::ResultParser.format_search_result(response)
+```
+
+**Benefit**: Provider and tool return identical structure. No surprises.
+
+#### 4. Simplified Testing
+
+**Before**: Test validation, formatting, options in both provider and tool tests
+```ruby
+# providers/spec/perplexity_provider_spec.rb (44 tests)
+describe "validation" do ... end
+describe "search options" do ... end
+describe "result formatting" do ... end
+
+# tools/spec/perplexity_tool_spec.rb (27 tests)
+describe "validation" do ... end  # Duplicate tests
+describe "search options" do ... end  # Duplicate tests
+describe "result formatting" do ... end  # Duplicate tests
+```
+
+**After**: Test common code once, test provider/tool integration separately
+```ruby
+# core/spec/perplexity/common_spec.rb (test once)
+describe "validation" do ... end
+
+# core/spec/perplexity/search_options_spec.rb (test once)
+describe "option building" do ... end
+
+# core/spec/perplexity/result_parser_spec.rb (test once)
+describe "result formatting" do ... end
+
+# providers/spec/perplexity_provider_spec.rb (integration tests only)
+describe "uses common code correctly" do ... end
+
+# tools/spec/perplexity_tool_spec.rb (integration tests only)
+describe "uses common code correctly" do ... end
+```
+
+**Benefit**: Less test duplication. Faster test runs.
+
+#### 5. Easy Maintenance
+
+**Scenario**: Perplexity adds new model `"sonar-ultra"`
+
+**Before**: Update in multiple places
+```ruby
+# 1. Update providers/lib/raaf/perplexity_provider.rb
+SUPPORTED_MODELS = [..., "sonar-ultra"].freeze
+
+# 2. Update tools/lib/raaf/tools/perplexity_tool.rb
+SUPPORTED_MODELS = [..., "sonar-ultra"].freeze
+
+# 3. Update both test suites
+# 4. Risk: Easy to miss one location
+```
+
+**After**: Update in one place
+```ruby
+# Update core/lib/raaf/perplexity/common.rb
+SUPPORTED_MODELS = [..., "sonar-ultra"].freeze
+
+# Provider and tool immediately support new model
+# All tests automatically cover new model
+```
+
+**Benefit**: One-line change. Zero risk of inconsistency.
+
+#### 6. Clear Ownership
+
+**Before**: Perplexity logic scattered across gems
+```
+raaf/
+├── providers/
+│   └── lib/raaf/perplexity_provider.rb (validation, formatting)
+└── tools/
+    └── lib/raaf/tools/perplexity_tool.rb (validation, formatting)
+```
+
+**After**: Clear ownership in RAAF Core
+```
+raaf/
+├── core/
+│   └── lib/raaf/perplexity/  ← Single source of truth
+│       ├── common.rb
+│       ├── search_options.rb
+│       └── result_parser.rb
+├── providers/
+│   └── lib/raaf/perplexity_provider.rb (uses common code)
+└── tools/
+    └── lib/raaf/tools/perplexity_tool.rb (uses common code)
+```
+
+**Benefit**: Know exactly where to update Perplexity logic.
+
+### Summary: Before vs After
+
+| Aspect | Before (Duplicated) | After (Common Code) |
+|--------|-------------------|-------------------|
+| Model constants | 2 copies | 1 copy in Core |
+| Validation logic | 2 copies | 1 copy in Core |
+| Search option building | 2 copies | 1 copy in Core |
+| Result formatting | 2 copies | 1 copy in Core |
+| Adding new model | Update 2+ files | Update 1 file |
+| Fixing validation bug | Fix 2+ places | Fix 1 place |
+| Test coverage | Duplicate tests | Test once, integrate twice |
+| Response consistency | Risk of drift | Always identical |
+| Lines of code | ~400 duplicated | ~200 shared |
+| Maintenance burden | High | Low |
+
 ## Provider Selection Guide
 
 **ResponsesProvider (Default)**: Automatically selected for OpenAI API compatibility with Python SDK features.

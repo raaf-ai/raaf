@@ -1,244 +1,354 @@
 # RAAF Tools - Claude Code Guide
 
-This gem provides a comprehensive collection of pre-built tools for RAAF agents, including web search, file operations, code execution, and more.
+This gem provides tools for RAAF agents to extend their capabilities with external services and operations.
 
 ## Quick Start
 
 ```ruby
 require 'raaf-tools'
 
-# Add tools to agent
+# Create Perplexity web search tool
+perplexity_tool = RAAF::Tools::PerplexityTool.new(
+  api_key: ENV['PERPLEXITY_API_KEY']
+)
+
+# Wrap in FunctionTool for agent use
+function_tool = RAAF::FunctionTool.new(
+  perplexity_tool.method(:call),
+  name: "perplexity_search",
+  description: "Perform web-grounded search with automatic citations"
+)
+
+# Add to agent
 agent = RAAF::Agent.new(
-  name: "ToolAgent",
-  instructions: "You can use various tools to help users",
+  name: "SearchAgent",
+  instructions: "You can search the web for current information",
   model: "gpt-4o"
 )
 
-# Add pre-built tools
-agent.add_tool(RAAF::Tools::WebSearchTool.new)
-agent.add_tool(RAAF::Tools::FileSearchTool.new)
-agent.add_tool(RAAF::Tools::DocumentTool.new)
+agent.add_tool(function_tool)
+
+# Agent will automatically use the tool when needed
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("What are the latest Ruby 3.4 features?")
 ```
 
 ## Available Tools
 
-### Web Search Tool
+### Perplexity Search Tool
+
+**Web-grounded search with automatic citations using Perplexity AI**
+
+The PerplexityTool provides factual, citation-backed web search capabilities for RAAF agents. Best for research tasks requiring current information with source attribution.
+
+#### Basic Usage
+
 ```ruby
-web_search = RAAF::Tools::WebSearchTool.new do |config|
-  config.api_key = ENV['TAVILY_API_KEY']
-  config.max_results = 10
-  config.include_raw_content = true
-  config.search_depth = "advanced"
-end
+# Initialize tool with API key
+perplexity_tool = RAAF::Tools::PerplexityTool.new(
+  api_key: ENV['PERPLEXITY_API_KEY']
+)
 
-agent.add_tool(web_search)
+# Wrap for agent use
+function_tool = RAAF::FunctionTool.new(
+  perplexity_tool.method(:call),
+  name: "perplexity_search",
+  description: "Search the web for current, factual information with citations"
+)
 
-# Usage in conversation:
-# User: "Search for recent Ruby on Rails updates"
-# Agent will automatically use the web search tool
+agent.add_tool(function_tool)
+
+# Agent will call tool when needed
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("Find recent Ruby security updates")
 ```
 
-### File Search Tool
-```ruby
-file_search = RAAF::Tools::FileSearchTool.new do |config|
-  config.search_paths = ["./docs", "./src", "./lib"]
-  config.file_patterns = ["*.rb", "*.md", "*.yml"]
-  config.max_file_size = 1_000_000  # 1MB
-  config.respect_gitignore = true
-end
+#### Tool Configuration
 
-agent.add_tool(file_search)
+```ruby
+# Custom configuration
+perplexity_tool = RAAF::Tools::PerplexityTool.new(
+  api_key: ENV['PERPLEXITY_API_KEY'],
+  api_base: "https://custom.api.perplexity.ai",  # Custom endpoint
+  timeout: 60,                                    # Request timeout (seconds)
+  open_timeout: 10                                # Connection timeout (seconds)
+)
 ```
 
-### Document Tool
-```ruby
-document_tool = RAAF::Tools::DocumentTool.new do |config|
-  config.supported_formats = [:pdf, :docx, :txt, :md]
-  config.extract_images = true
-  config.chunk_size = 1000
-  config.overlap = 200
-end
+#### Available Models
 
-agent.add_tool(document_tool)
+```ruby
+# sonar - Fast web search (default)
+result = perplexity_tool.call(
+  query: "Latest Ruby news",
+  model: "sonar"
+)
+
+# sonar-pro - Advanced search with deeper analysis
+result = perplexity_tool.call(
+  query: "Ruby performance improvements",
+  model: "sonar-pro"
+)
+
+# sonar-reasoning - Deep reasoning with web search
+result = perplexity_tool.call(
+  query: "Compare Ruby vs Python for web development",
+  model: "sonar-reasoning"
+)
 ```
 
-### Code Interpreter Tool
+#### Search Filtering
+
 ```ruby
-code_interpreter = RAAF::Tools::CodeInterpreterTool.new do |config|
-  config.supported_languages = [:ruby, :python, :javascript]
-  config.timeout = 30  # seconds
-  config.sandbox_mode = true
-  config.allowed_libraries = ["json", "csv", "math"]
-end
+# Domain filtering - restrict to specific websites
+result = perplexity_tool.call(
+  query: "Ruby 3.4 release",
+  search_domain_filter: ["ruby-lang.org", "github.com"]
+)
 
-agent.add_tool(code_interpreter)
+# Recency filtering - time-based results
+# Options: "hour", "day", "week", "month", "year"
+result = perplexity_tool.call(
+  query: "Ruby security advisories",
+  search_recency_filter: "week"
+)
 
-# Usage:
-# User: "Calculate the factorial of 10"
-# Agent: [Uses code interpreter to run Ruby code]
+# Combined filters
+result = perplexity_tool.call(
+  query: "Ruby news",
+  search_domain_filter: ["ruby-lang.org"],
+  search_recency_filter: "month"
+)
 ```
 
-### Computer Tool (Advanced)
-```ruby
-# Screen interaction and automation
-computer_tool = RAAF::Tools::ComputerTool.new do |config|
-  config.screen_resolution = "1920x1080"
-  config.screenshot_quality = :high
-  config.mouse_precision = :pixel_perfect
-  config.keyboard_layout = :qwerty
-  config.safety_mode = true  # Prevents destructive actions
-end
-
-agent.add_tool(computer_tool)
-```
-
-### Vector Search Tool
-```ruby
-vector_search = RAAF::Tools::VectorSearchTool.new do |config|
-  config.embedding_model = "text-embedding-3-small"
-  config.vector_database = :pinecone  # or :weaviate, :qdrant
-  config.api_key = ENV['PINECONE_API_KEY']
-  config.index_name = "knowledge_base"
-end
-
-agent.add_tool(vector_search)
-```
-
-### Local Shell Tool
-```ruby
-shell_tool = RAAF::Tools::LocalShellTool.new do |config|
-  config.allowed_commands = ["ls", "cat", "grep", "find"]
-  config.working_directory = "/safe/directory"
-  config.timeout = 10
-  config.capture_output = true
-end
-
-agent.add_tool(shell_tool)
-```
-
-## Tool Categories
-
-### Basic Tools
-```ruby
-# Math and text utilities
-agent.add_tool(RAAF::Tools::Basic::MathTools.new)
-agent.add_tool(RAAF::Tools::Basic::TextTools.new)
-```
-
-### Advanced Tools
-```ruby
-# Code execution and computer interaction
-agent.add_tool(RAAF::Tools::Advanced::CodeInterpreter.new)
-agent.add_tool(RAAF::Tools::Advanced::ComputerTool.new)
-```
-
-## Custom Tools
+#### Response Format
 
 ```ruby
-# Create custom tool using the base class
-class WeatherTool < RAAF::Tools::Base
-  def initialize
-    super(
-      name: "get_weather",
-      description: "Get current weather for a location",
-      parameters: {
-        type: "object",
-        properties: {
-          location: {
-            type: "string",
-            description: "City name or coordinates"
-          }
-        },
-        required: ["location"]
-      }
-    )
-  end
-  
-  def execute(location:)
-    # Call weather API
-    weather_data = WeatherAPI.get_current(location)
-    
+# Success response
+{
+  success: true,
+  content: "Ruby 3.4 includes significant performance improvements...",
+  citations: [
+    "https://ruby-lang.org/news/2024/ruby-3-4-released",
+    "https://github.com/ruby/ruby"
+  ],
+  web_results: [
     {
+      "title" => "Ruby 3.4 Released",
+      "url" => "https://ruby-lang.org/news/2024/ruby-3-4-released",
+      "snippet" => "Ruby 3.4 is now available..."
+    }
+  ],
+  model: "sonar"
+}
+
+# Error response
+{
+  success: false,
+  error: "Authentication failed",
+  error_type: "authentication_error",
+  message: "Invalid API key"
+}
+```
+
+#### Token Limits
+
+```ruby
+# Control response length with max_tokens
+result = perplexity_tool.call(
+  query: "Ruby 3.4 features",
+  max_tokens: 500  # Limit response to 500 tokens
+)
+```
+
+#### Error Handling
+
+The tool handles three error types automatically:
+
+```ruby
+# Authentication errors (401)
+result = perplexity_tool.call(query: "Ruby news")
+# Returns: { success: false, error: "Authentication failed", error_type: "authentication_error" }
+
+# Rate limit errors (429)
+result = perplexity_tool.call(query: "Ruby news")
+# Returns: { success: false, error: "Rate limit exceeded", error_type: "rate_limit_error" }
+
+# General errors (network, timeout, etc.)
+result = perplexity_tool.call(query: "Ruby news")
+# Returns: { success: false, error: "Search failed", error_type: "general_error", backtrace: [...] }
+```
+
+#### Complete Example
+
+```ruby
+# Research agent with Perplexity search
+agent = RAAF::Agent.new(
+  name: "ResearchAgent",
+  instructions: <<~INSTRUCTIONS,
+    You are a research assistant that provides factual, citation-backed information.
+    Always use the perplexity_search tool for current information.
+    Include citations in your responses.
+  INSTRUCTIONS
+  model: "gpt-4o"
+)
+
+# Create and add tool
+perplexity_tool = RAAF::Tools::PerplexityTool.new(
+  api_key: ENV['PERPLEXITY_API_KEY']
+)
+
+function_tool = RAAF::FunctionTool.new(
+  perplexity_tool.method(:call),
+  name: "perplexity_search",
+  description: "Search for current, factual information with citations. Use for recent news, technical updates, or verifiable facts."
+)
+
+agent.add_tool(function_tool)
+
+# Run research queries
+runner = RAAF::Runner.new(agent: agent)
+
+result = runner.run("What are the latest Ruby 3.4 performance improvements?")
+# Agent will:
+# 1. Call perplexity_search tool with appropriate query
+# 2. Receive citations and web results
+# 3. Synthesize answer with source attribution
+
+puts result.messages.last[:content]
+# => "According to the official Ruby release notes [1], Ruby 3.4 includes..."
+```
+
+#### Model Selection Guide
+
+**Use `sonar` for:**
+- Quick factual lookups
+- Simple queries
+- Real-time information
+- Cost-effective searches
+
+**Use `sonar-pro` for:**
+- Complex research tasks
+- Multi-faceted queries
+- Detailed analysis
+- Higher accuracy requirements
+
+**Use `sonar-reasoning` for:**
+- Deep analytical queries
+- Comparative analysis
+- Complex reasoning tasks
+- Multi-step research
+
+#### Best Practices
+
+1. **Be Specific**: Add 2-3 contextual words to queries for better results
+2. **Use Filters**: Apply domain/recency filters for focused results
+3. **Handle Errors**: Always check `success` field in responses
+4. **Citations**: Include citations from `citations` array in final output
+5. **Token Limits**: Set appropriate `max_tokens` for response length control
+
+#### Environment Variables
+
+```bash
+export PERPLEXITY_API_KEY="your-perplexity-api-key"
+```
+
+## Tool Development
+
+### Creating Custom Tools
+
+RAAF tools are plain Ruby classes with a `call` method, wrapped in `FunctionTool` for agent use:
+
+```ruby
+# Create custom tool - plain Ruby class
+class WeatherTool
+  def initialize(api_key:)
+    @api_key = api_key
+  end
+
+  ##
+  # Get current weather for a location
+  #
+  # @param location [String] City name or coordinates
+  # @param units [String] Temperature units ("metric" or "imperial")
+  # @return [Hash] Weather data with temperature, condition, humidity
+  #
+  def call(location:, units: "metric")
+    # Call weather API
+    weather_data = WeatherAPI.get_current(location, api_key: @api_key, units: units)
+
+    {
+      success: true,
       temperature: weather_data[:temp],
       condition: weather_data[:condition],
       humidity: weather_data[:humidity],
       location: location
     }
+  rescue StandardError => e
+    {
+      success: false,
+      error: "Weather lookup failed",
+      message: e.message
+    }
   end
 end
 
-agent.add_tool(WeatherTool.new)
-```
+# Wrap in FunctionTool for agent use
+weather_tool = WeatherTool.new(api_key: ENV['WEATHER_API_KEY'])
 
-## Tool Configuration
-
-### Global Configuration
-```ruby
-RAAF::Tools.configure do |config|
-  config.default_timeout = 30
-  config.sandbox_mode = true
-  config.logging_enabled = true
-  config.rate_limiting = true
-end
-```
-
-### Per-Tool Configuration
-```ruby
-# Tool with custom error handling
-web_search = RAAF::Tools::WebSearchTool.new do |config|
-  config.retry_attempts = 3
-  config.retry_delay = 1.0
-  config.on_error = :fallback_search
-  config.fallback_provider = :duckduckgo
-end
-```
-
-## Tool Chaining
-
-```ruby
-# Tools can work together
-agent = RAAF::Agent.new(
-  name: "ResearchAgent",
-  instructions: "Research topics thoroughly using multiple tools",
-  model: "gpt-4o"
+function_tool = RAAF::FunctionTool.new(
+  weather_tool.method(:call),
+  name: "get_weather",
+  description: "Get current weather for a location"
 )
 
-# Add complementary tools
-agent.add_tool(RAAF::Tools::WebSearchTool.new)      # Find information
-agent.add_tool(RAAF::Tools::DocumentTool.new)       # Process documents
-agent.add_tool(RAAF::Tools::VectorSearchTool.new)   # Search knowledge base
-agent.add_tool(RAAF::Tools::CodeInterpreterTool.new) # Analyze data
-
-# Agent can now:
-# 1. Search web for recent information
-# 2. Download and analyze documents
-# 3. Search internal knowledge base
-# 4. Run calculations or data analysis
+agent.add_tool(function_tool)
 ```
 
-## Security Considerations
+### Tool Pattern
+
+1. **Plain Ruby Class**: No DSL required
+2. **Initialize Method**: Accept configuration (API keys, endpoints, etc.)
+3. **Call Method**: Implement tool logic with keyword arguments
+4. **Return Hash**: Always return hash with `:success` key
+5. **Error Handling**: Catch exceptions and return structured error hashes
+6. **FunctionTool Wrapper**: Wrap `call` method for agent use
+7. **YARD Documentation**: Document parameters and return values
+
+## Testing Tools
 
 ```ruby
-# Secure tool configuration
-RAAF::Tools.configure do |config|
-  # Limit tool capabilities in production
-  config.allow_file_write = false
-  config.allow_network_access = ["api.trusted-service.com"]
-  config.sandbox_all_code = true
-  config.max_execution_time = 10
-  
-  # Audit tool usage
-  config.log_all_executions = true
-  config.audit_file_path = "/var/log/raaf-tools.log"
+# Test tools in isolation
+RSpec.describe MyTool do
+  let(:tool) { described_class.new(api_key: "test-key") }
+
+  it "returns success response" do
+    result = tool.call(param: "value")
+
+    expect(result[:success]).to be true
+    expect(result[:data]).to be_present
+  end
+
+  it "handles errors gracefully" do
+    allow(ExternalAPI).to receive(:call).and_raise(StandardError)
+
+    result = tool.call(param: "value")
+
+    expect(result[:success]).to be false
+    expect(result[:error]).to eq("Operation failed")
+  end
 end
 ```
 
 ## Environment Variables
 
 ```bash
-export TAVILY_API_KEY="your-tavily-key"
-export PINECONE_API_KEY="your-pinecone-key"
-export RAAF_TOOLS_SANDBOX="true"
-export RAAF_TOOLS_TIMEOUT="30"
-export RAAF_TOOLS_LOG_LEVEL="info"
+# Tool-specific API keys
+export PERPLEXITY_API_KEY="your-perplexity-api-key"
 ```
+
+## Additional Resources
+
+- **RAAF Core Documentation**: `@raaf/core/CLAUDE.md`
+- **Provider Documentation**: `@raaf/providers/CLAUDE.md`
+- **Function Tool Reference**: `@raaf/core/lib/raaf/function_tool.rb`
