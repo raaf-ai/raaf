@@ -3,6 +3,9 @@
 require "json"
 require "net/http"
 require "uri"
+require "raaf/perplexity/common"
+require "raaf/perplexity/search_options"
+require "raaf/perplexity/result_parser"
 
 module RAAF
   module Models
@@ -45,14 +48,9 @@ module RAAF
       # Perplexity API base URL
       API_BASE = "https://api.perplexity.ai"
 
-      # Perplexity's available models
+      # Perplexity's available models (delegated to common code)
       # sonar-pro and sonar-reasoning-pro support JSON schema
-      SUPPORTED_MODELS = %w[
-        sonar
-        sonar-pro
-        sonar-reasoning-pro
-        sonar-deep-research
-      ].freeze
+      SUPPORTED_MODELS = RAAF::Perplexity::Common::SUPPORTED_MODELS
 
       ##
       # Initialize a new Perplexity provider
@@ -80,6 +78,10 @@ module RAAF
       # Perplexity's API is OpenAI-compatible, supporting most standard parameters.
       # JSON schema support is available on sonar-pro and sonar-reasoning-pro models.
       #
+      # NOTE: Retry logic is handled automatically by the base class ModelInterface.
+      # The base class's `chat_completion` method wraps this `perform_chat_completion`
+      # with exponential backoff retry logic, so no manual retry wrapper is needed here.
+      #
       # @param messages [Array<Hash>] Conversation messages
       # @param model [String] Perplexity model to use
       # @param tools [Array<Hash>, nil] Not supported by Perplexity
@@ -97,54 +99,12 @@ module RAAF
                    provider: "PerplexityProvider", model: model)
         end
 
-        body = {
-          model: model,
-          messages: messages,
-          stream: stream
-        }
-
-        # Add optional parameters
-        body[:temperature] = kwargs[:temperature] if kwargs[:temperature]
-        body[:max_tokens] = kwargs[:max_tokens] if kwargs[:max_tokens]
-        body[:top_p] = kwargs[:top_p] if kwargs[:top_p]
-        body[:presence_penalty] = kwargs[:presence_penalty] if kwargs[:presence_penalty]
-        body[:frequency_penalty] = kwargs[:frequency_penalty] if kwargs[:frequency_penalty]
-
-        # Add response_format for JSON schema support (sonar-pro, sonar-reasoning-pro)
-        if kwargs[:response_format]
-          validate_schema_support(model)
-
-          # Detect if response_format is already OpenAI-wrapped format from DSL agents
-          # DSL agents send: { type: "json_schema", json_schema: { name: "...", strict: true, schema: {...} } }
-          # We need to extract the nested schema to avoid double-wrapping
-          if kwargs[:response_format].is_a?(Hash) &&
-             kwargs[:response_format][:type] == "json_schema" &&
-             kwargs[:response_format][:json_schema]
-            # Extract the schema from OpenAI format (similar to Anthropic provider)
-            schema = kwargs[:response_format][:json_schema][:schema]
-          else
-            # Use raw schema as-is
-            schema = kwargs[:response_format]
-          end
-
-          # Wrap in Perplexity format
-          body[:response_format] = {
-            type: "json_schema",
-            json_schema: {
-              schema: schema
-            }
-          }
-        end
-
-        # Add web_search_options for Perplexity-specific search filtering
-        body[:web_search_options] = kwargs[:web_search_options] if kwargs[:web_search_options]
+        body = build_request_body(messages, model, stream, **kwargs)
 
         if stream
           raise NotImplementedError, "Streaming not yet implemented for PerplexityProvider"
         else
-          with_retry("chat_completion") do
-            make_request(body)
-          end
+          make_api_call(body)
         end
       end
 
@@ -182,44 +142,158 @@ module RAAF
       private
 
       ##
-      # Validates that the model supports JSON schema
+      # Validates model is supported (delegates to common code)
+      #
+      # @param model [String] Model name to validate
+      # @raise [ArgumentError] if model is not supported
+      # @private
+      #
+      def validate_model(model)
+        RAAF::Perplexity::Common.validate_model(model)
+      end
+
+      ##
+      # Builds the request body for Perplexity API
+      #
+      # Constructs the request body with model, messages, optional parameters,
+      # and Perplexity-specific features like web_search_options.
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Model to use
+      # @param stream [Boolean] Whether to stream response
+      # @param kwargs [Hash] Additional parameters
+      # @return [Hash] Complete request body
+      # @private
+      #
+      def build_request_body(messages, model, stream, **kwargs)
+        body = {
+          model: model,
+          messages: messages,
+          stream: stream
+        }
+
+        # Add optional parameters
+        body[:temperature] = kwargs[:temperature] if kwargs[:temperature]
+        body[:max_tokens] = kwargs[:max_tokens] if kwargs[:max_tokens]
+        body[:top_p] = kwargs[:top_p] if kwargs[:top_p]
+        body[:presence_penalty] = kwargs[:presence_penalty] if kwargs[:presence_penalty]
+        body[:frequency_penalty] = kwargs[:frequency_penalty] if kwargs[:frequency_penalty]
+
+        # Handle response_format with unwrapping for JSON schema support
+        if kwargs[:response_format]
+          validate_schema_support(model)
+          body[:response_format] = unwrap_response_format(kwargs[:response_format])
+        end
+
+        # Add Perplexity-specific web_search_options (use common code if domain/recency filters)
+        if kwargs[:web_search_options]
+          body[:web_search_options] = kwargs[:web_search_options]
+        elsif kwargs[:search_domain_filter] || kwargs[:search_recency_filter]
+          # Build web search options from individual parameters using common code
+          options = RAAF::Perplexity::SearchOptions.build(
+            domain_filter: kwargs[:search_domain_filter],
+            recency_filter: kwargs[:search_recency_filter]
+          )
+          body[:web_search_options] = options if options
+        end
+
+        body
+      end
+
+      ##
+      # Unwraps response_format to extract schema
+      #
+      # Handles both OpenAI-wrapped format (from DSL agents) and raw schemas.
+      # Wraps the extracted schema in Perplexity's expected format.
+      #
+      # @param response_format [Hash] Response format specification
+      # @return [Hash] Perplexity-formatted response_format
+      # @private
+      #
+      def unwrap_response_format(response_format)
+        # Detect if response_format is OpenAI-wrapped format from DSL agents
+        # DSL agents send: { type: "json_schema", json_schema: { name: "...", strict: true, schema: {...} } }
+        if response_format.is_a?(Hash) &&
+           response_format[:type] == "json_schema" &&
+           response_format[:json_schema]
+          # Extract the schema from OpenAI format
+          schema = response_format[:json_schema][:schema]
+        else
+          # Use raw schema as-is
+          schema = response_format
+        end
+
+        # Wrap in Perplexity format
+        {
+          type: "json_schema",
+          json_schema: {
+            schema: schema
+          }
+        }
+      end
+
+      ##
+      # Validates that the model supports JSON schema (delegates to common code)
       #
       # @param model [String] Model name
       # @raise [ArgumentError] if model doesn't support JSON schema
       # @private
       #
       def validate_schema_support(model)
-        schema_models = %w[sonar-pro sonar-reasoning-pro]
-        return if schema_models.include?(model)
-
-        raise ArgumentError,
-              "JSON schema (response_format) is only supported on #{schema_models.join(', ')}. " \
-              "Current model: #{model}"
+        RAAF::Perplexity::Common.validate_schema_support(model)
       end
 
       ##
-      # Makes a request to the Perplexity API
+      # Configures HTTP client with Perplexity-specific settings
       #
-      # @param body [Hash] Request body
-      # @return [Hash] Parsed response
-      # @raise [APIError] on request failure
+      # @param uri [URI] Target URI
+      # @return [Net::HTTP] Configured HTTP client
       # @private
       #
-      def make_request(body)
-        uri = URI("#{@api_base}/chat/completions")
+      def configure_http_client(uri)
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
         http.read_timeout = @timeout
         http.open_timeout = @open_timeout
+        http
+      end
 
+      ##
+      # Builds HTTP request with authentication headers
+      #
+      # @param uri [URI] Target URI
+      # @param body [Hash] Request body
+      # @return [Net::HTTP::Post] Configured HTTP request
+      # @private
+      #
+      def build_http_request(uri, body)
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
         request.body = body.to_json
+        request
+      end
+
+      ##
+      # Makes an API call to Perplexity
+      #
+      # This method focuses solely on HTTP communication. Retry logic is handled
+      # automatically by the base class ModelInterface which wraps perform_chat_completion
+      # with exponential backoff.
+      #
+      # @param body [Hash] Request body
+      # @return [Hash] Parsed response with indifferent access
+      # @raise [APIError] on request failure
+      # @private
+      #
+      def make_api_call(body)
+        uri = URI("#{@api_base}/chat/completions")
+        http = configure_http_client(uri)
+        request = build_http_request(uri, body)
 
         response = http.request(request)
 
-        handle_api_error(response) unless response.code.start_with?("2")
+        handle_api_error(response, provider_name) unless response.code.start_with?("2")
 
         RAAF::Utils.parse_json(response.body)
       end
