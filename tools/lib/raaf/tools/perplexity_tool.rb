@@ -221,6 +221,10 @@ module RAAF
       # @return [Hash] Formatted search result with success, content, citations, web_results
       #
       def call(query:, search_domain_filter: nil, search_recency_filter: nil)
+        # Normalize empty strings to nil for both filters
+        search_domain_filter = normalize_filter(search_domain_filter)
+        search_recency_filter = normalize_filter(search_recency_filter)
+
         # Validate all input parameters
         validate_query(query)
         validate_domain_filter(search_domain_filter) if search_domain_filter
@@ -308,6 +312,20 @@ module RAAF
         raise ArgumentError, "Query must be a String, got #{query.class}" unless query.is_a?(String)
         raise ArgumentError, "Query cannot be empty" if query.strip.empty?
         raise ArgumentError, "Query is too long (maximum 4000 characters)" if query.length > 4000
+      end
+
+      ##
+      # Normalizes filter value by converting empty strings and empty arrays to nil
+      #
+      # @param value [Object] The filter value to normalize
+      # @return [Object, nil] Normalized value or nil if empty
+      #
+      def normalize_filter(value)
+        return nil if value.nil?
+        return nil if value.is_a?(String) && value.strip.empty?
+        return nil if value.is_a?(Array) && value.empty?
+
+        value
       end
 
       ##
