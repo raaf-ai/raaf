@@ -7,19 +7,35 @@
 # and are passed to the RAAF SDK for execution. Multiple handlers
 # can be registered for each event type and they are executed in registration order.
 #
-# @example Basic usage
+# All hooks receive parameters as Ruby keyword arguments, making for clean and idiomatic code.
+# Standard parameters (context, agent, timestamp) are automatically injected into all hooks.
+#
+# @example Basic usage with keyword arguments
 #   class MyAgent < RAAF::DSL::Agents::Base
 #     include RAAF::DSL::AgentDsl
 #     include RAAF::DSL::Hooks::AgentHooks
 #
-#     on_start do |agent|
+#     # Use Ruby keyword argument syntax
+#     on_start do |agent:, **|
 #       puts "#{agent.name} is starting"
 #     end
 #
-#     on_start :log_start
+#     # Specify only the parameters you need, ** ignores the rest
+#     on_end do |output:, agent:, **|
+#       log_completion(output)
+#     end
 #
-#     on_end :cleanup_resources
-#     on_end { |agent, result| log_completion(result) }
+#     # Standard parameters are always available as keyword arguments
+#     on_result_ready do |context:, agent:, timestamp:, result:, **|
+#       # Direct access via keyword arguments
+#       Rails.logger.info "Agent #{agent.name} completed at #{timestamp}"
+#       ResultCache.store(result, context)
+#     end
+#
+#     # Use ** to capture all keyword arguments as a hash
+#     on_tokens_counted do |**data|
+#       TokenTracker.record(data)  # data is a hash with all parameters
+#     end
 #   end
 #
 module RAAF
@@ -137,10 +153,27 @@ module RAAF
 
           # Register an agent-specific callback for after context assembly
           #
+          # Fires after the DSL agent's context has been fully assembled from initialization
+          # parameters. Receives the complete ContextVariables object for inspection.
+          #
           # @param method_name [Symbol, nil] Method name to call as callback
           # @param block [Proc, nil] Block to execute as callback
-          # @yield [data] Block called after context is built
-          # @yieldparam data [Hash] Context data with :context key
+          # @yield [context:, agent:, timestamp:, **] Block called after context is built with keyword arguments
+          # @yieldparam context [RAAF::DSL::ContextVariables] The assembled context (hook-specific)
+          # @yieldparam agent [RAAF::Agent] The agent instance (auto-injected)
+          # @yieldparam timestamp [Time] Hook execution time (auto-injected)
+          #
+          # @example Access context after assembly with keyword arguments
+          #   on_context_built do |context:, agent:, **|
+          #     product_name = context[:product_name]
+          #     Rails.logger.info "#{agent.name} context built with product: #{product_name}"
+          #   end
+          #
+          # @example Selective parameter extraction
+          #   on_context_built do |context:, **|
+          #     # Only extract context, ignore agent and timestamp
+          #     Rails.logger.debug "Context: #{context.inspect}"
+          #   end
           #
           def on_context_built(method_name = nil, &block)
             register_agent_hook(:on_context_built, method_name, &block)
@@ -148,10 +181,25 @@ module RAAF
 
           # Register an agent-specific callback for when schema validation fails
           #
+          # Fires when schema validation or context validation detects issues. Useful for
+          # logging validation errors, implementing custom retry logic, or triggering alerts.
+          #
           # @param method_name [Symbol, nil] Method name to call as callback
           # @param block [Proc, nil] Block to execute as callback
-          # @yield [data] Block called when validation fails
-          # @yieldparam data [Hash] Validation error data
+          # @yield [error:, error_type:, field:, value:, expected_type:, context:, agent:, timestamp:, **] Block called when validation fails with keyword arguments
+          # @yieldparam error [String] The validation error message (hook-specific)
+          # @yieldparam error_type [String] Type of validation error (hook-specific)
+          # @yieldparam field [Symbol, nil] The field that failed validation (hook-specific, optional)
+          # @yieldparam value [Object, nil] The invalid value (hook-specific, optional)
+          # @yieldparam expected_type [Symbol, nil] The expected type (hook-specific, optional)
+          # @yieldparam context [RAAF::DSL::ContextVariables] The agent context (auto-injected)
+          # @yieldparam agent [RAAF::Agent] The agent instance (auto-injected)
+          # @yieldparam timestamp [Time] Hook execution time (auto-injected)
+          #
+          # @example Log validation errors with keyword arguments
+          #   on_validation_failed do |error:, error_type:, field: nil, **|
+          #     Rails.logger.error "Validation (#{error_type}) failed for #{field}: #{error}"
+          #   end
           #
           def on_validation_failed(method_name = nil, &block)
             register_agent_hook(:on_validation_failed, method_name, &block)
@@ -159,10 +207,27 @@ module RAAF
 
           # Register an agent-specific callback for after all result transformations complete
           #
+          # Fires after DSL agent's result_transform block has processed the AI response.
+          # Receives both raw and processed results for comparison or additional processing.
+          #
           # @param method_name [Symbol, nil] Method name to call as callback
           # @param block [Proc, nil] Block to execute as callback
-          # @yield [data] Block called after transformations complete
-          # @yieldparam data [Hash] Result data with :result and :timestamp keys
+          # @yield [raw_result:, processed_result:, context:, agent:, timestamp:, **] Block called after transformations complete with keyword arguments
+          # @yieldparam raw_result [Hash] The original AI response (hook-specific)
+          # @yieldparam processed_result [Hash] The transformed result (hook-specific)
+          # @yieldparam context [RAAF::DSL::ContextVariables] The agent context (auto-injected)
+          # @yieldparam agent [RAAF::Agent] The agent instance (auto-injected)
+          # @yieldparam timestamp [Time] Hook execution time (auto-injected)
+          #
+          # @example Store processed results with keyword arguments
+          #   on_result_ready do |processed_result:, timestamp:, **|
+          #     ResultCache.store(processed_result, timestamp)
+          #   end
+          #
+          # @example Compare raw and processed results
+          #   on_result_ready do |raw_result:, processed_result:, **|
+          #     Rails.logger.debug "Raw: #{raw_result.keys}, Processed: #{processed_result.keys}"
+          #   end
           #
           def on_result_ready(method_name = nil, &block)
             register_agent_hook(:on_result_ready, method_name, &block)
@@ -172,10 +237,28 @@ module RAAF
 
           # Register an agent-specific callback for after prompt generation
           #
+          # Fires after system and user prompts have been generated from prompt classes
+          # or inline instructions. Useful for logging, debugging, or modifying prompts
+          # before they are sent to the LLM.
+          #
           # @param method_name [Symbol, nil] Method name to call as callback
           # @param block [Proc, nil] Block to execute as callback
-          # @yield [data] Block called after prompts are generated
-          # @yieldparam data [Hash] Prompt data with :system_prompt, :user_prompt, :context keys
+          # @yield [system_prompt:, user_prompt:, context:, agent:, timestamp:, **] Block called after prompts are generated with keyword arguments
+          # @yieldparam system_prompt [String] The generated system prompt (hook-specific)
+          # @yieldparam user_prompt [String] The generated user prompt (hook-specific)
+          # @yieldparam context [RAAF::DSL::ContextVariables] The agent context (auto-injected)
+          # @yieldparam agent [RAAF::Agent] The agent instance (auto-injected)
+          # @yieldparam timestamp [Time] Hook execution time (auto-injected)
+          #
+          # @example Log generated prompts with keyword arguments
+          #   on_prompt_generated do |system_prompt:, user_prompt:, **|
+          #     Rails.logger.debug "System: #{system_prompt}\nUser: #{user_prompt}"
+          #   end
+          #
+          # @example Log only user prompt
+          #   on_prompt_generated do |user_prompt:, **|
+          #     Rails.logger.debug "User query: #{user_prompt}"
+          #   end
           #
           def on_prompt_generated(method_name = nil, &block)
             register_agent_hook(:on_prompt_generated, method_name, &block)
@@ -183,10 +266,35 @@ module RAAF
 
           # Register an agent-specific callback for after token counting
           #
+          # Fires after token usage has been calculated for an AI request. Provides
+          # detailed token counts and estimated costs for monitoring and budgeting.
+          #
           # @param method_name [Symbol, nil] Method name to call as callback
           # @param block [Proc, nil] Block to execute as callback
-          # @yield [data] Block called after token counting
-          # @yieldparam data [Hash] Token usage data with costs
+          # @yield [input_tokens:, output_tokens:, total_tokens:, estimated_cost:, model:, context:, agent:, timestamp:, **] Block called after token counting with keyword arguments
+          # @yieldparam input_tokens [Integer] Number of input tokens used (hook-specific)
+          # @yieldparam output_tokens [Integer] Number of output tokens generated (hook-specific)
+          # @yieldparam total_tokens [Integer] Total tokens used (hook-specific)
+          # @yieldparam estimated_cost [Float] Estimated cost in USD (hook-specific)
+          # @yieldparam model [String] Model name used (hook-specific)
+          # @yieldparam context [RAAF::DSL::ContextVariables] The agent context (auto-injected)
+          # @yieldparam agent [RAAF::Agent] The agent instance (auto-injected)
+          # @yieldparam timestamp [Time] Hook execution time (auto-injected)
+          #
+          # @example Track token usage and costs with keyword arguments
+          #   on_tokens_counted do |input_tokens:, output_tokens:, estimated_cost:, **|
+          #     TokenUsageTracker.record(input_tokens, output_tokens, estimated_cost)
+          #   end
+          #
+          # @example Selective parameter extraction
+          #   on_tokens_counted do |total_tokens:, model:, **|
+          #     Rails.logger.info "#{model} used #{total_tokens} tokens"
+          #   end
+          #
+          # @example Capture all parameters as hash
+          #   on_tokens_counted do |**data|
+          #     TokenTracker.record(data)  # data contains all parameters
+          #   end
           #
           def on_tokens_counted(method_name = nil, &block)
             register_agent_hook(:on_tokens_counted, method_name, &block)

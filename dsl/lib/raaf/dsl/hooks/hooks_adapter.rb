@@ -43,7 +43,8 @@ module RAAF
         def on_start(context, agent)
           # Use DSL agent if available, otherwise fall back to Core agent
           agent_for_hook = @dsl_agent || agent
-          execute_hooks(@dsl_hooks[:on_start], context, agent_for_hook)
+          comprehensive_data = build_comprehensive_data(context, agent_for_hook)
+          execute_hooks(@dsl_hooks[:on_start], comprehensive_data)
         end
 
         # Called when this agent produces a final output
@@ -54,7 +55,8 @@ module RAAF
         def on_end(context, agent, output)
           # Use DSL agent if available, otherwise fall back to Core agent
           agent_for_hook = @dsl_agent || agent
-          execute_hooks(@dsl_hooks[:on_end], context, agent_for_hook, output)
+          comprehensive_data = build_comprehensive_data(context, agent_for_hook, output: output)
+          execute_hooks(@dsl_hooks[:on_end], comprehensive_data)
         end
 
         # Called when this agent is being handed off to
@@ -64,7 +66,8 @@ module RAAF
         def on_handoff(context, agent, source)
           # Use DSL agent if available, otherwise fall back to Core agent
           agent_for_hook = @dsl_agent || agent
-          execute_hooks(@dsl_hooks[:on_handoff], context, agent_for_hook, source)
+          comprehensive_data = build_comprehensive_data(context, agent_for_hook, source: source)
+          execute_hooks(@dsl_hooks[:on_handoff], comprehensive_data)
         end
 
         # Called before this agent invokes a tool
@@ -75,7 +78,8 @@ module RAAF
         def on_tool_start(context, agent, tool, arguments = {})
           # Use DSL agent if available, otherwise fall back to Core agent
           agent_for_hook = @dsl_agent || agent
-          execute_hooks(@dsl_hooks[:on_tool_start], context, agent_for_hook, tool, arguments)
+          comprehensive_data = build_comprehensive_data(context, agent_for_hook, tool: tool, arguments: arguments)
+          execute_hooks(@dsl_hooks[:on_tool_start], comprehensive_data)
         end
 
         # Called after this agent invokes a tool
@@ -86,7 +90,8 @@ module RAAF
         def on_tool_end(context, agent, tool, result)
           # Use DSL agent if available, otherwise fall back to Core agent
           agent_for_hook = @dsl_agent || agent
-          execute_hooks(@dsl_hooks[:on_tool_end], context, agent_for_hook, tool, result)
+          comprehensive_data = build_comprehensive_data(context, agent_for_hook, tool: tool, result: result)
+          execute_hooks(@dsl_hooks[:on_tool_end], comprehensive_data)
         end
 
         # Called when an error occurs in this agent
@@ -96,17 +101,37 @@ module RAAF
         def on_error(context, agent, error)
           # Use DSL agent if available, otherwise fall back to Core agent
           agent_for_hook = @dsl_agent || agent
-          execute_hooks(@dsl_hooks[:on_error], context, agent_for_hook, error)
+          comprehensive_data = build_comprehensive_data(context, agent_for_hook, error: error)
+          execute_hooks(@dsl_hooks[:on_error], comprehensive_data)
         end
 
         private
 
+        # Build comprehensive data hash with standard parameters and hook-specific data
+        #
+        # @param context [RunContext] The current run context
+        # @param agent [Agent] The agent instance
+        # @param hook_specific_data [Hash] Additional hook-specific data
+        # @return [ActiveSupport::HashWithIndifferentAccess] Comprehensive data hash
+        def build_comprehensive_data(context, agent, **hook_specific_data)
+          # Build comprehensive data with standard parameters
+          comprehensive_data = {
+            context: context,
+            agent: agent,
+            timestamp: Time.now,
+            **hook_specific_data
+          }
+
+          # Ensure HashWithIndifferentAccess for flexible key access
+          ActiveSupport::HashWithIndifferentAccess.new(comprehensive_data)
+        end
+
         # Execute all hooks for a given hook type and return the last hook's result
         #
         # @param hooks [Array] Array of hooks to execute (methods or blocks)
-        # @param args [Array] Arguments to pass to the hooks
+        # @param data [Hash] Comprehensive data hash to pass to hooks
         # @return [Object, nil] The return value from the last hook, or nil if no hooks or all failed
-        def execute_hooks(hooks, *args)
+        def execute_hooks(hooks, data)
           return nil unless hooks&.any?
 
           last_result = nil
@@ -121,8 +146,8 @@ module RAAF
                 RAAF.logger.warn "Method hooks not yet implemented in adapter: #{hook}"
 
               when Proc
-                # Block - call directly with arguments and capture result
-                last_result = hook.call(*args)
+                # Block - call directly with comprehensive data hash
+                last_result = hook.call(data)
 
               else
                 RAAF.logger.warn "Unknown hook type: #{hook.class}"
@@ -131,7 +156,7 @@ module RAAF
             rescue => e
               RAAF.logger.error "❌ Hook execution failed: #{e.message}"
               RAAF.logger.error "🔍 Hook: #{hook.inspect}"
-              RAAF.logger.error "📄 Arguments: #{args.inspect}"
+              RAAF.logger.error "📄 Data: #{data.except(:context, :agent).inspect}"
               # Continue with other hooks even if one fails
             end
           end
