@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe RAAF::Execution::ToolExecutor do
+RSpec.describe RAAF::ToolExecutor do
   let(:agent) { create_test_agent(name: "ToolAgent") }
   let(:runner) { double("Runner") }
   let(:tool_executor) { described_class.new(agent, runner) }
@@ -343,6 +343,58 @@ RSpec.describe RAAF::Execution::ToolExecutor do
 
       # Verify the tool execution was called correctly
       expect(runner).to have_received(:execute_tool).with("test_tool", { name: "Integration Test" }, agent, context_wrapper)
+    end
+  end
+
+  describe "ArgumentError handling" do
+    let(:tool_call) do
+      {
+        "id" => "call_validation",
+        "function" => {
+          "name" => "test_tool",
+          "arguments" => '{"name": "Test"}'
+        }
+      }
+    end
+
+    it "re-raises ArgumentError from tool execution" do
+      allow(runner).to receive(:call_hook)
+      allow(runner).to receive(:execute_tool).and_raise(ArgumentError.new("Invalid parameter"))
+
+      # ArgumentError should be re-raised (not caught and added to conversation)
+      expect {
+        tool_executor.send(:execute_single_tool_call, tool_call, conversation, context_wrapper)
+      }.to raise_error(ArgumentError, "Invalid parameter")
+    end
+
+    it "does not add ArgumentError to conversation" do
+      allow(runner).to receive(:call_hook)
+      allow(runner).to receive(:execute_tool).and_raise(ArgumentError.new("Invalid parameter"))
+
+      conversation_before = conversation.dup
+
+      expect {
+        tool_executor.send(:execute_single_tool_call, tool_call, conversation, context_wrapper)
+      }.to raise_error(ArgumentError)
+
+      # Conversation should not be modified when ArgumentError is raised
+      expect(conversation).to eq(conversation_before)
+    end
+
+    it "still catches and handles other StandardErrors" do
+      allow(runner).to receive(:call_hook)
+      allow(runner).to receive(:execute_tool).and_raise(StandardError.new("Generic error"))
+      allow(tool_executor).to receive(:log_error)
+
+      # StandardError should be caught and added to conversation
+      expect {
+        tool_executor.send(:execute_single_tool_call, tool_call, conversation, context_wrapper)
+      }.not_to raise_error
+
+      # Error should be added to conversation as tool response
+      error_message = conversation.find { |msg| msg[:role] == "tool" && msg[:tool_call_id] == "call_validation" }
+      expect(error_message).not_to be_nil
+      expect(error_message[:content]).to include("Tool execution failed")
     end
   end
 end

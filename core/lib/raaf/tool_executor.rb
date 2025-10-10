@@ -108,11 +108,27 @@ module RAAF
                      execute_tool(function_name, arguments, context_wrapper)
                    end
 
+          # Check if tool execution failed (based on result structure)
+          tool_failed = result_indicates_failure?(result)
+
           # Add tool result to conversation
           add_tool_result(conversation, result, tool_call_id)
 
-          # Call tool end hook
-          @runner.call_hook(:on_tool_end, context_wrapper, function_name, result)
+          # Call appropriate hook based on success/failure
+          if tool_failed
+            # Tool returned failure result - treat as error
+            error_msg = extract_error_message(result)
+            error = StandardError.new(error_msg)
+            @runner.call_hook(:on_tool_error, context_wrapper, function_name, error)
+            handle_tool_error(conversation, context_wrapper, function_name, tool_call_id, error_msg, error)
+          else
+            # Tool succeeded
+            @runner.call_hook(:on_tool_end, context_wrapper, function_name, result)
+          end
+        rescue ArgumentError => e
+          # ArgumentError indicates invalid parameters - fail immediately
+          # Re-raise to stop agent execution (don't pass to LLM)
+          raise
         rescue JSON::ParserError => e
           handle_tool_error(conversation, context_wrapper, function_name, tool_call_id,
                             "Failed to parse tool arguments: #{e.message}", e, arguments_str)
@@ -213,6 +229,44 @@ module RAAF
         }
 
         @runner.call_hook(:on_tool_error, context_wrapper, function_name, error)
+      end
+
+      ##
+      # Check if tool result indicates failure
+      #
+      # Tools that follow the { success: false, error: "..." } pattern
+      # are detected as failures even though no exception was raised.
+      #
+      # @param result [Object] Tool execution result
+      # @return [Boolean] true if result indicates failure
+      # @private
+      #
+      def result_indicates_failure?(result)
+        return false unless result.is_a?(Hash)
+
+        # Check for success: false pattern (symbol or string key)
+        success = result[:success] || result["success"]
+        success == false
+      end
+
+      ##
+      # Extract error message from failed tool result
+      #
+      # @param result [Hash] Tool result with error information
+      # @return [String] Error message
+      # @private
+      #
+      def extract_error_message(result)
+        # Try different error message keys (symbol and string)
+        error_msg = result[:error] || result["error"] ||
+                    result[:message] || result["message"] ||
+                    "Tool execution failed"
+
+        # Include error_type if available
+        error_type = result[:error_type] || result["error_type"]
+        error_msg = "#{error_msg} (#{error_type})" if error_type
+
+        error_msg
       end
 
     end
