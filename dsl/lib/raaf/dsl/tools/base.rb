@@ -168,6 +168,25 @@ module RAAF
           result
         end
 
+        # Indicates that this tool is a DSL wrapper with built-in conveniences
+        #
+        # This marker method tells the tool execution interceptor to skip
+        # applying additional conveniences (validation, logging, metadata)
+        # to avoid double-processing during the migration to interceptor-based
+        # convenience injection.
+        #
+        # DSL tools that inherit from this base class already have:
+        # - Logging via RAAF.logger calls in their call methods
+        # - Validation via validate_options! in initialize
+        # - Custom result formatting
+        #
+        # @return [Boolean] Always returns true for DSL-wrapped tools
+        # @see RAAF::DSL::Agent#should_intercept_tool?
+        #
+        def dsl_wrapped?
+          true
+        end
+
         private
 
         # Override in subclasses to provide application-specific metadata

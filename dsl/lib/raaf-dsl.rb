@@ -99,6 +99,8 @@ module RAAF
     autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
     autoload :ToolBuilder, "raaf/dsl/builders/tool_builder"
     autoload :ToolDsl, "raaf/dsl/tool_dsl"
+    autoload :ToolExecutionConfig, "raaf/dsl/tool_execution_config"
+    autoload :ToolMetadata, "raaf/dsl/tool_metadata"
     autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"  # Use comprehensive registry
     autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
     
@@ -198,7 +200,7 @@ module RAAF
       autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"
       autoload :WebSearch, "raaf/dsl/tools/web_search"
       autoload :WebSearchPresets, "raaf/dsl/tools/web_search_presets"
-      autoload :TavilySearch, "raaf/dsl/tools/tavily_search"
+      # TavilySearch and PerplexitySearch wrappers removed - use core tools with interceptor
     end
 
     # Resilience patterns for error handling and retries
