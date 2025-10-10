@@ -16,10 +16,7 @@ require_relative "data_merger"
 # Note: Old AgentPipeline class removed - use RAAF::Pipeline from pipeline_dsl/pipeline.rb
 require_relative "hooks/hook_context"
 require_relative "auto_merge"
-require_relative "tool_execution_config"
-require_relative "tool_validation"
-require_relative "tool_logging"
-require_relative "tool_metadata"
+# Tool DSL infrastructure removed - tool execution is now handled by agents directly
 
 module RAAF
   module DSL
@@ -54,9 +51,10 @@ module RAAF
       include RAAF::DSL::Pipelineable
       include RAAF::DSL::Hooks::HookContext
       include RAAF::DSL::AutoMerge
-      include RAAF::DSL::ToolValidation
-      include RAAF::DSL::ToolLogging
-      include RAAF::DSL::ToolMetadata
+      # Tool DSL modules removed - functionality moved directly into Agent class
+      # include RAAF::DSL::ToolValidation
+      # include RAAF::DSL::ToolLogging
+      # include RAAF::DSL::ToolMetadata
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
@@ -97,13 +95,14 @@ module RAAF
         end
 
         # Tool execution configuration for interceptor conveniences
-        def tool_execution_config
-          Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] ||= ToolExecutionConfig::DEFAULTS.dup.freeze
-        end
-
-        def tool_execution_config=(value)
-          Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] = value.freeze
-        end
+        # Temporarily disabled - ToolExecutionConfig removed
+        # def tool_execution_config
+        #   Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] ||= ToolExecutionConfig::DEFAULTS.dup.freeze
+        # end
+        #
+        # def tool_execution_config=(value)
+        #   Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] = value.freeze
+        # end
 
         # Ensure each subclass gets its own configuration
         def inherited(subclass)
@@ -138,7 +137,8 @@ module RAAF
           subclass._agent_hooks = hooks
 
           # Copy tool execution configuration from parent class
-          subclass.tool_execution_config = tool_execution_config.dup
+          # Temporarily disabled - ToolExecutionConfig removed
+          # subclass.tool_execution_config = tool_execution_config.dup
         end
 
         # Core DSL methods from AgentDsl
@@ -541,22 +541,23 @@ module RAAF
         def discover_tool_class(tool_name)
           # Generate class name variants
           class_name = tool_name.split('_').map(&:capitalize).join
-          
-          # Discovery patterns in order of preference
+
+          # Discovery patterns in order of preference (simplified after DSL tool infrastructure removal)
           discovery_patterns = [
-            # External DSL tools
-            "RAAF::DSL::Tools::#{class_name}",
-            "RAAF::Tools::#{class_name}",
-            "Ai::Tools::#{class_name}",
-            
-            # Native tools
+            # Standard: TavilySearchTool, PerplexityTool
             "RAAF::Tools::#{class_name}Tool",
-            "RAAF::#{class_name}Tool",
+            "RAAF::Tools::#{class_name}",
+
+            # Basic utilities
+            "RAAF::Tools::Basic::#{class_name}",
+
+            # App-specific tools
+            "Ai::Tools::#{class_name}Tool",
+            "Ai::Tools::#{class_name}",
+
+            # Global namespace fallbacks
             "#{class_name}Tool",
-            
-            # Generic patterns
-            "#{class_name}",
-            "RAAF::#{class_name}"
+            "#{class_name}"
           ]
 
           # Try each pattern
@@ -593,12 +594,14 @@ module RAAF
         #
         # @param tool_class [Class] Class to check
         # @return [Boolean] true if it's an external tool
+        # Temporarily disabled - RAAF::DSL::Tools::Base removed
         def external_tool?(tool_class)
-          return false unless tool_class.is_a?(Class)
-
-          # Check if it inherits from the external tool base class
-          defined?(RAAF::DSL::Tools::Base) && 
-            tool_class.ancestors.include?(RAAF::DSL::Tools::Base)
+          false  # No DSL tools anymore
+          # return false unless tool_class.is_a?(Class)
+          #
+          # # Check if it inherits from the external tool base class
+          # defined?(RAAF::DSL::Tools::Base) &&
+          #   tool_class.ancestors.include?(RAAF::DSL::Tools::Base)
         end
 
         # Check if tool class is a valid native tool
@@ -713,11 +716,12 @@ module RAAF
         #     end
         #   end
         #
-        def tool_execution(&block)
-          config = ToolExecutionConfig.new(tool_execution_config.dup)
-          config.instance_eval(&block) if block
-          self.tool_execution_config = config.to_h
-        end
+        # Temporarily disabled - ToolExecutionConfig removed
+        # def tool_execution(&block)
+        #   config = ToolExecutionConfig.new(tool_execution_config.dup)
+        #   config.instance_eval(&block) if block
+        #   self.tool_execution_config = config.to_h
+        # end
 
         private  # Make methods after tool_execution private again
 
@@ -2503,10 +2507,51 @@ module RAAF
 
         return nil unless tool_class
 
-        tool_class.new(merged_options)
+        # Detect if this is a core tool (has #call method)
+        if tool_class.method_defined?(:call)
+          create_core_tool_wrapper(tool_class, tool_name, merged_options)
+        else
+          tool_class.new(merged_options)
+        end
       rescue => e
         log_error("Failed to create tool instance for #{tool_name}: #{e.message}")
         nil
+      end
+
+      # Wrap core tools in FunctionTool with proper initialization
+      # Core tools (RAAF::Tools::*) require keyword arguments and have #call method
+      def create_core_tool_wrapper(tool_class, tool_name, options)
+        # Auto-inject API keys from environment if not provided
+        tool_options = options.dup
+
+        if tool_class.name&.include?('Perplexity') && !tool_options.key?(:api_key)
+          tool_options[:api_key] = ENV['PERPLEXITY_API_KEY']
+        elsif tool_class.name&.include?('Tavily') && !tool_options.key?(:api_key)
+          tool_options[:api_key] = ENV['TAVILY_API_KEY']
+        end
+
+        # Instantiate core tool with keyword arguments
+        core_tool = tool_class.new(**tool_options)
+
+        # Wrap in FunctionTool for agent use
+        RAAF::FunctionTool.new(
+          core_tool.method(:call),
+          name: tool_name.to_s,
+          description: extract_tool_description(tool_class)
+        )
+      end
+
+      # Extract tool description from class for FunctionTool
+      def extract_tool_description(tool_class)
+        if tool_class.respond_to?(:description)
+          tool_class.description
+        elsif tool_class.name&.include?('Perplexity')
+          "Search the web for factual information with citations using Perplexity AI"
+        elsif tool_class.name&.include?('Tavily')
+          "Search the web for current information using Tavily"
+        else
+          "Execute #{tool_class.name.split('::').last.gsub('Tool', '').underscore.humanize.downcase} operation"
+        end
       end
 
       # Resolve tool class from name
@@ -2529,6 +2574,9 @@ module RAAF
       # Convert tool instance to function tool
       def convert_to_function_tool(tool_instance)
         return nil unless tool_instance
+
+        # If already a FunctionTool (from core tool wrapping), return as-is
+        return tool_instance if tool_instance.is_a?(RAAF::FunctionTool)
 
         # If tool has a function_tool method, use it
         return tool_instance.function_tool if tool_instance.respond_to?(:function_tool)
@@ -2567,36 +2615,46 @@ module RAAF
       # Check if parameter validation is enabled
       #
       # @return [Boolean] true if validation is enabled
+      # Temporarily disabled - ToolExecutionConfig removed
       def validation_enabled?
-        self.class.tool_execution_config[:enable_validation]
+        true  # Default to enabled
+        # self.class.tool_execution_config[:enable_validation]
       end
 
       # Check if execution logging is enabled
       #
       # @return [Boolean] true if logging is enabled
+      # Temporarily disabled - ToolExecutionConfig removed
       def logging_enabled?
-        self.class.tool_execution_config[:enable_logging]
+        true  # Default to enabled
+        # self.class.tool_execution_config[:enable_logging]
       end
 
       # Check if metadata injection is enabled
       #
       # @return [Boolean] true if metadata is enabled
+      # Temporarily disabled - ToolExecutionConfig removed
       def metadata_enabled?
-        self.class.tool_execution_config[:enable_metadata]
+        true  # Default to enabled
+        # self.class.tool_execution_config[:enable_metadata]
       end
 
       # Check if argument logging is enabled
       #
       # @return [Boolean] true if argument logging is enabled
+      # Temporarily disabled - ToolExecutionConfig removed
       def log_arguments?
-        self.class.tool_execution_config[:log_arguments]
+        true  # Default to enabled
+        # self.class.tool_execution_config[:log_arguments]
       end
 
       # Get the truncation length for log values
       #
       # @return [Integer] Truncation length for logs
+      # Temporarily disabled - ToolExecutionConfig removed
       def truncate_logs_at
-        self.class.tool_execution_config[:truncate_logs]
+        100  # Default value
+        # self.class.tool_execution_config[:truncate_logs]
       end
 
       private
