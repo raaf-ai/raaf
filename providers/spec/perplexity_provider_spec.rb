@@ -28,11 +28,15 @@ RSpec.describe RAAF::Models::PerplexityProvider do
 
     it "sets custom api_base when provided" do
       custom_provider = described_class.new(api_key: api_key, api_base: "https://custom.api")
-      expect(custom_provider.instance_variable_get(:@api_base)).to eq("https://custom.api")
+      # Provider no longer stores @api_base - it's passed to HttpClient
+      http_client = custom_provider.instance_variable_get(:@http_client)
+      expect(http_client).to be_a(RAAF::Perplexity::HttpClient)
     end
 
     it "uses default API_BASE when not specified" do
-      expect(provider.instance_variable_get(:@api_base)).to eq(RAAF::Models::PerplexityProvider::API_BASE)
+      # Provider no longer stores @api_base - it's handled by HttpClient
+      http_client = provider.instance_variable_get(:@http_client)
+      expect(http_client).to be_a(RAAF::Perplexity::HttpClient)
     end
   end
 
@@ -366,32 +370,8 @@ RSpec.describe RAAF::Models::PerplexityProvider do
       end
     end
 
-    describe "#configure_http_client" do
-      it "configures HTTP client with correct settings" do
-        uri = URI("https://api.perplexity.ai/chat/completions")
-
-        http = provider.send(:configure_http_client, uri)
-
-        expect(http).to be_a(Net::HTTP)
-        expect(http.use_ssl?).to be true
-        expect(http.read_timeout).to eq(provider.instance_variable_get(:@timeout))
-        expect(http.open_timeout).to eq(provider.instance_variable_get(:@open_timeout))
-      end
-    end
-
-    describe "#build_http_request" do
-      it "builds request with correct headers" do
-        uri = URI("https://api.perplexity.ai/chat/completions")
-        body = { model: "sonar", messages: [] }
-
-        request = provider.send(:build_http_request, uri, body)
-
-        expect(request).to be_a(Net::HTTP::Post)
-        expect(request["Authorization"]).to eq("Bearer #{api_key}")
-        expect(request["Content-Type"]).to eq("application/json")
-        expect(JSON.parse(request.body)).to eq(body.transform_keys(&:to_s))
-      end
-    end
+    # Tests for configure_http_client and build_http_request have been removed
+    # These methods are now in RAAF::Perplexity::HttpClient (tested in core/spec/raaf/perplexity/http_client_spec.rb)
   end
 
   describe "error handling" do

@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require "json"
-require "net/http"
-require "uri"
 require "raaf/perplexity/common"
 require "raaf/perplexity/search_options"
 require "raaf/perplexity/result_parser"
+require "raaf/perplexity/http_client"
 
 module RAAF
   module Models
@@ -65,11 +64,16 @@ module RAAF
       def initialize(api_key: nil, api_base: nil, timeout: nil, open_timeout: nil, **options)
         super
         @api_key ||= ENV.fetch("PERPLEXITY_API_KEY", nil)
-        @api_base ||= api_base || API_BASE
-        @timeout = timeout || ENV.fetch("PERPLEXITY_TIMEOUT", "180").to_i
-        @open_timeout = open_timeout || ENV.fetch("PERPLEXITY_OPEN_TIMEOUT", "30").to_i
 
         raise AuthenticationError, "Perplexity API key is required" unless @api_key
+
+        # Create shared HTTP client
+        @http_client = RAAF::Perplexity::HttpClient.new(
+          api_key: @api_key,
+          api_base: api_base || API_BASE,
+          timeout: timeout || ENV.fetch("PERPLEXITY_TIMEOUT", "180").to_i,
+          open_timeout: open_timeout || ENV.fetch("PERPLEXITY_OPEN_TIMEOUT", "30").to_i
+        )
       end
 
       ##
@@ -244,40 +248,9 @@ module RAAF
       end
 
       ##
-      # Configures HTTP client with Perplexity-specific settings
+      # Makes an API call to Perplexity using shared HTTP client
       #
-      # @param uri [URI] Target URI
-      # @return [Net::HTTP] Configured HTTP client
-      # @private
-      #
-      def configure_http_client(uri)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true
-        http.read_timeout = @timeout
-        http.open_timeout = @open_timeout
-        http
-      end
-
-      ##
-      # Builds HTTP request with authentication headers
-      #
-      # @param uri [URI] Target URI
-      # @param body [Hash] Request body
-      # @return [Net::HTTP::Post] Configured HTTP request
-      # @private
-      #
-      def build_http_request(uri, body)
-        request = Net::HTTP::Post.new(uri)
-        request["Authorization"] = "Bearer #{@api_key}"
-        request["Content-Type"] = "application/json"
-        request.body = body.to_json
-        request
-      end
-
-      ##
-      # Makes an API call to Perplexity
-      #
-      # This method focuses solely on HTTP communication. Retry logic is handled
+      # This method delegates to the shared HTTP client. Retry logic is handled
       # automatically by the base class ModelInterface which wraps perform_chat_completion
       # with exponential backoff.
       #
@@ -287,50 +260,7 @@ module RAAF
       # @private
       #
       def make_api_call(body)
-        uri = URI("#{@api_base}/chat/completions")
-        http = configure_http_client(uri)
-        request = build_http_request(uri, body)
-
-        response = http.request(request)
-
-        handle_api_error(response, provider_name) unless response.code.start_with?("2")
-
-        RAAF::Utils.parse_json(response.body)
-      end
-
-      ##
-      # Handles Perplexity-specific API errors
-      #
-      # Perplexity uses standard HTTP error codes but may have specific rate limiting behavior.
-      #
-      # @param response [HTTPResponse] API response
-      # @raise [AuthenticationError] for 401 errors
-      # @raise [RateLimitError] for 429 errors with reset time
-      # @raise [APIError] for other errors
-      # @private
-      #
-      def handle_api_error(response)
-        case response.code.to_i
-        when 401
-          raise AuthenticationError, "Invalid Perplexity API key"
-        when 429
-          # Perplexity rate limits - extract retry-after if available
-          retry_after = response["x-ratelimit-reset"] || response["retry-after"]
-          raise RateLimitError, "Perplexity rate limit exceeded. Reset at: #{retry_after}"
-        when 400
-          # Parse error message from response
-          begin
-            error_data = JSON.parse(response.body)
-            error_message = error_data.dig("error", "message") || response.body
-          rescue StandardError
-            error_message = response.body
-          end
-          raise APIError, "Perplexity API error: #{error_message}"
-        when 503
-          raise ServiceUnavailableError, "Perplexity service temporarily unavailable"
-        else
-          super
-        end
+        @http_client.make_api_call(body)
       end
     end
   end
