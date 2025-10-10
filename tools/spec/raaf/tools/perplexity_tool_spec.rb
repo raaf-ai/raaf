@@ -155,6 +155,107 @@ RSpec.describe RAAF::Tools::PerplexityTool do
         result = tool.call(query: "test", search_domain_filter: [])
         expect(result[:success]).to be true
       end
+
+      context "wildcard pattern validation" do
+        it "rejects wildcard patterns with asterisk" do
+          expect {
+            tool.call(query: "test", search_domain_filter: ["*.nl"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\*\.nl': Wildcard patterns \(\*, \?\) are not supported/)
+        end
+
+        it "rejects wildcard patterns with question mark" do
+          expect {
+            tool.call(query: "test", search_domain_filter: ["ruby-?.org"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern 'ruby-\?\.org': Wildcard patterns/)
+        end
+
+        it "rejects TLD wildcard patterns" do
+          expect {
+            tool.call(query: "test", search_domain_filter: ["*.com"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\*\.com': Wildcard patterns/)
+        end
+
+        it "rejects prefix wildcard patterns" do
+          expect {
+            tool.call(query: "test", search_domain_filter: ["ruby-*"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern 'ruby-\*': Wildcard patterns/)
+        end
+
+        it "rejects suffix wildcard patterns" do
+          expect {
+            tool.call(query: "test", search_domain_filter: ["*github*"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\*github\*': Wildcard patterns/)
+        end
+
+        it "rejects multiple wildcard patterns in array" do
+          expect {
+            tool.call(query: "test", search_domain_filter: ["ruby-lang.org", "*.nl", "github.com"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\*\.nl': Wildcard patterns/)
+        end
+
+        it "provides helpful error message with examples" do
+          expect {
+            tool.call(query: "test", search_domain_filter: ["*.nl"])
+          }.to raise_error(ArgumentError, /Use exact domain names like 'example\.com'/)
+        end
+      end
+
+      context "TLD-only pattern validation" do
+        it "rejects TLD-only patterns starting with dot" do
+          expect {
+            tool.call(query: "test", search_domain_filter: [".nl"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\.nl': TLD-only patterns are not supported/)
+        end
+
+        it "rejects .com TLD-only pattern" do
+          expect {
+            tool.call(query: "test", search_domain_filter: [".com"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\.com': TLD-only patterns are not supported/)
+        end
+
+        it "provides helpful error message for TLD-only patterns" do
+          expect {
+            tool.call(query: "test", search_domain_filter: [".nl"])
+          }.to raise_error(ArgumentError, /Use complete domain names like 'example\.nl'/)
+        end
+
+        it "accepts domains that contain dots but aren't TLD-only" do
+          result = tool.call(query: "test", search_domain_filter: ["example.nl"])
+          expect(result[:success]).to be true
+        end
+
+        it "accepts subdomains with multiple dots" do
+          result = tool.call(query: "test", search_domain_filter: ["news.bbc.co.uk"])
+          expect(result[:success]).to be true
+        end
+      end
+
+      context "valid domain patterns" do
+        it "accepts simple domain names" do
+          result = tool.call(query: "test", search_domain_filter: ["example.com"])
+          expect(result[:success]).to be true
+        end
+
+        it "accepts domains with hyphens" do
+          result = tool.call(query: "test", search_domain_filter: ["ruby-lang.org"])
+          expect(result[:success]).to be true
+        end
+
+        it "accepts subdomains" do
+          result = tool.call(query: "test", search_domain_filter: ["blog.example.com"])
+          expect(result[:success]).to be true
+        end
+
+        it "accepts multi-level subdomains" do
+          result = tool.call(query: "test", search_domain_filter: ["api.v2.example.com"])
+          expect(result[:success]).to be true
+        end
+
+        it "accepts international TLDs" do
+          result = tool.call(query: "test", search_domain_filter: ["example.co.uk", "example.fr"])
+          expect(result[:success]).to be true
+        end
+      end
     end
 
     context "recency_filter validation (via SearchOptions)" do

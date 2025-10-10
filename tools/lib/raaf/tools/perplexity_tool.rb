@@ -317,11 +317,34 @@ module RAAF
       # @return [void]
       #
       def validate_domain_filter(domain_filter)
-        # Accept string or array
-        return if domain_filter.is_a?(String)
-        return if domain_filter.is_a?(Array)
+        # Check type first
+        unless domain_filter.is_a?(String) || domain_filter.is_a?(Array)
+          raise ArgumentError, "search_domain_filter must be a String or Array, got #{domain_filter.class}"
+        end
 
-        raise ArgumentError, "search_domain_filter must be a String or Array, got #{domain_filter.class}"
+        # Convert to array for uniform validation
+        domains = Array(domain_filter)
+
+        # Check each domain for wildcard patterns
+        domains.each do |domain|
+          next unless domain.is_a?(String)
+
+          # Check for wildcard characters
+          if domain.include?("*") || domain.include?("?")
+            raise ArgumentError,
+                  "Invalid domain pattern '#{domain}': Wildcard patterns (*, ?) are not supported. " \
+                  "Use exact domain names like 'example.com' or 'subdomain.example.com' instead. " \
+                  "Valid examples: ['ruby-lang.org', 'github.com']. " \
+                  "Invalid examples: ['*.nl', '*.com', 'ruby-*']"
+          end
+
+          # Check for TLD-only patterns (e.g., ".nl", ".com")
+          if domain.start_with?(".") && domain.count(".") == 1
+            raise ArgumentError,
+                  "Invalid domain pattern '#{domain}': TLD-only patterns are not supported. " \
+                  "Use complete domain names like 'example.nl' instead of '#{domain}'"
+          end
+        end
       end
     end
   end
