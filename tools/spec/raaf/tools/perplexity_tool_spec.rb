@@ -200,42 +200,50 @@ RSpec.describe RAAF::Tools::PerplexityTool do
         end
       end
 
-      context "bare TLD pattern validation" do
+      context "TLD-only pattern validation" do
         it "rejects bare TLD patterns without dot" do
           expect {
             tool.call(query: "test", search_domain_filter: ["nl"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'nl': Bare TLD patterns are not supported/)
+          }.to raise_error(ArgumentError, /Invalid domain pattern 'nl': TLD-only patterns are not supported/)
         end
 
         it "rejects bare 'com' TLD pattern" do
           expect {
             tool.call(query: "test", search_domain_filter: ["com"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'com': Bare TLD patterns are not supported/)
+          }.to raise_error(ArgumentError, /Invalid domain pattern 'com': TLD-only patterns are not supported/)
         end
 
         it "rejects bare 'org' TLD pattern" do
           expect {
             tool.call(query: "test", search_domain_filter: ["org"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'org': Bare TLD patterns are not supported/)
+          }.to raise_error(ArgumentError, /Invalid domain pattern 'org': TLD-only patterns are not supported/)
         end
 
-        it "provides helpful error message suggesting .nl format" do
+        it "rejects TLD patterns with leading dot" do
+          expect {
+            tool.call(query: "test", search_domain_filter: [".nl"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\.nl': TLD-only patterns are not supported/)
+        end
+
+        it "rejects .com TLD pattern with leading dot" do
+          expect {
+            tool.call(query: "test", search_domain_filter: [".com"])
+          }.to raise_error(ArgumentError, /Invalid domain pattern '\.com': TLD-only patterns are not supported/)
+        end
+
+        it "provides helpful error message requiring complete domain names" do
           expect {
             tool.call(query: "test", search_domain_filter: ["nl"])
-          }.to raise_error(ArgumentError, /Use '\.nl' to filter all \.nl domains/)
+          }.to raise_error(ArgumentError, /Use complete domain names like 'example\.nl'/)
         end
 
-        it "accepts TLD filter patterns with leading dot" do
-          result = tool.call(query: "test", search_domain_filter: [".nl"])
-          expect(result[:success]).to be true
+        it "mentions TLD filters not allowed in error message" do
+          expect {
+            tool.call(query: "test", search_domain_filter: [".nl"])
+          }.to raise_error(ArgumentError, /TLD filters like '\.nl', 'nl', '\.com' are not allowed/)
         end
 
-        it "accepts .com TLD filter pattern" do
-          result = tool.call(query: "test", search_domain_filter: [".com"])
-          expect(result[:success]).to be true
-        end
-
-        it "accepts specific domains with TLD" do
+        it "accepts complete domain names" do
           result = tool.call(query: "test", search_domain_filter: ["example.nl"])
           expect(result[:success]).to be true
         end

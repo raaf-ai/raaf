@@ -93,11 +93,11 @@ module RAAF
             search_domain_filter: {
               type: "array",
               items: { type: "string" },
-              description: "Optional: Array of domain patterns to restrict search to authoritative sources. " \
-                          "CRITICAL: Must contain at least one dot (.). " \
-                          "✅ Valid: ['example.com', '.nl' (TLD filter), 'subdomain.example.com', 'ruby-lang.org'] " \
-                          "❌ Invalid: ['nl' (bare TLD), '*.nl' (wildcards), '*.com', 'ruby-*'] " \
-                          "Use '.nl' to filter all .nl domains, or 'example.nl' for a specific domain."
+              description: "Optional: Array of complete domain names to restrict search to authoritative sources. " \
+                          "CRITICAL: Must be complete domain names with subdomain/domain + TLD (e.g., 'example.com'). " \
+                          "✅ Valid: ['example.com', 'ruby-lang.org', 'subdomain.example.com', 'news.bbc.co.uk'] " \
+                          "❌ Invalid: ['nl' (TLD only), '.nl' (TLD filter), '*.nl' (wildcards), '*.com', 'ruby-*'] " \
+                          "TLD-only patterns are not supported - use complete domain names only."
             },
             search_recency_filter: {
               type: "string",
@@ -162,10 +162,10 @@ module RAAF
              ❌ Bad: "Ruby performance"
 
           4. **Use Filters for Focus:**
-             - search_domain_filter: Domain patterns (must contain dot)
-               ✅ Valid: ["ruby-lang.org", ".nl" (TLD filter), "github.com", "news.bbc.co.uk"]
-               ❌ Invalid: ["nl" (bare TLD), "*.nl" (wildcards), "*.com", "ruby-*"]
-               Use ".nl" to filter all .nl domains, or "example.nl" for specific domain
+             - search_domain_filter: Complete domain names only (no TLD-only patterns)
+               ✅ Valid: ["ruby-lang.org", "github.com", "news.bbc.co.uk", "example.com"]
+               ❌ Invalid: ["nl", ".nl" (TLD filters), "*.nl" (wildcards), "*.com", "ruby-*"]
+               Use complete domain names with subdomain/domain + TLD
              - search_recency_filter: Time window ("week", "month") for current information
 
           **Response Structure:**
@@ -212,10 +212,10 @@ module RAAF
       #
       # @param query [String] Search query for web research (required).
       #   Example: "Acme Corp BV Amsterdam Netherlands comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status"
-      # @param search_domain_filter [Array<String>, nil] Array of domain patterns to restrict search (must contain at least one dot).
-      #   Valid: ['ruby-lang.org', '.nl' (TLD filter), 'github.com', 'news.bbc.co.uk']
-      #   Invalid: ['nl' (bare TLD), '*.nl' (wildcards), '*.com', 'ruby-*']
-      #   Use '.nl' to filter all .nl domains, or 'example.nl' for a specific domain.
+      # @param search_domain_filter [Array<String>, nil] Array of complete domain names to restrict search.
+      #   Valid: ['example.com', 'ruby-lang.org', 'subdomain.example.com', 'news.bbc.co.uk']
+      #   Invalid: ['nl' (TLD only), '.nl' (TLD filter), '*.nl' (wildcards), '*.com', 'ruby-*']
+      #   TLD-only patterns are not supported - use complete domain names only.
       # @param search_recency_filter [String, nil] Time window for results.
       #   Valid values: hour, day, week, month, year
       # @return [Hash] Formatted search result with success, content, citations, web_results
@@ -326,7 +326,7 @@ module RAAF
         # Convert to array for uniform validation
         domains = Array(domain_filter)
 
-        # Check each domain for wildcard patterns and bare TLDs
+        # Check each domain for invalid patterns
         domains.each do |domain|
           next unless domain.is_a?(String)
 
@@ -334,17 +334,18 @@ module RAAF
           if domain.include?("*") || domain.include?("?")
             raise ArgumentError,
                   "Invalid domain pattern '#{domain}': Wildcard patterns (*, ?) are not supported. " \
-                  "Use exact domain names like 'example.com' or 'subdomain.example.com' instead. " \
-                  "Valid examples: ['ruby-lang.org', 'github.com', '.nl']. " \
-                  "Invalid examples: ['*.nl', '*.com', 'ruby-*']"
+                  "Use exact domain names like 'example.com' or 'subdomain.example.com'. " \
+                  "Valid examples: ['ruby-lang.org', 'github.com', 'news.bbc.co.uk']. " \
+                  "Invalid examples: ['*.nl', '*.com', 'ruby-*', '*github*']"
           end
 
-          # Check for bare TLD patterns without leading dot (e.g., "nl", "com")
-          # Allow patterns with dots: ".nl" (TLD filter) or "example.nl" (specific domain)
-          if !domain.include?(".")
+          # Check for TLD-only patterns (with or without leading dot)
+          # Only allow complete domain names with at least one subdomain/domain part
+          if !domain.include?(".") || domain.start_with?(".") || domain.count(".") < 1 || domain.split(".").any?(&:empty?)
             raise ArgumentError,
-                  "Invalid domain pattern '#{domain}': Bare TLD patterns are not supported. " \
-                  "Use '.#{domain}' to filter all .#{domain} domains, or 'example.#{domain}' for a specific domain."
+                  "Invalid domain pattern '#{domain}': TLD-only patterns are not supported. " \
+                  "Use complete domain names like 'example.nl', 'ruby-lang.org', or 'news.bbc.co.uk'. " \
+                  "TLD filters like '.nl', 'nl', '.com' are not allowed."
           end
         end
       end
