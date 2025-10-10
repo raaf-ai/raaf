@@ -41,7 +41,7 @@ result = runner.run("What are the latest Ruby 3.4 features?")
 
 The PerplexityTool provides factual, citation-backed web search capabilities for RAAF agents. Best for research tasks requiring current information with source attribution.
 
-#### Basic Usage
+#### Basic Usage with Helper Method (Recommended)
 
 ```ruby
 # Initialize tool with API key
@@ -49,18 +49,48 @@ perplexity_tool = RAAF::Tools::PerplexityTool.new(
   api_key: ENV['PERPLEXITY_API_KEY']
 )
 
-# Wrap for agent use
+# Wrap for agent use with comprehensive description helper
 function_tool = RAAF::FunctionTool.new(
   perplexity_tool.method(:call),
   name: "perplexity_search",
-  description: "Search the web for current, factual information with citations"
+  description: RAAF::Tools::PerplexityTool.function_tool_description
 )
 
 agent.add_tool(function_tool)
 
-# Agent will call tool when needed
+# Agent will call tool when needed with proper understanding
 runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Find recent Ruby security updates")
+```
+
+**Why use the helper method?**
+- Provides LLM with complete usage guidelines (when/how to use tool)
+- Includes critical model validation warnings (prevents using gpt-4o instead of sonar)
+- Contains query engineering best practices from production usage
+- Shows all available models with cost information
+- Based on real-world patterns from ProspectRadar production agents
+
+#### Custom Description for Specific Use Cases
+
+You can also provide a custom description tailored to your specific use case:
+
+```ruby
+# Custom description for company research
+function_tool = RAAF::FunctionTool.new(
+  perplexity_tool.method(:call),
+  name: "perplexity_search",
+  description: <<~DESC.strip
+    Search for current company information when data_completeness_score < 7.
+
+    CRITICAL: Use ONLY Perplexity models (sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro, sonar-deep-research).
+    DO NOT use gpt-4o, gpt-3.5-turbo, or other non-Perplexity models - they will cause errors.
+
+    Query pattern: "[Company] [Legal Form] [Location] comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status"
+
+    Combine ALL facts into ONE comprehensive search per company for efficiency.
+    Use expert terminology, not conversational language.
+  DESC
+)
 ```
 
 #### Tool Configuration
