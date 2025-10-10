@@ -144,6 +144,105 @@ runner2 = RAAF::Runner.new(agent: agent, provider: RAAF::Models::GroqProvider.ne
 # Uses GroqProvider (explicit override)
 ```
 
+## Tool Execution Interceptor (NEW - October 2025)
+
+**RAAF DSL now includes automatic tool execution conveniences** via an interceptor that eliminates the need for DSL wrapper classes:
+
+### Overview
+
+The tool execution interceptor provides automatic:
+- **Parameter validation** - Validates against tool definition before execution
+- **Execution logging** - Logs tool start/end with duration tracking
+- **Metadata injection** - Adds `_execution_metadata` to Hash results
+- **Error handling** - Catches and logs errors with context
+- **Performance** - < 1ms overhead verified by benchmarks
+
+### Using Core Tools Directly
+
+```ruby
+# NEW: Use raw core tools directly (no wrapper needed)
+class MyAgent < RAAF::DSL::Agent
+  agent_name "WebSearchAgent"
+  model "gpt-4o"
+
+  # Use core tool - interceptor adds conveniences automatically
+  uses_tool RAAF::Tools::PerplexityTool, as: :perplexity_search
+
+  # Optional: Configure interceptor behavior
+  tool_execution do
+    enable_validation true   # Default: true
+    enable_logging true      # Default: true
+    enable_metadata true     # Default: true
+    log_arguments true       # Default: true
+    truncate_logs 100        # Default: 100
+  end
+end
+
+# Execute tool - automatic conveniences applied
+agent = MyAgent.new
+result = agent.run("Search for Ruby AI frameworks")
+
+# Result includes automatic metadata
+result[:_execution_metadata]
+# => {
+#   duration_ms: 245.67,
+#   tool_name: "perplexity_search",
+#   timestamp: "2025-10-10T12:34:56Z",
+#   agent_name: "WebSearchAgent"
+# }
+```
+
+### Configuration Options
+
+```ruby
+class ConfiguredAgent < RAAF::DSL::Agent
+  # Disable specific features
+  tool_execution do
+    enable_validation false  # Skip parameter validation
+    enable_logging false     # Skip execution logging
+    enable_metadata false    # Skip metadata injection
+    log_arguments false      # Don't log arguments
+    truncate_logs 200        # Longer truncation
+  end
+end
+
+# Instance-level override
+agent = ConfiguredAgent.new
+agent.tool_execution do
+  enable_logging true  # Re-enable for this instance
+end
+```
+
+### Backward Compatibility
+
+Existing DSL wrappers continue to work - they're marked with `dsl_wrapped?` to skip double-processing:
+
+```ruby
+# OLD: DSL wrapper (still works)
+class MyAgent < RAAF::DSL::Agent
+  uses_tool :perplexity_search  # Uses RAAF::DSL::Tools::PerplexitySearch
+end
+
+# DSL wrappers inherit from Base which has:
+# def dsl_wrapped?
+#   true  # Tells interceptor to skip this tool
+# end
+```
+
+### Benefits
+
+| Aspect | Before (Wrapper) | After (Interceptor) |
+|--------|------------------|---------------------|
+| **Code** | 200+ lines per wrapper | 3 lines per agent declaration |
+| **Updates** | Change each wrapper | Change interceptor once |
+| **Consistency** | Varies per wrapper | Identical for all tools |
+| **Performance** | Varies | < 1ms overhead |
+
+### Migration Guide
+
+See the comprehensive migration guide for step-by-step instructions:
+`.agent-os/specs/2025-10-10-agent-level-tool-execution-conveniences/DSL_WRAPPER_MIGRATION_GUIDE.md`
+
 ## Tool DSL
 
 ```ruby

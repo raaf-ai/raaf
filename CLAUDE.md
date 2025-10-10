@@ -245,6 +245,53 @@ result = runner.run("Hello")
 # Traces are automatically sent with Python SDK compatible format
 ```
 
+### Tool Execution Interceptor (NEW)
+
+**RAAF DSL now includes an automatic tool execution interceptor** that provides validation, logging, and metadata injection for all tools without requiring wrapper classes:
+
+```ruby
+# Use raw core tools directly - interceptor adds conveniences automatically
+class MyAgent < RAAF::DSL::Agent
+  agent_name "WebSearchAgent"
+  model "gpt-4o"
+
+  # Use core tool directly (no wrapper needed)
+  uses_tool RAAF::Tools::PerplexityTool, as: :perplexity_search
+
+  # Optional: Configure interceptor behavior
+  tool_execution do
+    enable_validation true   # Validate parameters before execution
+    enable_logging true      # Log execution start/end with duration
+    enable_metadata true     # Add _execution_metadata to results
+    log_arguments true       # Include arguments in logs
+    truncate_logs 100        # Truncate long values in logs
+  end
+end
+
+# The interceptor automatically provides:
+# - Parameter validation against tool definition
+# - Execution logging with duration tracking
+# - Metadata injection ({ _execution_metadata: { duration_ms, tool_name, timestamp } })
+# - Error handling and logging
+
+# Tools execute with < 1ms overhead
+agent = MyAgent.new
+result = agent.run("Search for Ruby AI tools")
+
+# Result includes automatic metadata
+result[:_execution_metadata]
+# => { duration_ms: 245.67, tool_name: "perplexity_search", timestamp: "2025-10-10T...", agent_name: "WebSearchAgent" }
+```
+
+**Benefits:**
+- **Code Reduction:** Eliminates 200+ line DSL wrapper boilerplate
+- **Single Update Point:** Change logging/validation once, applies to all tools
+- **Consistent Behavior:** All tools get same conveniences automatically
+- **Performance:** < 1ms overhead verified by benchmarks
+- **Backward Compatible:** Existing DSL wrappers marked with `dsl_wrapped?` to skip double-processing
+
+**Migration Guide:** See `.agent-os/specs/2025-10-10-agent-level-tool-execution-conveniences/DSL_WRAPPER_MIGRATION_GUIDE.md` for step-by-step wrapper migration instructions.
+
 ### DSL Usage with Automatic Context
 
 RAAF DSL agents now provide automatic context access, eliminating manual context building:
