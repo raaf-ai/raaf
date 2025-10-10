@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "raaf-core"
+require "raaf/perplexity/http_client"
 require "raaf/perplexity/common"
 require "raaf/perplexity/search_options"
 require "raaf/perplexity/result_parser"
@@ -44,16 +44,132 @@ module RAAF
       #
       # @param api_key [String, nil] Perplexity API key (defaults to PERPLEXITY_API_KEY env var)
       # @param api_base [String, nil] Custom API base URL
+      # @param model [String] Default Perplexity model to use (default: "sonar")
+      # @param max_tokens [Integer, nil] Default maximum tokens in response (default: nil)
       # @param timeout [Integer, nil] Request timeout in seconds
       # @param open_timeout [Integer, nil] Connection timeout in seconds
       #
-      def initialize(api_key: nil, api_base: nil, timeout: nil, open_timeout: nil)
-        @provider = RAAF::Models::PerplexityProvider.new(
-          api_key: api_key,
+      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, timeout: nil, open_timeout: nil)
+        @model = model
+        @max_tokens = max_tokens
+        @http_client = RAAF::Perplexity::HttpClient.new(
+          api_key: api_key || ENV.fetch("PERPLEXITY_API_KEY", nil),
           api_base: api_base,
           timeout: timeout,
           open_timeout: open_timeout
         )
+      end
+
+      ##
+      # Generate complete FunctionTool parameter schema for Perplexity search
+      #
+      # This provides the complete OpenAI function schema including parameters,
+      # types, enums, and defaults. The LLM sees exactly what parameters are
+      # available and their valid values.
+      #
+      # @return [Hash] Complete parameter schema for FunctionTool
+      #
+      # @example Using with FunctionTool
+      #   perplexity_tool = RAAF::Tools::PerplexityTool.new(api_key: ENV['PERPLEXITY_API_KEY'])
+      #   function_tool = RAAF::FunctionTool.new(
+      #     perplexity_tool.method(:call),
+      #     name: "perplexity_search",
+      #     description: RAAF::Tools::PerplexityTool.function_tool_description,
+      #     parameters: RAAF::Tools::PerplexityTool.function_tool_parameters
+      #   )
+      #   agent.add_tool(function_tool)
+      #
+      def self.function_tool_parameters
+        {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Search query for web research. Use expert terminology and combine multiple facts into one comprehensive query. " \
+                          "Example: '[Company] [Legal Form] [City] [Country] comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status'"
+            },
+            search_domain_filter: {
+              type: "array",
+              items: { type: "string" },
+              description: "Optional: Array of domain names to restrict search to authoritative sources. " \
+                          "Example: ['ruby-lang.org', 'github.com'] to search only Ruby official sites."
+            },
+            search_recency_filter: {
+              type: "string",
+              enum: ["hour", "day", "week", "month", "year"],
+              description: "Optional: Time window for search results. Use for time-sensitive queries requiring recent information."
+            }
+          },
+          required: ["query"]
+        }
+      end
+
+      ##
+      # Generate comprehensive FunctionTool description for Perplexity search
+      #
+      # This provides the LLM with complete context about when and how to use
+      # the Perplexity search tool effectively, based on production usage patterns.
+      #
+      # @return [String] Complete tool description for FunctionTool wrapper
+      #
+      # @example Using with FunctionTool
+      #   perplexity_tool = RAAF::Tools::PerplexityTool.new(api_key: ENV['PERPLEXITY_API_KEY'])
+      #   function_tool = RAAF::FunctionTool.new(
+      #     perplexity_tool.method(:call),
+      #     name: "perplexity_search",
+      #     description: RAAF::Tools::PerplexityTool.function_tool_description,
+      #     parameters: RAAF::Tools::PerplexityTool.function_tool_parameters
+      #   )
+      #   agent.add_tool(function_tool)
+      #
+      def self.function_tool_description
+        <<~DESC.strip
+          Search the web for current, factual information with automatic citations using Perplexity AI.
+
+          **Model Configuration:**
+          - The search model and max_tokens are configured at tool initialization time
+          - You cannot change the model per query - use the model configured when the tool was created
+
+          **When to Use This Tool:**
+          - You need recent, factual information from the web (news, announcements, updates)
+          - You need cited sources and references for verification
+          - You need domain-specific research from authoritative sources
+          - You need time-sensitive queries where accuracy is critical
+          - You lack complete data and need to fill information gaps (e.g., data_completeness_score < 7)
+
+          **When NOT to Use:**
+          - You already have complete, high-quality data available (avoid redundant API calls)
+          - Query is about general knowledge covered in your training
+          - Task requires reasoning/analysis rather than fact-gathering
+
+          **Query Engineering Best Practices:**
+
+          1. **Use Expert Terminology** - Professional language, not conversational
+             ✅ Good: "SaaS company Netherlands B2B revenue model employee count"
+             ❌ Bad: "Tell me about this company and what they do"
+
+          2. **Combine Facts in ONE Search** - Comprehensive queries are more efficient
+             ✅ Good: "[Company] [Legal Form] [City] [Country] comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status"
+             ❌ Bad: Multiple separate searches for each fact
+
+          3. **Be Specific** - Add 2-3 contextual words for precision
+             ✅ Good: "Ruby 3.4 performance improvements JIT compiler"
+             ❌ Bad: "Ruby performance"
+
+          4. **Use Filters for Focus:**
+             - search_domain_filter: Restrict to authoritative sources ["ruby-lang.org", "github.com"]
+             - search_recency_filter: Time window ("week", "month") for current information
+
+          **Response Structure:**
+
+          Successful searches return:
+          - content: Main search result text with citations
+          - citations: Array of source URLs
+          - web_results: Detailed results with title, URL, snippet
+          - model: Model used for the search
+
+          **Always include citations in your final response** to maintain factual accuracy and transparency.
+        DESC
       end
 
       ##
@@ -62,30 +178,55 @@ module RAAF
       # Performs web-grounded search using Perplexity AI with automatic citations.
       # Best for research tasks requiring current information with source attribution.
       #
-      # Use this tool when you need:
+      # **QUERY ENGINEERING BEST PRACTICES:**
+      # - Use expert terminology, NOT conversational language
+      # - Combine multiple facts into ONE comprehensive query (not multiple searches)
+      # - Pattern: "[Entity] [Type] [Location] comprehensive profile: [specific facts needed]"
+      # - Be specific with 2-3 contextual words for better results
+      #
+      # **EFFICIENCY GUIDELINES:**
+      # - Prefer single comprehensive search over multiple narrow searches
+      # - Use search_domain_filter to focus on authoritative sources
+      # - Use search_recency_filter for time-sensitive queries
+      # - Check data completeness before searching (avoid redundant API calls)
+      #
+      # **Use this tool when you need:**
       # - Recent, factual information from the web
       # - Cited sources and references
-      # - Domain-specific research
-      # - Time-sensitive queries
+      # - Domain-specific research from authoritative sources
+      # - Time-sensitive queries where accuracy is critical
+      # - To fill information gaps when data_completeness_score < 7
       #
-      # @param query [String] Search query for web research (required)
-      # @param model [String] Perplexity model: sonar (fast), sonar-pro (advanced+schema),
-      #   sonar-reasoning (deep), sonar-reasoning-pro (premium+schema).
-      #   Default: "sonar". Valid values: #{RAAF::Perplexity::Common::SUPPORTED_MODELS.join(', ')}
-      # @param search_domain_filter [Array<String>, nil] Array of domain names to restrict search
-      #   (e.g., ['ruby-lang.org', 'github.com'])
+      # **When NOT to use:**
+      # - You already have complete, high-quality data available
+      # - Query is about general knowledge covered in training data
+      # - Task requires reasoning/analysis rather than fact-gathering
+      #
+      # @param query [String] Search query for web research (required).
+      #   Example: "Acme Corp BV Amsterdam Netherlands comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status"
+      # @param search_domain_filter [Array<String>, nil] Array of domain names to restrict search.
+      #   Use to focus on authoritative sources (e.g., ['ruby-lang.org', 'github.com'])
       # @param search_recency_filter [String, nil] Time window for results.
       #   Valid values: hour, day, week, month, year
-      # @param max_tokens [Integer, nil] Maximum tokens in response (1-4000)
       # @return [Hash] Formatted search result with success, content, citations, web_results
       #
-      def call(query:, model: "sonar", search_domain_filter: nil, search_recency_filter: nil, max_tokens: nil)
+      def call(query:, search_domain_filter: nil, search_recency_filter: nil)
+        # Validate all input parameters
+        validate_query(query)
+        validate_domain_filter(search_domain_filter) if search_domain_filter
+        # recency_filter validation is handled by SearchOptions.build
+
         # Build messages for Perplexity
         messages = [{ role: "user", content: query }]
 
-        # Build request parameters
-        kwargs = {}
-        kwargs[:max_tokens] = max_tokens if max_tokens
+        # Build request body for Perplexity API
+        body = {
+          model: @model,
+          messages: messages
+        }
+
+        # Add max_tokens if specified
+        body[:max_tokens] = @max_tokens if @max_tokens
 
         # Add web search options using common code
         if search_domain_filter || search_recency_filter
@@ -93,15 +234,11 @@ module RAAF
             domain_filter: search_domain_filter,
             recency_filter: search_recency_filter
           )
-          kwargs[:web_search_options] = options if options
+          body.merge!(options) if options
         end
 
-        # Execute search using provider
-        result = @provider.chat_completion(
-          messages: messages,
-          model: model,
-          **kwargs
-        )
+        # Execute search using HttpClient directly
+        result = @http_client.make_api_call(body)
 
         # Format result using common parser
         RAAF::Perplexity::ResultParser.format_search_result(result)
@@ -127,6 +264,37 @@ module RAAF
           message: e.message,
           backtrace: e.backtrace.first(5)
         }
+      end
+
+      private
+
+      ##
+      # Validates the query parameter
+      #
+      # @param query [String] Search query to validate
+      # @raise [ArgumentError] if query is invalid
+      # @return [void]
+      #
+      def validate_query(query)
+        raise ArgumentError, "Query parameter is required" if query.nil?
+        raise ArgumentError, "Query must be a String, got #{query.class}" unless query.is_a?(String)
+        raise ArgumentError, "Query cannot be empty" if query.strip.empty?
+        raise ArgumentError, "Query is too long (maximum 4000 characters)" if query.length > 4000
+      end
+
+      ##
+      # Validates the domain_filter parameter
+      #
+      # @param domain_filter [Array<String>, String] Domain filter to validate
+      # @raise [ArgumentError] if domain_filter is invalid
+      # @return [void]
+      #
+      def validate_domain_filter(domain_filter)
+        # Accept string or array
+        return if domain_filter.is_a?(String)
+        return if domain_filter.is_a?(Array)
+
+        raise ArgumentError, "search_domain_filter must be a String or Array, got #{domain_filter.class}"
       end
     end
   end
