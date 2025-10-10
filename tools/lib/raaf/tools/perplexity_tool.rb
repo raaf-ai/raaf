@@ -46,12 +46,14 @@ module RAAF
       # @param api_base [String, nil] Custom API base URL
       # @param model [String] Default Perplexity model to use (default: "sonar")
       # @param max_tokens [Integer, nil] Default maximum tokens in response (default: nil)
+      # @param search_recency_filter [String, nil] Default recency filter fallback (default: nil = no recency filtering)
       # @param timeout [Integer, nil] Request timeout in seconds
       # @param open_timeout [Integer, nil] Connection timeout in seconds
       #
-      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, timeout: nil, open_timeout: nil)
+      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, search_recency_filter: nil, timeout: nil, open_timeout: nil)
         @model = model
         @max_tokens = max_tokens
+        @default_search_recency_filter = search_recency_filter
         @http_client = RAAF::Perplexity::HttpClient.new(
           api_key: api_key || ENV.fetch("PERPLEXITY_API_KEY", nil),
           api_base: api_base,
@@ -214,7 +216,7 @@ module RAAF
         # Validate all input parameters
         validate_query(query)
         validate_domain_filter(search_domain_filter) if search_domain_filter
-        # recency_filter validation is handled by SearchOptions.build
+        # recency_filter validation is handled by SearchOptions.build with fallback
 
         # Build messages for Perplexity
         messages = [{ role: "user", content: query }]
@@ -228,13 +230,31 @@ module RAAF
         # Add max_tokens if specified
         body[:max_tokens] = @max_tokens if @max_tokens
 
-        # Add web search options using common code
+        # Add web search options using common code with validation fallback
         if search_domain_filter || search_recency_filter
-          options = RAAF::Perplexity::SearchOptions.build(
-            domain_filter: search_domain_filter,
-            recency_filter: search_recency_filter
-          )
-          body.merge!(options) if options
+          # Try to build options with agent-provided recency_filter
+          begin
+            options = RAAF::Perplexity::SearchOptions.build(
+              domain_filter: search_domain_filter,
+              recency_filter: search_recency_filter
+            )
+            body.merge!(options) if options
+          rescue ArgumentError => e
+            # Agent provided invalid recency_filter - fall back to default
+            if e.message.include?("Invalid recency filter")
+              RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
+
+              # Retry with default recency_filter
+              options = RAAF::Perplexity::SearchOptions.build(
+                domain_filter: search_domain_filter,
+                recency_filter: @default_search_recency_filter
+              )
+              body.merge!(options) if options
+            else
+              # Re-raise if it's a different ArgumentError (e.g., invalid domain_filter)
+              raise
+            end
+          end
         end
 
         # Execute search using HttpClient directly

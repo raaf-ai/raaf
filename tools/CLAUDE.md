@@ -100,9 +100,19 @@ function_tool = RAAF::FunctionTool.new(
 perplexity_tool = RAAF::Tools::PerplexityTool.new(
   api_key: ENV['PERPLEXITY_API_KEY'],
   api_base: "https://custom.api.perplexity.ai",  # Custom endpoint
+  model: "sonar-pro",                             # Default model (default: "sonar")
+  max_tokens: 1000,                               # Response length limit (default: nil)
+  search_recency_filter: "week",                  # Default fallback for invalid recency values (default: nil)
   timeout: 60,                                    # Request timeout (seconds)
   open_timeout: 10                                # Connection timeout (seconds)
 )
+
+# Default recency_filter behavior:
+# - nil (default): No recency filtering, searches all time ranges
+# - "week": Falls back to recent week when agent provides invalid recency value
+# - Valid agent values (hour/day/week/month/year) always override the default
+# - Invalid agent values trigger fallback to default with warning log
+# - Empty strings are normalized to nil (no recency filter applied)
 ```
 
 #### Available Models
@@ -149,6 +159,58 @@ result = perplexity_tool.call(
   search_domain_filter: ["ruby-lang.org"],
   search_recency_filter: "month"
 )
+```
+
+#### Recency Filter Fallback Behavior
+
+```ruby
+# Tool with default recency filter
+tool_with_default = RAAF::Tools::PerplexityTool.new(
+  api_key: ENV['PERPLEXITY_API_KEY'],
+  search_recency_filter: "week"  # Default fallback
+)
+
+# Valid agent value overrides default
+result = tool_with_default.call(
+  query: "Ruby news",
+  search_recency_filter: "day"  # Uses "day" (overrides default "week")
+)
+# => Uses "day" filter
+
+# Invalid agent value falls back to default with warning
+result = tool_with_default.call(
+  query: "Ruby news",
+  search_recency_filter: "invalid"  # Invalid value
+)
+# Logs: ⚠️  [PerplexityTool] Invalid recency_filter 'invalid' - falling back to default: "week"
+# => Uses "week" filter (from default)
+
+# nil agent value uses no recency filter (overrides default)
+result = tool_with_default.call(
+  query: "Ruby news",
+  search_recency_filter: nil  # Explicit nil
+)
+# => No recency filter applied (searches all time)
+
+# Empty string normalized to nil (no recency filter)
+result = tool_with_default.call(
+  query: "Ruby news",
+  search_recency_filter: ""  # Empty string
+)
+# => No recency filter applied (searches all time)
+
+# Tool without default (nil) - invalid values fall back to nil
+tool_no_default = RAAF::Tools::PerplexityTool.new(
+  api_key: ENV['PERPLEXITY_API_KEY']
+  # search_recency_filter: nil (default)
+)
+
+result = tool_no_default.call(
+  query: "Ruby news",
+  search_recency_filter: "invalid"  # Invalid value
+)
+# Logs: ⚠️  [PerplexityTool] Invalid recency_filter 'invalid' - falling back to default: nil
+# => No recency filter applied (searches all time)
 ```
 
 #### Response Format

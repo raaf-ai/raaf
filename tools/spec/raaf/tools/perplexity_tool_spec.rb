@@ -159,7 +159,7 @@ RSpec.describe RAAF::Tools::PerplexityTool do
 
     context "recency_filter validation (via SearchOptions)" do
       before do
-        allow_any_instance_of(RAAF::Models::PerplexityProvider).to receive(:chat_completion).and_return({
+        allow_any_instance_of(RAAF::Perplexity::HttpClient).to receive(:make_api_call).and_return({
           "choices" => [{ "message" => { "content" => "test result" } }],
           "model" => "sonar"
         })
@@ -181,11 +181,101 @@ RSpec.describe RAAF::Tools::PerplexityTool do
         result = tool.call(query: "test", search_recency_filter: "  ")
         expect(result[:success]).to be true
       end
+    end
 
-      it "raises ArgumentError for invalid recency_filter" do
-        expect {
-          tool.call(query: "test", search_recency_filter: "invalid")
-        }.to raise_error(ArgumentError, /Invalid recency filter/)
+    context "default recency_filter fallback behavior" do
+      before do
+        allow_any_instance_of(RAAF::Perplexity::HttpClient).to receive(:make_api_call).and_return({
+          "choices" => [{ "message" => { "content" => "test result" } }],
+          "model" => "sonar"
+        })
+      end
+
+      context "when default is nil (no recency filtering)" do
+        let(:tool_no_default) { described_class.new(api_key: "test-key") }
+
+        it "falls back to nil when agent provides invalid recency_filter" do
+          expect(RAAF.logger).to receive(:warn).with(/Invalid recency_filter 'invalid' - falling back to default: nil/)
+
+          result = tool_no_default.call(query: "test", search_recency_filter: "invalid")
+          expect(result[:success]).to be true
+        end
+
+        it "uses valid agent-provided recency_filter even when default is nil" do
+          expect(RAAF.logger).not_to receive(:warn)
+
+          result = tool_no_default.call(query: "test", search_recency_filter: "week")
+          expect(result[:success]).to be true
+        end
+
+        it "uses nil when agent provides nil (no recency filter)" do
+          expect(RAAF.logger).not_to receive(:warn)
+
+          result = tool_no_default.call(query: "test", search_recency_filter: nil)
+          expect(result[:success]).to be true
+        end
+      end
+
+      context "when default is 'week'" do
+        let(:tool_with_default) { described_class.new(api_key: "test-key", search_recency_filter: "week") }
+
+        it "falls back to 'week' when agent provides invalid recency_filter" do
+          expect(RAAF.logger).to receive(:warn).with(/Invalid recency_filter 'invalid' - falling back to default: "week"/)
+
+          result = tool_with_default.call(query: "test", search_recency_filter: "invalid")
+          expect(result[:success]).to be true
+        end
+
+        it "uses valid agent-provided recency_filter ('day') instead of default ('week')" do
+          expect(RAAF.logger).not_to receive(:warn)
+
+          result = tool_with_default.call(query: "test", search_recency_filter: "day")
+          expect(result[:success]).to be true
+        end
+
+        it "uses nil when agent explicitly provides nil (overrides default)" do
+          expect(RAAF.logger).not_to receive(:warn)
+
+          result = tool_with_default.call(query: "test", search_recency_filter: nil)
+          expect(result[:success]).to be true
+        end
+
+        it "uses default 'week' when agent provides empty string" do
+          expect(RAAF.logger).not_to receive(:warn)
+
+          result = tool_with_default.call(query: "test", search_recency_filter: "")
+          expect(result[:success]).to be true
+        end
+      end
+
+      context "when default is 'month'" do
+        let(:tool_month_default) { described_class.new(api_key: "test-key", search_recency_filter: "month") }
+
+        it "falls back to 'month' when agent provides invalid recency_filter" do
+          expect(RAAF.logger).to receive(:warn).with(/Invalid recency_filter 'bad' - falling back to default: "month"/)
+
+          result = tool_month_default.call(query: "test", search_recency_filter: "bad")
+          expect(result[:success]).to be true
+        end
+
+        it "falls back to 'month' for multiple invalid values" do
+          %w[invalid wrong bad terrible].each do |invalid_filter|
+            expect(RAAF.logger).to receive(:warn).with(/Invalid recency_filter '#{invalid_filter}' - falling back to default: "month"/)
+
+            result = tool_month_default.call(query: "test", search_recency_filter: invalid_filter)
+            expect(result[:success]).to be true
+          end
+        end
+      end
+
+      context "when invalid domain_filter is provided" do
+        let(:tool_with_default) { described_class.new(api_key: "test-key", search_recency_filter: "week") }
+
+        it "still raises ArgumentError for invalid domain_filter (not caught by fallback)" do
+          expect {
+            tool_with_default.call(query: "test", search_domain_filter: 123)
+          }.to raise_error(ArgumentError, /search_domain_filter must be a String or Array/)
+        end
       end
     end
 
