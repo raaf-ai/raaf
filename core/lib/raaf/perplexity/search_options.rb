@@ -35,6 +35,10 @@ module RAAF
       # @raise [ArgumentError] if recency_filter is invalid
       #
       def self.build(domain_filter: nil, recency_filter: nil)
+        # Normalize empty strings and empty arrays to nil
+        domain_filter = normalize_filter_value(domain_filter)
+        recency_filter = normalize_filter_value(recency_filter)
+
         options = {}
 
         # Add domain filter if provided
@@ -52,6 +56,20 @@ module RAAF
 
         # Return nil if no options specified, otherwise return hash
         options.empty? ? nil : options
+      end
+
+      ##
+      # Normalizes filter values by converting empty strings and empty arrays to nil
+      #
+      # @param value [Object] The filter value to normalize
+      # @return [Object, nil] Normalized value or nil if empty
+      #
+      def self.normalize_filter_value(value)
+        return nil if value.nil?
+        return nil if value.is_a?(String) && value.strip.empty?
+        return nil if value.is_a?(Array) && value.empty?
+
+        value
       end
     end
   end

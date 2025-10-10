@@ -20,6 +20,26 @@ RSpec.describe RAAF::Perplexity::SearchOptions do
         result = described_class.build(domain_filter: [], recency_filter: nil)
         expect(result).to be_nil
       end
+
+      it "returns nil when recency_filter is empty string" do
+        result = described_class.build(recency_filter: "")
+        expect(result).to be_nil
+      end
+
+      it "returns nil when recency_filter is whitespace string" do
+        result = described_class.build(recency_filter: "  ")
+        expect(result).to be_nil
+      end
+
+      it "returns nil when domain_filter is empty string" do
+        result = described_class.build(domain_filter: "")
+        expect(result).to be_nil
+      end
+
+      it "returns nil when both filters are empty strings" do
+        result = described_class.build(domain_filter: "", recency_filter: "")
+        expect(result).to be_nil
+      end
     end
 
     context "with domain filter only" do
@@ -147,6 +167,45 @@ RSpec.describe RAAF::Perplexity::SearchOptions do
 
         described_class.build(domain_filter: ["ruby-lang.org"])
       end
+
+      it "does not validate when recency_filter is empty string" do
+        expect(RAAF::Perplexity::Common).not_to receive(:validate_recency_filter)
+
+        described_class.build(recency_filter: "")
+      end
+    end
+  end
+
+  describe ".normalize_filter_value" do
+    it "returns nil for nil input" do
+      expect(described_class.normalize_filter_value(nil)).to be_nil
+    end
+
+    it "returns nil for empty string" do
+      expect(described_class.normalize_filter_value("")).to be_nil
+    end
+
+    it "returns nil for whitespace-only string" do
+      expect(described_class.normalize_filter_value("  ")).to be_nil
+      expect(described_class.normalize_filter_value("\t")).to be_nil
+      expect(described_class.normalize_filter_value("\n")).to be_nil
+    end
+
+    it "returns nil for empty array" do
+      expect(described_class.normalize_filter_value([])).to be_nil
+    end
+
+    it "returns value for non-empty string" do
+      expect(described_class.normalize_filter_value("week")).to eq("week")
+    end
+
+    it "returns value for non-empty array" do
+      expect(described_class.normalize_filter_value(["ruby-lang.org"])).to eq(["ruby-lang.org"])
+    end
+
+    it "returns value for other types" do
+      expect(described_class.normalize_filter_value(123)).to eq(123)
+      expect(described_class.normalize_filter_value(true)).to eq(true)
     end
   end
 end
