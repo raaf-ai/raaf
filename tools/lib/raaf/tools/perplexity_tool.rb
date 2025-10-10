@@ -93,8 +93,11 @@ module RAAF
             search_domain_filter: {
               type: "array",
               items: { type: "string" },
-              description: "Optional: Array of domain names to restrict search to authoritative sources. " \
-                          "Example: ['ruby-lang.org', 'github.com'] to search only Ruby official sites."
+              description: "Optional: Array of EXACT domain names (NOT wildcards) to restrict search to authoritative sources. " \
+                          "CRITICAL: Use complete domain names like 'example.com' or 'subdomain.example.com'. " \
+                          "DO NOT use wildcards (*, ?) or TLD patterns (*.nl, *.com) - these will cause errors. " \
+                          "✅ Valid: ['ruby-lang.org', 'github.com', 'news.bbc.co.uk'] " \
+                          "❌ Invalid: ['*.nl', '*.com', 'ruby-*', '*github*']"
             },
             search_recency_filter: {
               type: "string",
@@ -159,7 +162,9 @@ module RAAF
              ❌ Bad: "Ruby performance"
 
           4. **Use Filters for Focus:**
-             - search_domain_filter: Restrict to authoritative sources ["ruby-lang.org", "github.com"]
+             - search_domain_filter: EXACT domain names only (NO wildcards like *.nl or *.com)
+               ✅ Valid: ["ruby-lang.org", "github.com", "news.bbc.co.uk"]
+               ❌ Invalid: ["*.nl", "*.com", "ruby-*"] - these will cause API errors
              - search_recency_filter: Time window ("week", "month") for current information
 
           **Response Structure:**
@@ -206,8 +211,10 @@ module RAAF
       #
       # @param query [String] Search query for web research (required).
       #   Example: "Acme Corp BV Amsterdam Netherlands comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status"
-      # @param search_domain_filter [Array<String>, nil] Array of domain names to restrict search.
-      #   Use to focus on authoritative sources (e.g., ['ruby-lang.org', 'github.com'])
+      # @param search_domain_filter [Array<String>, nil] Array of EXACT domain names to restrict search.
+      #   CRITICAL: Use complete domain names only - NO wildcards (*, ?) or TLD patterns (*.nl, *.com)
+      #   Valid: ['ruby-lang.org', 'github.com', 'news.bbc.co.uk']
+      #   Invalid: ['*.nl', '*.com', 'ruby-*'] - these will cause API validation errors
       # @param search_recency_filter [String, nil] Time window for results.
       #   Valid values: hour, day, week, month, year
       # @return [Hash] Formatted search result with success, content, citations, web_results
