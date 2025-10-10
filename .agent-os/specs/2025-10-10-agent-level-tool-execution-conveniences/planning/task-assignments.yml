@@ -1,0 +1,21 @@
+task_assignments:
+  - task_group: "Task Group 1: Tool Execution Interceptor Architecture"
+    assigned_subagent: "architecture-engineer"
+
+  - task_group: "Task Group 2: Configuration DSL"
+    assigned_subagent: "architecture-engineer"
+
+  - task_group: "Task Group 3: Parameter Validation Module"
+    assigned_subagent: "architecture-engineer"
+
+  - task_group: "Task Group 4: Execution Logging Module"
+    assigned_subagent: "architecture-engineer"
+
+  - task_group: "Task Group 5: Metadata Injection Module"
+    assigned_subagent: "architecture-engineer"
+
+  - task_group: "Task Group 6: End-to-End Integration Testing"
+    assigned_subagent: "testing-engineer"
+
+  - task_group: "Task Group 7: DSL Wrapper Migration"
+    assigned_subagent: "refactoring-engineer"

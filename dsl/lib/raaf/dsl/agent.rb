@@ -16,6 +16,10 @@ require_relative "data_merger"
 # Note: Old AgentPipeline class removed - use RAAF::Pipeline from pipeline_dsl/pipeline.rb
 require_relative "hooks/hook_context"
 require_relative "auto_merge"
+require_relative "tool_execution_config"
+require_relative "tool_validation"
+require_relative "tool_logging"
+require_relative "tool_metadata"
 
 module RAAF
   module DSL
@@ -50,6 +54,9 @@ module RAAF
       include RAAF::DSL::Pipelineable
       include RAAF::DSL::Hooks::HookContext
       include RAAF::DSL::AutoMerge
+      include RAAF::DSL::ToolValidation
+      include RAAF::DSL::ToolLogging
+      include RAAF::DSL::ToolMetadata
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
@@ -89,6 +96,15 @@ module RAAF
           Thread.current["raaf_dsl_auto_discovery_config_#{object_id}"] = value
         end
 
+        # Tool execution configuration for interceptor conveniences
+        def tool_execution_config
+          Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] ||= ToolExecutionConfig::DEFAULTS.dup.freeze
+        end
+
+        def tool_execution_config=(value)
+          Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] = value.freeze
+        end
+
         # Ensure each subclass gets its own configuration
         def inherited(subclass)
           super
@@ -120,6 +136,9 @@ module RAAF
           hooks = {}
           HOOK_TYPES.each { |hook_type| hooks[hook_type] = [] }
           subclass._agent_hooks = hooks
+
+          # Copy tool execution configuration from parent class
+          subclass.tool_execution_config = tool_execution_config.dup
         end
 
         # Core DSL methods from AgentDsl
@@ -668,6 +687,40 @@ module RAAF
           end
         end
 
+        public  # Make tool_execution public (needed for DSL usage)
+
+        # Configure tool execution interceptor conveniences
+        #
+        # This DSL method allows configuring validation, logging, metadata injection,
+        # and other convenience features for tool execution.
+        #
+        # @yield Block for configuring tool execution features
+        #
+        # @example Disable validation
+        #   class MyAgent < RAAF::DSL::Agent
+        #     tool_execution do
+        #       enable_validation false
+        #     end
+        #   end
+        #
+        # @example Configure multiple options
+        #   class MyAgent < RAAF::DSL::Agent
+        #     tool_execution do
+        #       enable_validation true
+        #       enable_logging true
+        #       enable_metadata false
+        #       truncate_logs 200
+        #     end
+        #   end
+        #
+        def tool_execution(&block)
+          config = ToolExecutionConfig.new(tool_execution_config.dup)
+          config.instance_eval(&block) if block
+          self.tool_execution_config = config.to_h
+        end
+
+        private  # Make methods after tool_execution private again
+
         # Set or get retry count for this agent (used by pipeline wrappers)
         #
         # @param count [Integer, nil] Number of retry attempts
@@ -1106,8 +1159,7 @@ module RAAF
             error_type: error.is_a?(RAAF::DSL::SchemaError) ? "schema_validation" : "data_validation",
             field: error.respond_to?(:field) ? error.field : nil,
             value: error.respond_to?(:value) ? error.value : nil,
-            expected_type: error.respond_to?(:expected_type) ? error.expected_type : nil,
-            timestamp: Time.now
+            expected_type: error.respond_to?(:expected_type) ? error.expected_type : nil
           })
 
           { success: false, error: error.message, error_type: "validation_error" }
@@ -1117,8 +1169,7 @@ module RAAF
           # Fire DSL hook: on_validation_failed
           fire_dsl_hook(:on_validation_failed, {
             error: error.message,
-            error_type: "context_validation",
-            timestamp: Time.now
+            error_type: "context_validation"
           })
 
           { success: false, error: error.message, error_type: "validation_error" }
@@ -1211,8 +1262,8 @@ module RAAF
 
         # Fire DSL hook: on_result_ready - After all transformations complete
         fire_dsl_hook(:on_result_ready, {
-          result: final_result,
-          timestamp: Time.now
+          raw_result: base_result,
+          processed_result: final_result
         })
 
         final_result
@@ -1232,23 +1283,41 @@ module RAAF
       def fire_dsl_hook(hook_name, hook_data = {})
         return unless self.class.respond_to?(:_agent_hooks) && self.class._agent_hooks[hook_name]
 
-        # Ensure hook data uses HashWithIndifferentAccess for consistent key access
-        normalized_data = ActiveSupport::HashWithIndifferentAccess.new(hook_data)
+        # Build comprehensive data with standard parameters
+        comprehensive_data = {
+          # Standard parameters (always present)
+          context: @context || RAAF::DSL::ContextVariables.new,
+          agent: self,
+          timestamp: Time.now,
+
+          # Hook-specific data
+          **hook_data
+        }
+
+        # Ensure HashWithIndifferentAccess for flexible key access
+        normalized_data = ActiveSupport::HashWithIndifferentAccess.new(comprehensive_data)
+
+        # Convert to symbol keys for keyword arguments (use deep to handle nested hashes)
+        # HashWithIndifferentAccess uses string keys internally, but keyword arguments need symbols
+        # deep_symbolize_keys recursively converts all nested hash keys to symbols
+        symbol_keyed_data = normalized_data.deep_symbolize_keys
 
         # Execute each registered hook for this type
         self.class._agent_hooks[hook_name].each do |hook|
           begin
             if hook.is_a?(Proc)
-              # Use instance_exec to execute block in agent's context
-              # This allows hook blocks to set instance variables on the agent
-              instance_exec(normalized_data, &hook)
+              # Use instance_exec to execute block in agent's context with keyword arguments
+              # This allows hook blocks to use clean keyword syntax: |param1:, param2:, **|
+              instance_exec(**symbol_keyed_data, &hook)
             elsif hook.is_a?(Symbol)
-              send(hook, normalized_data)
+              # Call method with keyword arguments
+              send(hook, **symbol_keyed_data)
             end
           rescue StandardError => e
-            # Log hook errors but don't crash agent execution
+            # Enhanced error logging with hook context
             log_error "❌ [#{self.class.name}] Hook #{hook_name} failed: #{e.message}"
-            log_debug "Hook error details", error: e.class.name, backtrace: e.backtrace.first(5)
+            log_debug "Hook data", data: normalized_data.except(:context, :agent)
+            log_debug "Error details", error: e.class.name, backtrace: e.backtrace.first(5)
           end
         end
       end
@@ -2047,6 +2116,50 @@ module RAAF
         tools.any?
       end
 
+      # Execute a tool with DSL conveniences (validation, logging, metadata)
+      #
+      # This method adds validation, logging, and metadata to tool executions
+      # for raw core tools, while bypassing already-wrapped DSL tools to avoid
+      # double-processing.
+      #
+      # @param tool_name [String] The name of the tool to execute
+      # @param kwargs [Hash] Arguments to pass to the tool
+      # @return [Hash] Tool execution result, potentially enhanced with metadata
+      def execute_tool(tool_name, **kwargs)
+        # Find the tool instance
+        tool = tools.find { |t| t.name == tool_name }
+        raise RAAF::ToolError, "Tool '#{tool_name}' not found" unless tool
+
+        # If tool execution interception is disabled or tool is wrapped, execute directly
+        unless should_intercept_tool?(tool)
+          return begin
+            tool.call(**kwargs)
+          rescue StandardError => e
+            raise RAAF::ToolError, "Tool execution failed: #{e.message}"
+          end
+        end
+
+        # PRE-EXECUTION: Validation and logging
+        perform_pre_execution(tool, kwargs)
+        start_time = Time.now
+
+        # EXECUTE: Call the tool directly
+        result = begin
+          tool.call(**kwargs)
+        rescue StandardError => e
+          raise RAAF::ToolError, "Tool execution failed: #{e.message}"
+        end
+
+        # POST-EXECUTION: Logging and metadata
+        duration_ms = ((Time.now - start_time) * 1000).round(2)
+        perform_post_execution(tool, result, duration_ms)
+
+        result
+      rescue StandardError => e
+        handle_tool_error(tool, e)
+        raise
+      end
+
       def response_format
         log_debug("Building response format", category: :agents, agent_name: agent_name)
         
@@ -2215,8 +2328,11 @@ module RAAF
         # Resolve context for this run
         run_context = resolve_run_context(context || input_context_variables)
 
+        # Ensure @context is set for hook access
+        @context = run_context
+
         # Fire DSL hook: on_context_built - After context assembly, before AI call
-        fire_dsl_hook(:on_context_built, { context: run_context })
+        fire_dsl_hook(:on_context_built, {})
 
         # Create OpenAI agent with DSL configuration
         openai_agent = create_agent
@@ -2227,8 +2343,7 @@ module RAAF
         # Fire DSL hook: on_prompt_generated - After prompts are generated
         fire_dsl_hook(:on_prompt_generated, {
           system_prompt: openai_agent.instructions,
-          user_prompt: user_prompt,
-          context: run_context
+          user_prompt: user_prompt
         })
 
         log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
@@ -2257,8 +2372,7 @@ module RAAF
             output_tokens: usage[:output_tokens] || usage["output_tokens"],
             total_tokens: usage[:total_tokens] || usage["total_tokens"],
             estimated_cost: calculate_estimated_cost(usage, openai_agent.model),
-            model: openai_agent.model,
-            timestamp: Time.now
+            model: openai_agent.model
           })
         end
 
@@ -2447,7 +2561,126 @@ module RAAF
         execute(context, input_context_variables, stop_checker)
       end
 
+      # === Tool Execution Configuration Query Methods ===
+      # These methods are public to allow external access to configuration
+
+      # Check if parameter validation is enabled
+      #
+      # @return [Boolean] true if validation is enabled
+      def validation_enabled?
+        self.class.tool_execution_config[:enable_validation]
+      end
+
+      # Check if execution logging is enabled
+      #
+      # @return [Boolean] true if logging is enabled
+      def logging_enabled?
+        self.class.tool_execution_config[:enable_logging]
+      end
+
+      # Check if metadata injection is enabled
+      #
+      # @return [Boolean] true if metadata is enabled
+      def metadata_enabled?
+        self.class.tool_execution_config[:enable_metadata]
+      end
+
+      # Check if argument logging is enabled
+      #
+      # @return [Boolean] true if argument logging is enabled
+      def log_arguments?
+        self.class.tool_execution_config[:log_arguments]
+      end
+
+      # Get the truncation length for log values
+      #
+      # @return [Integer] Truncation length for logs
+      def truncate_logs_at
+        self.class.tool_execution_config[:truncate_logs]
+      end
+
       private
+
+      # === Tool Execution Interceptor Helper Methods ===
+
+      # Determine if we should intercept this tool execution
+      #
+      # @param tool [Object] The tool instance
+      # @return [Boolean] true if interception should occur
+      def should_intercept_tool?(tool)
+        return false unless tool
+
+        # Don't double-intercept DSL tools that already have conveniences
+        if tool.respond_to?(:dsl_wrapped?) && tool.dsl_wrapped?
+          return false
+        end
+
+        # Check if tool execution features are enabled
+        tool_execution_enabled?
+      end
+
+      # Check if tool execution interception is enabled via configuration
+      #
+      # @return [Boolean] true if any interception feature is enabled
+      def tool_execution_enabled?
+        validation_enabled? || logging_enabled? || metadata_enabled?
+      end
+
+      # Pre-execution phase: validation and logging
+      #
+      # @param tool [Object] The tool being executed
+      # @param arguments [Hash] Arguments passed to the tool
+      def perform_pre_execution(tool, arguments)
+        # Validate parameters if enabled (from ToolValidation module)
+        validate_tool_arguments(tool, arguments) if validation_enabled?
+
+        # Logging from ToolLogging module
+        log_tool_start(tool, arguments) if logging_enabled?
+      end
+
+      # Post-execution phase: logging and metadata
+      #
+      # @param tool [Object] The tool that was executed
+      # @param result [Hash] The tool execution result
+      # @param duration_ms [Float] Execution duration in milliseconds
+      def perform_post_execution(tool, result, duration_ms)
+        # Logging from ToolLogging module
+        log_tool_end(tool, result, duration_ms) if logging_enabled?
+
+        # Metadata injection from ToolMetadata module
+        # Only inject metadata for Hash results when metadata is enabled
+        if metadata_enabled? && result.is_a?(Hash)
+          inject_metadata!(result, tool, duration_ms)
+        end
+      end
+
+      # Handle tool execution errors
+      #
+      # @param tool [Object] The tool that raised an error
+      # @param error [StandardError] The error that occurred
+      def handle_tool_error(tool, error)
+        # Error logging from ToolLogging module
+        log_tool_error(tool, error) if logging_enabled?
+      end
+
+      # Extract tool name from various tool types
+      #
+      # @param tool [Object] The tool instance
+      # @return [String] The tool's name
+      def extract_tool_name(tool)
+        if tool.respond_to?(:tool_name)
+          tool.tool_name
+        elsif tool.respond_to?(:name)
+          tool.name
+        elsif tool.is_a?(RAAF::FunctionTool)
+          # FunctionTool stores name as instance variable
+          tool.instance_variable_get(:@name) || "unknown_tool"
+        else
+          tool.class.name.split("::").last.underscore
+        end
+      end
+
+      # === End Tool Execution Interceptor Helper Methods ===
 
       # Build context from parameter (backward compatibility)
       def build_context_from_param(context_param, debug = nil)
@@ -3327,7 +3560,7 @@ module RAAF
             source_value = extract_field_value(input_data, field_config)
 
             # Apply transformations and validations
-            transformed_value = transform_field_value(source_value, field_config)
+            transformed_value = transform_field_value(source_value, field_config, input_data)
 
             # Set result
             transformed_result[field_name] = transformed_value
@@ -3387,7 +3620,7 @@ module RAAF
         end
       end
 
-      def transform_field_value(source_value, field_config)
+      def transform_field_value(source_value, field_config, raw_data = nil)
         value = source_value
 
         # Apply default if value is nil
@@ -3415,12 +3648,27 @@ module RAAF
           transform = field_config[:transform]
           value = case transform
                   when Proc, Method
-                    # Callable objects (Proc, lambda, Method)
-                    transform.call(value)
+                    # Callable objects (Proc, lambda, Method) - check arity for parameter count
+                    if transform.arity == -3 # 2 required params + **args (most flexible)
+                      transform.call(value, raw_data)
+                    elsif transform.arity == 2 || transform.arity == -2 # Exactly 2 params or 1 required + 1 optional
+                      transform.call(value, raw_data)
+                    else
+                      # Backward compatibility: single parameter
+                      transform.call(value)
+                    end
                   when Symbol
-                    # Symbol method name - call as instance method
+                    # Symbol method name - call as instance method with arity checking
                     if respond_to?(transform, true)
-                      send(transform, value)
+                      method_obj = method(transform)
+                      if method_obj.arity == -3 # 2 required params + **args (most flexible)
+                        send(transform, value, raw_data)
+                      elsif method_obj.arity == 2 || method_obj.arity == -2 # Exactly 2 params or 1 required + 1 optional
+                        send(transform, value, raw_data)
+                      else
+                        # Backward compatibility: single parameter
+                        send(transform, value)
+                      end
                     else
                       raise ArgumentError, "Transform method '#{transform}' not found on #{self.class.name}"
                     end

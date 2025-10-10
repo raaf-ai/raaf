@@ -158,6 +158,25 @@ module RAAF
   end
 
   ##
+  # Raised when the API service is temporarily unavailable
+  #
+  # This exception is raised when the API service returns a 503 status code
+  # indicating temporary unavailability.
+  #
+  # @example
+  #   raise ServiceUnavailableError, "Service temporarily unavailable"
+  class ServiceUnavailableError < Error
+
+    attr_reader :status
+
+    def initialize(message, status: nil)
+      super(message)
+      @status = status
+    end
+
+  end
+
+  ##
   # Raised when agent execution is stopped by user request
   #
   # This exception is raised when a stop condition is triggered during
