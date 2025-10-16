@@ -543,7 +543,7 @@ end
 
 ## PerplexityFactualSearchAgent Impact
 
-**PerplexityFactualSearchAgent is NOT a provider** - it's an agent base class in the ProspectRadar application. This refactoring does **NOT** directly affect it because:
+**PerplexityFactualSearchAgent is NOT a provider** - it's an agent base class in the ProspectsRadar application. This refactoring does **NOT** directly affect it because:
 
 1. **Different Layer**: PerplexityFactualSearchAgent extends `ApplicationAgent`, not `ModelInterface`
 2. **Uses Provider**: It uses `PerplexityProvider` internally but doesn't implement provider interface

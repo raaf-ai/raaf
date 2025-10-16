@@ -75,6 +75,325 @@ agent = RAAF::DSL::AgentBuilder.build do
 end
 ```
 
+## Agent Lifecycle Hooks
+
+**NEW:** RAAF DSL agents support lifecycle hooks for wrapper-level interception, enabling preprocessing and postprocessing logic that works consistently across all pipeline wrapper types.
+
+### Overview
+
+Lifecycle hooks allow agents to execute custom logic before and after wrapper execution:
+
+- **`before_execute`** - Runs before the wrapper executes (preprocessing)
+- **`after_execute`** - Runs after the wrapper executes (postprocessing)
+
+Hooks receive rich context about the wrapper execution including wrapper type, configuration, timing information, and can modify the context/result for downstream processing.
+
+### Hook Registration
+
+```ruby
+class MyAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  agent_name "MyAgent"
+  model "gpt-4o"
+
+  # Register before_execute hook
+  before_execute do |context:, wrapper_type:, wrapper_config:, timestamp:, **|
+    # Preprocessing logic
+    Rails.logger.info "🔍 [#{self.class.name}] Starting #{wrapper_type} execution"
+
+    # Modify context (mutable)
+    context[:preprocessing_complete] = true
+    context[:started_at] = timestamp
+  end
+
+  # Register after_execute hook
+  after_execute do |context:, result:, wrapper_type:, wrapper_config:, duration_ms:, timestamp:, **|
+    # Postprocessing logic
+    Rails.logger.info "✅ [#{self.class.name}] Completed in #{duration_ms}ms"
+
+    # Modify result (mutable)
+    context[:execution_time] = duration_ms
+    context[:completed_at] = timestamp
+  end
+end
+```
+
+### Hook Parameters
+
+#### before_execute Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | ContextVariables | Pipeline context (mutable - modifications persist) |
+| `wrapper_type` | Symbol | Type of wrapper executing (`:batched`, `:chained`, `:parallel`, `:remapped`, `:configured`, `:iterating`) |
+| `wrapper_config` | Hash | Wrapper-specific configuration (e.g., `{chunk_size: 10, input_field: :items}` for BatchedAgent) |
+| `timestamp` | Time | Execution start time |
+
+#### after_execute Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | ContextVariables | Result context (mutable - modifications persist in returned result) |
+| `result` | ContextVariables | Execution result (same as context in after_execute) |
+| `wrapper_type` | Symbol | Type of wrapper that executed |
+| `wrapper_config` | Hash | Wrapper-specific configuration |
+| `duration_ms` | Numeric | Execution duration in milliseconds |
+| `timestamp` | Time | Execution completion time |
+
+### Wrapper Types
+
+Hooks receive `wrapper_type` parameter indicating which wrapper is executing:
+
+- `:batched` - BatchedAgent (processes items in chunks)
+- `:chained` - ChainedAgent (sequential agent execution)
+- `:parallel` - ParallelAgents (concurrent agent execution)
+- `:remapped` - RemappedAgent (field name remapping)
+- `:configured` - ConfiguredAgent (inline configuration)
+- `:iterating` - IteratingAgent (iteration over data entries)
+
+### Wrapper Configuration
+
+Each wrapper type provides specific configuration in `wrapper_config`:
+
+```ruby
+# BatchedAgent
+{ chunk_size: 10, input_field: :items, output_field: :items }
+
+# ChainedAgent
+{ first_agent: AgentClass1, second_agent: AgentClass2 }
+
+# ParallelAgents
+{ agent_count: 3 }
+
+# RemappedAgent
+{ input_mapping: { target: :source }, output_mapping: { result: :output } }
+
+# ConfiguredAgent
+{ options: { max_retries: 3, timeout: 30 } }
+
+# IteratingAgent
+{ field: :items }
+```
+
+### Context Mutability
+
+**IMPORTANT:** Context modifications in hooks persist:
+
+```ruby
+class PreprocessingAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  before_execute do |context:, **|
+    # Direct mutation using []= operator
+    context[:preprocessed] = true
+    context[:metadata] = { source: "preprocessing", timestamp: Time.current }
+  end
+
+  after_execute do |context:, duration_ms:, **|
+    # Result modifications persist in returned value
+    context[:execution_metadata] = {
+      duration_ms: duration_ms,
+      processed_at: Time.current
+    }
+  end
+end
+
+# Usage
+agent = PreprocessingAgent.new
+result = agent.run
+
+# Hook modifications are present in result
+puts result[:preprocessed]         # true
+puts result[:execution_metadata]   # { duration_ms: 245.67, processed_at: ... }
+```
+
+### Guard Clauses
+
+Use guard clauses to conditionally execute hooks based on wrapper type:
+
+```ruby
+class SelectiveAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  before_execute do |context:, wrapper_type:, wrapper_config:, **|
+    # Only run for batched execution
+    next unless wrapper_type == :batched
+
+    batch_size = wrapper_config[:chunk_size]
+    Rails.logger.info "🔄 Processing in batches of #{batch_size}"
+
+    # Batched-specific preprocessing
+    context[:batch_processing] = true
+    context[:expected_chunks] = (context[:items].size.to_f / batch_size).ceil
+  end
+end
+```
+
+### Multiple Hooks
+
+Register multiple hooks - they execute in registration order:
+
+```ruby
+class MultiHookAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  before_execute do |context:, **|
+    context[:hook_1_executed] = true
+  end
+
+  before_execute do |context:, **|
+    context[:hook_2_executed] = true
+  end
+
+  after_execute do |context:, **|
+    context[:post_hook_1_executed] = true
+  end
+
+  after_execute do |context:, **|
+    context[:post_hook_2_executed] = true
+  end
+end
+
+# Execution order: hook_1 → hook_2 → agent execution → post_hook_1 → post_hook_2
+```
+
+### Common Use Cases
+
+#### 1. Logging and Monitoring
+
+```ruby
+class MonitoredAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  before_execute do |context:, wrapper_type:, **|
+    Rails.logger.info "🔍 [#{self.class.name}] Starting #{wrapper_type} execution"
+    Rails.logger.info "📄 Context: #{context.keys.inspect}"
+  end
+
+  after_execute do |context:, duration_ms:, **|
+    Rails.logger.info "✅ [#{self.class.name}] Completed in #{duration_ms}ms"
+
+    # Record metrics
+    MetricsRecorder.record(
+      agent: self.class.name,
+      duration_ms: duration_ms,
+      success: context[:success]
+    )
+  end
+end
+```
+
+#### 2. Error Recovery
+
+```ruby
+class ResilientAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  after_execute do |context:, duration_ms:, **|
+    if context[:error] && duration_ms < 1000
+      # Fast failure - might be transient
+      context[:should_retry] = true
+      Rails.logger.warn "⚠️ Fast failure detected - marking for retry"
+    end
+  end
+end
+```
+
+#### 3. Data Enrichment
+
+```ruby
+class EnrichingAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  before_execute do |context:, **|
+    # Add metadata before processing
+    context[:execution_id] = SecureRandom.uuid
+    context[:environment] = Rails.env
+  end
+
+  after_execute do |context:, duration_ms:, wrapper_type:, **|
+    # Enrich results with execution metadata
+    context[:_metadata] = {
+      execution_id: context[:execution_id],
+      duration_ms: duration_ms,
+      wrapper_type: wrapper_type,
+      timestamp: Time.current.iso8601
+    }
+  end
+end
+```
+
+#### 4. Pipeline Context Preparation
+
+```ruby
+class PipelineAgent < RAAF::DSL::Agent
+  include RAAF::DSL::Hooks::AgentHooks
+
+  before_execute do |context:, wrapper_type:, **|
+    # Prepare context for downstream agents in pipeline
+    if wrapper_type == :chained
+      context[:pipeline_stage] = "preprocessing"
+      context[:pipeline_metadata] = {
+        started_at: Time.current,
+        agent_sequence: [self.class.name]
+      }
+    end
+  end
+
+  after_execute do |context:, **|
+    # Add this agent to the sequence
+    metadata = context[:pipeline_metadata] || {}
+    sequence = metadata[:agent_sequence] || []
+    sequence << self.class.name
+
+    context[:pipeline_metadata] = metadata.merge(
+      agent_sequence: sequence,
+      completed_at: Time.current
+    )
+  end
+end
+```
+
+### Testing Hooks
+
+```ruby
+RSpec.describe MyAgent do
+  let(:agent) { described_class.new }
+
+  it "executes before_execute hook" do
+    context = { input_data: "test" }
+
+    # Before execute hook adds preprocessing flag
+    expect(context).to receive(:[]=).with(:preprocessed, true)
+
+    agent.execute_with_hooks(context, :chained, {}) do
+      # Wrapper execution logic
+    end
+  end
+
+  it "executes after_execute hook with timing" do
+    result = agent.execute_with_hooks({}, :batched, { chunk_size: 10 }) do
+      { success: true }
+    end
+
+    # After execute hook adds execution metadata
+    expect(result[:execution_metadata]).to be_present
+    expect(result[:execution_metadata][:duration_ms]).to be_a(Numeric)
+  end
+end
+```
+
+### Best Practices
+
+1. **Keep hooks focused** - Single responsibility per hook
+2. **Use guard clauses** - Conditionally execute based on wrapper_type
+3. **Log consistently** - Use emojis and structured logging
+4. **Modify context judiciously** - Only add necessary data
+5. **Handle errors gracefully** - Don't let hook errors break pipelines
+6. **Document hook behavior** - Explain what hooks do and why
+7. **Test hook logic** - Verify preprocessing and postprocessing work correctly
+
 ## Provider Configuration
 
 **NEW:** RAAF DSL agents now support automatic provider detection and configuration using short names:

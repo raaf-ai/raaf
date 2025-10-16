@@ -200,7 +200,7 @@ end
 ================================================================================
 ```
 
-## Integration with ProspectRadar
+## Integration with ProspectsRadar
 
 ### In Controllers
 ```ruby
@@ -309,4 +309,4 @@ Debug behavior can be controlled through:
    agent.inspect_prompts if params[:debug_prompts]
    ```
 
-The enhanced debugging capabilities provide comprehensive visibility into agent execution, making it easier to understand, debug, and optimize AI agent behavior in the ProspectRadar application.
+The enhanced debugging capabilities provide comprehensive visibility into agent execution, making it easier to understand, debug, and optimize AI agent behavior in the ProspectsRadar application.

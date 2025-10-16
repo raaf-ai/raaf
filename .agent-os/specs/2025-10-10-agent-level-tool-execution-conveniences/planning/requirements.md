@@ -279,7 +279,7 @@ These may be addressed in future specifications.
 2. **Maintainability**: Single update point for all tool execution conveniences
 3. **Developer Experience**: Developers can use raw tools without wrappers
 4. **Performance**: < 1ms interceptor overhead
-5. **Adoption**: ProspectRadar can migrate away from custom wrappers
+5. **Adoption**: ProspectsRadar can migrate away from custom wrappers
 
 ## Dependencies
 

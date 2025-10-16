@@ -49,9 +49,9 @@ puts "   puts result[:debug_info][:context_summary]"
 puts "   puts result[:debug_info][:execution_metadata]"
 puts
 
-puts "6. Integration with ProspectRadar patterns:"
+puts "6. Integration with ProspectsRadar patterns:"
 puts <<~EXAMPLE
-  # In ProspectRadar controllers or services:
+  # In ProspectsRadar controllers or services:
   class ProspectDiscoveryService < BaseService
     def call_with_debug
       agent = create_discovery_agent

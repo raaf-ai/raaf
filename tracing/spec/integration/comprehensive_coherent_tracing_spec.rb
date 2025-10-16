@@ -652,7 +652,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
   end
   
   describe "5.2 Complex Real-World Scenarios (MarketDiscoveryPipeline)" do
-    # Simulate the actual MarketDiscoveryPipeline from ProspectRadar
+    # Simulate the actual MarketDiscoveryPipeline from ProspectsRadar
     let(:market_analysis_agent_class) do
       Class.new(comprehensive_agent_class) do
         def run(input)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully migrated existing ProspectRadar tools to use the new RAAF Tool DSL, achieving **80%+ code reduction** while maintaining all functionality.
+Successfully migrated existing ProspectsRadar tools to use the new RAAF Tool DSL, achieving **80%+ code reduction** while maintaining all functionality.
 
 ## Created Tools
 

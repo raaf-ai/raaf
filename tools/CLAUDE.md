@@ -68,7 +68,7 @@ result = runner.run("Find recent Ruby security updates")
 - Includes critical model validation warnings (prevents using gpt-4o instead of sonar)
 - Contains query engineering best practices from production usage
 - Shows all available models with cost information
-- Based on real-world patterns from ProspectRadar production agents
+- Based on real-world patterns from ProspectsRadar production agents
 
 #### Custom Description for Specific Use Cases
 

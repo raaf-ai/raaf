@@ -27,7 +27,7 @@ This document summarizes the comprehensive integration testing implementation fo
 ### ✅ COMPLETED: Task 5.2 - Complex Real-World Scenarios (MarketDiscoveryPipeline)
 
 **Key Features Implemented**:
-- Mock classes simulating actual MarketDiscoveryPipeline from ProspectRadar:
+- Mock classes simulating actual MarketDiscoveryPipeline from ProspectsRadar:
   - `market_analysis_agent_class` - Market analysis with confidence scoring
   - `market_scoring_agent_class` - Multi-dimensional market scoring
   - `search_term_generator_agent_class` - Search term generation by category

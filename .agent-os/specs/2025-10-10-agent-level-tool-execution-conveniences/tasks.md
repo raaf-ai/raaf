@@ -213,7 +213,7 @@ Assigned roles: architecture-engineer, testing-engineer, refactoring-engineer, i
     - Ensure existing DSL wrappers still work
     - Test that wrapped tools aren't double-intercepted
     - Verify no breaking changes to existing agents
-    - Test with ProspectRadar agents if available
+    - Test with ProspectsRadar agents if available
   - [x] 6.3 Performance benchmarking
     - Measure interceptor overhead
     - Verify < 1ms overhead requirement
@@ -324,5 +324,5 @@ Recommended implementation sequence:
 - 200+ line DSL wrappers eliminated
 - < 1ms interceptor overhead
 - 100% backward compatibility
-- All existing ProspectRadar agents continue working
+- All existing ProspectsRadar agents continue working
 - Single point of maintenance for conveniences
