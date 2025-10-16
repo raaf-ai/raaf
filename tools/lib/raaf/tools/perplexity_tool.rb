@@ -50,10 +50,11 @@ module RAAF
       # @param timeout [Integer, nil] Request timeout in seconds
       # @param open_timeout [Integer, nil] Connection timeout in seconds
       #
-      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, search_recency_filter: nil, timeout: nil, open_timeout: nil)
+      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, search_recency_filter: nil, timeout: nil, open_timeout: nil, include_search_results_in_content: false)
         @model = model
         @max_tokens = max_tokens
         @default_search_recency_filter = search_recency_filter
+        @include_search_results_in_content = include_search_results_in_content
         @http_client = RAAF::Perplexity::HttpClient.new(
           api_key: api_key || ENV.fetch("PERPLEXITY_API_KEY", nil),
           api_base: api_base,
@@ -273,7 +274,10 @@ module RAAF
         result = @http_client.make_api_call(body)
 
         # Format result using common parser
-        RAAF::Perplexity::ResultParser.format_search_result(result)
+        RAAF::Perplexity::ResultParser.format_search_result(
+          result,
+          include_search_results_in_content: @include_search_results_in_content
+        )
       rescue RAAF::AuthenticationError => e
         {
           success: false,

@@ -22,7 +22,7 @@ module RAAF
     #   #      success: true,
     #   #      content: "...",
     #   #      citations: [...],
-    #   #      web_results: [...],
+    #   #      search_results: [...],
     #   #      model: "sonar-pro"
     #   #    }
     #
@@ -61,8 +61,8 @@ module RAAF
       # @param result [Hash] Perplexity API response
       # @return [Array<Hash>] Array of web result hashes (empty if none found)
       #
-      def self.extract_web_results(result)
-        result["web_results"] || []
+      def self.extract_search_results(result)
+        result["search_results"] || []
       end
 
       ##
@@ -72,19 +72,36 @@ module RAAF
       # and PerplexityTool with all relevant information extracted.
       #
       # @param result [Hash] Perplexity API response
+      # @param include_search_results_in_content [Boolean] Whether to append search results to content
       # @return [Hash] Formatted result with:
       #   - :success [Boolean] Always true for successful API responses
-      #   - :content [String] Response text content
+      #   - :content [String] Response text content (optionally with inline search results)
       #   - :citations [Array<String>] Source URLs
-      #   - :web_results [Array<Hash>] Detailed source information
+      #   - :search_results [Array<Hash>] Detailed source information
       #   - :model [String] Model that generated the response
       #
-      def self.format_search_result(result)
+      def self.format_search_result(result, include_search_results_in_content: false)
+        content = extract_content(result)
+        search_results = extract_search_results(result)
+        citations = extract_citations(result)
+
+        # Optionally append search_results to content for inline extraction
+        if include_search_results_in_content && search_results.any?
+          content += "\n\n## Search Results\n\n"
+          search_results.each_with_index do |sr, idx|
+            content += "#{idx + 1}. **#{sr['title']}**\n"
+            content += "   URL: #{sr['url']}\n"
+            content += "   Snippet: #{sr['snippet']}\n\n"
+          end
+        elsif include_search_results_in_content && search_results.empty?
+          content += "\n\n## Search Results\n\nNo search results were returned for this query.\n"
+        end
+
         {
           success: true,
-          content: extract_content(result),
-          citations: extract_citations(result),
-          web_results: extract_web_results(result),
+          content: content,
+          citations: citations,
+          search_results: search_results,
           model: result["model"]
         }
       end

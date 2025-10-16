@@ -1038,18 +1038,20 @@ module RAAF
           end
         end
 
-        # Return in Responses API format
+        # Return in Responses API format with preserved metadata
         normalized = {
           output: output,
           usage: response["usage"] || response[:usage],
           model: response["model"] || response[:model],
-          id: response["id"] || response[:id]
+          id: response["id"] || response[:id],
+          metadata: response["metadata"] || response[:metadata] || {}
         }
 
         log_debug_api("🔄 PROVIDER ADAPTER: Completed normalization",
                       output_items: output.size,
                       has_usage: !normalized[:usage].nil?,
-                      model: normalized[:model])
+                      model: normalized[:model],
+                      has_metadata: !normalized[:metadata].empty?)
 
         normalized
       end

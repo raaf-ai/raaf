@@ -91,7 +91,7 @@ module RAAF
       # @param tools [Array<Hash>, nil] Not supported by Perplexity
       # @param stream [Boolean] Whether to stream the response (not implemented yet)
       # @param kwargs [Hash] Additional parameters (temperature, max_tokens, response_format, etc.)
-      # @return [Hash] Response in OpenAI format with Perplexity-specific fields (citations, web_results)
+      # @return [Hash] Response in OpenAI format with Perplexity-specific fields (citations, search_results)
       # @raise [ModelNotFoundError] if model is not supported
       # @raise [APIError] if the API request fails
       #
@@ -254,13 +254,22 @@ module RAAF
       # automatically by the base class ModelInterface which wraps perform_chat_completion
       # with exponential backoff.
       #
+      # Preserves Perplexity-specific fields (search_results) in metadata for citation access.
+      #
       # @param body [Hash] Request body
-      # @return [Hash] Parsed response with indifferent access
+      # @return [Hash] Parsed response with indifferent access and search_results in metadata
       # @raise [APIError] on request failure
       # @private
       #
       def make_api_call(body)
-        @http_client.make_api_call(body)
+        response = @http_client.make_api_call(body)
+
+        # Preserve search_results (contains citation information)
+        # Accessible in agent results via response.dig(:metadata, :search_results)
+        response[:metadata] ||= {}
+        response[:metadata][:search_results] = response.delete("search_results") || []
+
+        response
       end
     end
   end
