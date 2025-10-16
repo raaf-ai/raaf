@@ -33,11 +33,16 @@ module RAAF
       def key?(key)
         has?(key)
       end
-      
+
+      # Support hash access pattern: context[:key]
+      def [](key)
+        get(key)
+      end
+
       def keys
         @real_context.keys
       end
-      
+
       def to_h
         @real_context
       end

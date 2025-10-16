@@ -97,11 +97,6 @@ module RAAF
     autoload :Railtie, "raaf/dsl/railtie"
     autoload :Result, "raaf/dsl/result"
     autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
-    autoload :ToolBuilder, "raaf/dsl/builders/tool_builder"
-    autoload :ToolDsl, "raaf/dsl/tool_dsl"
-    autoload :ToolExecutionConfig, "raaf/dsl/tool_execution_config"
-    autoload :ToolMetadata, "raaf/dsl/tool_metadata"
-    autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"  # Use comprehensive registry
     autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
     
     # Builder classes

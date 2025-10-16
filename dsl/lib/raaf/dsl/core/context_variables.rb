@@ -330,13 +330,17 @@ module RAAF
         self
       end
 
-      # Hash-style assignment operator for convenience
+      # Hash-style assignment operator for convenience (MUTABLE)
+      #
+      # Unlike set() which returns a new instance, []= modifies the current instance.
+      # This allows hooks and other code to modify context in place.
       #
       # @param key [Symbol, String] The key to set
       # @param value [Object] The value to assign
       # @return [Object] The assigned value
       def []=(key, value)
-        set(key, value)
+        # Direct mutation for []= operator to support hook modifications
+        @variables[key] = value
         value
       end
 
