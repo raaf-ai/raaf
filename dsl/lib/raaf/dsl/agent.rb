@@ -15,6 +15,7 @@ require_relative "pipelineable"
 require_relative "data_merger"
 # Note: Old AgentPipeline class removed - use RAAF::Pipeline from pipeline_dsl/pipeline.rb
 require_relative "hooks/hook_context"
+require_relative "hooks/agent_hooks"
 require_relative "auto_merge"
 # Tool DSL infrastructure removed - tool execution is now handled by agents directly
 
@@ -50,6 +51,7 @@ module RAAF
       include RAAF::DSL::ContextConfiguration
       include RAAF::DSL::Pipelineable
       include RAAF::DSL::Hooks::HookContext
+      include RAAF::DSL::Hooks::AgentHooks
       include RAAF::DSL::AutoMerge
       # Tool DSL modules removed - functionality moved directly into Agent class
       # include RAAF::DSL::ToolValidation
@@ -401,6 +403,8 @@ module RAAF
           on_retry_attempt
           on_execution_slow
           on_pipeline_stage_complete
+          before_execute
+          after_execute
         ].freeze
 
         def _agent_hooks

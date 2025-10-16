@@ -62,6 +62,8 @@ module RAAF
           on_retry_attempt
           on_execution_slow
           on_pipeline_stage_complete
+          before_execute
+          after_execute
         ].freeze
 
         included do
@@ -355,6 +357,148 @@ module RAAF
           #
           def on_pipeline_stage_complete(method_name = nil, &block)
             register_agent_hook(:on_pipeline_stage_complete, method_name, &block)
+          end
+
+          # WRAPPER-LEVEL HOOKS (Pipeline DSL)
+
+          # Register an agent-specific callback for before wrapper execution
+          #
+          # This hook fires BEFORE a pipeline wrapper executes, providing a single
+          # interception point that runs once per wrapper execution (before all chunks
+          # for batched agents, before parallel execution, etc.).
+          #
+          # **When This Hook Fires:**
+          # - BatchedAgent: Once BEFORE splitting into chunks (not per chunk)
+          # - ChainedAgent: Before executing the agent chain
+          # - ParallelAgents: Before executing parallel agents
+          # - RemappedAgent: Before field remapping
+          # - ConfiguredAgent: Before applying configuration
+          # - IteratingAgent: Before iteration begins
+          #
+          # **Hook Parameters:**
+          # @yieldparam context [RAAF::DSL::ContextVariables] Pipeline context (mutable - can be modified)
+          # @yieldparam wrapper_type [Symbol] Type of wrapper (:batched, :chained, :parallel, :remapped, :configured, :iterating)
+          # @yieldparam wrapper_config [Hash] Wrapper-specific configuration data
+          # @yieldparam timestamp [Time] Hook execution timestamp
+          #
+          # **Common Use Cases:**
+          # - Input validation and filtering before processing
+          # - Deduplication (remove already-processed items)
+          # - Logging wrapper execution start
+          # - Context enrichment before execution
+          # - Cache lookups to skip unnecessary work
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          #
+          # @example Deduplication before batch processing
+          #   class QuickFitAnalyzer < RAAF::DSL::Agent
+          #     before_execute do |context:, wrapper_type:, **|
+          #       # Only process companies that haven't been analyzed yet
+          #       if wrapper_type == :batched && context[:company_list]
+          #         context[:company_list] = context[:company_list].reject do |company|
+          #           already_analyzed?(company[:coc_number])
+          #         end
+          #       end
+          #     end
+          #   end
+          #
+          # @example Wrapper-aware logging
+          #   before_execute do |context:, wrapper_type:, wrapper_config:, **|
+          #     case wrapper_type
+          #     when :batched
+          #       RAAF.logger.info "Processing #{context[:items].count} items in chunks of #{wrapper_config[:chunk_size]}"
+          #     when :parallel
+          #       RAAF.logger.info "Executing #{wrapper_config[:agent_count]} agents in parallel"
+          #     end
+          #   end
+          #
+          # @example Context validation and enrichment
+          #   before_execute do |context:, **|
+          #     # Validate required context
+          #     raise "Missing product" unless context[:product]
+          #
+          #     # Enrich context before execution
+          #     context[:analysis_timestamp] = Time.current
+          #     context[:execution_id] = SecureRandom.uuid
+          #   end
+          #
+          def before_execute(method_name = nil, &block)
+            register_agent_hook(:before_execute, method_name, &block)
+          end
+
+          # Register an agent-specific callback for after wrapper execution
+          #
+          # This hook fires AFTER a pipeline wrapper completes execution, providing
+          # a single interception point that runs once per wrapper execution (after
+          # all chunks complete for batched agents, after parallel execution, etc.).
+          #
+          # **When This Hook Fires:**
+          # - BatchedAgent: Once AFTER all chunks have been processed
+          # - ChainedAgent: After the entire agent chain completes
+          # - ParallelAgents: After all parallel agents complete
+          # - RemappedAgent: After field remapping completes
+          # - ConfiguredAgent: After configured execution completes
+          # - IteratingAgent: After all iterations complete
+          #
+          # **Hook Parameters:**
+          # @yieldparam context [RAAF::DSL::ContextVariables] Pipeline context (final state)
+          # @yieldparam result [Object] Result from wrapper execution
+          # @yieldparam wrapper_type [Symbol] Type of wrapper (:batched, :chained, :parallel, :remapped, :configured, :iterating)
+          # @yieldparam wrapper_config [Hash] Wrapper-specific configuration data
+          # @yieldparam duration_ms [Float] Execution duration in milliseconds
+          # @yieldparam timestamp [Time] Hook execution timestamp
+          #
+          # **Common Use Cases:**
+          # - Result validation and post-processing
+          # - Metrics collection (timing, throughput, success rates)
+          # - Logging wrapper execution completion
+          # - Database persistence of results
+          # - Cache updates with execution results
+          # - Error recovery and cleanup
+          #
+          # @param method_name [Symbol, nil] Method name to call as callback
+          # @param block [Proc, nil] Block to execute as callback
+          #
+          # @example Performance metrics collection
+          #   class DataProcessor < RAAF::DSL::Agent
+          #     after_execute do |context:, result:, duration_ms:, wrapper_type:, **|
+          #       MetricsCollector.record(
+          #         agent: "DataProcessor",
+          #         wrapper_type: wrapper_type,
+          #         items_processed: result[:processed_items]&.count || 0,
+          #         duration_ms: duration_ms,
+          #         success: result[:success]
+          #       )
+          #     end
+          #   end
+          #
+          # @example Wrapper-aware logging with results
+          #   after_execute do |result:, duration_ms:, wrapper_type:, wrapper_config:, **|
+          #     case wrapper_type
+          #     when :batched
+          #       RAAF.logger.info "Processed #{result[:items].count} items in #{wrapper_config[:chunk_count]} chunks (#{duration_ms}ms)"
+          #     when :parallel
+          #       RAAF.logger.info "Completed #{wrapper_config[:agent_count]} parallel agents (#{duration_ms}ms)"
+          #     end
+          #   end
+          #
+          # @example Result persistence and cleanup
+          #   after_execute do |context:, result:, duration_ms:, **|
+          #     # Persist results to database
+          #     PipelineResult.create!(
+          #       context: context.to_h,
+          #       result: result,
+          #       duration_ms: duration_ms,
+          #       executed_at: Time.current
+          #     )
+          #
+          #     # Cleanup temporary resources
+          #     context.delete(:temp_data)
+          #   end
+          #
+          def after_execute(method_name = nil, &block)
+            register_agent_hook(:after_execute, method_name, &block)
           end
 
           # Get hook configuration for RAAF SDK
