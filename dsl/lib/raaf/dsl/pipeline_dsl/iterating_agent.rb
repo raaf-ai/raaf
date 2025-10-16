@@ -85,26 +85,36 @@ module RAAF
 
         # Execute iteration over the specified field
         def execute(context)
-          items = extract_items(context)
-          
-          if items.empty?
-            RAAF.logger.info "No items found in field '#{@field}' for iteration"
-            return context
+          # Wrap execution with before_execute/after_execute hooks
+          agent_name = @agent_class.respond_to?(:agent_name) ? @agent_class.agent_name : @agent_class.name
+
+          execute_with_hooks(context, :iterating, agent_name: agent_name, field: @field, parallel: @parallel, output_field: generate_output_field_name(@field)) do
+            # Ensure context is ContextVariables if it's a plain Hash
+            unless context.respond_to?(:set)
+              context = RAAF::DSL::ContextVariables.new(context)
+            end
+
+            items = extract_items(context)
+
+            if items.empty?
+              RAAF.logger.info "No items found in field '#{@field}' for iteration"
+              return context
+            end
+
+            RAAF.logger.info "#{@parallel ? 'Parallel' : 'Sequential'} iteration over #{items.length} items in field '#{@field}'"
+
+            results = if @parallel
+                        execute_parallel(items, context)
+                      else
+                        execute_sequential(items, context)
+                      end
+
+            # Add results to context using generated output field name
+            output_field = generate_output_field_name(@field)
+            context[output_field] = results
+
+            context
           end
-
-          RAAF.logger.info "#{@parallel ? 'Parallel' : 'Sequential'} iteration over #{items.length} items in field '#{@field}'"
-
-          results = if @parallel
-                      execute_parallel(items, context)
-                    else
-                      execute_sequential(items, context)
-                    end
-
-          # Add results to context using generated output field name
-          output_field = generate_output_field_name(@field)
-          context[output_field] = results
-
-          context
         end
 
         private

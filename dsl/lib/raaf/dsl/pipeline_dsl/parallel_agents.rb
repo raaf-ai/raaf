@@ -18,6 +18,8 @@ module RAAF
       # Execution model: True parallelism using Ruby threads, each agent gets copy of context
       # Field merging: Results from all parallel agents are merged into single context
       class ParallelAgents
+        include WrapperDSL
+
         attr_reader :agents
         
         def initialize(agents)
@@ -40,18 +42,28 @@ module RAAF
         # Field merging strategy: Union of all agent results (last writer wins for conflicts)
         # Error handling: Any failure in parallel agents stops the entire pipeline
         def execute(context, agent_results = nil)
-          results = @agents.map do |agent|
-            Thread.new do
-              execute_single(agent, context.dup)  # Each agent gets own context copy
+          # Wrap execution with before_execute/after_execute hooks
+          agent_names = @agents.map { |agent| agent_name(agent) }
+
+          execute_with_hooks(context, :parallel, agent_count: @agents.size, agent_names: agent_names) do
+            # Ensure context is ContextVariables if it's a plain Hash
+            unless context.respond_to?(:set)
+              context = RAAF::DSL::ContextVariables.new(context)
             end
-          end.map(&:value)
 
-          # Merge all results into context - field conflicts resolved by last writer wins
-          results.each do |result|
-            context.merge!(result) if result.is_a?(Hash)
+            results = @agents.map do |agent|
+              Thread.new do
+                execute_single(agent, context.dup)  # Each agent gets own context copy
+              end
+            end.map(&:value)
+
+            # Merge all results into context - field conflicts resolved by last writer wins
+            results.each do |result|
+              context.merge!(result) if result.is_a?(Hash)
+            end
+
+            context
           end
-
-          context
         end
         
         def required_fields

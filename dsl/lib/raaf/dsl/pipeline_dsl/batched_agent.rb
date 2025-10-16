@@ -27,6 +27,7 @@ module RAAF
       #        Scoring.in_chunks_of(50, array_field: :prospects)
       class BatchedAgent
         include RAAF::Logger
+        include WrapperDSL
 
         attr_reader :wrapped_component, :chunk_size, :input_field, :output_field
 
@@ -89,68 +90,71 @@ module RAAF
         # @param agent_results [Array, nil] Optional results accumulator
         # @return [ContextVariables] Updated context with merged results
         def execute(context, agent_results = nil)
-          # Ensure context is ContextVariables
-          unless context.respond_to?(:set)
-            context = RAAF::DSL::ContextVariables.new(context)
-          end
+          # Wrap execution with before_execute/after_execute hooks
+          execute_with_hooks(context, :batched, chunk_size: @chunk_size, input_field: @input_field, output_field: @output_field) do
+            # Ensure context is ContextVariables
+            unless context.respond_to?(:set)
+              context = RAAF::DSL::ContextVariables.new(context)
+            end
 
-          # Detect which array field to batch over
-          field_to_batch = detect_array_field(context)
+            # Detect which array field to batch over
+            field_to_batch = detect_array_field(context)
 
-          # Get the full array to process
-          full_array = context.get(field_to_batch)
+            # Get the full array to process
+            full_array = context.get(field_to_batch)
 
-          unless full_array.is_a?(Array)
-            raise ArgumentError, "Field #{field_to_batch} must be an array, got #{full_array.class}"
-          end
+            unless full_array.is_a?(Array)
+              raise ArgumentError, "Field #{field_to_batch} must be an array, got #{full_array.class}"
+            end
 
-          # Split into chunks
-          chunks = full_array.each_slice(chunk_size).to_a
+            # Split into chunks
+            chunks = full_array.each_slice(chunk_size).to_a
 
-          # Log appropriate message based on whether chunking actually occurs
-          if chunks.size > 1
-            log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items in #{chunks.size} chunks of #{chunk_size}"
-          else
-            log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items (no chunking needed)"
-          end
+            # Log appropriate message based on whether chunking actually occurs
+            if chunks.size > 1
+              log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items in #{chunks.size} chunks of #{chunk_size}"
+            else
+              log_info "🔄 [#{wrapped_agent_name}] Processing #{full_array.size} items (no chunking needed)"
+            end
 
-          # Process each chunk
-          accumulated_results = []
-          chunks.each_with_index do |chunk, index|
-            log_debug "📦 [#{wrapped_agent_name}] Processing chunk #{index + 1}/#{chunks.size} (#{chunk.size} items)"
+            # Process each chunk
+            accumulated_results = []
+            chunks.each_with_index do |chunk, index|
+              log_debug "📦 [#{wrapped_agent_name}] Processing chunk #{index + 1}/#{chunks.size} (#{chunk.size} items)"
 
-            # Create chunk context with this chunk
-            chunk_context = context.set(field_to_batch, chunk)
+              # Create chunk context with this chunk
+              chunk_context = context.set(field_to_batch, chunk)
 
-            # Execute wrapped component on chunk
-            chunk_result = execute_wrapped_component(chunk_context, agent_results)
+              # Execute wrapped component on chunk
+              chunk_result = execute_wrapped_component(chunk_context, agent_results)
 
-            # CRITICAL FIX: Use output_field for extraction when field transformation is configured
-            # When input_field != output_field, the agent returns data under the output field name
+              # CRITICAL FIX: Use output_field for extraction when field transformation is configured
+              # When input_field != output_field, the agent returns data under the output field name
+              extraction_field = @output_field || field_to_batch
+              extracted_data = extract_result_data(chunk_result, extraction_field)
+              accumulated_results << extracted_data if extracted_data
+
+              log_debug "✅ [#{wrapped_agent_name}] Chunk #{index + 1} completed (#{extracted_data&.size || 0} results)"
+            end
+
+            # Merge all chunk results (use same extraction field for consistency)
             extraction_field = @output_field || field_to_batch
-            extracted_data = extract_result_data(chunk_result, extraction_field)
-            accumulated_results << extracted_data if extracted_data
+            merged_result = merge_chunk_results(accumulated_results, extraction_field)
 
-            log_debug "✅ [#{wrapped_agent_name}] Chunk #{index + 1} completed (#{extracted_data&.size || 0} results)"
+            log_info "✅ [#{wrapped_agent_name}] Completed processing #{chunks.size} chunks, #{merged_result.size} total results"
+
+            # Determine output field (supports field transformation)
+            # Use explicit output_field if set, otherwise fall back to input field (backward compatible)
+            output_field_name = @output_field || field_to_batch
+
+            # Log field transformation if input and output differ
+            if output_field_name != field_to_batch
+              log_info "🔄 [#{wrapped_agent_name}] Field transformation: #{field_to_batch} → #{output_field_name}"
+            end
+
+            # Return updated context with merged results written to output field
+            context.set(output_field_name, merged_result)
           end
-
-          # Merge all chunk results (use same extraction field for consistency)
-          extraction_field = @output_field || field_to_batch
-          merged_result = merge_chunk_results(accumulated_results, extraction_field)
-
-          log_info "✅ [#{wrapped_agent_name}] Completed processing #{chunks.size} chunks, #{merged_result.size} total results"
-
-          # Determine output field (supports field transformation)
-          # Use explicit output_field if set, otherwise fall back to input field (backward compatible)
-          output_field_name = @output_field || field_to_batch
-
-          # Log field transformation if input and output differ
-          if output_field_name != field_to_batch
-            log_info "🔄 [#{wrapped_agent_name}] Field transformation: #{field_to_batch} → #{output_field_name}"
-          end
-
-          # Return updated context with merged results written to output field
-          context.set(output_field_name, merged_result)
         end
 
         # Delegate required fields to wrapped component

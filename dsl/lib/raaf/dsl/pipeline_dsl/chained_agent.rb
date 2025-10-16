@@ -20,6 +20,7 @@ module RAAF
       class ChainedAgent
 
         include Logger
+        include WrapperDSL
 
         attr_reader :first, :second, :pipeline_context_fields
         
@@ -63,24 +64,30 @@ module RAAF
         end
         
         def execute(context, agent_results = nil)
-          # Ensure context is ContextVariables if it's a plain Hash
-          unless context.respond_to?(:set)
-            context = RAAF::DSL::ContextVariables.new(context)
+          # Wrap execution with before_execute/after_execute hooks
+          first_name = @first.respond_to?(:name) ? @first.name : @first.class.name
+          second_name = @second.respond_to?(:name) ? @second.name : @second.class.name
+
+          execute_with_hooks(context, :chained, first_agent: first_name, second_agent: second_name) do
+            # Ensure context is ContextVariables if it's a plain Hash
+            unless context.respond_to?(:set)
+              context = RAAF::DSL::ContextVariables.new(context)
+            end
+
+            # Execute first part
+            context = execute_part(@first, context, agent_results)
+
+            # Check if first part was skipped - for now, continue execution anyway
+            # Future improvement: could make this configurable per agent
+            if context.respond_to?(:get) && context.get(:_agent_skipped)
+              # Clean up the skip marker for next agent
+              context = context.set(:_agent_skipped, nil)
+            end
+
+            # Execute second part regardless of first part skip status
+            # This allows pipeline to continue even if some agents are skipped
+            execute_part(@second, context, agent_results)
           end
-
-          # Execute first part
-          context = execute_part(@first, context, agent_results)
-
-          # Check if first part was skipped - for now, continue execution anyway
-          # Future improvement: could make this configurable per agent
-          if context.respond_to?(:get) && context.get(:_agent_skipped)
-            # Clean up the skip marker for next agent
-            context = context.set(:_agent_skipped, nil)
-          end
-
-          # Execute second part regardless of first part skip status
-          # This allows pipeline to continue even if some agents are skipped
-          execute_part(@second, context, agent_results)
         end
         
         # Extract metadata for chained agents

@@ -37,49 +37,59 @@ module RAAF
         
         # Execute with configuration
         def execute(context)
-          timeout_value = @options[:timeout] || 30
-          retry_count = @options[:retry] || 1
-          
-          Timeout.timeout(timeout_value) do
-            attempts = 0
-            begin
-              attempts += 1
-              
-              # Merge non-control options into context for agent to use
-              enhanced_context = context.dup
-              @options.each do |key, value|
-                unless [:timeout, :retry].include?(key)
-                  enhanced_context[key] = value
+          # Wrap execution with before_execute/after_execute hooks
+          agent_name = @agent_class.respond_to?(:agent_name) ? @agent_class.agent_name : @agent_class.name
+
+          execute_with_hooks(context, :configured, agent_name: agent_name, options: @options) do
+            # Ensure context is ContextVariables if it's a plain Hash
+            unless context.respond_to?(:set)
+              context = RAAF::DSL::ContextVariables.new(context)
+            end
+
+            timeout_value = @options[:timeout] || 30
+            retry_count = @options[:retry] || 1
+
+            Timeout.timeout(timeout_value) do
+              attempts = 0
+              begin
+                attempts += 1
+
+                # Merge non-control options into context for agent to use
+                enhanced_context = context.dup
+                @options.each do |key, value|
+                  unless [:timeout, :retry].include?(key)
+                    enhanced_context[key] = value
+                  end
                 end
-              end
-              
-              # Execute agent - convert context to keyword arguments to trigger context DSL processing
-              context_hash = enhanced_context.is_a?(RAAF::DSL::ContextVariables) ? enhanced_context.to_h : enhanced_context
-              agent = @agent_class.new(**context_hash)
-              result = agent.run
-              
-              # Merge results back into original context
-              if @agent_class.respond_to?(:provided_fields)
-                @agent_class.provided_fields.each do |field|
-                  context[field] = result[field] if result.respond_to?(:[]) && result[field]
+
+                # Execute agent - convert context to keyword arguments to trigger context DSL processing
+                context_hash = enhanced_context.is_a?(RAAF::DSL::ContextVariables) ? enhanced_context.to_h : enhanced_context
+                agent = @agent_class.new(**context_hash)
+                result = agent.run
+
+                # Merge results back into original context
+                if @agent_class.respond_to?(:provided_fields)
+                  @agent_class.provided_fields.each do |field|
+                    context[field] = result[field] if result.respond_to?(:[]) && result[field]
+                  end
                 end
-              end
-              
-              context
-            rescue => e
-              if attempts < retry_count
-                sleep_time = 2 ** (attempts - 1) # Exponential backoff
-                RAAF.logger.warn "Retrying #{@agent_class.name} after #{sleep_time}s (attempt #{attempts}/#{retry_count})"
-                sleep(sleep_time)
-                retry
-              else
-                raise e
+
+                context
+              rescue => e
+                if attempts < retry_count
+                  sleep_time = 2 ** (attempts - 1) # Exponential backoff
+                  RAAF.logger.warn "Retrying #{@agent_class.name} after #{sleep_time}s (attempt #{attempts}/#{retry_count})"
+                  sleep(sleep_time)
+                  retry
+                else
+                  raise e
+                end
               end
             end
+          rescue Timeout::Error => e
+            RAAF.logger.error "#{@agent_class.name} timed out after #{timeout_value} seconds"
+            raise e
           end
-        rescue Timeout::Error => e
-          RAAF.logger.error "#{@agent_class.name} timed out after #{timeout_value} seconds"
-          raise e
         end
       end
     end
