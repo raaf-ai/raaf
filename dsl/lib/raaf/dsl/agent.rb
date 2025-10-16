@@ -17,6 +17,8 @@ require_relative "data_merger"
 require_relative "hooks/hook_context"
 require_relative "hooks/agent_hooks"
 require_relative "auto_merge"
+require_relative "incremental_processing"
+require_relative "incremental_processor"
 # Tool DSL infrastructure removed - tool execution is now handled by agents directly
 
 module RAAF
@@ -53,6 +55,7 @@ module RAAF
       include RAAF::DSL::Hooks::HookContext
       include RAAF::DSL::Hooks::AgentHooks
       include RAAF::DSL::AutoMerge
+      include RAAF::DSL::IncrementalProcessing
       # Tool DSL modules removed - functionality moved directly into Agent class
       # include RAAF::DSL::ToolValidation
       # include RAAF::DSL::ToolLogging
@@ -1112,16 +1115,43 @@ module RAAF
       end
       
       # Run the agent with optional smart features (retry, circuit breaker, etc.)
-      # 
+      # Override run to integrate incremental processing
+      #
+      # When an agent has incremental_processing configured, this method:
+      # 1. Detects the input field (marked with incremental: true in context)
+      # 2. Detects the output field (first array field in schema)
+      # 3. Initializes IncrementalProcessor with agent and config
+      # 4. Processes data with skip/load/persist logic
+      # 5. Returns results merged with context
+      #
+      # For agents without incremental processing, this delegates to the standard execution path.
+      #
       # @param context [ContextVariables, Hash, nil] Context to use (overrides instance context)
       # @param input_context_variables [ContextVariables, Hash, nil] Alternative parameter name for context
       # @param stop_checker [Proc] Optional stop checker for execution control
       # @param skip_retries [Boolean] Skip retry/circuit breaker logic (default: false)
       # @return [Hash] Result from agent execution
       def run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        # Check if incremental processing is configured
+        if incremental_processing?
+          run_with_incremental_processing(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+        else
+          # Standard execution path
+          run_standard(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+        end
+      end
+
+      # Standard run execution (original behavior)
+      #
+      # @param context [ContextVariables, Hash, nil] Context to use (overrides instance context)
+      # @param input_context_variables [ContextVariables, Hash, nil] Alternative parameter name for context
+      # @param stop_checker [Proc] Optional stop checker for execution control
+      # @param skip_retries [Boolean] Skip retry/circuit breaker logic (default: false)
+      # @return [Hash] Result from agent execution
+      def run_standard(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         # Check if execution timeout is configured
         execution_timeout = self.class._context_config[:execution_timeout]
-        
+
         if execution_timeout
           run_with_timeout(execution_timeout, context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
         else
@@ -1140,6 +1170,116 @@ module RAAF
       #
       def provider
         @provider
+      end
+
+      # Execute agent with incremental processing logic
+      #
+      # This method:
+      # 1. Auto-detects input/output fields
+      # 2. Initializes IncrementalProcessor
+      # 3. Processes data with skip/load/persist logic
+      # 4. Merges results back into context
+      #
+      # @return [Hash] Results with processed and skipped items merged
+      def run_with_incremental_processing(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        log_info "🔄 [#{self.class.name}] Running with incremental processing"
+
+        # Auto-detect input field (marked with incremental: true in context)
+        input_field = detect_incremental_input_field
+        raise ArgumentError, "No incremental input field found in context" unless input_field
+
+        # Auto-detect output field (first array field in schema)
+        output_field = detect_output_field
+        raise ArgumentError, "No array output field found in schema" unless output_field
+
+        log_info "📥 [#{self.class.name}] Input field: #{input_field}"
+        log_info "📤 [#{self.class.name}] Output field: #{output_field}"
+
+        # Get input data from context
+        input_data = @context[input_field]
+        raise ArgumentError, "Input field #{input_field} not found in context" unless input_data
+
+        # Initialize processor
+        processor = RAAF::DSL::IncrementalProcessor.new(self, incremental_config)
+
+        # Process with skip/load/persist logic
+        # The block processes non-skipped items through the normal agent flow
+        processed_results = processor.process(input_data, @context) do |items_to_process, ctx|
+          # Create temporary context with items to process
+          temp_context = ctx.dup
+          temp_context[input_field] = items_to_process
+
+          # Run normal agent processing on non-skipped items only
+          agent_result = run_agent_on_batch(items_to_process, temp_context, context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+
+          # Extract results from agent response
+          agent_result[output_field] || []
+        end
+
+        log_info "✅ [#{self.class.name}] Incremental processing complete: #{processed_results.count} total items"
+
+        # Return results in standard format
+        {
+          success: true,
+          output_field => processed_results
+        }
+      end
+
+      # Run the agent on a batch of items
+      #
+      # This method executes the normal agent flow (calling the LLM) for the
+      # provided batch of items. It's called by the incremental processor for
+      # non-skipped items only.
+      #
+      # @param items [Array<Hash>] Items to process
+      # @param ctx [Hash] Context for processing
+      # @return [Hash] Agent results
+      def run_agent_on_batch(items, ctx, context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
+        # Temporarily set context for this batch
+        original_context = @context
+        @context = ctx
+
+        # Execute normal agent flow (standard run method)
+        result = run_standard(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+
+        # Restore original context
+        @context = original_context
+
+        result
+      end
+
+      # Detect which context field is marked for incremental processing
+      #
+      # Uses the explicitly declared incremental_input_field from the agent class.
+      # Agents must declare this using `incremental_input_field :field_name` DSL.
+      #
+      # @return [Symbol, nil] The incremental input field name or nil if not declared
+      # @raise [ArgumentError] if incremental processing is configured but field not declared
+      def detect_incremental_input_field
+        field = self.class._incremental_input_field
+
+        if field.nil? && incremental_processing?
+          raise ArgumentError, "#{self.class.name} has incremental_processing configured but no incremental_input_field declared. Add 'incremental_input_field :field_name' to your agent class."
+        end
+
+        field
+      end
+
+      # Detect the output field from schema
+      #
+      # Uses the explicitly declared incremental_output_field from the agent class.
+      # Agents must declare this using `incremental_output_field :field_name` DSL.
+      #
+      # @return [Symbol, nil] The output field name or nil if not declared
+      # @raise [ArgumentError] if incremental processing is configured but field not declared
+      def detect_output_field
+        field = self.class._incremental_output_field
+
+        if field.nil? && incremental_processing?
+          raise ArgumentError, "#{self.class.name} has incremental_processing configured but no incremental_output_field declared. Add 'incremental_output_field :field_name' to your agent class."
+        end
+
+        field
       end
 
       def handle_smart_error(error)
