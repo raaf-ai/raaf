@@ -157,6 +157,9 @@ module RAAF
                 "Tool / Function"
               end
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
+                "Parameters"
+              end
+              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
                 "Kind"
               end
               th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
@@ -203,6 +206,10 @@ module RAAF
               end
             end
 
+            td(class: "px-6 py-4") do
+              render_parameter_preview(tool_data)
+            end
+
             td(class: "px-6 py-4 whitespace-nowrap") do
               render_kind_badge(span.kind)
             end
@@ -243,8 +250,8 @@ module RAAF
                   div(class: "flex items-center justify-between") do
                     strong(class: "text-blue-900") { "Input Parameters" }
                     button(
-                      class: "text-blue-600 hover:text-blue-800 text-xs",
-                      onclick: "toggleDetails(this)",
+                      type: "button",
+                      class: "text-blue-600 hover:text-blue-800 text-xs toggle-details-btn",
                       data: { target: "input" }
                     ) { "Show Details" }
                   end
@@ -268,8 +275,8 @@ module RAAF
                   div(class: "flex items-center justify-between") do
                     strong(class: "text-green-900") { "Output Results" }
                     button(
-                      class: "text-green-600 hover:text-green-800 text-xs",
-                      onclick: "toggleDetails(this)",
+                      type: "button",
+                      class: "text-green-600 hover:text-green-800 text-xs toggle-details-btn",
                       data: { target: "output" }
                     ) { "Show Details" }
                   end
@@ -370,11 +377,25 @@ module RAAF
 
         def extract_tool_data(span)
           if span.kind == "tool"
+            # Try multiple possible locations for input/output data
             function_data = span.span_attributes&.dig("function") || {}
+            input_data = span.span_attributes&.dig("tool_arguments") ||
+                        function_data["input"] ||
+                        span.span_attributes&.dig("input") ||
+                        span.span_attributes&.dig("arguments")
+
+            output_data = span.span_attributes&.dig("result", "tool_result") ||
+                         span.span_attributes&.dig("result.tool_result") ||
+                         function_data["output"] ||
+                         span.span_attributes&.dig("output") ||
+                         span.span_attributes&.dig("result")
+
             {
-              function_name: function_data["name"],
-              input: function_data["input"],
-              output: function_data["output"]
+              function_name: function_data["name"] ||
+                           span.span_attributes&.dig("tool_name") ||
+                           span.span_attributes&.dig("tool", "name"),
+              input: input_data,
+              output: output_data
             }
           else # custom
             {
@@ -382,6 +403,115 @@ module RAAF
               input: span.span_attributes&.dig("custom", "data") || {},
               output: span.span_attributes&.dig("output") || span.span_attributes&.dig("result")
             }
+          end
+        end
+
+        def extract_key_parameters(input_data)
+          return [] if input_data.nil? || input_data.empty?
+
+          # Define priority parameter names (most relevant first)
+          priority_params = %w[
+            query search_terms search_query q
+            company_name company customer_company
+            market_id target_market market
+            product_id product
+            url endpoint api_url
+            location country_code region
+            prospect_id stakeholder_id
+            name title
+            max_results limit count
+          ]
+
+          # Skip metadata/internal parameters
+          skip_params = %w[_execution_metadata metadata trace_id span_id timestamp]
+
+          params = []
+
+          # Convert input_data to hash if it's a string
+          data = case input_data
+                 when String
+                   begin
+                     JSON.parse(input_data)
+                   rescue JSON::ParserError
+                     { value: input_data }
+                   end
+                 when Hash
+                   input_data
+                 else
+                   { value: input_data.to_s }
+                 end
+
+          # First pass: collect priority parameters
+          priority_params.each do |key|
+            next unless data.key?(key) || data.key?(key.to_sym)
+
+            value = data[key] || data[key.to_sym]
+            next if skip_params.include?(key)
+            next if value.nil? || (value.respond_to?(:empty?) && value.empty?)
+
+            params << { name: key, value: format_param_value(value) }
+            break if params.size >= 3 # Limit to 3 key parameters
+          end
+
+          # Second pass: if we don't have enough params, add first available non-priority params
+          if params.size < 2
+            data.each do |key, value|
+              key_str = key.to_s
+              next if skip_params.include?(key_str)
+              next if priority_params.include?(key_str)
+              next if value.nil? || (value.respond_to?(:empty?) && value.empty?)
+              next if params.any? { |p| p[:name] == key_str }
+
+              params << { name: key_str, value: format_param_value(value) }
+              break if params.size >= 3
+            end
+          end
+
+          params
+        end
+
+        def format_param_value(value)
+          case value
+          when String
+            truncate(value, length: 30)
+          when Array
+            if value.empty?
+              "[]"
+            elsif value.size == 1
+              truncate(value.first.to_s, length: 30)
+            else
+              "[#{value.size} items]"
+            end
+          when Hash
+            if value.empty?
+              "{}"
+            else
+              "{#{value.keys.size} keys}"
+            end
+          when Integer, Float
+            value.to_s
+          when TrueClass, FalseClass
+            value.to_s
+          else
+            truncate(value.to_s, length: 30)
+          end
+        end
+
+        def render_parameter_preview(tool_data)
+          key_params = extract_key_parameters(tool_data[:input])
+
+          if key_params.any?
+            div(class: "flex flex-wrap gap-2") do
+              key_params.each do |param|
+                div(class: "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200") do
+                  span(class: "font-semibold") { "#{param[:name]}:" }
+                  plain " "
+                  span(class: "font-mono") { param[:value] }
+                end
+              end
+            end
+          else
+            div(class: "text-xs text-gray-400 italic") { "No parameters" }
           end
         end
 
@@ -446,26 +576,32 @@ module RAAF
         def render_toggle_script
           script do
             plain <<~JAVASCRIPT
-              function toggleDetails(button) {
-                const target = button.getAttribute('data-target');
-                const row = button.closest('tr');
-                const detailsSection = row.querySelector(`[data-section="${target}"]`);
-                const previewSection = row.querySelector(`[data-section="${target}-preview"]`);
+              document.addEventListener('DOMContentLoaded', function() {
+                // Use event delegation for dynamically loaded content
+                document.addEventListener('click', function(event) {
+                  const button = event.target.closest('.toggle-details-btn');
+                  if (!button) return;
 
-                if (detailsSection && previewSection) {
-                  if (detailsSection.classList.contains('hidden')) {
-                    // Show details, hide preview
-                    detailsSection.classList.remove('hidden');
-                    previewSection.classList.add('hidden');
-                    button.textContent = 'Hide Details';
-                  } else {
-                    // Hide details, show preview
-                    detailsSection.classList.add('hidden');
-                    previewSection.classList.remove('hidden');
-                    button.textContent = 'Show Details';
+                  const target = button.getAttribute('data-target');
+                  const row = button.closest('tr');
+                  const detailsSection = row.querySelector(`[data-section="${target}"]`);
+                  const previewSection = row.querySelector(`[data-section="${target}-preview"]`);
+
+                  if (detailsSection && previewSection) {
+                    if (detailsSection.classList.contains('hidden')) {
+                      // Show details, hide preview
+                      detailsSection.classList.remove('hidden');
+                      previewSection.classList.add('hidden');
+                      button.textContent = 'Hide Details';
+                    } else {
+                      // Hide details, show preview
+                      detailsSection.classList.add('hidden');
+                      previewSection.classList.remove('hidden');
+                      button.textContent = 'Show Details';
+                    }
                   }
-                }
-              }
+                });
+              });
             JAVASCRIPT
           end
         end
