@@ -221,7 +221,22 @@ module RAAF
             result << skipped_lookup[original_item.object_id]
           else
             # Use processed data
-            result << processed_items[processed_index]
+            processed_item = processed_items[processed_index]
+
+            # Check for nil - indicates result_transform broke 1:1 correspondence
+            if processed_item.nil?
+              agent_name = @agent.class.name.split('::').last
+              error_msg = "❌ [#{agent_name}] CRITICAL: result_transform broke 1:1 correspondence! " \
+                          "Expected #{original_items.count - skipped_items.count} processed items, " \
+                          "but only got #{processed_items.compact.count}. " \
+                          "This usually means result_transform is filtering items (e.g., .select, .reject). " \
+                          "Result transforms must return ALL processed items to maintain order."
+
+              RAAF.logger.error error_msg
+              raise ArgumentError, error_msg
+            end
+
+            result << processed_item
             processed_index += 1
           end
         end
