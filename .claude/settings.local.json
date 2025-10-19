@@ -40,7 +40,13 @@
       "Bash(sudo systemsetup:*)",
       "Bash(bin/rails:*)",
       "WebFetch(domain:openkvk.nl)",
-      "WebFetch(domain:overheid.io)"
+      "WebFetch(domain:overheid.io)",
+      "Bash(kamal app logs:*)",
+      "Bash(kamal proxy logs:*)",
+      "Bash(openssl s_client -connect 188.40.182.81:443 -servername www.prospectsradar.com)",
+      "Bash(openssl x509:*)",
+      "Bash(timeout 5 openssl s_client:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "additionalDirectories": [
