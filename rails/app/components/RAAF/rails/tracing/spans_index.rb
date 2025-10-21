@@ -493,8 +493,7 @@ module RAAF
           # Use Phlex button helper instead of raw HTML
           button(
             type: "button",
-            class: "text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md border border-blue-300",
-            class: "expand-all-btn"
+            class: "expand-all-btn text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md border border-blue-300"
           ) { "Expand All" }
         end
 
@@ -502,8 +501,7 @@ module RAAF
           # Use Phlex button helper instead of raw HTML
           button(
             type: "button",
-            class: "text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md border border-gray-300",
-            class: "collapse-all-btn"
+            class: "collapse-all-btn text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md border border-gray-300"
           ) { "Collapse All" }
         end
       end
