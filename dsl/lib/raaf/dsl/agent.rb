@@ -122,6 +122,12 @@ module RAAF
           subclass._circuit_breaker_config = _circuit_breaker_config&.dup
           subclass._required_context_keys = _required_context_keys&.dup || []
           subclass._validation_rules = _validation_rules&.dup || {}
+
+          # Register automatic trace flushing for all agents
+          # This ensures RAAF traces are persisted after every agent execution
+          subclass.on_end do |**|
+            auto_flush_raaf_traces
+          end
           subclass._result_transformations = _result_transformations&.dup || {}
           subclass._execution_conditions = _execution_conditions&.dup
 
@@ -1598,19 +1604,21 @@ module RAAF
       def validate_prompt_context!
         prompt_spec = determine_prompt_spec
         return true unless prompt_spec
-        
+
         begin
           # Try to create prompt instance for validation
           prompt_instance = case prompt_spec
                            when Class
-                             # Pass context as keyword arguments
+                             # Pass context as keyword arguments with optional defaults merged
                              context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
-                             prompt_spec.new(**context_hash)
+                             context_with_defaults = merge_optional_defaults(context_hash)
+                             prompt_spec.new(**context_with_defaults)
                            when String, Symbol
-                             # Try to resolve and instantiate
+                             # Try to resolve and instantiate with optional defaults merged
                              klass = Object.const_get(prompt_spec.to_s)
                              context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
-                             klass.new(**context_hash)
+                             context_with_defaults = merge_optional_defaults(context_hash)
+                             klass.new(**context_with_defaults)
                            else
                              prompt_spec
                            end
@@ -1694,7 +1702,7 @@ module RAAF
         # Extract the problematic variable name
         variable_match = error.message.match(/`([^']+)'/)
         problem_var = variable_match ? variable_match[1] : "unknown"
-        
+
         # Get available context for helpful error message
         available_context = if @context.respond_to?(:keys)
                              @context.keys
@@ -1703,12 +1711,38 @@ module RAAF
                            else
                              ["context object: #{@context.class.name}"]
                            end
-        
+
         raise RAAF::DSL::Error,
           "Failed to validate #{method_name} prompt method in #{prompt_class_name}: " \
           "references undefined variable '#{problem_var}'. " \
           "Available context variables: #{available_context.join(', ')}. " \
           "This usually indicates an error in the prompt's #{method_name} method or missing required context."
+      end
+
+      # Merge optional context defaults into provided context
+      #
+      # This ensures that prompt validation uses the same context that execution will use,
+      # by merging in optional field defaults from the agent's context definition.
+      #
+      # @param context_hash [Hash] The current runtime context
+      # @return [Hash] Context with optional defaults merged in
+      def merge_optional_defaults(context_hash)
+        # Get context rules from agent class configuration
+        rules = self.class._context_config[:context_rules] || {}
+        return context_hash unless rules[:optional]
+
+        # Create a copy to avoid mutating original
+        merged = context_hash.dup
+
+        # Add default values for optional fields that aren't present
+        rules[:optional].each do |key, default_value|
+          # Check both symbol and string keys (indifferent access)
+          unless merged.key?(key) || merged.key?(key.to_s)
+            merged[key] = default_value.is_a?(Proc) ? default_value.call : default_value
+          end
+        end
+
+        merged
       end
 
       # Validate computed fields in result_transform blocks before execution
@@ -4376,6 +4410,21 @@ module RAAF
           # Final fallback if TraceProvider is not available
           nil
         end
+      end
+
+      # Automatically flush RAAF traces after agent execution
+      # This ensures traces are persisted to database for all agent runs
+      def auto_flush_raaf_traces
+        return unless defined?(RAAF::Tracing::TraceProvider)
+
+        provider = RAAF::Tracing::TraceProvider.instance
+        provider.processors.each do |processor|
+          processor.force_flush if processor.respond_to?(:force_flush)
+        end
+
+        RAAF.logger.debug "🔍 [RAAF Auto-Flush] Flushed traces after #{self.class.name} completion"
+      rescue => e
+        RAAF.logger.error "❌ [RAAF Auto-Flush] Failed to flush traces: #{e.message}"
       end
     end
   end
