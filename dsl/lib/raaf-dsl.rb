@@ -4,6 +4,14 @@ require "raaf-core"
 require_relative "raaf/dsl/core/version"
 require "active_support/all"
 
+# Load ToolRegistry - required by agent tool integration for tool discovery
+# ToolRegistry is defined in raaf-core/lib/raaf/tool_registry.rb (canonical location in core gem)
+# AgentToolIntegration uses it for:
+# - Tool registration at class definition time
+# - Tool resolution at agent instantiation time
+# Note: This is loaded automatically by raaf-core but included here for explicitness
+require "raaf/tool_registry"
+
 # Load tracing functionality
 begin
   require "raaf/tracing/traceable"

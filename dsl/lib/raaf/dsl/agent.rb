@@ -62,38 +62,50 @@ module RAAF
       class << self
 
         def _tools_config
-          # TODO: Consider refactoring thread-local storage to avoid potential memory leaks
-          # with object_id keys in long-running multi-threaded applications
-          Thread.current["raaf_dsl_tools_config_#{object_id}"] ||= []
+          # Use Concurrent::Array for thread-safe array operations
+          # This ensures configuration persists across threads (e.g., in background jobs)
+          # and prevents race conditions during tool registration
+          # FIXED: Previously used Thread.current with object_id which failed in job threads
+          @_tools_config ||= Concurrent::Array.new
         end
 
         def _tools_config=(value)
-          Thread.current["raaf_dsl_tools_config_#{object_id}"] = value
+          # Accept regular arrays and convert to Concurrent::Array
+          @_tools_config = value.is_a?(Concurrent::Array) ? value : Concurrent::Array.new(value)
         end
 
         def _schema_config
-          Thread.current["raaf_dsl_schema_config_#{object_id}"] ||= {}
+          # Use Concurrent::Hash for thread-safe hash operations
+          # This ensures configuration persists across threads
+          @_schema_config ||= Concurrent::Hash.new
         end
 
         def _schema_config=(value)
-          Thread.current["raaf_dsl_schema_config_#{object_id}"] = value
+          # Accept regular hashes and convert to Concurrent::Hash
+          @_schema_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
         end
 
         def _prompt_config
-          Thread.current["raaf_dsl_prompt_config_#{object_id}"] ||= {}
+          # Use Concurrent::Hash for thread-safe hash operations
+          # This ensures configuration persists across threads
+          @_prompt_config ||= Concurrent::Hash.new
         end
 
         def _prompt_config=(value)
-          Thread.current["raaf_dsl_prompt_config_#{object_id}"] = value
+          # Accept regular hashes and convert to Concurrent::Hash
+          @_prompt_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
         end
 
 
         def _auto_discovery_config
-          Thread.current["raaf_dsl_auto_discovery_config_#{object_id}"] ||= {}
+          # Use Concurrent::Hash for thread-safe hash operations
+          # This ensures configuration persists across threads
+          @_auto_discovery_config ||= Concurrent::Hash.new
         end
 
         def _auto_discovery_config=(value)
-          Thread.current["raaf_dsl_auto_discovery_config_#{object_id}"] = value
+          # Accept regular hashes and convert to Concurrent::Hash
+          @_auto_discovery_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
         end
 
         # Tool execution configuration for interceptor conveniences
@@ -109,10 +121,10 @@ module RAAF
         # Ensure each subclass gets its own configuration
         def inherited(subclass)
           super
-          subclass._context_config = {}
-          subclass._tools_config = []
-          subclass._schema_config = {}
-          subclass._prompt_config = {}
+          subclass._context_config = Concurrent::Hash.new
+          subclass._tools_config = Concurrent::Array.new
+          subclass._schema_config = Concurrent::Hash.new
+          subclass._prompt_config = Concurrent::Hash.new
 
           # Copy retry configuration from parent class
           subclass._retry_config = _retry_config&.dup || {}
@@ -129,7 +141,7 @@ module RAAF
           subclass._execution_conditions = _execution_conditions&.dup
 
           # Enable auto-transform by default with standard patterns
-          subclass._auto_discovery_config = {
+          subclass._auto_discovery_config = Concurrent::Hash.new({
             patterns: %w[
               process_*_from_data
               build_*_metadata
@@ -137,7 +149,7 @@ module RAAF
             ],
             exclude: [],
             enabled: true
-          }
+          })
 
           # Initialize hooks for subclass
           hooks = {}
@@ -1131,7 +1143,8 @@ module RAAF
 
           { success: false, error: error.message, error_type: "validation_error" }
         else
-          log_error "❌ [#{agent_name}] Unexpected error: #{error.message}", stack_trace: error.backtrace.join("\n")
+          log_error "❌ [#{agent_name}] Unexpected error: #{error.message}", stack_trace: error.backtrace.join("
+")
           { success: false, error: "Agent execution failed: #{error.message}", error_type: "unexpected_error" }
         end
       end
@@ -1243,7 +1256,7 @@ module RAAF
           next unless tool_config[:resolution_deferred]
           next if tool_config[:tool_class]
 
-          identifier = tool_config[:identifier]
+          identifier = tool_config[:tool_identifier] || tool_config[:identifier]
 
           begin
             # Resolve using ToolRegistry
@@ -1253,8 +1266,10 @@ module RAAF
               # Enhanced error with DidYouMean suggestions
               result = RAAF::ToolRegistry.resolve_with_details(identifier)
 
-              error_message = "Failed to resolve tool '#{identifier}' for agent '#{self.class.name}'\n"
-              error_message += "Searched namespaces: #{result[:searched_namespaces].join(', ')}\n"
+              error_message = "Failed to resolve tool '#{identifier}' for agent '#{self.class.name}'
+"
+              error_message += "Searched namespaces: #{result[:searched_namespaces].join(', ')}
+"
 
               if result[:suggestions].any?
                 error_message += "Did you mean? #{result[:suggestions].join(', ')}"
@@ -1493,7 +1508,8 @@ module RAAF
         rescue RAAF::DSL::Error => e
           # Re-raise validation errors with agent context
           raise RAAF::DSL::Error,
-            "Prompt validation failed for agent #{self.class.name}:\n#{e.message}"
+            "Prompt validation failed for agent #{self.class.name}:
+#{e.message}"
         rescue StandardError => e
           # Log but don't fail on other errors (like missing prompt class)
           log_debug "Could not validate prompt context", error: e.message
@@ -1708,7 +1724,9 @@ module RAAF
           validation_mode = schema_def[:config][:mode]
           if [:tolerant, :partial].include?(validation_mode)
             schema_instructions = build_schema_instructions(schema_def)
-            return "#{base_instructions}\n\n#{schema_instructions}"
+            return "#{base_instructions}
+
+#{schema_instructions}"
           end
         end
         
@@ -1771,9 +1789,16 @@ module RAAF
         required = schema[:required] || []
         properties = schema[:properties] || {}
         
-        instructions = "\n## Response Format Requirements\n\n"
-        instructions += "You must return your response as valid JSON matching this structure:\n\n"
-        instructions += "```json\n{\n"
+        instructions = "
+## Response Format Requirements
+
+"
+        instructions += "You must return your response as valid JSON matching this structure:
+
+"
+        instructions += "```json
+{
+"
         
         properties.each do |name, field_config|
           req_marker = required.include?(name.to_s) ? " (REQUIRED)" : " (optional)"
@@ -1792,28 +1817,44 @@ module RAAF
           
           instructions += "  \"#{name}\": <#{type_str}>#{req_marker}"
           instructions += field_config[:description] ? " // #{field_config[:description]}" : ""
-          instructions += ",\n"
+          instructions += ",
+"
         end
         
-        instructions = instructions.chomp(",\n") + "\n"
-        instructions += "}\n```\n\n"
+        instructions = instructions.chomp(",
+") + "
+"
+        instructions += "}
+```
+
+"
         
         # Add validation-specific guidance
         case config[:mode]
         when :tolerant
-          instructions += "**Validation Mode: Tolerant**\n"
-          instructions += "- REQUIRED fields must always be present and valid\n"
-          instructions += "- Optional fields should be included when relevant\n"
-          instructions += "- If you cannot determine a required field value, use a reasonable default\n"
-          instructions += "- Additional fields are allowed if they provide value\n"
+          instructions += "**Validation Mode: Tolerant**
+"
+          instructions += "- REQUIRED fields must always be present and valid
+"
+          instructions += "- Optional fields should be included when relevant
+"
+          instructions += "- If you cannot determine a required field value, use a reasonable default
+"
+          instructions += "- Additional fields are allowed if they provide value
+"
         when :partial
-          instructions += "**Validation Mode: Partial**\n"
-          instructions += "- Include any fields you can determine\n"
-          instructions += "- Skip fields you cannot confidently populate\n"
-          instructions += "- Focus on providing accurate data for the fields you do include\n"
+          instructions += "**Validation Mode: Partial**
+"
+          instructions += "- Include any fields you can determine
+"
+          instructions += "- Skip fields you cannot confidently populate
+"
+          instructions += "- Focus on providing accurate data for the fields you do include
+"
         end
         
-        instructions += "\n**Important:** Ensure your response is valid JSON that can be parsed. " \
+        instructions += "
+**Important:** Ensure your response is valid JSON that can be parsed. " \
                        "If you're unsure about a field value, it's better to omit optional fields " \
                        "than to include invalid data."
         
@@ -2522,131 +2563,6 @@ module RAAF
         base_result
       end
 
-      # Build tools from configuration
-      def build_tools_from_config
-        self.class._tools_config.map do |tool_config|
-          # Use :identifier (new unified tool DSL) OR :name (legacy) - whichever exists
-          tool_name = tool_config[:identifier] || tool_config[:name]
-
-          # If tool_class is already resolved, use it directly
-          if tool_config[:tool_class]
-            create_tool_instance_from_class(tool_config[:tool_class], tool_name, tool_config[:options])
-          else
-            create_tool_instance(tool_name, tool_config[:options])
-          end
-        end.compact
-      end
-
-      # Create tool instance from name and options
-      def create_tool_instance(tool_name, options)
-        # Check if we have enhanced tool config (from new unified tool method)
-        tool_config = self.class._tools_config.find { |config| config[:name] == tool_name }
-
-        if tool_config && tool_config[:tool_class]
-          # Use the resolved tool class from unified tool method
-          tool_class = tool_config[:tool_class]
-          merged_options = (options || {}).merge(tool_config[:options] || {})
-        else
-          # Fallback to legacy resolve_tool_class for backward compatibility
-          tool_class = resolve_tool_class(tool_name)
-          merged_options = options || {}
-        end
-
-        return nil unless tool_class
-
-        # Detect if this is a core tool (has #call method)
-        if tool_class.method_defined?(:call)
-          create_core_tool_wrapper(tool_class, tool_name, merged_options)
-        else
-          tool_class.new(merged_options)
-        end
-      rescue => e
-        log_error("Failed to create tool instance for #{tool_name}: #{e.message}")
-        nil
-      end
-
-      # Create tool instance from already-resolved tool class (NEW)
-      # Used when tool_class is already resolved and passed in from tool_config
-      def create_tool_instance_from_class(tool_class, tool_name, options)
-        merged_options = options || {}
-
-        return nil unless tool_class
-
-        # Detect if this is a core tool (has #call method)
-        if tool_class.method_defined?(:call)
-          create_core_tool_wrapper(tool_class, tool_name, merged_options)
-        else
-          # Try instantiating with options as keyword arguments first
-          begin
-            tool_instance = tool_class.new(**merged_options)
-          rescue ArgumentError, TypeError => e
-            if e.message.include?("wrong number of arguments") || e.message.include?("unexpected keyword")
-              # Tool doesn't accept arguments, try without
-              tool_instance = tool_class.new
-            else
-              raise
-            end
-          end
-
-          tool_instance
-        end
-      rescue => e
-        log_error("Failed to create tool instance from class #{tool_class.name} for #{tool_name}: #{e.message}")
-        nil
-      end
-
-      # Wrap core tools in FunctionTool with proper initialization
-      # Core tools (RAAF::Tools::*) require keyword arguments and have #call method
-      def create_core_tool_wrapper(tool_class, tool_name, options)
-        # Auto-inject API keys from environment if not provided
-        tool_options = options.dup
-
-        if tool_class.name&.include?('Perplexity') && !tool_options.key?(:api_key)
-          tool_options[:api_key] = ENV['PERPLEXITY_API_KEY']
-        elsif tool_class.name&.include?('Tavily') && !tool_options.key?(:api_key)
-          tool_options[:api_key] = ENV['TAVILY_API_KEY']
-        end
-
-        # Instantiate core tool with keyword arguments
-        core_tool = tool_class.new(**tool_options)
-
-        # Wrap in FunctionTool for agent use
-        RAAF::FunctionTool.new(
-          core_tool.method(:call),
-          name: tool_name.to_s,
-          description: extract_tool_description(tool_class)
-        )
-      end
-
-      # Extract tool description from class for FunctionTool
-      def extract_tool_description(tool_class)
-        if tool_class.respond_to?(:description)
-          tool_class.description
-        elsif tool_class.name&.include?('Perplexity')
-          "Search the web for factual information with citations using Perplexity AI"
-        elsif tool_class.name&.include?('Tavily')
-          "Search the web for current information using Tavily"
-        else
-          "Execute #{tool_class.name.split('::').last.gsub('Tool', '').underscore.humanize.downcase} operation"
-        end
-      end
-
-      # Resolve tool class from name
-      def resolve_tool_class(tool_name)
-        # Convert tool name to class name (e.g., :web_search -> RAAF::DSL::Tools::WebSearch)
-        class_name = tool_name.to_s.split('_').map(&:capitalize).join
-
-        # Try RAAF::DSL::Tools namespace first
-        if defined?("RAAF::DSL::Tools::#{class_name}")
-          "RAAF::DSL::Tools::#{class_name}".constantize
-        else
-          # Fallback: assume it's a custom tool class
-          tool_name.to_s.classify.constantize
-        end
-      rescue NameError => e
-        log_error("Tool class not found for #{tool_name}: #{e.message}")
-        nil
-      end
 
       # Convert tool instance to function tool
       def convert_to_function_tool(tool_instance)
@@ -2659,7 +2575,35 @@ module RAAF
         return tool_instance.function_tool if tool_instance.respond_to?(:function_tool)
 
         # If tool uses DSL, create RAAF function tool
-        process_dsl_tool(tool_instance)
+        result = process_dsl_tool(tool_instance)
+        return result if result.present?
+
+        # If tool has a call method, it's a core tool - wrap it in FunctionTool
+        if tool_instance.respond_to?(:call)
+          # Try to get function tool parameters and description from class methods
+          klass = tool_instance.class
+          params = if klass.respond_to?(:function_tool_parameters)
+            klass.function_tool_parameters
+          else
+            # Default: infer from call method signature
+            {}
+          end
+          desc = if klass.respond_to?(:function_tool_description)
+            klass.function_tool_description
+          else
+            "Tool: #{klass.name}"
+          end
+
+          ft = RAAF::FunctionTool.new(
+            tool_instance.method(:call),
+            name: tool_instance.class.name.split("::").last.downcase,
+            description: desc,
+            parameters: params
+          )
+          return ft
+        end
+
+        nil
       end
 
       # Process DSL tool and convert to RAAF function tool
