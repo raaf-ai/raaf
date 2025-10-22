@@ -49,6 +49,145 @@ result = runner.run("Search for Ruby programming tutorials")
 - **DebugUtils** - Enhanced debugging capabilities
 - **Indifferent Access** - All data structures support both string and symbol keys seamlessly
 
+## Thread Safety and Data Storage Patterns (CRITICAL)
+
+**IMPORTANT**: When designing data storage for agent configuration, always consider whether data needs to be:
+
+1. **Class-level configuration (shared across all threads)** - Use class instance variables
+2. **Thread-local data (unique per thread)** - Use Thread.current
+
+### Class-Level Configuration (Preferred for Stateless Data)
+
+Use **class instance variables** (`@variable`) for agent configuration that:
+- **Defined at class definition time** (e.g., via DSL methods like `tool`, `schema`, `instructions`)
+- **Persist unchanged across runtime** (not modified per-instance)
+- **Must be accessible in background jobs** (ActiveJob workers run in different threads)
+- **Are shared by all agent instances** (memory efficient)
+
+**Examples:**
+- Tool definitions (`_tools_config`)
+- Schema configurations (`_schema_config`)
+- Prompt configurations (`_prompt_config`)
+- Auto-discovery configurations (`_auto_discovery_config`)
+
+```ruby
+# ✅ CORRECT: Class instance variables for configuration
+class Agent
+  class << self
+    def _tools_config
+      @_tools_config ||= []  # Shared across all threads
+    end
+
+    def _tools_config=(value)
+      @_tools_config = value
+    end
+  end
+end
+```
+
+### Thread-Local Data (For Runtime State)
+
+Use `Thread.current` ONLY for data that:
+- **Changes per thread** (execution context specific)
+- **Must not leak between threads** (security/isolation)
+- **Is temporary** (discarded after thread completes)
+
+**Potential candidates (if needed):**
+- Active execution state
+- Request-specific context
+- Transient caching
+
+**DO NOT use Thread.current for:**
+- ❌ Class definitions and configuration (persists beyond single run)
+- ❌ Tool definitions (needed in background jobs)
+- ❌ Agent metadata (should be accessible anywhere)
+
+### Known Issue: Thread-Local with object_id (ANTIPATTERN)
+
+**NEVER use:** `Thread.current["key_#{object_id}"]`
+
+This pattern breaks in background jobs:
+```ruby
+# ❌ BROKEN in background jobs
+def _tools_config
+  Thread.current["raaf_dsl_tools_config_#{object_id}"] ||= []
+end
+
+# Problem: Thread.current changes in background job workers
+# → New thread has empty Thread.current
+# → Configuration is lost
+# → Agent has 0 tools
+```
+
+### Why This Worked in Development but Failed in Acceptance
+
+The thread-local antipattern appears to work in **development** (with `eager_load: false`) but fails in **acceptance/production** (with `eager_load: true`):
+
+**Development (eager_load: false) - APPEARS TO WORK:**
+```
+Main Thread (development server)
+├─ Class definition (lazy load when first used)
+├─ Tool registration → Thread.current["key_#{object_id}"] stored in Main Thread
+└─ Background job runs in Main Thread (or reuses Thread.current)
+   → Data still in Thread.current → Works ✅ (misleading!)
+```
+
+**Acceptance/Production (eager_load: true) - FAILS:**
+```
+Main Thread (Rails boot)
+├─ Class definition (eager loaded during boot)
+├─ Tool registration → Thread.current["key_#{object_id}"] stored in Main Thread
+└─ Background job runs in WORKER THREAD (different thread)
+   → Thread.current is empty in worker thread → Data lost ❌
+   → Agent has 0 tools
+```
+
+**The fix works in ALL environments:**
+```ruby
+# ✅ WORKS EVERYWHERE
+def _tools_config
+  @_tools_config ||= []  # Shared class variable, not thread-local
+end
+```
+
+Class instance variables are **not bound to threads**, so they're accessible regardless of which thread accesses them.
+
+### Testing Across Thread Boundaries
+
+When testing agents that run in background jobs:
+
+```ruby
+# Test thread-safe configuration access
+it "has tools in background job thread" do
+  original_thread = Thread.current
+
+  agent_config = nil
+  job_thread = Thread.new do
+    # Different thread
+    assert_not_equal Thread.current, original_thread
+
+    # Configuration still accessible
+    agent_config = Ai::Agents::Prospect::Scoring._tools_config
+  end
+
+  job_thread.join
+
+  # Class-level config available in both threads
+  assert_equal agent_config.length, Ai::Agents::Prospect::Scoring._tools_config.length
+end
+```
+
+### Migration Checklist
+
+When refactoring to use class instance variables:
+
+- [ ] Replace `Thread.current["key_#{object_id}"]` with `@key ||= ...`
+- [ ] Replace setter with direct assignment `@key = value`
+- [ ] Verify configuration loads during class definition (eager loading)
+- [ ] Test in background job context (different thread)
+- [ ] Verify memory efficiency (shared class variables, not per-instance)
+- [ ] Update RAAF tests for thread safety
+
 ## Agent DSL
 
 ```ruby
