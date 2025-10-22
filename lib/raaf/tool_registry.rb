@@ -7,6 +7,13 @@ rescue LoadError
   # Allow standalone usage without full RAAF core
 end
 
+# Require DidYouMean if available (standard in Ruby 2.3+)
+begin
+  require "did_you_mean"
+rescue LoadError
+  # DidYouMean not available
+end
+
 module RAAF
   # Registry for tool discovery and management
   #
@@ -28,11 +35,11 @@ module RAAF
   #   # 3. RAAF::Tools::WebSearchTool
   #
   class ToolRegistry
-    extend RAAF::Logger
+    extend RAAF::Logger if defined?(RAAF::Logger)
 
     # Thread-safe registry storage
     @registry = Concurrent::Hash.new
-    @namespaces = ["Ai::Tools", "RAAF::Tools"]
+    @namespaces = ["Ai::Tools", "RAAF::Tools", "RAAF::Tools::Basic", "Ai::Tools::Basic"]
 
     class << self
       # Register a tool with a name
@@ -77,6 +84,97 @@ module RAAF
         lookup(identifier)
       end
 
+      # Resolve a tool with detailed error information
+      #
+      # @param identifier [Class, String, Symbol] Tool identifier
+      # @return [Hash] Resolution result with success status and details
+      #   - :success [Boolean] Whether the tool was resolved
+      #   - :tool_class [Class, nil] The resolved tool class (if successful)
+      #   - :identifier [Symbol, String, Class] The original identifier
+      #   - :searched_namespaces [Array<String>] Namespaces that were searched
+      #   - :suggestions [Array<String>] Helpful suggestions for resolution
+      def resolve_with_details(identifier)
+        # Track searched namespaces
+        searched_namespaces = []
+
+        # Direct class reference
+        if identifier.is_a?(Class)
+          return {
+            success: true,
+            tool_class: identifier,
+            identifier: identifier,
+            searched_namespaces: [],
+            suggestions: []
+          }
+        end
+
+        # Try registry first
+        registered = get(identifier)
+        if registered
+          return {
+            success: true,
+            tool_class: registered,
+            identifier: identifier,
+            searched_namespaces: [],
+            suggestions: []
+          }
+        end
+
+        # Auto-discovery in namespaces with tracking
+        tool_name = identifier.to_s
+        class_name = tool_name.split("_").map(&:capitalize).join
+        class_name += "Tool" unless class_name.end_with?("Tool")
+
+        # Search namespaces
+        @namespaces.each do |namespace|
+          searched_namespaces << namespace
+          full_class_name = "#{namespace}::#{class_name}"
+
+          begin
+            klass = Object.const_get(full_class_name)
+            if valid_tool_class?(klass)
+              return {
+                success: true,
+                tool_class: klass,
+                identifier: identifier,
+                searched_namespaces: searched_namespaces,
+                suggestions: []
+              }
+            end
+          rescue NameError
+            # Continue to next namespace
+          end
+        end
+
+        # Also try without namespace (global)
+        searched_namespaces << "Global"
+        begin
+          klass = Object.const_get(class_name)
+          if valid_tool_class?(klass)
+            return {
+              success: true,
+              tool_class: klass,
+              identifier: identifier,
+              searched_namespaces: searched_namespaces,
+              suggestions: []
+            }
+          end
+        rescue NameError
+          # Not found globally either
+        end
+
+        # Tool not found - generate helpful suggestions
+        suggestions = generate_suggestions(identifier, class_name)
+
+        {
+          success: false,
+          tool_class: nil,
+          identifier: identifier,
+          searched_namespaces: searched_namespaces,
+          suggestions: suggestions
+        }
+      end
+
       # List all registered tool names
       #
       # @return [Array<Symbol>] Registered tool names
@@ -114,23 +212,25 @@ module RAAF
       # Auto-discover tool in configured namespaces
       def auto_discover(identifier)
         tool_name = identifier.to_s
-        
+
         # Convert snake_case to CamelCase and add Tool suffix
         class_name = tool_name
-          .split("_")
-          .map(&:capitalize)
-          .join
+                     .split("_")
+                     .map(&:capitalize)
+                     .join
         class_name += "Tool" unless class_name.end_with?("Tool")
 
         # Search namespaces in order (user first, then RAAF)
         @namespaces.each do |namespace|
           full_class_name = "#{namespace}::#{class_name}"
-          
+
           begin
             # Try to constantize the class name
             klass = Object.const_get(full_class_name)
-            log_debug_tools("Auto-discovered tool", identifier: identifier, class: full_class_name) if respond_to?(:log_debug_tools)
-            return klass
+            if valid_tool_class?(klass)
+              log_debug_tools("Auto-discovered tool", identifier: identifier, class: full_class_name) if respond_to?(:log_debug_tools)
+              return klass
+            end
           rescue NameError
             # Continue to next namespace
             next
@@ -140,6 +240,41 @@ module RAAF
         # Not found in any namespace
         log_debug_tools("Tool not found", identifier: identifier) if respond_to?(:log_debug_tools)
         nil
+      end
+
+      # Check if a class is a valid tool class
+      # (Could add additional validation here if needed)
+      def valid_tool_class?(klass)
+        klass.is_a?(Class)
+      end
+
+      # Generate helpful suggestions for failed tool resolution
+      def generate_suggestions(identifier, class_name)
+        suggestions = []
+
+        # Use DidYouMean if available
+        if defined?(DidYouMean)
+          # Get registered tool names for similarity matching
+          registered_names = @registry.keys.map(&:to_s)
+
+          if registered_names.any?
+            spell_checker = DidYouMean::SpellChecker.new(dictionary: registered_names)
+            similar_names = spell_checker.correct(identifier.to_s)
+
+            # Add up to 3 similarity suggestions
+            similar_names.first(3).each do |name|
+              suggestions << "Did you mean: :#{name}?"
+            end
+          end
+        end
+
+        # Add registration suggestion
+        suggestions << "Register it: RAAF::ToolRegistry.register(:#{identifier}, #{class_name})"
+
+        # Add direct class reference suggestion
+        suggestions << "Use direct class: tool #{class_name}"
+
+        suggestions
       end
     end
   end
