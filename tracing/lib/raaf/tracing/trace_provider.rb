@@ -372,13 +372,16 @@ module RAAF
       # This method is called automatically during initialization and when
       # re-enabling tracing with no processors. It configures:
       #
-      # 1. OpenAI processor (if OPENAI_API_KEY is set) with batching
+      # 1. OpenAI processor (if OPENAI_API_KEY is set)
+      #    - Default: Immediate sends for real-time debugging visibility
+      #    - Optional: Enable batching with RAAF_TRACE_BATCHING=true
       # 2. Console processor (in development or if explicitly enabled)
       #
       # Environment variables:
       # - OPENAI_API_KEY: Enables OpenAI processor
-      # - RAAF_TRACE_BATCH_SIZE: Batch size (default: 50)
-      # - RAAF_TRACE_FLUSH_INTERVAL: Flush interval in seconds (default: 5)
+      # - RAAF_TRACE_BATCHING: Enable batching (default: "false" for immediate sends)
+      # - RAAF_TRACE_BATCH_SIZE: Batch size when batching enabled (default: 50)
+      # - RAAF_TRACE_FLUSH_INTERVAL: Flush interval in seconds when batching enabled (default: 5.0)
       # - RAAF_ENVIRONMENT: Set to "development" for console output
       # - RAAF_TRACE_CONSOLE: Set to "true" to force console output
       # - RAAF_DEBUG_CATEGORIES: Include "tracing" or "http" for debug logging
@@ -397,12 +400,21 @@ module RAAF
         # Add OpenAI processor if API key is available
         if ENV["OPENAI_API_KEY"]
           log_debug("Setting up OpenAI trace processor", provider: "TraceProvider")
-          batch_processor = BatchTraceProcessor.new(
-            OpenAIProcessor.new,
-            batch_size: ENV.fetch("RAAF_TRACE_BATCH_SIZE", 10).to_i,
-            flush_interval: ENV.fetch("RAAF_TRACE_FLUSH_INTERVAL", 2.0).to_f
-          )
-          add_processor(batch_processor)
+          processor = OpenAIProcessor.new
+
+          # Conditionally wrap with BatchTraceProcessor (opt-in for production)
+          if ENV.fetch("RAAF_TRACE_BATCHING", "false") == "true"
+            log_debug("Batching enabled - wrapping processor", provider: "TraceProvider")
+            processor = BatchTraceProcessor.new(
+              processor,
+              batch_size: ENV.fetch("RAAF_TRACE_BATCH_SIZE", 50).to_i,
+              flush_interval: ENV.fetch("RAAF_TRACE_FLUSH_INTERVAL", 5.0).to_f
+            )
+          else
+            log_debug("Batching disabled - using immediate sends", provider: "TraceProvider")
+          end
+
+          add_processor(processor)
           log_debug("OpenAI trace processor added", provider: "TraceProvider")
 
           # Register TracerProvider-level atexit handler (Python-style)
@@ -424,8 +436,13 @@ module RAAF
         @global_atexit_registered = true
 
         at_exit do
-          log_debug("Global atexit handler executing", provider: "TraceProvider")
+          log_debug("Global atexit handler executing - flushing all traces", provider: "TraceProvider")
           shutdown_all_processors
+
+          # Extended wait for error scenarios to ensure network requests complete
+          # This is critical when process is exiting due to an error
+          sleep(0.5)
+          log_debug("Global atexit handler complete", provider: "TraceProvider")
         end
       end
 

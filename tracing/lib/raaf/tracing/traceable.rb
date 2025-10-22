@@ -124,6 +124,10 @@ module RAAF
           # Mark span as failed and send to tracer
           fail_span(span_data, e)
           send_span(span_data)
+
+          # Force flush traces to ensure error span is sent immediately
+          force_flush_traces
+
           raise
         ensure
           # Clean up current span - remove from stack for this fiber/thread
@@ -688,6 +692,35 @@ module RAAF
         start_time = span_data[:start_time].is_a?(Time) ? span_data[:start_time] : Time.parse(span_data[:start_time])
         end_time = span_data[:end_time].is_a?(Time) ? span_data[:end_time] : Time.parse(span_data[:end_time])
         ((end_time - start_time) * 1000).round(2)
+      end
+
+      # Force flush all traces to backend immediately
+      #
+      # Call this before re-raising exceptions to ensure error spans are sent.
+      # This method ensures that error spans don't get lost due to buffering
+      # or process termination.
+      #
+      # @return [void]
+      #
+      # @example Usage in error handling
+      #   rescue StandardError => e
+      #     force_flush_traces  # Ensure error span is sent
+      #     raise
+      #   end
+      def force_flush_traces
+        begin
+          if defined?(RAAF::Tracing::TraceProvider)
+            RAAF::Tracing::TraceProvider.force_flush
+
+            # Give network time to complete (critical for error scenarios)
+            # This small sleep ensures HTTP requests complete before process exits
+            sleep(0.1)
+          end
+        rescue StandardError => e
+          # Don't let flushing errors hide the original error
+          # Use warn instead of raise to prevent masking the real exception
+          warn "[Traceable] Failed to flush traces: #{e.message}"
+        end
       end
     end
   end
