@@ -549,19 +549,47 @@ module RAAF
     # Configuration class
     class Configuration
 
-      attr_accessor :log_level, :log_format, :log_output, :log_file
-      attr_reader :debug_categories
+      attr_writer :log_level, :log_format, :log_output, :log_file
+      attr_writer :debug_categories
 
       def initialize
-        @log_level = ENV.fetch("RAAF_LOG_LEVEL", "info").to_sym
-        @log_format = ENV.fetch("RAAF_LOG_FORMAT", "text").to_sym
-        @log_output = ENV.fetch("RAAF_LOG_OUTPUT", "auto").to_sym
-        @log_file = ENV.fetch("RAAF_LOG_FILE", "log/raaf.log")
+        # Defer environment variable reading until values are accessed
+        # This ensures .env is loaded before ENV is read
+        @log_level = nil
+        @log_format = nil
+        @log_output = nil
+        @log_file = nil
+        @debug_categories = nil
+      end
 
-        # Debug categories - can be set via environment or configuration
-        # Examples: "tracing,api" or "all" or "none"
-        debug_env = ENV.fetch("RAAF_DEBUG_CATEGORIES", "all")
-        @debug_categories = parse_debug_categories(debug_env)
+      ##
+      # Lazy getter for log_level - reads from ENV on first access
+      def log_level
+        @log_level ||= ENV.fetch("RAAF_LOG_LEVEL", "info").to_sym
+      end
+
+      ##
+      # Lazy getter for log_format - reads from ENV on first access
+      def log_format
+        @log_format ||= ENV.fetch("RAAF_LOG_FORMAT", "text").to_sym
+      end
+
+      ##
+      # Lazy getter for log_output - reads from ENV on first access
+      def log_output
+        @log_output ||= ENV.fetch("RAAF_LOG_OUTPUT", "auto").to_sym
+      end
+
+      ##
+      # Lazy getter for log_file - reads from ENV on first access
+      def log_file
+        @log_file ||= ENV.fetch("RAAF_LOG_FILE", "log/raaf.log")
+      end
+
+      ##
+      # Lazy getter for debug_categories - reads from ENV on first access
+      def debug_categories
+        @debug_categories ||= parse_debug_categories(ENV.fetch("RAAF_DEBUG_CATEGORIES", "all"))
       end
 
       def debug_categories=(value)
@@ -576,10 +604,12 @@ module RAAF
       end
 
       def debug_enabled?(category)
-        return true if @debug_categories.include?(:all)
-        return false if @debug_categories.include?(:none)
+        # Use the getter method to ensure lazy loading from ENV
+        categories = debug_categories
+        return true if categories.include?(:all)
+        return false if categories.include?(:none)
 
-        @debug_categories.include?(category.to_sym)
+        categories.include?(category.to_sym)
       end
 
       private
