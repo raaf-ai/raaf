@@ -61,10 +61,6 @@ module RAAF
           end
         end
 
-        # Backward compatibility aliases
-        alias_method :uses_tool, :tool
-        alias_method :uses_tools, :tools
-        alias_method :uses_native_tool, :tool
       end
 
       # Instance methods for tool management
@@ -78,9 +74,10 @@ module RAAF
 
       # Create a tool instance from configuration
       def create_tool_instance_unified(config)
+        require 'byebug'; debugger  # AIDEV-DEBUG: Tool instantiation
         tool_class = config[:tool_class]
         options = config[:options] || {}
-        
+
         # Instantiate the tool with options
         tool_instance = tool_class.new(**options)
         

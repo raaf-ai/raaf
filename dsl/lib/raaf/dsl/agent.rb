@@ -19,7 +19,7 @@ require_relative "hooks/agent_hooks"
 require_relative "auto_merge"
 require_relative "incremental_processing"
 require_relative "incremental_processor"
-# Tool DSL infrastructure removed - tool execution is now handled by agents directly
+require_relative "agent_tool_integration"
 
 module RAAF
   module DSL
@@ -56,10 +56,7 @@ module RAAF
       include RAAF::DSL::Hooks::AgentHooks
       include RAAF::DSL::AutoMerge
       include RAAF::DSL::IncrementalProcessing
-      # Tool DSL modules removed - functionality moved directly into Agent class
-      # include RAAF::DSL::ToolValidation
-      # include RAAF::DSL::ToolLogging
-      # include RAAF::DSL::ToolMetadata
+      include RAAF::DSL::AgentToolIntegration
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
@@ -314,85 +311,6 @@ module RAAF
           auto_merge
         end
 
-        # Tool configuration DSL methods (consolidated from AgentDsl)
-        def uses_tool(tool_name, options = {})
-          _tools_config << { name: tool_name, options: options }
-        end
-
-        # Unified tool method that supports both external and native tools
-        # Automatically detects tool type and supports auto-discovery, inline config, and block config
-        #
-        # @param tool_name [Symbol, String, Class] Tool identifier or class
-        # @param options [Hash] Configuration options when using inline configuration
-        # @param block [Proc] Configuration block for complex setup
-        #
-        # @example Auto-discovery with inline configuration
-        #   tool :tavily_search, max_results: 20, search_depth: "advanced"
-        #
-        # @example Auto-discovery with block configuration
-        #   tool :web_search do
-        #     max_results 10
-        #     region "US"
-        #   end
-        #
-        # @example Direct class usage
-        #   tool WebSearchTool, user_location: "San Francisco, CA"
-        #
-        # @example Auto-discovery - finds RAAF::Tools::TavilySearch or Ai::Tools::TavilySearch
-        #   tool :tavily_search
-        #
-        def tool(tool_name, **options, &block)
-          # Handle block configuration
-          if block_given?
-            block_config = ToolConfigurationBuilder.new(&block).to_h
-            options = options.merge(block_config)
-          end
-
-          # Resolve the tool class
-          tool_class = resolve_tool_class_unified(tool_name)
-          
-          unless tool_class
-            raise ArgumentError, "Tool not found: #{tool_name}. " \
-                                "Tried auto-discovery patterns and direct lookup."
-          end
-
-          # Detect tool type and store appropriately
-          tool_type = detect_tool_type(tool_class)
-          
-          _tools_config << { 
-            name: tool_name, 
-            options: options, 
-            tool_class: tool_class,
-            tool_type: tool_type
-          }
-        end
-
-        # Backward compatibility: make uses_tool an alias for the new tool method
-        alias_method :uses_tool_legacy, :uses_tool
-        alias_method :uses_tool, :tool
-
-        def uses_tools(*tool_names)
-          tool_names.each { |name| tool(name) }
-        end
-
-        # Configure multiple tools with a hash of options
-        def configure_tools(tools_hash)
-          tools_hash.each do |tool_name, options|
-            tool(tool_name, **options)
-          end
-        end
-
-        # Add tools with conditional logic
-        def uses_tool_if(condition, tool_name, options = {})
-          tool(tool_name, **options) if condition
-        end
-
-        # Legacy support method for external tools specifically
-        def uses_native_tool(tool_name, options = {})
-          # This method is now unified with the tool method
-          # but we keep it for explicit native tool usage
-          tool(tool_name, **options)
-        end
 
         # Agent Hooks functionality (consolidated from AgentHooks)
         HOOK_TYPES = %i[
@@ -520,125 +438,6 @@ module RAAF
 
         private
 
-        # Unified tool class resolution with auto-discovery support
-        # Supports multiple discovery patterns and namespaces
-        #
-        # @param tool_identifier [Symbol, String, Class] Tool to resolve
-        # @return [Class, nil] Resolved tool class or nil if not found
-        def resolve_tool_class_unified(tool_identifier)
-          # If already a class, validate and return it
-          if tool_identifier.is_a?(Class)
-            return tool_identifier if valid_tool_class?(tool_identifier)
-            return nil
-          end
-
-          # Convert to standardized name for discovery
-          tool_name = tool_identifier.to_s
-
-          # Try direct constantize first (for explicit class names)
-          begin
-            return tool_name.constantize if valid_tool_class?(tool_name.constantize)
-          rescue NameError
-            # Continue with auto-discovery
-          end
-
-          # Auto-discovery patterns
-          discover_tool_class(tool_name)
-        end
-
-        # Auto-discovery engine for tool classes
-        # Tries multiple naming patterns and namespaces
-        #
-        # @param tool_name [String] Base tool name to discover
-        # @return [Class, nil] Discovered tool class or nil
-        def discover_tool_class(tool_name)
-          # Generate class name variants
-          class_name = tool_name.split('_').map(&:capitalize).join
-
-          # Discovery patterns in order of preference (simplified after DSL tool infrastructure removal)
-          discovery_patterns = [
-            # Standard: TavilySearchTool, PerplexityTool
-            "RAAF::Tools::#{class_name}Tool",
-            "RAAF::Tools::#{class_name}",
-
-            # Basic utilities
-            "RAAF::Tools::Basic::#{class_name}",
-
-            # App-specific tools
-            "Ai::Tools::#{class_name}Tool",
-            "Ai::Tools::#{class_name}",
-
-            # Global namespace fallbacks
-            "#{class_name}Tool",
-            "#{class_name}"
-          ]
-
-          # Try each pattern
-          discovery_patterns.each do |pattern|
-            begin
-              tool_class = pattern.constantize
-              return tool_class if valid_tool_class?(tool_class)
-            rescue NameError
-              # Continue to next pattern
-            end
-          end
-
-          nil
-        end
-
-        # Detect if a tool is external (DSL) or native (execution)
-        # External tools inherit from RAAF::DSL::Tools::Base
-        # Native tools inherit from RAAF::FunctionTool or similar
-        #
-        # @param tool_class [Class] Tool class to analyze
-        # @return [Symbol] :external or :native
-        def detect_tool_type(tool_class)
-          # Check for external tool (DSL configuration-only)
-          return :external if external_tool?(tool_class)
-          
-          # Check for native tool (has execution logic)
-          return :native if native_tool?(tool_class)
-
-          # Default to external for unknown types
-          :external
-        end
-
-        # Check if tool class is a valid external (DSL) tool
-        #
-        # @param tool_class [Class] Class to check
-        # @return [Boolean] true if it's an external tool
-        # Temporarily disabled - RAAF::DSL::Tools::Base removed
-        def external_tool?(tool_class)
-          false  # No DSL tools anymore
-          # return false unless tool_class.is_a?(Class)
-          #
-          # # Check if it inherits from the external tool base class
-          # defined?(RAAF::DSL::Tools::Base) &&
-          #   tool_class.ancestors.include?(RAAF::DSL::Tools::Base)
-        end
-
-        # Check if tool class is a valid native tool
-        #
-        # @param tool_class [Class] Class to check  
-        # @return [Boolean] true if it's a native tool
-        def native_tool?(tool_class)
-          return false unless tool_class.is_a?(Class)
-
-          # Check if it inherits from FunctionTool or has execution capabilities
-          (defined?(RAAF::FunctionTool) && tool_class.ancestors.include?(RAAF::FunctionTool)) ||
-            tool_class.method_defined?(:execute) ||
-            tool_class.method_defined?(:call)
-        end
-
-        # Validate that a class can be used as a tool
-        #
-        # @param tool_class [Class] Class to validate
-        # @return [Boolean] true if it's a valid tool class
-        def valid_tool_class?(tool_class)
-          return false unless tool_class.is_a?(Class)
-          
-          external_tool?(tool_class) || native_tool?(tool_class)
-        end
 
         def inferred_agent_name
           name.to_s
@@ -2347,9 +2146,13 @@ module RAAF
       def tools
         @tools ||= begin
           tool_list = build_tools_from_config
+
           # Convert DSL tools to FunctionTool instances for RAAF compatibility
-          tool_list.map { |tool| convert_to_function_tool(tool) }.compact
+          converted = tool_list.map { |tool| convert_to_function_tool(tool) }.compact
+          converted
         end
+
+        @tools
       end
 
       def tools?
@@ -2722,7 +2525,15 @@ module RAAF
       # Build tools from configuration
       def build_tools_from_config
         self.class._tools_config.map do |tool_config|
-          create_tool_instance(tool_config[:name], tool_config[:options])
+          # Use :identifier (new unified tool DSL) OR :name (legacy) - whichever exists
+          tool_name = tool_config[:identifier] || tool_config[:name]
+
+          # If tool_class is already resolved, use it directly
+          if tool_config[:tool_class]
+            create_tool_instance_from_class(tool_config[:tool_class], tool_name, tool_config[:options])
+          else
+            create_tool_instance(tool_name, tool_config[:options])
+          end
         end.compact
       end
 
@@ -2751,6 +2562,36 @@ module RAAF
         end
       rescue => e
         log_error("Failed to create tool instance for #{tool_name}: #{e.message}")
+        nil
+      end
+
+      # Create tool instance from already-resolved tool class (NEW)
+      # Used when tool_class is already resolved and passed in from tool_config
+      def create_tool_instance_from_class(tool_class, tool_name, options)
+        merged_options = options || {}
+
+        return nil unless tool_class
+
+        # Detect if this is a core tool (has #call method)
+        if tool_class.method_defined?(:call)
+          create_core_tool_wrapper(tool_class, tool_name, merged_options)
+        else
+          # Try instantiating with options as keyword arguments first
+          begin
+            tool_instance = tool_class.new(**merged_options)
+          rescue ArgumentError, TypeError => e
+            if e.message.include?("wrong number of arguments") || e.message.include?("unexpected keyword")
+              # Tool doesn't accept arguments, try without
+              tool_instance = tool_class.new
+            else
+              raise
+            end
+          end
+
+          tool_instance
+        end
+      rescue => e
+        log_error("Failed to create tool instance from class #{tool_class.name} for #{tool_name}: #{e.message}")
         nil
       end
 
@@ -3680,7 +3521,7 @@ module RAAF
 
         # Get schema configuration to determine JSON repair options
         schema_def = build_schema
-        validation_mode = schema_def && schema_def.is_a?(Hash) && schema_def[:config] ? 
+        validation_mode = schema_def && schema_def.is_a?(Hash) && schema_def[:config] ?
                          schema_def[:config][:mode] : :strict
 
         # Build base configuration
@@ -3702,8 +3543,10 @@ module RAAF
         end
 
         # Add tools if configured
-        if tools.any?
-          agent_config[:tools] = tools
+        current_tools = tools
+
+        if current_tools.any?
+          agent_config[:tools] = current_tools
         end
 
         # Add handoffs if configured
@@ -4016,85 +3859,6 @@ module RAAF
       # Custom error classes
       class CircuitBreakerOpenError < StandardError; end
 
-      # Tool configuration builder for block-based tool configuration
-      # Provides a clean DSL for configuring tools with method-based syntax
-      #
-      # @example
-      #   tool :web_search do
-      #     max_results 10
-      #     search_depth "advanced"
-      #     include_domains ["github.com", "stackoverflow.com"]
-      #   end
-      #
-      class ToolConfigurationBuilder
-        def initialize(&block)
-          @config = {}
-          instance_eval(&block) if block_given?
-        end
-
-        def to_h
-          @config
-        end
-
-        # Generic method_missing to handle any configuration option
-        # TODO: Add respond_to_missing? implementation for proper Ruby method resolution
-        def method_missing(method_name, *args, &block)
-          if args.length == 1
-            @config[method_name.to_sym] = args.first
-          elsif args.length > 1
-            @config[method_name.to_sym] = args
-          elsif block_given?
-            @config[method_name.to_sym] = block
-          else
-            super
-          end
-        end
-
-        def respond_to_missing?(method_name, include_private = false)
-          true
-        end
-
-        # Common tool configuration methods with validation
-        def max_results(value)
-          unless value.is_a?(Integer) && value > 0
-            raise ArgumentError, "max_results must be a positive integer"
-          end
-          @config[:max_results] = value
-        end
-
-        def timeout(value)
-          unless value.is_a?(Numeric) && value > 0
-            raise ArgumentError, "timeout must be a positive number"
-          end
-          @config[:timeout] = value
-        end
-
-        def search_depth(value)
-          valid_depths = %w[basic advanced quick comprehensive]
-          unless valid_depths.include?(value.to_s)
-            raise ArgumentError, "search_depth must be one of: #{valid_depths.join(', ')}"
-          end
-          @config[:search_depth] = value.to_s
-        end
-
-        def include_domains(domains)
-          domains = [domains] unless domains.is_a?(Array)
-          @config[:include_domains] = domains.map(&:to_s)
-        end
-
-        def exclude_domains(domains)
-          domains = [domains] unless domains.is_a?(Array)
-          @config[:exclude_domains] = domains.map(&:to_s)
-        end
-
-        def region(value)
-          @config[:region] = value.to_s
-        end
-
-        def user_location(value)
-          @config[:user_location] = value
-        end
-      end
 
 
       # Result transformation builder for defining field mappings and transformations
