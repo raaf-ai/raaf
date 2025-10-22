@@ -136,6 +136,70 @@ RSpec.describe RAAF::ToolRegistry do
     end
   end
 
+  describe ".safe_lookup" do
+    before do
+      stub_const("Ai::Tools::CustomSearchTool", Class.new)
+      stub_const("RAAF::Tools::WebSearchTool", Class.new)
+      stub_const("DirectReferenceTool", Class.new)
+    end
+
+    context "when ToolRegistry is fully loaded" do
+      it "resolves class references directly" do
+        expect(described_class.safe_lookup(DirectReferenceTool)).to eq(DirectReferenceTool)
+      end
+
+      it "resolves registered tools" do
+        described_class.register("test_tool", DirectReferenceTool)
+        expect(described_class.safe_lookup(:test_tool)).to eq(DirectReferenceTool)
+      end
+
+      it "resolves with auto-discovery" do
+        expect(described_class.safe_lookup(:custom_search)).to eq(Ai::Tools::CustomSearchTool)
+        expect(described_class.safe_lookup(:web_search)).to eq(RAAF::Tools::WebSearchTool)
+      end
+
+      it "returns nil for unregistered tools" do
+        expect(described_class.safe_lookup(:non_existent_tool)).to be_nil
+      end
+
+      it "behaves identically to lookup in normal conditions" do
+        expect(described_class.safe_lookup(:custom_search)).to eq(described_class.lookup(:custom_search))
+      end
+    end
+
+    context "when ToolRegistry is not fully loaded" do
+      it "returns nil on ToolRegistry NameError instead of raising" do
+        allow(described_class).to receive(:lookup).and_raise(
+          NameError.new("uninitialized constant RAAF::ToolRegistry")
+        )
+        expect(described_class.safe_lookup(:some_tool)).to be_nil
+      end
+
+      it "returns nil on NameError for uninitialized constant" do
+        allow(described_class).to receive(:lookup).and_raise(
+          NameError.new("uninitialized constant in tool resolution")
+        )
+        expect(described_class.safe_lookup(:some_tool)).to be_nil
+      end
+
+      it "re-raises NameErrors not related to ToolRegistry" do
+        allow(described_class).to receive(:lookup).and_raise(
+          NameError.new("undefined local variable foo")
+        )
+        expect { described_class.safe_lookup(:some_tool) }.to raise_error(
+          NameError, /undefined local variable/
+        )
+      end
+
+      it "re-raises other exceptions" do
+        allow(described_class).to receive(:lookup).and_raise(
+          StandardError.new("some other error")
+        )
+        expect { described_class.safe_lookup(:some_tool) }.to raise_error(StandardError)
+      end
+    end
+  end
+
   describe ".list" do
     before do
       described_class.register("tool_a", double("ToolA"))

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../lib/raaf/tool_registry"
+# ToolRegistry is now in raaf-core gem, loaded automatically by requiring raaf-core
 
 RSpec.describe "RAAF::ToolRegistry Integration" do
   before do

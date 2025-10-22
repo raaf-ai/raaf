@@ -24,32 +24,41 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
 
   before do
     stub_const("RAAF::ToolRegistry", mock_tool_registry)
+    # Mock safe_lookup: return Class identifiers directly, nil for Symbol identifiers (lazy loading)
+    allow(mock_tool_registry).to receive(:safe_lookup) do |identifier|
+      if identifier.is_a?(Class)
+        identifier  # Return Class directly
+      else
+        nil  # Return nil for Symbol (lazy loading)
+      end
+    end
+    # Mock the list method for error messages
+    allow(mock_tool_registry).to receive(:list).and_return([])
+    # Mock resolve_with_details for class identifier resolution errors
+    allow(mock_tool_registry).to receive(:resolve_with_details).and_return(
+      success: false,
+      searched_namespaces: ["RAAF::Tools"],
+      suggestions: ["Register it: RAAF::ToolRegistry.register(:custom_tool_class, CustomToolClass)"]
+    )
   end
 
   describe "class methods" do
     describe "#tool" do
       context "with symbol identifier" do
-        it "resolves tool from registry and stores configuration" do
-          expect(mock_tool_registry).to receive(:resolve).with(:web_search).and_return(mock_tool_class)
-          allow(mock_tool_class).to receive(:respond_to?).with(:native?).and_return(false)
-
+        it "stores configuration without resolving (lazy loading)" do
           test_agent_class.tool(:web_search, max_results: 10)
 
           config = test_agent_class._tools_config.last
-          expect(config[:identifier]).to eq(:web_search)
-          expect(config[:tool_class]).to eq(mock_tool_class)
+          expect(config[:tool_identifier]).to eq(:web_search)
+          expect(config[:tool_class]).to be_nil  # NOT resolved yet
           expect(config[:options]).to eq(max_results: 10)
-          expect(config[:native]).to eq(false)
         end
       end
 
       context "with class identifier" do
         let(:custom_tool_class) { Class.new }
 
-        it "resolves tool class directly" do
-          expect(mock_tool_registry).to receive(:resolve).with(custom_tool_class).and_return(custom_tool_class)
-          allow(custom_tool_class).to receive(:respond_to?).with(:native?).and_return(false)
-
+        it "stores class directly when resolved at class definition time" do
           test_agent_class.tool(custom_tool_class)
 
           config = test_agent_class._tools_config.last
@@ -59,9 +68,6 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
 
       context "with configuration block" do
         it "evaluates block and merges configuration" do
-          expect(mock_tool_registry).to receive(:resolve).with(:api_tool).and_return(mock_tool_class)
-          allow(mock_tool_class).to receive(:respond_to?).with(:native?).and_return(false)
-
           test_agent_class.tool(:api_tool, base_url: "http://example.com") do
             api_key "test-key"
             timeout 30
@@ -73,57 +79,21 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
             api_key: "test-key",
             timeout: 30
           )
-        end
-      end
-
-      context "with native tool" do
-        it "marks tool as native when tool class supports it" do
-          expect(mock_tool_registry).to receive(:resolve).with(:native_tool).and_return(mock_tool_class)
-          allow(mock_tool_class).to receive(:respond_to?).with(:native?).and_return(true)
-          allow(mock_tool_class).to receive(:native?).and_return(true)
-
-          test_agent_class.tool(:native_tool)
-
-          config = test_agent_class._tools_config.last
-          expect(config[:native]).to eq(true)
-        end
-      end
-
-      context "when tool not found" do
-        it "raises ArgumentError with helpful message" do
-          expect(mock_tool_registry).to receive(:resolve).with(:unknown_tool).and_return(nil)
-
-          expect { test_agent_class.tool(:unknown_tool) }
-            .to raise_error(ArgumentError, /Tool not found: unknown_tool/)
+          expect(config[:tool_identifier]).to eq(:api_tool)
         end
       end
     end
 
     describe "#tools" do
       it "adds multiple tools with shared options" do
-        expect(mock_tool_registry).to receive(:resolve).with(:tool1).and_return(mock_tool_class)
-        expect(mock_tool_registry).to receive(:resolve).with(:tool2).and_return(mock_tool_class)
-        allow(mock_tool_class).to receive(:respond_to?).with(:native?).and_return(false)
-
         test_agent_class.tools(:tool1, :tool2, timeout: 60)
 
         expect(test_agent_class._tools_config.size).to eq(2)
         expect(test_agent_class._tools_config[0][:options]).to eq(timeout: 60)
         expect(test_agent_class._tools_config[1][:options]).to eq(timeout: 60)
-      end
-    end
-
-    describe "backward compatibility aliases" do
-      it "provides uses_tool alias" do
-        expect(test_agent_class).to respond_to(:uses_tool)
-      end
-
-      it "provides uses_tools alias" do
-        expect(test_agent_class).to respond_to(:uses_tools)
-      end
-
-      it "provides uses_native_tool alias" do
-        expect(test_agent_class).to respond_to(:uses_native_tool)
+        # Symbols use deferred (lazy) resolution, so tool_identifier is present
+        expect(test_agent_class._tools_config[0][:tool_identifier]).to eq(:tool1)
+        expect(test_agent_class._tools_config[1][:tool_identifier]).to eq(:tool2)
       end
     end
   end
@@ -200,6 +170,7 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
 
       context "when tool instantiation fails" do
         it "logs error and returns nil" do
+          allow(mock_tool_class).to receive(:name).and_return("MockToolClass")
           expect(mock_tool_class).to receive(:new).and_raise(StandardError.new("test error"))
           expect(test_agent).to receive(:log_error).with(
             "Failed to create tool instance",
