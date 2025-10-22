@@ -10,7 +10,7 @@ class WebSearchAgent < RAAF::DSL::Agent
   agent_name "web_search_agent"
 
   # Basic web search with default settings
-  uses_tool :web_search
+  tool :web_search
 
   # Configure the prompt class (REQUIRED)
   prompt_class WebSearchPrompt
@@ -41,9 +41,9 @@ class NewsAgent < RAAF::DSL::Agent
   agent_name "news_agent"
 
   # Use detailed search for comprehensive news analysis
-  uses_tool :web_search,
-            user_location: "San Francisco, CA",
-            search_context_size: "high"
+  tool :web_search,
+       user_location: "San Francisco, CA",
+       search_context_size: "high"
 
   def agent_name
     "News Research Assistant"
@@ -70,7 +70,7 @@ class TechAgent < RAAF::DSL::Agent
   agent_name "tech_agent"
 
   # Use detailed search preset configuration for tech research
-  uses_tool :web_search, RAAF::DSL::Tools::WebSearchPresets.detailed_search
+  tool :web_search, RAAF::DSL::Tools::WebSearchPresets.detailed_search
 
   def agent_name
     "Technology Research Assistant"

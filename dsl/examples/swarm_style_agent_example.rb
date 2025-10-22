@@ -170,8 +170,8 @@ class TriageAgent < RAAF::DSL::Agent
   model "gpt-4o-mini" # Use cheaper model for triage
   max_turns 3
 
-  uses_tool :analyze_request
-  uses_tool :route_to_specialist
+  tool :analyze_request
+  tool :route_to_specialist
 
   def build_instructions
     <<~INSTRUCTIONS
