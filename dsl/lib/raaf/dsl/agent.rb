@@ -1090,6 +1090,10 @@ module RAAF
         # Setup provider instance if configured
         @provider = setup_provider
 
+        # LAZY LOADING: Resolve tools during initialization
+        @resolved_tools = {}
+        resolve_all_tools!
+
         validate_context!
         # setup_context_configuration  # REMOVED: Empty method causing method_missing conflicts
         # setup_logging_and_metrics    # REMOVED: Empty method causing method_missing conflicts
@@ -1424,6 +1428,60 @@ module RAAF
       end
 
       private
+
+      # Resolve all tools with deferred resolution
+      #
+      # This method is called during agent initialization to resolve tool identifiers
+      # that were stored at class definition time. This implements lazy loading to
+      # avoid Rails eager loading issues.
+      #
+      # @return [void]
+      def resolve_all_tools!
+        return unless self.class.respond_to?(:_tools_config)
+
+        self.class._tools_config.each do |tool_config|
+          # Skip if already resolved or not deferred
+          next unless tool_config[:resolution_deferred]
+          next if tool_config[:tool_class]
+
+          identifier = tool_config[:identifier]
+
+          begin
+            # Resolve using ToolRegistry
+            tool_class = RAAF::ToolRegistry.resolve(identifier)
+
+            unless tool_class
+              # Enhanced error with DidYouMean suggestions
+              result = RAAF::ToolRegistry.resolve_with_details(identifier)
+
+              error_message = "Failed to resolve tool '#{identifier}' for agent '#{self.class.name}'\n"
+              error_message += "Searched namespaces: #{result[:searched_namespaces].join(', ')}\n"
+
+              if result[:suggestions].any?
+                error_message += "Did you mean? #{result[:suggestions].join(', ')}"
+              end
+
+              raise ArgumentError, error_message
+            end
+
+            # Store resolved class and cache in instance
+            tool_config[:tool_class] = tool_class
+            @resolved_tools[identifier] = tool_class
+
+            # Log successful resolution in debug mode
+            if @debug_enabled
+              log_debug("Tool resolved",
+                       identifier: identifier,
+                       tool_class: tool_class.name,
+                       category: :tools)
+            end
+
+          rescue StandardError => e
+            RAAF.logger.error "❌ [Agent] Failed to resolve tool '#{identifier}': #{e.message}"
+            raise
+          end
+        end
+      end
 
       # Fire a DSL-level hook with error handling
       #

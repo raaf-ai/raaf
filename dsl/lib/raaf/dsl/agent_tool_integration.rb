@@ -44,20 +44,13 @@ module RAAF
             options = options.merge(block_config)
           end
 
-          # Resolve the tool class using the registry
-          tool_class = RAAF::ToolRegistry.resolve(tool_identifier)
-          
-          unless tool_class
-            raise ArgumentError, "Tool not found: #{tool_identifier}. " \
-                                "Searched in registry and namespaces."
-          end
-
-          # Store tool configuration
+          # LAZY LOADING: Store identifier without resolving
+          # Resolution will happen during agent initialization
           _tools_config << {
             identifier: tool_identifier,
-            tool_class: tool_class,
+            tool_class: nil,  # Not resolved yet
             options: options,
-            native: tool_class.respond_to?(:native?) && tool_class.native?
+            resolution_deferred: true  # Flag for lazy loading
           }
         end
 
