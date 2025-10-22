@@ -38,6 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "timecop", "~> 0.9"
   spec.add_dependency "vcr", "~> 6.0"
   spec.add_dependency "webmock", "~> 3.0"
+  spec.add_dependency "zeitwerk", "~> 2.6"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"

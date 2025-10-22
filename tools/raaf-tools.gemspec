@@ -36,6 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "faraday", "~> 2.0"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "nokogiri", "~> 1.13"
+  spec.add_dependency "zeitwerk", "~> 2.6"
   
   # Basic tools dependencies
   spec.add_dependency "base64", "~> 0.1"

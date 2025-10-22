@@ -1,16 +1,18 @@
 # frozen_string_literal: true
 
+require "zeitwerk"
+
+# Load version before Zeitwerk setup
 require_relative "raaf/tracing/version"
-require_relative "raaf/tracing"
-require_relative "raaf/tracing/datadog_processor"
-require_relative "raaf/tracing/opentelemetry_integration"
-require_relative "raaf/tracing/visualization"
-require_relative "raaf/tracing/span_collectors"
 
-# Load ActiveRecord models for lazy loading
-require_relative "raaf/tracing/models"
+# Set up Zeitwerk loader for RAAF tracing
+loader = Zeitwerk::Loader.for_gem
+loader.tag = "raaf-tracing"
 
-# Load ActiveJob integration
+# Setup the loader
+loader.setup
+
+# Load ActiveJob integration after setup
 require_relative "raaf/tracing/traced_job" if defined?(ActiveJob)
 
 module RAAF
@@ -33,12 +35,12 @@ module RAAF
   # @example Basic tracing setup
   #   tracer = RAAF::Tracing::SpanTracer.new
   #   tracer.add_processor(RAAF::Tracing::OpenAIProcessor.new)
-  #   
+  #
   #   agent = RAAF::Agent.new(
   #     name: "Assistant",
   #     instructions: "You are helpful"
   #   )
-  #   
+  #
   #   runner = RAAF::Runner.new(agent: agent, tracer: tracer)
   #   result = runner.run("Hello")
   #
@@ -51,7 +53,7 @@ module RAAF
   # @example OpenTelemetry integration
   #   otel_tracer = RAAF::Tracing::OpenTelemetryIntegration.new
   #   otel_tracer.setup_instrumentation
-  #   
+  #
   #   # Traces will be sent to configured OpenTelemetry exporters
   #   agent = RAAF::Agent.new(name: "Assistant")
   #   runner = RAAF::Runner.new(agent: agent, tracer: otel_tracer)
@@ -112,3 +114,6 @@ module RAAF
     end
   end
 end
+
+# Eager load if requested
+loader.eager_load if ENV['RAAF_EAGER_LOAD'] == 'true'

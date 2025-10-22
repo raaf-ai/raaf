@@ -32,6 +32,7 @@ Gem::Specification.new do |spec|
 
   # Dependencies
   spec.add_dependency "raaf-core", "0.1.0"
+  spec.add_dependency "zeitwerk", "~> 2.6"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"

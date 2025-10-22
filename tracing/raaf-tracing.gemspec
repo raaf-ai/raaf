@@ -37,6 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "opentelemetry-instrumentation-net_http", "~> 0.20"
   spec.add_dependency "opentelemetry-sdk", "~> 1.0"
   spec.add_dependency "raaf-core", "0.1.0"
+  spec.add_dependency "zeitwerk", "~> 2.6"
   
   # Template processing for visualization
   spec.add_dependency "erb", "~> 4.0"

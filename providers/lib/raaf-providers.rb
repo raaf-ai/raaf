@@ -1,13 +1,19 @@
 # frozen_string_literal: true
 
+require "zeitwerk"
 require "raaf-core"
-require_relative "raaf/anthropic_provider"
-require_relative "raaf/cohere_provider"
-require_relative "raaf/groq_provider"
-require_relative "raaf/perplexity_provider"
-require_relative "raaf/together_provider"
-require_relative "raaf/multi_provider"
-require_relative "raaf/litellm_provider"
+
+# Set up Zeitwerk loader for RAAF providers
+loader = Zeitwerk::Loader.for_gem
+loader.tag = "raaf-providers"
+
+# Configure inflections
+loader.inflector.inflect(
+  "litellm_provider" => "LiteLLMProvider"
+)
+
+# Setup the loader
+loader.setup
 
 ##
 # RAAF Providers - Additional LLM provider integrations
@@ -75,3 +81,6 @@ module RAAF
     # Load version from separate file to avoid duplication
   end
 end
+
+# Eager load if requested
+loader.eager_load if ENV['RAAF_EAGER_LOAD'] == 'true'

@@ -37,6 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "raaf-core", "0.1.0"
   spec.add_dependency "ruby-openai", "~> 7.0"
   spec.add_dependency "unicode-display_width", "~> 2.0"
+  spec.add_dependency "zeitwerk", "~> 2.6"
 
   # Optional dependencies for specific providers
   spec.add_development_dependency "aws-sdk-comprehend", "~> 1.0"

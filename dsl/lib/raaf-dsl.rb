@@ -1,10 +1,27 @@
 # frozen_string_literal: true
 
+require "zeitwerk"
 require "raaf-core"
-require_relative "raaf/dsl/core/version"
 require "active_support/all"
 
-# Load tracing functionality
+# Set up Zeitwerk loader for RAAF DSL
+loader = Zeitwerk::Loader.for_gem
+loader.tag = "raaf-dsl"
+
+# Configure inflections for acronyms and special cases
+loader.inflector.inflect(
+  "dsl" => "DSL",
+  "llm_interceptor" => "LLMInterceptor",
+  "pii" => "PII"
+)
+
+# Load version before setup
+require_relative "raaf/dsl/core/version"
+
+# Setup the loader
+loader.setup
+
+# Load tracing functionality after setup
 begin
   require "raaf/tracing/traceable"
 rescue LoadError
@@ -78,199 +95,6 @@ module RAAF
     #
     class Error < StandardError; end
 
-    # Load error classes first since they're used by other components
-    require_relative "raaf/dsl/errors"
-    
-    # Auto-require core components
-    autoload :AgentBuilder, "raaf/dsl/builders/agent_builder"
-    autoload :AgentToolIntegration, "raaf/dsl/agent_tool_integration"
-    autoload :AutoMerge, "raaf/dsl/auto_merge"
-    autoload :Config, "raaf/dsl/config/config"
-    autoload :ConfigurationBuilder, "raaf/dsl/builders/configuration_builder"
-    autoload :ContextVariables, "raaf/dsl/core/context_variables"
-    autoload :EdgeCases, "raaf/dsl/edge_cases"
-    autoload :MergeStrategy, "raaf/dsl/merge_strategy"
-    autoload :Prompt, "raaf/dsl/prompts"
-    autoload :PromptConfiguration, "raaf/dsl/config/prompt_configuration"
-    autoload :PromptResolver, "raaf/dsl/prompts/prompt_resolver"
-    autoload :PromptResolverRegistry, "raaf/dsl/prompts/prompt_resolver"
-    autoload :Railtie, "raaf/dsl/railtie"
-    autoload :Result, "raaf/dsl/result"
-    autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
-    autoload :ToolBuilder, "raaf/dsl/builders/tool_builder"
-    autoload :ToolDsl, "raaf/dsl/tool_dsl"
-    autoload :ToolExecutionConfig, "raaf/dsl/tool_execution_config"
-    autoload :ToolMetadata, "raaf/dsl/tool_metadata"
-    autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"  # Use comprehensive registry
-    autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
-    
-    # Builder classes
-    module Builders
-      autoload :ResultBuilder, "raaf/dsl/builders/result_builder"
-    end
-
-    # AI Agent classes and base functionality
-    #
-    # This module contains all agent-related classes including the base agent
-    # class and any specialized agent types. Agents are the core execution
-    # units that orchestrate AI interactions, tool usage, and workflow management.
-    #
-    # @example Creating a custom agent
-    #   class MyAgent < RAAF::DSL::Agent
-    #     agent_name "my_agent"
-    #   end
-    #
-    module Agents
-      # AgentDsl functionality has been consolidated into the unified Agent class
-      autoload :ContextValidation, "raaf/dsl/agents/context_validation"
-    end
-
-    # Main Agent class - the unified agent with all features
-    autoload :Agent, "raaf/dsl/agent"
-    
-    # Service base class for non-LLM operations
-    autoload :Service, "raaf/dsl/service"
-    
-    # Pipeline DSL for elegant agent chaining
-    autoload :Pipeline, "raaf/dsl/pipeline_dsl/pipeline"
-    require_relative "raaf/dsl/pipeline_dsl"
-
-    # Schema generation and caching system
-    autoload :Types, "raaf/dsl/types"
-    autoload :SchemaBuilder, "raaf/dsl/schema_builder"
-    autoload :SchemaGenerator, "raaf/dsl/schema_generator"
-    autoload :SchemaCache, "raaf/dsl/schema_cache"
-
-    module Schema
-      autoload :SchemaGenerator, "raaf/dsl/schema/schema_generator"
-      autoload :SchemaCache, "raaf/dsl/schema/schema_cache"
-    end
-
-    # Prompt building and template system
-    #
-    # This module contains the prompt system classes that handle the generation
-    # of system and user prompts with variable contracts, context mapping, and
-    # validation. Prompts are Phlex-inspired templates that provide type-safe
-    # prompt construction with clear variable requirements.
-    #
-    # @example Creating a custom prompt
-    #   class MyPrompt < RAAF::DSL::Prompts::Base
-    #     requires :company_name
-    #     def system
-    #       "You are analyzing #{company_name}"
-    #     end
-    #   end
-    #
-    module Prompts
-      autoload :Base, "raaf/dsl/prompts/base"
-    end
-
-    # Prompt resolvers for different formats
-    #
-    # This module contains resolvers that handle different prompt formats
-    # including Phlex-style classes, Markdown files, and ERB templates.
-    #
-    # @example Using prompt resolution
-    #   prompt = RAAF::DSL::Prompt.resolve("customer_service.md")
-    #   prompt = RAAF::DSL::Prompt.resolve(MyPromptClass)
-    #   prompt = RAAF::DSL::Prompt.resolve("template.md.erb", name: "John")
-    #
-    module PromptResolvers
-      autoload :ClassResolver, "raaf/dsl/prompts/class_resolver"
-      autoload :FileResolver, "raaf/dsl/prompts/file_resolver"
-    end
-
-    # Tool integration and execution framework
-    #
-    # This module contains all tool-related classes including the base tool
-    # class and specific tool implementations. Tools provide external functionality
-    # to agents such as web search, API calls, data processing, and other
-    # computational tasks with parameter validation and error handling.
-    #
-    # @example Using tools in agents
-    #   class MyAgent < RAAF::DSL::Agent
-    #     uses_tool :web_search
-    #   end
-    #
-    module Tools
-      autoload :Base, "raaf/dsl/tools/base"
-      autoload :ConventionOverConfiguration, "raaf/dsl/tools/convention_over_configuration"
-      autoload :PerformanceOptimizer, "raaf/dsl/tools/performance_optimizer"
-      autoload :Tool, "raaf/dsl/tools/tool"
-      autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"
-      autoload :WebSearch, "raaf/dsl/tools/web_search"
-      autoload :WebSearchPresets, "raaf/dsl/tools/web_search_presets"
-      # TavilySearch and PerplexitySearch wrappers removed - use core tools with interceptor
-    end
-
-    # Resilience patterns for error handling and retries
-    #
-    # This module contains resilience patterns and utilities for handling
-    # failures, implementing retries with backoff, circuit breakers, and
-    # other error handling strategies.
-    #
-    module Resilience
-      autoload :SmartRetry, "raaf/dsl/resilience/smart_retry"
-    end
-
-    # Debugging and inspection capabilities
-    #
-    # This module contains debugging tools for AI agent development including
-    # LLM request/response interception, prompt inspection, and context debugging.
-    # These tools provide comprehensive visibility into agent execution for
-    # troubleshooting and optimization.
-    #
-    # @example Using debugging tools
-    #   interceptor = RAAF::DSL::Debugging::LLMInterceptor.new
-    #   interceptor.intercept_openai_calls do
-    #     agent.run
-    #   end
-    #
-    module Debugging
-      autoload :LLMInterceptor, "raaf/dsl/debugging/llm_interceptor"
-      autoload :PromptInspector, "raaf/dsl/debugging/prompt_inspector"
-      autoload :ContextInspector, "raaf/dsl/debugging/context_inspector"
-    end
-
-    # Callback system for agent lifecycle events
-    #
-    # This module provides both global and agent-specific callback systems
-    # for handling events during agent execution. It supports multiple handlers
-    # per event type, executed in registration order.
-    #
-    # @example Global callbacks
-    #   RAAF::DSL::Hooks::RunHooks.on_agent_start do |agent|
-    #     puts "Agent #{agent.name} is starting"
-    #   end
-    #
-    # @example Agent-specific callbacks
-    #   class MyAgent < RAAF::DSL::Agent
-    #     on_start :log_start
-    #     on_end { |agent, result| handle_completion(result) }
-    #   end
-    #
-    module Hooks
-      autoload :RunHooks, "raaf/dsl/hooks/run_hooks"
-      autoload :AgentHooks, "raaf/dsl/hooks/agent_hooks"
-    end
-
-    # Rails generators for scaffolding AI agents and configuration
-    #
-    # This module contains Rails generators that help developers quickly create
-    # agent classes, prompt classes, and configuration files following framework
-    # conventions. The generators provide templates and ensure proper file
-    # structure and naming conventions.
-    #
-    # @example Generating an agent
-    #   rails generate ai_agent_dsl:agent MyAgent
-    #   rails generate ai_agent_dsl:config
-    #
-    module Generators
-      autoload :AgentGenerator, "raaf/dsl/generators/agent_generator"
-      autoload :ConfigGenerator, "raaf/dsl/generators/config_generator"
-    end
-
-
     # Configure the gem with a block
     #
     # @example
@@ -332,14 +156,14 @@ module RAAF
     def self.ensure_prompt_resolvers_initialized!
       # Force initialization by calling the getter
       prompt_resolvers
-      
+
       # Verify resolvers are properly registered
       if @prompt_resolvers.nil? || @prompt_resolvers.resolvers.empty?
         # Fallback initialization if something went wrong
         @prompt_resolvers = PromptResolverRegistry.new
         initialize_default_resolvers(@prompt_resolvers)
       end
-      
+
       @prompt_resolvers
     end
 
@@ -348,17 +172,13 @@ module RAAF
     # @param registry [PromptResolverRegistry] The registry to populate with default resolvers
     # @private
     def self.initialize_default_resolvers(registry)
-      # Load resolver classes
-      require_relative "raaf/dsl/prompts/class_resolver"
-      require_relative "raaf/dsl/prompts/file_resolver"
-      
-      # Create and register default resolvers
+      # Zeitwerk will have already loaded these classes
       class_resolver = PromptResolvers::ClassResolver.new(priority: 100)
       file_resolver = PromptResolvers::FileResolver.new(
-        priority: 50, 
+        priority: 50,
         paths: ["app/ai/prompts", "prompts"]
       )
-      
+
       registry.register(class_resolver)
       registry.register(file_resolver)
     end
@@ -372,22 +192,7 @@ module RAAF
     #
     # @return [void]
     def self.eager_load!
-      # Load all autoloaded constants in RAAF::DSL
-      constants.each do |const_name|
-        next if const_name == :Pipeline # Skip problematic constants
-        
-        begin
-          const = const_get(const_name)
-          # Recursively eager load nested modules that also support eager loading
-          if const.is_a?(Module) && const.respond_to?(:eager_load!)
-            const.eager_load!
-          end
-        rescue NameError, LoadError => e
-          # Log any errors but don't fail the entire eager loading process
-          # Use basic warn instead of Rails.logger since logger may not be available during initialization
-          warn "RAAF::DSL eager loading warning for #{const_name}: #{e.message}"
-        end
-      end
+      loader.eager_load
     end
 
     # Configuration object for the gem
@@ -414,3 +219,6 @@ end
 
 # Rails integration
 require "raaf/dsl/railtie" if defined?(Rails)
+
+# Eager load if requested
+loader.eager_load if ENV['RAAF_EAGER_LOAD'] == 'true'

@@ -41,6 +41,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "parser", "~> 3.2"
   spec.add_dependency "raaf-core", "~> 0.1"
   spec.add_dependency "yaml", "~> 0.2"
+  spec.add_dependency "zeitwerk", "~> 2.6"
 
   # Development dependencies
   spec.add_development_dependency "bundler"

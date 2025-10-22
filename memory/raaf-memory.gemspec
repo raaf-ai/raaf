@@ -35,6 +35,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "matrix", "~> 0.4"
   spec.add_dependency "raaf-core", "0.1.0"
+  spec.add_dependency "zeitwerk", "~> 2.6"
 
   # Optional dependencies for specific adapters
   spec.add_development_dependency "pg", "~> 1.0"

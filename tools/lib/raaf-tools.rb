@@ -1,24 +1,24 @@
 # frozen_string_literal: true
 
+require "zeitwerk"
 require "raaf-core"
 require "raaf-dsl"
+
+# Load version before Zeitwerk setup
 require_relative "raaf/tools/version"
 
-# Core tools (alphabetically organized)
-require_relative "raaf/tools/code_interpreter_tool"
-require_relative "raaf/tools/computer_tool"
-require_relative "raaf/tools/confluence_tool"
-require_relative "raaf/tools/document_tool"
-require_relative "raaf/tools/file_search_tool"
-require_relative "raaf/tools/local_shell_tool"
-require_relative "raaf/tools/perplexity_tool"
-require_relative "raaf/tools/tavily_search_tool"
-require_relative "raaf/tools/vector_search_tool"
-require_relative "raaf/tools/web_search_tool"
+# Set up Zeitwerk loader for RAAF tools
+loader = Zeitwerk::Loader.for_gem
+loader.tag = "raaf-tools"
 
-# Basic tools
-require_relative "raaf/tools/basic/math_tools"
-require_relative "raaf/tools/basic/text_tools"
+# Configure inflections for acronyms and special cases
+loader.inflector.inflect(
+  "mcp_tool" => "MCPTool",
+  "pii" => "PII"
+)
+
+# Setup the loader
+loader.setup
 
 ##
 # RAAF Tools - Simplified tool integration framework
@@ -67,3 +67,6 @@ module RAAF
     # Version is defined in raaf/tools/version.rb
   end
 end
+
+# Eager load if requested
+loader.eager_load if ENV['RAAF_EAGER_LOAD'] == 'true'

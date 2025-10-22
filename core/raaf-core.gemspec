@@ -42,6 +42,9 @@ Gem::Specification.new do |spec|
   # ActiveSupport for HashWithIndifferentAccess
   spec.add_dependency "activesupport", "~> 8.0"
 
+  # Zeitwerk for code autoloading
+  spec.add_dependency "zeitwerk", "~> 2.6"
+
   # base64 was moved to a bundled gem in Ruby 3.4+
   spec.add_dependency "base64", "~> 0.1"
 
