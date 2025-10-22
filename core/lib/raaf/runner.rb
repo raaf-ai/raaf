@@ -261,6 +261,10 @@ module RAAF
       # Update session with result if session was provided
       update_session_with_result(session, result) if session
 
+      # Flush any remaining spans in the tracer to ensure they're sent to OpenAI
+      # This is critical for runs with fewer spans than the batch size
+      @tracer&.force_flush
+
       result
     end
 

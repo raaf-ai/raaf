@@ -135,6 +135,10 @@ module RAAF
         rescue StandardError => e
           handle_tool_error(conversation, context_wrapper, function_name, tool_call_id,
                             "Tool execution failed: #{e.message}", e)
+        ensure
+          # Flush any tool-related spans immediately after tool execution completes
+          # This ensures tool spans don't get stuck in the buffer waiting for batch flush
+          @runner.tracer&.force_flush
         end
       end
 
