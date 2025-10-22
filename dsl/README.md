@@ -99,8 +99,8 @@ class DocumentAnalyzer < RAAF::DSL::Agent
   model "gpt-4o"
   max_turns 5
   
-  uses_tool :text_extraction, max_pages: 50
-  uses_tool :database_query, timeout: 30
+  tool :text_extraction, max_pages: 50
+  tool :database_query, timeout: 30
   
   schema do
     field :insights, type: :array, required: true
@@ -187,9 +187,9 @@ Easy integration of external tools with automatic parameter validation and error
 
 ```ruby
 class ContentAgent < RAAF::DSL::Agent
-  uses_tool :document_parser, max_size: '10MB', timeout: 30
-  uses_tool :database_query, connection: :primary
-  uses_tool :api_client, base_url: ENV['API_BASE_URL']
+  tool :document_parser, max_size: '10MB', timeout: 30
+  tool :database_query, connection: :primary
+  tool :api_client, base_url: ENV['API_BASE_URL']
 end
 ```
 
@@ -321,8 +321,8 @@ class DocumentAnalyzer < RAAF::DSL::Agent
   description "Performs comprehensive document analysis and content extraction"
   
   # Tool integrations
-  uses_tool :text_extraction, max_pages: 50
-  uses_tool :database_query, timeout: 30
+  tool :text_extraction, max_pages: 50
+  tool :database_query, timeout: 30
   
   # Response schema with validation
   schema do
@@ -719,19 +719,19 @@ Create sophisticated tool integrations with validation and error handling:
 class AdvancedContentAgent < RAAF::DSL::Agent
 
   # Multiple tools with specific configurations
-  uses_tool :document_parser, max_pages: 100, timeout: 45
-  uses_tool :database_query, connection: :content, timeout: 30
-  uses_tool :api_client, 
+  tool :document_parser, max_pages: 100, timeout: 45
+  tool :database_query, connection: :content, timeout: 30
+  tool :api_client,
     base_url: ENV['CONTENT_API_URL'],
     auth_token: ENV['API_TOKEN'],
     retry_count: 3
-  uses_tool :file_processor, 
+  tool :file_processor,
     allowed_formats: ['pdf', 'docx', 'xlsx', 'txt'],
     max_file_size: '50MB'
   
   # Conditional tool usage
-  uses_tool_if Rails.env.production?, :premium_nlp_service
-  uses_tool_if lambda { |agent| agent.context[:enable_ocr] }, :ocr_processor
+  tool :premium_nlp_service if Rails.env.production?
+  tool :ocr_processor if respond_to?(:enable_ocr?) && enable_ocr?
   
   # Tool configuration with lambda options
   configure_tools(

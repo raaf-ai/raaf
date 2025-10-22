@@ -562,6 +562,126 @@ end
 See the comprehensive migration guide for step-by-step instructions:
 `.agent-os/specs/2025-10-10-agent-level-tool-execution-conveniences/DSL_WRAPPER_MIGRATION_GUIDE.md`
 
+## Tool Registration (v2.0.0+)
+
+### Unified Tool API
+
+RAAF DSL 2.0.0 introduces a unified tool registration API with lazy loading, providing **6.25x faster initialization** while simplifying the developer experience:
+
+```ruby
+class MyAgent < RAAF::DSL::Agent
+  agent_name "ToolDemoAgent"
+  model "gpt-4o"
+
+  # All tool registration now uses 'tool' or 'tools'
+  tool :web_search                          # Symbol identifier
+  tool RAAF::Tools::PerplexityTool         # Class reference
+  tool :calculator, precision: :high        # With options
+  tool :search, as: :internet_search       # With alias
+  tools :file_search, :database_query      # Multiple at once
+end
+```
+
+### All 7 Registration Patterns
+
+#### 1. Symbol Identifier (Most Common)
+```ruby
+tool :web_search
+tool :calculator
+```
+
+#### 2. Multiple Tools
+```ruby
+tools :web_search, :file_search, :calculator
+```
+
+#### 3. Native Tool Class
+```ruby
+tool RAAF::Tools::PerplexityTool
+tool MyCustomToolClass
+```
+
+#### 4. With Options
+```ruby
+tool :web_search, max_results: 10, timeout: 30
+tool :database_query, connection: :primary
+```
+
+#### 5. With Alias
+```ruby
+tool :web_search, as: :internet_search
+tool RAAF::Tools::PerplexityTool, as: :perplexity
+```
+
+#### 6. Conditional Loading
+```ruby
+tool :premium_tool if Rails.env.production?
+tool :expensive_tool if respond_to?(:costly?) && costly?
+```
+
+#### 7. Inline Definition with Block
+```ruby
+tool :custom_calculator do
+  description "Performs safe calculations"
+  parameter :expression, type: :string, required: true
+
+  execute do |expression:|
+    # Implementation here
+  end
+end
+```
+
+### Lazy Loading Benefits
+
+Tools are now loaded **only when needed**, not at agent initialization:
+
+```ruby
+# Before: All tools loaded immediately (slow)
+agent = MyAgent.new  # 37.50ms for 100 initializations
+
+# After: Tools loaded on first use (fast)
+agent = MyAgent.new  # 6.00ms for 100 initializations (6.25x faster!)
+```
+
+### Tool Resolution
+
+Tools are automatically resolved from multiple namespaces:
+
+1. `RAAF::DSL::Tools::[Identifier]` - DSL-specific tools
+2. `RAAF::Tools::[Identifier]` - Core RAAF tools
+3. `Ai::Tools::[Identifier]` - Application tools
+4. Direct constant lookup for custom classes
+
+### Enhanced Error Messages
+
+If a tool cannot be found, you'll get helpful error messages:
+
+```ruby
+class MyAgent < RAAF::DSL::Agent
+  tool :unknown_tool
+end
+
+# Raises ToolResolutionError with:
+# 🔍 Tool Resolution Failed: 'unknown_tool'
+#
+# Searched namespaces:
+#   ❌ RAAF::DSL::Tools::UnknownTool
+#   ❌ RAAF::Tools::UnknownTool
+#   ❌ Ai::Tools::UnknownTool
+#   ❌ UnknownTool
+#
+# 💡 Suggestions:
+#   • Check the tool identifier spelling
+#   • Ensure the tool gem is installed
+#   • Try using the full class name
+#
+# Available tools: web_search, calculator, file_search
+```
+
+### Migration from Old Syntax
+
+If you're upgrading from an older version, see [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed instructions on migrating from the deprecated `uses_*` methods.
+
 ## Tool DSL
 
 ```ruby
@@ -569,9 +689,9 @@ See the comprehensive migration guide for step-by-step instructions:
 calculator = RAAF::DSL::ToolBuilder.build do
   name "calculator"
   description "Perform mathematical calculations"
-  
+
   parameter :expression, type: :string, required: true
-  
+
   execute do |expression:|
     # Use a safe math evaluator instead of eval
     # Example: Dentaku.evaluate(expression)
