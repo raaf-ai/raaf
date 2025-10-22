@@ -223,19 +223,15 @@ if Rails.env.development?
     def test_agent(agent_class, context_data = {})
       context = RAAF::DSL::ContextVariables.new
       context_data.each { |k, v| context.set(k, v) }
-      
+
       agent = agent_class.new(context: context)
-      puts "🤖 Testing #{agent_class.name}..."
-      
+
       result = agent.call
-      puts "✅ Result: #{result.inspect}"
       result
     rescue => e
-      puts "❌ Error: #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+      RAAF.logger.error "Agent test failed: #{e.message}"
+      RAAF.logger.error e.backtrace.first(5).join("\n")
       nil
     end
-    
-    puts "💡 Helper method available: test_agent(AgentClass, { key: 'value' })"
   end
 end

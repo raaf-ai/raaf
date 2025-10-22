@@ -87,6 +87,12 @@ module RAAF
         # Creates a sequential execution chain where the output of this class
         # becomes the input of the next class in the pipeline.
         #
+        # THREAD SAFETY NOTE (LOW PRIORITY):
+        # Uses Thread.current to access pipeline context fields during class definition.
+        # This is SAFE because it's only used during flow() DSL at class definition time,
+        # consumed in the same thread, and not accessed during runtime or background jobs.
+        # See pipeline.rb context() method for where this is set.
+        #
         # @param next_agent [Class] The next agent or service in the chain
         # @return [ChainedAgent] Chained execution wrapper
         def >>(next_agent)

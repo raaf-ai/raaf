@@ -40,12 +40,46 @@ module RAAF
 
         # Pipeline configuration DSL
         class << self
-          attr_accessor :_pipeline_config, :_required_context_keys, :_steps, 
-                       :_parallel_groups, :_error_handlers, :_finalizer
+          # Thread-safe configuration storage using Concurrent collections
+          # Prevents race conditions during pipeline class definition
+
+          def _steps
+            @_steps ||= Concurrent::Array.new
+          end
+
+          def _steps=(value)
+            @_steps = value.is_a?(Concurrent::Array) ? value : Concurrent::Array.new(value || [])
+          end
+
+          def _parallel_groups
+            @_parallel_groups ||= Concurrent::Array.new
+          end
+
+          def _parallel_groups=(value)
+            @_parallel_groups = value.is_a?(Concurrent::Array) ? value : Concurrent::Array.new(value || [])
+          end
+
+          def _required_context_keys
+            @_required_context_keys ||= Concurrent::Array.new
+          end
+
+          def _required_context_keys=(value)
+            @_required_context_keys = value.is_a?(Concurrent::Array) ? value : Concurrent::Array.new(value || [])
+          end
+
+          def _error_handlers
+            @_error_handlers ||= Concurrent::Hash.new
+          end
+
+          def _error_handlers=(value)
+            @_error_handlers = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value || {})
+          end
+
+          attr_accessor :_pipeline_config, :_finalizer
 
           # Declare required context keys for the pipeline
           def requires(*keys)
-            self._required_context_keys ||= []
+            # No need for ||= since getter already initializes Concurrent::Array
             self._required_context_keys.concat(keys.map(&:to_sym))
           end
 
@@ -59,7 +93,7 @@ module RAAF
           # @param retry_on_failure [Boolean] Whether to retry this step on failure
           #
           def step(name, using:, needs: [], merge_as: nil, timeout: nil, retry_on_failure: false)
-            self._steps ||= []
+            # No need for ||= since getter already initializes Concurrent::Array
             self._steps << {
               name: name,
               agent_class: using,
@@ -83,11 +117,11 @@ module RAAF
               raise ArgumentError, "Number of step names must match number of agent classes"
             end
 
-            self._parallel_groups ||= []
+            # No need for ||= since getter already initializes Concurrent::Array
             parallel_group_id = :"parallel_group_#{_parallel_groups.length}"
-            
+
             names.zip(using).each do |name, agent_class|
-              self._steps ||= []
+              # No need for ||= since getter already initializes Concurrent::Array
               self._steps << {
                 name: name,
                 agent_class: agent_class,
@@ -114,7 +148,7 @@ module RAAF
           # @param retry_count [Integer] Number of retries before fallback
           #
           def on_step_failure(step_name, fallback_to: nil, retry_count: 0)
-            self._error_handlers ||= {}
+            # No need for ||= since getter already initializes Concurrent::Hash
             self._error_handlers[step_name] = {
               type: :step_failure,
               fallback_method: fallback_to,
@@ -128,7 +162,7 @@ module RAAF
           # @param then [Symbol] Method to call after retries exhausted
           #
           def on_pipeline_failure(retry_count: 0, then: nil)
-            self._error_handlers ||= {}
+            # No need for ||= since getter already initializes Concurrent::Hash
             self._error_handlers[:pipeline] = {
               type: :pipeline_failure,
               retry_count: retry_count,
@@ -145,14 +179,16 @@ module RAAF
           end
 
           # Inherit configuration from parent class
+          # Setters automatically convert to Concurrent collections
           def inherited(subclass)
             super
-            
+
+            # Use setters which auto-convert to thread-safe Concurrent collections
             subclass._pipeline_config = _pipeline_config&.dup
-            subclass._required_context_keys = _required_context_keys&.dup
-            subclass._steps = _steps&.dup
-            subclass._parallel_groups = _parallel_groups&.dup
-            subclass._error_handlers = _error_handlers&.dup
+            subclass._required_context_keys = _required_context_keys&.dup || []
+            subclass._steps = _steps&.dup || []
+            subclass._parallel_groups = _parallel_groups&.dup || []
+            subclass._error_handlers = _error_handlers&.dup || {}
             subclass._finalizer = _finalizer
           end
         end

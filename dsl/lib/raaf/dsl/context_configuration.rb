@@ -97,17 +97,22 @@ module RAAF
       module ClassMethods
         # Class-specific configuration storage for thread safety
         #
-        # Each class gets its own thread-local configuration storage to prevent
-        # cross-contamination between different agent/service classes in
-        # multi-threaded environments.
+        # Each class gets its own configuration storage using Concurrent::Hash
+        # to prevent cross-contamination between different agent/service classes
+        # in multi-threaded environments and ensure configuration persists across
+        # threads (e.g., in background jobs).
         #
-        # @return [Hash] Thread-local configuration hash for this class
+        # FIXED: Previously used Thread.current which caused configuration loss
+        # when agents were accessed from different threads (e.g., background jobs).
+        # Now uses class instance variables with Concurrent::Hash for true thread safety.
+        #
+        # @return [Concurrent::Hash] Thread-safe configuration hash for this class
         def _context_config
-          Thread.current["raaf_dsl_config_#{object_id}"] ||= {}
+          @_context_config ||= Concurrent::Hash.new
         end
 
         def _context_config=(value)
-          Thread.current["raaf_dsl_config_#{object_id}"] = value
+          @_context_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
         end
 
         # Control auto-context behavior (default: true)

@@ -78,9 +78,20 @@ module RAAF
       
       # Context DSL method provided by ContextConfiguration module
       # Override to add pipeline-specific behavior (thread local variable)
+      #
+      # THREAD SAFETY NOTE (LOW PRIORITY):
+      # Uses Thread.current for pipeline context fields during class definition only.
+      # This is SAFE because:
+      # - Only used at class definition time (not runtime)
+      # - Data is consumed immediately by flow() DSL during same thread
+      # - Not accessed by background jobs or different threads
+      # - Cleared after flow() completes
+      #
+      # Unlike the fixed issues (_tools_config, _context_config), this does NOT
+      # cause background job failures because it's transient class definition data.
       def context(&block)
         super(&block)  # Call the ContextConfiguration module's method
-        
+
         # Make context fields available immediately for flow definition
         Thread.current[:raaf_pipeline_context_fields] = context_fields if block_given?
         _context_config[:context_rules] || {}
@@ -547,7 +558,6 @@ module RAAF
     end
     
     def execute_agent(agent_class, context)
-      puts "🔍 [Pipeline] execute_agent called for #{agent_class.name}"
       unless agent_class.respond_to?(:requirements_met?) && agent_class.requirements_met?(context)
         RAAF.logger.warn "Skipping #{agent_class.name}: requirements not met"
         return [{}, context]  # Return empty result and unchanged context for skipped agents
@@ -560,7 +570,6 @@ module RAAF
       instance_params[:parent_component] = self  # Pass pipeline object, not span
 
       # Don't pass tracer explicitly - let agents discover via TracingRegistry (ambient context pattern)
-      puts "🔍 [Pipeline] Creating #{agent_class.name} - will discover tracer via TracingRegistry"
       instance = agent_class.new(**instance_params)
 
       # Inject pipeline schema if available
