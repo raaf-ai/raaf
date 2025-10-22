@@ -6,7 +6,14 @@ rescue LoadError
   # Allow standalone usage without full RAAF core
 end
 
-require_relative "tool_registry"
+# ToolRegistry is now in raaf-dsl gem
+# Try to require from raaf-dsl first, then fall back to local location for backward compatibility
+begin
+  require "raaf/tool_registry"  # raaf-dsl location
+rescue LoadError
+  # Fall back to local location if raaf-dsl not available
+  require_relative "tool_registry"
+end
 
 module RAAF
   # Unified base class for all RAAF tools

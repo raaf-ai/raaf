@@ -94,8 +94,8 @@ module RAAF
       end
       
       # Log that compatibility layer is active
-      if defined?(RAAF::Logger)
-        RAAF::Logger.log_info("Tool compatibility layer activated")
+      if defined?(RAAF::Logging)
+        RAAF.logger.info("Tool compatibility layer activated")
       end
     end
 

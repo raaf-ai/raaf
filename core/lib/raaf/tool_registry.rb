@@ -39,7 +39,7 @@ module RAAF
 
     # Thread-safe registry storage
     @registry = Concurrent::Hash.new
-    @namespaces = ["Ai::Tools", "RAAF::Tools", "RAAF::Tools::Basic", "Ai::Tools::Basic"]
+    @namespaces = Concurrent::Array.new(["Ai::Tools", "RAAF::Tools", "RAAF::Tools::Basic", "Ai::Tools::Basic"])
 
     class << self
       # Register a tool with a name
@@ -70,7 +70,9 @@ module RAAF
 
         # Try registry first
         registered = get(identifier)
-        return registered if registered
+        if registered
+          return registered
+        end
 
         # Auto-discovery in namespaces
         auto_discover(identifier)
@@ -82,6 +84,44 @@ module RAAF
       # @return [Class, nil] The resolved tool class
       def resolve(identifier)
         lookup(identifier)
+      end
+
+      # Safe lookup that gracefully handles uninitialized registry
+      #
+      # This method provides the same resolution logic as `lookup`, but with
+      # graceful error handling for scenarios where ToolRegistry might not be
+      # fully loaded yet (e.g., eager_load environments with lazy tool resolution).
+      #
+      # Used by RAAF::DSL::AgentToolIntegration to implement hybrid eager/lazy
+      # tool resolution:
+      # - Symbols return nil if registry unavailable (for lazy resolution)
+      # - Class references return immediately (no registry needed)
+      # - Other identifiers are looked up with full auto-discovery
+      #
+      # @param identifier [Class, String, Symbol] Tool identifier to resolve
+      # @return [Class, nil] The resolved tool class, or nil if resolution fails
+      #
+      # @example Safe lookup for lazy resolution (symbol)
+      #   tool_class = RAAF::ToolRegistry.safe_lookup(:web_search)
+      #   # Returns tool class if registered, or nil if registry not available
+      #
+      # @example Direct class reference (immediate resolution)
+      #   tool_class = RAAF::ToolRegistry.safe_lookup(MyCustomTool)
+      #   # Always returns the class immediately, no registry lookup needed
+      #
+      # @example Error handling for NameErrors
+      #   # NameError for uninitialized constants is caught and returns nil
+      #   # Other errors are re-raised
+      def safe_lookup(identifier)
+        lookup(identifier)
+      rescue NameError => e
+        if e.message.include?("RAAF::ToolRegistry") || e.message.include?("uninitialized constant")
+          # ToolRegistry not fully loaded yet - return nil for lazy resolution
+          nil
+        else
+          # Re-raise if it's a different NameError
+          raise
+        end
       end
 
       # Resolve a tool with detailed error information

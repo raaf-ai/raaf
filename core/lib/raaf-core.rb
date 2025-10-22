@@ -178,3 +178,11 @@ module RAAF
   end
 
 end
+
+# Load tool-related files after logger is defined (they use RAAF.logger during class definition)
+require_relative "raaf/tool_registry"
+require_relative "raaf/tool/api"
+require_relative "raaf/tool/function"
+require_relative "raaf/tool/native"
+require_relative "raaf/tool"
+require_relative "raaf/tool_compatibility"
