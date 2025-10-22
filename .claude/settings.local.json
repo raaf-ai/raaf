@@ -46,7 +46,8 @@
       "Bash(openssl s_client -connect 188.40.182.81:443 -servername www.prospectsradar.com)",
       "Bash(openssl x509:*)",
       "Bash(timeout 5 openssl s_client:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "additionalDirectories": [

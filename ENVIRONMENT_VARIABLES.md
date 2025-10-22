@@ -191,14 +191,29 @@ This document provides a comprehensive reference for all environment variables u
 - **Default**: `false` (auto-enabled in development environment)
 - **Example**: `export RAAF_TRACE_CONSOLE="true"`
 
+### `RAAF_TRACE_BATCHING`
+- **Function**: Enable batching of trace spans before sending to OpenAI
+- **Used in**: `tracing/lib/raaf/tracing/trace_provider.rb`, trace processor configuration
+- **What**: Controls whether spans are sent immediately (default) or batched together
+- **Why**:
+  - **Default (false)**: Immediate sends provide real-time debugging visibility in OpenAI dashboard
+  - **When enabled (true)**: Batching reduces network overhead and database load for high-volume scenarios
+- **Format**: Boolean (`true`, `false`)
+- **Default**: `false` (immediate sends for real-time debugging)
+- **Example**: `export RAAF_TRACE_BATCHING="true"`
+- **Trade-offs**:
+  - Immediate (default): Real-time visibility, higher network/DB overhead, ideal for development and low volume
+  - Batched: Lower overhead, 2-5 second delay, ideal for production with >100 spans/minute
+
 ### `RAAF_TRACE_BATCH_SIZE`
 - **Function**: Number of spans to batch before sending to OpenAI
 - **Used in**: `tracing/lib/raaf/tracing/trace_provider.rb`, OpenAI trace export
 - **What**: Groups multiple trace spans together before sending to OpenAI's trace dashboard
 - **Why**: Reduces API calls and improves performance by sending traces in batches rather than individually
 - **Format**: Integer
-- **Default**: `10`
-- **Example**: `export RAAF_TRACE_BATCH_SIZE="50"`
+- **Default**: `50` (only applies when `RAAF_TRACE_BATCHING=true`)
+- **Example**: `export RAAF_TRACE_BATCH_SIZE="100"`
+- **Note**: This setting is ignored when batching is disabled (default)
 
 ### `RAAF_TRACE_FLUSH_INTERVAL`
 - **Function**: Interval in seconds to flush trace batches
@@ -206,8 +221,9 @@ This document provides a comprehensive reference for all environment variables u
 - **What**: Maximum time to wait before sending incomplete batches to ensure traces aren't delayed too long
 - **Why**: Balances between batching efficiency and real-time trace visibility in monitoring dashboards
 - **Format**: Float
-- **Default**: `2.0`
-- **Example**: `export RAAF_TRACE_FLUSH_INTERVAL="5.0"`
+- **Default**: `5.0` (only applies when `RAAF_TRACE_BATCHING=true`)
+- **Example**: `export RAAF_TRACE_FLUSH_INTERVAL="10.0"`
+- **Note**: This setting is ignored when batching is disabled (default)
 
 ## Memory & Storage
 
@@ -354,6 +370,7 @@ export RAAF_LOG_LEVEL="debug"                        # Show all log messages
 export RAAF_DEBUG_CATEGORIES="api,tracing"           # Debug API calls and tracing
 export RAAF_ENVIRONMENT="development"                # Enable dev-specific features
 export RAAF_TRACE_CONSOLE="true"                     # Show traces in console
+# RAAF_TRACE_BATCHING defaults to "false" for real-time debugging
 ```
 
 ### Production Setup
@@ -366,6 +383,7 @@ export RAAF_LOG_OUTPUT="file"                        # Write to log files
 export RAAF_LOG_FILE="/var/log/raaf/app.log"        # Custom log location
 export RAAF_ENVIRONMENT="production"                 # Production optimizations
 export RAAF_DISABLE_TRACING="false"                  # Keep tracing for monitoring
+export RAAF_TRACE_BATCHING="true"                    # Enable batching for production
 export RAAF_TRACE_BATCH_SIZE="100"                   # Larger batches for efficiency
 export RAAF_TRACE_FLUSH_INTERVAL="10.0"             # Less frequent flushes
 ```
