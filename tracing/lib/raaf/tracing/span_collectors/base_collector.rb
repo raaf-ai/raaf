@@ -42,6 +42,40 @@ module RAAF
       # @since 1.0.0
       # @author RAAF Team
       class BaseCollector
+        ##
+        # THREAD-SAFETY NOTE: DSL State Accumulation
+        #
+        # This class uses class-level instance variables (@span_attrs, @span_custom, @result_custom)
+        # to accumulate attribute definitions during DSL evaluation. This pattern is SAFE because:
+        #
+        # 1. **Single-threaded class definition**: Class definitions occur at application startup,
+        #    in a single-threaded context. DSL methods are called during class definition, not at
+        #    request time.
+        #
+        # 2. **No runtime modification**: Once classes are defined, these class variables are never
+        #    modified again. They serve as read-only configuration after class definition.
+        #
+        # 3. **Each class has own variables**: Each subclass of BaseCollector maintains its own
+        #    class variables, so there's no cross-class interference.
+        #
+        # Example of safe usage:
+        #
+        #   # At app startup (single-threaded class definition):
+        #   class MyCollector < BaseCollector
+        #     span :name, :model                    # Modifies MyCollector's @span_attrs
+        #     result execution_time: ->(r,c) { r.time }  # Modifies MyCollector's @result_custom
+        #   end
+        #
+        #   # At runtime (request handling, multi-threaded):
+        #   collector = MyCollector.new              # Creates instance from already-defined class
+        #   collector.collect_attributes(component)  # Reads class vars (read-only, thread-safe)
+        #
+        # If this pattern changes (e.g., dynamic class definition at request time), add mutex
+        # protection like TracingRegistry uses (see tracing_registry.rb for reference).
+        #
+        # @see RAAF::Tracing::TracingRegistry for mutex-protected class-level state example
+        #
+
         # DSL class method to register simple span attributes and custom extractors.
         # This method supports both direct attribute extraction and complex custom logic
         # using lambda functions.
