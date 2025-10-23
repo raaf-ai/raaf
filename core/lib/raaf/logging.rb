@@ -287,6 +287,9 @@ module RAAF
   #
   module Logging
 
+    # Mutex for thread-safe configuration access
+    @config_mutex = Mutex.new
+
     class << self
 
       ##
@@ -304,9 +307,11 @@ module RAAF
       #   end
       #
       def configure
-        @configuration ||= Configuration.new
-        yield(@configuration) if block_given?
-        @configuration
+        @config_mutex.synchronize do
+          @configuration ||= Configuration.new
+          yield(@configuration) if block_given?
+          @configuration
+        end
       end
 
       ##
@@ -315,7 +320,9 @@ module RAAF
       # @return [Configuration] The current configuration object
       #
       def configuration
-        @configuration ||= Configuration.new
+        @config_mutex.synchronize do
+          @configuration ||= Configuration.new
+        end
       end
 
       ##

@@ -25,6 +25,9 @@ module RAAF
   #
   class ProviderRegistry
 
+    # Mutex for thread-safe access to custom providers
+    @providers_mutex = Mutex.new
+
     # Map of provider short names to provider class paths
     PROVIDER_CLASSES = {
       openai: "RAAF::Models::ResponsesProvider",
@@ -117,9 +120,11 @@ module RAAF
         # Store as string for consistent handling
         class_path_str = class_path.is_a?(Class) ? class_path.name : class_path.to_s
 
-        # Use class variable to allow mutation
-        @custom_providers ||= {}
-        @custom_providers[name] = class_path_str
+        # Thread-safe registration with mutex protection
+        @providers_mutex.synchronize do
+          @custom_providers ||= {}
+          @custom_providers[name] = class_path_str
+        end
       end
 
       ##
@@ -129,7 +134,9 @@ module RAAF
       #
       def providers
         base_providers = PROVIDER_CLASSES.keys
-        custom_providers = @custom_providers ? @custom_providers.keys : []
+        custom_providers = @providers_mutex.synchronize do
+          @custom_providers ? @custom_providers.keys : []
+        end
         (base_providers + custom_providers).uniq
       end
 
@@ -141,7 +148,13 @@ module RAAF
       #
       def registered?(name)
         name = name.to_sym
-        PROVIDER_CLASSES.key?(name) || (@custom_providers && @custom_providers.key?(name))
+        is_built_in = PROVIDER_CLASSES.key?(name)
+
+        is_custom = @providers_mutex.synchronize do
+          @custom_providers && @custom_providers.key?(name)
+        end
+
+        is_built_in || is_custom
       end
 
       private
@@ -154,16 +167,14 @@ module RAAF
       # @raise [NameError] If class cannot be found
       #
       def resolve_class(class_path)
-        # Check if it's a custom provider first
-        if @custom_providers && @custom_providers.value?(class_path)
-          # Try to constantize the path
-          parts = class_path.split('::')
-          parts.reduce(Object) { |mod, name| mod.const_get(name) }
-        else
-          # Standard provider - constantize normally
-          parts = class_path.split('::')
-          parts.reduce(Object) { |mod, name| mod.const_get(name) }
+        # Check if it's a custom provider first (with thread-safe access)
+        is_custom = @providers_mutex.synchronize do
+          @custom_providers && @custom_providers.value?(class_path)
         end
+
+        # Try to constantize the path
+        parts = class_path.split('::')
+        parts.reduce(Object) { |mod, name| mod.const_get(name) }
       rescue NameError => e
         raise NameError, "Could not load provider class: #{class_path}. Error: #{e.message}"
       end
