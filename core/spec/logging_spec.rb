@@ -245,6 +245,166 @@ RSpec.describe RAAF::Logging do
       expect(mock_logger).not_to have_received(:error)
     end
   end
+
+  # ========== THREAD-SAFETY TESTS ==========
+  #
+  # These tests verify that Logging.configure and Logging.configuration are thread-safe
+  # when multiple threads attempt to configure logging simultaneously. This tests the
+  # mutex protection added to both methods.
+
+  describe ".thread_safety" do
+    before do
+      # Reset configuration and logger between tests
+      described_class.instance_variable_set(:@configuration, nil)
+      described_class.instance_variable_set(:@logger, nil)
+      described_class.instance_variable_set(:@config_mutex, Mutex.new)
+
+      # Mock the logger to capture log calls
+      allow(described_class).to receive(:logger).and_return(mock_logger)
+    end
+
+    after do
+      # Clean up
+      described_class.instance_variable_set(:@configuration, nil)
+      described_class.instance_variable_set(:@logger, nil)
+      described_class.instance_variable_set(:@config_mutex, Mutex.new)
+    end
+
+    it "handles concurrent configuration calls safely" do
+      # Create 30 threads that each try to configure logging
+      thread_count = 30
+      results = []
+      threads = []
+      mutex = Mutex.new
+
+      thread_count.times do |i|
+        threads << Thread.new do
+          config = described_class.configure { |c| c.log_level = (i % 2).zero? ? :debug : :info }
+
+          # Store result in thread-safe manner
+          mutex.synchronize do
+            results << config
+          end
+        end
+      end
+
+      # Wait for all threads to complete
+      threads.each(&:join)
+
+      # Verify all threads received the same configuration object
+      expect(results.count).to eq(thread_count)
+      expect(results.uniq.count).to eq(1), "All threads should receive the same configuration object"
+
+      # Verify configuration was successfully set
+      final_config = described_class.configuration
+      expect(final_config).to be_a(described_class::Configuration)
+      expect([final_config.log_level]).to include(:debug).or include(:info)
+    end
+
+    it "handles concurrent configuration() getter calls safely" do
+      # Pre-configure from main thread
+      described_class.configure { |c| c.log_level = :debug }
+
+      # Create 20 threads that read configuration concurrently
+      thread_count = 20
+      results = []
+      threads = []
+      mutex = Mutex.new
+
+      thread_count.times do |_i|
+        threads << Thread.new do
+          config = described_class.configuration
+
+          # Store result in thread-safe manner
+          mutex.synchronize do
+            results << config
+          end
+        end
+      end
+
+      # Wait for all threads
+      threads.each(&:join)
+
+      # Verify all threads got the same configuration object
+      expect(results.count).to eq(thread_count)
+      expect(results.uniq.count).to eq(1), "All threads should see the same configuration object"
+
+      # Verify configuration properties
+      results.each do |config|
+        expect(config.log_level).to eq(:debug)
+      end
+    end
+
+    it "handles rapid successive calls safely" do
+      # Rapidly call configure and configuration from multiple threads
+      thread_count = 50
+      errors = []
+      threads = []
+      mutex = Mutex.new
+
+      threads = thread_count.times.map do |i|
+        Thread.new do
+          begin
+            if i.even?
+              described_class.configure { |c| c.log_format = :json }
+            else
+              described_class.configuration
+            end
+          rescue => e
+            mutex.synchronize do
+              errors << { thread: i, error: e }
+            end
+          end
+        end
+      end
+
+      # Wait for all threads to complete
+      threads.each(&:join)
+
+      # Verify no errors occurred
+      expect(errors).to be_empty, "Errors in concurrent operations: #{errors.inspect}"
+
+      # Verify configuration is consistent
+      config = described_class.configuration
+      expect(config.log_format).to eq(:json)
+    end
+
+    it "survives stress test with 100 rapid configuration attempts" do
+      # This stress test creates many threads attempting rapid configuration
+      # to ensure mutex protection handles high contention
+      thread_count = 100
+      errors = []
+      mutex = Mutex.new
+
+      threads = thread_count.times.map do |i|
+        Thread.new do
+          begin
+            # Half configure, half just read
+            if i.even?
+              log_level = (i / 2) % 4 == 0 ? :debug : :info
+              described_class.configure { |c| c.log_level = log_level }
+            else
+              described_class.configuration
+            end
+          rescue => e
+            mutex.synchronize do
+              errors << e
+            end
+          end
+        end
+      end
+
+      # Wait for all threads
+      threads.each(&:join)
+
+      # Verify no deadlocks or errors occurred
+      expect(errors).to be_empty, "Errors in stress test: #{errors.map(&:message).join(', ')}"
+
+      # Verify system is still functional
+      config = described_class.configuration
+      expect(config).to be_a(described_class::Configuration)
+    end
+  end
 end
 
 RSpec.describe RAAF::Logging::Configuration do
