@@ -1,0 +1,66 @@
+# Dutch translations for RAAF Rails
+
+nl:
+  raaf:
+    rails:
+      auth:
+        please_sign_in: "Meld u aan om door te gaan"
+      agents:
+        created: "Agent is succesvol aangemaakt."
+        updated: "Agent is succesvol bijgewerkt."
+        destroyed: "Agent is succesvol verwijderd."
+        deployed: "Agent is succesvol geïmplementeerd."
+        undeployed: "Agent is succesvol uitgeschakeld."
+        not_found: "Agent niet gevonden."
+        access_denied: "U bent niet gemachtigd om deze agent te openen."
+      conversations:
+        started: "Gesprek succesvol gestart."
+        message_sent: "Bericht succesvol verzonden."
+        not_found: "Gesprek niet gevonden."
+        error: "Er is een fout opgetreden bij het verwerken van uw bericht."
+      errors:
+        authentication_required: "Authenticatie vereist"
+        unauthorized: "Ongeautoriseerde toegang"
+        bad_request: "Ongeldig verzoek"
+        not_found: "Bron niet gevonden"
+        unprocessable_entity: "Kan verzoek niet verwerken"
+        internal_error: "Interne serverfout"
+
+  # DateTime translations for time_ago_in_words helper
+  # Used by RAAF components displaying relative timestamps
+  datetime:
+    distance_in_words:
+      half_a_minute: "halve minuut"
+      less_than_x_seconds:
+        one:   "minder dan 1 seconde"
+        other: "minder dan %{count} seconden"
+      x_seconds:
+        one:   "1 seconde"
+        other: "%{count} seconden"
+      less_than_x_minutes:
+        one:   "minder dan 1 minuut"
+        other: "minder dan %{count} minuten"
+      x_minutes:
+        one:   "1 minuut"
+        other: "%{count} minuten"
+      about_x_hours:
+        one:   "ongeveer 1 uur"
+        other: "ongeveer %{count} uur"
+      x_days:
+        one:   "1 dag"
+        other: "%{count} dagen"
+      about_x_months:
+        one:   "ongeveer 1 maand"
+        other: "ongeveer %{count} maanden"
+      x_months:
+        one:   "1 maand"
+        other: "%{count} maanden"
+      about_x_years:
+        one:   "ongeveer 1 jaar"
+        other: "ongeveer %{count} jaren"
+      over_x_years:
+        one:   "meer dan 1 jaar"
+        other: "meer dan %{count} jaren"
+      almost_x_years:
+        one:   "bijna 1 jaar"
+        other: "bijna %{count} jaren"
