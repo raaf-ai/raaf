@@ -1211,17 +1211,35 @@ module RAAF
       end
 
       def process_raaf_result(raaf_result)
+        puts "🔍 [#{self.class.name}::process_raaf_result] Called with raaf_result class: #{raaf_result.class.name}"
+        puts "🔍 [#{self.class.name}::process_raaf_result] raaf_result keys: #{raaf_result.is_a?(Hash) ? raaf_result.keys.inspect : 'N/A'}"
+
         # Handle different RAAF result formats automatically
         base_result = if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
           # New RAAF format
+          puts "🔍 [#{self.class.name}::process_raaf_result] Using RAAF format extraction"
           extract_result_data(raaf_result[:results])
         elsif raaf_result.is_a?(Hash)
           # Direct hash result
+          puts "🔍 [#{self.class.name}::process_raaf_result] Using direct hash extraction"
           extract_hash_result(raaf_result)
         else
           # Unknown format
+          puts "🔍 [#{self.class.name}::process_raaf_result] Unknown format: #{raaf_result.class}"
           log_warn "🤔 [#{self.class.name}] Unknown result format: #{raaf_result.class}"
           { success: true, data: raaf_result }
+        end
+
+        puts "🔍 [#{self.class.name}::process_raaf_result] base_result keys after extraction: #{base_result.keys.inspect}"
+
+        # Preserve metadata from the original raaf_result (e.g., search_results from Perplexity)
+        if raaf_result.is_a?(Hash) && raaf_result.key?(:metadata)
+          puts "🔍 [#{self.class.name}::process_raaf_result] Found metadata in raaf_result: #{raaf_result[:metadata].keys.inspect}"
+          base_result[:metadata] = raaf_result[:metadata]
+          puts "🔍 [#{self.class.name}::process_raaf_result] Preserved metadata into base_result"
+          log_debug "🔍 [#{self.class.name}::process_raaf_result] Preserved metadata: #{raaf_result[:metadata].keys.inspect}"
+        else
+          puts "🔍 [#{self.class.name}::process_raaf_result] No metadata in raaf_result"
         end
 
         # Apply result transformations if configured, or auto-generate them for output fields
