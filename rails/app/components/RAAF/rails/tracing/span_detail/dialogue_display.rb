@@ -62,7 +62,9 @@ module RAAF
           def render_content
             div(id: @section_id, class: @collapsible ? "" : "block") do
               div(class: "px-4 py-5 sm:p-6") do
-                div(class: "space-y-4 max-h-96 overflow-y-auto") do
+                # Removed max-h-96 overflow-y-auto to prevent truncation when expanding messages
+                # Messages can now expand to their full height without container constraints
+                div(class: "space-y-4") do
                   sorted_messages.each_with_index do |message, index|
                     render_message(message, index)
                   end
@@ -146,10 +148,12 @@ module RAAF
             preview_content = content[0..500] + "..."
 
             div(data: { controller: "span-detail" }) do
-              div(id: "#{content_id}-preview", class: "text-sm text-gray-800") do
+              # Preview section - limited to first 500 chars
+              div(id: "#{content_id}-preview", class: "text-sm text-gray-800 overflow-hidden") do
                 render_formatted_content(preview_content)
               end
-              div(id: content_id, class: "hidden text-sm text-gray-800") do
+              # Full content section - unrestricted, hidden by default
+              div(id: content_id, class: "hidden text-sm text-gray-800 whitespace-normal break-words max-w-full") do
                 render_formatted_content(content)
               end
               button(
@@ -179,13 +183,13 @@ module RAAF
                 format_json_content(content)
               end
             elsif looks_like_markdown?(content)
-              # Render markdown content
-              div(class: "text-sm prose prose-sm max-w-none") do
+              # Render markdown content - with no max-width constraints to prevent truncation
+              div(class: "text-sm prose prose-sm max-w-none w-full overflow-visible") do
                 raw markdown_to_html(content)
               end
             else
               # Regular text content with line breaks preserved
-              div(class: "text-sm whitespace-pre-wrap break-words") { content }
+              div(class: "text-sm whitespace-pre-wrap break-words w-full") { content }
             end
           end
 

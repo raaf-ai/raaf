@@ -274,26 +274,13 @@ module RAAF
           return all_results.first if all_results.size == 1
 
           # Flatten arrays of arrays into single array
+          # Each stream returns an array of processed items, so we concatenate them all
           flattened = all_results.flatten(1)
 
-          # Determine merge strategy based on result type
-          first_result = flattened.first
-
-          case first_result
-          when Hash
-            # If all results are hashes, deep merge them
-            if flattened.all? { |r| r.is_a?(Hash) }
-              flattened.reduce({}) do |merged, result|
-                deep_merge(merged, result)
-              end
-            else
-              # Mixed types, return as array
-              flattened
-            end
-          else
-            # Return flattened array for non-hash results
-            flattened
-          end
+          # Return the flattened array of all processed items
+          # NOTE: We DO NOT merge individual processed records into a single hash
+          # That would lose all the individual item data
+          flattened
         end
 
         def deep_merge(hash1, hash2)
