@@ -6,7 +6,7 @@ require "raaf/dsl/intelligent_streaming/executor"
 require "raaf/dsl/core/context_variables"
 
 RSpec.describe "IntelligentStreaming Error Scenarios" do
-  let(:context_class) { RAAF::DSL::Core::ContextVariables }
+  let(:context_class) { RAAF::DSL::ContextVariables }
 
   let(:base_agent_class) do
     Class.new(RAAF::DSL::Agent) do

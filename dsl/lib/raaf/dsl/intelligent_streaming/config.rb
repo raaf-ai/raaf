@@ -25,8 +25,8 @@ module RAAF
         # @param over [Symbol, nil] Field name containing array to stream
         # @param incremental [Boolean] Enable incremental delivery
         # @raise [ArgumentError] if stream_size is not a positive integer
-        def initialize(stream_size:, over: nil, incremental: false)
-          validate_stream_size!(stream_size)
+        def initialize(stream_size: nil, over: nil, incremental: false)
+          validate_stream_size!(stream_size) if stream_size
 
           @stream_size = stream_size
           @array_field = over
@@ -39,6 +39,73 @@ module RAAF
             on_stream_complete: nil,
             on_stream_error: nil
           }
+        end
+
+        # Setter for stream_size (supports block DSL pattern)
+        #
+        # @param size [Integer] Number of items per stream
+        def stream_size(size = nil)
+          if size.nil?
+            @stream_size
+          else
+            validate_stream_size!(size)
+            @stream_size = size
+          end
+        end
+
+        # Setter for array_field (supports block DSL pattern)
+        #
+        # @param field [Symbol, nil] Field name containing array to stream
+        def over(field = nil)
+          if field.nil?
+            @array_field
+          else
+            @array_field = field
+          end
+        end
+
+        # Setter for incremental mode (supports block DSL pattern)
+        #
+        # @param value [Boolean] Enable incremental delivery
+        def incremental(value = nil)
+          if value.nil?
+            @incremental
+          else
+            @incremental = value
+          end
+        end
+
+        # Setter for max_retries (supports block DSL pattern)
+        #
+        # @param count [Integer] Maximum number of retries per stream
+        def max_retries(count = nil)
+          if count.nil?
+            @max_retries ||= 0
+          else
+            @max_retries = count
+          end
+        end
+
+        # Setter for allow_partial_results (supports block DSL pattern)
+        #
+        # @param value [Boolean] Allow partial results on failure
+        def allow_partial_results(value = nil)
+          if value.nil?
+            @allow_partial_results ||= false
+          else
+            @allow_partial_results = value
+          end
+        end
+
+        # Setter for stop_on_error (supports block DSL pattern)
+        #
+        # @param value [Boolean] Stop on first error
+        def stop_on_error(value = nil)
+          if value.nil?
+            @stop_on_error ||= false
+          else
+            @stop_on_error = value
+          end
         end
 
         # Configure skip_if block
@@ -101,6 +168,16 @@ module RAAF
         # @return [Boolean] true if configuration is valid
         def valid?
           stream_size > 0
+        end
+        # Get state management configuration
+        #
+        # @return [Hash] Hash with :skip_if, :load_existing, :persist keys
+        def state_management
+          {
+            skip_if: blocks[:skip_if],
+            load_existing: blocks[:load_existing],
+            persist: blocks[:persist_each_stream]
+          }
         end
 
         # Convert configuration to hash

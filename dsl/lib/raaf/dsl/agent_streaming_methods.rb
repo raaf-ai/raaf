@@ -84,27 +84,49 @@ module RAAF
         #
         # @see IntelligentStreaming::Config Configuration object methods
         # @see INTELLIGENT_STREAMING_API.md Complete API documentation
-        def intelligent_streaming(stream_size:, over: nil, incremental: false, override: false, &block)
+        def intelligent_streaming(stream_size: nil, over: nil, incremental: false, override: false, &block)
           # Check if already configured
           if @_intelligent_streaming_config && !override
             raise IntelligentStreaming::ConfigurationError,
                   "intelligent_streaming already configured for #{name}. Use override: true to reconfigure."
           end
 
-          # Create configuration
-          config = IntelligentStreaming::Config.new(
-            stream_size: stream_size,
-            over: over,
-            incremental: incremental
-          )
+          # Support two usage patterns:
+          # 1. Keyword arguments: intelligent_streaming(stream_size: 100, over: :items)
+          # 2. Block DSL: intelligent_streaming { stream_size 100; over :items }
 
-          # Apply configuration block if provided
-          if block_given?
+          if block_given? && stream_size.nil?
+            # Block DSL pattern: create config with nil stream_size, let block set it
+            config = IntelligentStreaming::Config.new(stream_size: nil, over: over, incremental: incremental)
             config.instance_eval(&block)
-          end
 
-          # Store configuration
-          @_intelligent_streaming_config = config
+            # After block evaluation, stream_size must be set
+            unless config.stream_size
+              raise ArgumentError, "stream_size is required (either as keyword argument or set in block)"
+            end
+
+            @_intelligent_streaming_config = config
+          else
+            # Keyword argument pattern
+            unless stream_size
+              raise ArgumentError, "stream_size is required (either as keyword argument or set in block)"
+            end
+
+            # Create configuration
+            config = IntelligentStreaming::Config.new(
+              stream_size: stream_size,
+              over: over,
+              incremental: incremental
+            )
+
+            # Apply configuration block if provided
+            if block_given?
+              config.instance_eval(&block)
+            end
+
+            # Store configuration
+            @_intelligent_streaming_config = config
+          end
 
           nil
         end
