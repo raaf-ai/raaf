@@ -119,8 +119,8 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
       context "with incremental: true" do
         let(:config) { described_class.new(stream_size: 100, incremental: true) }
 
-        it "accepts a block with 3 parameters" do
-          complete_hook = proc { |num, total, results| puts "Stream #{num}/#{total}" }
+        it "accepts a block with 4 parameters" do
+          complete_hook = proc { |num, total, data, results| puts "Stream #{num}/#{total}" }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
           expect(config.blocks[:on_stream_complete]).to eq(complete_hook)
         end
@@ -134,7 +134,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
           complete_hook = proc { |a| puts "Wrong" }
           expect {
             config.on_stream_complete(&complete_hook)
-          }.to raise_error(ArgumentError, /expects 3 parameters/)
+          }.to raise_error(ArgumentError, /expects 4 parameters/)
         end
       end
     end

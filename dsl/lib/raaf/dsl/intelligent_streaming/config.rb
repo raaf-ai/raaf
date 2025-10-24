@@ -79,7 +79,7 @@ module RAAF
         #
         # @param block [Proc] Block called after each stream completes
         # @yield Varies based on incremental mode:
-        #   - incremental: true -> [stream_num, total, stream_data, stream_results] (3 params)
+        #   - incremental: true -> [stream_num, total, stream_data, stream_results] (4 params)
         #   - incremental: false -> [all_results] (1 param)
         def on_stream_complete(&block)
           if block_given?
@@ -129,9 +129,9 @@ module RAAF
           arity = block.arity
 
           if incremental
-            # For incremental mode, expect 3 parameters
-            if arity != 3 && arity != -1  # -1 allows any number of params
-              raise ArgumentError, "on_stream_complete with incremental: true expects 3 parameters (stream_num, total, stream_results), got arity: #{arity}"
+            # For incremental mode, expect 4 parameters
+            if arity != 4 && arity != -1  # -1 allows any number of params
+              raise ArgumentError, "on_stream_complete with incremental: true expects 4 parameters (stream_num, total, stream_data, stream_results), got arity: #{arity}"
             end
           else
             # For non-incremental mode, expect 1 parameter
