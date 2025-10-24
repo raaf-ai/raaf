@@ -61,11 +61,25 @@ module RAAF
                   h3(class: "text-lg font-semibold text-gray-900") { "Function Details" }
                 end
                 div(class: "px-4 py-5 sm:p-6") do
-                  dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
+                  dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-3") do
                     render_detail_item("Function Name", tool_data["name"], monospace: true)
                     render_detail_item("Execution Status", render_status_badge(@span.status))
                     render_detail_item("Duration", render_duration_badge(@span.duration_ms))
-                    
+
+                    # Phase 1: Execution duration (Phase 1 metric)
+                    if execution_duration_ms.present?
+                      render_detail_item("Duration (Phase 1)", "#{execution_duration_ms}ms")
+                    end
+
+                    # Phase 1: Retry information
+                    if retry_count.present?
+                      render_detail_item("Retry Count", retry_count.to_s)
+                    end
+
+                    if total_backoff_ms.present?
+                      render_detail_item("Total Backoff", "#{total_backoff_ms}ms")
+                    end
+
                     if tool_data.dig("description")
                       render_detail_item("Description", tool_data["description"])
                     end
@@ -73,6 +87,9 @@ module RAAF
                 end
               end
             end
+
+            # Error Handling and Recovery (Phase 1)
+            render_error_metrics if error_metrics.any?
 
             # Input/Output flow visualization
             render_io_flow
@@ -165,6 +182,76 @@ module RAAF
           end
 
           metadata
+        end
+
+        # Phase 1 Metric Helpers
+        def execution_duration_ms
+          @execution_duration_ms ||= extract_span_attribute("tool.duration.ms")
+        end
+
+        def retry_count
+          @retry_count ||= extract_span_attribute("tool.retry.count")
+        end
+
+        def total_backoff_ms
+          @total_backoff_ms ||= extract_span_attribute("tool.retry.total_backoff_ms")
+        end
+
+        def error_status
+          @error_status ||= extract_span_attribute("result.status")
+        end
+
+        def error_type
+          @error_type ||= extract_span_attribute("result.error.type")
+        end
+
+        def error_message
+          @error_message ||= extract_span_attribute("result.error.message")
+        end
+
+        def result_size_bytes
+          @result_size_bytes ||= extract_span_attribute("result.size.bytes")
+        end
+
+        def error_metrics
+          @error_metrics ||= begin
+            metrics = {}
+            metrics["status"] = error_status if error_status.present?
+            metrics["error_type"] = error_type if error_type.present?
+            metrics["error_message"] = error_message if error_message.present?
+            metrics["result_size_bytes"] = result_size_bytes if result_size_bytes.present?
+            metrics
+          end
+        end
+
+        def render_error_metrics
+          div(class: "bg-white overflow-hidden shadow rounded-lg border border-red-200") do
+            div(class: "px-4 py-5 sm:px-6 border-b border-red-200 bg-red-50") do
+              div(class: "flex items-center gap-3") do
+                i(class: "bi bi-exclamation-triangle text-red-600 text-lg")
+                h3(class: "text-lg font-semibold text-red-900") { "Error & Recovery (Phase 1)" }
+              end
+            end
+            div(class: "px-4 py-5 sm:p-6") do
+              dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
+                if error_metrics["status"]
+                  render_detail_item("Status", error_metrics["status"])
+                end
+
+                if error_metrics["error_type"]
+                  render_detail_item("Error Type", error_metrics["error_type"], monospace: true)
+                end
+
+                if error_metrics["error_message"]
+                  render_detail_item("Error Message", error_metrics["error_message"])
+                end
+
+                if error_metrics["result_size_bytes"]
+                  render_detail_item("Result Size", "#{error_metrics['result_size_bytes']} bytes")
+                end
+              end
+            end
+          end
         end
       end
     end

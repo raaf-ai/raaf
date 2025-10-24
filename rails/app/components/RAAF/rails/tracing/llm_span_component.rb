@@ -45,15 +45,46 @@ module RAAF
         end
 
         def usage_data
-          @usage_data ||= extract_span_attribute("llm.usage") ||
-                         extract_span_attribute("usage") ||
-                         extract_span_attribute("token_usage")
+          @usage_data ||= begin
+            # Phase 1 metrics: Check for individual token attributes first
+            individual_tokens = {
+              "input_tokens" => extract_span_attribute("llm.tokens.input"),
+              "output_tokens" => extract_span_attribute("llm.tokens.output"),
+              "cache_read_input_tokens" => extract_span_attribute("llm.tokens.cache_read"),
+              "cache_creation_input_tokens" => extract_span_attribute("llm.tokens.cache_creation"),
+              "total_tokens" => extract_span_attribute("llm.tokens.total")
+            }.compact
+
+            if individual_tokens.any?
+              individual_tokens
+            else
+              # Fallback to legacy usage data
+              extract_span_attribute("llm.usage") ||
+              extract_span_attribute("usage") ||
+              extract_span_attribute("token_usage")
+            end
+          end
         end
 
         def cost_data
-          @cost_data ||= extract_span_attribute("llm.cost") ||
-                        extract_span_attribute("cost") ||
-                        calculate_estimated_cost
+          @cost_data ||= begin
+            # Phase 1 metrics: Check for individual cost attributes first
+            individual_costs = {
+              "input_cost" => extract_span_attribute("llm.cost.input_cents"),
+              "output_cost" => extract_span_attribute("llm.cost.output_cents"),
+              "cache_savings_cost" => extract_span_attribute("llm.cost.cache_savings_cents"),
+              "total_cost" => extract_span_attribute("llm.cost.total_cents")
+            }.compact
+
+            if individual_costs.any?
+              individual_costs
+            else
+              # Fallback to legacy cost data or estimation
+              extract_span_attribute("llm.cost") ||
+              extract_span_attribute("cost") ||
+              calculate_estimated_cost
+            end
+          end
         end
 
         def model_params
@@ -179,17 +210,32 @@ module RAAF
             div(class: "px-4 py-5 sm:p-6") do
               case usage_data
               when Hash
-                dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-3") do
+                dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-4") do
+                  # Input/Prompt Tokens
                   if usage_data["prompt_tokens"] || usage_data["input_tokens"]
                     prompt_tokens = usage_data["prompt_tokens"] || usage_data["input_tokens"]
-                    render_detail_item("Prompt Tokens", prompt_tokens.to_s, monospace: true)
+                    render_detail_item("Input Tokens", prompt_tokens.to_s, monospace: true)
                   end
-                  
+
+                  # Output/Completion Tokens
                   if usage_data["completion_tokens"] || usage_data["output_tokens"]
                     completion_tokens = usage_data["completion_tokens"] || usage_data["output_tokens"]
-                    render_detail_item("Completion Tokens", completion_tokens.to_s, monospace: true)
+                    render_detail_item("Output Tokens", completion_tokens.to_s, monospace: true)
                   end
-                  
+
+                  # Cache Read Tokens (Phase 1)
+                  if usage_data["cache_read_input_tokens"]
+                    cache_read = usage_data["cache_read_input_tokens"]
+                    render_detail_item("Cache Read Tokens", cache_read.to_s, monospace: true)
+                  end
+
+                  # Cache Creation Tokens (Phase 1)
+                  if usage_data["cache_creation_input_tokens"]
+                    cache_creation = usage_data["cache_creation_input_tokens"]
+                    render_detail_item("Cache Creation Tokens", cache_creation.to_s, monospace: true)
+                  end
+
+                  # Total Tokens
                   if usage_data["total_tokens"]
                     render_detail_item("Total Tokens", usage_data["total_tokens"].to_s, monospace: true)
                   end
@@ -212,21 +258,37 @@ module RAAF
             div(class: "px-4 py-5 sm:p-6") do
               case cost_data
               when Hash
-                dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
-                  if cost_data["input_cost"] || cost_data["prompt_cost"]
-                    input_cost = cost_data["input_cost"] || cost_data["prompt_cost"]
-                    render_detail_item("Input Cost", format_cost(input_cost))
+                dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-3") do
+                  # Input Cost (Phase 1)
+                  if cost_data["input_cost"]
+                    render_detail_item("Input Cost", format_cost_cents(cost_data["input_cost"]))
                   end
-                  
-                  if cost_data["output_cost"] || cost_data["completion_cost"]
-                    output_cost = cost_data["output_cost"] || cost_data["completion_cost"]
-                    render_detail_item("Output Cost", format_cost(output_cost))
+
+                  # Output Cost (Phase 1)
+                  if cost_data["output_cost"]
+                    render_detail_item("Output Cost", format_cost_cents(cost_data["output_cost"]))
                   end
-                  
+
+                  # Cache Savings Cost (Phase 1)
+                  if cost_data["cache_savings_cost"]
+                    savings = cost_data["cache_savings_cost"]
+                    render_detail_item(
+                      "Cache Savings",
+                      "-#{format_cost_cents(savings)}",
+                      class: "text-green-600 font-semibold"
+                    )
+                  end
+
+                  # Total Cost
                   if cost_data["total_cost"]
-                    render_detail_item("Total Cost", format_cost(cost_data["total_cost"]))
+                    render_detail_item("Total Cost", format_cost_cents(cost_data["total_cost"]))
+                  elsif cost_data["prompt_cost"] || cost_data["input_cost"] || cost_data["output_cost"] || cost_data["completion_cost"]
+                    # Fallback for legacy cost structure
+                    input_cost = cost_data["input_cost"] || cost_data["prompt_cost"] || 0
+                    output_cost = cost_data["output_cost"] || cost_data["completion_cost"] || 0
+                    render_detail_item("Total Cost", format_cost(input_cost + output_cost))
                   end
-                  
+
                   if cost_data["currency"]
                     render_detail_item("Currency", cost_data["currency"])
                   end
@@ -284,11 +346,25 @@ module RAAF
 
         def format_cost(cost)
           return "N/A" unless cost.is_a?(Numeric)
-          
+
           if cost < 0.01
             "$#{(cost * 1000).round(3)}¢"
           else
             "$#{cost.round(4)}"
+          end
+        end
+
+        # Format cost from cents (Phase 1 format: in cents)
+        def format_cost_cents(cost_cents)
+          return "N/A" unless cost_cents.is_a?(Numeric) || cost_cents.is_a?(String)
+
+          cents = cost_cents.to_f
+          return "N/A" if cents == 0 || cents.nil?
+
+          if cents < 1
+            "$#{(cents / 100.0).round(4)}"
+          else
+            "$#{(cents / 100.0).round(4)}"
           end
         end
       end
