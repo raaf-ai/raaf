@@ -20,6 +20,7 @@ require_relative "auto_merge"
 require_relative "incremental_processing"
 require_relative "incremental_processor"
 require_relative "agent_tool_integration"
+require_relative "agent_streaming_methods"
 
 module RAAF
   module DSL
@@ -57,6 +58,7 @@ module RAAF
       include RAAF::DSL::AutoMerge
       include RAAF::DSL::IncrementalProcessing
       include RAAF::DSL::AgentToolIntegration
+      include RAAF::DSL::AgentStreamingMethods
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self

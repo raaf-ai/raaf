@@ -40,19 +40,38 @@ module RAAF
     #
     class PerplexityTool
       ##
-      # Initialize Perplexity tool with API credentials
+      # Initialize Perplexity tool with API credentials and optional parameters
       #
       # @param api_key [String, nil] Perplexity API key (defaults to PERPLEXITY_API_KEY env var)
       # @param api_base [String, nil] Custom API base URL
       # @param model [String] Default Perplexity model to use (default: "sonar")
       # @param max_tokens [Integer, nil] Default maximum tokens in response (default: nil)
+      # @param temperature [Float, nil] Controls randomness (0-2, default: nil). 0 = deterministic
+      # @param top_p [Float, nil] Nucleus sampling parameter (0-1, default: nil)
+      # @param presence_penalty [Float, nil] Reduces repetition of tokens (default: nil)
+      # @param frequency_penalty [Float, nil] Reduces frequency-based repetition (default: nil)
       # @param search_recency_filter [String, nil] Default recency filter fallback (default: nil = no recency filtering)
+      # @param response_format [Hash, nil] Response format schema (for compatible models, default: nil)
+      # @param reasoning_effort [String, nil] Reasoning level for reasoning models ('low', 'medium', 'high', default: nil)
+      # @param language_preference [String, nil] Preferred response language (default: nil)
       # @param timeout [Integer, nil] Request timeout in seconds
       # @param open_timeout [Integer, nil] Connection timeout in seconds
+      # @param include_search_results_in_content [Boolean] Include web_results in response content (default: false)
       #
-      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, search_recency_filter: nil, timeout: nil, open_timeout: nil, include_search_results_in_content: false)
+      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, temperature: nil,
+                     top_p: nil, presence_penalty: nil, frequency_penalty: nil,
+                     search_recency_filter: nil, response_format: nil, reasoning_effort: nil,
+                     language_preference: nil, timeout: nil, open_timeout: nil,
+                     include_search_results_in_content: false)
         @model = model
         @max_tokens = max_tokens
+        @temperature = temperature
+        @top_p = top_p
+        @presence_penalty = presence_penalty
+        @frequency_penalty = frequency_penalty
+        @response_format = response_format
+        @reasoning_effort = reasoning_effort
+        @language_preference = language_preference
         @default_search_recency_filter = search_recency_filter
         @include_search_results_in_content = include_search_results_in_content
         @http_client = RAAF::Perplexity::HttpClient.new(
@@ -104,6 +123,26 @@ module RAAF
               type: "string",
               enum: ["hour", "day", "week", "month", "year"],
               description: "Optional: Time window for search results. Use for time-sensitive queries requiring recent information."
+            },
+            temperature: {
+              type: "number",
+              minimum: 0,
+              maximum: 2,
+              description: "Optional: Controls randomness in response synthesis (0-2). Use 0 for deterministic/reproducible results. Default varies by model."
+            },
+            top_p: {
+              type: "number",
+              minimum: 0,
+              maximum: 1,
+              description: "Optional: Nucleus sampling parameter (0-1). Controls diversity of results. Lower = more focused."
+            },
+            presence_penalty: {
+              type: "number",
+              description: "Optional: Reduces repetition of tokens already present in the context. Range typically -2 to 2."
+            },
+            frequency_penalty: {
+              type: "number",
+              description: "Optional: Reduces frequency-based repetition. Range typically -2 to 2."
             }
           },
           required: ["query"]
@@ -133,8 +172,15 @@ module RAAF
           Search the web for current, factual information with automatic citations using Perplexity AI.
 
           **Model Configuration:**
-          - The search model and max_tokens are configured at tool initialization time
+          - The search model is configured at tool initialization time
           - You cannot change the model per query - use the model configured when the tool was created
+          - Advanced parameters (temperature, top_p, reasoning_effort, etc.) can be configured at initialization or per-query
+
+          **Parameter Control:**
+          - **temperature** (0-2): Controls response synthesis randomness. Use 0 for deterministic/reproducible results
+          - **top_p** (0-1): Nucleus sampling parameter. Lower values = more focused results
+          - **presence_penalty** / **frequency_penalty**: Control token repetition in responses
+          - All parameters can be set at tool initialization time (defaults for all queries) or per-query (overrides defaults)
 
           **When to Use This Tool:**
           - You need recent, factual information from the web (news, announcements, updates)
@@ -219,9 +265,14 @@ module RAAF
       #   TLD-only patterns are not supported - use complete domain names only.
       # @param search_recency_filter [String, nil] Time window for results.
       #   Valid values: hour, day, week, month, year
+      # @param temperature [Float, nil] Controls randomness (0-2). Overrides initialize default if provided.
+      # @param top_p [Float, nil] Nucleus sampling (0-1). Overrides initialize default if provided.
+      # @param presence_penalty [Float, nil] Token repetition penalty. Overrides initialize default if provided.
+      # @param frequency_penalty [Float, nil] Frequency repetition penalty. Overrides initialize default if provided.
       # @return [Hash] Formatted search result with success, content, citations, web_results
       #
-      def call(query:, search_domain_filter: nil, search_recency_filter: nil)
+      def call(query:, search_domain_filter: nil, search_recency_filter: nil,
+               temperature: nil, top_p: nil, presence_penalty: nil, frequency_penalty: nil)
         # Normalize empty strings to nil for both filters
         search_domain_filter = normalize_filter(search_domain_filter)
         search_recency_filter = normalize_filter(search_recency_filter)
@@ -240,8 +291,19 @@ module RAAF
           messages: messages
         }
 
-        # Add max_tokens if specified
+        # Add optional parameters, preferring call-time values over defaults
         body[:max_tokens] = @max_tokens if @max_tokens
+
+        # Temperature and sampling parameters (call-time override instance defaults)
+        body[:temperature] = temperature.nil? ? @temperature : temperature if temperature || @temperature
+        body[:top_p] = top_p.nil? ? @top_p : top_p if (top_p || @top_p)
+        body[:presence_penalty] = presence_penalty.nil? ? @presence_penalty : presence_penalty if (presence_penalty || @presence_penalty)
+        body[:frequency_penalty] = frequency_penalty.nil? ? @frequency_penalty : frequency_penalty if (frequency_penalty || @frequency_penalty)
+
+        # Other advanced parameters
+        body[:response_format] = @response_format if @response_format
+        body[:reasoning_effort] = @reasoning_effort if @reasoning_effort
+        body[:language_preference] = @language_preference if @language_preference
 
         # Add web search options using common code with validation fallback
         if search_domain_filter || search_recency_filter

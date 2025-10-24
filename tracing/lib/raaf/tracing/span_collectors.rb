@@ -2,6 +2,7 @@
 
 require_relative "span_collectors/base_collector"
 require_relative "span_collectors/agent_collector"
+require_relative "span_collectors/llm_collector"
 require_relative "span_collectors/tool_collector"
 require_relative "span_collectors/pipeline_collector"
 require_relative "span_collectors/job_collector"

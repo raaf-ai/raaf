@@ -219,8 +219,12 @@ module RAAF
             "temperature" => extract_span_attribute("agent.temperature") || extract_span_attribute("temperature"),
             "max_tokens" => extract_span_attribute("agent.max_tokens") || extract_span_attribute("max_tokens"),
             "top_p" => extract_span_attribute("agent.top_p") || extract_span_attribute("top_p"),
-            "tools_count" => extract_span_attribute("agent.tools_count") || extract_span_attribute("tools.count"),
-            "parallel_tool_calls" => extract_span_attribute("agent.parallel_tool_calls")
+            "frequency_penalty" => extract_span_attribute("agent.frequency_penalty") || extract_span_attribute("frequency_penalty"),
+            "presence_penalty" => extract_span_attribute("agent.presence_penalty") || extract_span_attribute("presence_penalty"),
+            "tool_choice" => extract_span_attribute("agent.tool_choice") || extract_span_attribute("tool_choice"),
+            "parallel_tool_calls" => extract_span_attribute("agent.parallel_tool_calls"),
+            "response_format" => extract_span_attribute("agent.response_format") || extract_span_attribute("response_format"),
+            "tools_count" => extract_span_attribute("agent.tools_count") || extract_span_attribute("tools.count")
           }.compact
         end
 
@@ -246,30 +250,50 @@ module RAAF
             end
             div(class: "px-4 py-5 sm:p-6") do
               dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
+                # Basic agent information
                 render_detail_item("Agent Name", agent_name)
                 render_detail_item("Model", model_name, monospace: true)
                 render_detail_item("Execution Status", render_status_badge(@span.status))
                 render_detail_item("Duration", render_duration_badge(@span.duration_ms))
-                
-                # Model configuration
-                if agent_config["temperature"]
+
+                # Core model parameters
+                if agent_config["temperature"] && agent_config["temperature"] != "N/A"
                   render_detail_item("Temperature", agent_config["temperature"])
                 end
-                
-                if agent_config["max_tokens"]
+
+                if agent_config["max_tokens"] && agent_config["max_tokens"] != "N/A"
                   render_detail_item("Max Tokens", agent_config["max_tokens"])
                 end
-                
-                if agent_config["top_p"]
+
+                if agent_config["top_p"] && agent_config["top_p"] != "N/A"
                   render_detail_item("Top P", agent_config["top_p"])
                 end
-                
-                if agent_config["tools_count"]
+
+                # Penalty parameters
+                if agent_config["frequency_penalty"] && agent_config["frequency_penalty"] != "N/A"
+                  render_detail_item("Frequency Penalty", agent_config["frequency_penalty"])
+                end
+
+                if agent_config["presence_penalty"] && agent_config["presence_penalty"] != "N/A"
+                  render_detail_item("Presence Penalty", agent_config["presence_penalty"])
+                end
+
+                # Tool and execution configuration
+                if agent_config["tools_count"] && agent_config["tools_count"] != "0"
                   render_detail_item("Tools Available", agent_config["tools_count"])
                 end
-                
-                if agent_config["parallel_tool_calls"]
-                  render_detail_item("Parallel Tool Calls", agent_config["parallel_tool_calls"] ? "Enabled" : "Disabled")
+
+                if agent_config["tool_choice"] && agent_config["tool_choice"] != "N/A"
+                  render_detail_item("Tool Choice", agent_config["tool_choice"], monospace: true)
+                end
+
+                if agent_config["parallel_tool_calls"] && agent_config["parallel_tool_calls"] != "N/A"
+                  render_detail_item("Parallel Tool Calls", agent_config["parallel_tool_calls"])
+                end
+
+                # Response format configuration
+                if agent_config["response_format"] && agent_config["response_format"] != "N/A"
+                  render_detail_item("Response Format", agent_config["response_format"], monospace: true)
                 end
               end
             end

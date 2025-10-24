@@ -57,6 +57,80 @@ module RAAF
         span tools_count: ->(comp) { comp.respond_to?(:tools) ? comp.tools.length.to_s : "0" }
         span handoffs_count: ->(comp) { comp.respond_to?(:handoffs) ? comp.handoffs.length.to_s : "0" }
 
+        # Model settings - temperature, max_tokens, top_p, and other LLM parameters
+        span temperature: ->(comp) do
+          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+            comp.model_settings[:temperature] || comp.model_settings["temperature"] || "N/A"
+          else
+            "N/A"
+          end
+        end
+
+        span max_tokens: ->(comp) do
+          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+            comp.model_settings[:max_tokens] || comp.model_settings["max_tokens"] || "N/A"
+          else
+            "N/A"
+          end
+        end
+
+        span top_p: ->(comp) do
+          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+            comp.model_settings[:top_p] || comp.model_settings["top_p"] || "N/A"
+          else
+            "N/A"
+          end
+        end
+
+        span frequency_penalty: ->(comp) do
+          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+            comp.model_settings[:frequency_penalty] || comp.model_settings["frequency_penalty"] || "N/A"
+          else
+            "N/A"
+          end
+        end
+
+        span presence_penalty: ->(comp) do
+          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+            comp.model_settings[:presence_penalty] || comp.model_settings["presence_penalty"] || "N/A"
+          else
+            "N/A"
+          end
+        end
+
+        span tool_choice: ->(comp) do
+          if comp.respond_to?(:tool_choice) && comp.tool_choice
+            comp.tool_choice.is_a?(Hash) ? JSON.generate(comp.tool_choice) : comp.tool_choice.to_s
+          else
+            "N/A"
+          end
+        end
+
+        span parallel_tool_calls: ->(comp) do
+          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+            parallel = comp.model_settings[:parallel_tool_calls] || comp.model_settings["parallel_tool_calls"]
+            parallel.nil? ? "N/A" : (parallel ? "Enabled" : "Disabled")
+          else
+            "N/A"
+          end
+        end
+
+        span response_format: ->(comp) do
+          if comp.respond_to?(:response_format) && comp.response_format
+            comp.response_format.is_a?(Hash) ? JSON.generate(comp.response_format) : comp.response_format.to_s
+          else
+            "N/A"
+          end
+        end
+
+        span model_settings_json: ->(comp) do
+          if comp.respond_to?(:model_settings) && comp.model_settings
+            JSON.generate(comp.model_settings)
+          else
+            "{}"
+          end
+        end
+
         # Workflow and execution context detection
         span workflow_name: ->(comp) do
           job_span = Thread.current[:raaf_job_span]

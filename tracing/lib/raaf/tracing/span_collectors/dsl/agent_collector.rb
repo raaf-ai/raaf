@@ -66,6 +66,45 @@ module RAAF
 
           # DSL-specific configuration and execution state
           span temperature: ->(comp) { comp.class.respond_to?(:_context_config) ? comp.class._context_config[:temperature] : nil }
+
+          # Additional model settings from DSL configuration
+          span max_tokens: ->(comp) do
+            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:max_tokens] : nil
+          end
+
+          span top_p: ->(comp) do
+            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:top_p] : nil
+          end
+
+          span frequency_penalty: ->(comp) do
+            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:frequency_penalty] : nil
+          end
+
+          span presence_penalty: ->(comp) do
+            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:presence_penalty] : nil
+          end
+
+          span tool_choice: ->(comp) do
+            if comp.class.respond_to?(:_context_config)
+              tool_choice = comp.class._context_config[:tool_choice]
+              tool_choice.is_a?(Hash) ? JSON.generate(tool_choice) : tool_choice&.to_s
+            end
+          end
+
+          span parallel_tool_calls: ->(comp) do
+            if comp.class.respond_to?(:_context_config)
+              parallel = comp.class._context_config[:parallel_tool_calls]
+              parallel.nil? ? nil : (parallel ? "Enabled" : "Disabled")
+            end
+          end
+
+          span response_format: ->(comp) do
+            if comp.class.respond_to?(:_context_config)
+              response_format = comp.class._context_config[:response_format]
+              response_format.is_a?(Hash) ? JSON.generate(response_format) : response_format&.to_s
+            end
+          end
+
           span context_size: ->(comp) { comp.instance_variable_get(:@context)&.size || 0 }
           span has_tools: ->(comp) do
             context = comp.instance_variable_get(:@context)

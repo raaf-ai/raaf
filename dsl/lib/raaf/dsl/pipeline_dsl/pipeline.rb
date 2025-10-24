@@ -8,6 +8,7 @@ require_relative "../context_access"
 require_relative "../hooks/hook_context"
 require_relative "../agent"
 require_relative "pipeline_failure_error"
+require_relative "../pipeline_streaming_integration"
 
 module RAAF
   # New Pipeline base class for elegant DSL
@@ -28,6 +29,7 @@ module RAAF
     include RAAF::DSL::ContextAccess
     include RAAF::DSL::ContextConfiguration
     include RAAF::DSL::Hooks::HookContext
+    prepend RAAF::DSL::PipelineStreamingIntegration
 
     # Include Traceable module for proper span hierarchy
     include RAAF::Tracing::Traceable

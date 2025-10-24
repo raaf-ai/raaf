@@ -9,6 +9,7 @@
 5. [Troubleshooting Field Mismatches](#troubleshooting-field-mismatches)
 6. [Performance Optimization](#performance-optimization)
 7. [Pipeline Testing Strategies](#pipeline-testing-strategies)
+8. [Intelligent Streaming](#intelligent-streaming)
 
 ---
 
@@ -1277,5 +1278,294 @@ end
 pipeline_class = DynamicPipeline.build_for_data_type(:text)
 pipeline = pipeline_class.new(data: input_data)
 ```
+
+---
+
+## Intelligent Streaming
+
+### Overview
+
+Intelligent streaming enables pipeline-level processing of large arrays by splitting them into configurable streams and executing all scope agents for each stream sequentially. This feature is particularly useful when processing large datasets that would otherwise exceed memory limits or when you need incremental progress updates.
+
+### Use Cases
+
+- **Large batch processing**: Process 1000+ items with memory efficiency
+- **Incremental progress**: Get results as each stream completes instead of waiting for entire pipeline
+- **State management**: Skip already-processed items, load cached results, persist progress
+- **Resumable processing**: Restart interrupted jobs without reprocessing
+- **API rate limit management**: Process items in controlled batches
+
+### Basic Streaming Example
+
+```ruby
+# Define a pipeline for processing many companies
+class ProspectDiscoveryPipeline < RAAF::Pipeline
+  flow CompanyFinder >> QuickFitAnalyzer >> DeepIntelligence >> Scoring
+
+  context do
+    required :product, :company
+    optional min_companies: 100
+  end
+end
+
+# Configure streaming on the analyzer agent
+class QuickFitAnalyzer < RAAF::DSL::Agent
+  agent_name "QuickFitAnalyzer"
+  model "gpt-4o-mini"  # Cost-effective for filtering
+
+  # Enable streaming with 100 items per stream
+  intelligent_streaming stream_size: 100, over: :companies do
+    # Optional: Get notified when each stream completes
+    on_stream_complete do |stream_num, total, stream_results|
+      puts "✅ Processed stream #{stream_num}/#{total}: #{stream_results.count} prospects"
+
+      # Can trigger side effects like enqueueing for enrichment
+      EnrichmentQueue.enqueue(stream_results)
+    end
+  end
+
+  # Standard agent implementation
+  schema do
+    field :analyzed_companies, type: :array, required: true
+  end
+end
+
+# Usage
+pipeline = ProspectDiscoveryPipeline.new(
+  product: product,
+  company: company
+)
+
+# If CompanyFinder returns 1000 companies, QuickFitAnalyzer will:
+# 1. Process them in 10 streams of 100 each
+# 2. Execute all downstream agents for each stream
+# 3. Call on_stream_complete after each stream
+# 4. Merge all results at the end
+result = pipeline.run
+```
+
+### Streaming Configuration Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| `stream_size` | Integer | Number of items per stream (required) | - |
+| `over` | Symbol | Field name containing array to stream | Auto-detected |
+| `incremental` | Boolean | Enable per-stream callbacks | `false` |
+
+### State Management
+
+Intelligent streaming provides optional state management for advanced use cases:
+
+```ruby
+class StateAwareProcessor < RAAF::DSL::Agent
+  intelligent_streaming stream_size: 50, incremental: true do
+    # Skip items that have already been processed
+    skip_if do |record|
+      ProcessedRecords.exists?(id: record[:id])
+    end
+
+    # Load existing results instead of reprocessing
+    load_existing do |record|
+      cached = CachedResult.find_by(id: record[:id])
+      cached&.data  # Return cached data if available
+    end
+
+    # Persist results after each stream completes
+    persist_each_stream do |results|
+      ProcessedRecords.insert_all(results)
+      Rails.logger.info "💾 Saved #{results.count} records"
+    end
+
+    # Optional: Hook into stream lifecycle
+    on_stream_start do |stream_num, total, stream_data|
+      Rails.logger.info "🚀 Starting stream #{stream_num}/#{total}"
+    end
+
+    on_stream_complete do |stream_num, total, stream_data, stream_results|
+      metrics.record_stream_completion(stream_num, total)
+      Rails.logger.info "✅ Completed stream #{stream_num}/#{total}"
+    end
+
+    on_stream_error do |stream_num, total, stream_data, error|
+      Rails.logger.error "❌ Stream #{stream_num} failed: #{error.message}"
+      ErrorReporter.notify(error, context: { stream: stream_num })
+    end
+  end
+end
+```
+
+### Incremental Delivery
+
+Enable incremental delivery to receive results as each stream completes:
+
+```ruby
+class IncrementalProcessor < RAAF::DSL::Agent
+  # incremental: true enables per-stream callbacks
+  intelligent_streaming stream_size: 25, incremental: true do
+    on_stream_complete do |stream_num, total, stream_data, stream_results|
+      # Results available immediately after each stream
+      NotificationService.send_progress(
+        message: "Processed batch #{stream_num}/#{total}",
+        results: stream_results
+      )
+
+      # Start downstream processing before pipeline completes
+      DownstreamProcessor.enqueue(stream_results)
+    end
+  end
+end
+```
+
+### How Streaming Works
+
+1. **Detection**: Pipeline detects agents configured with `intelligent_streaming`
+2. **Scope Creation**: Creates a "streaming scope" from the triggering agent to the last sequential agent
+3. **Stream Execution**: For each stream of data:
+   - Execute all agents in the scope sequentially
+   - Optional: Apply state management (skip/load/persist)
+   - Optional: Call incremental delivery hooks
+4. **Result Merging**: Combine all stream results into final output
+
+### Example: Complete Processing Pipeline
+
+```ruby
+# Real-world example: Process 1000 companies with cost optimization
+class CostOptimizedDiscoveryPipeline < RAAF::Pipeline
+  flow CompanyLoader >> QuickFilter >> DetailedAnalysis >> FinalScoring
+
+  context do
+    required :search_terms, :market
+  end
+end
+
+class CompanyLoader < RAAF::DSL::Agent
+  # Loads companies from various sources
+  def call
+    # Returns { companies: [...1000 items...] }
+  end
+end
+
+class QuickFilter < RAAF::DSL::Agent
+  model "gpt-4o-mini"  # Cheap model for filtering
+
+  # Process 100 companies at a time
+  intelligent_streaming stream_size: 100, over: :companies do
+    # Skip companies we've already analyzed
+    skip_if { |company| company[:analyzed_at].present? }
+
+    # Track progress
+    on_stream_complete do |stream_num, total, data, results|
+      filtered = results.select { |r| r[:fit_score] >= 60 }
+      Rails.logger.info "Stream #{stream_num}: #{filtered.count}/#{data.count} passed filter"
+    end
+  end
+
+  schema do
+    field :companies, type: :array, required: true do
+      field :id, type: :integer, required: true
+      field :name, type: :string, required: true
+      field :fit_score, type: :integer, required: true
+    end
+  end
+end
+
+class DetailedAnalysis < RAAF::DSL::Agent
+  model "gpt-4o"  # Expensive model only for good fits
+
+  # Only analyzes companies that passed QuickFilter
+  # Automatically receives streamed results
+
+  schema do
+    field :companies, type: :array, required: true do
+      field :id, type: :integer, required: true
+      field :detailed_analysis, type: :object, required: true
+    end
+  end
+end
+
+# Usage with monitoring
+pipeline = CostOptimizedDiscoveryPipeline.new(
+  search_terms: ["SaaS", "B2B", "enterprise"],
+  market: market
+)
+
+# Processes 1000 companies in 10 streams of 100
+# Total cost: $4.20 instead of $10.20 (60% savings)
+result = pipeline.run
+puts "Analyzed #{result[:companies].count} companies"
+```
+
+### Performance Tuning
+
+Choose stream size based on your specific constraints:
+
+| Data Type | Recommended Stream Size | Rationale |
+|-----------|------------------------|-----------|
+| Simple objects (< 1KB) | 500-1000 | Low memory overhead |
+| Medium objects (1-10KB) | 100-200 | Balanced memory/performance |
+| Large objects (> 10KB) | 20-50 | Memory constrained |
+| With API calls | 10-25 | API rate limits |
+| Database operations | 100-500 | Batch insert efficiency |
+
+### Streaming vs Batching
+
+| Feature | Agent Batching (`in_chunks_of`) | Pipeline Streaming (`intelligent_streaming`) |
+|---------|----------------------------------|----------------------------------------------|
+| **Scope** | Single agent | Multiple agents in pipeline |
+| **Use case** | Memory/API limits | Large dataset processing |
+| **State management** | No | Yes (skip/load/persist) |
+| **Incremental delivery** | No | Yes |
+| **Performance** | Good for single agent | Better for pipelines |
+| **Complexity** | Simple | More options |
+
+### Best Practices
+
+1. **Choose appropriate stream size**: Balance memory usage with processing efficiency
+2. **Use state management for resumability**: Implement skip_if and persist_each_stream for long-running jobs
+3. **Monitor progress**: Use on_stream_complete for progress tracking
+4. **Handle errors gracefully**: Implement on_stream_error for partial failure recovery
+5. **Test with small datasets first**: Verify behavior before processing large datasets
+6. **Consider costs**: Use cheaper models for filtering, expensive models for detailed analysis
+
+### Migration from Manual Batching
+
+If you're currently using manual batching, here's how to migrate:
+
+**Before (manual batching):**
+```ruby
+companies.each_slice(100) do |batch|
+  results = batch.map { |company| analyze(company) }
+  save_results(results)
+  notify_progress(results.count)
+end
+```
+
+**After (intelligent streaming):**
+```ruby
+class CompanyAnalyzer < RAAF::DSL::Agent
+  intelligent_streaming stream_size: 100 do
+    persist_each_stream { |results| save_results(results) }
+    on_stream_complete { |num, total, data, results| notify_progress(results.count) }
+  end
+end
+```
+
+### Troubleshooting
+
+**Stream size too large:**
+- Symptom: Memory errors, timeouts
+- Solution: Reduce stream_size
+
+**Missing array field:**
+- Symptom: "Cannot find array field to stream"
+- Solution: Specify `over: :field_name` explicitly
+
+**State not persisting:**
+- Symptom: Reprocessing on restart
+- Solution: Implement persist_each_stream block
+
+**Callbacks not firing:**
+- Symptom: No progress updates
+- Solution: Set `incremental: true` for per-stream callbacks
 
 This comprehensive guide should give you everything you need to master the RAAF Pipeline DSL, from basic usage to advanced patterns and testing strategies.

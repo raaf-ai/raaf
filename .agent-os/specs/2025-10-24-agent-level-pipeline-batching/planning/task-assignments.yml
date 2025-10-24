@@ -1,0 +1,159 @@
+# Task Assignments for Intelligent Streaming Feature
+#
+# This file maps each task group from tasks.md to the assigned subagent implementer
+# from implementers.yml. Each subagent will be delegated specific tasks during
+# PHASE 2 of the implementation process.
+#
+# Created: 2025-10-24
+# Spec: Intelligent Streaming (Pipeline-level batching with optional state management and incremental delivery)
+
+task_assignments:
+  - task_group_number: 1
+    task_group_title: "Core Streaming Classes"
+    description: "Implement foundation classes for streaming (IntelligentStreamingConfig, StreamingScope, IntelligentStreamingManager)"
+    assigned_subagent_id: "architecture-engineer"
+    dependencies: []
+    subtask_count: 7
+    key_deliverables:
+      - IntelligentStreamingConfig class with configuration validation
+      - StreamingScope class for scope encapsulation
+      - IntelligentStreamingManager for scope detection
+      - StreamProgressContext for hook context
+      - Comprehensive unit tests with 100% coverage
+
+  - task_group_number: 2
+    task_group_title: "Agent Configuration Methods"
+    description: "Implement DSL methods for agents to declare streaming behavior (intelligent_streaming, on_stream_*, hooks)"
+    assigned_subagent_id: "backend-developer"
+    dependencies:
+      - task_group: 1
+    subtask_count: 6
+    key_deliverables:
+      - intelligent_streaming() class method on Agent DSL
+      - on_stream_start, on_stream_complete, on_stream_error hooks
+      - Introspection methods (streaming_trigger?, streaming_config)
+      - Thread-safe configuration storage
+      - Tests for all agent class methods
+
+  - task_group_number: 3
+    task_group_title: "Pipeline Stream Executor"
+    description: "Implement PipelineStreamExecutor for executing scopes through streams with result merging and state management"
+    assigned_subagent_id: "backend-developer"
+    dependencies:
+      - task_group: 1
+      - task_group: 2
+    subtask_count: 7
+    key_deliverables:
+      - PipelineStreamExecutor class with stream splitting logic
+      - Sequential stream execution through scope agents
+      - Result merging for arrays, objects, and primitives
+      - State management (skip_if, load_existing, persist_each_stream)
+      - Hook execution at appropriate times
+      - Error recovery with partial results
+
+  - task_group_number: 4
+    task_group_title: "Pipeline Integration"
+    description: "Integrate streaming into Pipeline execution (scope detection, automatic wrapping, compatibility)"
+    assigned_subagent_id: "integration-engineer"
+    dependencies:
+      - task_group: 1
+      - task_group: 2
+      - task_group: 3
+    subtask_count: 6
+    key_deliverables:
+      - Pipeline class initialization updates for scope detection
+      - Pipeline execute method updates for stream wrapping
+      - Integration tests for pipelines with streaming
+      - Compatibility with existing wrappers (BatchedAgent, ChainedAgent, parallel operators)
+      - Backward compatibility verification
+      - Pipeline-level configuration options
+
+  - task_group_number: 5
+    task_group_title: "Progress Hooks and Tracing"
+    description: "Implement progress hooks execution and integrate with RAAF tracing system"
+    assigned_subagent_id: "backend-developer"
+    dependencies:
+      - task_group: 1
+      - task_group: 2
+      - task_group: 3
+      - task_group: 4
+    subtask_count: 6
+    key_deliverables:
+      - Progress hook execution in executor (on_stream_start, on_stream_complete, on_stream_error)
+      - Tracing integration with batch spans as children of pipeline span
+      - Logging for batch execution with appropriate log levels
+      - Hook context modifications support
+      - Tests for hooks and tracing
+      - Performance verification (< 5ms overhead per stream)
+
+  - task_group_number: 6
+    task_group_title: "Comprehensive Testing"
+    description: "Edge case testing, configuration validation, performance testing, and backward compatibility"
+    assigned_subagent_id: "testing-engineer"
+    dependencies:
+      - task_group: 1
+      - task_group: 2
+      - task_group: 3
+      - task_group: 4
+      - task_group: 5
+    subtask_count: 7
+    key_deliverables:
+      - Edge case tests (empty arrays, single items, exact batch size match, large arrays)
+      - Configuration validation tests (missing methods, invalid chunk sizes, invalid field names)
+      - Performance tests with memory usage and benchmark metrics
+      - Backward compatibility tests with existing pipelines
+      - Error scenario tests (batch failures, hook errors, retry logic)
+      - Integration test suite with real-world use cases
+      - 100% test coverage verification
+
+  - task_group_number: 7
+    task_group_title: "Documentation and Examples"
+    description: "Guides, API documentation, migration guide, and working code examples"
+    assigned_subagent_id: "backend-developer"
+    dependencies:
+      - task_group: 1
+      - task_group: 2
+      - task_group: 3
+      - task_group: 4
+      - task_group: 5
+      - task_group: 6
+    subtask_count: 6
+    key_deliverables:
+      - RAAF Pipeline DSL Guide update with streaming section
+      - Complete API documentation for all new methods
+      - Migration guide (when to use streaming vs agent batching)
+      - Example implementations (basic, progress tracking, error handling, real-world)
+      - Inline code documentation with YARD docs
+      - README for spec with quick start guide
+
+  - task_group_number: 8
+    task_group_title: "Final Polish and Optimization"
+    description: "Performance optimization, code refactoring, error messages, and production readiness"
+    assigned_subagent_id: "refactoring-engineer"
+    dependencies:
+      - task_group: 1
+      - task_group: 2
+      - task_group: 3
+      - task_group: 4
+      - task_group: 5
+      - task_group: 6
+      - task_group: 7
+    subtask_count: 6
+    key_deliverables:
+      - Performance profiling and optimization (target < 5ms overhead)
+      - Code refactoring for maintainability
+      - Error message improvements with troubleshooting hints
+      - Feature flags for optional toggling
+      - Final integration testing with ProspectPipeline
+      - Production readiness verification
+
+# Summary
+total_task_groups: 8
+total_subtasks: 50
+implementation_sequence: "Linear - Task Group 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8"
+estimated_total_effort: "8-10 weeks with all subagents working in parallel on independent paths"
+critical_path:
+  - "Task Groups 1-2 must complete before 3-4 can start"
+  - "Task Groups 1-3 must complete before 4 can start"
+  - "Task Groups 1-5 must complete before 6 can start"
+  - "Task Groups 1-7 must complete before 8 can start"
