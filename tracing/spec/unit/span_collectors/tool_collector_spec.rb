@@ -8,8 +8,11 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
       class: double("ToolClass", name: "RAAF::WebSearchTool")
     ).tap do |tool|
       tool.instance_variable_set(:@method_name, :search)
+      # Allow respond_to? to work for any method, returning false by default
+      allow(tool).to receive(:respond_to?).and_return(false)
+      # But specifically allow detect_agent_context
       allow(tool).to receive(:respond_to?).with(:detect_agent_context).and_return(true)
-      
+
       agent_context = double("Agent", class: double("AgentClass", name: "RAAF::Agent"))
       allow(tool).to receive(:detect_agent_context).and_return(agent_context)
     end
@@ -135,6 +138,172 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
       attributes = collector.collect_result(tool, complex_result)
       expect(attributes["result.execution_result"]).to match(/\{.*status.*success.*\}/)
       expect(attributes["result.execution_result"].length).to be <= 101
+    end
+  end
+
+  describe "execution metrics (span attributes)" do
+    context "with execution duration available" do
+      before do
+        allow(tool).to receive(:respond_to?).with(:execution_duration_ms).and_return(true)
+        allow(tool).to receive(:execution_duration_ms).and_return(1250)
+      end
+
+      it "collects execution duration in milliseconds" do
+        attributes = collector.collect_attributes(tool)
+        duration_key = attributes.keys.find { |k| k.end_with?(".duration.ms") && k.start_with?("tool.") }
+        expect(attributes[duration_key]).to eq("1250")
+      end
+    end
+
+    context "without execution duration" do
+      it "handles missing execution duration gracefully" do
+        attributes = collector.collect_attributes(tool)
+        duration_key = attributes.keys.find { |k| k.end_with?(".duration.ms") && k.start_with?("tool.") }
+        expect(attributes[duration_key]).to eq("N/A")
+      end
+    end
+
+    context "with retry metrics available" do
+      before do
+        allow(tool).to receive(:respond_to?).with(:retry_count).and_return(true)
+        allow(tool).to receive(:retry_count).and_return(3)
+        allow(tool).to receive(:respond_to?).with(:total_backoff_ms).and_return(true)
+        allow(tool).to receive(:total_backoff_ms).and_return(5000)
+      end
+
+      it "collects retry count" do
+        attributes = collector.collect_attributes(tool)
+        retry_count_key = attributes.keys.find { |k| k.end_with?(".retry.count") }
+        expect(attributes[retry_count_key]).to eq("3")
+      end
+
+      it "collects total backoff duration" do
+        attributes = collector.collect_attributes(tool)
+        backoff_key = attributes.keys.find { |k| k.end_with?(".retry.total_backoff_ms") }
+        expect(attributes[backoff_key]).to eq("5000")
+      end
+    end
+
+    context "without retry metrics" do
+      it "defaults retry count to 0" do
+        attributes = collector.collect_attributes(tool)
+        retry_count_key = attributes.keys.find { |k| k.end_with?(".retry.count") }
+        expect(attributes[retry_count_key]).to eq("0")
+      end
+
+      it "defaults total backoff to 0" do
+        attributes = collector.collect_attributes(tool)
+        backoff_key = attributes.keys.find { |k| k.end_with?(".retry.total_backoff_ms") }
+        expect(attributes[backoff_key]).to eq("0")
+      end
+    end
+  end
+
+  describe "result execution metrics" do
+    context "with successful execution" do
+      it "marks status as success for normal results" do
+        result = "successful execution"
+        attributes = collector.collect_result(tool, result)
+        expect(attributes["result.status"]).to eq("success")
+      end
+
+      it "collects result size in bytes" do
+        result = "x" * 100
+        attributes = collector.collect_result(tool, result)
+        expect(attributes["result.size.bytes"]).to eq("100")
+      end
+    end
+
+    context "with failed execution (Exception)" do
+      let(:error) { RuntimeError.new("Tool failed") }
+
+      it "marks status as error for exceptions" do
+        attributes = collector.collect_result(tool, error)
+        expect(attributes["result.status"]).to eq("error")
+      end
+
+      it "captures error type" do
+        attributes = collector.collect_result(tool, error)
+        expect(attributes["result.error.type"]).to eq("RuntimeError")
+      end
+
+      it "captures error message" do
+        attributes = collector.collect_result(tool, error)
+        expect(attributes["result.error.message"]).to eq("Tool failed")
+      end
+
+      it "includes ERROR prefix in execution result" do
+        attributes = collector.collect_result(tool, error)
+        expect(attributes["result.execution_result"]).to start_with("ERROR:")
+        expect(attributes["result.execution_result"]).to include("Tool failed")
+      end
+    end
+
+    context "with error response object" do
+      let(:error_response) do
+        double("ErrorResponse",
+          failure?: true,
+          error: double("Error", class: double("ErrorClass", name: "NetworkError"), message: "Connection timeout")
+        )
+      end
+
+      it "marks status as error for error response objects" do
+        attributes = collector.collect_result(tool, error_response)
+        expect(attributes["result.status"]).to eq("error")
+      end
+
+      it "extracts error type from error response" do
+        attributes = collector.collect_result(tool, error_response)
+        expect(attributes["result.error.type"]).to eq("NetworkError")
+      end
+
+      it "extracts error message from error response" do
+        attributes = collector.collect_result(tool, error_response)
+        expect(attributes["result.error.message"]).to eq("Connection timeout")
+      end
+    end
+
+    context "with result duration tracking" do
+      before do
+        allow(tool).to receive(:respond_to?).with(:execution_duration_ms).and_return(true)
+        allow(tool).to receive(:execution_duration_ms).and_return(523)
+      end
+
+      it "includes result duration in result attributes" do
+        result = "successful"
+        attributes = collector.collect_result(tool, result)
+        expect(attributes["result.duration.ms"]).to eq("523")
+      end
+    end
+
+    context "with tool_result field (full result data)" do
+      let(:complex_result) do
+        {
+          status: "success",
+          data: [1, 2, 3],
+          metadata: { timestamp: "2024-01-01" }
+        }
+      end
+
+      it "includes full result object in tool_result field" do
+        attributes = collector.collect_result(tool, complex_result)
+        # BaseCollector converts symbol keys to string keys for JSONB storage
+        expect(attributes["result.tool_result"]).to eq({
+          "status" => "success",
+          "data" => [1, 2, 3],
+          "metadata" => { "timestamp" => "2024-01-01" }
+        })
+      end
+
+      it "converts exception to hash in tool_result" do
+        error = RuntimeError.new("Test error")
+        attributes = collector.collect_result(tool, error)
+        # BaseCollector converts symbol keys to string keys for JSONB storage
+        expect(attributes["result.tool_result"]).to eq({
+          "error" => "Test error",
+          "class" => "RuntimeError"
+        })
+      end
     end
   end
 
