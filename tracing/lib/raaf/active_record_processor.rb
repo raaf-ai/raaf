@@ -437,9 +437,11 @@ module RAAF
 
         ::RAAF::Tracing::SpanRecord.create!(span_attributes)
       rescue ActiveRecord::RecordInvalid => e
-        log_warn("Failed to save span", span_id: span.span_id, error: e.message, error_class: e.class.name)
+        span_id_value = span.is_a?(Hash) ? span[:span_id] : span.span_id
+        log_warn("Failed to save span", span_id: span_id_value, error: e.message, error_class: e.class.name)
       rescue StandardError => e
-        log_error("Unexpected error saving span", error: e.message, error_class: e.class.name)
+        span_id_value = span.is_a?(Hash) ? span[:span_id] : (span.respond_to?(:span_id) ? span.span_id : "unknown")
+        log_error("Unexpected error saving span", span_id: span_id_value, error: e.message, error_class: e.class.name)
       end
 
       # Calculate duration in milliseconds
@@ -488,6 +490,16 @@ module RAAF
 
       # Sanitize span attributes for database storage
       #
+      # Sanitization handles several concerns:
+      # 1. **Circular references**: Prevents stack overflow from circular object graphs
+      # 2. **General large values**: Truncates at 10,000 chars to prevent bloated database rows
+      # 3. **Array limits**: Limits arrays to 100 items for reasonable database performance
+      # 4. **Message content EXCEPTION**: LLM request messages are preserved in full because:
+      #    - They are essential for debugging AI interactions
+      #    - User prompts can be naturally long (specifications, requirements documents, etc.)
+      #    - Truncation loses critical context that explains LLM behavior
+      #    - Message content is NOT subject to arbitrary size limits
+      #
       # @param attributes [Hash] Raw attributes
       # @return [Hash] Sanitized attributes
       def sanitize_attributes(attributes)
@@ -497,14 +509,98 @@ module RAAF
         sanitized = {}
         visited = Set.new
         attributes.each do |key, value|
+          # Special handling for LLM request messages - preserve full content without truncation
+          # These are critical for debugging and should never be truncated
+          if key.to_s.include?("llm.request.messages") && value.is_a?(Array)
+            # Preserve all messages without truncation (do not limit to 100 items)
+            # Sanitize each message's content to handle circular references
+            sanitized[key.to_s] = value.map { |msg| sanitize_message_for_storage(msg, visited.dup) }
           # Special handling for conversation messages - don't truncate JSON structure
-          if key.to_s.include?("conversation_messages") && value.is_a?(String)
+          elsif key.to_s.include?("conversation_messages") && value.is_a?(String)
             sanitized[key.to_s] = value  # Keep conversation messages intact
           else
             sanitized[key.to_s] = sanitize_value(value, visited)
           end
         end
         sanitized
+      end
+
+      # Sanitize a single LLM message for storage without truncating content
+      #
+      # Preserves the full message content (role, content, tool_calls) without
+      # applying the 10,000 character string truncation limit. Message content is
+      # critical for debugging and analysis.
+      #
+      # @param message [Hash] Message object with role, content, etc.
+      # @param visited [Set] Set of visited object IDs for circular reference tracking
+      # @return [Hash] Sanitized message
+      def sanitize_message_for_storage(message, visited = Set.new)
+        return message unless message.is_a?(Hash)
+
+        sanitized = {}
+        message.each do |key, value|
+          case value
+          when String
+            # CRITICAL: Do NOT truncate message content - preserve full text
+            # Message content is essential for debugging AI interactions
+            sanitized[key.to_s] = value
+          when Hash, Array
+            # Recursively sanitize but don't apply string length limits to message fields
+            sanitized[key.to_s] = sanitize_value_without_string_limit(value, visited)
+          else
+            sanitized[key.to_s] = value
+          end
+        end
+        sanitized
+      end
+
+      # Sanitize value without applying string length limits
+      #
+      # Used for critical data like LLM message content where full text is needed.
+      # Handles circular references but does NOT truncate strings.
+      #
+      # @param value [Object] Value to sanitize
+      # @param visited [Set] Set of visited object IDs
+      # @return [Object] Sanitized value
+      def sanitize_value_without_string_limit(value, visited = Set.new)
+        object_id = value.object_id
+        return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
+
+        if value.is_a?(Hash) || value.is_a?(Array)
+          visited = visited.dup.add(object_id)
+        end
+
+        case value
+        when String
+          # NO TRUNCATION for message content
+          value
+        when Numeric, TrueClass, FalseClass, NilClass
+          value
+        when Hash
+          sanitized = {}
+          begin
+            value.each do |k, v|
+              sanitized[k.to_s] = sanitize_value_without_string_limit(v, visited)
+            end
+          rescue SystemStackError, StandardError => e
+            "[SANITIZATION_ERROR: #{e.class}]"
+          end
+          sanitized
+        when Array
+          # Preserve all array items for message content
+          begin
+            value.map { |v| sanitize_value_without_string_limit(v, visited) }
+          rescue SystemStackError, StandardError => e
+            ["[SANITIZATION_ERROR: #{e.class}]"]
+          end
+        else
+          # For other types, convert to string without truncation
+          begin
+            value.respond_to?(:to_s) ? value.to_s : "[UNSERIALIZABLE:#{value.class}]"
+          rescue StandardError => e
+            "[SANITIZATION_ERROR: #{e.class}]"
+          end
+        end
       end
 
       # Sanitize span events for database storage
