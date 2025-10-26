@@ -317,13 +317,15 @@ module RAAF
         result = runner.send(:execute_responses_api_core, messages, config, with_tracing: tracing_enabled)
 
         # Convert RunResult to the expected format
+        # CRITICAL: Preserve provider metadata (e.g., Perplexity search_results)
         {
           conversation: result.messages,
           usage: result.usage,
           final_result: true,
           last_agent: result.last_agent,
           turns: result.turns,
-          tool_results: result.tool_results
+          tool_results: result.tool_results,
+          provider_metadata: result.metadata  # ← PRESERVE METADATA FROM RUNNER RESULT
         }
       end
 
