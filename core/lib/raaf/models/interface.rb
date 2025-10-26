@@ -225,7 +225,8 @@ module RAAF
           )
 
           # Convert response to Responses API format
-          convert_chat_to_responses_format(response)
+          converted = convert_chat_to_responses_format(response)
+          converted
         end
       end
 
@@ -509,12 +510,21 @@ module RAAF
         end
 
         # Return in Responses API format with all necessary fields
-        {
+        responses_format = {
           output: output,
           usage: response["usage"] || response[:usage],
           model: response["model"] || response[:model],
           id: response["id"] || response[:id] || SecureRandom.uuid
         }
+
+        # CRITICAL: Preserve provider metadata (e.g., search_results from Perplexity)
+        # This metadata is needed by downstream pipeline stages
+        provider_metadata = response["metadata"] || response[:metadata]
+        if provider_metadata.is_a?(Hash) && provider_metadata.any?
+          responses_format[:metadata] = provider_metadata
+        end
+
+        responses_format
       end
 
       private
