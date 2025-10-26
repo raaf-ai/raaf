@@ -1211,35 +1211,23 @@ module RAAF
       end
 
       def process_raaf_result(raaf_result)
-        puts "🔍 [#{self.class.name}::process_raaf_result] Called with raaf_result class: #{raaf_result.class.name}"
-        puts "🔍 [#{self.class.name}::process_raaf_result] raaf_result keys: #{raaf_result.is_a?(Hash) ? raaf_result.keys.inspect : 'N/A'}"
-
         # Handle different RAAF result formats automatically
         base_result = if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
           # New RAAF format
-          puts "🔍 [#{self.class.name}::process_raaf_result] Using RAAF format extraction"
           extract_result_data(raaf_result[:results])
         elsif raaf_result.is_a?(Hash)
           # Direct hash result
-          puts "🔍 [#{self.class.name}::process_raaf_result] Using direct hash extraction"
           extract_hash_result(raaf_result)
         else
           # Unknown format
-          puts "🔍 [#{self.class.name}::process_raaf_result] Unknown format: #{raaf_result.class}"
           log_warn "🤔 [#{self.class.name}] Unknown result format: #{raaf_result.class}"
           { success: true, data: raaf_result }
         end
 
-        puts "🔍 [#{self.class.name}::process_raaf_result] base_result keys after extraction: #{base_result.keys.inspect}"
-
         # Preserve metadata from the original raaf_result (e.g., search_results from Perplexity)
         if raaf_result.is_a?(Hash) && raaf_result.key?(:metadata)
-          puts "🔍 [#{self.class.name}::process_raaf_result] Found metadata in raaf_result: #{raaf_result[:metadata].keys.inspect}"
           base_result[:metadata] = raaf_result[:metadata]
-          puts "🔍 [#{self.class.name}::process_raaf_result] Preserved metadata into base_result"
           log_debug "🔍 [#{self.class.name}::process_raaf_result] Preserved metadata: #{raaf_result[:metadata].keys.inspect}"
-        else
-          puts "🔍 [#{self.class.name}::process_raaf_result] No metadata in raaf_result"
         end
 
         # Apply result transformations if configured, or auto-generate them for output fields
@@ -3569,7 +3557,7 @@ module RAAF
         parsed_output = extract_final_output(run_result)
 
         # Build result in expected DSL format
-        {
+        raaf_result = {
           workflow_status: "completed",
           success: true,
           results: parsed_output || {},  # AutoMerge expects this to be the parsed data hash, not the raw runner
@@ -3577,6 +3565,17 @@ module RAAF
           context_variables: run_context,
           summary: build_result_summary(parsed_output)
         }
+
+        # Preserve metadata from provider response (generic for all providers)
+        # This is critical for passing citations and search results through the pipeline
+        # The metadata is stored directly in run_result.metadata (populated by TurnExecutor)
+        if run_result.respond_to?(:metadata) && run_result.metadata.is_a?(Hash) && run_result.metadata.any?
+          # Store the entire metadata hash (includes search_results, citations, etc from provider)
+          # This metadata was extracted and stored in context by TurnExecutor
+          raaf_result[:metadata] = run_result.metadata
+        end
+
+        raaf_result
       end
 
       def extract_final_output(run_result)

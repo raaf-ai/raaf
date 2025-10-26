@@ -264,27 +264,13 @@ module RAAF
       def make_api_call(body)
         response = @http_client.make_api_call(body)
 
-        puts "🔍 [PerplexityProvider::make_api_call] Raw API response keys: #{response.keys.inspect}"
-        RAAF.logger.info "🔍 [PerplexityProvider] Raw API response keys: #{response.keys.inspect}"
-
         # Check for search_results in different locations
         search_results = response.delete("search_results") || response.delete(:search_results) || []
-        puts "🔍 [PerplexityProvider::make_api_call] Found #{search_results.count} search results in API response"
-        RAAF.logger.info "🔍 [PerplexityProvider] Found #{search_results.count} search results in API response"
-        if search_results.any?
-          puts "🔍 [PerplexityProvider::make_api_call] First result: #{search_results.first.inspect}"
-          RAAF.logger.info "🔍 [PerplexityProvider] First result: #{search_results.first.inspect}"
-        end
 
         # Preserve search_results (contains citation information)
         # Accessible in agent results via response.dig(:metadata, :search_results)
         response[:metadata] ||= {}
         response[:metadata][:search_results] = search_results
-
-        puts "🔍 [PerplexityProvider::make_api_call] Stored search_results in response[:metadata][:search_results]"
-        puts "🔍 [PerplexityProvider::make_api_call] Final response[:metadata] keys: #{response[:metadata].keys.inspect}"
-        RAAF.logger.info "🔍 [PerplexityProvider] Stored search_results in response[:metadata][:search_results]"
-        RAAF.logger.info "🔍 [PerplexityProvider] Final response[:metadata] keys: #{response[:metadata].keys.inspect}"
 
         response
       end
