@@ -1442,6 +1442,7 @@ module RAAF
           response = @provider.responses_completion(**api_params)
         end
 
+
         # Validate response structure for Responses API
         raise StandardError, "Invalid response structure: missing 'output' field" unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
 
@@ -1727,16 +1728,31 @@ module RAAF
       # Extract structured tool results from generated_items
       tool_results = extract_tool_results(generated_items)
 
+      # Build metadata, preserving provider-specific metadata (e.g., search_results from Perplexity)
+      base_metadata = {
+        responses: model_responses,
+        max_turns_reached: state[:max_turns_reached] || false
+      }
+
+      # Preserve metadata from provider responses (e.g., search_results from Perplexity)
+      # This is critical for multi-stage pipelines where metadata needs to flow downstream
+      if model_responses.any?
+        last_response = model_responses.last
+        if last_response.is_a?(Hash)
+          provider_metadata = last_response[:metadata] || last_response["metadata"]
+          if provider_metadata.is_a?(Hash) && provider_metadata.any?
+            base_metadata[:provider_metadata] = provider_metadata
+          end
+        end
+      end
+
       RunResult.new(
         messages: final_messages,
         last_agent: state[:current_agent],
         turns: state[:turns],
         usage: state[:accumulated_usage],
         tool_results: tool_results,
-        metadata: {
-          responses: model_responses,
-          max_turns_reached: state[:max_turns_reached] || false
-        }
+        metadata: base_metadata
       )
     end
 
