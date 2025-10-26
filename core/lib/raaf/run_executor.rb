@@ -168,6 +168,7 @@ module RAAF
       if result[:final_result]
         # Responses API returns complete result
         final_agent = result[:last_agent] || agent
+
         create_result(
           result[:conversation],
           result[:usage],
@@ -353,11 +354,15 @@ module RAAF
                 turn_count: filtered_messages.size,
                 original_count: conversation.size,
                 turns: turns)
+
+      # Get final metadata from context (which includes provider metadata extracted by TurnExecutor)
+      final_metadata = context_wrapper&.context&.metadata || {}
+
       RunResult.new(
         messages: filtered_messages,
         last_agent: effective_agent,
         usage: usage,
-        metadata: context_wrapper&.context&.metadata || {},
+        metadata: final_metadata,
         turns: turns,
         tool_results: tool_results
       )
