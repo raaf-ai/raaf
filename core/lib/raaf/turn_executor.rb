@@ -68,6 +68,17 @@ module RAAF
         message = result[:message]
         usage = result[:usage]
 
+        # CRITICAL: Extract and preserve provider metadata from raw response
+        # This ensures metadata (like Perplexity search_results) flows through to RunResult
+        if result[:response].is_a?(Hash)
+          provider_metadata = result[:response][:metadata] || result[:response]["metadata"]
+          if provider_metadata.is_a?(Hash) && provider_metadata.any?
+            # Merge provider metadata with existing metadata in context
+            # Update the internal metadata hash directly
+            context_wrapper.context.instance_variable_get(:@metadata).merge!(provider_metadata)
+          end
+        end
+
         # Run output guardrails
         if message[:content]
           filtered_content = runner.run_output_guardrails(context_wrapper, current_agent, message[:content])
