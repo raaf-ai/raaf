@@ -50,9 +50,9 @@ module RAAF
       include Logger
 
       # Retry configuration constants
-      DEFAULT_MAX_ATTEMPTS = 3
+      DEFAULT_MAX_ATTEMPTS = 5  # Increased from 3 to 5 for better resilience
       DEFAULT_BASE_DELAY = 1.0 # seconds
-      DEFAULT_MAX_DELAY = 30.0 # seconds
+      DEFAULT_MAX_DELAY = 60.0 # seconds (increased from 30 to accommodate 5 retries)
       DEFAULT_MULTIPLIER = 2.0
       DEFAULT_JITTER = 0.1 # 10% jitter
 
@@ -661,11 +661,21 @@ module RAAF
       # @param delay [Float] Delay before next attempt
       #
       def log_retry_attempt(method, attempt, error, delay)
+        # Calculate next delay for informational logging (if not at max attempts)
+        next_delay = if attempt < @retry_config[:max_attempts]
+                       calculate_delay(attempt + 1)
+                     end
+
         log_warn(
           "Retry attempt #{attempt}/#{@retry_config[:max_attempts]} for #{method || "operation"}",
           error_class: error.class.name,
           error_message: error.message,
-          delay_seconds: delay.round(2)
+          current_delay_seconds: delay.round(2),
+          next_delay_seconds: next_delay&.round(2),
+          backoff_strategy: "exponential with #{(@retry_config[:jitter] * 100).to_i}% jitter",
+          base_delay: @retry_config[:base_delay],
+          multiplier: @retry_config[:multiplier],
+          max_delay: @retry_config[:max_delay]
         )
       end
 
