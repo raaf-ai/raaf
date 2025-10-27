@@ -67,6 +67,8 @@ module RAAF
           handle_max_turns_error(e, context)
         when ExecutionStoppedError
           handle_stopped_execution_error(e, context)
+        when ServiceUnavailableError
+          handle_service_unavailable_error(e, context)
         when JSON::ParserError
           handle_parsing_error(e, context)
         else
@@ -200,6 +202,42 @@ module RAAF
       end
 
       ##
+      # Handle service unavailable errors (502/503/504)
+      #
+      # Handles gateway and proxy errors from API providers.
+      # These are typically temporary infrastructure issues.
+      #
+      # @param error [ServiceUnavailableError] The service unavailable error
+      # @param context [Hash] Error context information
+      # @return [Hash] Recovery result or re-raises error
+      # @private
+      #
+      def handle_service_unavailable_error(error, context)
+        log_warn("Service unavailable (gateway/proxy error)", **context, message: error.message)
+
+        case strategy
+        when RecoveryStrategy::LOG_AND_CONTINUE, RecoveryStrategy::GRACEFUL_DEGRADATION
+          {
+            error: :service_unavailable,
+            message: "Service temporarily unavailable - please try again later",
+            original_error: error.message,
+            handled: true
+          }
+        when RecoveryStrategy::RETRY_ONCE
+          # Retries already exhausted
+          log_error("Max retries exceeded for service unavailable error")
+          {
+            error: :service_unavailable,
+            message: "Service unavailable after retries",
+            handled: true
+          }
+        else
+          # FAIL_FAST and unknown strategies
+          raise error
+        end
+      end
+
+      ##
       # Handle guardrail tripwire errors
       #
       # Processes errors from input or output guardrails being triggered,
@@ -307,7 +345,8 @@ module RAAF
       # Handle general unexpected errors
       #
       # Catches and processes any unexpected errors that don't
-      # match specific error types.
+      # match specific error types. Includes special handling for
+      # APIError with HTML content (gateway/proxy errors).
       #
       # @param error [StandardError] The unexpected error
       # @param context [Hash] Error context information
@@ -315,20 +354,96 @@ module RAAF
       # @private
       #
       def handle_general_error(error, context)
-        log_error("Unexpected error occurred",
-                  **context, error_class: error.class.name, message: error.message)
+        # Special handling for APIError with HTML content
+        if error.is_a?(RAAF::APIError) && contains_html_error?(error.message)
+          log_error("API returned HTML error (likely gateway/proxy issue)",
+                    **context, error_class: error.class.name,
+                    original_message: truncate_log_message(error.message))
 
-        case strategy
-        when RecoveryStrategy::GRACEFUL_DEGRADATION
-          { error: :general_error, message: "An unexpected error occurred", handled: true }
-        when RecoveryStrategy::RETRY_ONCE
-          # Retries have already been exhausted in main method
-          log_error("Max retries exceeded for general error")
-          raise error
+          case strategy
+          when RecoveryStrategy::GRACEFUL_DEGRADATION, RecoveryStrategy::LOG_AND_CONTINUE
+            { error: :gateway_error, message: clean_html_error_message(error.message), handled: true }
+          when RecoveryStrategy::RETRY_ONCE
+            # Retries already exhausted
+            log_error("Max retries exceeded for gateway error")
+            raise error
+          else
+            raise error
+          end
         else
-          # LOG_AND_CONTINUE, FAIL_FAST and unknown strategies
-          raise error
+          # Standard error handling
+          log_error("Unexpected error occurred",
+                    **context, error_class: error.class.name, message: error.message)
+
+          case strategy
+          when RecoveryStrategy::GRACEFUL_DEGRADATION
+            { error: :general_error, message: "An unexpected error occurred", handled: true }
+          when RecoveryStrategy::RETRY_ONCE
+            # Retries have already been exhausted in main method
+            log_error("Max retries exceeded for general error")
+            raise error
+          else
+            # LOG_AND_CONTINUE, FAIL_FAST and unknown strategies
+            raise error
+          end
         end
+      end
+
+      ##
+      # Check if error message contains HTML content
+      #
+      # @param message [String] Error message to check
+      # @return [Boolean] True if message contains HTML
+      # @private
+      #
+      def contains_html_error?(message)
+        return false if message.nil? || message.empty?
+
+        message.include?("<!DOCTYPE") ||
+          message.include?("<html") ||
+          message.include?("<HTML") ||
+          message.include?("HTML error:")
+      end
+
+      ##
+      # Clean HTML error message for user display
+      #
+      # Extracts clean, user-friendly error message from HTML errors.
+      #
+      # @param message [String] Raw error message possibly containing HTML
+      # @return [String] Clean user-friendly message
+      # @private
+      #
+      def clean_html_error_message(message)
+        # If message already cleaned by HTTP client
+        if message.include?("HTML error:")
+          return message.split("HTML error:").last.strip
+        end
+
+        # Gateway errors
+        if message.include?("502") || message.include?("Bad Gateway")
+          "Service gateway error - please try again later"
+        elsif message.include?("504") || message.include?("Gateway Timeout")
+          "Service gateway timeout - please try again later"
+        elsif message.include?("cloudflare") || message.include?("Cloudflare")
+          "CloudFlare gateway error - service temporarily unavailable"
+        else
+          "Service temporarily unavailable - please try again later"
+        end
+      end
+
+      ##
+      # Truncate message for logging to avoid log pollution
+      #
+      # @param message [String] Message to truncate
+      # @param max_length [Integer] Maximum length (default: 500)
+      # @return [String] Truncated message
+      # @private
+      #
+      def truncate_log_message(message, max_length = 500)
+        return message if message.nil? || message.length <= max_length
+
+        "#{message[0...max_length]}... (truncated #{message.length - max_length} chars)"
       end
 
     end
