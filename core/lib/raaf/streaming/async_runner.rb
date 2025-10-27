@@ -16,6 +16,8 @@ module RAAF
     #
     class Runner
 
+      include RAAF::RetryHandler
+
       # NOTE: RAAF::Logging might not be available in streaming context
       # We'll provide basic logging methods instead
       def log_info(message, **context)
@@ -116,6 +118,9 @@ module RAAF
         @pool_size = pool_size
         @queue_size = queue_size
         @timeout = timeout
+
+        # Initialize retry configuration
+        initialize_retry_config
 
         # Set up async provider
         @async_provider = if provider.respond_to?(:async_chat_completion)
@@ -473,26 +478,34 @@ module RAAF
         task = @active_tasks[task_id]
         return unless task
 
-        max_attempts = task[:retry_count] + 1
+        # Configure retry from task settings
+        if task[:retry_count] && task[:retry_delay]
+          configure_retry(
+            max_attempts: task[:retry_count] + 1,
+            base_delay: task[:retry_delay]
+          )
+        end
 
-        max_attempts.times do |attempt|
-          # Update status
-          @mutex.synchronize do
-            task[:status] = :running
-            task[:attempts] = attempt + 1
+        # Update status
+        @mutex.synchronize do
+          task[:status] = :running
+          task[:attempts] = 1
+        end
+
+        log_debug("Executing task with retry", task_id: task_id)
+
+        # Execute with RetryHandler
+        begin
+          result = with_retry("task_execution_#{task_id}") do
+            # Execute agent
+            agent = task[:agent]
+            message = task[:message]
+            options = task[:options]
+
+            # Create a runner instance to execute the agent
+            runner = RAAF::Runner.new(agent: agent)
+            runner.run(message, **options)
           end
-
-          log_debug("Executing task with retry",
-                    task_id: task_id, attempt: attempt + 1, max_attempts: max_attempts)
-
-          # Execute agent
-          agent = task[:agent]
-          message = task[:message]
-          options = task[:options]
-
-          # Create a runner instance to execute the agent
-          runner = RAAF::Runner.new(agent: agent)
-          result = runner.run(message, **options)
 
           # Update task with result
           @mutex.synchronize do
@@ -501,32 +514,23 @@ module RAAF
             task[:completed_at] = Time.now
           end
 
-          log_debug("Task completed with retry",
-                    task_id: task_id, attempt: attempt + 1)
+          log_debug("Task completed with retry", task_id: task_id)
 
           # Call completion block
           task[:block]&.call(result)
-          break
+
         rescue StandardError => e
-          if attempt < max_attempts - 1
-            # Retry after delay
-            log_warn("Task failed, retrying",
-                     task_id: task_id, attempt: attempt + 1, error: e)
-            sleep(task[:retry_delay])
-          else
-            # Final failure
-            @mutex.synchronize do
-              task[:error] = e
-              task[:status] = :failed
-              task[:completed_at] = Time.now
-            end
-
-            log_error("Task failed after all retries",
-                      task_id: task_id, attempts: max_attempts, error: e)
-
-            # Call error handler if available
-            task[:error_handler]&.call(e)
+          # Final failure after all retries
+          @mutex.synchronize do
+            task[:error] = e
+            task[:status] = :failed
+            task[:completed_at] = Time.now
           end
+
+          log_error("Task failed after all retries", task_id: task_id, error: e)
+
+          # Call error handler if available
+          task[:error_handler]&.call(e)
         end
       end
 

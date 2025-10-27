@@ -211,12 +211,11 @@ module RAAF
 
     # Resilience patterns for error handling and retries
     #
-    # This module contains resilience patterns and utilities for handling
-    # failures, implementing retries with backoff, circuit breakers, and
-    # other error handling strategies.
+    # Retry logic now handled by RAAF::RetryHandler in core gem.
+    # See core/lib/raaf/retry_handler.rb for retry functionality.
     #
     module Resilience
-      autoload :SmartRetry, "raaf/dsl/resilience/smart_retry"
+      # SmartRetry removed - use RAAF::RetryHandler instead
     end
 
     # Debugging and inspection capabilities

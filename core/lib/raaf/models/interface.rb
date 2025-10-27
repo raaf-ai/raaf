@@ -48,33 +48,7 @@ module RAAF
     class ModelInterface
 
       include Logger
-
-      # Retry configuration constants
-      DEFAULT_MAX_ATTEMPTS = 5  # Increased from 3 to 5 for better resilience
-      DEFAULT_BASE_DELAY = 1.0 # seconds
-      DEFAULT_MAX_DELAY = 60.0 # seconds (increased from 30 to accommodate 5 retries)
-      DEFAULT_MULTIPLIER = 2.0
-      DEFAULT_JITTER = 0.1 # 10% jitter
-
-      # Common retryable exceptions
-      RETRYABLE_EXCEPTIONS = [
-        Errno::ECONNRESET,
-        Errno::ECONNREFUSED,
-        Errno::ETIMEDOUT,
-        Net::ReadTimeout,
-        Net::WriteTimeout,
-        Net::OpenTimeout,
-        Net::HTTPTooManyRequests,
-        Net::HTTPServiceUnavailable,
-        Net::HTTPGatewayTimeout,
-        ServerError,  # Retry on server errors (500, 502, 503, 504, etc.)
-        ServiceUnavailableError  # Retry on gateway/proxy errors (502, 503, 504)
-      ].freeze
-
-      # HTTP status codes that should trigger retry
-      RETRYABLE_STATUS_CODES = [408, 429, 500, 502, 503, 504].freeze
-
-      attr_accessor :retry_config
+      include RetryHandler
 
       ##
       # Initialize a new model provider
@@ -96,7 +70,7 @@ module RAAF
         @api_key = api_key
         @api_base = api_base
         @options = options
-        @retry_config = default_retry_config
+        initialize_retry_config
       end
 
       ##
@@ -530,181 +504,7 @@ module RAAF
 
       private
 
-      ##
-      # Default retry configuration
-      #
-      # @return [Hash] Default retry configuration hash
-      #
-      def default_retry_config
-        {
-          max_attempts: DEFAULT_MAX_ATTEMPTS,
-          base_delay: DEFAULT_BASE_DELAY,
-          max_delay: DEFAULT_MAX_DELAY,
-          multiplier: DEFAULT_MULTIPLIER,
-          jitter: DEFAULT_JITTER,
-          exceptions: RETRYABLE_EXCEPTIONS.dup,
-          status_codes: RETRYABLE_STATUS_CODES.dup,
-          logger: nil # Use RAAF's logger instead
-        }
-      end
-
-      ##
-      # Execute a block with retry logic
-      #
-      # @param method_name [Symbol, String] Name of the method being retried (for logging)
-      # @yield Block to execute with retry logic
-      # @return Result of the yielded block
-      #
-      def with_retry(method_name = nil)
-        @retry_config ||= default_retry_config
-        attempts = 0
-
-        loop do
-          attempts += 1
-
-          begin
-            result = yield
-
-            # Check for HTTP responses that need retry
-            raise RetryableError.new("HTTP #{result.code}", result) if should_retry_response?(result)
-
-            return result
-          rescue *@retry_config[:exceptions] => e
-            handle_retry_attempt(method_name, attempts, e)
-          rescue StandardError => e
-            # Check if this is a wrapped HTTP error we should retry
-            raise unless retryable_error?(e)
-
-            handle_retry_attempt(method_name, attempts, e)
-
-            # Non-retryable error, re-raise immediately
-          end
-        end
-      end
-
-      ##
-      # Handle a retry attempt
-      #
-      # @param method_name [Symbol, String] Method being retried
-      # @param attempts [Integer] Current attempt number
-      # @param error [Exception] The error that triggered the retry
-      #
-      def handle_retry_attempt(method_name, attempts, error)
-        if attempts >= @retry_config[:max_attempts]
-          log_retry_failure(method_name, attempts, error)
-          raise
-        end
-
-        delay = calculate_delay(attempts)
-        log_retry_attempt(method_name, attempts, error, delay)
-        sleep(delay)
-      end
-
-      ##
-      # Calculate delay for exponential backoff with jitter
-      #
-      # @param attempt [Integer] Current attempt number
-      # @return [Float] Delay in seconds
-      #
-      def calculate_delay(attempt)
-        # Exponential backoff with jitter
-        base = @retry_config[:base_delay] * (@retry_config[:multiplier]**(attempt - 1))
-
-        # Cap at max delay
-        delay = [base, @retry_config[:max_delay]].min
-
-        # Add jitter (±jitter%)
-        jitter_amount = delay * @retry_config[:jitter]
-        delay + (rand * 2 * jitter_amount) - jitter_amount
-      end
-
-      ##
-      # Check if HTTP response should trigger a retry
-      #
-      # @param response [Object] HTTP response object
-      # @return [Boolean] Whether response should be retried
-      #
-      def should_retry_response?(_response)
-        # Let providers handle their own HTTP error responses
-        # The retry logic should focus on network-level exceptions
-        false
-      end
-
-      ##
-      # Check if error message indicates a retryable condition
-      #
-      # @param error [Exception] The error to check
-      # @return [Boolean] Whether error should be retried
-      #
-      def retryable_error?(error)
-        error_message = error.message.to_s.downcase
-
-        retryable_patterns = [
-          /rate limit/i,
-          /too many requests/i,
-          /service unavailable/i,
-          /gateway timeout/i,
-          /connection reset/i,
-          /timeout/i,
-          /temporarily unavailable/i
-        ]
-
-        retryable_patterns.any? { |pattern| error_message.match?(pattern) }
-      end
-
-      ##
-      # Log retry attempt
-      #
-      # @param method [Symbol, String] Method being retried
-      # @param attempt [Integer] Current attempt number
-      # @param error [Exception] The error that triggered retry
-      # @param delay [Float] Delay before next attempt
-      #
-      def log_retry_attempt(method, attempt, error, delay)
-        # Calculate next delay for informational logging (if not at max attempts)
-        next_delay = if attempt < @retry_config[:max_attempts]
-                       calculate_delay(attempt + 1)
-                     end
-
-        log_warn(
-          "Retry attempt #{attempt}/#{@retry_config[:max_attempts]} for #{method || "operation"}",
-          error_class: error.class.name,
-          error_message: error.message,
-          current_delay_seconds: delay.round(2),
-          next_delay_seconds: next_delay&.round(2),
-          backoff_strategy: "exponential with #{(@retry_config[:jitter] * 100).to_i}% jitter",
-          base_delay: @retry_config[:base_delay],
-          multiplier: @retry_config[:multiplier],
-          max_delay: @retry_config[:max_delay]
-        )
-      end
-
-      ##
-      # Log retry failure
-      #
-      # @param method [Symbol, String] Method that failed
-      # @param attempts [Integer] Total number of attempts made
-      # @param error [Exception] Final error
-      #
-      def log_retry_failure(method, attempts, error)
-        log_error(
-          "All #{attempts} retry attempts failed for #{method || "operation"}",
-          error_class: error.class.name,
-          error_message: error.message
-        )
-      end
-
-      # Custom error class for retryable HTTP responses
-      class RetryableError < StandardError
-
-        attr_reader :response
-
-        def initialize(message, response = nil)
-          super(message)
-          @response = response
-        end
-
-      end
+      # All retry logic now handled by RetryHandler module
 
     end
 

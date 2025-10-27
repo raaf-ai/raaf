@@ -63,6 +63,7 @@ end
 
 require_relative "raaf/function_tool"
 require_relative "raaf/handoff_tool"
+require_relative "raaf/retry_handler"
 require_relative "raaf/models/interface"
 require_relative "raaf/models/responses_provider"
 require_relative "raaf/models/openai_provider"
