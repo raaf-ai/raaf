@@ -132,7 +132,7 @@ module RAAF
       # @param response [HTTPResponse] API response
       # @raise [AuthenticationError] for 401 errors
       # @raise [RateLimitError] for 429 errors with reset time
-      # @raise [ServiceUnavailableError] for 503 errors
+      # @raise [ServiceUnavailableError] for 502/503/504 errors
       # @raise [APIError] for other HTTP errors
       # @private
       #
@@ -150,9 +150,17 @@ module RAAF
           # Parse error message from response body
           error_message = extract_error_message(response.body)
           raise RAAF::APIError, "Perplexity API error: #{error_message}"
+        when 502
+          # Bad Gateway - typically CloudFlare or proxy issues
+          raise RAAF::ServiceUnavailableError,
+                "Perplexity gateway error (502) - service temporarily unavailable"
         when 503
           raise RAAF::ServiceUnavailableError,
-                "Perplexity service temporarily unavailable"
+                "Perplexity service temporarily unavailable (503)"
+        when 504
+          # Gateway Timeout - proxy/infrastructure issue
+          raise RAAF::ServiceUnavailableError,
+                "Perplexity gateway timeout (504) - service temporarily unavailable"
         else
           error_message = extract_error_message(response.body)
           raise RAAF::APIError,
@@ -163,15 +171,89 @@ module RAAF
       ##
       # Extracts error message from API response body
       #
+      # Handles both JSON and HTML responses gracefully. For HTML responses
+      # (like CloudFlare error pages), extracts meaningful text and truncates.
+      #
       # @param response_body [String] Raw response body
-      # @return [String] Extracted error message or original body
+      # @return [String] Extracted error message (max 200 chars)
       # @private
       #
       def extract_error_message(response_body)
+        return "Empty response" if response_body.nil? || response_body.empty?
+
+        # Try JSON parsing first
         error_data = JSON.parse(response_body)
-        error_data.dig("error", "message") || response_body
+        message = error_data.dig("error", "message") || response_body
+        truncate_message(message)
       rescue JSON::ParserError, StandardError
-        response_body
+        # Handle HTML error pages (CloudFlare, proxy errors, etc.)
+        if html_response?(response_body)
+          extract_html_error(response_body)
+        else
+          # Non-JSON, non-HTML response - truncate and return
+          truncate_message(response_body)
+        end
+      end
+
+      ##
+      # Checks if response body is HTML
+      #
+      # @param body [String] Response body
+      # @return [Boolean] True if response appears to be HTML
+      # @private
+      #
+      def html_response?(body)
+        return false if body.nil? || body.empty?
+
+        # Check for common HTML markers
+        body.strip.start_with?("<!DOCTYPE", "<html", "<HTML") ||
+          body.include?("<head>") ||
+          body.include?("<body>")
+      end
+
+      ##
+      # Extracts meaningful error from HTML response
+      #
+      # Attempts to extract title or first heading from HTML error pages.
+      # Falls back to generic message if extraction fails.
+      #
+      # @param html_body [String] HTML response body
+      # @return [String] Extracted and truncated error message
+      # @private
+      #
+      def extract_html_error(html_body)
+        # Try to extract title
+        if html_body =~ /<title[^>]*>(.*?)<\/title>/mi
+          title = Regexp.last_match(1).strip
+          return truncate_message("HTML error: #{title}") unless title.empty?
+        end
+
+        # Try to extract first h1
+        if html_body =~ /<h1[^>]*>(.*?)<\/h1>/mi
+          heading = Regexp.last_match(1).strip
+          return truncate_message("HTML error: #{heading}") unless heading.empty?
+        end
+
+        # Fallback for CloudFlare and other proxy errors
+        if html_body.include?("cloudflare") || html_body.include?("Cloudflare")
+          "HTML error: CloudFlare gateway error"
+        else
+          "HTML error: Proxy or gateway issue"
+        end
+      end
+
+      ##
+      # Truncates error message to reasonable length
+      #
+      # @param message [String] Error message to truncate
+      # @param max_length [Integer] Maximum message length (default: 200)
+      # @return [String] Truncated message
+      # @private
+      #
+      def truncate_message(message, max_length = 200)
+        return message if message.nil? || message.length <= max_length
+
+        "#{message[0...max_length]}... (truncated)"
       end
     end
   end
