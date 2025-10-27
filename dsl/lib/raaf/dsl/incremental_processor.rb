@@ -182,8 +182,14 @@ module RAAF
 
         start_time = Time.now
 
-        # Call persistence handler
-        config.persistence_handler_block.call(batch_results, context)
+        # Convert batch_results to indifferent access before passing to handler
+        # This ensures application code can use either symbol or string keys
+        indifferent_results = batch_results.map do |result|
+          RAAF::Utils.indifferent_access(result)
+        end
+
+        # Call persistence handler with indifferent access data
+        config.persistence_handler_block.call(indifferent_results, context)
 
         duration_ms = ((Time.now - start_time) * 1000).round(2)
         RAAF.logger.info "✅ [#{agent_name}] Batch persisted in #{duration_ms}ms"
