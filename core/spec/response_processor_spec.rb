@@ -303,6 +303,52 @@ RSpec.describe RAAF::ResponseProcessor do
         expect(result.new_items).to have(1).item
         expect(result.tools_used).to eq(["web_search"])
       end
+
+      it "processes reasoning items" do
+        response = {
+          output: [{
+            type: "reasoning",
+            id: "reasoning_123",
+            summary: "Let me think through this step by step..."
+          }]
+        }
+
+        result = processor.process_model_response(
+          response: response,
+          agent: agent,
+          all_tools: all_tools,
+          handoffs: handoffs
+        )
+
+        expect(result.new_items).to have(1).item
+        reasoning_item = result.new_items.first
+        expect(reasoning_item).to be_a(RAAF::Items::ReasoningItem)
+        expect(reasoning_item.raw_item[:id]).to eq("reasoning_123")
+        expect(reasoning_item.raw_item[:summary]).to eq("Let me think through this step by step...")
+        expect(reasoning_item.raw_item[:type]).to eq("reasoning")
+      end
+
+      it "processes reasoning items with missing fields" do
+        response = {
+          output: [{
+            type: "reasoning",
+            content: "Analyzing the problem..."
+          }]
+        }
+
+        result = processor.process_model_response(
+          response: response,
+          agent: agent,
+          all_tools: all_tools,
+          handoffs: handoffs
+        )
+
+        expect(result.new_items).to have(1).item
+        reasoning_item = result.new_items.first
+        expect(reasoning_item).to be_a(RAAF::Items::ReasoningItem)
+        expect(reasoning_item.raw_item[:summary]).to eq("Analyzing the problem...")
+        expect(reasoning_item.raw_item[:id]).to match(/^[0-9a-f-]{36}$/) # UUID format
+      end
     end
 
     context "with unknown item types" do

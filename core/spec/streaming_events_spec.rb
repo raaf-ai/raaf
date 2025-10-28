@@ -214,6 +214,42 @@ RSpec.describe RAAF::StreamingEvents do
     end
   end
 
+  describe "ResponseReasoningDeltaEvent" do
+    let(:delta) { "Let me think about this..." }
+    let(:item_id) { "reasoning_123" }
+    let(:output_index) { 0 }
+    let(:sequence_number) { 7 }
+    let(:event) do
+      RAAF::StreamingEvents::ResponseReasoningDeltaEvent.new(
+        delta: delta,
+        item_id: item_id,
+        output_index: output_index,
+        sequence_number: sequence_number
+      )
+    end
+
+    describe "#initialize" do
+      it "sets all attributes correctly" do
+        expect(event.delta).to eq(delta)
+        expect(event.item_id).to eq(item_id)
+        expect(event.output_index).to eq(output_index)
+        expect(event.sequence_number).to eq(sequence_number)
+        expect(event.type).to eq("response.reasoning.delta")
+      end
+    end
+
+    describe "#to_h" do
+      it "returns hash representation" do
+        hash = event.to_h
+        expect(hash[:delta]).to eq(delta)
+        expect(hash[:item_id]).to eq(item_id)
+        expect(hash[:output_index]).to eq(output_index)
+        expect(hash[:type]).to eq("response.reasoning.delta")
+        expect(hash[:sequence_number]).to eq(sequence_number)
+      end
+    end
+  end
+
   describe "ResponseCompletedEvent" do
     let(:response) { { id: "resp_123", status: "completed" } }
     let(:sequence_number) { 7 }
