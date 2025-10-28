@@ -214,6 +214,118 @@ agent = RAAF::DSL::AgentBuilder.build do
 end
 ```
 
+## Reasoning Effort Configuration (NEW)
+
+**Control reasoning token costs for GPT-5 and reasoning-capable models** with the new `reasoning_effort` DSL method:
+
+```ruby
+# Minimal reasoning effort for cost-sensitive tasks (GPT-5 only)
+class CostAwareAgent < RAAF::DSL::Agent
+  agent_name "CostAwareAgent"
+  model "gpt-5"
+  reasoning_effort "minimal"  # ~60-80% fewer reasoning tokens vs "high"
+
+  static_instructions "Answer questions efficiently"
+end
+
+# High reasoning effort for complex tasks
+class DeepThinkerAgent < RAAF::DSL::Agent
+  agent_name "DeepThinkerAgent"
+  model "o1-preview"
+  reasoning_effort "high"  # Maximum reasoning depth
+
+  static_instructions "Think through complex problems step by step"
+end
+
+# Medium reasoning effort (default if not specified)
+class BalancedAgent < RAAF::DSL::Agent
+  agent_name "BalancedAgent"
+  model "gpt-5"
+  reasoning_effort "medium"  # Standard reasoning depth
+
+  static_instructions "Provide balanced analysis"
+end
+
+# Supports symbol notation
+class LowReasoningAgent < RAAF::DSL::Agent
+  agent_name "LowReasoningAgent"
+  model "o1-mini"
+  reasoning_effort :low  # Converted to string automatically
+
+  static_instructions "Quick reasoning tasks"
+end
+```
+
+### Available Reasoning Effort Levels
+
+| Level | Cost | Reasoning Tokens | Best For | Models |
+|-------|------|------------------|----------|--------|
+| `"minimal"` | Lowest (~1-2x) | Minimal reasoning | Simple tasks, cost optimization | GPT-5 only |
+| `"low"` | Low (~2-3x) | Basic reasoning | Straightforward problems | All reasoning models |
+| `"medium"` | Medium (~3-4x) | Standard depth | Balanced tasks (default) | All reasoning models |
+| `"high"` | Highest (~4-5x) | Deep reasoning | Complex analysis | All reasoning models |
+
+### Cost Implications
+
+**IMPORTANT:** Reasoning tokens are approximately **4x more expensive** than regular output tokens.
+
+```ruby
+# Example: Cost difference across effort levels
+agent_minimal = CostAwareAgent.new
+agent_high = DeepThinkerAgent.new
+
+result_minimal = agent_minimal.run("Solve problem")
+result_high = agent_high.run("Solve problem")
+
+# Track reasoning token usage
+reasoning_tokens_minimal = result_minimal.usage[:output_tokens_details][:reasoning_tokens]
+reasoning_tokens_high = result_high.usage[:output_tokens_details][:reasoning_tokens]
+
+puts "Minimal: #{reasoning_tokens_minimal} reasoning tokens"
+puts "High: #{reasoning_tokens_high} reasoning tokens"
+# Typically 60-80% fewer tokens with 'minimal' vs 'high'
+```
+
+### Dynamic Reasoning Effort
+
+Adjust reasoning effort based on task complexity:
+
+```ruby
+def create_agent_for_task(complexity)
+  effort_levels = {
+    simple: "minimal",
+    moderate: "low",
+    complex: "medium",
+    very_complex: "high"
+  }
+
+  Class.new(RAAF::DSL::Agent) do
+    agent_name "AdaptiveAgent"
+    model "gpt-5"
+    reasoning_effort effort_levels[complexity]
+    static_instructions "Solve the given problem"
+  end
+end
+
+# Use appropriate effort for task
+simple_agent = create_agent_for_task(:simple).new
+complex_agent = create_agent_for_task(:very_complex).new
+```
+
+### Supported Models
+
+- **GPT-5 family**: `gpt-5`, `gpt-5-mini`, `gpt-5-nano` (all levels including "minimal")
+- **o1 models**: `o1-preview`, `o1-mini` (levels: "low", "medium", "high")
+- **Perplexity reasoning**: `sonar-reasoning`, `sonar-reasoning-pro` (all levels)
+
+### Best Practices
+
+1. **Start with "minimal"** for simple tasks to minimize costs
+2. **Use "medium" as default** for balanced performance
+3. **Reserve "high"** for genuinely complex problems requiring deep analysis
+4. **Monitor costs** via `output_tokens_details[:reasoning_tokens]` in results
+5. **Test different levels** - sometimes "low" performs as well as "high" for certain tasks
+
 ## Agent Lifecycle Hooks
 
 **NEW:** RAAF DSL agents support lifecycle hooks for wrapper-level interception, enabling preprocessing and postprocessing logic that works consistently across all pipeline wrapper types.

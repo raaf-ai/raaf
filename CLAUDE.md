@@ -21,7 +21,12 @@ puts result.messages.last[:content]  # Symbol key access
 puts result.messages.last["content"] # String key access (same result)
 ```
 
-**NEW:** Full support for GPT-5 and reasoning models (`gpt-5`, `o1-preview`, `o1-mini`). Reasoning items are processed automatically with proper token tracking. See **[Reasoning Support](core/CLAUDE.md#reasoning-support-gpt-5-o1-preview-o1-mini)** for details.
+**NEW:** Full support for GPT-5 and reasoning models (`gpt-5`, `o1-preview`, `o1-mini`).
+- Reasoning items processed automatically with proper token tracking
+- **Control reasoning costs** with `reasoning_effort` DSL method (see [DSL docs](dsl/CLAUDE.md#reasoning-effort-configuration-new))
+- Track reasoning tokens via `result.usage[:output_tokens_details][:reasoning_tokens]`
+
+See **[Reasoning Support](core/CLAUDE.md#reasoning-support-gpt-5-o1-preview-o1-mini)** for complete details.
 
 ## Unified Context System with Indifferent Access
 
