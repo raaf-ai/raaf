@@ -613,6 +613,14 @@ module RAAF
         end
       end
 
+      # Forces immediate flush of all processors
+      # Alias for flush to match API expectations
+      #
+      # @return [void]
+      def force_flush
+        flush
+      end
+
       # Creates an agent execution span
       #
       # @param agent_name [String] Name of the agent
