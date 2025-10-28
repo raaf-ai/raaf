@@ -187,6 +187,9 @@ module RAAF
         items << create_tool_call_item(item, agent)
         tools_used << "web_search"
 
+      when "reasoning"
+        items << create_reasoning_item(item, agent)
+
       else
         log_warn("Unknown response item type", type: item[:type], item_keys: item.keys)
         items << create_message_item(item, agent) # Treat unknown items as messages
@@ -385,6 +388,23 @@ module RAAF
         agent: agent.name
       }
       Items::HandoffCallItem.new(agent: agent, raw_item: raw_item)
+    end
+
+    ##
+    # Create reasoning item from response
+    #
+    # @param item [Hash] The reasoning item from the response
+    # @param agent [Agent] The agent that generated this reasoning
+    # @return [Items::ReasoningItem] The reasoning item
+    def create_reasoning_item(item, agent)
+      raw_item = {
+        type: "reasoning",
+        id: item[:id] || SecureRandom.uuid,
+        summary: item[:summary] || item[:content] || "",
+        reasoning_type: item[:reasoning_type],
+        agent: agent.name
+      }
+      Items::ReasoningItem.new(agent: agent, raw_item: raw_item)
     end
 
   end
