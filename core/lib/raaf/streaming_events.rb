@@ -235,6 +235,36 @@ module RAAF
 
     end
 
+    ##
+    # Event fired when reasoning content is being streamed
+    #
+    # Provides incremental delivery of reasoning summaries or content
+    # from models that support reasoning (GPT-5, o1-preview, etc.)
+    #
+    class ResponseReasoningDeltaEvent
+
+      attr_reader :delta, :item_id, :output_index, :type, :sequence_number
+
+      def initialize(delta:, item_id:, output_index:, sequence_number:)
+        @delta = delta
+        @item_id = item_id
+        @output_index = output_index
+        @type = "response.reasoning.delta"
+        @sequence_number = sequence_number
+      end
+
+      def to_h
+        {
+          delta: @delta,
+          item_id: @item_id,
+          output_index: @output_index,
+          type: @type,
+          sequence_number: @sequence_number
+        }
+      end
+
+    end
+
     class ResponseCompletedEvent
 
       attr_reader :response, :type, :sequence_number
