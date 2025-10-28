@@ -197,6 +197,48 @@ module RAAF
           end
         end
 
+        # Configure reasoning effort level for reasoning-capable models (GPT-5, o1-preview, o1-mini)
+        #
+        # @param effort [String, Symbol, nil] Reasoning effort level
+        # @return [String, nil] Current reasoning effort setting when called without parameters
+        #
+        # @example Set reasoning effort to minimal (GPT-5 only)
+        #   class CostAwareAgent < RAAF::DSL::Agent
+        #     model "gpt-5"
+        #     reasoning_effort "minimal"  # Lowest cost, fastest
+        #   end
+        #
+        # @example Set reasoning effort to high for complex tasks
+        #   class DeepThinkerAgent < RAAF::DSL::Agent
+        #     model "gpt-5"
+        #     reasoning_effort "high"  # Most thorough, highest cost
+        #   end
+        #
+        # @example Use symbol notation
+        #   class MediumReasoningAgent < RAAF::DSL::Agent
+        #     model "o1-preview"
+        #     reasoning_effort :medium  # Default level
+        #   end
+        #
+        # @note Available levels:
+        #   - "minimal" - Least reasoning, lowest cost (~1-2x tokens) - GPT-5 only
+        #   - "low" - Basic reasoning (~2-3x tokens)
+        #   - "medium" - Standard reasoning depth (~3-4x tokens) - Default
+        #   - "high" - Deep reasoning, highest cost (~4-5x tokens)
+        #
+        # @note Cost implications:
+        #   - Reasoning tokens are ~4x more expensive than regular tokens
+        #   - "minimal" can reduce reasoning tokens by 60-80% vs "high"
+        #   - Use lower effort levels for simple tasks to control costs
+        #
+        def reasoning_effort(effort = nil)
+          if effort
+            _context_config[:reasoning_effort] = effort.to_s
+          else
+            _context_config[:reasoning_effort]
+          end
+        end
+
         def description(desc = nil)
           if desc
             _context_config[:description] = desc
@@ -3488,6 +3530,13 @@ module RAAF
           normalize_keys: [:tolerant, :partial].include?(validation_mode),
           validation_mode: validation_mode
         }
+
+        # Add model_settings with reasoning_effort if configured
+        if (effort = self.class._context_config[:reasoning_effort])
+          agent_config[:model_settings] = RAAF::ModelSettings.new(
+            reasoning: { reasoning_effort: effort }
+          )
+        end
 
         # Add response format if structured output is requested
         if (format = response_format)
