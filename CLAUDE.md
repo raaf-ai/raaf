@@ -10,7 +10,7 @@ require 'raaf'
 agent = RAAF::Agent.new(
   name: "Assistant",
   instructions: "You are a helpful assistant",
-  model: "gpt-4o"
+  model: "gpt-4o"  # Also supports: gpt-5, o1-preview, o1-mini (reasoning models)
 )
 
 runner = RAAF::Runner.new(agent: agent)
@@ -20,6 +20,8 @@ result = runner.run("Hello!")
 puts result.messages.last[:content]  # Symbol key access
 puts result.messages.last["content"] # String key access (same result)
 ```
+
+**NEW:** Full support for GPT-5 and reasoning models (`gpt-5`, `o1-preview`, `o1-mini`). Reasoning items are processed automatically with proper token tracking. See **[Reasoning Support](core/CLAUDE.md#reasoning-support-gpt-5-o1-preview-o1-mini)** for details.
 
 ## Unified Context System with Indifferent Access
 

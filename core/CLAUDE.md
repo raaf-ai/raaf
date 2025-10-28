@@ -185,6 +185,59 @@ research_agent.add_handoff("Writer")         # String name
 # System handles conversion automatically - no type errors
 ```
 
+### Reasoning Support (GPT-5, o1-preview, o1-mini)
+
+RAAF provides full support for reasoning-capable models that show their "thinking" process:
+
+```ruby
+# Create agent with reasoning model
+agent = RAAF::Agent.new(
+  name: "ReasoningAssistant",
+  instructions: "Think through problems step by step",
+  model: "gpt-5"
+)
+
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("What's the best approach to solve this problem?")
+
+# Reasoning is processed automatically as ReasoningItem
+# No warnings logged for reasoning response types
+```
+
+**Supported Models:**
+- `gpt-5`, `gpt-5-mini`, `gpt-5-nano` (OpenAI GPT-5 family)
+- `o1-preview`, `o1-mini` (OpenAI o1 models)
+- `sonar-reasoning`, `sonar-reasoning-pro` (Perplexity)
+
+**Token Tracking:**
+Reasoning tokens are tracked separately in usage statistics:
+```ruby
+result = runner.run("Complex reasoning task...")
+
+# Access reasoning token counts
+reasoning_tokens = result.usage[:output_tokens_details][:reasoning_tokens] || 0
+regular_tokens = result.usage[:output_tokens] - reasoning_tokens
+
+puts "Reasoning tokens: #{reasoning_tokens} (billed at ~4x rate)"
+puts "Regular tokens: #{regular_tokens}"
+```
+
+**Cost Considerations:**
+- Reasoning tokens are typically **~4x more expensive** than regular tokens
+- Use reasoning models for complex tasks requiring step-by-step thinking
+- Monitor `output_tokens_details[:reasoning_tokens]` for cost tracking
+
+**Streaming Support:**
+Reasoning content streams via `ResponseReasoningDeltaEvent`:
+```ruby
+runner.stream("Solve this problem...") do |event|
+  case event
+  when RAAF::StreamingEvents::ResponseReasoningDeltaEvent
+    print event.delta  # Stream reasoning content in real-time
+  end
+end
+```
+
 ## Environment Variables
 
 ```bash
