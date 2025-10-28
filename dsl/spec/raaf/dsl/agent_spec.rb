@@ -1070,4 +1070,105 @@ RSpec.describe RAAF::DSL::Agent do
       end
     end
   end
+
+  describe "Reasoning Effort Configuration" do
+    class MinimalReasoningAgent < described_class
+      agent_name "MinimalReasoningAgent"
+      model "gpt-5"
+      reasoning_effort "minimal"
+
+      static_instructions "Cost-aware reasoning agent"
+    end
+
+    class HighReasoningAgent < described_class
+      agent_name "HighReasoningAgent"
+      model "o1-preview"
+      reasoning_effort :high
+
+      static_instructions "Deep thinking agent"
+    end
+
+    class DefaultReasoningAgent < described_class
+      agent_name "DefaultReasoningAgent"
+      model "gpt-5"
+      # No reasoning_effort configured
+
+      static_instructions "Default reasoning agent"
+    end
+
+    describe ".reasoning_effort" do
+      it "stores reasoning effort as string" do
+        expect(MinimalReasoningAgent.reasoning_effort).to eq("minimal")
+      end
+
+      it "converts symbol to string" do
+        expect(HighReasoningAgent.reasoning_effort).to eq("high")
+      end
+
+      it "returns nil when not configured" do
+        expect(DefaultReasoningAgent.reasoning_effort).to be_nil
+      end
+    end
+
+    describe "model_settings integration" do
+      it "creates model_settings with reasoning_effort for minimal agent" do
+        agent = MinimalReasoningAgent.new
+        core_agent = agent.send(:create_openai_agent_instance)
+
+        expect(core_agent.model_settings).to be_a(RAAF::ModelSettings)
+        expect(core_agent.model_settings.reasoning).to eq({ reasoning_effort: "minimal" })
+      end
+
+      it "creates model_settings with reasoning_effort for high agent" do
+        agent = HighReasoningAgent.new
+        core_agent = agent.send(:create_openai_agent_instance)
+
+        expect(core_agent.model_settings).to be_a(RAAF::ModelSettings)
+        expect(core_agent.model_settings.reasoning).to eq({ reasoning_effort: "high" })
+      end
+
+      it "does not create model_settings when reasoning_effort is not configured" do
+        agent = DefaultReasoningAgent.new
+        core_agent = agent.send(:create_openai_agent_instance)
+
+        expect(core_agent.model_settings).to be_nil
+      end
+    end
+
+    describe "reasoning effort levels" do
+      it "supports 'minimal' level (GPT-5 only)" do
+        expect { MinimalReasoningAgent.new }.not_to raise_error
+      end
+
+      it "supports 'low' level" do
+        class LowReasoningAgent < described_class
+          agent_name "LowReasoningAgent"
+          model "gpt-5"
+          reasoning_effort "low"
+          static_instructions "Low reasoning agent"
+        end
+
+        agent = LowReasoningAgent.new
+        core_agent = agent.send(:create_openai_agent_instance)
+        expect(core_agent.model_settings.reasoning).to eq({ reasoning_effort: "low" })
+      end
+
+      it "supports 'medium' level" do
+        class MediumReasoningAgent < described_class
+          agent_name "MediumReasoningAgent"
+          model "o1-mini"
+          reasoning_effort "medium"
+          static_instructions "Medium reasoning agent"
+        end
+
+        agent = MediumReasoningAgent.new
+        core_agent = agent.send(:create_openai_agent_instance)
+        expect(core_agent.model_settings.reasoning).to eq({ reasoning_effort: "medium" })
+      end
+
+      it "supports 'high' level" do
+        expect { HighReasoningAgent.new }.not_to raise_error
+      end
+    end
+  end
 end
