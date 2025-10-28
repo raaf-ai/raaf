@@ -203,61 +203,47 @@ module RAAF
           results
         end
 
+        # Execute a single item in the iteration
+        #
+        # This method delegates to the agent's built-in retry and timeout mechanisms
+        # instead of implementing its own. This ensures:
+        # - Retry configurations (retry_on) from ApplicationAgent/Service are respected
+        # - Timeout errors are properly retried with exponential backoff
+        # - Circuit breaker and other smart features work correctly
+        # - Consistent behavior across all execution paths
         def execute_single_item(item, context, index)
           # Create context for this specific item
           item_context = prepare_item_context(item, context, index)
-          
-          # Apply timeout and retry configuration
-          timeout_value = @options[:timeout] || 30
-          retry_count = @options[:retry] || 1
 
-          Timeout.timeout(timeout_value) do
-            attempts = 0
-            begin
-              attempts += 1
-              
-              # Execute agent/service with item-specific context
-              # Services and Agents have different context initialization patterns
-              if @agent_class < RAAF::DSL::Service
-                # For Services, pass context explicitly to ensure proper ContextAccess resolution
-                RAAF.logger.debug "Instantiating Service #{@agent_class.name} with explicit context"
-                RAAF.logger.debug "Custom field name: #{@custom_field_name.inspect}, Field: #{@field.inspect}"
-                
-                agent = @agent_class.new(context: item_context)
-              else
-                # For Agents, maintain backward compatibility with keyword arguments
-                context_hash = item_context.is_a?(RAAF::DSL::ContextVariables) ? 
-                               item_context.to_h : item_context
-                
-                RAAF.logger.debug "Instantiating Agent #{@agent_class.name} with context keys: #{context_hash.keys.inspect}"
-                RAAF.logger.debug "Custom field name: #{@custom_field_name.inspect}, Field: #{@field.inspect}"
-                
-                agent = @agent_class.new(**context_hash)
-              end
-              
-              # Check if it's a Service (uses call) or Agent (uses run)
-              result = if agent.respond_to?(:call)
-                         agent.call  # Service uses call
-                       else
-                         agent.run   # Agent uses run
-                       end
+          # Execute agent/service with item-specific context
+          # Services and Agents have different context initialization patterns
+          if @agent_class < RAAF::DSL::Service
+            # For Services, pass context explicitly to ensure proper ContextAccess resolution
+            RAAF.logger.debug "Instantiating Service #{@agent_class.name} with explicit context"
+            RAAF.logger.debug "Custom field name: #{@custom_field_name.inspect}, Field: #{@field.inspect}"
 
-              # Return the result (could be a hash, object, or primitive)
-              result
-            rescue => e
-              if attempts < retry_count
-                sleep_time = 2 ** (attempts - 1) # Exponential backoff
-                RAAF.logger.warn "Retrying #{@agent_class.name} for item #{index + 1} after #{sleep_time}s (attempt #{attempts}/#{retry_count})"
-                sleep(sleep_time)
-                retry
-              else
-                raise e
-              end
-            end
+            agent = @agent_class.new(context: item_context)
+          else
+            # For Agents, maintain backward compatibility with keyword arguments
+            context_hash = item_context.is_a?(RAAF::DSL::ContextVariables) ?
+                           item_context.to_h : item_context
+
+            RAAF.logger.debug "Instantiating Agent #{@agent_class.name} with context keys: #{context_hash.keys.inspect}"
+            RAAF.logger.debug "Custom field name: #{@custom_field_name.inspect}, Field: #{@field.inspect}"
+
+            agent = @agent_class.new(**context_hash)
           end
-        rescue Timeout::Error => e
-          RAAF.logger.error "#{@agent_class.name} timed out after #{timeout_value} seconds for item #{index + 1}"
-          raise e
+
+          # Delegate to agent.run or service.call which handles:
+          # - Retry logic (via execute_with_retry)
+          # - Timeout logic (via execution_timeout config)
+          # - Circuit breaker
+          # - All smart features from ApplicationAgent/Service
+          if agent.respond_to?(:call)
+            agent.call  # Service uses call (handles retry/timeout)
+          else
+            agent.run   # Agent uses run (handles retry/timeout)
+          end
         end
 
         def prepare_item_context(item, base_context, index)

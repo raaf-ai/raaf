@@ -76,6 +76,13 @@ module RAAF
         end
 
         # Execute with input/output remapping
+        #
+        # This method delegates to the agent's built-in retry and timeout mechanisms
+        # instead of implementing its own. This ensures:
+        # - Retry configurations (retry_on) from ApplicationAgent are respected
+        # - Timeout errors are properly retried with exponential backoff
+        # - Circuit breaker and other smart features work correctly
+        # - Consistent behavior across all execution paths
         def execute(context, agent_results = [])
           # Wrap execution with before_execute/after_execute hooks
           agent_name = @agent_class.respond_to?(:agent_name) ? @agent_class.agent_name : @agent_class.name
@@ -86,47 +93,33 @@ module RAAF
               context = RAAF::DSL::ContextVariables.new(context)
             end
 
-            timeout_value = @options[:timeout] || get_agent_config(:timeout) || 30
-            retry_count = @options[:retry] || get_agent_config(:retry) || 1
+            # Apply input mapping to context
+            remapped_context = apply_input_mapping_to_context(context)
 
-            Timeout.timeout(timeout_value) do
-              attempts = 0
-              begin
-                attempts += 1
+            # Convert context for agent initialization
+            context_hash = remapped_context.is_a?(RAAF::DSL::ContextVariables) ?
+              remapped_context.to_h : remapped_context
 
-                # Apply input mapping to context
-                remapped_context = apply_input_mapping_to_context(context)
+            # Create agent with remapped context
+            agent = @agent_class.new(**context_hash)
 
-                # Convert context for agent initialization (no options merging needed!)
-                context_hash = remapped_context.is_a?(RAAF::DSL::ContextVariables) ?
-                  remapped_context.to_h : remapped_context
-                agent = @agent_class.new(**context_hash)
-                result = agent.run
+            # Delegate to agent.run which handles:
+            # - Retry logic (via execute_with_retry)
+            # - Timeout logic (via execution_timeout config)
+            # - Circuit breaker
+            # - All smart features from ApplicationAgent
+            result = agent.run
 
-                # Apply output mapping to result
-                remapped_result = apply_output_mapping_to_result(result)
+            # Apply output mapping to result
+            remapped_result = apply_output_mapping_to_result(result)
 
-                # Update original context with remapped results
-                updated_context = update_context_with_result(context, remapped_result)
+            # Update original context with remapped results
+            updated_context = update_context_with_result(context, remapped_result)
 
-                # Add result to agent_results collection if provided
-                agent_results << remapped_result if agent_results && remapped_result.is_a?(Hash)
+            # Add result to agent_results collection if provided
+            agent_results << remapped_result if agent_results && remapped_result.is_a?(Hash)
 
-                updated_context
-              rescue => e
-                if attempts < retry_count
-                  sleep_time = 2 ** (attempts - 1) # Exponential backoff
-                  RAAF.logger.warn "Retrying #{@agent_class.name} after #{sleep_time}s (attempt #{attempts}/#{retry_count})"
-                  sleep(sleep_time)
-                  retry
-                else
-                  raise e
-                end
-              end
-            end
-          rescue Timeout::Error => e
-            RAAF.logger.error "#{@agent_class.name} timed out after #{timeout_value} seconds"
-            raise e
+            updated_context
           end
         end
 

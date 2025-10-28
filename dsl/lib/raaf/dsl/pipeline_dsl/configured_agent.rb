@@ -36,6 +36,13 @@ module RAAF
         end
         
         # Execute with configuration
+        #
+        # This method delegates to the agent's built-in retry and timeout mechanisms
+        # instead of implementing its own. This ensures:
+        # - Retry configurations (retry_on) from ApplicationAgent are respected
+        # - Timeout errors are properly retried with exponential backoff
+        # - Circuit breaker and other smart features work correctly
+        # - Consistent behavior across all execution paths
         def execute(context)
           # Wrap execution with before_execute/after_execute hooks
           agent_name = @agent_class.respond_to?(:agent_name) ? @agent_class.agent_name : @agent_class.name
@@ -46,49 +53,33 @@ module RAAF
               context = RAAF::DSL::ContextVariables.new(context)
             end
 
-            timeout_value = @options[:timeout] || 30
-            retry_count = @options[:retry] || 1
-
-            Timeout.timeout(timeout_value) do
-              attempts = 0
-              begin
-                attempts += 1
-
-                # Merge non-control options into context for agent to use
-                enhanced_context = context.dup
-                @options.each do |key, value|
-                  unless [:timeout, :retry].include?(key)
-                    enhanced_context[key] = value
-                  end
-                end
-
-                # Execute agent - convert context to keyword arguments to trigger context DSL processing
-                context_hash = enhanced_context.is_a?(RAAF::DSL::ContextVariables) ? enhanced_context.to_h : enhanced_context
-                agent = @agent_class.new(**context_hash)
-                result = agent.run
-
-                # Merge results back into original context
-                if @agent_class.respond_to?(:provided_fields)
-                  @agent_class.provided_fields.each do |field|
-                    context[field] = result[field] if result.respond_to?(:[]) && result[field]
-                  end
-                end
-
-                context
-              rescue => e
-                if attempts < retry_count
-                  sleep_time = 2 ** (attempts - 1) # Exponential backoff
-                  RAAF.logger.warn "Retrying #{@agent_class.name} after #{sleep_time}s (attempt #{attempts}/#{retry_count})"
-                  sleep(sleep_time)
-                  retry
-                else
-                  raise e
-                end
+            # Merge non-control options into context for agent to use
+            enhanced_context = context.dup
+            @options.each do |key, value|
+              unless [:timeout, :retry].include?(key)
+                enhanced_context[key] = value
               end
             end
-          rescue Timeout::Error => e
-            RAAF.logger.error "#{@agent_class.name} timed out after #{timeout_value} seconds"
-            raise e
+
+            # Execute agent - convert context to keyword arguments to trigger context DSL processing
+            context_hash = enhanced_context.is_a?(RAAF::DSL::ContextVariables) ? enhanced_context.to_h : enhanced_context
+            agent = @agent_class.new(**context_hash)
+
+            # Delegate to agent.run which handles:
+            # - Retry logic (via execute_with_retry)
+            # - Timeout logic (via execution_timeout config)
+            # - Circuit breaker
+            # - All smart features from ApplicationAgent
+            result = agent.run
+
+            # Merge results back into original context
+            if @agent_class.respond_to?(:provided_fields)
+              @agent_class.provided_fields.each do |field|
+                context[field] = result[field] if result.respond_to?(:[]) && result[field]
+              end
+            end
+
+            context
           end
         end
       end
