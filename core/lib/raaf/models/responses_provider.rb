@@ -162,6 +162,9 @@ module RAAF
           list_input = convert_messages_to_input(messages)
         end
 
+        # Determine continuation attempt number
+        attempt_number = previous_response_id ? 2 : 1
+
         # Make the API call
         fetch_response(
           system_instructions: system_instructions,
@@ -170,6 +173,7 @@ module RAAF
           tools: tools,
           stream: stream,
           previous_response_id: previous_response_id,
+          attempt_number: attempt_number,
           **
         )
 
@@ -204,7 +208,7 @@ module RAAF
 
       # Matches Python's _fetch_response
       def fetch_response(system_instructions:, input:, model:, tools: nil, stream: false,
-                         previous_response_id: nil, tool_choice: nil, parallel_tool_calls: nil,
+                         previous_response_id: nil, attempt_number: 1, tool_choice: nil, parallel_tool_calls: nil,
                          temperature: nil, top_p: nil, max_tokens: nil, response_format: nil, **)
         # Convert input to list format if it's a string
         # Use "message" type instead of "user_text" as per OpenAI Responses API requirements
@@ -234,8 +238,8 @@ module RAAF
         # Handle response format
         body[:text] = convert_response_format(response_format) if response_format
 
-        # Debug logging - including detailed input inspection for duplicate debugging
-        log_debug("Calling OpenAI Responses API",
+        # Debug logging for continuation attempt
+        log_debug("Continuation attempt #{attempt_number}",
                   model: model,
                   input_length: list_input.length,
                   tools_count: converted_tools[:tools]&.length || 0,
@@ -251,7 +255,8 @@ module RAAF
                   total_items: list_input.length,
                   item_ids: all_input_ids,
                   duplicate_ids: duplicate_input_ids,
-                  has_duplicates: duplicate_input_ids.any?)
+                  has_duplicates: duplicate_input_ids.any?,
+                  previous_response_id: previous_response_id)
 
         if duplicate_input_ids.any?
           log_error("🚨 RESPONSES_PROVIDER: DUPLICATES DETECTED IN API REQUEST!",
@@ -289,7 +294,7 @@ module RAAF
           uri = URI("#{@api_base}/responses")
           http = Net::HTTP.new(uri.host, uri.port)
           http.use_ssl = true
-          
+
           # Set configurable HTTP timeouts (default to 120 seconds)
           timeout_value = @http_timeout || 120
           http.read_timeout = timeout_value
@@ -339,10 +344,32 @@ module RAAF
 
         parsed_response = RAAF::Utils.parse_json(response.body)
 
+        # Handle truncation detection and continuation
+        finish_reason = parsed_response["finish_reason"]
+
+        # Log based on finish_reason
+        case finish_reason
+        when "length"
+          log_debug("Response truncated - will attempt continuation",
+                    finish_reason: "length",
+                    response_id: parsed_response["id"])
+        when "content_filter"
+          log_warn("Content filtered by safety system",
+                   filter_type: parsed_response.dig("metadata", "filter_type"))
+        when "incomplete"
+          log_warn("Response marked as incomplete",
+                   reason: parsed_response.dig("metadata", "reason"),
+                   suggestion: "Use previous_response_id to continue: #{parsed_response["id"]}")
+        when "error"
+          log_error("API returned error finish_reason",
+                    error: parsed_response["error"])
+        end
+
         # Debug logging for successful responses
         log_debug("OpenAI Responses API Success",
                   response_id: parsed_response["id"],
                   output_items: parsed_response["output"]&.length || 0,
+                  finish_reason: finish_reason,
                   usage: parsed_response["usage"])
 
         # Return the raw Responses API response with indifferent access
@@ -368,7 +395,7 @@ module RAAF
         uri = URI("#{@api_base}/responses")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
-        
+
         # Set configurable HTTP timeouts (default to 120 seconds, streaming may need longer)
         timeout_value = @http_timeout || 120
         http.read_timeout = timeout_value
@@ -534,8 +561,8 @@ module RAAF
 
       # Extract system instructions from messages
       def extract_system_instructions(messages)
-        system_msg = messages.find { |m| m[:role] == "system" }
-        system_msg&.dig(:content)
+        system_msg = messages.find { |m| m[:role] == "system" || m["role"] == "system" }
+        system_msg&.dig(:content) || system_msg&.dig("content")
       end
 
       # Convert tools to Responses API format (matches Python's Converter.convert_tools)
