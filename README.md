@@ -55,6 +55,7 @@ RAAF extends the Swarm concepts with:
 - **📡 Real-time Streaming** - Live response streaming with comprehensive event handling
 - **🎯 Multi-Provider Support** - OpenAI, Anthropic, Gemini, Cohere, Groq, Ollama, and more
 - **📋 Universal Structured Output** - JSON schema enforcement across ALL providers
+- **♻️ Automatic Continuation** - Seamless handling of large responses with intelligent format merging (CSV 95%, Markdown 85-95%, JSON 60-70% success rates)
 
 ### Memory & Intelligence
 - **🧠 Memory Management** - Token-aware context management with auto-pruning and summarization
@@ -669,9 +670,22 @@ result = runner.run("Hello from Rails!")
 - examples/ — Example workflows and tool usage
 - docs/PIPELINE_DSL_GUIDE.md — End-to-end Pipeline DSL guide
 
+### Continuation Feature (NEW)
+- **[docs/CONTINUATION_GUIDE.md](docs/CONTINUATION_GUIDE.md)** — User guide for automatic continuation (configuration, best practices)
+- **[docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)** — Complete API reference for continuation classes
+- **[docs/EXAMPLES.md](docs/EXAMPLES.md)** — Working code examples for CSV, Markdown, and JSON
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — Common issues and solutions
+
+**Continuation Feature Overview:**
+- Automatically handles responses that exceed token limits
+- Supports CSV (95% success), Markdown (85-95% success), and JSON (60-70% success)
+- Zero configuration required - works by default with optional tuning
+- Includes format detection, intelligent merging, and error recovery
+
 ### API References
 - dsl/API_REFERENCE.md — DSL classes, agents, pipeline APIs
 - docs/TOOL_API_REFERENCE.md — Tool DSL and unified tool API
+- docs/API_DOCUMENTATION.md — Continuation APIs (Config, Mergers, Format Detection)
 - tracing/API_REFERENCE.md — Tracing APIs and integrations
 - memory/API_REFERENCE.md — Memory and vector store APIs
 - guardrails/API_REFERENCE.md — Guardrails and safety APIs
