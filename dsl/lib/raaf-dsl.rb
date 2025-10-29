@@ -19,6 +19,9 @@ rescue LoadError
   # Tracing functionality is optional - gracefully handle missing tracing gem
 end
 
+# Load continuation support (continuation chunks and merging)
+require_relative "raaf/continuation"
+
 # AI Agent DSL - A Ruby framework for building intelligent AI agents
 #
 # This gem provides a declarative DSL for configuring AI agents with:
@@ -88,7 +91,7 @@ module RAAF
 
     # Load error classes first since they're used by other components
     require_relative "raaf/dsl/errors"
-    
+
     # Auto-require core components
     autoload :AgentBuilder, "raaf/dsl/builders/agent_builder"
     autoload :AgentToolIntegration, "raaf/dsl/agent_tool_integration"
@@ -109,7 +112,7 @@ module RAAF
     autoload :Result, "raaf/dsl/result"
     autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
     autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
-    
+
     # Builder classes
     module Builders
       autoload :ResultBuilder, "raaf/dsl/builders/result_builder"
@@ -133,10 +136,10 @@ module RAAF
 
     # Main Agent class - the unified agent with all features
     autoload :Agent, "raaf/dsl/agent"
-    
+
     # Service base class for non-LLM operations
     autoload :Service, "raaf/dsl/service"
-    
+
     # Pipeline DSL for elegant agent chaining
     autoload :Pipeline, "raaf/dsl/pipeline_dsl/pipeline"
     require_relative "raaf/dsl/pipeline_dsl"
@@ -337,14 +340,14 @@ module RAAF
     def self.ensure_prompt_resolvers_initialized!
       # Force initialization by calling the getter
       prompt_resolvers
-      
+
       # Verify resolvers are properly registered
       if @prompt_resolvers.nil? || @prompt_resolvers.resolvers.empty?
         # Fallback initialization if something went wrong
         @prompt_resolvers = PromptResolverRegistry.new
         initialize_default_resolvers(@prompt_resolvers)
       end
-      
+
       @prompt_resolvers
     end
 
@@ -356,14 +359,14 @@ module RAAF
       # Load resolver classes
       require_relative "raaf/dsl/prompts/class_resolver"
       require_relative "raaf/dsl/prompts/file_resolver"
-      
+
       # Create and register default resolvers
       class_resolver = PromptResolvers::ClassResolver.new(priority: 100)
       file_resolver = PromptResolvers::FileResolver.new(
-        priority: 50, 
+        priority: 50,
         paths: ["app/ai/prompts", "prompts"]
       )
-      
+
       registry.register(class_resolver)
       registry.register(file_resolver)
     end
@@ -380,7 +383,7 @@ module RAAF
       # Load all autoloaded constants in RAAF::DSL
       constants.each do |const_name|
         next if const_name == :Pipeline # Skip problematic constants
-        
+
         begin
           const = const_get(const_name)
           # Recursively eager load nested modules that also support eager loading

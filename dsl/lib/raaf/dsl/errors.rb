@@ -31,6 +31,22 @@ module RAAF
       end
     end
 
+    # Raised when configuration validation fails
+    # Used by continuation configuration and other configuration validators
+    class InvalidConfigurationError < Error
+      def initialize(message = "Configuration is invalid")
+        super(message)
+      end
+    end
+
+    # Base error class for continuation-related issues
+    # Used for errors that occur during continuation execution
+    class ContinuationError < Error
+      def initialize(message = "Continuation operation failed")
+        super(message)
+      end
+    end
+
     # Raised when tool resolution fails during agent configuration
     # Provides detailed, actionable error messages with visual indicators
     class ToolResolutionError < Error
@@ -93,5 +109,7 @@ module RAAF
   ParseError = DSL::ParseError
   ValidationError = DSL::ValidationError
   SchemaError = DSL::SchemaError
+  InvalidConfigurationError = DSL::InvalidConfigurationError
+  ContinuationError = DSL::ContinuationError
   # Note: ToolResolutionError is DSL-specific, not exposed at RAAF level
 end

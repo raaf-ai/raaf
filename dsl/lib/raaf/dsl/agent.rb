@@ -644,6 +644,135 @@ module RAAF
           }
         end
 
+        public  # Make continuation methods public
+
+
+        # Enable automatic continuation support for this agent
+        #
+        # Configures the agent to automatically handle continuations
+        # for large outputs that require multiple calls to complete.
+        #
+        # @param options [Hash] Configuration options for continuation
+        # @option options [Integer] :max_attempts (10) Maximum continuation attempts (1-50)
+        # @option options [Symbol] :output_format (:auto) Format for structured output (:csv, :markdown, :json, :auto)
+        # @option options [Symbol] :on_failure (:return_partial) Behavior on failure (:return_partial, :raise_error)
+        #
+        # @raise [RAAF::InvalidConfigurationError] If configuration is invalid
+        #
+        # @example Basic usage with defaults
+        #   class MyAgent < RAAF::DSL::Agent
+        #     enable_continuation
+        #   end
+        #
+        # @example Custom configuration
+        #   class MyAgent < RAAF::DSL::Agent
+        #     enable_continuation(
+        #       max_attempts: 20,
+        #       output_format: :csv,
+        #       on_failure: :raise_error
+        #     )
+        #   end
+        #
+        # @return [Class] Returns the class for method chaining
+        def enable_continuation(options = {})
+          # Ensure continuation module is loaded
+          require_relative '../continuation/config'
+
+          # Create and validate configuration
+          config = RAAF::Continuation::Config.new(options)
+          config.validate!
+
+          # Store configuration as a hash
+          @continuation_config = config.to_h
+
+          # Return class for chaining
+          self
+        end
+
+        # Get the continuation configuration
+        #
+        # @return [Hash, nil] Continuation configuration hash or nil if not enabled
+        def _continuation_config
+          @continuation_config
+        end
+
+        # Check if continuation is enabled for this agent
+        #
+        # @return [Boolean] true if continuation is enabled, false otherwise
+        def continuation_enabled?
+          !@continuation_config.nil?
+        end
+
+        # DSL convenience methods for continuation output formats
+        # These provide a shorthand syntax for enabling continuation with specific formats
+        #
+        # @example Enable continuation with CSV output format
+        #   class MyAgent < RAAF::DSL::Agent
+        #     output_csv  # Equivalent to: enable_continuation(output_format: :csv)
+        #   end
+        #
+        # @example Enable continuation with markdown output format
+        #   class MyAgent < RAAF::DSL::Agent
+        #     output_markdown  # Equivalent to: enable_continuation(output_format: :markdown)
+        #   end
+        #
+        # @example Enable continuation with JSON output format
+        #   class MyAgent < RAAF::DSL::Agent
+        #     output_json  # Equivalent to: enable_continuation(output_format: :json)
+        #   end
+        #
+        # @return [Class] Returns the class for method chaining
+
+        # Enable continuation with CSV output format
+        #
+        # Convenience method that enables continuation with CSV output format
+        # and returns the class for method chaining.
+        #
+        def output_csv
+          enable_continuation(output_format: :csv)
+        end
+
+        # Enable continuation with Markdown output format
+        #
+        # Convenience method that enables continuation with Markdown output format
+        # and returns the class for method chaining.
+        #
+        def output_markdown
+          enable_continuation(output_format: :markdown)
+        end
+
+        # Enable continuation with JSON output format
+        #
+        # Convenience method that enables continuation with JSON output format
+        # and returns the class for method chaining.
+        #
+        def output_json
+          enable_continuation(output_format: :json)
+        end
+
+        # Get the model configuration
+        #
+        # @return [String, nil] The model name or nil
+        def _model
+          _context_config[:model]
+        end
+
+        # Get the temperature configuration
+        #
+        # @return [Float, nil] The temperature value or nil
+        def _temperature
+          _context_config[:temperature]
+        end
+
+        # Get the max_turns configuration
+        #
+        # @return [Integer, nil] The max turns value or nil
+        def _max_turns
+          _context_config[:max_turns]
+        end
+
+        private  # Restore private visibility
+
         # Context DSL method - bridges between new ContextConfiguration and legacy _required_context_keys
         def context(options = {}, &block)
           if block_given?
@@ -979,6 +1108,53 @@ module RAAF
         @context.keys
       end
       
+
+      # Instance-level convenience methods for accessing continuation metadata
+      # These methods provide easy access to continuation status and metadata from runner results
+      #
+      # @example Check if agent result was continued
+      #   agent = MyAgent.new
+      #   result = agent.run
+      #   puts agent.was_continued?  # => true if result was continued
+      #
+      # @example Get continuation metadata
+      #   agent = MyAgent.new
+      #   result = agent.run
+      #   metadata = agent.continuation_metadata
+      #   puts metadata[:continuation_count]  # => Number of continuation attempts
+      #
+
+      # Store the last runner result for accessing continuation metadata
+      attr_accessor :runner_result
+
+      # Check if continuation is enabled for this agent
+      #
+      # @return [Boolean] true if continuation is enabled, false otherwise
+      def continuation_enabled?
+        self.class.continuation_enabled?
+      end
+
+      # Get continuation metadata from the last run
+      #
+      # @return [Hash] Metadata hash containing continuation details
+      def continuation_metadata
+        runner_result&.dig(:_continuation_metadata) || {}
+      end
+
+      # Check if the last run was a continuation
+      #
+      # @return [Boolean] true if the last run was a continuation attempt
+      def was_continued?
+        continuation_metadata[:was_continued] == true
+      end
+
+      # Get the number of continuation attempts from the last run
+      #
+      # @return [Integer] Number of continuation attempts (0 if not continued)
+      def continuation_count
+        continuation_metadata[:continuation_count] || 0
+      end
+
       # Run the agent with optional smart features (retry, circuit breaker, etc.)
       # Override run to integrate incremental processing
       #
