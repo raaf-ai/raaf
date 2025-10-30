@@ -178,19 +178,24 @@ module RAAF
 
       def extract_and_parse_data
         raw_data = extract_raw_data
-        
+
         # Return as-is if already parsed
         return raw_data if raw_data.is_a?(Hash) || raw_data.is_a?(Array)
-        
+
         # Parse JSON string
         if raw_data.is_a?(String)
+          # Return empty strings as-is
+          return raw_data if raw_data.strip.empty?
+
+          # Attempt JSON parsing - return raw string if it fails
           JSON.parse(raw_data)
         else
           raw_data
         end
       rescue JSON::ParserError => e
-        RAAF.logger.error "[RAAF] JSON parsing failed: #{e.message}"
-        raise RAAF::ParseError, "Could not parse AI response: #{e.message}"
+        # Not an error - just plain text response (no schema or CSV output)
+        RAAF.logger.debug "[RAAF] String is not JSON, returning raw text: #{raw_data[0..100]}"
+        raw_data  # Return raw string instead of raising error
       end
       
       def extract_raw_data

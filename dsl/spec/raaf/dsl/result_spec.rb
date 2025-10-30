@@ -288,4 +288,108 @@ RSpec.describe RAAF::DSL::Result do
       expect(result.respond_to?(:has_key?)).to eq(true)
     end
   end
+
+  describe "#parsed_data" do
+    context "with valid JSON string" do
+      it "parses JSON successfully" do
+        # Create result with JSON string as message content
+        result = described_class.new({ messages: [{ role: "assistant", content: '{"name":"John","age":30}' }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to be_a(Hash)
+        expect(parsed["name"]).to eq("John")
+        expect(parsed["age"]).to eq(30)
+      end
+
+      it "handles nested JSON structures" do
+        json_str = '{"user":{"name":"Jane","profile":{"role":"admin"}}}'
+        result = described_class.new({ messages: [{ role: "assistant", content: json_str }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to be_a(Hash)
+        expect(parsed["user"]["name"]).to eq("Jane")
+        expect(parsed["user"]["profile"]["role"]).to eq("admin")
+      end
+    end
+
+    context "with plain text string (non-JSON)" do
+      it "returns raw text without parsing" do
+        plain_text = "This is plain text, not JSON"
+        result = described_class.new({ messages: [{ role: "assistant", content: plain_text }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq(plain_text)
+      end
+
+      it "handles CSV format text" do
+        csv_text = "name,location,country\n\"Company A\",\"City\",\"Country\""
+        result = described_class.new({ messages: [{ role: "assistant", content: csv_text }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq(csv_text)
+      end
+
+      it "handles markdown format text" do
+        markdown = "# Heading\n\nSome **bold** text"
+        result = described_class.new({ messages: [{ role: "assistant", content: markdown }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq(markdown)
+      end
+    end
+
+    context "with already-parsed Hash" do
+      it "returns hash as-is" do
+        hash_data = { name: "Test", value: 123 }
+        result = described_class.new({ messages: [{ role: "assistant", content: hash_data }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq(hash_data)
+      end
+    end
+
+    context "with already-parsed Array" do
+      it "returns array as-is" do
+        array_data = [{ id: 1 }, { id: 2 }, { id: 3 }]
+        result = described_class.new({ messages: [{ role: "assistant", content: array_data }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq(array_data)
+      end
+    end
+
+    context "with empty string" do
+      it "returns empty string" do
+        result = described_class.new({ messages: [{ role: "assistant", content: "" }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq("")
+      end
+
+      it "returns whitespace-only string" do
+        result = described_class.new({ messages: [{ role: "assistant", content: "   \n  " }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq("   \n  ")
+      end
+    end
+
+    context "edge cases" do
+      it "handles JSON-like but invalid format" do
+        invalid_json = "{name: 'John'}"  # Single quotes, not valid JSON
+        result = described_class.new({ messages: [{ role: "assistant", content: invalid_json }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq(invalid_json)  # Returns raw text
+      end
+
+      it "handles partial JSON fragments" do
+        fragment = '{"incomplete": '
+        result = described_class.new({ messages: [{ role: "assistant", content: fragment }] })
+
+        parsed = result.send(:parsed_data)
+        expect(parsed).to eq(fragment)  # Returns raw text
+      end
+    end
+  end
 end
