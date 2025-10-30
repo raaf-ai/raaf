@@ -120,6 +120,15 @@ This document provides a comprehensive reference for all environment variables u
 - **Default**: None
 - **Example**: `export OPENAI_ORGANIZATION="org-..."`
 
+### `OPENAI_HTTP_TIMEOUT`
+- **Function**: HTTP read timeout for OpenAI API requests
+- **Used in**: `core/lib/raaf/models/responses_provider.rb`, HTTP request handling
+- **What**: Maximum time to wait for OpenAI API responses before timing out
+- **Why**: Prevents indefinite hangs on slow or unresponsive API calls; increase for long-running AI operations (complex reasoning, large outputs)
+- **Format**: Integer (seconds)
+- **Default**: `300` (5 minutes)
+- **Example**: `export OPENAI_HTTP_TIMEOUT="600"`  # 10 minutes for long-running requests
+
 ### `ANTHROPIC_API_KEY`
 - **Function**: Anthropic Claude API key
 - **Used in**: `providers/lib/raaf/models/anthropic_provider.rb`, multi-provider configurations

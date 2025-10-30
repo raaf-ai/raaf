@@ -173,6 +173,24 @@ provider.configure_retry(max_attempts: 5, base_delay: 2.0, max_delay: 60.0)
 runner = RAAF::Runner.new(agent: agent, provider: provider)
 ```
 
+### HTTP Timeout Configuration
+
+Configure HTTP timeouts for long-running requests or slow network conditions:
+
+```ruby
+# Default timeout: 300 seconds (5 minutes)
+agent = RAAF::Agent.new(name: "Assistant", model: "gpt-4o")
+runner = RAAF::Runner.new(agent: agent)  # Uses default 300s timeout
+
+# Custom timeout via provider
+provider = RAAF::Models::ResponsesProvider.new(timeout: 600)  # 10 minutes
+runner = RAAF::Runner.new(agent: agent, provider: provider)
+
+# Or via environment variable
+# export OPENAI_HTTP_TIMEOUT=600
+runner = RAAF::Runner.new(agent: agent)  # Uses env var timeout
+```
+
 ### Flexible Agent Identification
 
 The core runner automatically normalizes agent identifiers:
@@ -208,6 +226,26 @@ result = runner.run("What's the best approach to solve this problem?")
 - `gpt-5`, `gpt-5-mini`, `gpt-5-nano` (OpenAI GPT-5 family)
 - `o1-preview`, `o1-mini` (OpenAI o1 models)
 - `sonar-reasoning`, `sonar-reasoning-pro` (Perplexity)
+
+**Parameter Restrictions:**
+Reasoning models do not support parameter customization. The following parameters are automatically filtered out with warnings:
+- `temperature` - Only default value (1) is supported
+- `top_p` - Not supported
+- `frequency_penalty` - Not supported
+- `presence_penalty` - Not supported
+- `logit_bias` - Not supported
+- `best_of` - Not supported
+
+```ruby
+# These parameters are automatically filtered for reasoning models
+agent = RAAF::Agent.new(name: "ReasoningAssistant", model: "gpt-5-nano")
+runner = RAAF::Runner.new(agent: agent)
+
+# ⚠️ Warning logged but request succeeds
+result = runner.run("Task", temperature: 0.7)
+# Parameter 'temperature' is not supported by reasoning model gpt-5-nano
+# Suggestion: Remove this parameter - reasoning models only support default settings
+```
 
 **Token Tracking:**
 Reasoning tokens are tracked separately in usage statistics:
@@ -903,6 +941,43 @@ provider = RAAF::Models::ResponsesProvider.new(
   api_base: ENV['OPENAI_API_BASE']
 )
 runner = RAAF::Runner.new(agent: agent, provider: provider)
+```
+
+### Parameter Compatibility
+
+**IMPORTANT**: The Responses API does NOT support these Chat Completions parameters:
+- `frequency_penalty`
+- `presence_penalty`
+- `best_of`
+- `logit_bias`
+
+If you provide these parameters to `ResponsesProvider`, they will:
+1. **Log a warning** with the parameter name and suggested action
+2. **Be silently filtered** from the API request (not sent to OpenAI)
+3. **Not cause errors** - your request will succeed with other parameters
+
+```ruby
+# This will work but log warnings
+provider.responses_completion(
+  messages: [{ role: "user", content: "Hello" }],
+  model: "gpt-4o",
+  temperature: 0.7,           # ✅ Supported - will be used
+  frequency_penalty: 0.5      # ⚠️ Warning logged - will be filtered
+)
+
+# Warning logged:
+# ⚠️ Parameter 'frequency_penalty' is not supported by OpenAI Responses API
+# Suggestion: Remove this parameter or use Chat Completions API (OpenAIProvider) instead
+```
+
+**If you need these parameters**, use `OpenAIProvider` (Chat Completions API) instead:
+
+```ruby
+provider = RAAF::Models::OpenAIProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: provider)
+
+# Now frequency_penalty and presence_penalty are supported
+result = runner.run("Hello", frequency_penalty: 0.5, presence_penalty: 0.3)
 ```
 
 **Built-in Retry Logic**: All providers include robust retry handling through `ModelInterface`.

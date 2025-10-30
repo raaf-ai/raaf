@@ -74,6 +74,207 @@ end
 runner = RAAF::Runner.new(agent: agent, provider: groq_provider)
 ```
 
+### Gemini Provider
+
+**Google Gemini** provides powerful multimodal AI models with support for text, vision, and function calling. Gemini excels at complex reasoning tasks and offers competitive pricing. **NEW: Automatic continuation support** for handling truncated responses.
+
+#### Basic Usage
+
+```ruby
+# Initialize Gemini provider
+gemini_provider = RAAF::Models::GeminiProvider.new(
+  api_key: ENV['GEMINI_API_KEY']
+)
+
+agent = RAAF::Agent.new(
+  name: "Gemini Assistant",
+  instructions: "You are a helpful AI assistant",
+  model: "gemini-2.0-flash-exp"
+)
+
+runner = RAAF::Runner.new(agent: agent, provider: gemini_provider)
+result = runner.run("Explain quantum computing")
+```
+
+#### Automatic Continuation Support (NEW)
+
+Gemini provider now supports **automatic continuation** using Gemini's multi-turn conversation pattern:
+
+```ruby
+# Automatic continuation when response is truncated (MAX_TOKENS)
+result = runner.run(
+  "Generate a comprehensive list of 200 companies",
+  max_tokens: 8000,           # May hit token limit
+  auto_continuation: true,     # Default: true - automatically continues
+  max_continuation_attempts: 10  # Default: 10 - max continuation rounds
+)
+
+# Check how many continuation chunks were used
+puts "Continuation chunks: #{result['continuation_chunks']}"
+# => "Continuation chunks: 3" (if response was truncated twice)
+
+# Disable continuation if needed
+result = runner.run(
+  "Generate list",
+  auto_continuation: false  # Stop after first truncation
+)
+```
+
+**How it works:**
+1. Detects `finishReason: "MAX_TOKENS"` (mapped to `"length"` in OpenAI format)
+2. Appends assistant's response to conversation history
+3. Adds continuation prompt: "Continue from where you left off..."
+4. Makes additional API call with full conversation context
+5. Accumulates content and usage across all chunks
+6. Returns complete response with `continuation_chunks` count
+
+#### Available Models
+
+```ruby
+# gemini-2.0-flash-exp - Latest experimental (fastest, most capable)
+# gemini-1.5-pro-latest - Stable production (best quality)
+# gemini-1.5-flash-latest - Stable production (fast, efficient)
+# gemini-1.0-pro - Legacy (still supported)
+
+agent.model = "gemini-2.0-flash-exp"  # Recommended for most use cases
+agent.model = "gemini-1.5-pro-latest" # For production stability
+agent.model = "gemini-1.5-flash-latest" # For cost optimization
+```
+
+#### Function Calling
+
+Gemini has **native function calling** support:
+
+```ruby
+# Define tools
+def get_weather(location:)
+  "Weather in #{location}: sunny, 72°F"
+end
+
+agent = RAAF::Agent.new(
+  name: "Tool Agent",
+  instructions: "Help users with weather information",
+  model: "gemini-2.0-flash-exp"
+)
+
+agent.add_tool(method(:get_weather))
+
+gemini_provider = RAAF::Models::GeminiProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: gemini_provider)
+
+result = runner.run("What's the weather in Tokyo?")
+# Gemini will call get_weather function automatically
+```
+
+#### RAAF DSL Integration
+
+```ruby
+# Use Gemini in DSL agents with automatic provider detection
+class ResearchAgent < RAAF::DSL::Agent
+  instructions "Conduct thorough research on technical topics"
+  model "gemini-2.0-flash-exp"
+  provider :gemini  # Automatic provider detection
+
+  schema do
+    field :summary, type: :string, required: true
+    field :key_points, type: :array, required: true
+  end
+end
+
+# Run with automatic provider instantiation
+dsl_agent = ResearchAgent.new
+dsl_runner = RAAF::Runner.new(agent: dsl_agent)
+result = dsl_runner.run("Research Ruby 3.4 YJIT improvements")
+
+# Access structured results
+puts result[:summary]
+result[:key_points].each { |point| puts "- #{point}" }
+```
+
+#### Advanced Configuration
+
+```ruby
+# Custom generation parameters
+result = runner.run(
+  "Write a poem",
+  temperature: 0.9,        # Higher creativity
+  top_p: 0.95,            # Nucleus sampling
+  top_k: 40,              # Top-k sampling
+  max_tokens: 1024,       # Max output length
+  stop: ["END"]           # Stop sequences
+)
+
+# Custom API endpoint
+custom_provider = RAAF::Models::GeminiProvider.new(
+  api_key: ENV['GEMINI_API_KEY'],
+  api_base: "https://custom-gemini-endpoint.com"
+)
+```
+
+#### Streaming Support
+
+```ruby
+# Stream responses in real-time
+agent = RAAF::Agent.new(
+  name: "Streaming Assistant",
+  model: "gemini-2.0-flash-exp"
+)
+
+gemini_provider = RAAF::Models::GeminiProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: gemini_provider)
+
+runner.stream("Write a long story about Ruby") do |chunk|
+  case chunk[:type]
+  when "content"
+    print chunk[:content]  # Print each chunk as it arrives
+  when "finish"
+    puts "\n\nFinished! Reason: #{chunk[:finish_reason]}"
+  end
+end
+```
+
+#### Best Practices
+
+1. **Model Selection**
+   - Use `gemini-2.0-flash-exp` for cutting-edge features
+   - Use `gemini-1.5-pro-latest` for production stability
+   - Use `gemini-1.5-flash-latest` for cost-sensitive applications
+
+2. **Function Calling**
+   - Gemini supports OpenAI-compatible function calling
+   - Function parameters must use JSON schema format
+   - System instructions can guide when to use functions
+
+3. **Safety and Content Filtering**
+   - Gemini includes built-in safety filters
+   - Responses may be blocked for safety reasons (finish_reason: "content_filter")
+   - Configure safety settings if needed (contact Google for details)
+
+4. **Token Management**
+   - Use `max_tokens` to control output length
+   - Monitor usage via `result["usage"]` field
+   - Gemini 1.5 models have larger context windows (up to 2M tokens)
+
+**Gemini Capabilities:**
+- ✅ Native function/tool calling
+- ✅ Streaming responses
+- ✅ Multi-turn conversations
+- ✅ System instructions
+- ✅ RAAF DSL compatibility
+- ✅ Multi-agent handoffs
+
+**Gemini Limitations:**
+- ⚠️ Rate limits vary by tier (free tier has lower limits)
+- ⚠️ Safety filters may block some content
+- ⚠️ API is in beta (v1beta endpoint)
+
+**When to Use Gemini:**
+- ✅ Complex reasoning tasks
+- ✅ Multimodal applications (text + vision)
+- ✅ Cost-effective alternative to GPT-4
+- ✅ Long context windows needed
+- ✅ Google Cloud integration preferred
+
 ### Perplexity Provider
 
 **Perplexity AI** provides web-grounded search with automatic citations, ideal for research tasks requiring real-time information and source attribution.

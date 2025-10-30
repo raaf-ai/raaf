@@ -326,6 +326,176 @@ complex_agent = create_agent_for_task(:very_complex).new
 4. **Monitor costs** via `output_tokens_details[:reasoning_tokens]` in results
 5. **Test different levels** - sometimes "low" performs as well as "high" for certain tasks
 
+## HTTP Timeout Configuration (NEW)
+
+**Control HTTP request timeouts for API calls** with the new `timeout` DSL method. This is different from Pipeline DSL `.timeout()` which controls Ruby execution timeouts.
+
+### Overview
+
+The `timeout` method configures HTTP request timeouts for API calls to the LLM provider (OpenAI, Anthropic, etc.). When a request exceeds the timeout, it triggers a `Net::ReadTimeout` exception that can be retried by RAAF's built-in retry mechanism.
+
+**Two Types of Timeouts in RAAF:**
+
+1. **Agent HTTP Timeout** (this feature) - Controls individual HTTP request timeouts to API providers
+2. **Pipeline Execution Timeout** (Pipeline DSL `.timeout()`) - Controls total Ruby execution time
+
+```ruby
+# HTTP timeout for API requests (this feature)
+class APITimeoutAgent < RAAF::DSL::Agent
+  agent_name "APITimeoutAgent"
+  model "gpt-4o"
+  timeout 60  # HTTP request timeout: 60 seconds
+
+  static_instructions "Process data"
+end
+
+# Execution timeout for entire agent run (Pipeline DSL)
+pipeline = MyAgent.new.timeout(300)  # Total execution: 300 seconds
+```
+
+### Basic Usage
+
+```ruby
+# Set custom HTTP timeout for agent
+class CustomTimeoutAgent < RAAF::DSL::Agent
+  agent_name "CustomTimeoutAgent"
+  model "gpt-4o"
+  timeout 60  # 60 second HTTP timeout
+
+  static_instructions "You are a helpful assistant"
+end
+
+# Use default timeout (120 seconds from provider)
+class DefaultTimeoutAgent < RAAF::DSL::Agent
+  agent_name "DefaultTimeoutAgent"
+  model "gpt-4o"
+  # No timeout specified - uses provider default (120s)
+
+  static_instructions "You are a helpful assistant"
+end
+
+# Agent with 30 second timeout for fast operations
+class FastAgent < RAAF::DSL::Agent
+  agent_name "FastAgent"
+  model "gpt-4o"
+  timeout 30  # Fail fast for quick operations
+
+  static_instructions "Provide quick answers"
+end
+```
+
+### When to Use Custom Timeouts
+
+**Increase timeout (> 120s) for:**
+- Complex data processing tasks
+- Large document analysis
+- Multi-step reasoning operations
+- Agents that regularly hit timeout errors in logs
+
+**Decrease timeout (< 120s) for:**
+- Simple, fast operations
+- Real-time user interactions
+- Cost-sensitive applications (fail fast, retry less)
+- Health checks and monitoring agents
+
+### Example: Long-Running Analysis Agent
+
+```ruby
+class DeepAnalysisAgent < RAAF::DSL::Agent
+  agent_name "DeepAnalysisAgent"
+  model "gpt-4o"
+  timeout 300  # 5 minute timeout for complex analysis
+  max_turns 10  # Allow multiple turns
+
+  static_instructions <<~INSTRUCTIONS
+    You are a deep analysis agent that performs comprehensive
+    multi-step analysis of complex data sets.
+  INSTRUCTIONS
+end
+
+# Usage
+agent = DeepAnalysisAgent.new
+result = agent.run(complex_data)
+# HTTP timeout: 300s per API call
+# Total execution: Can run longer (multiple API calls × 300s each)
+```
+
+### Example: Fast Response Agent
+
+```ruby
+class QuickResponseAgent < RAAF::DSL::Agent
+  agent_name "QuickResponseAgent"
+  model "gpt-4o-mini"  # Fast model
+  timeout 15  # 15 second timeout
+  max_turns 1  # Single turn only
+
+  static_instructions "Provide quick, concise answers"
+end
+
+# Usage
+agent = QuickResponseAgent.new
+result = agent.run("What's 2+2?")
+# Fails fast if API call exceeds 15 seconds
+```
+
+### Timeout with Retry Logic
+
+RAAF's built-in retry mechanism works with custom timeouts:
+
+```ruby
+class ResilientAgent < RAAF::DSL::Agent
+  agent_name "ResilientAgent"
+  model "gpt-4o"
+  timeout 45  # 45 second timeout
+
+  # Retry configuration via environment variables:
+  # RAAF_PROVIDER_RETRY_ATTEMPTS=5
+  # RAAF_PROVIDER_RETRY_BASE_DELAY=2.0
+  # RAAF_PROVIDER_RETRY_MAX_DELAY=60.0
+
+  static_instructions "Process with retry on timeout"
+end
+
+# If API call times out after 45s:
+# 1. Retry attempt 1 after 2s delay
+# 2. Retry attempt 2 after 4s delay (exponential backoff)
+# 3. Retry attempt 3 after 8s delay
+# ... up to 5 attempts total
+```
+
+### Monitoring Timeouts
+
+Check logs for timeout warnings:
+
+```bash
+# Look for timeout retry warnings in logs
+[WARN] [RAAF] Retry attempt 1/5 for responses_completion (error_type: timeout)
+```
+
+If you see frequent timeout warnings, consider:
+1. Increasing the agent's `timeout` value
+2. Reducing complexity of the task
+3. Breaking the task into smaller steps
+4. Using a faster model (e.g., `gpt-4o-mini` vs `gpt-4o`)
+
+### Best Practices
+
+1. **Start with defaults** - Only set custom timeouts if needed
+2. **Monitor logs** - Check for `Net::ReadTimeout` errors before adjusting
+3. **Match timeout to task** - Long tasks need longer timeouts
+4. **Use with retry** - Configure retry attempts for resilience
+5. **Test in production** - Network conditions vary by deployment
+6. **Document reasoning** - Comment why non-default timeouts are needed
+
+### Technical Details
+
+- **Default:** 120 seconds (provider default)
+- **Minimum:** No minimum enforced (use with caution)
+- **Maximum:** No maximum enforced (very high values may cause issues)
+- **Scope:** Per HTTP request to LLM API
+- **Inheritance:** Overrides provider default, overridden by Runner parameter
+- **Retry:** Works with built-in retry mechanism on timeout
+
 ## Agent Lifecycle Hooks
 
 **NEW:** RAAF DSL agents support lifecycle hooks for wrapper-level interception, enabling preprocessing and postprocessing logic that works consistently across all pipeline wrapper types.
