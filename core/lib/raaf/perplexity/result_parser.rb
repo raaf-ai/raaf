@@ -30,11 +30,23 @@ module RAAF
       ##
       # Extracts text content from Perplexity response
       #
+      # Handles both Chat API format (choices[0].message.content)
+      # and Search API format (answer field)
+      #
       # @param result [Hash] Perplexity API response
       # @return [String, nil] Response content or nil if not found
       #
       def self.extract_content(result)
-        result.dig("choices", 0, "message", "content")
+        # Try Chat API format first (choices[0].message.content)
+        chat_content = result.dig("choices", 0, "message", "content")
+        return chat_content if chat_content.present?
+
+        # Try Search API format (direct answer field)
+        search_content = result["answer"]
+        return search_content if search_content.present?
+
+        # Return nil if neither format found
+        nil
       end
 
       ##
@@ -43,10 +55,14 @@ module RAAF
       # Citations provide source attribution for the information returned.
       # These are direct URLs to the sources Perplexity used.
       #
+      # Handles both Chat API format (citations field) and
+      # Search API format (citations field at top level)
+      #
       # @param result [Hash] Perplexity API response
       # @return [Array<String>] Array of citation URLs (empty if none found)
       #
       def self.extract_citations(result)
+        # Both Chat and Search API use "citations" field
         result["citations"] || []
       end
 
@@ -58,11 +74,23 @@ module RAAF
       # - url: URL of the source
       # - snippet: Excerpt from the source
       #
+      # Handles both Chat API format (search_results) and
+      # Search API format (results)
+      #
       # @param result [Hash] Perplexity API response
       # @return [Array<Hash>] Array of web result hashes (empty if none found)
       #
       def self.extract_search_results(result)
-        result["search_results"] || []
+        # Try Chat API format first (search_results)
+        chat_results = result["search_results"]
+        return chat_results if chat_results.present?
+
+        # Try Search API format (results)
+        search_results = result["results"]
+        return search_results if search_results.present?
+
+        # Return empty array if neither found
+        []
       end
 
       ##

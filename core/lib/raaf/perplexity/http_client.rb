@@ -71,6 +71,7 @@ module RAAF
       # 5. Raises specific errors based on HTTP status codes
       #
       # @param body [Hash] Request body (will be converted to JSON)
+      # @param api_type [String] API endpoint type: "chat" for /chat/completions or "search" for /search (default: "chat")
       # @return [ActiveSupport::HashWithIndifferentAccess] Parsed response
       # @raise [AuthenticationError] for 401 errors
       # @raise [RateLimitError] for 429 errors
@@ -78,8 +79,10 @@ module RAAF
       # @raise [APIError] for other HTTP errors
       # @raise [Net::OpenTimeout, Net::ReadTimeout] for network timeouts
       #
-      def make_api_call(body)
-        uri = URI("#{@api_base}/chat/completions")
+      def make_api_call(body, api_type: "chat")
+        # Determine endpoint based on api_type
+        endpoint = api_type == "search" ? "/search" : "/chat/completions"
+        uri = URI("#{@api_base}#{endpoint}")
         http = configure_http_client(uri)
         request = build_http_request(uri, body)
 

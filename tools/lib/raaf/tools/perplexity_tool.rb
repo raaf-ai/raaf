@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "raaf/errors"
 require "raaf/perplexity/http_client"
 require "raaf/perplexity/common"
 require "raaf/perplexity/search_options"
@@ -45,6 +46,8 @@ module RAAF
       # @param api_key [String, nil] Perplexity API key (defaults to PERPLEXITY_API_KEY env var)
       # @param api_base [String, nil] Custom API base URL
       # @param model [String] Default Perplexity model to use (default: "sonar")
+      # @param api_type [String] API endpoint type: "chat" for /chat/completions or "search" for /search (default: "chat")
+      # @param max_results [Integer, nil] Default maximum search results (default: nil, only for Search API)
       # @param max_tokens [Integer, nil] Default maximum tokens in response (default: nil)
       # @param temperature [Float, nil] Controls randomness (0-2, default: nil). 0 = deterministic
       # @param top_p [Float, nil] Nucleus sampling parameter (0-1, default: nil)
@@ -58,12 +61,14 @@ module RAAF
       # @param open_timeout [Integer, nil] Connection timeout in seconds
       # @param include_search_results_in_content [Boolean] Include web_results in response content (default: false)
       #
-      def initialize(api_key: nil, api_base: nil, model: "sonar", max_tokens: nil, temperature: nil,
-                     top_p: nil, presence_penalty: nil, frequency_penalty: nil,
+      def initialize(api_key: nil, api_base: nil, model: "sonar", api_type: "chat", max_results: nil,
+                     max_tokens: nil, temperature: nil, top_p: nil, presence_penalty: nil, frequency_penalty: nil,
                      search_recency_filter: nil, response_format: nil, reasoning_effort: nil,
                      language_preference: nil, timeout: nil, open_timeout: nil,
                      include_search_results_in_content: false)
         @model = model
+        @api_type = api_type
+        @max_results = max_results
         @max_tokens = max_tokens
         @temperature = temperature
         @top_p = top_p
@@ -110,6 +115,12 @@ module RAAF
               description: "Search query for web research. Use expert terminology and combine multiple facts into one comprehensive query. " \
                           "Example: '[Company] [Legal Form] [City] [Country] comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status'"
             },
+            max_results: {
+              type: "integer",
+              minimum: 1,
+              maximum: 20,
+              description: "Optional: Maximum number of search results to return (1-20). Only applies when using Search API. Default depends on model."
+            },
             search_domain_filter: {
               type: "array",
               items: { type: "string" },
@@ -143,6 +154,18 @@ module RAAF
             frequency_penalty: {
               type: "number",
               description: "Optional: Reduces frequency-based repetition. Range typically -2 to 2."
+            },
+            return_citations: {
+              type: "boolean",
+              description: "Optional: Include citations in response (Search API only). Default: true"
+            },
+            return_images: {
+              type: "boolean",
+              description: "Optional: Include images in response (Search API only). Default: false"
+            },
+            return_related_questions: {
+              type: "boolean",
+              description: "Optional: Include related questions in response (Search API only). Default: false"
             }
           },
           required: ["query"]
@@ -259,6 +282,7 @@ module RAAF
       #
       # @param query [String] Search query for web research (required).
       #   Example: "Acme Corp BV Amsterdam Netherlands comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status"
+      # @param max_results [Integer, nil] Maximum number of search results (1-20, Search API only). Overrides initialize default if provided.
       # @param search_domain_filter [Array<String>, nil] Array of complete domain names to restrict search.
       #   Valid: ['example.com', 'ruby-lang.org', 'subdomain.example.com', 'news.bbc.co.uk']
       #   Invalid: ['nl' (TLD only), '.nl' (TLD filter), '*.nl' (wildcards), '*.com', 'ruby-*']
@@ -269,10 +293,14 @@ module RAAF
       # @param top_p [Float, nil] Nucleus sampling (0-1). Overrides initialize default if provided.
       # @param presence_penalty [Float, nil] Token repetition penalty. Overrides initialize default if provided.
       # @param frequency_penalty [Float, nil] Frequency repetition penalty. Overrides initialize default if provided.
+      # @param return_citations [Boolean, nil] Include citations in Search API response
+      # @param return_images [Boolean, nil] Include images in Search API response
+      # @param return_related_questions [Boolean, nil] Include related questions in Search API response
       # @return [Hash] Formatted search result with success, content, citations, web_results
       #
-      def call(query:, search_domain_filter: nil, search_recency_filter: nil,
-               temperature: nil, top_p: nil, presence_penalty: nil, frequency_penalty: nil)
+      def call(query:, max_results: nil, search_domain_filter: nil, search_recency_filter: nil,
+               temperature: nil, top_p: nil, presence_penalty: nil, frequency_penalty: nil,
+               return_citations: nil, return_images: nil, return_related_questions: nil)
         # Normalize empty strings to nil for both filters
         search_domain_filter = normalize_filter(search_domain_filter)
         search_recency_filter = normalize_filter(search_recency_filter)
@@ -282,64 +310,28 @@ module RAAF
         validate_domain_filter(search_domain_filter) if search_domain_filter
         # recency_filter validation is handled by SearchOptions.build with fallback
 
-        # Build messages for Perplexity
-        messages = [{ role: "user", content: query }]
-
-        # Build request body for Perplexity API
-        body = {
-          model: @model,
-          messages: messages
-        }
-
-        # Add optional parameters, preferring call-time values over defaults
-        body[:max_tokens] = @max_tokens if @max_tokens
-
-        # Temperature and sampling parameters (call-time override instance defaults)
-        body[:temperature] = temperature.nil? ? @temperature : temperature if temperature || @temperature
-        body[:top_p] = top_p.nil? ? @top_p : top_p if (top_p || @top_p)
-        body[:presence_penalty] = presence_penalty.nil? ? @presence_penalty : presence_penalty if (presence_penalty || @presence_penalty)
-        body[:frequency_penalty] = frequency_penalty.nil? ? @frequency_penalty : frequency_penalty if (frequency_penalty || @frequency_penalty)
-
-        # Other advanced parameters
-        body[:response_format] = @response_format if @response_format
-        body[:reasoning_effort] = @reasoning_effort if @reasoning_effort
-        body[:language_preference] = @language_preference if @language_preference
-
-        # Add web search options using common code with validation fallback
-        if search_domain_filter || search_recency_filter
-          # Try to build options with agent-provided recency_filter
-          begin
-            options = RAAF::Perplexity::SearchOptions.build(
-              domain_filter: search_domain_filter,
-              recency_filter: search_recency_filter
-            )
-            body.merge!(options) if options
-          rescue ArgumentError => e
-            # Agent provided invalid recency_filter - fall back to default
-            if e.message.include?("Invalid recency filter")
-              RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
-
-              # Retry with default recency_filter
-              options = RAAF::Perplexity::SearchOptions.build(
-                domain_filter: search_domain_filter,
-                recency_filter: @default_search_recency_filter
-              )
-              body.merge!(options) if options
-            else
-              # Re-raise if it's a different ArgumentError (e.g., invalid domain_filter)
-              raise
-            end
-          end
+        # Route to appropriate API based on api_type
+        if @api_type == "search"
+          call_search_api(
+            query: query,
+            max_results: max_results,
+            search_domain_filter: search_domain_filter,
+            search_recency_filter: search_recency_filter,
+            return_citations: return_citations,
+            return_images: return_images,
+            return_related_questions: return_related_questions
+          )
+        else
+          call_chat_api(
+            query: query,
+            search_domain_filter: search_domain_filter,
+            search_recency_filter: search_recency_filter,
+            temperature: temperature,
+            top_p: top_p,
+            presence_penalty: presence_penalty,
+            frequency_penalty: frequency_penalty
+          )
         end
-
-        # Execute search using HttpClient directly
-        result = @http_client.make_api_call(body)
-
-        # Format result using common parser
-        RAAF::Perplexity::ResultParser.format_search_result(
-          result,
-          include_search_results_in_content: @include_search_results_in_content
-        )
       rescue RAAF::AuthenticationError => e
         {
           success: false,
@@ -365,6 +357,144 @@ module RAAF
       end
 
       private
+
+      ##
+      # Executes Search API call (/v1/search endpoint)
+      #
+      # @param query [String] Search query
+      # @param max_results [Integer, nil] Maximum results to return
+      # @param search_domain_filter [Array<String>, nil] Domain filter
+      # @param search_recency_filter [String, nil] Recency filter
+      # @param return_citations [Boolean, nil] Include citations
+      # @param return_images [Boolean, nil] Include images
+      # @param return_related_questions [Boolean, nil] Include related questions
+      # @return [Hash] Formatted search result
+      # @private
+      #
+      def call_search_api(query:, max_results:, search_domain_filter:, search_recency_filter:,
+                          return_citations:, return_images:, return_related_questions:)
+        # Build Search API request body
+        body = {
+          query: query,
+          model: @model  # Search API requires model parameter
+        }
+
+        # Add max_results (use call-time override or initialize default)
+        effective_max_results = max_results || @max_results
+        body[:max_results] = effective_max_results if effective_max_results
+
+        # Add optional return parameters
+        body[:return_citations] = return_citations if return_citations.is_a?(TrueClass)
+        body[:return_images] = return_images if return_images.is_a?(TrueClass)
+        body[:return_related_questions] = return_related_questions if return_related_questions.is_a?(TrueClass)
+
+        # Add web search options using common code with validation fallback
+        if search_domain_filter || search_recency_filter
+          begin
+            options = RAAF::Perplexity::SearchOptions.build(
+              domain_filter: search_domain_filter,
+              recency_filter: search_recency_filter
+            )
+            body.merge!(options) if options
+          rescue ArgumentError => e
+            # Agent provided invalid recency_filter - fall back to default
+            if e.message.include?("Invalid recency filter")
+              RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
+
+              # Retry with default recency_filter
+              options = RAAF::Perplexity::SearchOptions.build(
+                domain_filter: search_domain_filter,
+                recency_filter: @default_search_recency_filter
+              )
+              body.merge!(options) if options
+            else
+              raise
+            end
+          end
+        end
+
+        # Execute search using HttpClient with api_type parameter
+        result = @http_client.make_api_call(body, api_type: "search")
+
+        # Format result using common parser
+        RAAF::Perplexity::ResultParser.format_search_result(
+          result,
+          include_search_results_in_content: @include_search_results_in_content
+        )
+      end
+
+      ##
+      # Executes Chat API call (/v1/chat/completions endpoint)
+      #
+      # @param query [String] Search query
+      # @param search_domain_filter [Array<String>, nil] Domain filter
+      # @param search_recency_filter [String, nil] Recency filter
+      # @param temperature [Float, nil] Temperature override
+      # @param top_p [Float, nil] Top P override
+      # @param presence_penalty [Float, nil] Presence penalty override
+      # @param frequency_penalty [Float, nil] Frequency penalty override
+      # @return [Hash] Formatted search result
+      # @private
+      #
+      def call_chat_api(query:, search_domain_filter:, search_recency_filter:,
+                        temperature:, top_p:, presence_penalty:, frequency_penalty:)
+        # Build messages for Perplexity
+        messages = [{ role: "user", content: query }]
+
+        # Build request body for Perplexity API
+        body = {
+          model: @model,
+          messages: messages
+        }
+
+        # Add optional parameters, preferring call-time values over defaults
+        body[:max_tokens] = @max_tokens if @max_tokens
+
+        # Temperature and sampling parameters (call-time override instance defaults)
+        body[:temperature] = temperature.nil? ? @temperature : temperature if temperature || @temperature
+        body[:top_p] = top_p.nil? ? @top_p : top_p if (top_p || @top_p)
+        body[:presence_penalty] = presence_penalty.nil? ? @presence_penalty : presence_penalty if (presence_penalty || @presence_penalty)
+        body[:frequency_penalty] = frequency_penalty.nil? ? @frequency_penalty : frequency_penalty if (frequency_penalty || @frequency_penalty)
+
+        # Other advanced parameters
+        body[:response_format] = @response_format if @response_format
+        body[:reasoning_effort] = @reasoning_effort if @reasoning_effort
+        body[:language_preference] = @language_preference if @language_preference
+
+        # Add web search options using common code with validation fallback
+        if search_domain_filter || search_recency_filter
+          begin
+            options = RAAF::Perplexity::SearchOptions.build(
+              domain_filter: search_domain_filter,
+              recency_filter: search_recency_filter
+            )
+            body.merge!(options) if options
+          rescue ArgumentError => e
+            # Agent provided invalid recency_filter - fall back to default
+            if e.message.include?("Invalid recency filter")
+              RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
+
+              # Retry with default recency_filter
+              options = RAAF::Perplexity::SearchOptions.build(
+                domain_filter: search_domain_filter,
+                recency_filter: @default_search_recency_filter
+              )
+              body.merge!(options) if options
+            else
+              raise
+            end
+          end
+        end
+
+        # Execute search using HttpClient directly
+        result = @http_client.make_api_call(body)
+
+        # Format result using common parser
+        RAAF::Perplexity::ResultParser.format_search_result(
+          result,
+          include_search_results_in_content: @include_search_results_in_content
+        )
+      end
 
       ##
       # Validates the query parameter

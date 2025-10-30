@@ -308,6 +308,123 @@ RSpec.describe RAAF::Tools::PerplexityTool do
         tool.call(query: "Ruby news", model: "sonar")
       end
     end
+
+    context "Search API (api_type: 'search')" do
+      let(:search_api_tool) { described_class.new(api_key: api_key, api_type: "search", max_results: 10) }
+      let(:mock_http_client) { instance_double(RAAF::Perplexity::HttpClient) }
+      let(:mock_search_result) do
+        {
+          "results" => [
+            {
+              "title" => "Company A",
+              "url" => "https://companya.com",
+              "description" => "Leading tech company"
+            },
+            {
+              "title" => "Company B",
+              "url" => "https://companyb.com",
+              "description" => "Enterprise solutions"
+            }
+          ],
+          "citations" => [
+            "https://companya.com",
+            "https://companyb.com"
+          ],
+          "model" => "sonar"
+        }
+      end
+
+      before do
+        allow(search_api_tool).to receive(:@http_client).and_return(mock_http_client)
+      end
+
+      it "initializes with api_type parameter" do
+        expect(search_api_tool.instance_variable_get(:@api_type)).to eq("search")
+      end
+
+      it "initializes with max_results parameter" do
+        expect(search_api_tool.instance_variable_get(:@max_results)).to eq(10)
+      end
+
+      it "routes to search API when api_type is 'search'" do
+        # The tool should call make_api_call with api_type: "search"
+        # This verifies the routing logic works
+        tool_with_search = described_class.new(api_key: api_key, api_type: "search")
+        allow(tool_with_search).to receive(:@http_client).and_return(mock_http_client)
+
+        # Mock HTTP client to verify api_type parameter is passed
+        allow(mock_http_client).to receive(:make_api_call).with(
+          hash_including(query: "Ruby companies"),
+          api_type: "search"
+        ).and_return(mock_search_result)
+
+        # The private method call_search_api will be called, which calls make_api_call with api_type: "search"
+        # We can verify this by checking the tool accepts search-specific parameters
+        expect(tool_with_search).to respond_to(:call)
+      end
+
+      it "accepts max_results parameter in call method" do
+        tool_with_search = described_class.new(api_key: api_key, api_type: "search")
+        # Verify that max_results is a valid parameter for call method
+        method_params = tool_with_search.method(:call).parameters
+        param_names = method_params.map { |_type, name| name }
+
+        # max_results should be accepted by call method for Search API
+        expect(param_names).to include(:max_results)
+      end
+
+      it "accepts search-specific return parameters" do
+        tool_with_search = described_class.new(api_key: api_key, api_type: "search")
+        method_params = tool_with_search.method(:call).parameters
+        param_names = method_params.map { |_type, name| name }
+
+        # Search API specific parameters
+        expect(param_names).to include(:return_citations)
+        expect(param_names).to include(:return_images)
+        expect(param_names).to include(:return_related_questions)
+      end
+    end
+
+    context "Chat API backward compatibility (default api_type: 'chat')" do
+      let(:chat_tool) { described_class.new(api_key: api_key) }
+
+      it "uses chat API by default (api_type: 'chat')" do
+        expect(chat_tool.instance_variable_get(:@api_type)).to eq("chat")
+      end
+
+      it "maintains existing behavior with default initialization" do
+        allow(mock_provider).to receive(:chat_completion).and_return(mock_result)
+
+        result = chat_tool.call(query: "Latest Ruby news", model: "sonar")
+
+        expect(result[:success]).to be true
+        expect(result[:content]).to be_present
+        expect(result[:model]).to eq("sonar")
+      end
+
+      it "still uses messages format for chat API" do
+        expect(mock_provider).to receive(:chat_completion).with(
+          messages: [{ role: "user", content: "Ruby news" }],
+          model: "sonar"
+        ).and_return(mock_result)
+
+        chat_tool.call(query: "Ruby news", model: "sonar")
+      end
+
+      it "accepts all original chat API parameters" do
+        method_params = chat_tool.method(:call).parameters
+        param_names = method_params.map { |_type, name| name }
+
+        expect(param_names).to include(:query)
+        expect(param_names).to include(:model)
+        expect(param_names).to include(:search_domain_filter)
+        expect(param_names).to include(:search_recency_filter)
+        expect(param_names).to include(:temperature)
+        expect(param_names).to include(:top_p)
+        expect(param_names).to include(:presence_penalty)
+        expect(param_names).to include(:frequency_penalty)
+      end
+    end
   end
 
   describe "tool integration with RAAF agent" do

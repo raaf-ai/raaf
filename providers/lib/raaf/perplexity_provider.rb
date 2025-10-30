@@ -257,12 +257,13 @@ module RAAF
       # Preserves Perplexity-specific fields (search_results) in metadata for citation access.
       #
       # @param body [Hash] Request body
+      # @param api_type [String] API endpoint type ("chat" or "search")
       # @return [Hash] Parsed response with indifferent access and search_results in metadata
       # @raise [APIError] on request failure
       # @private
       #
-      def make_api_call(body)
-        response = @http_client.make_api_call(body)
+      def make_api_call(body, api_type: "chat")
+        response = @http_client.make_api_call(body, api_type: api_type)
 
         # Check for search_results in different locations
         search_results = response.delete("search_results") || response.delete(:search_results) || []
