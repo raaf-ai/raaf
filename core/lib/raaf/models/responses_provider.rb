@@ -29,6 +29,17 @@ module RAAF
     # This provider maintains exact structural alignment with the Python
     # RAAF SDK for full compatibility.
     #
+    # @note Parameter Compatibility
+    #   The Responses API does NOT support these Chat Completions parameters:
+    #   - frequency_penalty
+    #   - presence_penalty
+    #   - best_of
+    #   - logit_bias
+    #
+    #   If these parameters are provided, a warning will be logged and they will be
+    #   silently filtered from the API request. Use OpenAIProvider (Chat Completions API)
+    #   if you need these parameters.
+    #
     # @example Basic usage
     #   provider = ResponsesProvider.new(api_key: ENV['OPENAI_API_KEY'])
     #   response = provider.responses_completion(
@@ -65,19 +76,27 @@ module RAAF
         o1-preview o1-mini
       ].freeze
 
+      # Reasoning models that don't support temperature/top_p
+      REASONING_MODELS = %w[
+        gpt-5 gpt-5-mini gpt-5-nano gpt-5-chat-latest
+        o1-preview o1-mini
+      ].freeze
+
       ##
       # Initialize the Responses API provider
       #
       # @param api_key [String, nil] OpenAI API key (defaults to ENV['OPENAI_API_KEY'])
       # @param api_base [String, nil] Custom API base URL
+      # @param timeout [Integer, nil] HTTP read timeout in seconds (default: 300 via OPENAI_HTTP_TIMEOUT env var)
       # @param _options [Hash] Additional options (currently unused)
       #
       # @raise [AuthenticationError] If no API key is provided
       #
-      def initialize(api_key: nil, api_base: nil, **_options)
+      def initialize(api_key: nil, api_base: nil, timeout: nil, **_options)
         super()
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
+        @http_timeout = timeout || ENV.fetch("OPENAI_HTTP_TIMEOUT", "300").to_i
         raise AuthenticationError, "OpenAI API key is required" unless @api_key
       end
 
@@ -148,7 +167,9 @@ module RAAF
       #     input: [{ type: "function_call_output", output: "..." }]
       #   )
       #
-      def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil, **)
+      def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil,
+                               auto_continuation: true, max_continuation_attempts: 10,
+                               frequency_penalty: nil, presence_penalty: nil, best_of: nil, logit_bias: nil, **kwargs)
         validate_model(model)
 
         # For Responses API, we can pass input items directly
@@ -162,23 +183,83 @@ module RAAF
           list_input = convert_messages_to_input(messages)
         end
 
-        # Determine continuation attempt number
-        attempt_number = previous_response_id ? 2 : 1
+        # Continuation loop for handling truncated responses
+        # Automatically continues until response is complete or max chunks reached
+        max_chunks = max_continuation_attempts
+        chunk_number = 1
+        current_response_id = previous_response_id
+        collected_chunks = []
 
-        # Make the API call
-        fetch_response(
-          system_instructions: system_instructions,
-          input: list_input,
-          model: model,
-          tools: tools,
-          stream: stream,
-          previous_response_id: previous_response_id,
-          attempt_number: attempt_number,
-          **
-        )
+        loop do
+          log_debug("🔄 Continuation sequence iteration",
+                    chunk_number: chunk_number,
+                    max_chunks: max_chunks,
+                    current_response_id: current_response_id)
 
-        # Return the raw response in a format compatible with the runner
-        # The response already contains the output items that can be processed
+          # Make the API call
+          debugger
+          response = fetch_response(
+            system_instructions: system_instructions,
+            input: list_input,
+            model: model,
+            tools: tools,
+            stream: stream,
+            previous_response_id: current_response_id,
+            chunk_number: chunk_number,
+            frequency_penalty: frequency_penalty,
+            presence_penalty: presence_penalty,
+            best_of: best_of,
+            logit_bias: logit_bias,
+            **kwargs
+          )
+
+          # Collect this chunk
+          collected_chunks << response
+
+          # Check if we need to continue
+          # Use infer_finish_reason to properly detect truncation in Responses API
+          # This method checks incomplete_details and truncation fields from OpenAI
+          finish_reason = infer_finish_reason(response)
+          is_truncated = (finish_reason == "length" || finish_reason == "incomplete")
+
+          # Determine if response is complete
+          response_complete = finish_reason == "stop" && !is_truncated
+
+          log_debug("🔍 Checking if continuation needed",
+                    finish_reason: finish_reason,
+                    truncation: is_truncated,
+                    response_complete: response_complete,
+                    chunk_number: chunk_number,
+                    max_chunks: max_chunks)
+
+          # Exit loop if response is complete
+          if response_complete
+            log_debug("✅ Response complete, exiting continuation loop",
+                      finish_reason: finish_reason,
+                      total_chunks: chunk_number)
+            break
+          end
+
+          # Check if we've exceeded max chunks
+          if chunk_number >= max_chunks
+            log_warn("⚠️ Max continuation chunks reached",
+                     max_chunks: max_chunks,
+                     response_id: response["id"])
+            break
+          end
+
+          # Prepare for next iteration
+          chunk_number += 1
+          current_response_id = response["id"]
+
+          log_debug("🔄 Continuation needed, preparing next chunk",
+                    next_chunk: chunk_number,
+                    response_id: current_response_id)
+        end
+
+        # Return the final response (or merged response if multiple chunks)
+        final_response = collected_chunks.last
+        final_response
       end
 
       # Implement streaming completion to match ModelInterface
@@ -206,10 +287,100 @@ module RAAF
         raise ArgumentError, "Model #{model} is not supported. Supported models: #{SUPPORTED_MODELS.join(", ")}"
       end
 
+      def reasoning_model?(model)
+        REASONING_MODELS.include?(model)
+      end
+
+      # Infers finish_reason from Responses API fields
+      # OpenAI Responses API uses "truncation" and "status" fields instead of "finish_reason"
+      # This method maps those fields to finish_reason for compatibility
+      def infer_finish_reason(response)
+        # If finish_reason is already set, return it
+        finish_reason = response["finish_reason"]
+        return finish_reason if finish_reason && !finish_reason.empty?
+
+        # Extract Responses API fields
+        truncation = response["truncation"]
+        status = response["status"]
+        incomplete_details = response["incomplete_details"]
+
+        # Determine finish_reason based on Responses API response structure
+        if truncation == true || truncation == "true"
+          log_debug("📌 Detected truncation from 'truncation' field",
+                    detected_reason: "length",
+                    truncation: truncation,
+                    incomplete_details: incomplete_details)
+          "length"
+        elsif incomplete_details && !incomplete_details.empty?
+          log_debug("📌 Detected incomplete response from 'incomplete_details' field",
+                    detected_reason: "incomplete",
+                    incomplete_details: incomplete_details)
+          "incomplete"
+        elsif status == "completed" || status == "completed_successfully"
+          log_debug("📌 Response completed normally",
+                    detected_reason: "stop",
+                    status: status)
+          "stop"
+        else
+          # Default to "stop" if we can't determine
+          log_debug("📌 Defaulting finish_reason to 'stop'",
+                    status: status,
+                    truncation: truncation,
+                    incomplete_details: incomplete_details)
+          "stop"
+        end
+      end
+
+      # Extracts text content from Responses API response
+      # Handles nested structure: response -> output -> content -> text
+      def extract_response_text(response)
+        # Try to extract from Responses API structure
+        text = response.dig("output", 0, "content", 0, "text")
+        return text if text
+
+        # Fallback: try to get content as string
+        content = response.dig("output", 0, "content")
+        return content.to_s if content
+
+        # No text found
+        ""
+      end
+
+      # Unsupported parameters that belong to Chat Completions API
+      UNSUPPORTED_PARAMS = [
+        :frequency_penalty,
+        :presence_penalty,
+        :best_of,
+        :logit_bias
+      ].freeze
+
+      # Parameters not supported by reasoning models (GPT-5, o1)
+      REASONING_UNSUPPORTED_PARAMS = [
+        :temperature,
+        :top_p,
+        :frequency_penalty,
+        :presence_penalty,
+        :logit_bias,
+        :best_of
+      ].freeze
+
       # Matches Python's _fetch_response
       def fetch_response(system_instructions:, input:, model:, tools: nil, stream: false,
-                         previous_response_id: nil, attempt_number: 1, tool_choice: nil, parallel_tool_calls: nil,
-                         temperature: nil, top_p: nil, max_tokens: nil, response_format: nil, **)
+                         previous_response_id: nil, chunk_number: 1, tool_choice: nil, parallel_tool_calls: nil,
+                         temperature: nil, top_p: nil, max_tokens: nil, response_format: nil,
+                         frequency_penalty: nil, presence_penalty: nil, best_of: nil, logit_bias: nil, **kwargs)
+        # Validate and warn about unsupported parameters
+        validate_unsupported_parameters(
+          model: model,
+          temperature: temperature,
+          top_p: top_p,
+          frequency_penalty: frequency_penalty,
+          presence_penalty: presence_penalty,
+          best_of: best_of,
+          logit_bias: logit_bias,
+          **kwargs
+        )
+
         # Convert input to list format if it's a string
         # Use "message" type instead of "user_text" as per OpenAI Responses API requirements
         list_input = input.is_a?(String) ? [{ type: "message", role: "user", content: [{ type: "input_text", text: input }] }] : input
@@ -230,16 +401,30 @@ module RAAF
         body[:include] = converted_tools[:includes] if converted_tools[:includes]&.any?
         body[:tool_choice] = convert_tool_choice(tool_choice) if tool_choice
         body[:parallel_tool_calls] = parallel_tool_calls unless parallel_tool_calls.nil?
-        body[:temperature] = temperature if temperature
-        body[:top_p] = top_p if top_p
+
+        # Only add temperature and top_p for non-reasoning models
+        # Reasoning models (GPT-5, o1) don't support these parameters
+        unless reasoning_model?(model)
+          body[:temperature] = temperature if temperature
+          body[:top_p] = top_p if top_p
+        end
+
         body[:max_output_tokens] = max_tokens if max_tokens # OpenAI Responses API uses max_output_tokens
         body[:stream] = stream if stream
+        # Note: frequency_penalty, presence_penalty, best_of, logit_bias are NOT added
+        # They are unsupported by Responses API and have been filtered out with warnings
+        # For reasoning models, temperature and top_p are also filtered
 
-        # Handle response format
-        body[:text] = convert_response_format(response_format) if response_format
+        # Handle response format - Responses API doesn't support response_format
+        # This parameter should not be used with Responses API
+        # If provided, log a warning but don't add it to the request
+        if response_format
+          log_warn("response_format is not supported by OpenAI Responses API",
+                   suggestion: "Remove response_format parameter or use Chat Completions API instead")
+        end
 
-        # Debug logging for continuation attempt
-        log_debug("Continuation attempt #{attempt_number}",
+        # Debug logging for continuation chunk
+        log_debug("Continuation chunk #{chunk_number}",
                   model: model,
                   input_length: list_input.length,
                   tools_count: converted_tools[:tools]&.length || 0,
@@ -344,13 +529,21 @@ module RAAF
 
         parsed_response = RAAF::Utils.parse_json(response.body)
 
+        # DEBUG: Log raw response to see all fields
+        log_debug("📥 RAW OPENAI RESPONSES API RESPONSE",
+                  category: "api_response",
+                  response_keys: parsed_response.keys,
+                  full_response: parsed_response.to_json)
+
         # Handle truncation detection and continuation
-        finish_reason = parsed_response["finish_reason"]
+        # NOTE: OpenAI Responses API uses "truncation" field, not "finish_reason"
+        # Maps truncation status to finish_reason for compatibility
+        finish_reason = infer_finish_reason(parsed_response)
 
         # Log based on finish_reason
         case finish_reason
         when "length"
-          log_debug("Response truncated - will attempt continuation",
+          log_debug("Response truncated - will continue sequence",
                     finish_reason: "length",
                     response_id: parsed_response["id"])
         when "content_filter"
@@ -672,6 +865,41 @@ module RAAF
         else
           # Default to auto for unrecognized types
           "auto"
+        end
+      end
+
+      # Validates and warns about unsupported parameters
+      # These parameters work with Chat Completions API but not Responses API
+      # For reasoning models (GPT-5, o1), additional parameters are unsupported
+      def validate_unsupported_parameters(model:, **params)
+        # Determine which parameters are unsupported based on model type
+        unsupported_params = if reasoning_model?(model)
+                               REASONING_UNSUPPORTED_PARAMS
+                             else
+                               UNSUPPORTED_PARAMS
+                             end
+
+        unsupported = params.select { |key, value| unsupported_params.include?(key) && !value.nil? }
+
+        unsupported.each do |param_name, param_value|
+          if reasoning_model?(model)
+            log_warn(
+              "⚠️ Parameter '#{param_name}' is not supported by reasoning model #{model}",
+              parameter: param_name,
+              value: param_value,
+              model: model,
+              suggestion: "Remove this parameter - reasoning models (GPT-5, o1) only support default settings",
+              documentation: "https://platform.openai.com/docs/guides/reasoning"
+            )
+          else
+            log_warn(
+              "⚠️ Parameter '#{param_name}' is not supported by OpenAI Responses API",
+              parameter: param_name,
+              value: param_value,
+              suggestion: "Remove this parameter or use Chat Completions API (OpenAIProvider) instead",
+              documentation: "https://platform.openai.com/docs/api-reference/responses"
+            )
+          end
         end
       end
 
