@@ -152,8 +152,10 @@ module RAAF
     #   @return [Symbol] validation mode for schema validation (:strict, :tolerant, :partial)
     # @!attribute [rw] trace_metadata
     #   @return [Hash, nil] additional metadata to include in tracing spans (from DSL layer)
-    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :max_tokens, :output_type, :hooks, :prompt,
-                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff, :json_repair, :normalize_keys, :validation_mode, :trace_metadata
+    # @!attribute [rw] timeout
+    #   @return [Integer, nil] HTTP timeout in seconds for API requests (overrides provider default if set)
+    attr_accessor :name, :instructions, :tools, :handoffs, :model, :max_turns, :max_tokens, :temperature, :top_p, :frequency_penalty, :presence_penalty, :stop, :user, :parallel_tool_calls, :output_type, :hooks, :prompt,
+                  :input_guardrails, :output_guardrails, :handoff_description, :tool_use_behavior, :reset_tool_choice, :response_format, :tool_choice, :memory_store, :model_settings, :context, :on_handoff, :json_repair, :normalize_keys, :validation_mode, :trace_metadata, :timeout
 
     ##
     # Creates a new Agent instance
@@ -221,6 +223,13 @@ module RAAF
       @model = options[:model] || "gpt-4"
       @max_turns = options[:max_turns] || 10
       @max_tokens = options[:max_tokens]
+      @temperature = options[:temperature]
+      @top_p = options[:top_p]
+      @frequency_penalty = options[:frequency_penalty]
+      @presence_penalty = options[:presence_penalty]
+      @stop = options[:stop]
+      @user = options[:user]
+      @parallel_tool_calls = options[:parallel_tool_calls]
       @output_type = options[:output_type]
       @hooks = options[:hooks]
       @prompt = options[:prompt]

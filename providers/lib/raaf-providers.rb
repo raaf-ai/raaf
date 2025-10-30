@@ -5,6 +5,7 @@ require_relative "raaf/anthropic_provider"
 require_relative "raaf/cohere_provider"
 require_relative "raaf/groq_provider"
 require_relative "raaf/perplexity_provider"
+require_relative "raaf/gemini_provider"
 require_relative "raaf/together_provider"
 require_relative "raaf/multi_provider"
 require_relative "raaf/litellm_provider"
@@ -22,6 +23,7 @@ require_relative "raaf/litellm_provider"
 # * Cohere - Enterprise-focused language models
 # * Groq - High-performance inference
 # * Perplexity - Web-grounded AI search with citations
+# * Gemini - Google's multimodal AI models
 # * Together - Open-source model hosting
 # * LiteLLM - Universal LLM proxy
 # * Multi-provider - Load balancing and failover
@@ -66,6 +68,7 @@ require_relative "raaf/litellm_provider"
 #   export COHERE_API_KEY="your-cohere-key"
 #   export GROQ_API_KEY="your-groq-key"
 #   export PERPLEXITY_API_KEY="your-perplexity-key"
+#   export GEMINI_API_KEY="your-gemini-key"
 #   export TOGETHER_API_KEY="your-together-key"
 #
 # @author Ruby AI Agents Factory Team

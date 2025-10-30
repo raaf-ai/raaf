@@ -36,6 +36,7 @@ module RAAF
       cohere: "RAAF::Models::CohereProvider",
       groq: "RAAF::Models::GroqProvider",
       perplexity: "RAAF::Models::PerplexityProvider",
+      gemini: "RAAF::Models::GeminiProvider",
       together: "RAAF::Models::TogetherProvider",
       litellm: "RAAF::Models::LiteLLMProvider"
     }.freeze
@@ -53,7 +54,8 @@ module RAAF
       /^gemma-/i => :groq,
       /^sonar-/i => :perplexity,
       /^sonar$/i => :perplexity,  # Support plain "sonar" as model name
-      /^perplexity$/i => :perplexity  # Support plain "perplexity" as model name
+      /^perplexity$/i => :perplexity,  # Support plain "perplexity" as model name
+      /^gemini-/i => :gemini  # Gemini models
     }.freeze
 
     class << self

@@ -522,6 +522,40 @@ module RAAF
           _context_config[:temperature] = temp
         end
 
+        # Nucleus sampling parameter (0.0 to 1.0)
+        # Controls diversity via nucleus sampling. 0.0 is deterministic, 1.0 is maximum diversity.
+        def top_p(value)
+          _context_config[:top_p] = value
+        end
+
+        # Reduce repetition (-2.0 to 2.0)
+        # Positive values penalize tokens that have already appeared
+        def frequency_penalty(value)
+          _context_config[:frequency_penalty] = value
+        end
+
+        # Encourage new topics (-2.0 to 2.0)
+        # Positive values encourage the model to talk about new topics
+        def presence_penalty(value)
+          _context_config[:presence_penalty] = value
+        end
+
+        # Stop sequences (string or array of strings)
+        # The model will stop generating when it encounters these sequences
+        def stop(sequences)
+          _context_config[:stop] = sequences
+        end
+
+        # User identifier for tracking and abuse monitoring
+        def user(identifier)
+          _context_config[:user] = identifier
+        end
+
+        # Enable or disable parallel tool execution
+        def parallel_tool_calls(enabled)
+          _context_config[:parallel_tool_calls] = enabled
+        end
+
         # Set or get execution timeout for this agent
         #
         # @param seconds [Integer, nil] Timeout in seconds
@@ -2401,6 +2435,43 @@ module RAAF
           nil  # No default - let provider use its default
       end
 
+      # Instance accessor for temperature (randomness control)
+      def temperature
+        self.class._context_config&.dig(:temperature) ||
+          RAAF::DSL::Config.temperature_for(agent_name) ||
+          nil  # No default - let provider use its default
+      end
+
+      # Instance accessor for top_p (nucleus sampling)
+      def top_p
+        self.class._context_config&.dig(:top_p) || nil
+      end
+
+      # Instance accessor for frequency_penalty (reduce repetition)
+      def frequency_penalty
+        self.class._context_config&.dig(:frequency_penalty) || nil
+      end
+
+      # Instance accessor for presence_penalty (encourage new topics)
+      def presence_penalty
+        self.class._context_config&.dig(:presence_penalty) || nil
+      end
+
+      # Instance accessor for stop sequences
+      def stop
+        self.class._context_config&.dig(:stop) || nil
+      end
+
+      # Instance accessor for user identifier
+      def user
+        self.class._context_config&.dig(:user) || nil
+      end
+
+      # Instance accessor for parallel_tool_calls setting
+      def parallel_tool_calls
+        self.class._context_config&.dig(:parallel_tool_calls) || nil
+      end
+
 
       def instructions
         build_instructions
@@ -3701,6 +3772,14 @@ module RAAF
           model: model_name,
           max_turns: max_turns,
           max_tokens: max_tokens,
+          timeout: self.class._context_config[:timeout],
+          temperature: temperature,
+          top_p: top_p,
+          frequency_penalty: frequency_penalty,
+          presence_penalty: presence_penalty,
+          stop: stop,
+          user: user,
+          parallel_tool_calls: parallel_tool_calls,
           # Pass JSON repair and schema validation options to core Agent
           json_repair: [:tolerant, :partial].include?(validation_mode),
           normalize_keys: [:tolerant, :partial].include?(validation_mode),
