@@ -56,4 +56,20 @@ RSpec.configure do |config|
   # Run specs in random order to surface order dependencies
   config.order = :random
   Kernel.srand config.seed
+
+  # Helper method to temporarily set environment variables
+  config.include(Module.new do
+    def with_env(vars)
+      original_values = {}
+      vars.each do |key, value|
+        original_values[key] = ENV[key]
+        ENV[key] = value
+      end
+      yield
+    ensure
+      original_values.each do |key, value|
+        ENV[key] = value
+      end
+    end
+  end)
 end

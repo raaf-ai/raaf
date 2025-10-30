@@ -23,6 +23,27 @@ RSpec.describe RAAF::Models::GeminiProvider do
       custom_provider = described_class.new(api_key: api_key, api_base: "https://custom.api.com")
       expect(custom_provider.instance_variable_get(:@api_base)).to eq("https://custom.api.com")
     end
+
+    it "uses default HTTP timeout of 120 seconds" do
+      expect(provider.instance_variable_get(:@http_timeout)).to eq(120)
+    end
+
+    it "accepts custom HTTP timeout" do
+      custom_provider = described_class.new(api_key: api_key, timeout: 300)
+      expect(custom_provider.instance_variable_get(:@http_timeout)).to eq(300)
+    end
+
+    it "allows http_timeout to be set via accessor" do
+      provider.http_timeout = 60
+      expect(provider.http_timeout).to eq(60)
+    end
+
+    it "uses GEMINI_HTTP_TIMEOUT environment variable if set" do
+      with_env("GEMINI_HTTP_TIMEOUT" => "180") do
+        env_provider = described_class.new(api_key: api_key)
+        expect(env_provider.instance_variable_get(:@http_timeout)).to eq(180)
+      end
+    end
   end
 
   describe "#provider_name" do

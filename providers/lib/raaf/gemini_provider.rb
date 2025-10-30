@@ -59,17 +59,22 @@ module RAAF
         gemini-1.0-pro
       ].freeze
 
+      # HTTP timeout accessor for Runner integration
+      attr_accessor :http_timeout
+
       ##
       # Initialize a new Gemini provider
       #
       # @param api_key [String, nil] Gemini API key (defaults to GEMINI_API_KEY env var)
       # @param api_base [String, nil] API base URL (defaults to GEMINI_API_BASE env var or default)
+      # @param timeout [Integer, nil] HTTP timeout in seconds (default: 120)
       # @param options [Hash] Additional options for the provider
       # @raise [AuthenticationError] if API key is not provided
       #
-      def initialize(api_key: nil, api_base: nil, **options)
+      def initialize(api_key: nil, api_base: nil, timeout: nil, **options)
         @api_key = api_key || ENV.fetch("GEMINI_API_KEY", nil)
         @api_base = api_base || ENV["GEMINI_API_BASE"] || DEFAULT_API_BASE
+        @http_timeout = timeout || ENV.fetch("GEMINI_HTTP_TIMEOUT", "120").to_i
         @options = options
 
         raise RAAF::AuthenticationError, "Gemini API key is required" if @api_key.nil? || @api_key.empty?
@@ -207,6 +212,8 @@ module RAAF
 
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
+        http.read_timeout = @http_timeout
+        http.open_timeout = @http_timeout
 
         request = Net::HTTP::Post.new(uri)
         request["x-goog-api-key"] = @api_key
@@ -278,6 +285,8 @@ module RAAF
 
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
+        http.read_timeout = @http_timeout
+        http.open_timeout = @http_timeout
 
         request = Net::HTTP::Post.new(uri)
         request["x-goog-api-key"] = @api_key
