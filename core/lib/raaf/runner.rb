@@ -106,9 +106,11 @@ module RAAF
     def initialize(agent:, provider: nil, tracer: nil, parent_span: nil, disabled_tracing: false, stop_checker: nil,
                    context_manager: nil, context_config: nil, memory_manager: nil, http_timeout: nil, parent_component: nil)
       @agent = agent
+      # Use agent timeout if no explicit http_timeout provided
+      timeout = http_timeout || (agent.respond_to?(:timeout) ? agent.timeout : nil)
       @provider = provider ||
                   extract_provider_from_agent(agent) ||
-                  create_default_provider(http_timeout: http_timeout)
+                  create_default_provider(http_timeout: timeout)
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @parent_span = parent_span
@@ -794,10 +796,18 @@ module RAAF
           end
 
           # Add tool result as an item
-          # Convert handoff results to string format for API compatibility
-          tool_output_value = if tool_result.is_a?(Hash) && tool_result.key?(:assistant)
+          # Convert tool results to appropriate format for API compatibility:
+          # - Hashes (structured results, handoffs) → JSON string
+          # - Strings → pass through as-is
+          # - Other types → convert to string
+          tool_output_value = if tool_result.is_a?(Hash)
+                                # All hashes get JSON-serialized so the model can parse structured data
                                 JSON.generate(tool_result)
+                              elsif tool_result.is_a?(String)
+                                # Strings passed through as-is
+                                tool_result
                               else
+                                # Other types converted to string
                                 tool_result.to_s
                               end
 
@@ -1360,6 +1370,13 @@ module RAAF
         model = config.model&.model || state[:current_agent].model
         model_params = config.to_model_params
         model_params[:max_tokens] ||= state[:current_agent].max_tokens if state[:current_agent].max_tokens
+        model_params[:temperature] ||= state[:current_agent].temperature if state[:current_agent].temperature
+        model_params[:top_p] ||= state[:current_agent].top_p if state[:current_agent].top_p
+        model_params[:frequency_penalty] ||= state[:current_agent].frequency_penalty if state[:current_agent].frequency_penalty
+        model_params[:presence_penalty] ||= state[:current_agent].presence_penalty if state[:current_agent].presence_penalty
+        model_params[:stop] ||= state[:current_agent].stop if state[:current_agent].stop
+        model_params[:user] ||= state[:current_agent].user if state[:current_agent].user
+        model_params[:parallel_tool_calls] ||= state[:current_agent].parallel_tool_calls if state[:current_agent].parallel_tool_calls
         model_params[:response_format] = state[:current_agent].response_format if state[:current_agent].response_format
         model_params[:tool_choice] = state[:current_agent].tool_choice if state[:current_agent].tool_choice
 

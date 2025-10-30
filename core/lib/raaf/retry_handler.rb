@@ -254,10 +254,14 @@ module RAAF
 
       # Fallback classification based on exception class
       case error
-      when Net::Error, SocketError
+      when SocketError, Errno::ECONNRESET, Errno::ECONNREFUSED, Errno::ETIMEDOUT
         :network_error
-      when Timeout::Error
+      when Timeout::Error, Net::ReadTimeout, Net::WriteTimeout, Net::OpenTimeout
         :timeout
+      when Net::HTTPTooManyRequests
+        :rate_limit
+      when Net::HTTPServiceUnavailable, Net::HTTPGatewayTimeout
+        :model_overloaded
       else
         :unknown_error
       end
