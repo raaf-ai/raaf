@@ -275,6 +275,205 @@ end
 - ✅ Long context windows needed
 - ✅ Google Cloud integration preferred
 
+### Hugging Face Inference Providers
+
+**Hugging Face** provides access to hundreds of models through a unified inference routing system. The API is OpenAI-compatible with support for function calling and streaming, making it easy to experiment with different open-source models.
+
+#### Basic Usage
+
+```ruby
+# Initialize Hugging Face provider
+hf_provider = RAAF::Models::HuggingFaceProvider.new(
+  api_key: ENV['HUGGINGFACE_API_KEY']  # or HF_TOKEN
+)
+
+agent = RAAF::Agent.new(
+  name: "HF Assistant",
+  instructions: "You are a helpful AI assistant",
+  model: "deepseek-ai/DeepSeek-R1-0528"
+)
+
+runner = RAAF::Runner.new(agent: agent, provider: hf_provider)
+result = runner.run("Explain quantum computing")
+```
+
+#### Available Models
+
+Hugging Face supports 100+ models via automatic provider routing. Models must use `org/model` format:
+
+```ruby
+# Verified models (tested with RAAF)
+"deepseek-ai/DeepSeek-R1-0528"        # Latest reasoning model
+"meta-llama/Llama-3-70B-Instruct"     # Meta's Llama 3
+"mistralai/Mixtral-8x7B-Instruct-v0.1" # Mixtral MoE
+"microsoft/phi-4"                      # Microsoft Phi-4
+
+# Use any model from Hugging Face Hub
+agent.model = "your-org/your-model"
+```
+
+**Important**: The provider will log warnings for unverified models, as capabilities may vary.
+
+#### Function Calling
+
+Function calling is supported on select models:
+
+```ruby
+def get_weather(location:)
+  "Weather in #{location}: sunny, 72°F"
+end
+
+agent = RAAF::Agent.new(
+  name: "Tool Agent",
+  instructions: "Help users with weather information",
+  model: "deepseek-ai/DeepSeek-R1-0528"
+)
+
+agent.add_tool(method(:get_weather))
+
+hf_provider = RAAF::Models::HuggingFaceProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: hf_provider)
+
+result = runner.run("What's the weather in Tokyo?")
+# Hugging Face will call get_weather function automatically
+```
+
+**Model Support**: The provider logs warnings when using tools with models that haven't been verified for function calling. Confirmed function-calling models:
+- `deepseek-ai/DeepSeek-R1-0528`
+
+#### Provider Selection
+
+Hugging Face automatically routes requests to available providers (Cerebras, Groq, Nebius, etc.). You can optionally specify a provider:
+
+```ruby
+# Automatic routing (recommended)
+model: "deepseek-ai/DeepSeek-R1-0528"
+
+# Explicit provider (advanced)
+model: "deepseek-ai/DeepSeek-R1-0528:nebius"  # Force Nebius provider
+model: "meta-llama/Llama-3-70B-Instruct:groq" # Force Groq provider
+```
+
+#### Streaming Support
+
+```ruby
+# Stream responses in real-time
+agent = RAAF::Agent.new(
+  name: "Streaming Assistant",
+  model: "deepseek-ai/DeepSeek-R1-0528"
+)
+
+hf_provider = RAAF::Models::HuggingFaceProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: hf_provider)
+
+runner.stream("Write a long story about Ruby") do |chunk|
+  case chunk[:type]
+  when "content"
+    print chunk[:content]  # Print each chunk as it arrives
+  when "finish"
+    puts "\n\nFinished! Reason: #{chunk[:finish_reason]}"
+  end
+end
+```
+
+#### RAAF DSL Integration
+
+```ruby
+# Use Hugging Face in DSL agents with automatic provider detection
+class ResearchAgent < RAAF::DSL::Agent
+  instructions "Conduct research on technical topics"
+  model "deepseek-ai/DeepSeek-R1-0528"
+  provider :huggingface  # Automatic provider detection
+
+  schema do
+    field :summary, type: :string, required: true
+    field :key_points, type: :array, required: true
+  end
+end
+
+# Run with automatic provider instantiation
+dsl_agent = ResearchAgent.new
+dsl_runner = RAAF::Runner.new(agent: dsl_agent)
+result = dsl_runner.run("Research Ruby 3.4 YJIT improvements")
+
+# Access structured results
+puts result[:summary]
+result[:key_points].each { |point| puts "- #{point}" }
+```
+
+#### Advanced Configuration
+
+```ruby
+# Custom generation parameters
+result = runner.run(
+  "Write a poem",
+  temperature: 0.9,        # Higher creativity
+  top_p: 0.95,            # Nucleus sampling
+  max_tokens: 1024,       # Max output length
+  stop: ["END"]           # Stop sequences
+)
+
+# Custom API endpoint
+custom_provider = RAAF::Models::HuggingFaceProvider.new(
+  api_key: ENV['HUGGINGFACE_API_KEY'],
+  api_base: "https://custom-hf-endpoint.com/v1"
+)
+
+# Custom timeout
+long_timeout_provider = RAAF::Models::HuggingFaceProvider.new(
+  api_key: ENV['HUGGINGFACE_API_KEY'],
+  timeout: 300  # 5 minutes
+)
+```
+
+#### Best Practices
+
+1. **Model Selection**
+   - Start with verified models for guaranteed compatibility
+   - Test unverified models thoroughly before production use
+   - Check model documentation for function calling support
+
+2. **Function Calling**
+   - Only use function calling with verified models
+   - Monitor logs for unsupported model warnings
+   - Test tool execution before deploying
+
+3. **Rate Limiting**
+   - Use automatic retry (built into ModelInterface)
+   - Monitor rate limit errors in logs
+   - Consider PRO tier for production applications
+
+4. **Provider Routing**
+   - Use automatic routing for best availability
+   - Specify provider suffix only when needed
+   - Test with multiple providers for redundancy
+
+**Hugging Face Capabilities:**
+- ✅ Function/tool calling (model-dependent)
+- ✅ Streaming responses
+- ✅ Multi-turn conversations
+- ✅ RAAF DSL compatibility
+- ✅ Multi-agent handoffs (with function-calling models)
+- ✅ Access to 100+ models
+- ✅ OpenAI-compatible API (minimal conversion)
+
+**Hugging Face Limitations:**
+- ⚠️ Model capabilities vary significantly
+- ⚠️ Not all models support function calling
+- ⚠️ Provider availability varies by model
+- ⚠️ Rate limits depend on account tier
+- ⚠️ Unverified models may have unexpected behavior
+
+**When to Use Hugging Face:**
+- ✅ Access to latest open-source models
+- ✅ Cost-effective inference
+- ✅ Specialized models (coding, reasoning, etc.)
+- ✅ Multi-provider redundancy
+- ✅ Experimentation with different models
+- ✅ Avoiding vendor lock-in
+- ❌ Production systems requiring guaranteed capabilities
+- ❌ Applications requiring all models to support tools
+
 ### Perplexity Provider
 
 **Perplexity AI** provides web-grounded search with automatic citations, ideal for research tasks requiring real-time information and source attribution.
