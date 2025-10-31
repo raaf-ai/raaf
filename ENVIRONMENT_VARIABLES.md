@@ -162,6 +162,34 @@ This document provides a comprehensive reference for all environment variables u
 - **Default**: None
 - **Example**: `export GEMINI_API_KEY="AI..."`
 
+### `HUGGINGFACE_API_KEY` (or `HF_TOKEN`)
+- **Function**: Hugging Face Inference Providers API key
+- **Used in**: `providers/lib/raaf/huggingface_provider.rb`, multi-provider configurations
+- **What**: Enables access to 100+ models through Hugging Face's unified inference routing system
+- **Why**: Provides access to latest open-source models with OpenAI-compatible API and function calling support
+- **Format**: String (API key starting with 'hf_')
+- **Default**: None
+- **Example**: `export HUGGINGFACE_API_KEY="hf_..."` or `export HF_TOKEN="hf_..."`
+- **Note**: Can use either `HUGGINGFACE_API_KEY` or `HF_TOKEN`; `HUGGINGFACE_API_KEY` takes precedence
+
+### `HUGGINGFACE_API_BASE`
+- **Function**: Custom Hugging Face API base URL
+- **Used in**: `providers/lib/raaf/huggingface_provider.rb`, API endpoint configuration
+- **What**: Allows using custom Hugging Face Inference Providers endpoint
+- **Why**: Useful for self-hosted instances or regional endpoints
+- **Format**: URL
+- **Default**: `https://router.huggingface.co/v1`
+- **Example**: `export HUGGINGFACE_API_BASE="https://custom-hf-endpoint.com/v1"`
+
+### `HUGGINGFACE_TIMEOUT`
+- **Function**: HTTP timeout for Hugging Face API requests
+- **Used in**: `providers/lib/raaf/huggingface_provider.rb`, HTTP request handling
+- **What**: Maximum time to wait for Hugging Face API responses before timing out
+- **Why**: Prevents indefinite hangs on slow or unresponsive API calls; higher than default to accommodate provider routing
+- **Format**: Integer (seconds)
+- **Default**: `180` (3 minutes)
+- **Example**: `export HUGGINGFACE_TIMEOUT="300"`  # 5 minutes for complex models
+
 ### `RAAF_DEFAULT_PROVIDER`
 - **Function**: Default provider when multiple are available
 - **Format**: String (`openai`, `anthropic`, `cohere`, `groq`, etc.)
@@ -403,6 +431,7 @@ export RAAF_TRACE_FLUSH_INTERVAL="10.0"             # Less frequent flushes
 export OPENAI_API_KEY="sk-openai-key"                # Primary provider
 export ANTHROPIC_API_KEY="sk-ant-anthropic-key"     # Alternative for reasoning tasks
 export GROQ_API_KEY="gsk-groq-key"                   # Fast inference provider
+export HUGGINGFACE_API_KEY="hf-huggingface-key"     # Open-source models
 export COHERE_API_KEY="co-cohere-key"                # Specialized use cases
 export RAAF_DEFAULT_PROVIDER="openai"                # Fallback provider
 export RAAF_PROVIDER_TIMEOUT="60"                    # Longer timeout for multiple providers
