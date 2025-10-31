@@ -223,9 +223,18 @@ module RAAF
             requirements_met = agent_class.requirements_met?(context)
 
             unless requirements_met
-              log_warn "Skipping #{agent_name}: requirements not met"
-              log_debug "  Required: #{agent_class.required_fields}"
-              log_debug "  Available in context: #{context.keys if context.respond_to?(:keys)}"
+              required_fields = agent_class.required_fields || []
+              available_keys = context.respond_to?(:keys) ? context.keys : []
+              missing_fields = required_fields - available_keys
+
+              log_warn "❌ Skipping #{agent_name}: requirements not met"
+              log_warn "  📋 Required fields: #{required_fields.inspect}"
+              log_warn "  ✅ Available in context: #{available_keys.inspect}"
+              log_warn "  ❌ Missing fields: #{missing_fields.inspect}"
+
+              # Also log at debug level for backwards compatibility
+              log_debug "  Required: #{required_fields}"
+              log_debug "  Available in context: #{available_keys}"
 
               # Create a span for the skipped agent to make it visible in traces
               pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]

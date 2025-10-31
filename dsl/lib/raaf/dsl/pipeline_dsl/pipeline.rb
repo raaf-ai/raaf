@@ -561,7 +561,15 @@ module RAAF
     
     def execute_agent(agent_class, context)
       unless agent_class.respond_to?(:requirements_met?) && agent_class.requirements_met?(context)
-        RAAF.logger.warn "Skipping #{agent_class.name}: requirements not met"
+        required_fields = agent_class.respond_to?(:required_fields) ? agent_class.required_fields || [] : []
+        available_keys = context.respond_to?(:keys) ? context.keys : []
+        missing_fields = required_fields - available_keys
+
+        RAAF.logger.warn "❌ Skipping #{agent_class.name}: requirements not met"
+        RAAF.logger.warn "  📋 Required fields: #{required_fields.inspect}"
+        RAAF.logger.warn "  ✅ Available in context: #{available_keys.inspect}"
+        RAAF.logger.warn "  ❌ Missing fields: #{missing_fields.inspect}"
+
         return [{}, context]  # Return empty result and unchanged context for skipped agents
       end
 
