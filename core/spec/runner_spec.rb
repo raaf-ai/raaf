@@ -1596,5 +1596,80 @@ RSpec.describe RAAF::Runner do
         expect(result.messages).not_to be_empty
       end
     end
+
+    describe "JSON parsing behavior" do
+      it "does NOT parse JSON when agent has no schema" do
+        # Agent WITHOUT response_format (no schema)
+        agent = create_test_agent(name: "NoSchemaAgent")
+
+        # CSV-like content that looks like it might contain JSON but isn't
+        csv_content = 'name,location,country,discovery_snippet
+"BAM Wonen","Bunnik","Netherlands","Large construction company"
+"VolkerWessels","Amersfoort","Netherlands","Major contractor"'
+
+        mock_provider.add_response(csv_content)
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        result = runner.run("Get companies")
+
+        # Should return raw CSV content, NOT attempt to parse as JSON
+        expect(result.final_output).to eq(csv_content)
+        expect(result.final_output).to be_a(String)
+      end
+
+      it "does NOT parse JSON-like content without schema" do
+        agent = create_test_agent(name: "NoSchemaAgent")
+
+        # Content that looks like JSON but agent has no schema
+        json_like_content = '{"company": "Test Corp", "location": "Amsterdam"}'
+
+        mock_provider.add_response(json_like_content)
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        result = runner.run("Get data")
+
+        # Should return as string, NOT parse to Hash
+        expect(result.final_output).to eq(json_like_content)
+        expect(result.final_output).to be_a(String)
+      end
+
+      it "DOES parse JSON when agent has schema defined" do
+        # Agent WITH response_format (schema)
+        agent = create_test_agent(name: "SchemaAgent")
+        agent.response_format = { type: "json_object" }
+
+        json_content = '{"company": "Test Corp", "location": "Amsterdam"}'
+
+        mock_provider.add_response(json_content)
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        result = runner.run("Get data")
+
+        # With schema, SHOULD parse JSON to Hash
+        expect(result.final_output).to be_a(Hash)
+        expect(result.final_output[:company]).to eq("Test Corp")
+      end
+
+      it "DOES parse JSON in markdown blocks when agent has schema" do
+        agent = create_test_agent(name: "SchemaAgent")
+        agent.response_format = { type: "json_object" }
+
+        markdown_json = '```json
+{
+  "company": "Test Corp",
+  "location": "Amsterdam"
+}
+```'
+
+        mock_provider.add_response(markdown_json)
+        runner = described_class.new(agent: agent, provider: mock_provider)
+
+        result = runner.run("Get data")
+
+        # With schema, SHOULD extract and parse JSON from markdown
+        expect(result.final_output).to be_a(Hash)
+        expect(result.final_output[:company]).to eq("Test Corp")
+      end
+    end
   end
 end
