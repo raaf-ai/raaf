@@ -4086,8 +4086,8 @@ module RAAF
           raise ArgumentError, "Field value #{value} not in range #{field_config[:range]}"
         end
 
-        # Custom transformation
-        if value && field_config[:transform]
+        # Custom transformation (always execute if defined for better debugging)
+        if field_config[:transform]
           transform = field_config[:transform]
           value = case transform
                   when Proc, Method
