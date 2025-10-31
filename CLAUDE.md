@@ -129,6 +129,8 @@ result = runner.run("Hello!")
 - `:anthropic` → AnthropicProvider (claude-*)
 - `:cohere` → CohereProvider (command-*)
 - `:groq` → GroqProvider (mixtral-*, llama-*, gemma-*)
+- `:gemini` → GeminiProvider (gemini-*)
+- `:huggingface` → HuggingFaceProvider (org/model format)
 - `:perplexity` → PerplexityProvider (sonar-*)
 - `:together` → TogetherProvider
 - `:litellm` → LiteLLMProvider
