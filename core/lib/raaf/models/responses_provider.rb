@@ -197,7 +197,6 @@ module RAAF
                     current_response_id: current_response_id)
 
           # Make the API call
-          debugger
           response = fetch_response(
             system_instructions: system_instructions,
             input: list_input,
