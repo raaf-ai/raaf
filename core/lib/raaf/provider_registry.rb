@@ -35,8 +35,9 @@ module RAAF
       anthropic: "RAAF::Models::AnthropicProvider",
       cohere: "RAAF::Models::CohereProvider",
       groq: "RAAF::Models::GroqProvider",
-      perplexity: "RAAF::Models::PerplexityProvider",
       gemini: "RAAF::Models::GeminiProvider",
+      huggingface: "RAAF::Models::HuggingFaceProvider",
+      perplexity: "RAAF::Models::PerplexityProvider",
       together: "RAAF::Models::TogetherProvider",
       litellm: "RAAF::Models::LiteLLMProvider"
     }.freeze
