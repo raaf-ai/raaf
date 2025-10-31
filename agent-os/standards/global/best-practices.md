@@ -101,7 +101,7 @@ When adding third-party dependencies:
 ```ruby
 # ✅ GOOD: Clear purpose
 module Prospect
-  class InternationalCompanyFinder  # Search agent
+  class InternetProspectFinder  # Search agent
   class QuickFitAnalyzer           # Reasoning agent
 end
 
