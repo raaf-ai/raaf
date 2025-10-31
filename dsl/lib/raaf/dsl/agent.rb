@@ -3543,7 +3543,25 @@ module RAAF
         result_data
       end
 
+      # Check if agent has a schema defined
+      #
+      # Agents without schemas expect raw text output (CSV, plain text, etc.)
+      # rather than structured JSON data.
+      #
+      # @return [Boolean] true if schema is defined with fields
+      def has_schema_defined?
+        self.class.respond_to?(:_schema_config) &&
+          self.class._schema_config.present? &&
+          self.class._schema_config[:fields]&.any?
+      end
+
       def extract_result_data(results)
+        # NEW: Handle plain String results (CSV, text output) when no schema defined
+        if results.is_a?(String) && !has_schema_defined?
+          log_debug "📄 [#{self.class.name}] No schema defined - returning raw string result (#{results.length} chars)"
+          return { success: true, raw_content: results, data: results }
+        end
+
         # If results is already a Hash with structured data matching agent's output fields, return it
         if results.is_a?(Hash) && !results.empty?
           # Check if the hash contains any of the declared output fields for this agent
@@ -3560,6 +3578,13 @@ module RAAF
         # Handle RunResult objects from RAAF Core
         if results.respond_to?(:final_output)
           content = results.final_output
+
+          # NEW: If no schema defined and content is plain text, return raw content directly
+          if !has_schema_defined? && content.is_a?(String) && !content.to_s.empty?
+            log_debug "📄 [#{self.class.name}] No schema defined - returning raw content (#{content.length} chars)"
+            return { success: true, raw_content: content, data: content }
+          end
+
           return parse_ai_response(content) if content && !content.to_s.empty?
         end
 
@@ -3568,6 +3593,13 @@ module RAAF
           if messages && messages.respond_to?(:any?) && messages.any?
             last_message = messages.last
             content = last_message[:content] || last_message["content"]
+
+            # NEW: If no schema defined and content is plain text, return raw content directly
+            if !has_schema_defined? && content.is_a?(String)
+              log_debug "📄 [#{self.class.name}] No schema defined - returning raw content (#{content.length} chars)"
+              return { success: true, raw_content: content, data: content }
+            end
+
             return parse_ai_response(content) if content
           end
         end
@@ -3583,6 +3615,13 @@ module RAAF
           # Try to get content from the hash representation
           if result_hash[:messages]&.any?
             content = result_hash[:messages].last[:content]
+
+            # NEW: If no schema defined and content is plain text, return raw content directly
+            if !has_schema_defined? && content.is_a?(String)
+              log_debug "📄 [#{self.class.name}] No schema defined - returning raw content (#{content.length} chars)"
+              return { success: true, raw_content: content, data: content }
+            end
+
             return parse_ai_response(content) if content
           end
         end
