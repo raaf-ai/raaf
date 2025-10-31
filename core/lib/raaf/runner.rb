@@ -1946,8 +1946,9 @@ module RAAF
                             extract_from_message_hash(response)
                           end
 
-      # Parse JSON if agent expects structured output or content looks like JSON
-      if agent && (agent.response_format || expects_json_content?(assistant_content))
+      # Parse JSON ONLY if agent has a schema defined (response_format)
+      # Do NOT parse if content just "looks like JSON" - that causes false positives (e.g., CSV data)
+      if agent && agent.response_format
         parsed_content = extract_and_parse_json(assistant_content)
         if parsed_content
           log_debug("🔄 Parsed JSON from AI response in tolerant validation mode",
