@@ -945,13 +945,23 @@ runner = RAAF::Runner.new(agent: agent, provider: provider)
 
 ### Parameter Compatibility
 
+**Supported Parameters**:
+- ✅ `response_format` - **FULLY SUPPORTED** for structured output/JSON schemas (sent as `text.format` parameter)
+- ✅ `temperature` - For non-reasoning models
+- ✅ `top_p` - For non-reasoning models
+- ✅ `max_tokens` (as `max_output_tokens`)
+- ✅ `tools` - Function calling
+- ✅ `stream` - Streaming responses
+
+**NOTE**: The Responses API uses `text.format` instead of `response_format` at the top level, but RAAF handles this conversion automatically.
+
 **IMPORTANT**: The Responses API does NOT support these Chat Completions parameters:
 - `frequency_penalty`
 - `presence_penalty`
 - `best_of`
 - `logit_bias`
 
-If you provide these parameters to `ResponsesProvider`, they will:
+If you provide these unsupported parameters to `ResponsesProvider`, they will:
 1. **Log a warning** with the parameter name and suggested action
 2. **Be silently filtered** from the API request (not sent to OpenAI)
 3. **Not cause errors** - your request will succeed with other parameters
