@@ -414,12 +414,33 @@ module RAAF
         # They are unsupported by Responses API and have been filtered out with warnings
         # For reasoning models, temperature and top_p are also filtered
 
-        # Handle response format - Responses API doesn't support response_format
-        # This parameter should not be used with Responses API
-        # If provided, log a warning but don't add it to the request
+        # Add response_format for structured output via text.format parameter
+        # Responses API uses different parameter structure than Chat Completions API
+        # See: https://platform.openai.com/docs/api-reference/responses/create
+        #
+        # Chat Completions API format (OLD):
+        # response_format: { type: "json_schema", json_schema: { name: "...", schema: {...} } }
+        #
+        # Responses API format (NEW):
+        # text: { format: { name: "...", type: "json_schema", schema: {...} } }
+        #
+        # We need to flatten the json_schema contents into format
         if response_format
-          log_warn("response_format is not supported by OpenAI Responses API",
-                   suggestion: "Remove response_format parameter or use Chat Completions API instead")
+          if response_format[:type] == "json_schema" && response_format[:json_schema]
+            # Flatten json_schema contents into format
+            json_schema = response_format[:json_schema]
+            body[:text] = {
+              format: {
+                name: json_schema[:name],
+                type: "json_schema",
+                strict: json_schema[:strict],
+                schema: json_schema[:schema]
+              }
+            }
+          else
+            # Fallback: pass as-is (shouldn't happen with RAAF)
+            body[:text] = { format: response_format }
+          end
         end
 
         # Debug logging for continuation chunk
