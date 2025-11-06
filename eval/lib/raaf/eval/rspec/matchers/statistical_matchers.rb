@@ -1,0 +1,242 @@
+# frozen_string_literal: true
+
+module RAAF
+  module Eval
+    module RSpec
+      module Matchers
+        ##
+        # Statistical analysis matchers
+        module StatisticalMatchers
+          ##
+          # Matcher for statistical significance
+          module BeStatisticallySignificant
+            include Base
+
+            def initialize(*args)
+              super
+              @alpha = 0.05
+            end
+
+            def at_level(p_value)
+              @alpha = p_value
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+
+              # Collect samples from baseline and evaluation
+              baseline_samples = collect_baseline_samples(evaluation_result)
+              eval_samples = collect_eval_samples(evaluation_result)
+
+              return false if baseline_samples.empty? || eval_samples.empty?
+
+              # Calculate statistical significance
+              result = Metrics.statistical_significance(baseline_samples, eval_samples, alpha: @alpha)
+              @p_value = result[:p_value]
+              @is_significant = result[:is_significant]
+
+              @is_significant
+            end
+
+            def failure_message
+              "Expected statistically significant difference at α=#{@alpha}, " \
+                "but p-value was #{@p_value.round(4)}"
+            end
+
+            def failure_message_when_negated
+              "Expected no statistical significance, but p-value #{@p_value.round(4)} < α=#{@alpha}"
+            end
+
+            private
+
+            def collect_baseline_samples(result)
+              # For now, return single baseline value
+              # Real implementation would collect multiple baseline runs
+              baseline_output = result.baseline_output
+              [baseline_output.length]
+            end
+
+            def collect_eval_samples(result)
+              result.results.values.map do |eval_result|
+                next unless eval_result[:success]
+
+                (eval_result[:output] || "").length
+              end.compact
+            end
+          end
+
+          ##
+          # Matcher for effect size
+          module HaveEffectSize
+            include Base
+
+            def initialize(*args)
+              super
+              @min_effect_size = nil
+            end
+
+            def of(size)
+              @min_effect_size = size
+              self
+            end
+
+            def above(size)
+              @min_effect_size = size
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+
+              # Calculate Cohen's d
+              baseline_samples = collect_baseline_samples(evaluation_result)
+              eval_samples = collect_eval_samples(evaluation_result)
+
+              return false if baseline_samples.empty? || eval_samples.empty?
+
+              @effect_size = calculate_cohens_d(baseline_samples, eval_samples)
+
+              if @min_effect_size
+                @effect_size.abs >= @min_effect_size
+              else
+                @effect_size.abs > 0
+              end
+            end
+
+            def failure_message
+              if @min_effect_size
+                "Expected effect size >= #{@min_effect_size}, but got #{@effect_size.round(3)}"
+              else
+                "Expected measurable effect size, but got #{@effect_size.round(3)}"
+              end
+            end
+
+            def failure_message_when_negated
+              "Expected no effect or small effect size, but got #{@effect_size.round(3)}"
+            end
+
+            private
+
+            def collect_baseline_samples(result)
+              baseline_output = result.baseline_output
+              [baseline_output.length]
+            end
+
+            def collect_eval_samples(result)
+              result.results.values.map do |eval_result|
+                next unless eval_result[:success]
+
+                (eval_result[:output] || "").length
+              end.compact
+            end
+
+            def calculate_cohens_d(group1, group2)
+              mean1 = group1.sum.to_f / group1.size
+              mean2 = group2.sum.to_f / group2.size
+
+              var1 = group1.map { |x| (x - mean1)**2 }.sum / group1.size
+              var2 = group2.map { |x| (x - mean2)**2 }.sum / group2.size
+
+              pooled_sd = Math.sqrt((var1 + var2) / 2.0)
+
+              return 0.0 if pooled_sd.zero?
+
+              (mean2 - mean1) / pooled_sd
+            end
+          end
+
+          ##
+          # Matcher for confidence intervals
+          module HaveConfidenceInterval
+            include Base
+
+            def initialize(*args)
+              super
+              @min_value = nil
+              @max_value = nil
+              @confidence_level = 0.95
+            end
+
+            def within(min, max)
+              @min_value = min
+              @max_value = max
+              self
+            end
+
+            def at_confidence(level)
+              @confidence_level = level
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+
+              # Collect samples
+              samples = collect_samples(evaluation_result)
+
+              return false if samples.empty?
+
+              # Calculate confidence interval
+              @ci = calculate_confidence_interval(samples, @confidence_level)
+
+              # Check if CI is within specified range
+              if @min_value && @max_value
+                @ci[:lower] >= @min_value && @ci[:upper] <= @max_value
+              else
+                true
+              end
+            end
+
+            def failure_message
+              "Expected confidence interval within [#{@min_value}, #{@max_value}], " \
+                "but got [#{@ci[:lower].round(2)}, #{@ci[:upper].round(2)}]"
+            end
+
+            def failure_message_when_negated
+              "Expected confidence interval outside range, but it was within bounds"
+            end
+
+            private
+
+            def collect_samples(result)
+              result.results.values.map do |eval_result|
+                next unless eval_result[:success]
+
+                (eval_result[:output] || "").length
+              end.compact
+            end
+
+            def calculate_confidence_interval(samples, confidence_level)
+              return { lower: 0, upper: 0 } if samples.empty?
+
+              mean = samples.sum.to_f / samples.size
+              variance = samples.map { |x| (x - mean)**2 }.sum / samples.size
+              std_dev = Math.sqrt(variance)
+
+              # Using normal approximation
+              z_score = confidence_level_to_z(confidence_level)
+              margin = z_score * (std_dev / Math.sqrt(samples.size))
+
+              {
+                lower: mean - margin,
+                upper: mean + margin,
+                mean: mean
+              }
+            end
+
+            def confidence_level_to_z(level)
+              # Simplified - would use proper statistical tables
+              case level
+              when 0.90 then 1.645
+              when 0.95 then 1.96
+              when 0.99 then 2.576
+              else 1.96
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end

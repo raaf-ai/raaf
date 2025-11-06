@@ -463,6 +463,48 @@ runner = RAAF::Runner.new(agent: agent, provider: provider)
 
 For detailed gem-specific documentation, see the individual `CLAUDE.md` files in each gem directory.
 
+## RAAF Eval - Agent Evaluation Framework
+
+**RAAF Eval** provides systematic testing and validation of AI agent behavior across different LLM configurations, parameters, and prompts.
+
+### Quick Access
+- **[Complete Documentation](RAAF_EVAL.md)** - Master guide with full feature overview
+- **[Quick Start](eval/README.md)** - 5-minute introduction
+- **[Tutorial](eval/GETTING_STARTED.md)** - Comprehensive guide with examples
+- **[RSpec Testing](eval/RSPEC_INTEGRATION.md)** - 40+ matchers for automated testing
+- **[Web UI](eval-ui/README.md)** - Interactive evaluation interface
+
+### Two Complementary Interfaces
+
+**Core Engine (raaf-eval):**
+- Span serialization from production
+- Evaluation execution engine
+- RSpec integration with 40+ matchers
+- Comprehensive metrics system
+
+**Web UI (raaf-eval-ui):**
+- Interactive span browser
+- Monaco-based prompt editor
+- Real-time execution tracking
+- Side-by-side results comparison
+
+### 5-Second Example
+
+```ruby
+# Compare models
+baseline = find_span(agent: "HelpfulAssistant")
+
+result = evaluate_span(baseline) do |config|
+  config.model = "claude-3-5-sonnet-20241022"
+  config.provider = "anthropic"
+end
+
+expect(result).to maintain_semantic_similarity(threshold: 0.85)
+expect(result).not_to regress_from_baseline
+```
+
+See **[RAAF_EVAL.md](RAAF_EVAL.md)** for complete documentation.
+
 ## Agent OS Documentation
 
 ### Product Context

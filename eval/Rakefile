@@ -1,0 +1,74 @@
+# frozen_string_literal: true
+
+require "bundler/gem_tasks"
+require "rspec/core/rake_task"
+
+RSpec::Core::RakeTask.new(:spec)
+
+# Run only evaluation examples
+RSpec::Core::RakeTask.new(:examples) do |t|
+  t.pattern = "examples/**/*_example.rb"
+  t.rspec_opts = "--format documentation --color"
+end
+
+task default: :spec
+
+namespace :raaf do
+  namespace :eval do
+    desc "Run evaluation tests only"
+    task :test do
+      sh "bundle exec rspec spec/ --tag evaluation"
+    end
+
+    desc "Run evaluation examples"
+    task :examples do
+      sh "bundle exec rspec examples/"
+    end
+
+    namespace :db do
+      desc "Run database migrations"
+      task :migrate do
+        require_relative "lib/raaf-eval"
+
+        # Ensure database connection
+        RAAF::Eval.configuration.establish_connection!
+
+        # Run migrations
+        migration_dir = File.join(__dir__, "db", "migrate")
+        ActiveRecord::MigrationContext.new(migration_dir).migrate
+
+        puts "Migrations completed successfully"
+      end
+
+      desc "Rollback database migrations"
+      task :rollback do
+        require_relative "lib/raaf-eval"
+
+        RAAF::Eval.configuration.establish_connection!
+
+        migration_dir = File.join(__dir__, "db", "migrate")
+        ActiveRecord::MigrationContext.new(migration_dir).down(1)
+
+        puts "Rollback completed successfully"
+      end
+
+      desc "Drop and recreate database tables"
+      task :reset do
+        require_relative "lib/raaf-eval"
+
+        RAAF::Eval.configuration.establish_connection!
+
+        # Drop tables
+        ActiveRecord::Base.connection.tables.each do |table|
+          next if table == "schema_migrations"
+          ActiveRecord::Base.connection.drop_table(table)
+        end
+
+        # Run migrations
+        Rake::Task["raaf:eval:db:migrate"].invoke
+
+        puts "Database reset completed successfully"
+      end
+    end
+  end
+end

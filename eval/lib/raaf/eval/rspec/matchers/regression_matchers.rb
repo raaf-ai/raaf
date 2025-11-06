@@ -1,0 +1,250 @@
+# frozen_string_literal: true
+
+module RAAF
+  module Eval
+    module RSpec
+      module Matchers
+        ##
+        # Regression detection matchers
+        module RegressionMatchers
+          ##
+          # Matcher for checking absence of regressions
+          module NotHaveRegressions
+            include Base
+
+            def initialize(*args)
+              super
+              @severity_level = :any
+            end
+
+            def of_severity(level)
+              @severity_level = level
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              @regressions = detect_regressions(evaluation_result)
+
+              filtered_regressions = filter_by_severity(@regressions, @severity_level)
+              @regression_count = filtered_regressions.size
+
+              @regression_count.zero?
+            end
+
+            def failure_message
+              details = @regressions.map { |r| "#{r[:type]}: #{r[:description]}" }.join(", ")
+              "Expected no regressions, but found #{@regression_count}: #{details}"
+            end
+
+            def failure_message_when_negated
+              "Expected regressions to be present, but none were detected"
+            end
+
+            private
+
+            def detect_regressions(result)
+              regressions = []
+
+              # Check quality regression
+              baseline_output = result.baseline_output
+              result.results.each do |name, eval_result|
+                next unless eval_result[:success]
+
+                eval_output = eval_result[:output] || ""
+                similarity = Metrics.semantic_similarity(baseline_output, eval_output)
+
+                if similarity < 0.7
+                  regressions << {
+                    type: :quality,
+                    severity: :high,
+                    config: name,
+                    description: "Quality dropped to #{format_percent(similarity * 100)}"
+                  }
+                end
+              end
+
+              regressions
+            end
+
+            def filter_by_severity(regressions, level)
+              return regressions if level == :any
+
+              severity_order = { low: 0, medium: 1, high: 2, critical: 3 }
+              min_severity = severity_order[level] || 0
+
+              regressions.select { |r| severity_order[r[:severity]] >= min_severity }
+            end
+          end
+
+          ##
+          # Matcher for checking performance improvement
+          module PerformBetterThan
+            include Base
+
+            def initialize(target)
+              super()
+              @target = target
+              @metrics = [:quality, :latency, :tokens]
+            end
+
+            def on_metrics(*metrics)
+              @metrics = metrics
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              @improvements = {}
+              @regressions = {}
+
+              baseline_output = evaluation_result.baseline_output
+              eval_output = extract_output(evaluation_result)
+
+              # Check each metric
+              @metrics.each do |metric|
+                case metric
+                when :quality
+                  check_quality_improvement(baseline_output, eval_output)
+                when :latency
+                  check_latency_improvement
+                when :tokens
+                  check_token_improvement
+                end
+              end
+
+              @regressions.empty?
+            end
+
+            def failure_message
+              details = @regressions.map { |metric, value| "#{metric}: #{value}" }.join(", ")
+              "Expected performance better than #{@target}, but found regressions in: #{details}"
+            end
+
+            def failure_message_when_negated
+              "Expected performance to not improve, but it did"
+            end
+
+            private
+
+            def check_quality_improvement(baseline_output, eval_output)
+              similarity = Metrics.semantic_similarity(baseline_output, eval_output)
+              if similarity < 0.7
+                @regressions[:quality] = "similarity #{format_percent(similarity * 100)}"
+              else
+                @improvements[:quality] = similarity
+              end
+            end
+
+            def check_latency_improvement
+              baseline_latency = @evaluation_result.baseline_latency
+              eval_latency = extract_latency(@evaluation_result)
+
+              if eval_latency > baseline_latency * 1.2
+                @regressions[:latency] = "#{eval_latency}ms vs #{baseline_latency}ms"
+              else
+                @improvements[:latency] = eval_latency
+              end
+            end
+
+            def check_token_improvement
+              baseline_usage = @evaluation_result.baseline_usage
+              eval_usage = extract_usage(@evaluation_result)
+
+              baseline_tokens = (baseline_usage[:input_tokens] || 0) + (baseline_usage[:output_tokens] || 0)
+              eval_tokens = (eval_usage[:input_tokens] || 0) + (eval_usage[:output_tokens] || 0)
+
+              if eval_tokens > baseline_tokens * 1.2
+                @regressions[:tokens] = "#{eval_tokens} vs #{baseline_tokens}"
+              else
+                @improvements[:tokens] = eval_tokens
+              end
+            end
+          end
+
+          ##
+          # Matcher for checking acceptable variance
+          module HaveAcceptableVariance
+            include Base
+
+            def initialize(*args)
+              super
+              @std_deviations = 2.0
+              @metric = :output_length
+            end
+
+            def within(value)
+              @std_deviations = value
+              self
+            end
+
+            def standard_deviations
+              self
+            end
+
+            def for_metric(metric)
+              @metric = metric
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+
+              # Collect samples for the metric
+              samples = collect_samples(evaluation_result, @metric)
+
+              return true if samples.size < 2
+
+              mean = samples.sum.to_f / samples.size
+              variance = samples.map { |x| (x - mean)**2 }.sum / samples.size
+              std_dev = Math.sqrt(variance)
+
+              @mean = mean
+              @std_dev = std_dev
+              @threshold = @std_deviations * std_dev
+
+              # Check if all samples are within threshold
+              @outliers = samples.select { |x| (x - mean).abs > @threshold }
+              @outliers.empty?
+            end
+
+            def failure_message
+              "Expected variance within #{@std_deviations} standard deviations (threshold: #{@threshold.round(2)}), " \
+                "but found #{@outliers.size} outlier(s): #{@outliers.map { |x| x.round(2) }.join(', ')}"
+            end
+
+            def failure_message_when_negated
+              "Expected variance to exceed #{@std_deviations} standard deviations, but it was within bounds"
+            end
+
+            private
+
+            def collect_samples(result, metric)
+              samples = []
+
+              result.results.each_value do |eval_result|
+                next unless eval_result[:success]
+
+                sample = case metric
+                         when :output_length
+                           (eval_result[:output] || "").length
+                         when :tokens
+                           usage = eval_result[:usage] || {}
+                           (usage[:input_tokens] || 0) + (usage[:output_tokens] || 0)
+                         when :latency
+                           eval_result[:latency_ms] || 0
+                         else
+                           0
+                         end
+
+                samples << sample
+              end
+
+              samples
+            end
+          end
+        end
+      end
+    end
+  end
+end

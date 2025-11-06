@@ -1,0 +1,94 @@
+# RuboCop configuration for RAAF Eval UI
+
+require:
+  - rubocop-rails
+  - rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 3.3
+  NewCops: enable
+  Exclude:
+    - 'bin/**/*'
+    - 'db/schema.rb'
+    - 'db/migrate/**/*'
+    - 'node_modules/**/*'
+    - 'spec/dummy/**/*'
+    - 'tmp/**/*'
+    - 'vendor/**/*'
+
+# Relaxed line length for better code clarity
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - 'spec/**/*'
+
+# Allow more than one expectation per example
+RSpec/MultipleExpectations:
+  Max: 5
+
+# Allow longer example descriptions
+RSpec/ExampleLength:
+  Max: 20
+
+# Prefer explicit describe over context
+RSpec/ContextWording:
+  Enabled: false
+
+# Allow nested groups for better test organization
+RSpec/NestedGroups:
+  Max: 5
+
+# Don't require documentation for every class/module
+Style/Documentation:
+  Enabled: false
+
+# Allow both single and double quotes
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+# Allow trailing commas in multi-line lists
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+
+# Prefer compact module/class declaration
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+# Allow use of && and || for control flow
+Style/AndOr:
+  EnforcedStyle: conditionals
+
+# Metrics
+Metrics/MethodLength:
+  Max: 30
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'config/**/*'
+    - 'lib/tasks/**/*'
+
+Metrics/ModuleLength:
+  Max: 200
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ClassLength:
+  Max: 200
+  Exclude:
+    - 'spec/**/*'
+
+# Rails specific
+Rails/DynamicFindBy:
+  Enabled: false
+
+Rails/ApplicationController:
+  Enabled: true
+
+Rails/HasManyOrHasOneDependent:
+  Enabled: true

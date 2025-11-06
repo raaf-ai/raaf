@@ -1,0 +1,44 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+ruby '>= 3.3.0'
+
+# Rails framework
+gem 'rails', '~> 7.0'
+
+# Database
+gem 'pg', '~> 1.1'
+
+# RAAF Eval UI engine (local path for development)
+gem 'raaf-eval-ui', path: '..'
+gem 'raaf-eval', path: '../../eval'
+
+# Web server
+gem 'puma', '~> 6.0'
+
+# Asset pipeline
+gem 'importmap-rails'
+gem 'turbo-rails'
+gem 'stimulus-rails'
+gem 'tailwindcss-rails'
+
+# Background jobs
+gem 'sidekiq', '~> 7.0'
+
+# Utilities
+gem 'bootsnap', require: false
+
+group :development, :test do
+  gem 'debug', platforms: %i[mri mingw x64_mingw]
+  gem 'rspec-rails', '~> 6.0'
+  gem 'factory_bot_rails', '~> 6.2'
+end
+
+group :development do
+  gem 'web-console'
+end
+
+group :test do
+  gem 'capybara'
+  gem 'selenium-webdriver'
+end

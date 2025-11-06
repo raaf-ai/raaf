@@ -1,0 +1,205 @@
+# frozen_string_literal: true
+
+module RAAF
+  module Eval
+    module RSpec
+      module Matchers
+        ##
+        # Performance-related matchers for evaluation assertions
+        module PerformanceMatchers
+          ##
+          # Matcher for token usage assertions
+          module UseTokens
+            include Base
+
+            def initialize(*args)
+              super
+              @comparison_mode = nil
+              @threshold_percent = nil
+              @max_tokens = nil
+              @min_tokens = nil
+              @max_tokens_range = nil
+              @target = nil
+            end
+
+            def within(percent)
+              @threshold_percent = percent
+              self
+            end
+
+            def percent_of(target)
+              @comparison_mode = :percent
+              @target = target
+              self
+            end
+
+            def less_than(max)
+              @comparison_mode = :max
+              @max_tokens = max
+              self
+            end
+
+            def between(min, max)
+              @comparison_mode = :range
+              @min_tokens = min
+              @max_tokens_range = max
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              usage = extract_usage(evaluation_result)
+              @actual_tokens = total_tokens(usage)
+
+              case @comparison_mode
+              when :percent
+                check_percent_of_target
+              when :max
+                @actual_tokens <= @max_tokens
+              when :range
+                @actual_tokens >= @min_tokens && @actual_tokens <= @max_tokens_range
+              else
+                # No specific mode, just return true if tokens exist
+                @actual_tokens >= 0
+              end
+            end
+
+            def failure_message
+              case @comparison_mode
+              when :percent
+                "Expected token usage within #{@threshold_percent}% of #{@target_tokens} tokens, " \
+                  "but got #{@actual_tokens} tokens (#{format_percent(@percent_diff)}% difference)"
+              when :max
+                "Expected token usage less than #{format_number(@max_tokens)}, " \
+                  "but got #{format_number(@actual_tokens)} tokens"
+              when :range
+                "Expected token usage between #{format_number(@min_tokens)} and #{format_number(@max_tokens_range)}, " \
+                  "but got #{format_number(@actual_tokens)} tokens"
+              else
+                "Token usage check failed"
+              end
+            end
+
+            def failure_message_when_negated
+              "Expected token usage to not match criteria, but it did"
+            end
+
+            private
+
+            def check_percent_of_target
+              @target_tokens = resolve_target_tokens(@target)
+              return false if @target_tokens.zero?
+
+              @percent_diff = ((@actual_tokens - @target_tokens).to_f / @target_tokens * 100).abs
+              @percent_diff <= @threshold_percent
+            end
+
+            def resolve_target_tokens(target)
+              case target
+              when :baseline
+                baseline_usage = @evaluation_result.baseline_usage
+                total_tokens(baseline_usage)
+              when Symbol
+                result = @evaluation_result[target]
+                result ? total_tokens(result[:usage] || {}) : 0
+              when Integer
+                target
+              else
+                0
+              end
+            end
+
+            def total_tokens(usage)
+              (usage[:input_tokens] || usage[:prompt_tokens] || 0) +
+                (usage[:output_tokens] || usage[:completion_tokens] || 0)
+            end
+          end
+
+          ##
+          # Matcher for latency/completion time assertions
+          module CompleteWithin
+            include Base
+
+            def initialize(time_value)
+              super()
+              @time_value = time_value
+              @unit = :seconds
+            end
+
+            def seconds
+              @unit = :seconds
+              self
+            end
+
+            def milliseconds
+              @unit = :milliseconds
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              @actual_latency = extract_latency(evaluation_result)
+
+              threshold_ms = case @unit
+                             when :seconds
+                               @time_value * 1000
+                             when :milliseconds
+                               @time_value
+                             end
+
+              @actual_latency <= threshold_ms
+            end
+
+            def failure_message
+              threshold_display = @unit == :seconds ? "#{@time_value} seconds" : "#{@time_value}ms"
+              "Expected completion within #{threshold_display}, but took #{@actual_latency}ms"
+            end
+
+            def failure_message_when_negated
+              threshold_display = @unit == :seconds ? "#{@time_value} seconds" : "#{@time_value}ms"
+              "Expected completion to exceed #{threshold_display}, but it completed in #{@actual_latency}ms"
+            end
+          end
+
+          ##
+          # Matcher for cost assertions
+          module CostLessThan
+            include Base
+
+            def initialize(amount)
+              super()
+              @max_cost = amount
+              @model = nil
+            end
+
+            def for_model(model)
+              @model = model
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              usage = extract_usage(evaluation_result)
+
+              model_name = @model || evaluation_result.baseline.dig(:metadata, :model) || "gpt-4o"
+              baseline_usage = evaluation_result.baseline_usage
+
+              @actual_cost = Metrics.cost_diff(baseline_usage, usage, model: model_name)
+              @actual_cost <= @max_cost
+            end
+
+            def failure_message
+              "Expected cost less than $#{format('%.6f', @max_cost)}, " \
+                "but got $#{format('%.6f', @actual_cost)}"
+            end
+
+            def failure_message_when_negated
+              "Expected cost to exceed $#{format('%.6f', @max_cost)}, " \
+                "but it was $#{format('%.6f', @actual_cost)}"
+            end
+          end
+        end
+      end
+    end
+  end
+end

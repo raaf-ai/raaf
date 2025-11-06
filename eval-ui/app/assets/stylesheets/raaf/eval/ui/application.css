@@ -1,0 +1,160 @@
+/*
+ * RAAF Eval UI Styles
+ * Tailwind CSS-based styling for evaluation interface
+ */
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* Custom component styles */
+@layer components {
+  /* Span Browser */
+  .span-browser {
+    @apply container mx-auto;
+  }
+
+  .span-browser table {
+    @apply w-full;
+  }
+
+  /* Monaco Editor Container */
+  .editor-container {
+    @apply border border-gray-300 rounded-lg overflow-hidden;
+  }
+
+  #monaco-editor-original,
+  #monaco-editor-modified {
+    @apply w-full h-full;
+  }
+
+  /* Diff Output */
+  .diff-output pre {
+    @apply m-0 p-0 overflow-x-auto;
+  }
+
+  /* Metrics Panel */
+  .metrics-panel {
+    @apply space-y-4;
+  }
+
+  /* Progress Bar */
+  .execution-progress .progress-bar {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* Results Comparison */
+  .results-comparison {
+    @apply space-y-6;
+  }
+
+  /* Status Badges */
+  .status-badge {
+    @apply px-2 py-1 text-xs font-semibold rounded-full;
+  }
+
+  .status-badge.completed {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .status-badge.failed {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .status-badge.running {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+
+  .status-badge.pending {
+    @apply bg-gray-100 text-gray-800;
+  }
+
+  /* Form Validation */
+  .error-message {
+    @apply text-xs text-red-600 mt-1;
+  }
+
+  input.border-red-500,
+  select.border-red-500,
+  textarea.border-red-500 {
+    @apply border-red-500 focus:ring-red-500;
+  }
+
+  /* Notification Toast */
+  .notification-toast {
+    @apply fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 text-white;
+  }
+
+  .notification-toast.success {
+    @apply bg-green-600;
+  }
+
+  .notification-toast.error {
+    @apply bg-red-600;
+  }
+
+  .notification-toast.info {
+    @apply bg-blue-600;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+}
+
+/* Animation for progress bars */
+@keyframes progress {
+  0% {
+    width: 0%;
+  }
+}
+
+.animate-progress {
+  animation: progress 0.5s ease-out;
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+/* Focus visible improvements */
+*:focus-visible {
+  @apply outline-2 outline-offset-2 outline-blue-600;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}

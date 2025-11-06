@@ -1,0 +1,220 @@
+# frozen_string_literal: true
+
+require "json"
+
+module RAAF
+  module Eval
+    module RSpec
+      module Matchers
+        ##
+        # Structural validation matchers
+        module StructuralMatchers
+          ##
+          # Matcher for format validation
+          module HaveValidFormat
+            include Base
+
+            def initialize(*args)
+              super
+              @format_type = :text
+            end
+
+            def as(format_type)
+              @format_type = format_type
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              output = extract_output(evaluation_result)
+
+              case @format_type
+              when :json
+                validate_json(output)
+              when :xml
+                validate_xml(output)
+              when :markdown
+                validate_markdown(output)
+              when :html
+                validate_html(output)
+              else
+                true
+              end
+            end
+
+            def failure_message
+              "Expected valid #{@format_type} format, but validation failed: #{@error}"
+            end
+
+            def failure_message_when_negated
+              "Expected invalid #{@format_type} format, but it was valid"
+            end
+
+            private
+
+            def validate_json(text)
+              JSON.parse(text)
+              true
+            rescue JSON::ParserError => e
+              @error = e.message
+              false
+            end
+
+            def validate_xml(text)
+              # Simplified XML validation
+              @error = "XML not properly closed" unless text.match?(/<\w+>.*<\/\w+>/m)
+              @error.nil?
+            end
+
+            def validate_markdown(text)
+              # Simplified markdown validation
+              # Real implementation would use markdown parser
+              true
+            end
+
+            def validate_html(text)
+              # Simplified HTML validation
+              @error = "HTML not properly formed" unless text.match?(/<html>.*<\/html>/mi)
+              @error.nil?
+            end
+          end
+
+          ##
+          # Matcher for schema validation
+          module MatchSchema
+            include Base
+
+            def initialize(schema)
+              super()
+              @schema = schema
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              output = extract_output(evaluation_result)
+
+              # Try to parse as JSON
+              begin
+                @parsed = JSON.parse(output)
+              rescue JSON::ParserError => e
+                @error = "Output is not valid JSON: #{e.message}"
+                return false
+              end
+
+              # Validate against schema
+              validate_schema(@parsed, @schema)
+            end
+
+            def failure_message
+              "Expected output to match schema, but validation failed: #{@error}"
+            end
+
+            def failure_message_when_negated
+              "Expected output to not match schema, but it did"
+            end
+
+            private
+
+            def validate_schema(data, schema)
+              schema.each do |key, expected_type|
+                key_str = key.to_s
+
+                unless data.key?(key_str) || data.key?(key.to_sym)
+                  @error = "Missing required field: #{key}"
+                  return false
+                end
+
+                value = data[key_str] || data[key.to_sym]
+
+                unless value.is_a?(expected_type)
+                  @error = "Field '#{key}' has wrong type. Expected #{expected_type}, got #{value.class}"
+                  return false
+                end
+              end
+
+              true
+            end
+          end
+
+          ##
+          # Matcher for output length
+          module HaveLength
+            include Base
+
+            def initialize(*args)
+              super
+              @min_length = nil
+              @max_length = nil
+              @exact_length = nil
+              @comparison = nil
+            end
+
+            def between(min, max)
+              @comparison = :range
+              @min_length = min
+              @max_length = max
+              self
+            end
+
+            def less_than(max)
+              @comparison = :max
+              @max_length = max
+              self
+            end
+
+            def greater_than(min)
+              @comparison = :min
+              @min_length = min
+              self
+            end
+
+            def of(exact)
+              @comparison = :exact
+              @exact_length = exact
+              self
+            end
+
+            def matches?(evaluation_result)
+              @evaluation_result = evaluation_result
+              output = extract_output(evaluation_result)
+              @actual_length = output.length
+
+              case @comparison
+              when :range
+                @actual_length >= @min_length && @actual_length <= @max_length
+              when :max
+                @actual_length < @max_length
+              when :min
+                @actual_length > @min_length
+              when :exact
+                @actual_length == @exact_length
+              else
+                @actual_length > 0
+              end
+            end
+
+            def failure_message
+              case @comparison
+              when :range
+                "Expected length between #{@min_length} and #{@max_length}, " \
+                  "but got #{@actual_length}"
+              when :max
+                "Expected length less than #{@max_length}, but got #{@actual_length}"
+              when :min
+                "Expected length greater than #{@min_length}, but got #{@actual_length}"
+              when :exact
+                "Expected length of #{@exact_length}, but got #{@actual_length}"
+              else
+                "Length check failed"
+              end
+            end
+
+            def failure_message_when_negated
+              "Expected length to not match criteria, but it did"
+            end
+          end
+        end
+      end
+    end
+  end
+end

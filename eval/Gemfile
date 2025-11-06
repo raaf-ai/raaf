@@ -1,0 +1,14 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gemspec
+
+# Local development dependencies for mono-repo
+gem "raaf-core", path: "../core"
+gem "raaf-tracing", path: "../tracing"
+
+group :development, :test do
+  gem "pry"
+  gem "pry-byebug"
+end

@@ -12,3 +12,5 @@
 /dsl/mark_all_failures_as_pending.rb
 /dsl/.sass-cache/7ed966e32d15c8de91c667ac8fb091125d5d476c
 /dsl/.sass-cache
+/.DS_Store
+/.agent-os/archive

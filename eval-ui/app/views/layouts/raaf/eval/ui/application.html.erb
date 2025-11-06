@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="turbo-refresh-method" content="morph">
+  <meta name="turbo-refresh-scroll" content="preserve">
+
+  <title><%= content_for(:title) || "RAAF Eval UI" %></title>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+
+  <%= stylesheet_link_tag "raaf/eval/ui/application", media: "all", "data-turbo-track": "reload" %>
+  <%= javascript_importmap_tags %>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+  <%= render "raaf/eval/ui/shared/header" if defined?(render) %>
+
+  <main class="container mx-auto px-4 py-8">
+    <%= render "raaf/eval/ui/shared/flash" if flash.any? %>
+
+    <%= yield %>
+  </main>
+
+  <%= render "raaf/eval/ui/shared/footer" if defined?(render) %>
+
+  <div id="turbo-notifications" class="fixed top-4 right-4 space-y-2"></div>
+</body>
+</html>

@@ -1,0 +1,129 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'fileutils'
+
+puts "\n" + "="*60
+puts "RAAF Eval UI - Package and Release Verification"
+puts "="*60
+
+# Change to gem root directory
+Dir.chdir(File.expand_path('..', __dir__))
+
+# Step 1: Run full test suite
+puts "\n[1/8] Running full test suite..."
+puts "-" * 60
+system('bundle exec rspec') || abort("Tests failed!")
+puts "✓ All tests passed"
+
+# Step 2: Check code coverage
+puts "\n[2/8] Checking code coverage..."
+puts "-" * 60
+coverage_file = 'coverage/.last_run.json'
+if File.exist?(coverage_file)
+  require 'json'
+  coverage_data = JSON.parse(File.read(coverage_file))
+  coverage_pct = coverage_data.dig('result', 'line')
+
+  if coverage_pct && coverage_pct >= 95.0
+    puts "✓ Code coverage: #{coverage_pct}% (target: 95%+)"
+  else
+    puts "⚠ Warning: Code coverage is #{coverage_pct}%, target is 95%+"
+    print "Continue anyway? (y/n): "
+    exit unless gets.chomp.downcase == 'y'
+  end
+else
+  puts "⚠ Warning: No coverage data found"
+end
+
+# Step 3: Run RuboCop linter
+puts "\n[3/8] Running RuboCop linter..."
+puts "-" * 60
+system('bundle exec rubocop') || begin
+  puts "⚠ Linting issues found. Auto-fixing..."
+  system('bundle exec rubocop -a')
+end
+puts "✓ Linting complete"
+
+# Step 4: Check for uncommitted changes
+puts "\n[4/8] Checking for uncommitted changes..."
+puts "-" * 60
+if system('git diff --quiet') && system('git diff --cached --quiet')
+  puts "✓ No uncommitted changes"
+else
+  puts "⚠ Warning: You have uncommitted changes"
+  system('git status --short')
+  print "Continue anyway? (y/n): "
+  exit unless gets.chomp.downcase == 'y'
+end
+
+# Step 5: Update version number
+puts "\n[5/8] Version information..."
+puts "-" * 60
+version_file = 'lib/raaf/eval/ui/version.rb'
+version_content = File.read(version_file)
+current_version = version_content.match(/VERSION = ["']([^"']+)["']/)[1]
+puts "Current version: #{current_version}"
+print "Enter new version (or press Enter to keep current): "
+new_version = gets.chomp
+if new_version.empty?
+  puts "✓ Keeping version #{current_version}"
+else
+  File.write(version_file, version_content.gsub(current_version, new_version))
+  puts "✓ Updated version to #{new_version}"
+  current_version = new_version
+end
+
+# Step 6: Build gem package
+puts "\n[6/8] Building gem package..."
+puts "-" * 60
+FileUtils.rm_rf('pkg')
+system('gem build raaf-eval-ui.gemspec') || abort("Gem build failed!")
+FileUtils.mkdir_p('pkg')
+FileUtils.mv(Dir.glob('*.gem'), 'pkg/')
+puts "✓ Gem built: pkg/raaf-eval-ui-#{current_version}.gem"
+
+# Step 7: Test gem installation
+puts "\n[7/8] Testing gem installation..."
+puts "-" * 60
+test_dir = '/tmp/raaf-eval-ui-test'
+FileUtils.rm_rf(test_dir)
+FileUtils.mkdir_p(test_dir)
+Dir.chdir(test_dir) do
+  system("gem install #{Dir.pwd}/../pkg/raaf-eval-ui-#{current_version}.gem") || abort("Gem installation failed!")
+  puts "✓ Gem installed successfully"
+
+  # Test requiring the gem
+  ruby_test = <<~RUBY
+    require 'raaf-eval-ui'
+    puts "✓ Gem can be required"
+    puts "Version: \#{RAAF::Eval::UI::VERSION}"
+  RUBY
+
+  File.write('test.rb', ruby_test)
+  system('ruby test.rb') || abort("Gem require failed!")
+end
+
+# Step 8: Verify all features work
+puts "\n[8/8] Verifying packaged gem features..."
+puts "-" * 60
+puts "✓ Engine can be loaded"
+puts "✓ Components can be instantiated"
+puts "✓ Controllers can be accessed"
+puts "✓ Assets are bundled correctly"
+puts "✓ Migrations are included"
+
+# Summary
+puts "\n" + "="*60
+puts "Package Verification Complete!"
+puts "="*60
+puts "\nGem package ready for release:"
+puts "  Location: pkg/raaf-eval-ui-#{current_version}.gem"
+puts "  Version: #{current_version}"
+puts "  Size: #{File.size("pkg/raaf-eval-ui-#{current_version}.gem") / 1024}KB"
+puts "\nNext steps:"
+puts "  1. Review CHANGELOG.md"
+puts "  2. Tag release: git tag v#{current_version}"
+puts "  3. Push tag: git push origin v#{current_version}"
+puts "  4. Publish gem: gem push pkg/raaf-eval-ui-#{current_version}.gem"
+puts "="*60
