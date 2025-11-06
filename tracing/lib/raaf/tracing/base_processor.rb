@@ -103,11 +103,17 @@ module RAAF
       def on_span_end(span)
         return unless should_process?(span)
 
-        @mutex.synchronize do
-          processed = process_span(span)
-          @span_buffer << processed if processed
+        begin
+          @mutex.synchronize do
+            processed = process_span(span)
+            @span_buffer << processed if processed
 
-          flush_buffer if @span_buffer.size >= @batch_size
+            flush_buffer if @span_buffer.size >= @batch_size
+          end
+        rescue StandardError => e
+          # Log error but don't re-raise - one span failure shouldn't break the system
+          log_error("Failed to process span", span_id: span.span_id, error: e.message)
+          # Don't re-raise - preserve buffer integrity and allow other spans to process
         end
       end
 

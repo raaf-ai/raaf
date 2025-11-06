@@ -260,8 +260,20 @@ module RAAF
         log_debug_tracing("ActiveRecord ensure_trace_exists called", trace_id: actual_trace_id)
 
         if @trace_buffer[actual_trace_id]
-          log_debug_tracing("ActiveRecord trace already in buffer", trace_id: actual_trace_id)
-          return
+          log_debug_tracing("ActiveRecord trace in buffer, verifying DB persistence", trace_id: actual_trace_id)
+
+          # CRITICAL FIX: Verify trace actually exists in database, not just buffer
+          # In nested job/agent execution with transactions, trace may be buffered but not committed yet
+          unless ::RAAF::Tracing::TraceRecord.exists?(trace_id: actual_trace_id)
+            log_error("ActiveRecord trace in buffer but NOT in DB - transaction not committed yet",
+                      trace_id: actual_trace_id)
+            # Remove from buffer to force recreation/waiting for DB commit
+            @trace_buffer.delete(actual_trace_id)
+            # Fall through to DB check below to wait for or create trace
+          else
+            log_debug_tracing("ActiveRecord trace confirmed persisted in DB", trace_id: actual_trace_id)
+            return
+          end
         end
 
         # Check if trace already exists in database
@@ -336,26 +348,43 @@ module RAAF
         return if spans.empty?
 
         affected_traces = Set.new
+        failed_spans = []
 
-        begin
-          ::RAAF::Tracing::SpanRecord.transaction do
-            spans.each do |span|
+        # Process each span in its own transaction to isolate failures
+        spans.each do |span|
+          begin
+            ::RAAF::Tracing::SpanRecord.transaction do
               save_span_to_database(span)
 
               # Track which traces were affected for status updates
               trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
               affected_traces.add(trace_id) if trace_id
             end
+          rescue StandardError => e
+            # Log error but continue with next span
+            span_id = span.is_a?(Hash) ? span[:span_id] : span.span_id
+            log_error("Failed to save span", span_id: span_id, error: e.message, error_class: e.class.name)
+            failed_spans << { span_id: span_id, error: e.message }
+            # Continue processing other spans
           end
+        end
 
-          # Update trace statuses for all affected traces
-          affected_traces.each do |trace_id|
-            update_trace_status_for_trace_id(trace_id)
-          end
+        # Update trace statuses for all affected traces (only successful spans)
+        affected_traces.each do |trace_id|
+          update_trace_status_for_trace_id(trace_id)
+        end
 
-          log_debug_tracing("Saved batch of spans", spans_count: spans.size, affected_traces: affected_traces.size)
-        rescue StandardError => e
-          log_error("Failed to save span batch", error: e.message, error_class: e.class.name)
+        # Log summary
+        successful_count = spans.size - failed_spans.size
+        log_debug_tracing("Saved batch of spans",
+                          total_spans: spans.size,
+                          successful: successful_count,
+                          failed: failed_spans.size,
+                          affected_traces: affected_traces.size)
+
+        # Log failed spans if any
+        if failed_spans.any?
+          log_error("Some spans failed to save", failed_count: failed_spans.size)
         end
       end
 
