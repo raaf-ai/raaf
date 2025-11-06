@@ -390,7 +390,50 @@ module RAAF
         config[:maxOutputTokens] = kwargs[:max_tokens] if kwargs[:max_tokens]
         config[:stopSequences] = kwargs[:stop] if kwargs[:stop]
 
+        # JSON schema support for structured outputs
+        # Gemini supports responseMimeType and responseSchema parameters
+        if kwargs[:response_format]
+          response_format = kwargs[:response_format]
+          if response_format[:type] == "json_schema" && response_format[:json_schema]
+            config[:responseMimeType] = "application/json"
+            # Extract the schema from RAAF's response_format structure
+            # Filter out additionalProperties for Gemini compatibility
+            schema = response_format[:json_schema][:schema]
+            config[:responseSchema] = filter_additional_properties(schema)
+          end
+        end
+
         config
+      end
+
+      ##
+      # Recursively filters out additionalProperties fields from schema
+      #
+      # Gemini's API doesn't support the additionalProperties field that
+      # OpenAI requires for strict schemas. This method removes all
+      # additionalProperties keys while preserving all other schema fields.
+      #
+      # @param schema [Hash, Array, Object] Schema structure to filter
+      # @return [Hash, Array, Object] Filtered schema without additionalProperties
+      # @private
+      #
+      def filter_additional_properties(schema)
+        return schema unless schema.is_a?(Hash)
+
+        # Remove additionalProperties from current level (handle both string and symbol keys)
+        filtered = schema.reject { |k, _| k == "additionalProperties" || k == :additionalProperties }
+
+        # Recursively filter nested structures
+        filtered.transform_values do |value|
+          case value
+          when Hash
+            filter_additional_properties(value)
+          when Array
+            value.map { |item| filter_additional_properties(item) }
+          else
+            value
+          end
+        end
       end
 
       ##
