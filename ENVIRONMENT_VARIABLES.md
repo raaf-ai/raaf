@@ -190,6 +190,33 @@ This document provides a comprehensive reference for all environment variables u
 - **Default**: `180` (3 minutes)
 - **Example**: `export HUGGINGFACE_TIMEOUT="300"`  # 5 minutes for complex models
 
+### `OPENROUTER_API_KEY`
+- **Function**: OpenRouter API key for unified LLM access
+- **Used in**: `providers/lib/raaf/openrouter_provider.rb`, multi-provider configurations
+- **What**: Enables access to 100+ models from multiple providers (OpenAI, Anthropic, Google, Meta, etc.) through a single API
+- **Why**: Provides unified access to multiple LLM providers with automatic routing, fallbacks, and cost optimization
+- **Format**: String (API key)
+- **Default**: None
+- **Example**: `export OPENROUTER_API_KEY="sk-or-v1-..."`
+
+### `OPENROUTER_SITE_URL`
+- **Function**: Your site URL for OpenRouter rankings and analytics
+- **Used in**: `providers/lib/raaf/openrouter_provider.rb`, HTTP request headers
+- **What**: Identifies your application in OpenRouter's rankings and analytics (sent as HTTP-Referer header)
+- **Why**: Optional but recommended for OpenRouter's model rankings and usage tracking
+- **Format**: URL
+- **Default**: None
+- **Example**: `export OPENROUTER_SITE_URL="https://myapp.com"`
+
+### `OPENROUTER_SITE_NAME`
+- **Function**: Your site name for OpenRouter rankings and analytics
+- **Used in**: `providers/lib/raaf/openrouter_provider.rb`, HTTP request headers
+- **What**: Human-readable name for your application (sent as X-Title header)
+- **Why**: Optional but recommended for better identification in OpenRouter's analytics
+- **Format**: String
+- **Default**: None
+- **Example**: `export OPENROUTER_SITE_NAME="My AI App"`
+
 ### `RAAF_DEFAULT_PROVIDER`
 - **Function**: Default provider when multiple are available
 - **Format**: String (`openai`, `anthropic`, `cohere`, `groq`, etc.)

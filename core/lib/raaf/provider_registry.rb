@@ -39,7 +39,8 @@ module RAAF
       huggingface: "RAAF::Models::HuggingFaceProvider",
       perplexity: "RAAF::Models::PerplexityProvider",
       together: "RAAF::Models::TogetherProvider",
-      litellm: "RAAF::Models::LiteLLMProvider"
+      litellm: "RAAF::Models::LiteLLMProvider",
+      openrouter: "RAAF::Models::OpenRouterProvider"
     }.freeze
 
     # Map of model name patterns to provider short names

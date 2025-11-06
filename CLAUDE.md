@@ -134,6 +134,7 @@ result = runner.run("Hello!")
 - `:perplexity` → PerplexityProvider (sonar-*)
 - `:together` → TogetherProvider
 - `:litellm` → LiteLLMProvider
+- `:openrouter` → OpenRouterProvider (provider/model format)
 
 ### Provider Precedence
 
