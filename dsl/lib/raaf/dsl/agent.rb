@@ -1728,6 +1728,10 @@ module RAAF
 
           rescue => e
             handle_smart_error(e)
+          ensure
+            # CRITICAL: Always flush traces, even on error
+            # This ensures span records are persisted to database for debugging failed agents
+            auto_flush_raaf_traces
           end
         end
       end

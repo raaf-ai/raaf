@@ -97,43 +97,71 @@ module RAAF
         all_processed = []
         total_skipped_count = 0
         total_processed_count = 0
+        failed_batches = []
 
         # Process each batch
         batches.each_with_index do |batch, batch_idx|
           batch_number = batch_idx + 1
 
-          # Partition batch into skipped and to-process
-          skipped_items, items_to_process = partition_batch(batch, context, force_reprocess)
+          begin
+            # Partition batch into skipped and to-process
+            skipped_items, items_to_process = partition_batch(batch, context, force_reprocess)
 
-          total_skipped_count += skipped_items.count
-          total_processed_count += items_to_process.count
+            total_skipped_count += skipped_items.count
+            total_processed_count += items_to_process.count
 
-          RAAF.logger.info "⚙️  [#{agent_name}] Batch #{batch_number}/#{batches.count}: #{batch.count} items (#{skipped_items.count} skipped, #{items_to_process.count} to process)"
+            RAAF.logger.info "⚙️  [#{agent_name}] Batch #{batch_number}/#{batches.count}: #{batch.count} items (#{skipped_items.count} skipped, #{items_to_process.count} to process)"
 
-          # Skip processing if no items to process
-          if items_to_process.empty?
+            # Skip processing if no items to process
+            if items_to_process.empty?
+              all_skipped.concat(skipped_items)
+              next
+            end
+
+            # Process non-skipped items
+            start_time = Time.now
+            batch_results = block.call(items_to_process, context)
+            duration_ms = ((Time.now - start_time) * 1000).round(2)
+
+            RAAF.logger.info "✅ [#{agent_name}] Batch #{batch_number} processed in #{duration_ms}ms"
+
+            # Persist batch results
+            persist_batch(batch_results, context)
+
+            # Accumulate results
             all_skipped.concat(skipped_items)
-            next
+            all_processed.concat(batch_results)
+
+          rescue StandardError => e
+            # Log error but continue with next batch
+            RAAF.logger.error "❌ [#{agent_name}] Batch #{batch_number} failed: #{e.message}"
+            RAAF.logger.error "📋 Error class: #{e.class.name}"
+            RAAF.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+
+            # Track failed batch for reporting
+            failed_batches << { batch_number: batch_number, error: e.message, error_class: e.class.name }
+
+            # Mark skipped items as processed (with error) to maintain order
+            all_skipped.concat(skipped_items)
+            # Continue with next batch instead of failing entire process
+          ensure
+            # CRITICAL: Flush traces after each batch to preserve partial results
+            # This ensures we don't lose trace data if subsequent batches fail
+            auto_flush_raaf_traces if respond_to?(:auto_flush_raaf_traces, true)
           end
-
-          # Process non-skipped items
-          start_time = Time.now
-          batch_results = block.call(items_to_process, context)
-          duration_ms = ((Time.now - start_time) * 1000).round(2)
-
-          RAAF.logger.info "✅ [#{agent_name}] Batch #{batch_number} processed in #{duration_ms}ms"
-
-          # Persist batch results
-          persist_batch(batch_results, context)
-
-          # Accumulate results
-          all_skipped.concat(skipped_items)
-          all_processed.concat(batch_results)
         end
 
         # Log final metrics
         RAAF.logger.info "⏭️  [#{agent_name}] Total skipped: #{total_skipped_count} items (existing)"
         RAAF.logger.info "⚡ [#{agent_name}] Total processed: #{total_processed_count} items"
+
+        # Log failed batches if any
+        if failed_batches.any?
+          RAAF.logger.warn "⚠️  [#{agent_name}] #{failed_batches.count} batch(es) failed during processing"
+          failed_batches.each do |failure|
+            RAAF.logger.warn "   - Batch #{failure[:batch_number]}: #{failure[:error_class]} - #{failure[:error]}"
+          end
+        end
 
         # Merge processed and skipped items in original order
         merge_results(input_items, all_processed, all_skipped)
