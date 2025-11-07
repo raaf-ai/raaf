@@ -55,6 +55,40 @@ module RAAF
                          "Unknown Model"
         end
 
+        def provider_name
+          @provider_name ||= begin
+            # Try to get explicitly stored provider
+            explicit_provider = extract_span_attribute("agent.provider") ||
+                              extract_span_attribute("provider") ||
+                              extract_span_attribute("llm.provider")
+
+            # If found and not "N/A", use it
+            return explicit_provider if explicit_provider && explicit_provider != "N/A"
+
+            # Otherwise, detect from model name
+            detect_provider_from_model(model_name)
+          end
+        end
+
+        def detect_provider_from_model(model)
+          case model.to_s.downcase
+          when /^gpt-/, /^o1-/, /^o3-/
+            "OpenAI"
+          when /^gemini-/
+            "Google Gemini"
+          when /^claude-/
+            "Anthropic"
+          when /^sonar-/, /perplexity/
+            "Perplexity AI"
+          when /^command-/
+            "Cohere"
+          when /^mixtral-/, /^llama-/, /^gemma-/
+            "Groq"
+          else
+            "Unknown Provider"
+          end
+        end
+
         def context_data
           @context_data ||= extract_span_attribute("context") ||
                            extract_span_attribute("initial_context") ||
@@ -245,58 +279,124 @@ module RAAF
 
         def render_agent_configuration
           div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-semibold text-gray-900") { "Agent Configuration" }
+            # Modern compact header
+            div(class: "px-4 py-3 border-b border-emerald-200 bg-emerald-50") do
+              div(class: "flex items-center gap-2") do
+                i(class: "bi bi-gear text-emerald-600 text-lg")
+                h3(class: "text-base font-semibold text-emerald-900") { "Agent Configuration" }
+              end
             end
-            div(class: "px-4 py-5 sm:p-6") do
-              dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
-                # Basic agent information
-                render_detail_item("Agent Name", agent_name)
-                render_detail_item("Model", model_name, monospace: true)
-                render_detail_item("Execution Status", render_status_badge(@span.status))
-                render_detail_item("Duration", render_duration_badge(@span.duration_ms))
 
-                # Core model parameters
-                if agent_config["temperature"] && agent_config["temperature"] != "N/A"
-                  render_detail_item("Temperature", agent_config["temperature"])
+            # Clean table layout
+            div(class: "overflow-x-auto") do
+              table(class: "min-w-full divide-y divide-gray-200") do
+                # Table header
+                thead(class: "bg-gray-50") do
+                  tr do
+                    th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3") { "Parameter" }
+                    th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Value" }
+                  end
                 end
 
-                if agent_config["max_tokens"] && agent_config["max_tokens"] != "N/A"
-                  render_detail_item("Max Tokens", agent_config["max_tokens"])
-                end
+                # Table body
+                tbody(class: "bg-white divide-y divide-gray-100") do
+                  # Basic agent information section
+                  render_table_section_header("Basic Information")
+                  render_table_row("Agent Name", agent_name)
+                  render_table_row("Provider", provider_name)
+                  render_table_row("Model", model_name, monospace: true)
+                  render_table_row_with_block("Execution Status") { render_status_badge(@span.status) }
+                  render_table_row_with_block("Duration") { render_duration_badge(@span.duration_ms) }
+                  render_table_row("Tools Available", agent_config["tools_count"] || "0")
 
-                if agent_config["top_p"] && agent_config["top_p"] != "N/A"
-                  render_detail_item("Top P", agent_config["top_p"])
-                end
+                  # Model parameters section
+                  render_table_section_header("Model Parameters")
+                  render_table_row_with_block("Temperature") { render_param_value(agent_config["temperature"]) }
+                  render_table_row_with_block("Max Tokens") { render_param_value(agent_config["max_tokens"]) }
+                  render_table_row_with_block("Top P") { render_param_value(agent_config["top_p"]) }
+                  render_table_row_with_block("Frequency Penalty") { render_param_value(agent_config["frequency_penalty"]) }
+                  render_table_row_with_block("Presence Penalty") { render_param_value(agent_config["presence_penalty"]) }
+                  render_table_row_with_block("Parallel Tool Calls") { render_param_value(agent_config["parallel_tool_calls"]) }
 
-                # Penalty parameters
-                if agent_config["frequency_penalty"] && agent_config["frequency_penalty"] != "N/A"
-                  render_detail_item("Frequency Penalty", agent_config["frequency_penalty"])
-                end
+                  # Tool configuration section (if applicable)
+                  if agent_config["tool_choice"] && agent_config["tool_choice"] != "N/A"
+                    render_table_row_json("Tool Choice", agent_config["tool_choice"])
+                  end
 
-                if agent_config["presence_penalty"] && agent_config["presence_penalty"] != "N/A"
-                  render_detail_item("Presence Penalty", agent_config["presence_penalty"])
-                end
-
-                # Tool and execution configuration
-                if agent_config["tools_count"] && agent_config["tools_count"] != "0"
-                  render_detail_item("Tools Available", agent_config["tools_count"])
-                end
-
-                if agent_config["tool_choice"] && agent_config["tool_choice"] != "N/A"
-                  render_detail_item("Tool Choice", agent_config["tool_choice"], monospace: true)
-                end
-
-                if agent_config["parallel_tool_calls"] && agent_config["parallel_tool_calls"] != "N/A"
-                  render_detail_item("Parallel Tool Calls", agent_config["parallel_tool_calls"])
-                end
-
-                # Response format configuration
-                if agent_config["response_format"] && agent_config["response_format"] != "N/A"
-                  render_detail_item("Response Format", agent_config["response_format"], monospace: true)
+                  # Response format section (if applicable)
+                  if agent_config["response_format"] && agent_config["response_format"] != "N/A"
+                    render_table_row_json("Response Format Schema", agent_config["response_format"])
+                  end
                 end
               end
             end
+          end
+        end
+
+        # Render table section header (gray background row)
+        def render_table_section_header(title)
+          tr(class: "bg-gray-50") do
+            td(colspan: "2", class: "px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider") do
+              title
+            end
+          end
+        end
+
+        # Render standard table row with string value
+        def render_table_row(label, value, monospace: false)
+          tr(class: "hover:bg-gray-50 transition-colors") do
+            td(class: "px-4 py-2 text-sm font-medium text-gray-600 whitespace-nowrap") do
+              plain label
+            end
+            td(class: "px-4 py-2 text-sm text-gray-900 #{'font-mono text-xs' if monospace}") do
+              plain value.to_s
+            end
+          end
+        end
+
+        # Render table row with block for component content
+        def render_table_row_with_block(label, &block)
+          tr(class: "hover:bg-gray-50 transition-colors") do
+            td(class: "px-4 py-2 text-sm font-medium text-gray-600 whitespace-nowrap") do
+              plain label
+            end
+            td(class: "px-4 py-2 text-sm text-gray-900") do
+              # Execute the block inside the table cell context
+              block.call if block
+            end
+          end
+        end
+
+        # Render full-width row with JSON formatting (for Schema)
+        def render_table_row_json(label, value)
+          # Full-width header row for the label
+          tr(class: "bg-gray-50") do
+            td(colspan: "2", class: "px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider") do
+              label
+            end
+          end
+          # Full-width data row for JSON
+          tr(class: "hover:bg-gray-50 transition-colors") do
+            td(colspan: "2", class: "px-4 py-2") do
+              if is_json_value?(value)
+                pre(class: "text-xs bg-gray-50 p-2 rounded border overflow-x-auto text-gray-900 max-h-96") do
+                  code(class: "language-json") do
+                    format_json_display(value)
+                  end
+                end
+              else
+                span(class: "text-sm text-gray-900 font-mono") { value }
+              end
+            end
+          end
+        end
+
+        # Render parameter values with badges for N/A
+        def render_param_value(value)
+          if value.nil? || value == "N/A"
+            span(class: "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600") { "N/A" }
+          else
+            plain value.to_s
           end
         end
 
@@ -567,40 +667,36 @@ module RAAF
 
         def render_expandable_text(text, section_id)
           text_id = "#{section_id}-#{@span.span_id}"
-          preview_text = text[0..300] + "..."
+          preview_text = text[0..1000] + "..."  # Increased from 300 to 1000 chars
 
           div(data: { controller: "span-detail" }) do
-            div(id: "#{text_id}-preview", class: "bg-gray-50 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap") do
-              plain preview_text
-            end
-            div(id: text_id, class: "hidden bg-gray-50 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap") do
+            # RAAF EVAL: Full text visible by default for prompt visibility
+            div(id: text_id, class: "bg-gray-50 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap") do
               plain text
+            end
+            # Preview hidden by default
+            div(id: "#{text_id}-preview", class: "hidden bg-gray-50 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap") do
+              plain preview_text
             end
             button(
               class: "mt-3 text-sm text-blue-600 hover:text-blue-800 px-3 py-1 hover:bg-blue-50 rounded transition-colors",
               data: {
                 action: "click->span-detail#toggleSection",
-                target: text_id
+                target: text_id,
+                expanded_text: "Show Less",
+                collapsed_text: "Show More"
               }
-            ) { "Show Full Text" }
+            ) { "Show Less" }
           end
         end
 
         def render_expandable_markdown_text(text, section_id)
           text_id = "#{section_id}-#{@span.span_id}"
-          preview_text = text[0..300] + "..."
+          preview_text = text[0..1000] + "..."  # Increased from 300 to 1000 chars
 
           div(data: { controller: "span-detail" }) do
-            div(id: "#{text_id}-preview", class: "bg-gray-50 p-4 rounded-lg border text-sm prose prose-sm max-w-none") do
-              if looks_like_markdown?(preview_text)
-                raw markdown_to_html(preview_text)
-              else
-                div(class: "font-mono whitespace-pre-wrap") do
-                  plain preview_text
-                end
-              end
-            end
-            div(id: text_id, class: "hidden bg-gray-50 p-4 rounded-lg border text-sm prose prose-sm max-w-none") do
+            # RAAF EVAL: Full content visible by default for prompt visibility
+            div(id: text_id, class: "bg-gray-50 p-4 rounded-lg border text-sm prose prose-sm max-w-none") do
               if looks_like_markdown?(text)
                 raw markdown_to_html(text)
               else
@@ -609,32 +705,35 @@ module RAAF
                 end
               end
             end
+            # Preview hidden by default
+            div(id: "#{text_id}-preview", class: "hidden bg-gray-50 p-4 rounded-lg border text-sm prose prose-sm max-w-none") do
+              if looks_like_markdown?(preview_text)
+                raw markdown_to_html(preview_text)
+              else
+                div(class: "font-mono whitespace-pre-wrap") do
+                  plain preview_text
+                end
+              end
+            end
             button(
               class: "mt-3 text-sm text-blue-600 hover:text-blue-800 px-3 py-1 hover:bg-blue-50 rounded transition-colors",
               data: {
                 action: "click->span-detail#toggleSection",
-                target: text_id
+                target: text_id,
+                expanded_text: "Show Less",
+                collapsed_text: "Show More"
               }
-            ) { "Show Full Text" }
+            ) { "Show Less" }
           end
         end
 
         def render_expandable_json_text(json_text, section_id)
           text_id = "#{section_id}-#{@span.span_id}"
-          preview_text = json_text[0..500] + "..."
+          preview_text = json_text[0..2000] + "..."  # Increased from 500 to 2000 chars
 
           div(data: { controller: "span-detail json-highlight" }) do
-            div(id: "#{text_id}-preview", class: "bg-gray-50 p-4 rounded-lg border relative") do
-              pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
-                code(
-                  class: "language-json",
-                  data: { json_highlight_target: "json" }
-                ) do
-                  format_content(preview_text, force_type: :json)
-                end
-              end
-            end
-            div(id: text_id, class: "hidden bg-gray-50 p-4 rounded-lg border relative") do
+            # RAAF EVAL: Full JSON visible by default for debugging
+            div(id: text_id, class: "bg-gray-50 p-4 rounded-lg border relative") do
               pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
                 code(
                   class: "language-json",
@@ -644,13 +743,26 @@ module RAAF
                 end
               end
             end
+            # Preview hidden by default
+            div(id: "#{text_id}-preview", class: "hidden bg-gray-50 p-4 rounded-lg border relative") do
+              pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
+                code(
+                  class: "language-json",
+                  data: { json_highlight_target: "json" }
+                ) do
+                  format_content(preview_text, force_type: :json)
+                end
+              end
+            end
             button(
               class: "mt-3 text-sm text-purple-600 hover:text-purple-800 px-3 py-1 hover:bg-purple-50 rounded transition-colors",
               data: {
                 action: "click->span-detail#toggleSection click->json-highlight#highlightNew",
-                target: text_id
+                target: text_id,
+                expanded_text: "Show Less",
+                collapsed_text: "Show More"
               }
-            ) { "Show Full JSON" }
+            ) { "Show Less" }
           end
         end
 
