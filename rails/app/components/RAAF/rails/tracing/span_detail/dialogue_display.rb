@@ -135,26 +135,29 @@ module RAAF
                            end
 
             div(class: "#{content_class} border rounded-lg p-3 mb-2") do
-              if content.length > 500
-                render_expandable_content(content)
+              # RAAF EVAL: Display full prompts without truncation by default
+              # Only add collapse functionality for extremely long content (>10,000 chars)
+              # to maintain UI performance while ensuring full prompt visibility
+              if content.length > 10_000
+                render_collapsible_content(content)
               else
                 render_formatted_content(content)
               end
             end
           end
 
-          def render_expandable_content(content)
+          def render_collapsible_content(content)
             content_id = "content-#{SecureRandom.hex(4)}"
-            preview_content = content[0..500] + "..."
+            preview_content = content[0..1000] + "..."  # Increased preview from 500 to 1000 chars
 
             div(data: { controller: "span-detail" }) do
-              # Preview section - limited to first 500 chars
-              div(id: "#{content_id}-preview", class: "text-sm text-gray-800 overflow-hidden") do
-                render_formatted_content(preview_content)
-              end
-              # Full content section - unrestricted, hidden by default
-              div(id: content_id, class: "hidden text-sm text-gray-800 whitespace-normal break-words max-w-full") do
+              # Full content section - visible by default for RAAF Eval prompt visibility
+              div(id: content_id, class: "text-sm text-gray-800 whitespace-normal break-words max-w-full") do
                 render_formatted_content(content)
+              end
+              # Preview section - hidden by default
+              div(id: "#{content_id}-preview", class: "hidden text-sm text-gray-800 overflow-hidden") do
+                render_formatted_content(preview_content)
               end
               button(
                 class: "mt-2 text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-white border rounded transition-colors",
@@ -165,7 +168,7 @@ module RAAF
                   collapsed_text: "Show More"
                 }
               ) do
-                span(class: "button-text") { "Show More" }
+                span(class: "button-text") { "Show Less" }
               end
             end
           end

@@ -541,7 +541,8 @@ module RAAF
                   end
                   div(class: "mt-3 p-3 bg-gray-100 rounded overflow-hidden") do
                     pre(class: "text-sm text-gray-800 font-mono overflow-x-auto whitespace-pre-wrap") do
-                      code { attributes["dialog.system_prompt"].to_s[0..2000] + (attributes["dialog.system_prompt"].to_s.length > 2000 ? "\n\n... (truncated)" : "") }
+                      # RAAF EVAL: Display full system prompt without truncation for prompt iteration/testing
+                      code { attributes["dialog.system_prompt"].to_s }
                     end
                   end
                 end
@@ -556,7 +557,8 @@ module RAAF
                   end
                   div(class: "mt-3 p-3 bg-gray-100 rounded overflow-hidden") do
                     pre(class: "text-sm text-gray-800 font-mono overflow-x-auto whitespace-pre-wrap") do
-                      code { attributes["dialog.user_prompt"].to_s[0..2000] + (attributes["dialog.user_prompt"].to_s.length > 2000 ? "\n\n... (truncated)" : "") }
+                      # RAAF EVAL: Display full user prompt without truncation for prompt iteration/testing
+                      code { attributes["dialog.user_prompt"].to_s }
                     end
                   end
                 end
@@ -720,7 +722,8 @@ module RAAF
                   end
                   div(class: "mt-2 p-2 bg-gray-100 rounded overflow-hidden") do
                     pre(class: "text-xs text-gray-800 font-mono overflow-x-auto") do
-                      code { context_data.to_s[0..1000] + (context_data.to_s.length > 1000 ? "\n\n... (truncated)" : "") }
+                      # RAAF EVAL: Display full context data without truncation for debugging
+                      code { context_data.to_s }
                     end
                   end
                 end

@@ -159,14 +159,19 @@ module RAAF
         end
 
         # Truncate large data for initial display
-        def truncate_large_data(data, max_items: 10)
+        # RAAF EVAL: Increased thresholds to show more content by default
+        # while maintaining "Show Full Content" button for very large data
+        def truncate_large_data(data, max_items: 25)
           case data
           when Hash
+            # Increased from 10 to 25 items for better initial visibility
             data.first(max_items).to_h
           when Array
+            # Increased from 10 to 25 items for better initial visibility
             data.first(max_items)
           when String
-            data.length > 1000 ? data[0...1000] : data
+            # Increased from 1000 to 5000 chars for prompts and large text content
+            data.length > 5000 ? data[0...5000] : data
           else
             data
           end
@@ -214,8 +219,33 @@ module RAAF
         def render_detail_item(label, value, monospace: false)
           div(class: "bg-gray-50 rounded-lg p-3 sm:bg-transparent sm:rounded-none sm:p-0") do
             dt(class: "text-xs sm:text-sm font-medium text-gray-500 mb-1 sm:mb-0") { label }
-            dd(class: "text-sm text-gray-900 break-all sm:break-normal #{'font-mono text-xs sm:text-sm' if monospace}") { value }
+            dd(class: "text-sm text-gray-900 break-all sm:break-normal") do
+              # Check if value is JSON and needs formatting
+              if monospace && is_json_value?(value)
+                # Render as formatted JSON in a code block
+                div(class: "mt-2") do
+                  pre(class: "text-xs bg-white p-3 rounded border overflow-x-auto text-gray-900 max-h-96") do
+                    code(class: "language-json") do
+                      format_json_display(value)
+                    end
+                  end
+                end
+              else
+                # Regular text display
+                span(class: "#{'font-mono text-xs sm:text-sm' if monospace}") { value }
+              end
+            end
           end
+        end
+
+        # Helper to detect if value is JSON
+        def is_json_value?(value)
+          return true if value.is_a?(Hash) || value.is_a?(Array)
+          return false unless value.is_a?(String)
+
+          stripped = value.strip
+          (stripped.start_with?('{') && stripped.end_with?('}')) ||
+          (stripped.start_with?('[') && stripped.end_with?(']'))
         end
 
         def format_json_display(data, compact = false)

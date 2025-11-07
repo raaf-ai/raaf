@@ -101,10 +101,11 @@ module RAAF
         class_name = component.class.name
 
         # Handle specific agent types with different data requirements
-        case class_name
-        when "RAAF::DSL::Agent"
+        # Use inheritance checking instead of exact class name matching
+        # This ensures subclasses of RAAF::DSL::Agent get the DSL::AgentCollector
+        if defined?(RAAF::DSL::Agent) && component.is_a?(RAAF::DSL::Agent)
           return DSL::AgentCollector.new
-        when "RAAF::Agent"
+        elsif defined?(RAAF::Agent) && component.is_a?(RAAF::Agent)
           return AgentCollector.new
         end
 

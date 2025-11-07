@@ -17,14 +17,14 @@ module RAAF
         # Apply filters
         @spans = filter_spans(@spans)
 
-        # For hierarchical view, we'll organize spans differently
-        if params[:view] == 'hierarchical'
+        # Default to hierarchical view unless explicitly set to 'list'
+        if params[:view] != 'list'
           @spans = organize_spans_hierarchically(@spans)
           # Don't paginate for hierarchical view to maintain structure
           @page = 1
           @per_page = [@spans.count, 1].max  # Ensure @per_page is at least 1 to avoid division by zero
         else
-          # Paginate results for normal view
+          # Paginate results for list view
           @page = params[:page]&.to_i || 1
           @per_page = [params[:per_page]&.to_i || 50, 100].min
           @spans = paginate_records(@spans.recent, page: @page, per_page: @per_page)

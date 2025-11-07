@@ -437,26 +437,27 @@ module RAAF
           div(class: "flex items-center space-x-2") do
             span(class: "text-sm font-medium text-gray-700") { "View:" }
 
-            # Normal view button
+            # Hierarchical is now the default view
             current_view = @params[:view]
-            normal_active = current_view != 'hierarchical'
-            hierarchical_active = current_view == 'hierarchical'
+            list_active = current_view == 'list'
+            hierarchical_active = current_view != 'list'  # Default when view param is nil or 'hierarchical'
 
+            # Hierarchical view button (default)
             link_to(
               tracing_spans_path(@params.except(:view)),
-              class: "px-3 py-2 text-sm font-medium rounded-l-md border #{normal_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
-            ) do
-              i(class: "bi bi-list mr-1")
-              plain "List"
-            end
-
-            # Hierarchical view button
-            link_to(
-              tracing_spans_path(@params.merge(view: 'hierarchical')),
-              class: "px-3 py-2 text-sm font-medium rounded-r-md border-t border-r border-b #{hierarchical_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
+              class: "px-3 py-2 text-sm font-medium rounded-l-md border #{hierarchical_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
             ) do
               i(class: "bi bi-diagram-3 mr-1")
               plain "Hierarchy"
+            end
+
+            # List view button (optional)
+            link_to(
+              tracing_spans_path(@params.merge(view: 'list')),
+              class: "px-3 py-2 text-sm font-medium rounded-r-md border-t border-r border-b #{list_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
+            ) do
+              i(class: "bi bi-list mr-1")
+              plain "List"
             end
           end
         end
