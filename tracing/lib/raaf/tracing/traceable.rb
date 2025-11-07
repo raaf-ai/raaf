@@ -148,8 +148,6 @@ module RAAF
             return collector.collect_attributes(self)
           rescue StandardError => e
             # Log error and fall back to original implementation
-            # Note: Using puts for now since logger may not be available
-            # TODO: Replace with proper logging when available
             puts "Warning: Collector error, falling back to original implementation: #{e.message}" if ENV['RAAF_DEBUG_CATEGORIES']&.include?('tracing')
           end
         end
