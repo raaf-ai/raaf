@@ -56,6 +56,13 @@ module RAAF
           # DSL agent identification and basic configuration
           span name: ->(comp) { comp.respond_to?(:agent_name) ? comp.agent_name : comp.class.name }
           span model: ->(comp) { comp.class.respond_to?(:_context_config) ? comp.class._context_config[:model] || "gpt-4o" : "gpt-4o" }
+          span provider: ->(comp) do
+            if comp.class.respond_to?(:_context_config)
+              comp.class._context_config[:provider] || "N/A"
+            else
+              "N/A"
+            end
+          end
           span max_turns: ->(comp) do
             if comp.class.respond_to?(:_context_config)
               (comp.class._context_config[:max_turns] || 5).to_s
@@ -65,43 +72,80 @@ module RAAF
           end
 
           # DSL-specific configuration and execution state
-          span temperature: ->(comp) { comp.class.respond_to?(:_context_config) ? comp.class._context_config[:temperature] : nil }
+          # Model configuration parameters - return "N/A" when not defined
+          span temperature: ->(comp) do
+            if comp.class.respond_to?(:_context_config)
+              comp.class._context_config[:temperature] || "N/A"
+            else
+              "N/A"
+            end
+          end
 
           # Additional model settings from DSL configuration
           span max_tokens: ->(comp) do
-            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:max_tokens] : nil
+            if comp.class.respond_to?(:_context_config)
+              comp.class._context_config[:max_tokens] || "N/A"
+            else
+              "N/A"
+            end
           end
 
           span top_p: ->(comp) do
-            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:top_p] : nil
+            if comp.class.respond_to?(:_context_config)
+              comp.class._context_config[:top_p] || "N/A"
+            else
+              "N/A"
+            end
           end
 
           span frequency_penalty: ->(comp) do
-            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:frequency_penalty] : nil
+            if comp.class.respond_to?(:_context_config)
+              comp.class._context_config[:frequency_penalty] || "N/A"
+            else
+              "N/A"
+            end
           end
 
           span presence_penalty: ->(comp) do
-            comp.class.respond_to?(:_context_config) ? comp.class._context_config[:presence_penalty] : nil
+            if comp.class.respond_to?(:_context_config)
+              comp.class._context_config[:presence_penalty] || "N/A"
+            else
+              "N/A"
+            end
           end
 
           span tool_choice: ->(comp) do
             if comp.class.respond_to?(:_context_config)
               tool_choice = comp.class._context_config[:tool_choice]
-              tool_choice.is_a?(Hash) ? JSON.generate(tool_choice) : tool_choice&.to_s
+              if tool_choice
+                tool_choice.is_a?(Hash) ? JSON.generate(tool_choice) : tool_choice.to_s
+              else
+                "N/A"
+              end
+            else
+              "N/A"
             end
           end
 
           span parallel_tool_calls: ->(comp) do
             if comp.class.respond_to?(:_context_config)
               parallel = comp.class._context_config[:parallel_tool_calls]
-              parallel.nil? ? nil : (parallel ? "Enabled" : "Disabled")
+              parallel.nil? ? "N/A" : (parallel ? "Enabled" : "Disabled")
+            else
+              "N/A"
             end
           end
 
           span response_format: ->(comp) do
             if comp.class.respond_to?(:_context_config)
               response_format = comp.class._context_config[:response_format]
-              response_format.is_a?(Hash) ? JSON.generate(response_format) : response_format&.to_s
+              if response_format
+                response_format.is_a?(Hash) ? JSON.generate(response_format) : response_format.to_s
+              else
+                "N/A"
+              end
+            else
+              "N/A"
             end
           end
 
