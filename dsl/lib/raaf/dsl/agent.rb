@@ -3568,6 +3568,18 @@ module RAAF
 
         # If results is already a Hash with structured data matching agent's output fields, return it
         if results.is_a?(Hash) && !results.empty?
+          # NEW: Universal text extraction for all providers (schema-less agents)
+          # Handles responses from ResponsesProvider, GeminiProvider, AnthropicProvider,
+          # PerplexityProvider, GroqProvider, and CohereProvider
+          if !has_schema_defined?
+            content = extract_provider_text_content(results)
+            if content && content.is_a?(String) && !content.empty?
+              log_debug "📄 [#{self.class.name}] Extracted text from provider response (#{content.length} chars)"
+              # Return with both :result and :data keys for result_transform compatibility
+              return { success: true, result: content, data: content }
+            end
+          end
+
           # Check if the hash contains any of the declared output fields for this agent
           if self.class.respond_to?(:provided_fields) && self.class.provided_fields
             output_fields = self.class.provided_fields
@@ -3642,6 +3654,37 @@ module RAAF
         else
           hash
         end
+      end
+
+      ##
+      # Extracts text content from provider-specific response formats
+      #
+      # Supports all RAAF providers:
+      # - ResponsesProvider: {"output" => [{"content" => [{"text" => "..."}]}]}
+      # - GeminiProvider, AnthropicProvider, PerplexityProvider, GroqProvider, CohereProvider:
+      #   {"choices" => [{"message" => {"content" => "..."}}]}
+      #
+      # @param response [Hash] Provider response
+      # @return [String, nil] Extracted text content or nil if not found
+      # @private
+      #
+      def extract_provider_text_content(response)
+        # Format 1: Responses API (ResponsesProvider)
+        # {"output" => [{"content" => [{"text" => "..."}]}]}
+        if response["output"] || response[:output]
+          return response.dig("output", 0, "content", 0, "text") ||
+                 response.dig(:output, 0, :content, 0, :text)
+        end
+
+        # Format 2: Chat Completions API (Gemini, Anthropic, Perplexity, Groq, Cohere)
+        # {"choices" => [{"message" => {"content" => "..."}}]}
+        if response["choices"] || response[:choices]
+          return response.dig("choices", 0, "message", "content") ||
+                 response.dig(:choices, 0, :message, :content)
+        end
+
+        # Format 3: Direct result (legacy/fallback)
+        response["result"] || response[:result]
       end
 
       def parse_ai_response(content)
