@@ -58,16 +58,22 @@ module RAAF
         span handoffs_count: ->(comp) { comp.respond_to?(:handoffs) ? comp.handoffs.length.to_s : "0" }
 
         # Model settings - temperature, max_tokens, top_p, and other LLM parameters
+        # Core Agent stores these as instance variables with accessor methods
         span temperature: ->(comp) do
-          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
-            comp.model_settings[:temperature] || comp.model_settings["temperature"] || "N/A"
+          if comp.respond_to?(:temperature)
+            comp.temperature || "N/A"
+          elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+            settings = comp.model_settings
+            settings[:temperature] || settings["temperature"] || "N/A"
           else
             "N/A"
           end
         end
 
         span max_tokens: ->(comp) do
-          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+          if comp.respond_to?(:max_tokens)
+            comp.max_tokens || "N/A"
+          elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
             comp.model_settings[:max_tokens] || comp.model_settings["max_tokens"] || "N/A"
           else
             "N/A"
@@ -75,7 +81,9 @@ module RAAF
         end
 
         span top_p: ->(comp) do
-          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+          if comp.respond_to?(:top_p)
+            comp.top_p || "N/A"
+          elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
             comp.model_settings[:top_p] || comp.model_settings["top_p"] || "N/A"
           else
             "N/A"
@@ -83,7 +91,9 @@ module RAAF
         end
 
         span frequency_penalty: ->(comp) do
-          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+          if comp.respond_to?(:frequency_penalty)
+            comp.frequency_penalty || "N/A"
+          elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
             comp.model_settings[:frequency_penalty] || comp.model_settings["frequency_penalty"] || "N/A"
           else
             "N/A"
@@ -91,7 +101,9 @@ module RAAF
         end
 
         span presence_penalty: ->(comp) do
-          if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
+          if comp.respond_to?(:presence_penalty)
+            comp.presence_penalty || "N/A"
+          elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
             comp.model_settings[:presence_penalty] || comp.model_settings["presence_penalty"] || "N/A"
           else
             "N/A"
