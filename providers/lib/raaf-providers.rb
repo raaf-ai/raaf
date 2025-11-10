@@ -7,6 +7,7 @@ require_relative "raaf/groq_provider"
 require_relative "raaf/perplexity_provider"
 require_relative "raaf/gemini_provider"
 require_relative "raaf/together_provider"
+require_relative "raaf/moonshot_provider"
 require_relative "raaf/multi_provider"
 require_relative "raaf/litellm_provider"
 
@@ -25,6 +26,7 @@ require_relative "raaf/litellm_provider"
 # * Perplexity - Web-grounded AI search with citations
 # * Gemini - Google's multimodal AI models
 # * Together - Open-source model hosting
+# * Moonshot (Kimi K2) - Agentic AI with strong tool-calling and long-context support
 # * LiteLLM - Universal LLM proxy
 # * Multi-provider - Load balancing and failover
 #
@@ -70,6 +72,7 @@ require_relative "raaf/litellm_provider"
 #   export PERPLEXITY_API_KEY="your-perplexity-key"
 #   export GEMINI_API_KEY="your-gemini-key"
 #   export TOGETHER_API_KEY="your-together-key"
+#   export MOONSHOT_API_KEY="your-moonshot-key"
 #
 # @author Ruby AI Agents Factory Team
 # @since 1.0.0

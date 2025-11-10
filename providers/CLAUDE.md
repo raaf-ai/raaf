@@ -1033,6 +1033,118 @@ end
 runner = RAAF::Runner.new(agent: agent, provider: litellm_provider)
 ```
 
+### Moonshot Provider (Kimi K2)
+
+**Moonshot AI** provides the Kimi K2 model series with exceptional agentic capabilities, strong tool-calling support, and long-context understanding (up to 128K tokens).
+
+#### Basic Usage
+
+```ruby
+# Initialize Moonshot provider
+moonshot_provider = RAAF::Models::MoonshotProvider.new(
+  api_key: ENV['MOONSHOT_API_KEY']
+)
+
+agent = RAAF::Agent.new(
+  name: "Kimi Assistant",
+  instructions: "You are a helpful AI assistant with strong reasoning abilities",
+  model: "kimi-k2-instruct"
+)
+
+runner = RAAF::Runner.new(agent: agent, provider: moonshot_provider)
+result = runner.run("Analyze this complex problem...")
+```
+
+#### Available Models
+
+```ruby
+# kimi-k2-instruct - Instruction-following model with strong tool-calling
+# kimi-k2-thinking - Reasoning model with advanced planning capabilities
+# moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k - Context length variants
+
+agent.model = "kimi-k2-instruct"    # Best for tool-calling and multi-agent workflows
+agent.model = "kimi-k2-thinking"    # Best for complex reasoning tasks
+agent.model = "moonshot-v1-128k"    # Best for long-context tasks
+```
+
+#### Strong Tool-Calling Support
+
+Kimi K2 can autonomously select 200-300 tools for complex tasks:
+
+```ruby
+def search_web(query:)
+  "Search results for #{query}..."
+end
+
+def analyze_data(data:)
+  "Analysis of #{data}..."
+end
+
+agent = RAAF::Agent.new(
+  name: "Research Agent",
+  instructions: "Help users with research and analysis",
+  model: "kimi-k2-instruct"
+)
+
+# Kimi K2 excels at multi-step tool usage
+agent.add_tool(method(:search_web))
+agent.add_tool(method(:analyze_data))
+
+moonshot_provider = RAAF::Models::MoonshotProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: moonshot_provider)
+
+result = runner.run("Research Ruby 3.4 and analyze performance improvements")
+# Kimi K2 will autonomously chain tool calls to complete the task
+```
+
+#### RAAF DSL Integration
+
+```ruby
+# Use Moonshot in DSL agents with automatic provider detection
+class AgenticResearchAgent < RAAF::DSL::Agent
+  instructions "Perform multi-step research with tool usage"
+  model "kimi-k2-instruct"
+  provider :moonshot  # Automatic provider detection
+
+  schema do
+    field :analysis, type: :string, required: true
+    field :findings, type: :array, required: true
+    field :recommendations, type: :array, required: true
+  end
+end
+
+# Run with automatic provider instantiation
+dsl_agent = AgenticResearchAgent.new
+dsl_runner = RAAF::Runner.new(agent: dsl_agent)
+result = dsl_runner.run("Analyze Ruby web framework landscape")
+
+# Access structured results
+puts result[:analysis]
+result[:recommendations].each { |rec| puts "- #{rec}" }
+```
+
+**Moonshot Capabilities:**
+- ✅ Strong tool-calling (can select 200-300 tools autonomously)
+- ✅ Long-context support (up to 128K tokens)
+- ✅ Advanced reasoning with kimi-k2-thinking model
+- ✅ OpenAI-compatible API
+- ✅ Streaming responses
+- ✅ Multi-agent handoffs
+- ✅ RAAF DSL compatibility
+- ✅ Optimized for agentic workflows
+
+**Moonshot Limitations:**
+- ⚠️ Relatively new provider (launched November 2024)
+- ⚠️ Limited model selection compared to OpenAI
+- ⚠️ May have rate limits on free tier
+
+**When to Use Moonshot:**
+- ✅ Complex multi-step agentic workflows
+- ✅ Tasks requiring extensive tool usage
+- ✅ Long-context analysis and reasoning
+- ✅ Cost-effective alternative to GPT-4 with strong tool-calling
+- ✅ Applications requiring autonomous planning and execution
+
 ## Multi-Provider Support
 
 ```ruby
@@ -1188,6 +1300,7 @@ export ANTHROPIC_API_KEY="your-anthropic-key"
 export COHERE_API_KEY="your-cohere-key"
 export GROQ_API_KEY="your-groq-key"
 export TOGETHER_API_KEY="your-together-key"
+export MOONSHOT_API_KEY="your-moonshot-key"
 
 # Configuration
 export RAAF_DEFAULT_PROVIDER="openai"

@@ -41,6 +41,7 @@ module RAAF
       together: "RAAF::Models::TogetherProvider",
       litellm: "RAAF::Models::LiteLLMProvider",
       openrouter: "RAAF::Models::OpenRouterProvider"
+      moonshot: "RAAF::Models::MoonshotProvider"
     }.freeze
 
     # Map of model name patterns to provider short names
@@ -57,7 +58,9 @@ module RAAF
       /^sonar-/i => :perplexity,
       /^sonar$/i => :perplexity,  # Support plain "sonar" as model name
       /^perplexity$/i => :perplexity,  # Support plain "perplexity" as model name
-      /^gemini-/i => :gemini  # Gemini models
+      /^gemini-/i => :gemini,  # Gemini models
+      /^kimi-/i => :moonshot,  # Kimi K2 models (kimi-k2-instruct, kimi-k2-thinking)
+      /^moonshot-/i => :moonshot  # Moonshot models (moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k)
     }.freeze
 
     class << self

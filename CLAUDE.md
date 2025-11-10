@@ -132,6 +132,7 @@ result = runner.run("Hello!")
 - `:gemini` → GeminiProvider (gemini-*)
 - `:huggingface` → HuggingFaceProvider (org/model format)
 - `:perplexity` → PerplexityProvider (sonar-*)
+- `:moonshot` → MoonshotProvider (kimi-*, moonshot-*)
 - `:together` → TogetherProvider
 - `:litellm` → LiteLLMProvider
 - `:openrouter` → OpenRouterProvider (provider/model format)
