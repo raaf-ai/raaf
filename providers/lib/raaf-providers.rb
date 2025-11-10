@@ -10,6 +10,7 @@ require_relative "raaf/together_provider"
 require_relative "raaf/moonshot_provider"
 require_relative "raaf/multi_provider"
 require_relative "raaf/litellm_provider"
+require_relative "raaf/xai_provider"
 
 ##
 # RAAF Providers - Additional LLM provider integrations
@@ -27,6 +28,7 @@ require_relative "raaf/litellm_provider"
 # * Gemini - Google's multimodal AI models
 # * Together - Open-source model hosting
 # * Moonshot (Kimi K2) - Agentic AI with strong tool-calling and long-context support
+# * xAI (Grok) - Real-time knowledge and reasoning models
 # * LiteLLM - Universal LLM proxy
 # * Multi-provider - Load balancing and failover
 #
@@ -73,6 +75,7 @@ require_relative "raaf/litellm_provider"
 #   export GEMINI_API_KEY="your-gemini-key"
 #   export TOGETHER_API_KEY="your-together-key"
 #   export MOONSHOT_API_KEY="your-moonshot-key"
+#   export XAI_API_KEY="your-xai-key"
 #
 # @author Ruby AI Agents Factory Team
 # @since 1.0.0

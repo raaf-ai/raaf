@@ -150,6 +150,16 @@ This document provides a comprehensive reference for all environment variables u
 - **Default**: None
 - **Example**: `export GROQ_API_KEY="gsk_..."`
 
+### `XAI_API_KEY`
+- **Function**: xAI API key for Grok models
+- **Used in**: `providers/lib/raaf/xai_provider.rb`, multi-provider configurations
+- **What**: Enables access to xAI's Grok models (Grok 4, Grok 3, Grok 3 Mini, Grok Code Fast)
+- **Why**: Provides access to advanced reasoning models with 256k context windows, vision capabilities, and coding expertise
+- **Format**: String (API key from https://console.x.ai)
+- **Default**: None
+- **Example**: `export XAI_API_KEY="xai-..."`
+- **Note**: All Grok models support function calling, structured outputs, and have 256k token context windows
+
 ### `TOGETHER_API_KEY`
 - **Function**: Together AI API key
 - **Format**: String (API key)

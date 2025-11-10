@@ -39,6 +39,7 @@ module RAAF
       huggingface: "RAAF::Models::HuggingFaceProvider",
       perplexity: "RAAF::Models::PerplexityProvider",
       together: "RAAF::Models::TogetherProvider",
+      xai: "RAAF::Models::XAIProvider",
       litellm: "RAAF::Models::LiteLLMProvider",
       openrouter: "RAAF::Models::OpenRouterProvider"
       moonshot: "RAAF::Models::MoonshotProvider"
@@ -52,6 +53,7 @@ module RAAF
       /^o3-/i => :openai,
       /^claude-/i => :anthropic,
       /^command-/i => :cohere,
+      /^grok-/i => :xai,
       /^mixtral-/i => :groq,
       /^llama-/i => :groq,
       /^gemma-/i => :groq,
