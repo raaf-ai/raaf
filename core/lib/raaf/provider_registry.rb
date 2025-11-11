@@ -41,7 +41,7 @@ module RAAF
       together: "RAAF::Models::TogetherProvider",
       xai: "RAAF::Models::XAIProvider",
       litellm: "RAAF::Models::LiteLLMProvider",
-      openrouter: "RAAF::Models::OpenRouterProvider"
+      openrouter: "RAAF::Models::OpenRouterProvider",
       moonshot: "RAAF::Models::MoonshotProvider"
     }.freeze
 

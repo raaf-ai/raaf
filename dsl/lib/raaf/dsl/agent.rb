@@ -1259,6 +1259,9 @@ module RAAF
       def run_with_incremental_processing(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         log_info "🔄 [#{self.class.name}] Running with incremental processing"
 
+        # DEFENSIVE FIX: Ensure @context is always initialized
+        @context ||= RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
+
         # Auto-detect input field (marked with incremental: true in context)
         input_field = detect_incremental_input_field
         raise ArgumentError, "No incremental input field found in context" unless input_field
@@ -1270,9 +1273,12 @@ module RAAF
         log_info "📥 [#{self.class.name}] Input field: #{input_field}"
         log_info "📤 [#{self.class.name}] Output field: #{output_field}"
 
-        # Get input data from context
+        # Get input data from context with defensive check
         input_data = @context[input_field]
-        raise ArgumentError, "Input field #{input_field} not found in context" unless input_data
+        if input_data.nil?
+          log_warn "⚠️ [#{self.class.name}] Input field '#{input_field}' not found in context - using empty array"
+          input_data = []
+        end
 
         # Initialize processor
         processor = RAAF::DSL::IncrementalProcessor.new(self, incremental_config)
