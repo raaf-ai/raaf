@@ -47,7 +47,8 @@
       "Bash(openssl x509:*)",
       "Bash(timeout 5 openssl s_client:*)",
       "Bash(sed:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:ai.google.dev)"
     ],
     "deny": [],
     "additionalDirectories": [
