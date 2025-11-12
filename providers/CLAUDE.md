@@ -131,13 +131,30 @@ result = runner.run(
 #### Available Models
 
 ```ruby
-# gemini-2.0-flash-exp - Latest experimental (fastest, most capable)
-# gemini-1.5-pro-latest - Stable production (best quality)
+# Gemini 2.5 Series (Latest - January 2025)
+# gemini-2.5-pro - State-of-the-art thinking model with advanced reasoning
+# gemini-2.5-flash - Large-scale processing with high performance
+# gemini-2.5-flash-lite - Cost-optimized variant
+
+# Gemini 2.0 Series
+# gemini-2.0-flash - Stable production model (recommended)
+# gemini-2.0-flash-exp - Latest experimental features
+# gemini-2.0-flash-lite - Cost-efficient alternative
+
+# Gemini 1.5 Series
+# gemini-1.5-pro-latest - Stable production (best quality, 2M context)
 # gemini-1.5-flash-latest - Stable production (fast, efficient)
+# gemini-1.5-pro - Previous stable version
+# gemini-1.5-flash - Previous fast version
+
+# Legacy
 # gemini-1.0-pro - Legacy (still supported)
 
-agent.model = "gemini-2.0-flash-exp"  # Recommended for most use cases
-agent.model = "gemini-1.5-pro-latest" # For production stability
+# Model recommendations:
+agent.model = "gemini-2.5-pro"        # For complex reasoning and thinking tasks
+agent.model = "gemini-2.5-flash"      # For high-volume, low-latency tasks
+agent.model = "gemini-2.0-flash"      # For stable production use
+agent.model = "gemini-1.5-pro-latest" # For maximum context (2M tokens)
 agent.model = "gemini-1.5-flash-latest" # For cost optimization
 ```
 
@@ -236,9 +253,11 @@ end
 #### Best Practices
 
 1. **Model Selection**
-   - Use `gemini-2.0-flash-exp` for cutting-edge features
-   - Use `gemini-1.5-pro-latest` for production stability
-   - Use `gemini-1.5-flash-latest` for cost-sensitive applications
+   - Use `gemini-2.5-pro` for complex reasoning and thinking tasks (newest, most capable)
+   - Use `gemini-2.5-flash` for high-volume, low-latency production workloads
+   - Use `gemini-2.0-flash` for stable production with proven reliability
+   - Use `gemini-1.5-pro-latest` for maximum context window (2M tokens)
+   - Use `gemini-1.5-flash-latest` or `gemini-2.5-flash-lite` for cost optimization
 
 2. **Function Calling**
    - Gemini supports OpenAI-compatible function calling
