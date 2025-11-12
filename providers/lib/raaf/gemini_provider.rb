@@ -12,7 +12,7 @@ module RAAF
     #
     # This provider implements the ModelInterface for Google's Gemini models,
     # translating between OpenAI's API format and Google's GenerativeAI API.
-    # It supports Gemini 2.0, Gemini 1.5, and Gemini 1.0 models.
+    # It supports Gemini 2.5, Gemini 2.0, Gemini 1.5, and Gemini 1.0 models.
     #
     # Features:
     # - Automatic format conversion between OpenAI and Gemini APIs
@@ -51,7 +51,12 @@ module RAAF
 
       # List of supported Gemini models
       SUPPORTED_MODELS = %w[
+        gemini-2.5-pro
+        gemini-2.5-flash
+        gemini-2.5-flash-lite
+        gemini-2.0-flash
         gemini-2.0-flash-exp
+        gemini-2.0-flash-lite
         gemini-1.5-pro-latest
         gemini-1.5-flash-latest
         gemini-1.5-pro

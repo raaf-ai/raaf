@@ -56,15 +56,24 @@ RSpec.describe RAAF::Models::GeminiProvider do
     it "returns array of Gemini models" do
       models = provider.supported_models
       expect(models).to be_an(Array)
+      # Gemini 2.5 series
+      expect(models).to include("gemini-2.5-pro")
+      expect(models).to include("gemini-2.5-flash")
+      expect(models).to include("gemini-2.5-flash-lite")
+      # Gemini 2.0 series
+      expect(models).to include("gemini-2.0-flash")
       expect(models).to include("gemini-2.0-flash-exp")
+      expect(models).to include("gemini-2.0-flash-lite")
+      # Gemini 1.5 series
       expect(models).to include("gemini-1.5-pro-latest")
       expect(models).to include("gemini-1.5-flash-latest")
+      # Legacy
       expect(models).to include("gemini-1.0-pro")
     end
 
     it "includes all expected model variants" do
       models = provider.supported_models
-      expect(models.length).to be >= 4
+      expect(models.length).to be >= 11
     end
   end
 
