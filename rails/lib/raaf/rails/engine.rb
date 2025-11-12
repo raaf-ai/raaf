@@ -82,7 +82,6 @@ module RAAF
             end
           rescue LoadError
             # Sidekiq not available, skip background job configuration
-            RAAF.logger.warn("Sidekiq gem not available. Background jobs will be disabled.")
           end
         end
 
