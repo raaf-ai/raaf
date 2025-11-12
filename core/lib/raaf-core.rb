@@ -10,6 +10,7 @@ require_relative "raaf/guardrails"
 require_relative "raaf/configuration"
 require_relative "raaf/http_client"
 require_relative "raaf/tool_use_behavior"
+require_relative "raaf/rate_limiter"
 
 # Try to require raaf-tracing if available, provide no-op if not BEFORE loading function_tool
 tracing_path = File.expand_path("../../../tracing/lib/raaf-tracing", __dir__)

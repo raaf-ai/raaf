@@ -5,6 +5,8 @@ require "logger"
 require "net/http"
 require_relative "../logging"
 require_relative "../errors"
+require_relative "../throttler"
+require_relative "../throttle_config"
 
 module RAAF
 
@@ -49,6 +51,7 @@ module RAAF
 
       include Logger
       include RetryHandler
+      include Throttler
 
       ##
       # Initialize a new model provider
@@ -70,14 +73,20 @@ module RAAF
         @api_key = api_key
         @api_base = api_base
         @options = options
+        @rate_limiter = nil
+        @rate_limiter_enabled = false
         initialize_retry_config
+        initialize_throttle_config
+        auto_configure_throttle
       end
 
       ##
-      # Execute a chat completion request with automatic retry
+      # Execute a chat completion request with automatic retry and rate limiting
       #
-      # This method automatically wraps the provider's implementation with retry logic,
-      # ensuring consistent and reliable behavior across all providers.
+      # This method automatically wraps the provider's implementation with:
+      # 1. Rate limiting (if enabled) - prevents exceeding provider RPM limits
+      # 2. Throttling (if enabled) - legacy token bucket implementation
+      # 3. Retry logic - handles transient failures
       #
       # @param messages [Array<Hash>] Conversation messages with :role and :content
       # @param model [String] Model identifier (e.g., "gpt-4", "claude-3")
@@ -92,8 +101,12 @@ module RAAF
       # @raise [APIError] For other API errors
       #
       def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
-        with_retry(:chat_completion) do
-          perform_chat_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
+        with_rate_limiting(:chat_completion) do
+          with_throttle(:chat_completion) do
+            with_retry(:chat_completion) do
+              perform_chat_completion(messages: messages, model: model, tools: tools, stream: stream, **kwargs)
+            end
+          end
         end
       end
 
@@ -177,31 +190,33 @@ module RAAF
       #
       def responses_completion(messages:, model:, tools: nil, stream: false, previous_response_id: nil, input: nil,
                                **kwargs)
-        with_retry(:responses_completion) do
-          log_debug("🔧 INTERFACE: Converting chat_completion to responses_completion",
-                    provider: provider_name,
-                    has_tools: !tools.nil?,
-                    tools_count: tools&.size || 0)
+        with_rate_limiting(:responses_completion) do
+          with_retry(:responses_completion) do
+            log_debug("🔧 INTERFACE: Converting chat_completion to responses_completion",
+                      provider: provider_name,
+                      has_tools: !tools.nil?,
+                      tools_count: tools&.size || 0)
 
-          # Convert input items back to messages if needed
-          actual_messages = if input&.any?
-                              convert_input_to_messages(input, messages)
-                            else
-                              messages
-                            end
+            # Convert input items back to messages if needed
+            actual_messages = if input&.any?
+                                convert_input_to_messages(input, messages)
+                              else
+                                messages
+                              end
 
-          # Call the provider's chat_completion method
-          response = perform_chat_completion(
-            messages: actual_messages,
-            model: model,
-            tools: tools,
-            stream: stream,
-            **kwargs
-          )
+            # Call the provider's chat_completion method
+            response = perform_chat_completion(
+              messages: actual_messages,
+              model: model,
+              tools: tools,
+              stream: stream,
+              **kwargs
+            )
 
-          # Convert response to Responses API format
-          converted = convert_chat_to_responses_format(response)
-          converted
+            # Convert response to Responses API format
+            converted = convert_chat_to_responses_format(response)
+            converted
+          end
         end
       end
 
@@ -271,7 +286,83 @@ module RAAF
         self
       end
 
+      ##
+      # Configure rate limiting for this provider
+      #
+      # Rate limiting uses a token bucket algorithm to prevent exceeding provider RPM limits.
+      # This is proactive (prevents rate limits) while retry logic is reactive (handles failures).
+      #
+      # @example Enable rate limiting with default RPM
+      #   provider.configure_rate_limiting(enabled: true)
+      #
+      # @example Custom RPM limit
+      #   provider.configure_rate_limiting(
+      #     enabled: true,
+      #     requests_per_minute: 60
+      #   )
+      #
+      # @example Custom storage backend
+      #   redis_storage = RAAF::RateLimiter::RedisStorage.new
+      #   provider.configure_rate_limiting(
+      #     enabled: true,
+      #     storage: redis_storage
+      #   )
+      #
+      # @param enabled [Boolean] Enable/disable rate limiting (default: false)
+      # @param requests_per_minute [Integer, nil] RPM limit (uses provider default if nil)
+      # @param storage [RateLimiter::MemoryStorage, RateLimiter::RedisStorage, RateLimiter::RailsCacheStorage, nil] Storage backend (default: MemoryStorage)
+      # @return [self] Returns self for method chaining
+      #
+      def configure_rate_limiting(enabled: false, requests_per_minute: nil, storage: nil)
+        @rate_limiter_enabled = enabled
+
+        if enabled
+          # Create rate limiter with provider-specific defaults
+          @rate_limiter = RAAF::RateLimiter.new(
+            provider: rate_limiter_provider_name,
+            requests_per_minute: requests_per_minute,
+            storage: storage
+          )
+        else
+          @rate_limiter = nil
+        end
+
+        self
+      end
+
+      ##
+      # Get rate limiter status
+      #
+      # @return [Hash, nil] Rate limiter status or nil if disabled
+      #
+      def rate_limiter_status
+        return nil unless @rate_limiter_enabled && @rate_limiter
+
+        @rate_limiter.status
+      end
+
+      ##
+      # Reset rate limiter (useful for testing)
+      #
+      def reset_rate_limiter
+        @rate_limiter&.reset!
+      end
+
       protected
+
+      ##
+      # Auto-configure throttle from ThrottleConfig defaults
+      #
+      # Automatically loads default RPM limits based on provider type.
+      # Throttling remains disabled by default (opt-in).
+      #
+      def auto_configure_throttle
+        default_rpm = ThrottleConfig.rpm_for_provider(self)
+        return unless default_rpm
+
+        # Configure RPM but keep throttling disabled by default
+        configure_throttle(rpm: default_rpm, enabled: false)
+      end
 
       ##
       # Execute a chat completion request (to be implemented by subclasses)
@@ -503,6 +594,33 @@ module RAAF
       end
 
       private
+
+      ##
+      # Wrap API call with rate limiting if enabled
+      #
+      # @param operation_name [Symbol] Operation identifier
+      # @yield Block to execute within rate limit
+      # @return Result of the block
+      #
+      def with_rate_limiting(operation_name)
+        if @rate_limiter_enabled && @rate_limiter
+          @rate_limiter.acquire { yield }
+        else
+          yield
+        end
+      end
+
+      ##
+      # Get provider name for rate limiter
+      #
+      # Subclasses can override to provide specific names (e.g., "gemini", "openai")
+      # Defaults to the provider_name method lowercased
+      #
+      # @return [String] Provider name for rate limiter configuration
+      #
+      def rate_limiter_provider_name
+        provider_name.downcase.gsub(/\s+/, "_")
+      end
 
       # All retry logic now handled by RetryHandler module
 
