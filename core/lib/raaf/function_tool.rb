@@ -2,6 +2,8 @@
 
 require_relative "errors"
 require_relative "logging"
+require_relative "throttler"
+require_relative "throttle_config"
 
 module RAAF
 
@@ -61,6 +63,7 @@ module RAAF
   class FunctionTool
 
     include Logger
+    include Throttler
     include RAAF::Tracing::Traceable
     trace_as :tool
 
@@ -85,6 +88,7 @@ module RAAF
     # @param description [String, nil] Optional description
     # @param parameters [Hash, nil] Optional parameter schema (auto-extracted if nil)
     # @param is_enabled [Boolean, Proc, nil] Optional enablement control
+    # @param throttle [Hash, nil] Optional throttle configuration (rpm:, burst:, timeout:, enabled:)
     #
     # @example Auto-extraction from method
     #   def search(query:)
@@ -109,10 +113,22 @@ module RAAF
     #     }
     #   )
     #
-    def initialize(callable, name: nil, description: nil, parameters: nil, is_enabled: nil)
+    # @example With throttling enabled
+    #   tool = FunctionTool.new(
+    #     method(:expensive_api_call),
+    #     throttle: { rpm: 60, enabled: true }
+    #   )
+    #
+    def initialize(callable, name: nil, description: nil, parameters: nil, is_enabled: nil, throttle: nil)
       @callable = callable
       @name = name || extract_name(callable)
       @description = description || extract_description(callable)
+
+      # Initialize throttle configuration
+      initialize_throttle_config
+
+      # Apply throttle configuration if provided
+      configure_throttle(**throttle) if throttle.is_a?(Hash)
 
       # Debug logging for parameter handling
       log_debug_tools("FunctionTool.new called",
@@ -142,10 +158,12 @@ module RAAF
     #
     # This method handles both keyword and positional argument styles,
     # automatically adapting to the callable's parameter expectations.
+    # If throttling is enabled, the execution will be rate-limited.
     #
     # @param kwargs [Hash] Keyword arguments to pass to the tool
     # @return [Object] The result from the tool execution
     # @raise [ToolError] If the callable is invalid or execution fails
+    # @raise [ThrottleTimeoutError] If throttle timeout is exceeded
     #
     # @example Calling a tool
     #   tool = FunctionTool.new(method(:search))
@@ -159,25 +177,27 @@ module RAAF
     #   end
     #
     def call(**kwargs)
-      if @callable.is_a?(Method)
-        @callable.call(**kwargs)
-      elsif @callable.is_a?(Proc)
-        # Handle both keyword and positional parameters for procs
-        params = @callable.parameters
-        if params.empty? || params.any? { |type, _| %i[keyreq key keyrest].include?(type) }
-          # Proc expects keyword arguments or no arguments
+      with_throttle(:call) do
+        if @callable.is_a?(Method)
+          @callable.call(**kwargs)
+        elsif @callable.is_a?(Proc)
+          # Handle both keyword and positional parameters for procs
+          params = @callable.parameters
+          if params.empty? || params.any? { |type, _| %i[keyreq key keyrest].include?(type) }
+            # Proc expects keyword arguments or no arguments
+            @callable.call(**kwargs)
+          else
+            # Proc expects positional arguments
+            args = params.map { |_type, name| kwargs[name] }
+            @callable.call(*args)
+          end
+        elsif @callable.respond_to?(:call)
+          # Support duck typing for any object that responds to :call
+          # This includes DSL tool instances and other callable objects
           @callable.call(**kwargs)
         else
-          # Proc expects positional arguments
-          args = params.map { |_type, name| kwargs[name] }
-          @callable.call(*args)
+          raise ToolError, "Callable must be a Method, Proc, or object that responds to :call"
         end
-      elsif @callable.respond_to?(:call)
-        # Support duck typing for any object that responds to :call
-        # This includes DSL tool instances and other callable objects
-        @callable.call(**kwargs)
-      else
-        raise ToolError, "Callable must be a Method, Proc, or object that responds to :call"
       end
     rescue StandardError => e
       raise ToolError, "Error executing tool '#{@name}': #{e.message}"
