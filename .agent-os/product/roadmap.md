@@ -1,16 +1,20 @@
 # Product Roadmap
 
 > Last Updated: 2025-01-12
-> Version: 3.0.0
-> Status: Phase 3 Complete (Standalone), Integration Planning
+> Version: 5.0.0
+> Status: Phase 3 Complete (Integrated), Architecture Unified
 
 ## Overview
 
-RAAF Eval is fully implemented with two complementary gems:
+RAAF Eval provides a unified evaluation and testing framework integrated directly into the RAAF tracing dashboard:
 - **raaf-eval** - Core evaluation engine and RSpec integration (Phases 1-2) ✅
-- **raaf-eval-ui** - Interactive web UI for evaluation experiments (Phase 3) ✅
+- **Evaluation UI** - Integrated into raaf-rails tracing dashboard as tabs and features (Phase 3) ✅
 
-**Current Focus:** Integration with future RAAF tracing dashboard UI (see [INTEGRATION_GUIDE.md](../eval-ui/INTEGRATION_GUIDE.md))
+**Architecture:** Single unified RAAF platform UI with monitoring and evaluation as integrated features, not separate applications.
+
+**Current Focus:**
+- Active Record integration and metrics (Phase 4)
+- Planning continuous evaluation capabilities for production monitoring (Phase 5)
 
 ## Phase 1: Foundation & Core Infrastructure (2 weeks) ✅ **COMPLETE**
 
@@ -102,9 +106,9 @@ RAAF Eval is fully implemented with two complementary gems:
 
 ### Implementation Summary
 
-**Completed in raaf-eval-ui gem:**
-- ✅ Complete Rails engine with controllers, routes, and components
-- ✅ SpanBrowser component with filtering, search, pagination
+**Completed in raaf-rails (integrated evaluation features):**
+- ✅ Evaluation tab in unified RAAF dashboard navigation
+- ✅ SpanBrowser with "Evaluate" action integrated into trace views
 - ✅ PromptEditor with Monaco Editor integration and split-pane diff view
 - ✅ SettingsForm for AI configuration (model, temperature, max_tokens, etc.)
 - ✅ ExecutionProgress with real-time updates via Turbo Streams
@@ -113,10 +117,10 @@ RAAF Eval is fully implemented with two complementary gems:
 - ✅ ConfigurationComparison for multi-config analysis
 - ✅ Session management for save/resume functionality
 - ✅ Background job execution with EvaluationExecutionJob
-- ✅ Configurable authentication and authorization
-- ✅ Optional host app layout inheritance
+- ✅ Shared authentication and layout with tracing dashboard
+- ✅ Seamless navigation between monitoring and evaluation
 
-**Note:** Phase 3 provides standalone evaluation UI. See [INTEGRATION_GUIDE.md](../eval-ui/INTEGRATION_GUIDE.md) for integration patterns with future tracing dashboard UI.
+**Architecture:** Evaluation features fully integrated into raaf-rails tracing dashboard as part of a unified RAAF platform experience.
 
 ### Dependencies
 
@@ -149,37 +153,6 @@ RAAF Eval is fully implemented with two complementary gems:
 - Phase 1 completion (evaluation storage)
 - Phase 3 completion (UI for displaying metrics)
 
-## Phase 4.5: Integration with Tracing Dashboard (Future) ⏭️
-
-**Goal:** Seamlessly integrate evaluation UI with RAAF tracing dashboard when it exists
-**Success Criteria:** Users can navigate from production traces to evaluation experiments and back
-
-### Must-Have Features
-
-- [ ] Add "Evaluate This Span" buttons in tracing dashboard span views
-- [ ] Create "View Original Trace" links in evaluation results
-- [ ] Share authentication and authorization between engines
-- [ ] Unified navigation bar across both UIs
-- [ ] Extract shared span browser component
-
-### Should-Have Features
-
-- [ ] Evaluation queue widget in tracing dashboard
-- [ ] "Recently Evaluated" indicator on spans in trace browser
-- [ ] Unified RAAF platform layout
-- [ ] Bulk span selection for batch evaluation from trace browser
-
-### Documentation
-
-See [INTEGRATION_GUIDE.md](../eval-ui/INTEGRATION_GUIDE.md) for complete integration patterns and recommendations.
-
-**Status:** Planning phase - waiting for tracing dashboard UI to exist
-
-### Dependencies
-
-- Full tracing dashboard UI implementation
-- Phase 1-3 completion ✅
-
 ## Phase 5: Advanced Features & Collaboration (1.5 weeks)
 
 **Goal:** Enable team collaboration and advanced evaluation workflows
@@ -203,3 +176,66 @@ See [INTEGRATION_GUIDE.md](../eval-ui/INTEGRATION_GUIDE.md) for complete integra
 
 - Phase 1-4 completion
 - RAAF authentication and authorization system
+
+## Phase 6: Continuous Evaluation (2 weeks)
+
+**Goal:** Enable automatic evaluation of spans as they are created in production, supporting real-time monitoring, regression detection, and compliance tracking without impacting application performance.
+
+**Success Criteria:**
+- Spans can be automatically evaluated using configurable evaluators upon creation
+- Evaluation runs asynchronously without blocking span creation
+- Users can configure which spans to evaluate (all, sampled, filtered)
+- Results aggregated and accessible via dashboard with alerting capabilities
+
+### Must-Have Features
+
+- [ ] Evaluator Registry System - Central registry for registering evaluator types (LLM judges, rule-based, statistical) with span hooks `M`
+- [ ] Span Creation Hooks - After-commit callbacks on span creation that trigger evaluation jobs `S`
+- [ ] Background Job Execution - Async evaluation job processing using Rails background jobs (Sidekiq/GoodJob) `M`
+- [ ] Evaluation Configuration Management - UI and API for configuring continuous evaluation rules (which spans, which evaluators) `M`
+- [ ] Result Aggregation Engine - Aggregate evaluation results across spans for trend analysis and monitoring `M`
+- [ ] Continuous Evaluation Dashboard - Real-time view of ongoing evaluations with status, metrics, and trends `L`
+- [ ] Storage Optimization - Efficient storage for high-volume continuous evaluation results with data retention policies `M`
+- [ ] Performance Monitoring - Track evaluation job performance and system impact metrics `S`
+
+### Should-Have Features
+
+- [ ] Intelligent Sampling - Sample spans for evaluation based on statistical significance, error rates, or custom rules `M`
+- [ ] Real-Time Alerting - Trigger alerts when continuous evaluations detect anomalies or regressions `M`
+- [ ] Evaluation Result Versioning - Track changes in evaluation results over time with version control `S`
+- [ ] A/B Testing Support - Compare agent configurations in production using continuous evaluation `L`
+- [ ] Cost Management - Track and limit evaluation costs for continuous evaluation at scale `M`
+
+### Use Cases Supported
+
+1. **Production Monitoring**: Continuous quality checks on live agent interactions
+2. **Regression Testing**: Automatic detection when agent behavior degrades
+3. **Continuous Optimization**: Ongoing A/B testing and performance tracking
+4. **Compliance/Audit**: Automatic verification against regulatory/policy requirements
+
+### Architecture Highlights
+
+- **Plugin-based evaluator system** for extensibility (LLM judges, rule-based, statistical, custom)
+- **Configurable span filtering** (evaluate all vs sample vs targeted)
+- **Async-first design** with zero production impact (background job processing)
+- **Cost-aware execution** with budget controls and throttling
+- **Multi-dimensional aggregation** for trend analysis (by agent, model, time, evaluator)
+
+### Performance Characteristics
+
+- **Span creation latency:** +0-5ms (hook registration only, no blocking)
+- **Evaluation latency:** Seconds to minutes (async processing, user-configurable)
+- **Throughput:** Scales with worker count (independent of application)
+- **Storage growth:** Time-series partitioning with configurable retention policies
+
+### Dependencies
+
+**Required (Blocking):**
+- Phase 1 completion (evaluation engine) ✅
+- Phase 2 completion (RSpec integration for evaluators) ✅
+- Phase 4 completion (metrics aggregation infrastructure) ⚠️ **Must complete first**
+- Background job infrastructure (Sidekiq/GoodJob) - **New dependency**
+
+**Optional (Enhancing):**
+- Phase 3 completion (UI components integrated into dashboard) ✅
+- Phase 5 completion (alerting infrastructure reuse)

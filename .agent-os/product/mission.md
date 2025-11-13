@@ -1,6 +1,6 @@
 # Product Mission
 
-> Last Updated: 2025-11-06
+> Last Updated: 2025-01-12
 > Version: 1.0.0
 
 ## Pitch
@@ -66,10 +66,10 @@ By integrating directly with RSpec, RAAF Eval fits naturally into existing Ruby 
 
 ### Core Features
 
-- **Span Selection Interface**: Browse and select RAAF trace spans to use as evaluation inputs, with filtering by agent, model, time range, and success/failure status
-- **Interactive Prompt Editor**: Modify AI settings (model, temperature, max_tokens) and prompts in a web UI, then re-run evaluations to see impact immediately
+- **Unified Dashboard Integration**: Evaluation features integrated directly into the RAAF tracing dashboard for seamless monitoring-to-evaluation workflows
+- **Interactive Prompt Editor**: Modify AI settings (model, temperature, max_tokens) and prompts directly from span detail views, then re-run evaluations to see impact immediately
 - **RSpec Test Integration**: Write evaluation test cases using RSpec syntax that can be run alongside other tests in automated CI/CD pipelines
-- **Side-by-Side Comparison**: Compare agent outputs across different configurations (different models, parameters, prompts) to identify optimal settings
+- **Side-by-Side Comparison**: Compare agent outputs across different configurations (different models, parameters, prompts) within the unified dashboard
 
 ### Analysis Features
 
@@ -82,3 +82,9 @@ By integrating directly with RSpec, RAAF Eval fits naturally into existing Ruby 
 
 - **Shareable Evaluation Sessions**: Save and share evaluation configurations and results with team members for collaborative optimization
 - **Evaluation Result Export**: Export evaluation data to CSV/JSON for external analysis or integration with other tools
+
+### Continuous Evaluation Features (Phase 6+)
+
+- **Automatic Span Evaluation**: Evaluate agent spans automatically as they are created in production, enabling real-time quality monitoring without manual intervention
+- **Production Monitoring**: Track agent performance continuously with configurable evaluators (LLM judges, rule-based, statistical) for proactive regression detection
+- **Compliance & Audit**: Automatically verify agent outputs against compliance rules and audit requirements in production environments

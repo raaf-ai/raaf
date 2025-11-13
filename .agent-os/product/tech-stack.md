@@ -1,22 +1,24 @@
 # Technical Stack
 
-> Last Updated: 2025-11-06
+> Last Updated: 2025-01-12
 > Version: 1.0.0
 
 ## Application Framework
 
 - **Language:** Ruby 3.3+
-- **Architecture:** Gem within RAAF mono-repo structure
-- **Gem Name:** raaf-eval
+- **Architecture:** Gem within RAAF mono-repo structure (raaf-eval core)
+- **UI Architecture:** Evaluation features integrated into raaf-rails gem
+- **Gem Structure:** raaf-eval (core engine + RSpec) + raaf-rails (unified UI)
 - **Minimum Ruby Version:** 3.3.0
 
 ## Web Framework
 
-- **Framework:** Ruby on Rails 7.0+
+- **Framework:** Ruby on Rails 7.0+ (raaf-rails gem)
 - **UI Library:** Phlex for component-based views
 - **JavaScript:** Stimulus Rails (~> 1.0) for interactivity
 - **Reactivity:** Turbo Rails (~> 1.0) for dynamic updates
-- **CSS Framework:** Tailwind CSS (inherited from RAAF Rails integration)
+- **CSS Framework:** Tailwind CSS
+- **UI Integration:** Evaluation UI integrated into RAAF tracing dashboard as unified platform
 
 ## Database
 
@@ -37,7 +39,7 @@
 - **Core Dependency:** raaf-core (tracing, agents, spans)
 - **Tracing Integration:** raaf-tracing (span data access)
 - **Provider Support:** All RAAF providers (OpenAI, Anthropic, Groq, Gemini, Perplexity, etc.)
-- **Rails Integration:** raaf-rails (UI dashboard and routes)
+- **Rails Integration:** raaf-rails (unified dashboard with integrated evaluation features)
 
 ## API & HTTP
 
@@ -72,6 +74,16 @@
 - **Span Storage:** PostgreSQL JSONB columns for span data snapshots
 - **Result Caching:** Rails cache for computed metrics
 - **File Storage:** Local file system or Rails Active Storage (for exports)
+
+## Background Processing (Phase 6+)
+
+- **Job Framework:** Sidekiq (~> 7.0) or GoodJob (~> 3.0) for background job processing
+- **Queue Management:** Redis (for Sidekiq) or PostgreSQL (for GoodJob) for job queue storage
+- **Job Monitoring:** Sidekiq Web UI or GoodJob Dashboard for queue monitoring and management
+- **Scheduling:** Sidekiq-Cron or GoodJob::CronJob for scheduled evaluation jobs
+- **Concurrency:** Configurable worker pools for evaluation job processing
+- **Retry Logic:** Built-in retry mechanisms for transient failures (network issues, rate limits)
+- **Priority Queues:** Support for high-priority evaluation jobs (rule-based vs LLM judges)
 
 ## Security
 
