@@ -188,6 +188,92 @@ span = find_span("abc123")
 puts span.inspect
 ```
 
+#### `evaluate_run_result(run_result, agent:)`
+
+**NEW:** Evaluate a fresh agent run (RunResult) directly without needing a pre-existing span:
+
+```ruby
+# Run agent and get RunResult
+agent = MyAgent.new
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("What is 2+2?")
+
+# Evaluate the RunResult directly
+evaluation = evaluate_run_result(result, agent: agent)
+  .with_configuration(temperature: 0.9)
+  .run
+
+expect(evaluation).to have_successful_execution
+expect(evaluation).to include_content("4")
+```
+
+**Parameters:**
+- `run_result`: RAAF::RunResult from `runner.run()`
+- `agent`: Optional agent reference for config extraction (model, instructions, parameters)
+
+**Returns:** `SpanEvaluator` for method chaining
+
+**Use Cases:**
+- Test new prompts/configs from scratch
+- Develop agent behaviors without historical spans
+- Run parametric tests across configurations
+
+#### `evaluate_span` with RunResult
+
+The `evaluate_span` helper also supports **auto-detection** of RunResult objects:
+
+```ruby
+result = runner.run("Test prompt")
+
+# Auto-converts RunResult to span format
+evaluate_span(result, agent: agent)
+  .with_configuration(model: "claude-3-5-sonnet")
+  .run
+```
+
+### Span vs RunResult Evaluation
+
+| Aspect | Span-Based | RunResult-Based |
+|--------|-----------|-----------------|
+| **Starting Point** | Existing production/test span | Fresh agent execution |
+| **Use Case** | Iterate on real scenarios | Test new prompts from scratch |
+| **Context** | Preserves original execution | Creates new execution context |
+| **Typical Workflow** | Debug/optimize existing runs | Develop/test new behaviors |
+
+**Recommendation:** Use both approaches in your test suite:
+
+```ruby
+RSpec.describe "Agent Evaluation" do
+  let(:agent) { MyAgent.new }
+
+  # Test fresh runs
+  context "direct evaluation" do
+    it "responds correctly to new prompts" do
+      result = RAAF::Runner.new(agent: agent).run("New test prompt")
+
+      evaluation = evaluate_run_result(result, agent: agent)
+        .with_configuration(temperature: 0.7)
+        .run
+
+      expect(evaluation).to have_successful_execution
+    end
+  end
+
+  # Test historical spans
+  context "span-based evaluation" do
+    it "maintains quality when changing models" do
+      baseline = find_span(agent: "MyAgent", prompt_contains: "research")
+
+      result = evaluate_span(baseline)
+        .with_configuration(model: "claude-3-5-sonnet")
+        .run
+
+      expect(result).not_to regress_from_baseline
+    end
+  end
+end
+```
+
 #### `query_spans(filters)`
 
 Search for spans matching criteria:
