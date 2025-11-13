@@ -38,6 +38,7 @@ module RAAF
       gemini: "RAAF::Models::GeminiProvider",
       huggingface: "RAAF::Models::HuggingFaceProvider",
       perplexity: "RAAF::Models::PerplexityProvider",
+      ollama: "RAAF::Models::OllamaProvider",
       together: "RAAF::Models::TogetherProvider",
       xai: "RAAF::Models::XAIProvider",
       litellm: "RAAF::Models::LiteLLMProvider",

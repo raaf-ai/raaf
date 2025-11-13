@@ -33,6 +33,16 @@ RSpec.describe RAAF::ProviderRegistry do
       expect(described_class.detect("sonar-reasoning")).to eq(:perplexity)
     end
 
+    it "detects Gemini models" do
+      expect(described_class.detect("gemini-pro")).to eq(:gemini)
+      expect(described_class.detect("gemini-1.5-flash")).to eq(:gemini)
+    end
+
+    it "detects Moonshot models" do
+      expect(described_class.detect("kimi-k2-instruct")).to eq(:moonshot)
+      expect(described_class.detect("moonshot-v1-8k")).to eq(:moonshot)
+    end
+
     it "returns nil for unknown models" do
       expect(described_class.detect("unknown-model-123")).to be_nil
       expect(described_class.detect(nil)).to be_nil
@@ -112,7 +122,7 @@ RSpec.describe RAAF::ProviderRegistry do
     it "returns list of all registered providers" do
       providers = described_class.providers
 
-      expect(providers).to include(:openai, :responses, :anthropic, :cohere, :groq, :perplexity, :together, :litellm)
+      expect(providers).to include(:openai, :responses, :anthropic, :cohere, :groq, :perplexity, :ollama, :together, :litellm)
     end
 
     it "includes custom providers" do
@@ -131,6 +141,7 @@ RSpec.describe RAAF::ProviderRegistry do
       expect(described_class.registered?(:openai)).to be true
       expect(described_class.registered?(:anthropic)).to be true
       expect(described_class.registered?(:cohere)).to be true
+      expect(described_class.registered?(:ollama)).to be true
     end
 
     it "returns false for unknown providers" do
