@@ -37,7 +37,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "raaf-tracing", "0.1.0"
 
   # Database and ORM
-  spec.add_dependency "activerecord", "~> 7.0"
+  spec.add_dependency "activerecord", "~> 8.0"
+  spec.add_dependency "activesupport", "~> 8.0"
   spec.add_dependency "pg", "~> 1.4"
 
   # NLP and statistical analysis
