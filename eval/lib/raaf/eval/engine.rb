@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
-require_relative "../../raaf"
+# Require RAAF core only when actually using the engine
+# This allows DSL components to be tested independently
+begin
+  require_relative "../../raaf"
+rescue LoadError
+  # RAAF core not available - this is OK for testing DSL components
+end
 
 module RAAF
   module Eval

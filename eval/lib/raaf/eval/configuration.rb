@@ -25,6 +25,18 @@ module RAAF
       # @return [Integer] Timeout for AI comparator requests in seconds (default: 30)
       attr_accessor :ai_comparator_timeout
 
+      # @return [String] Model to use for LLM judge evaluator (default: "gpt-4o")
+      attr_accessor :llm_judge_model
+
+      # @return [Boolean] Whether to enable LLM judge caching (default: true)
+      attr_accessor :llm_judge_cache
+
+      # @return [Float] Temperature for LLM judge evaluator (default: 0.1)
+      attr_accessor :llm_judge_temperature
+
+      # @return [Integer] Timeout for LLM judge requests in seconds (default: 30)
+      attr_accessor :llm_judge_timeout
+
       ##
       # Initialize configuration with defaults
       def initialize
@@ -33,6 +45,10 @@ module RAAF
         @ai_comparator_model = "gpt-4o"
         @enable_ai_comparator = true
         @ai_comparator_timeout = 30
+        @llm_judge_model = "gpt-4o"
+        @llm_judge_cache = true
+        @llm_judge_temperature = 0.1
+        @llm_judge_timeout = 30
       end
 
       ##
