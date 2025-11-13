@@ -1164,6 +1164,363 @@ result[:recommendations].each { |rec| puts "- #{rec}" }
 - ✅ Cost-effective alternative to GPT-4 with strong tool-calling
 - ✅ Applications requiring autonomous planning and execution
 
+### Ollama Provider (Local LLMs)
+
+**Ollama** provides a local LLM runtime for running open-source models like Llama, Mistral, Gemma, and Phi directly on your hardware without external API dependencies. Perfect for privacy-sensitive applications, offline usage, and cost-free inference.
+
+#### Basic Usage
+
+```ruby
+# Initialize Ollama provider (no API key needed - local provider)
+ollama_provider = RAAF::Models::OllamaProvider.new
+
+agent = RAAF::Agent.new(
+  name: "Local Assistant",
+  instructions: "You are a helpful AI assistant running locally",
+  model: "llama3.2"
+)
+
+runner = RAAF::Runner.new(agent: agent, provider: ollama_provider)
+result = runner.run("Explain the Ruby object model")
+```
+
+#### Installation and Setup
+
+**Prerequisites:**
+1. Install Ollama: https://ollama.ai/
+2. Start Ollama server: `ollama serve`
+3. Pull a model: `ollama pull llama3.2`
+
+**System Requirements:**
+- **Minimum:** 8 GB RAM, 2-core CPU
+- **Recommended:** 16 GB RAM, 4+ core CPU, GPU (NVIDIA/AMD/Apple Silicon)
+- **Optimal:** 32+ GB RAM, 8+ core CPU, dedicated GPU with 8+ GB VRAM
+
+**Model Size Guide:**
+- **7B models** (llama3.2, mistral): 8 GB RAM minimum
+- **13B models** (llama2:13b): 16 GB RAM minimum
+- **70B models** (llama2:70b): 64 GB RAM minimum
+
+#### Available Models
+
+Ollama supports 100+ models via `ollama pull`. Popular models:
+
+```ruby
+# Small models (fast, efficient)
+agent.model = "llama3.2"        # Meta's latest 3B model (recommended)
+agent.model = "phi"             # Microsoft's 2.7B model
+agent.model = "qwen2.5:0.5b"    # Alibaba's 0.5B model (fastest)
+
+# Medium models (balanced)
+agent.model = "llama3.2:3b"     # Meta's 3B model
+agent.model = "mistral"         # Mistral 7B (good quality)
+agent.model = "gemma:7b"        # Google's 7B model
+
+# Large models (best quality, slower)
+agent.model = "llama2:13b"      # Meta's 13B model
+agent.model = "mixtral:8x7b"    # Mistral's MoE 47B model
+agent.model = "llama2:70b"      # Meta's 70B model (requires 64+ GB RAM)
+
+# Check available models on your system
+# Run: ollama list
+```
+
+#### Custom Ollama Server
+
+```ruby
+# Connect to remote Ollama instance
+remote_provider = RAAF::Models::OllamaProvider.new(
+  host: "http://192.168.1.100:11434"
+)
+
+# Custom timeout (default: 120 seconds)
+slow_provider = RAAF::Models::OllamaProvider.new(
+  timeout: 300  # 5 minutes for large models
+)
+
+# Environment variables
+# export OLLAMA_HOST=http://localhost:11434
+# export RAAF_OLLAMA_TIMEOUT=180
+ollama_provider = RAAF::Models::OllamaProvider.new  # Uses environment variables
+```
+
+#### Tool Calling Support
+
+Ollama supports **native function calling** with compatible models:
+
+```ruby
+def get_weather(location:)
+  "Weather in #{location}: sunny, 72°F"
+end
+
+agent = RAAF::Agent.new(
+  name: "Tool Agent",
+  instructions: "Help users with weather information",
+  model: "llama3.2"  # Tool-calling capable
+)
+
+agent.add_tool(method(:get_weather))
+
+ollama_provider = RAAF::Models::OllamaProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: ollama_provider)
+
+result = runner.run("What's the weather in Tokyo?")
+# Ollama will call get_weather function autonomously
+```
+
+**Tool-Calling Models:**
+- ✅ llama3.2 (3B) - Best tool-calling support
+- ✅ mistral (7B) - Good tool-calling
+- ✅ llama3.1 (8B) - Excellent tool-calling
+- ⚠️ gemma, phi - Limited tool-calling support
+
+#### Streaming Support
+
+```ruby
+# Stream responses in real-time
+agent = RAAF::Agent.new(
+  name: "Streaming Assistant",
+  model: "llama3.2"
+)
+
+ollama_provider = RAAF::Models::OllamaProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: ollama_provider)
+
+runner.stream("Write a story about Ruby programming") do |chunk|
+  case chunk[:type]
+  when "content"
+    print chunk[:content]  # Print each chunk as it arrives
+  when "finish"
+    puts "\n\nFinished! Reason: #{chunk[:finish_reason]}"
+    puts "Tokens used: #{chunk[:usage][:total_tokens]}"
+  end
+end
+```
+
+#### RAAF DSL Integration
+
+```ruby
+# Use Ollama in DSL agents with automatic provider detection
+class LocalResearchAgent < RAAF::DSL::Agent
+  instructions "Conduct research using local LLM"
+  model "llama3.2"
+  provider :ollama  # Automatic provider detection
+
+  schema do
+    field :summary, type: :string, required: true
+    field :key_points, type: :array, required: true
+  end
+end
+
+# Run with automatic provider instantiation
+dsl_agent = LocalResearchAgent.new
+dsl_runner = RAAF::Runner.new(agent: dsl_agent)
+result = dsl_runner.run("Research Ruby metaprogramming")
+
+# Access structured results
+puts result[:summary]
+result[:key_points].each { |point| puts "- #{point}" }
+```
+
+#### Custom Provider Options in DSL
+
+```ruby
+# Pass provider options through DSL
+class RemoteOllamaAgent < RAAF::DSL::Agent
+  instructions "Use remote Ollama server"
+  model "llama3.2"
+  provider :ollama
+
+  # Custom provider options
+  provider_options(
+    host: "http://192.168.1.100:11434",
+    timeout: 180
+  )
+end
+
+# Provider automatically configured with custom options
+agent = RemoteOllamaAgent.new
+runner = RAAF::Runner.new(agent: agent)
+result = runner.run("Hello!")
+```
+
+#### Advanced Configuration
+
+```ruby
+# Custom generation parameters
+result = runner.run(
+  "Write a creative poem",
+  temperature: 0.9,        # Higher creativity (0.0-2.0)
+  top_p: 0.95,            # Nucleus sampling
+  top_k: 40,              # Top-k sampling
+  max_tokens: 1024,       # Max output length
+  stop: ["END", "---"]    # Stop sequences
+)
+
+# Model-specific parameters
+result = runner.run(
+  "Explain quickly",
+  num_ctx: 2048,          # Context window size
+  num_predict: 100        # Max new tokens (Ollama-specific)
+)
+```
+
+#### Error Handling and Troubleshooting
+
+**Common Errors:**
+
+```ruby
+# 1. Ollama not running
+begin
+  result = runner.run("Hello")
+rescue RAAF::Models::ConnectionError => e
+  puts "❌ Ollama not running. Start with: ollama serve"
+  puts "Error: #{e.message}"
+end
+
+# 2. Model not found
+begin
+  result = runner.run("Hello")
+rescue RAAF::Models::ModelNotFoundError => e
+  puts "❌ Model not found. Pull with: ollama pull llama3.2"
+  puts "Error: #{e.message}"
+end
+
+# 3. Timeout errors (model loading)
+begin
+  # First request may take 5-10 seconds for model loading
+  result = runner.run("Hello", timeout: 180)  # Increase timeout
+rescue Timeout::Error => e
+  puts "❌ Request timed out. Model may be loading or too large."
+end
+```
+
+**Troubleshooting Guide:**
+
+| Issue | Solution |
+|-------|----------|
+| "Connection refused" | Run `ollama serve` to start Ollama |
+| "Model not found" | Run `ollama pull <model>` to download |
+| Slow first request | Normal - model loading (5-10 seconds) |
+| Slow responses | Use smaller model or GPU acceleration |
+| Out of memory | Use smaller model or increase RAM |
+| "timeout" errors | Increase timeout parameter or use faster model |
+
+#### Performance Characteristics
+
+**Latency Expectations:**
+
+| Model Size | CPU (8-core) | GPU (RTX 3090) | Apple M1 Max |
+|------------|-------------|----------------|--------------|
+| 3B (llama3.2) | 2-5 sec | 0.5-1 sec | 1-2 sec |
+| 7B (mistral) | 5-10 sec | 1-2 sec | 2-4 sec |
+| 13B (llama2:13b) | 15-30 sec | 3-5 sec | 5-10 sec |
+| 70B (llama2:70b) | 60+ sec | 10-15 sec | N/A (requires 64+ GB RAM) |
+
+**Performance Optimization:**
+
+```ruby
+# 1. Use GPU acceleration (automatically detected)
+# Ollama uses GPU if available (NVIDIA CUDA, AMD ROCm, Apple Metal)
+
+# 2. Use smaller models for faster responses
+agent.model = "llama3.2"  # 3B model - fast on CPU
+
+# 3. Adjust context window for memory efficiency
+result = runner.run("Task", num_ctx: 2048)  # Smaller context = less memory
+
+# 4. Use quantized models (automatically handled by Ollama)
+# Most Ollama models are pre-quantized (Q4_K_M, Q5_K_M)
+
+# 5. Batch requests for throughput
+# Ollama automatically batches concurrent requests
+```
+
+#### Hardware Requirements and Recommendations
+
+**Minimum (Development/Testing):**
+- 8 GB RAM
+- 2-core CPU
+- 20 GB disk space
+- Models: llama3.2, phi, qwen2.5:0.5b
+
+**Recommended (Production):**
+- 16 GB RAM
+- 4+ core CPU or integrated GPU
+- 50 GB disk space
+- Models: llama3.2, mistral, llama3.1
+
+**Optimal (Enterprise):**
+- 32+ GB RAM
+- 8+ core CPU + dedicated GPU (NVIDIA RTX 3090/4090, AMD RX 7900 XTX)
+- 100+ GB disk space
+- Models: Any including 70B models
+
+**GPU Acceleration:**
+- **NVIDIA**: CUDA-enabled GPUs (RTX 3000/4000 series, A100, H100)
+- **AMD**: ROCm-supported GPUs (RX 6000/7000 series)
+- **Apple Silicon**: Metal acceleration (M1/M2/M3 Pro/Max/Ultra)
+
+#### Best Practices
+
+1. **Model Selection**
+   - Start with llama3.2 (3B) - best balance of speed/quality
+   - Use mistral (7B) for better quality at reasonable speed
+   - Use llama3.1 (8B) for excellent tool-calling support
+   - Avoid 70B models unless you have 64+ GB RAM and GPU
+
+2. **First Request Handling**
+   - First request takes 5-10 seconds (model loading)
+   - Log model loading progress for user feedback
+   - Increase timeout for first request: `timeout: 180`
+
+3. **Memory Management**
+   - Ollama caches models in memory after first use
+   - To free memory: `ollama stop <model>` or restart Ollama
+   - Monitor memory usage: `ollama ps`
+
+4. **Production Deployment**
+   - Use systemd/launchd to auto-start Ollama on boot
+   - Monitor Ollama logs: `journalctl -u ollama` (Linux) or `log show --predicate 'process == "ollama"'` (Mac)
+   - Set environment variables in systemd service file
+   - Use reverse proxy (nginx/caddy) for remote access security
+
+5. **Privacy and Security**
+   - Ollama runs entirely offline - no data sent to external servers
+   - All processing happens locally on your hardware
+   - Perfect for sensitive data, compliance requirements, air-gapped environments
+
+**Ollama Capabilities:**
+- ✅ Local inference (complete privacy, no API costs)
+- ✅ 100+ open-source models supported
+- ✅ Native tool/function calling (select models)
+- ✅ Streaming responses
+- ✅ Multi-turn conversations
+- ✅ RAAF DSL compatibility
+- ✅ Multi-agent handoffs (with tool-calling models)
+- ✅ GPU acceleration (NVIDIA/AMD/Apple)
+- ✅ Offline operation (no internet required)
+
+**Ollama Limitations:**
+- ⚠️ Requires local installation and model downloads (5-40 GB per model)
+- ⚠️ Performance depends on hardware (slower than cloud APIs without GPU)
+- ⚠️ Limited by system memory (8-64 GB RAM required)
+- ⚠️ First request slow due to model loading (5-10 seconds)
+- ⚠️ Tool calling only works with specific models (llama3.2, mistral, llama3.1)
+- ⚠️ No automatic scaling (single instance per server)
+
+**When to Use Ollama:**
+- ✅ Privacy-sensitive applications (healthcare, finance, legal)
+- ✅ Offline/air-gapped environments
+- ✅ Cost optimization (no per-token fees)
+- ✅ Development and testing (no API costs)
+- ✅ Low-latency local inference (with GPU)
+- ✅ Compliance requirements (GDPR, HIPAA, SOC2)
+- ✅ Educational purposes and experimentation
+- ❌ High-throughput production APIs (use cloud providers)
+- ❌ Resource-constrained environments (< 8 GB RAM)
+- ❌ Applications requiring latest model capabilities
+
 ## Multi-Provider Support
 
 ```ruby

@@ -53,6 +53,11 @@ RAAF (Ruby AI Agents Factory) Providers extends the provider interfaces from `ra
 - **Features**: Chat completions, multimodal, streaming
 - **API**: GenerativeAI API
 
+### Ollama
+- **Models**: Llama 3, Mistral, Gemma, Phi, and 100+ open-source models
+- **Features**: Local inference, chat completions, tool calling, streaming, privacy-focused
+- **API**: OpenAI-compatible Chat Completions API
+
 ## Installation
 
 Add this line to your application's Gemfile:
