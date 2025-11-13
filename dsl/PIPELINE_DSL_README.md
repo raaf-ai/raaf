@@ -389,6 +389,104 @@ Agent.each_over(:from, :search_terms, as: :query, to: :company_results)
 # Output: { company_results: [result1, result2] }
 ```
 
+## Token Usage Tracking
+
+RAAF Pipelines automatically aggregate token usage from all agents, providing visibility into AI costs and consumption:
+
+### Automatic Aggregation
+
+```ruby
+class MarketDiscoveryPipeline < RAAF::Pipeline
+  flow Market::Analysis >> Market::Scoring >> Market::SearchTermGenerator
+end
+
+pipeline = MarketDiscoveryPipeline.new(product: product, company: company)
+result = pipeline.run
+
+# Automatic token usage aggregation
+puts result[:usage]
+# => {
+#   input_tokens: 450,
+#   output_tokens: 600,
+#   total_tokens: 1050,
+#   prompt_tokens: 450,      # Alias for compatibility
+#   completion_tokens: 600,  # Alias for compatibility
+#   agent_breakdown: [
+#     { agent_name: "Analysis", input_tokens: 150, output_tokens: 200, total_tokens: 350 },
+#     { agent_name: "Scoring", input_tokens: 150, output_tokens: 200, total_tokens: 350 },
+#     { agent_name: "SearchTermGenerator", input_tokens: 150, output_tokens: 200, total_tokens: 350 }
+#   ]
+# }
+```
+
+### Cache and Reasoning Tokens
+
+Pipelines automatically aggregate advanced token types:
+
+```ruby
+pipeline = ReasoningPipeline.new(task: "complex analysis")
+result = pipeline.run
+
+# Includes cache usage if agents used cached prompts
+puts result[:usage][:cache_read_input_tokens]  # 125
+
+# Includes reasoning tokens if agents used reasoning models (o1, o3, etc.)
+puts result[:usage][:output_tokens_details][:reasoning_tokens]  # 150
+```
+
+### Indifferent Key Access
+
+Usage data supports both symbol and string key access:
+
+```ruby
+# Both work identically
+puts result[:usage][:input_tokens]    # 450
+puts result["usage"]["input_tokens"]  # 450
+```
+
+### Per-Agent Breakdown
+
+Track which agents consume the most tokens:
+
+```ruby
+result[:usage][:agent_breakdown].each do |agent_usage|
+  puts "#{agent_usage[:agent_name]}: #{agent_usage[:total_tokens]} tokens"
+end
+
+# Output:
+# Analysis: 350 tokens
+# Scoring: 350 tokens
+# SearchTermGenerator: 350 tokens
+```
+
+### Cost Calculation
+
+Use aggregated usage for cost tracking:
+
+```ruby
+usage = result[:usage]
+
+# Example: OpenAI GPT-4 pricing (approximate)
+input_cost_per_1k = 0.03
+output_cost_per_1k = 0.06
+
+total_cost = (usage[:input_tokens] / 1000.0 * input_cost_per_1k) +
+             (usage[:output_tokens] / 1000.0 * output_cost_per_1k)
+
+puts "Pipeline cost: $#{total_cost.round(4)}"
+# => "Pipeline cost: $0.0495"
+```
+
+### Tracing Integration
+
+Usage data automatically flows to pipeline spans when tracing is enabled:
+
+```ruby
+# Usage appears in RAAF tracing dashboard
+# - pipeline.usage attribute contains full aggregated usage
+# - dialog.total_tokens attribute for OpenAI dashboard compatibility
+```
+
 ## Benefits
 
 1. **Concise**: 95% reduction in code (from 66+ lines to 3)

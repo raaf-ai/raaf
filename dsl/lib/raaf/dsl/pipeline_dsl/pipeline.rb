@@ -248,6 +248,16 @@ module RAAF
         # Ensure success flag is present
         merged_result[:success] = true unless merged_result.key?(:success)
 
+        # Add usage to pipeline span if tracing is enabled
+        if @current_span && merged_result[:usage]
+          @current_span.set_attribute("pipeline.usage", merged_result[:usage])
+          @current_span.set_attribute("dialog.total_tokens", {
+            prompt_tokens: merged_result[:usage][:input_tokens] || 0,
+            completion_tokens: merged_result[:usage][:output_tokens] || 0,
+            total_tokens: merged_result[:usage][:total_tokens] || 0
+          })
+        end
+
         # Sanitize the result to ensure it's serializable and free of circular references
         # This converts ActiveRecord objects to plain hashes and maintains HashWithIndifferentAccess
         sanitize_result(merged_result)
@@ -792,6 +802,9 @@ module RAAF
         merged = deep_merge_results(merged, result)
       end
 
+      # Aggregate token usage from all agents
+      merged[:usage] = aggregate_usage_statistics(agent_results)
+
       # Wrap final result in HashWithIndifferentAccess for consistent symbol/string access
       ActiveSupport::HashWithIndifferentAccess.new(merged)
     end
@@ -799,6 +812,9 @@ module RAAF
     # Deep merge two result hashes, handling arrays and nested hashes intelligently
     def deep_merge_results(base, new_result)
       new_result.each do |key, value|
+        # Skip usage field - it's handled separately by aggregate_usage_statistics
+        next if key.to_s == "usage" || key == :usage
+
         if base[key].is_a?(Array) && value.is_a?(Array)
           # Intelligently merge arrays by matching IDs
           base[key] = merge_arrays_by_id(base[key], value)
@@ -844,6 +860,74 @@ module RAAF
       end
 
       base_lookup.values
+    end
+
+    # Aggregate token usage statistics from all agent results
+    # Sums token counts and provides per-agent breakdown for transparency
+    #
+    # @param agent_results [Array<Hash>] Array of agent result hashes
+    # @return [Hash] Aggregated usage statistics with indifferent access
+    def aggregate_usage_statistics(agent_results)
+      total_input_tokens = 0
+      total_output_tokens = 0
+      total_cache_read_tokens = 0
+      total_reasoning_tokens = 0
+      agent_breakdown = []
+
+      agent_results.each_with_index do |result, index|
+        next unless result.is_a?(Hash)
+
+        usage = result[:usage] || result["usage"]
+        next unless usage.is_a?(Hash)
+
+        # Support both input_tokens/output_tokens and prompt_tokens/completion_tokens
+        input_tokens = usage[:input_tokens] || usage["input_tokens"] ||
+                      usage[:prompt_tokens] || usage["prompt_tokens"] || 0
+        output_tokens = usage[:output_tokens] || usage["output_tokens"] ||
+                       usage[:completion_tokens] || usage["completion_tokens"] || 0
+
+        # Optional fields
+        cache_tokens = usage[:cache_read_input_tokens] || usage["cache_read_input_tokens"] || 0
+        reasoning_tokens = usage.dig(:output_tokens_details, :reasoning_tokens) ||
+                          usage.dig("output_tokens_details", "reasoning_tokens") || 0
+
+        # Accumulate totals
+        total_input_tokens += input_tokens
+        total_output_tokens += output_tokens
+        total_cache_read_tokens += cache_tokens
+        total_reasoning_tokens += reasoning_tokens
+
+        # Build per-agent breakdown
+        agent_name = result[:agent_name] || result["agent_name"] || "agent_#{index + 1}"
+        agent_breakdown << {
+          agent_name: agent_name,
+          input_tokens: input_tokens,
+          output_tokens: output_tokens,
+          total_tokens: input_tokens + output_tokens
+        }.tap do |breakdown|
+          breakdown[:cache_read_input_tokens] = cache_tokens if cache_tokens > 0
+          breakdown[:reasoning_tokens] = reasoning_tokens if reasoning_tokens > 0
+        end
+      end
+
+      # Build aggregated usage hash
+      usage_hash = {
+        input_tokens: total_input_tokens,
+        output_tokens: total_output_tokens,
+        total_tokens: total_input_tokens + total_output_tokens,
+        prompt_tokens: total_input_tokens,      # Alias for compatibility
+        completion_tokens: total_output_tokens,  # Alias for compatibility
+        agent_breakdown: agent_breakdown
+      }
+
+      # Add optional fields if present
+      usage_hash[:cache_read_input_tokens] = total_cache_read_tokens if total_cache_read_tokens > 0
+
+      if total_reasoning_tokens > 0
+        usage_hash[:output_tokens_details] = { reasoning_tokens: total_reasoning_tokens }
+      end
+
+      ActiveSupport::HashWithIndifferentAccess.new(usage_hash)
     end
 
     # Sanitize pipeline result using Rails' built-in serializable_hash for ActiveRecord objects
