@@ -184,7 +184,7 @@ module RAAF
               model_name = @model || evaluation_result.baseline.dig(:metadata, :model) || "gpt-4o"
               baseline_usage = evaluation_result.baseline_usage
 
-              @actual_cost = Metrics.cost_diff(baseline_usage, usage, model: model_name)
+              @actual_cost = MetricsCalculator.cost_diff(baseline_usage, usage, model: model_name)
               @actual_cost <= @max_cost
             end
 

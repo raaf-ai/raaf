@@ -52,7 +52,7 @@ module RAAF
                 next unless eval_result[:success]
 
                 eval_output = eval_result[:output] || ""
-                similarity = Metrics.semantic_similarity(baseline_output, eval_output)
+                similarity = MetricsCalculator.semantic_similarity(baseline_output, eval_output)
 
                 if similarity < 0.7
                   regressions << {

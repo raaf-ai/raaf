@@ -120,7 +120,7 @@ module RAAF
               configuration_name: config_name,
               configuration_result: {
                 passed: result.passed?,
-                aggregate_score: result.aggregate_score
+                aggregate_score: result.average_score
               },
               duration_ms: duration_ms,
               evaluators_run: evaluators_run

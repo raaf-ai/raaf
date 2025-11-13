@@ -98,6 +98,12 @@ module RAAF
         # @return [Boolean] true if field exists
         def field_exists?(field)
           field = field.to_s
+
+          # First check if the field exists at the top level (for pre-extracted values)
+          # This handles cases where wildcard extraction has already been performed
+          return true if @result.key?(field)
+
+          # Otherwise check nested path
           parts = field.split(".")
 
           current = @result
@@ -118,6 +124,11 @@ module RAAF
 
         # Extract a field value using dot notation
         def extract_field_value(field_path)
+          # First check if the field exists at the top level (for pre-extracted values)
+          # This handles cases where wildcard extraction has already been performed
+          return @result[field_path] if @result.key?(field_path)
+
+          # Otherwise traverse nested path
           parts = field_path.split(".")
 
           current = @result

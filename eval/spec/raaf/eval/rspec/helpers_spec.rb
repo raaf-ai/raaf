@@ -94,4 +94,107 @@ RSpec.describe RAAF::Eval::RSpec::Helpers do
       expect(span[:agent_name]).to eq("TestAgent")
     end
   end
+
+  describe "#evaluate_run_result" do
+    let(:agent) do
+      RAAF::Agent.new(
+        name: "TestAgent",
+        instructions: "You are a test assistant",
+        model: "gpt-4o",
+        temperature: 0.7
+      )
+    end
+
+    let(:run_result) do
+      RAAF::RunResult.new(
+        agent_name: "TestAgent",
+        messages: [
+          { role: "user", content: "What is 2+2?" },
+          { role: "assistant", content: "4" }
+        ],
+        usage: { total_tokens: 50, input_tokens: 10, output_tokens: 40 },
+        final_output: "4"
+      )
+    end
+
+    it "returns a SpanEvaluator" do
+      evaluator = evaluate_run_result(run_result, agent: agent)
+      expect(evaluator).to be_a(RAAF::Eval::RSpec::SpanEvaluator)
+    end
+
+    it "converts RunResult to span format" do
+      evaluator = evaluate_run_result(run_result, agent: agent)
+
+      expect(evaluator.span[:agent_name]).to eq("TestAgent")
+      expect(evaluator.span[:model]).to eq("gpt-4o")
+      expect(evaluator.span[:instructions]).to eq("You are a test assistant")
+      expect(evaluator.span[:source]).to eq("run_result")
+    end
+
+    it "works without agent reference" do
+      evaluator = evaluate_run_result(run_result)
+
+      expect(evaluator).to be_a(RAAF::Eval::RSpec::SpanEvaluator)
+      expect(evaluator.span[:agent_name]).to eq("TestAgent")
+      expect(evaluator.span[:model]).to eq("unknown")
+    end
+
+    it "supports method chaining" do
+      evaluator = evaluate_run_result(run_result, agent: agent)
+        .with_configuration(temperature: 0.9)
+
+      expect(evaluator.configurations).to have_key(:default)
+      expect(evaluator.configurations[:default]).to include(temperature: 0.9)
+    end
+  end
+
+  describe "#evaluate_span with RunResult" do
+    let(:agent) do
+      RAAF::Agent.new(
+        name: "TestAgent",
+        instructions: "Test instructions",
+        model: "gpt-4o"
+      )
+    end
+
+    let(:run_result) do
+      RAAF::RunResult.new(
+        agent_name: "TestAgent",
+        messages: [
+          { role: "user", content: "Hello" },
+          { role: "assistant", content: "Hi" }
+        ],
+        usage: { total_tokens: 20 }
+      )
+    end
+
+    it "auto-converts RunResult via evaluate_span" do
+      evaluator = evaluate_span(run_result, agent: agent)
+
+      expect(evaluator).to be_a(RAAF::Eval::RSpec::SpanEvaluator)
+      expect(evaluator.span[:source]).to eq("run_result")
+      expect(evaluator.span[:agent_name]).to eq("TestAgent")
+    end
+
+    it "requires agent parameter for proper conversion" do
+      evaluator = evaluate_span(run_result, agent: agent)
+
+      expect(evaluator.span[:model]).to eq("gpt-4o")
+      expect(evaluator.span[:instructions]).to eq("Test instructions")
+    end
+
+    it "still supports span ID" do
+      evaluator = evaluate_span("test_span_123")
+
+      expect(evaluator).to be_a(RAAF::Eval::RSpec::SpanEvaluator)
+      expect(evaluator.span[:id]).to eq("test_span_123")
+    end
+
+    it "still supports span hash" do
+      evaluator = evaluate_span(test_span)
+
+      expect(evaluator).to be_a(RAAF::Eval::RSpec::SpanEvaluator)
+      expect(evaluator.span[:id]).to eq("test_span_123")
+    end
+  end
 end

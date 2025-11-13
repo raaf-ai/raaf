@@ -7,7 +7,7 @@ module RAAF
     #
     # This class provides methods to calculate various metrics for comparing
     # evaluation results against baselines.
-    class Metrics
+    class MetricsCalculator
       class << self
         ##
         # Calculates semantic similarity between two texts

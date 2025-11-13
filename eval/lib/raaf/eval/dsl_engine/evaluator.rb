@@ -189,26 +189,23 @@ module RAAF
         def execute_field_evaluations(field_contexts, config_name)
           field_results = {}
           evaluator_index = 0
+          total_field_sets = count_total_evaluators  # Total number of field evaluator sets
 
           @evaluator_definition.field_evaluator_sets.each do |field_name, evaluator_set|
             field_context = field_contexts[field_name]
             next unless field_context # Skip if field not found
 
-            # Get evaluator count for this field
-            evaluator_count = evaluator_set.evaluators.size
+            # Emit single evaluator start event for the field evaluation
+            # Use the first evaluator's name as representative
+            evaluator_name = evaluator_set.evaluators.first[:name]
 
-            # Emit evaluator start events for each evaluator in the set
-            evaluator_set.evaluators.each_with_index do |evaluator_config, idx|
-              evaluator_name = evaluator_config[:name]
-
-              @event_emitter.emit_evaluator_start(
-                config_name,
-                field_name,
-                evaluator_name,
-                evaluator_index + idx,
-                evaluator_count
-              )
-            end
+            @event_emitter.emit_evaluator_start(
+              config_name,
+              field_name,
+              evaluator_name,
+              evaluator_index,
+              total_field_sets  # Pass total field sets, not current set size
+            )
 
             # Execute the evaluator set and time it
             start_time = Time.now
@@ -217,21 +214,18 @@ module RAAF
 
             field_results[field_name] = result
 
-            # Emit evaluator end events for each evaluator in the set
-            evaluator_set.evaluators.each_with_index do |evaluator_config, idx|
-              evaluator_name = evaluator_config[:name]
+            # Emit single evaluator end event for the field evaluation
+            @event_emitter.emit_evaluator_end(
+              config_name,
+              field_name,
+              evaluator_name,
+              { passed: result[:passed], score: result[:score] },
+              duration_ms
+            )
 
-              @event_emitter.emit_evaluator_end(
-                config_name,
-                field_name,
-                evaluator_name,
-                { passed: result.passed?, score: result.aggregate_score },
-                duration_ms / evaluator_count # Distribute duration across evaluators
-              )
-
-              @progress_calculator.advance_evaluator
-              evaluator_index += 1
-            end
+            # Advance progress once per field evaluation (not per evaluator in set)
+            @progress_calculator.advance_evaluator
+            evaluator_index += 1
           end
 
           field_results
@@ -242,27 +236,31 @@ module RAAF
         # @param config_name [Symbol] Configuration name
         # @param full_span [Hash] Complete span data
         # @return [Hash] Field name => FieldContext
-def create_field_contexts(field_data, config_name, full_span)
-          field_data.transform_values do |value|
-            # Create context with field name and full result
-            context_data = full_span.merge(
-              configuration: config_name
-            )
-            DSL::FieldContext.new(value, context_data)
-          end.transform_keys do |field_path|
-            # Convert field paths to their aliases if defined
-            # Check if this field path has an alias
+        def create_field_contexts(field_data, config_name, full_span)
+          # Build context data with configuration
+          context_data = full_span.merge(configuration: config_name)
+
+          # Transform field data to field contexts
+          # For fields with wildcards, we already have the extracted flat arrays
+          # We'll create a simplified FieldContext that holds the pre-extracted value
+          field_data.each_with_object({}) do |(field_path, value), contexts|
+            # Get alias if defined
             alias_name = @field_selector.aliases.key(field_path)
-            alias_name ? alias_name.to_sym : field_path.to_sym
+            key = alias_name ? alias_name.to_sym : field_path.to_sym
+
+            # Create a hash that contains the extracted value at the field path
+            # This allows FieldContext to work with pre-extracted values
+            field_result = context_data.merge(field_path => value)
+
+            # Create FieldContext with the field path and the result containing the value
+            contexts[key] = DSL::FieldContext.new(field_path, field_result)
           end
         end
 
-        # Count total evaluators across all fields
-        # @return [Integer] Total number of evaluators
+        # Count total field evaluator sets (treating each set as one evaluation unit)
+        # @return [Integer] Total number of field evaluator sets
         def count_total_evaluators
-          @evaluator_definition.field_evaluator_sets.sum do |_, evaluator_set|
-            evaluator_set.evaluators.size
-          end
+          @evaluator_definition.field_evaluator_sets.size
         end
 
         # Store evaluation result to history

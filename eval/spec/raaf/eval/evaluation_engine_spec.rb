@@ -61,6 +61,85 @@ RSpec.describe RAAF::Eval::EvaluationEngine do
       expect(configs.first.name).to eq("GPT-4")
       expect(configs.last.name).to eq("Claude")
     end
+
+    context "with RunResult" do
+      let(:agent) do
+        RAAF::Agent.new(
+          name: "TestAgent",
+          instructions: "You are a test assistant",
+          model: "gpt-4o",
+          temperature: 0.7
+        )
+      end
+
+      let(:run_result) do
+        RAAF::RunResult.new(
+          agent_name: "TestAgent",
+          messages: [
+            { role: "user", content: "What is 2+2?" },
+            { role: "assistant", content: "4" }
+          ],
+          usage: { total_tokens: 50, input_tokens: 10, output_tokens: 40 },
+          final_output: "4"
+        )
+      end
+
+      it "accepts RunResult as baseline" do
+        run = engine.create_run(
+          name: "RunResult Test",
+          baseline_span: run_result,
+          configurations: configurations,
+          agent: agent
+        )
+
+        expect(run).to be_persisted
+        expect(run.name).to eq("RunResult Test")
+      end
+
+      it "converts RunResult to span format" do
+        run = engine.create_run(
+          name: "RunResult Test",
+          baseline_span: run_result,
+          configurations: configurations,
+          agent: agent
+        )
+
+        stored_span = RAAF::Eval::Models::EvaluationSpan.find_by(span_id: run.baseline_span_id)
+        expect(stored_span).not_to be_nil
+        expect(stored_span.span_data["agent_name"]).to eq("TestAgent")
+        expect(stored_span.span_data["model"]).to eq("gpt-4o")
+        expect(stored_span.span_data["source"]).to eq("run_result")
+      end
+
+      it "extracts metadata from RunResult" do
+        run = engine.create_run(
+          name: "RunResult Test",
+          baseline_span: run_result,
+          configurations: configurations,
+          agent: agent
+        )
+
+        stored_span = RAAF::Eval::Models::EvaluationSpan.find_by(span_id: run.baseline_span_id)
+        metadata = stored_span.span_data["metadata"]
+
+        expect(metadata["tokens"]).to eq(50)
+        expect(metadata["input_tokens"]).to eq(10)
+        expect(metadata["output_tokens"]).to eq(40)
+        expect(metadata["output"]).to eq("4")
+      end
+
+      it "works without agent reference" do
+        run = engine.create_run(
+          name: "RunResult Test",
+          baseline_span: run_result,
+          configurations: configurations
+        )
+
+        expect(run).to be_persisted
+        stored_span = RAAF::Eval::Models::EvaluationSpan.find_by(span_id: run.baseline_span_id)
+        expect(stored_span.span_data["model"]).to eq("unknown")
+      end
+    end
   end
 
   describe "#execute_run" do

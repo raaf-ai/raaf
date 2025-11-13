@@ -17,15 +17,15 @@ module RAAF
             # Determine overall pass status (all fields must pass)
             passed = field_results.values.all? { |result| result[:passed] }
 
-            # Build evaluation result
+            # Build evaluation result (EvaluationResult only accepts field_results, configuration, metadata)
             DSL::EvaluationResult.new(
-              passed: passed,
               field_results: field_results,
               configuration: config_name,
-              field_data: field_data,
               metadata: {
                 evaluated_at: Time.now,
-                field_count: field_results.size
+                field_count: field_results.size,
+                passed: passed,           # Include passed status in metadata
+                field_data: field_data    # Include field data in metadata
               }
             )
           end

@@ -59,30 +59,19 @@ module RAAF
         end
 
         # Extract a field value from a result hash
-        # @param field_path [String, Symbol] The field path
+        # Supports wildcard (*) for array iteration
+        # @param field_path [String, Symbol] The field path (e.g., "items.*.name")
         # @param result [Hash] The result hash to extract from
-        # @return [Object] The extracted value
+        # @return [Object] The extracted value (array if wildcards used)
         def extract_value(field_path, result)
           field_path = field_path.to_s
           parts = parse_path(field_path)
-          
+
           # Ensure we're working with indifferent access
           result = ensure_indifferent_access(result)
-          
-          current = result
-          parts.each_with_index do |part, index|
-            if current.is_a?(Hash)
-              if current.key?(part)
-                current = current[part]
-              else
-                raise FieldNotFoundError, "Field '#{field_path}' not found in result"
-              end
-            else
-              raise FieldNotFoundError, "Field '#{field_path}' not found in result"
-            end
-          end
-          
-          current
+
+          # Use recursive helper for wildcard support
+          extract_value_recursive(parts, result, field_path)
         end
 
         # Resolve an alias to its original field path
@@ -131,6 +120,45 @@ module RAAF
         def ensure_indifferent_access(hash)
           return hash if hash.is_a?(ActiveSupport::HashWithIndifferentAccess)
           ActiveSupport::HashWithIndifferentAccess.new(hash)
+        end
+
+        # Recursive helper to extract values with wildcard support
+        # @param parts [Array<String>] Remaining path parts to traverse
+        # @param current [Object] Current value being traversed
+        # @param full_path [String] Full original path for error messages
+        # @return [Object] Extracted value (array if wildcards used)
+        def extract_value_recursive(parts, current, full_path)
+          # Base case: no more parts, return current value
+          return current if parts.empty?
+
+          part = parts.first
+          remaining = parts[1..]
+
+          if part == '*'
+            # Wildcard: iterate over array and collect values
+            unless current.is_a?(Array)
+              raise FieldNotFoundError,
+                    "Wildcard '*' requires array, got #{current.class} for '#{full_path}'"
+            end
+
+            # Map over array elements and recurse with remaining path
+            # flat_map flattens nested arrays from multiple wildcards
+            current.flat_map do |element|
+              extract_value_recursive(remaining, element, full_path)
+            end
+          else
+            # Regular path component: navigate into hash
+            if current.is_a?(Hash)
+              if current.key?(part)
+                extract_value_recursive(remaining, current[part], full_path)
+              else
+                raise FieldNotFoundError, "Field '#{full_path}' not found in result (missing key '#{part}')"
+              end
+            else
+              raise FieldNotFoundError,
+                    "Expected hash at '#{part}' in '#{full_path}', got #{current.class}"
+            end
+          end
         end
       end
     end

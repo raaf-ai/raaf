@@ -28,7 +28,7 @@ module RAAF
               result_data: result.to_h,
               field_results: result.field_results,
               overall_passed: result.passed?,
-              aggregate_score: result.aggregate_score,
+              aggregate_score: result.average_score,
               duration_ms: duration_ms,
               created_at: Time.now
             )

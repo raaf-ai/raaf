@@ -11,8 +11,9 @@ module RAAF
         ##
         # Evaluates a span with optional configuration overrides
         #
-        # @param span_id_or_object [String, Hash] span ID or span object
+        # @param span_id_or_object [String, Hash, RAAF::RunResult] span ID, span object, or RunResult
         # @param span [Hash] span object (keyword argument alternative)
+        # @param agent [RAAF::Agent, nil] optional agent for RunResult conversion
         # @return [SpanEvaluator] evaluator for method chaining
         #
         # @example Evaluate by ID
@@ -24,8 +25,14 @@ module RAAF
         #   evaluate_span(span: my_span)
         #     .with_configuration(model: "gpt-4o")
         #     .run
-        def evaluate_span(span_id_or_object = nil, span: nil)
-          span_data = resolve_span(span_id_or_object, span)
+        #
+        # @example Evaluate RunResult
+        #   result = runner.run("What is 2+2?")
+        #   evaluate_span(result, agent: agent)
+        #     .with_configuration(temperature: 0.9)
+        #     .run
+        def evaluate_span(span_id_or_object = nil, span: nil, agent: nil)
+          span_data = resolve_span(span_id_or_object, span, agent)
           SpanEvaluator.new(span_data)
         end
 
@@ -71,17 +78,46 @@ module RAAF
           RAAF::Eval.latest_span(agent: agent)
         end
 
+        ##
+        # Evaluates a RunResult with optional configuration overrides
+        #
+        # @param run_result [RAAF::RunResult] result from runner.run()
+        # @param agent [RAAF::Agent, nil] optional agent for config extraction
+        # @return [SpanEvaluator] evaluator for method chaining
+        #
+        # @example Evaluate RunResult
+        #   result = runner.run("What is 2+2?")
+        #   evaluate_run_result(result, agent: agent)
+        #     .with_configuration(temperature: 0.9)
+        #     .run
+        #
+        # @example Compare configurations
+        #   result = runner.run("Explain AI")
+        #   evaluate_run_result(result, agent: agent)
+        #     .with_configurations([
+        #       { name: :low_temp, temperature: 0.1 },
+        #       { name: :high_temp, temperature: 0.9 }
+        #     ])
+        #     .run
+        def evaluate_run_result(run_result, agent: nil)
+          span_data = RunResultAdapter.to_span(run_result, agent: agent)
+          SpanEvaluator.new(span_data)
+        end
+
         private
 
-        def resolve_span(span_id_or_object, span_kwarg)
+        def resolve_span(span_id_or_object, span_kwarg, agent)
           span_data = span_kwarg || span_id_or_object
 
           if span_data.is_a?(String)
             RAAF::Eval.find_span(span_data)
+          elsif span_data.is_a?(RAAF::RunResult)
+            # Auto-convert RunResult to span format
+            RunResultAdapter.to_span(span_data, agent: agent)
           elsif span_data.is_a?(Hash)
             span_data
           else
-            raise ArgumentError, "Expected span ID (String) or span object (Hash), got #{span_data.class}"
+            raise ArgumentError, "Expected span ID (String), RunResult, or span Hash, got #{span_data.class}"
           end
         end
       end

@@ -9,12 +9,18 @@ module RAAF
       ##
       # Create a new evaluation run
       # @param name [String] Name of the evaluation run
-      # @param baseline_span [Hash, Object] Baseline span data or span object
+      # @param baseline_span [Hash, Object, RAAF::RunResult] Baseline span data, span object, or RunResult
       # @param configurations [Array<Hash>] Array of configuration hashes
       # @param description [String, nil] Optional description
       # @param initiated_by [String, nil] User or system identifier
+      # @param agent [RAAF::Agent, nil] Optional agent for RunResult conversion
       # @return [RAAF::Eval::Models::EvaluationRun]
-      def create_run(name:, baseline_span:, configurations:, description: nil, initiated_by: nil)
+      def create_run(name:, baseline_span:, configurations:, description: nil, initiated_by: nil, agent: nil)
+        # Convert RunResult to span format if needed
+        if baseline_span.is_a?(RAAF::RunResult)
+          baseline_span = RunResultAdapter.to_span(baseline_span, agent: agent)
+        end
+
         # Serialize baseline span if needed
         span_data = baseline_span.is_a?(Hash) ? baseline_span : SpanSerializer.serialize(baseline_span)
 

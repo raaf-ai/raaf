@@ -62,7 +62,7 @@ module RAAF
               baseline_output = extract_output(result.is_a?(EvaluationResult) ? result.baseline : result)
               eval_output = extract_output(result)
 
-              @similarity = Metrics.semantic_similarity(baseline_output, eval_output)
+              @similarity = MetricsCalculator.semantic_similarity(baseline_output, eval_output)
               @similarity >= @threshold
             end
 
@@ -73,7 +73,7 @@ module RAAF
                 baseline_output = @evaluation_result.baseline_output
                 eval_output = result[:output] || ""
 
-                similarity = Metrics.semantic_similarity(baseline_output, eval_output)
+                similarity = MetricsCalculator.semantic_similarity(baseline_output, eval_output)
                 @failures << "#{name} (#{format_percent(similarity * 100)})" if similarity < @threshold
               end
 

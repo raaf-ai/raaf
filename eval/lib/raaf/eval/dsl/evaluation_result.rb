@@ -47,7 +47,8 @@ module RAAF
         # Get configuration name
         # @return [String, nil] The configuration name if set
         def configuration_name
-          @configuration[:name]
+          # Handle both Symbol and Hash configuration formats
+          @configuration.is_a?(Hash) ? @configuration[:name] : @configuration
         end
 
         # Get execution time in milliseconds
@@ -106,6 +107,18 @@ module RAAF
             execution_time_ms: execution_time_ms,
             timestamp: timestamp,
             evaluator_name: evaluator_name
+          }
+        end
+
+        # Convert evaluation result to hash for serialization
+        # @return [Hash] Complete result data
+        def to_h
+          {
+            passed: passed?,
+            field_results: @field_results,
+            configuration: @configuration,
+            metadata: @metadata,
+            summary: summary
           }
         end
       end

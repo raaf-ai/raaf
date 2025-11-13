@@ -187,11 +187,9 @@ module RAAF
         # @return [Array<Class>] Array of evaluator classes
         def built_in_evaluators
           [
-            # Quality evaluators (4)
+            # Quality evaluators (1 - only SemanticSimilarity implemented)
             RAAF::Eval::Evaluators::Quality::SemanticSimilarity,
-            RAAF::Eval::Evaluators::Quality::Coherence,
-            RAAF::Eval::Evaluators::Quality::HallucinationDetection,
-            RAAF::Eval::Evaluators::Quality::Relevance,
+            # Note: Coherence, HallucinationDetection, Relevance are stubs (not yet implemented)
 
             # Performance evaluators (3)
             RAAF::Eval::Evaluators::Performance::TokenEfficiency,
@@ -219,9 +217,9 @@ module RAAF
             RAAF::Eval::Evaluators::Structural::FormatCompliance,
 
             # LLM evaluators (3)
-            RAAF::Eval::Evaluators::Llm::LlmJudge,
-            RAAF::Eval::Evaluators::Llm::QualityScore,
-            RAAF::Eval::Evaluators::Llm::RubricEvaluation
+            RAAF::Eval::Evaluators::LLM::LlmJudge,
+            RAAF::Eval::Evaluators::LLM::QualityScore,
+            RAAF::Eval::Evaluators::LLM::RubricEvaluation
           ]
         end
       end

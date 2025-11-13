@@ -32,7 +32,7 @@ module RAAF
               return false if baseline_samples.empty? || eval_samples.empty?
 
               # Calculate statistical significance
-              result = Metrics.statistical_significance(baseline_samples, eval_samples, alpha: @alpha)
+              result = MetricsCalculator.statistical_significance(baseline_samples, eval_samples, alpha: @alpha)
               @p_value = result[:p_value]
               @is_significant = result[:is_significant]
 
