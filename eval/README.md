@@ -103,6 +103,13 @@ Run with: `bundle exec rspec spec/evaluations/`
 - ✅ Helper methods for span querying
 - ✅ CI/CD ready
 
+### Consistency Reporting (NEW)
+- ✅ **Multi-Run Analysis**: Statistical analysis across multiple evaluation runs
+- ✅ **Variance Detection**: Automatic detection of acceptable vs high variance
+- ✅ **Console Reports**: Formatted output with emojis and detailed metrics
+- ✅ **Export Formats**: JSON and CSV export for external analysis
+- ✅ **Performance Tracking**: Latency, token usage, and success rate metrics
+
 ### Metrics System
 - ✅ **Quantitative**: Token usage, latency, accuracy, length
 - ✅ **Qualitative**: Semantic similarity, bias, hallucinations (AI-powered)
@@ -308,6 +315,242 @@ end
 ```
 
 More examples: **[Getting Started Guide](GETTING_STARTED.md#advanced-patterns)**
+
+## Consistency Reporting
+
+**NEW:** RAAF Eval includes a comprehensive consistency reporting framework for analyzing agent behavior across multiple evaluation runs.
+
+### Quick Start
+
+```ruby
+require 'raaf/eval/reporting'
+
+# Run evaluations multiple times
+results = 3.times.map do
+  {
+    evaluation: Eval::Prospect::Scoring.evaluate_agent_run(agent),
+    latency_ms: 30000,
+    agent_result: { usage: { total_tokens: 5000 } }
+  }
+end
+
+# Generate consistency report
+report = RAAF::Eval::Reporting::ConsistencyReport.new(results, tolerance: 12)
+report.generate
+
+# Output:
+# ================================================================================
+# CONSISTENCY ANALYSIS (Across 3 runs)
+# ================================================================================
+#
+# ✅ individual_scores
+#   Score Range: 90-100 (std dev: 3.2)
+#   Average: 95.5
+#   ✨ Good consistency (variance ≤12)
+#
+# Performance Summary:
+# --------------------------------------------------------------------------------
+# Latency: avg 30000ms, min 25000ms, max 35000ms
+# Tokens: avg 5000, min 4800, max 5200
+# Success Rate: 100%
+```
+
+### Features
+
+**Multi-Run Aggregation:**
+- Collect results from multiple evaluation runs
+- Extract field values (arrays and scalars)
+- Group results by field name
+- Calculate performance metrics
+
+**Statistical Analysis:**
+- Mean, min, max, range, standard deviation
+- Variance status: `:perfect`, `:acceptable`, `:high_variance`
+- Configurable tolerance threshold (default: 12 points)
+- Sample size tracking
+
+**Formatted Reporting:**
+- Console output with emojis (✅ ⚠️ ❌)
+- Detailed metrics with context
+- Performance summary (latency, tokens, success rate)
+- Overall assessment
+
+**Export Options:**
+- JSON export with metadata
+- CSV export for spreadsheet analysis
+- Summary statistics
+
+### Usage Patterns
+
+**Basic Usage:**
+```ruby
+# Run agent multiple times and collect results
+run_results = []
+
+3.times do
+  result = agent.run
+  run_results << {
+    evaluation: result[:evaluation],
+    latency_ms: result[:latency_ms],
+    agent_result: result[:agent_result]
+  }
+end
+
+# Generate report with custom tolerance
+report = RAAF::Eval::Reporting::ConsistencyReport.new(
+  run_results,
+  tolerance: 15  # Accept variance up to 15 points
+)
+
+# Display formatted console output
+report.generate
+```
+
+**JSON Export:**
+```ruby
+# Export report data as JSON
+json_data = report.to_json
+
+# Save to file
+File.write('consistency_report.json', json_data)
+
+# Structure:
+# {
+#   "metadata": {
+#     "total_runs": 3,
+#     "tolerance": 12,
+#     "generated_at": "2025-01-14T10:30:00Z"
+#   },
+#   "consistency_analysis": {
+#     "individual_scores": {
+#       "mean": 95.5,
+#       "min": 90,
+#       "max": 100,
+#       "range": 10,
+#       "std_dev": 3.2,
+#       "variance_status": "acceptable",
+#       "sample_size": 15
+#     }
+#   },
+#   "performance_summary": {
+#     "latencies": [30000, 25000, 35000],
+#     "tokens": [5000, 4800, 5200],
+#     "success_rate": 1.0
+#   }
+# }
+```
+
+**CSV Export:**
+```ruby
+# Export as CSV for spreadsheet analysis
+csv_data = report.to_csv
+
+# Save to file
+File.write('consistency_report.csv', csv_data)
+
+# CSV format:
+# field_name,mean,min,max,range,std_dev,variance_status,sample_size
+# individual_scores,95.5,90,100,10,3.2,acceptable,15
+# reasoning_texts,0.85,0.75,0.95,0.2,0.08,acceptable,3
+```
+
+**Custom Analysis:**
+```ruby
+# Access aggregator and analyzer directly
+aggregator = RAAF::Eval::Reporting::MultiRunAggregator.new(run_results)
+analyzer = RAAF::Eval::Reporting::ConsistencyAnalyzer.new(aggregator, tolerance: 12)
+
+# Analyze specific field
+field_analysis = analyzer.analyze_field(:individual_scores)
+# => {
+#   mean: 95.5,
+#   min: 90,
+#   max: 100,
+#   range: 10,
+#   std_dev: 3.2,
+#   variance_status: :acceptable,
+#   sample_size: 15
+# }
+
+# Get performance summary
+performance = aggregator.performance_summary
+# => {
+#   latencies: [30000, 25000, 35000],
+#   tokens: [5000, 4800, 5200],
+#   success_rate: 1.0,
+#   total_runs: 3,
+#   successful_runs: 3
+# }
+
+# Get summary statistics
+summary = report.summary
+# => {
+#   total_runs: 3,
+#   success_rate: 1.0,
+#   fields_analyzed: 2,
+#   high_variance_fields: 0
+# }
+```
+
+### Integration with Rake Tasks
+
+**Before (Manual Implementation - ~200 lines):**
+```ruby
+# Complex manual reporting code
+def analyze_consistency(results)
+  # Extract values
+  # Calculate statistics
+  # Determine variance
+  # Format output
+  # ... 200+ lines of custom code
+end
+```
+
+**After (Using RAAF Eval Reporting - ~10 lines):**
+```ruby
+require 'raaf/eval/reporting'
+
+task :evaluate_consistency do
+  # Run evaluations
+  results = 3.times.map { run_evaluation }
+
+  # Generate report
+  report = RAAF::Eval::Reporting::ConsistencyReport.new(results)
+  report.generate
+
+  # Export if needed
+  File.write('report.json', report.to_json)
+  File.write('report.csv', report.to_csv)
+end
+```
+
+### Variance Status Reference
+
+| Status | Range | Description |
+|--------|-------|-------------|
+| `:perfect` | 0 | All values identical |
+| `:acceptable` | 1-12 | Within tolerance (configurable) |
+| `:high_variance` | >12 | Exceeds tolerance threshold |
+
+**Customizing Tolerance:**
+```ruby
+# Stricter tolerance (5 points)
+report = RAAF::Eval::Reporting::ConsistencyReport.new(results, tolerance: 5)
+
+# More lenient tolerance (20 points)
+report = RAAF::Eval::Reporting::ConsistencyReport.new(results, tolerance: 20)
+```
+
+### Components
+
+The consistency reporting framework consists of 4 main components:
+
+1. **MultiRunAggregator** - Aggregates results from multiple runs
+2. **ConsistencyAnalyzer** - Performs statistical analysis
+3. **ConsoleReporter** - Generates formatted console output
+4. **ConsistencyReport** - Unified API for all reporting features
+
+All components are fully tested with comprehensive RSpec coverage.
 
 ## Troubleshooting
 
