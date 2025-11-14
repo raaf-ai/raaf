@@ -269,7 +269,7 @@ module RAAF
       # @private
       #
       def convert_anthropic_to_openai_format(result)
-        {
+        response = {
           "choices" => [{
             "message" => {
               "role" => "assistant",
@@ -280,6 +280,18 @@ module RAAF
           "usage" => result["usage"],
           "model" => result["model"]
         }
+
+        # Normalize token usage to canonical format
+        if response["usage"]
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            response,
+            provider_name: "anthropic",
+            model: response["model"]
+          )
+          response["usage"] = normalized_usage if normalized_usage
+        end
+
+        response
       end
 
       ##

@@ -273,6 +273,16 @@ module RAAF
         response[:metadata] ||= {}
         response[:metadata][:search_results] = search_results
 
+        # Normalize token usage to canonical format
+        if response["usage"]
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            response,
+            provider_name: "perplexity",
+            model: response["model"] || body[:model]
+          )
+          response["usage"] = normalized_usage if normalized_usage
+        end
+
         response
       end
     end

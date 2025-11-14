@@ -313,7 +313,19 @@ module RAAF
 
         handle_api_error(response, "HuggingFace") unless response.is_a?(Net::HTTPSuccess)
 
-        RAAF::Utils.parse_json(response.body)
+        result = RAAF::Utils.parse_json(response.body)
+
+        # Normalize token usage to canonical format
+        if result["usage"]
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            result,
+            provider_name: "huggingface",
+            model: result["model"] || body[:model]
+          )
+          result["usage"] = normalized_usage if normalized_usage
+        end
+
+        result
       end
 
       ##

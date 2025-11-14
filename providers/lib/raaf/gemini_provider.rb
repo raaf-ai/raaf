@@ -115,7 +115,8 @@ module RAAF
         conversation_messages = messages.dup
         accumulated_content = ""
         chunk_number = 0
-        total_usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+        # Use OpenAI-compatible key names (input_tokens/output_tokens, not prompt_tokens/completion_tokens)
+        total_usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
 
         loop do
           chunk_number += 1
@@ -136,9 +137,20 @@ module RAAF
 
           # Accumulate content and usage
           accumulated_content += response_content
-          total_usage[:prompt_tokens] += usage["prompt_tokens"] || 0
-          total_usage[:completion_tokens] += usage["completion_tokens"] || 0
-          total_usage[:total_tokens] += usage["total_tokens"] || 0
+
+          # DEBUG: Log what we're receiving
+          puts "🔍 [GEMINI DEBUG] usage hash received: #{usage.inspect}"
+          puts "🔍 [GEMINI DEBUG] usage keys: #{usage.keys.inspect}"
+          puts "🔍 [GEMINI DEBUG] trying input_tokens: #{usage["input_tokens"].inspect}"
+          puts "🔍 [GEMINI DEBUG] trying inputTokens: #{usage["inputTokens"].inspect}"
+          puts "🔍 [GEMINI DEBUG] trying prompt_tokens: #{usage["prompt_tokens"].inspect}"
+
+          # Gemini API returns inputTokens/outputTokens - accumulate using OpenAI-compatible key names
+          total_usage[:input_tokens] += usage["input_tokens"] || usage["inputTokens"] || usage["prompt_tokens"] || 0
+          total_usage[:output_tokens] += usage["output_tokens"] || usage["outputTokens"] || usage["completion_tokens"] || 0
+          total_usage[:total_tokens] += usage["total_tokens"] || usage["totalTokens"] || 0
+
+          puts "🔍 [GEMINI DEBUG] total_usage after accumulation: #{total_usage.inspect}"
 
           # Check if continuation is needed
           is_truncated = finish_reason == "length" # "length" is the OpenAI-compatible mapping for MAX_TOKENS
@@ -185,6 +197,14 @@ module RAAF
         end
 
         # Return final accumulated response
+        # Keep prompt_tokens/completion_tokens format for Usage::Normalizer compatibility
+        # The Normalizer expects these key names, not input_tokens/output_tokens
+        normalized_usage = {
+          "prompt_tokens" => total_usage[:input_tokens],
+          "completion_tokens" => total_usage[:output_tokens],
+          "total_tokens" => total_usage[:total_tokens]
+        }
+
         {
           "choices" => [{
             "message" => {
@@ -194,10 +214,55 @@ module RAAF
             }.compact,
             "finish_reason" => chunk_number >= max_continuation_attempts ? "length" : "stop"
           }],
-          "usage" => total_usage,
+          "usage" => normalized_usage,
           "model" => model,
           "continuation_chunks" => chunk_number
         }
+      end
+
+      ##
+      # Responses API compatibility method - delegates to perform_chat_completion
+      # Runner calls responses_completion(), so we need to implement it
+      #
+      # @param messages [Array<Hash>] Conversation messages
+      # @param model [String] Gemini model to use
+      # @param tools [Array<Hash>, nil] Available tools
+      # @return [Hash] Standardized chat completion response
+      #
+      def responses_completion(messages:, model:, tools: nil, **kwargs)
+        log_debug("🔍 responses_completion called")
+
+        # Get Chat Completions format response
+        chat_result = perform_chat_completion(messages: messages, model: model, tools: tools, **kwargs)
+
+        log_debug("🔍 chat_result from perform_chat_completion",
+                  has_choices: chat_result.key?("choices"),
+                  has_usage: chat_result.key?("usage"),
+                  usage_value: chat_result["usage"],
+                  choices_count: chat_result["choices"]&.size)
+
+        # Convert Chat Completions format to Responses API format
+        # Chat Completions: { "choices" => [...], "usage" => {...}, "model" => ... }
+        # Responses API: { "output" => [...], "usage" => {...}, "model" => ... }
+
+        responses_result = {
+          "output" => chat_result["choices"],  # Rename "choices" → "output"
+          "usage" => chat_result["usage"],      # Keep usage unchanged
+          "model" => chat_result["model"]       # Keep model unchanged
+        }
+
+        # Preserve continuation_chunks if present
+        if chat_result["continuation_chunks"]
+          responses_result["continuation_chunks"] = chat_result["continuation_chunks"]
+        end
+
+        log_debug("🔍 responses_completion final result",
+                  has_output: responses_result.key?("output"),
+                  has_usage: responses_result.key?("usage"),
+                  usage_value: responses_result["usage"],
+                  output_count: responses_result["output"]&.size)
+
+        responses_result
       end
 
       ##
@@ -464,7 +529,7 @@ module RAAF
         # Extract usage metadata
         usage = extract_usage_metadata(result["usageMetadata"])
 
-        {
+        response = {
           "choices" => [{
             "message" => {
               "role" => "assistant",
@@ -476,6 +541,13 @@ module RAAF
           "usage" => usage,
           "model" => result["modelVersion"] || result["model"]
         }
+
+        # NOTE: extract_usage_metadata already returns correct format
+        # {"prompt_tokens" => X, "completion_tokens" => Y, "total_tokens" => Z}
+        # No normalization needed - RAAF::Usage::Normalizer expects different keys
+        # (input_tokens/output_tokens) and would overwrite with zeros
+
+        response
       end
 
       ##

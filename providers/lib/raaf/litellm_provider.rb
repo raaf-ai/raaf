@@ -212,7 +212,19 @@ module RAAF
           handle_error(response.code.to_i, error_body)
         end
 
-        RAAF::Utils.parse_json(response.body)
+        result = RAAF::Utils.parse_json(response.body)
+
+        # Normalize token usage to canonical format
+        if result["usage"]
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            result,
+            provider_name: "litellm",
+            model: result["model"] || body[:model]
+          )
+          result["usage"] = normalized_usage if normalized_usage
+        end
+
+        result
       rescue Net::ReadTimeout => e
         raise APIError, "Request timeout: #{e.message}. Consider increasing timeout for large models."
       rescue StandardError => e
