@@ -1450,18 +1450,36 @@ module RAAF
             tool_calls: tools&.any? || false
           }
 
+          # Debug: Log provider class before calling
+          log_debug("🔍 RUNNER: About to call responses_completion",
+                    provider_class: @provider.class.name,
+                    provider_object_id: @provider.object_id,
+                    has_method: @provider.respond_to?(:responses_completion))
+
           response = state[:current_agent].with_tracing(:llm_call,
                                                        parent_component: state[:current_agent],
                                                        **metadata) do
             @provider.responses_completion(**api_params)
           end
         else
+          # Debug: Log provider class before calling
+          log_debug("🔍 RUNNER: About to call responses_completion (no tracing)",
+                    provider_class: @provider.class.name,
+                    provider_object_id: @provider.object_id,
+                    has_method: @provider.respond_to?(:responses_completion))
+
           response = @provider.responses_completion(**api_params)
         end
 
 
         # Validate response structure for Responses API
         raise StandardError, "Invalid response structure: missing 'output' field" unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
+
+        # DEBUG: Log what keys are actually in the response
+        puts "🔍 [RUNNER DEBUG] Response keys: #{response.keys.inspect}"
+        puts "🔍 [RUNNER DEBUG] response['usage']: #{response['usage'].inspect}"
+        puts "🔍 [RUNNER DEBUG] response[:usage]: #{response[:usage].inspect}"
+        puts "🔍 [RUNNER DEBUG] Response class: #{response.class.name}"
 
         # Log the response details
         log_debug_api("📥 RUNNER: Received API response",
@@ -1488,22 +1506,71 @@ module RAAF
                         end)
         end
 
-        # Log usage details
-        if response[:usage]
+        # Log usage details (simplified - providers now return normalized usage)
+        if response["usage"]
           log_debug_api("📥 RUNNER: Response usage details",
                         usage: {
-                          input_tokens: response[:usage][:input_tokens] || response[:usage]["input_tokens"],
-                          output_tokens: response[:usage][:output_tokens] || response[:usage]["output_tokens"],
-                          total_tokens: response[:usage][:total_tokens] || response[:usage]["total_tokens"]
+                          input_tokens: response["usage"]["input_tokens"],
+                          output_tokens: response["usage"]["output_tokens"],
+                          total_tokens: response["usage"]["total_tokens"]
                         })
         end
 
-        # Accumulate usage
-        if response[:usage] || response["usage"]
-          usage = response[:usage] || response["usage"]
-          state[:accumulated_usage][:input_tokens] += usage[:input_tokens] || usage["input_tokens"] || 0
-          state[:accumulated_usage][:output_tokens] += usage[:output_tokens] || usage["output_tokens"] || 0
-          state[:accumulated_usage][:total_tokens] += usage[:total_tokens] || usage["total_tokens"] || 0
+        # DEBUG: Log response before accumulation
+        puts "🔍 [RESPONSE DEBUG] response.class: #{response.class.name}"
+        puts "🔍 [RESPONSE DEBUG] response.keys: #{response.keys.inspect}"
+        puts "🔍 [RESPONSE DEBUG] response['usage'].present?: #{response['usage'].present?}"
+        puts "🔍 [RESPONSE DEBUG] response[:usage].present?: #{response[:usage].present?}"
+        puts "🔍 [RESPONSE DEBUG] response['usage']: #{response['usage'].inspect}"
+        puts "🔍 [RESPONSE DEBUG] response[:usage]: #{response[:usage].inspect}"
+
+        # Accumulate usage (support both RAAF and OpenAI key formats)
+        if response["usage"]
+          usage = response["usage"]
+
+          # DEBUG: Log all attempts to extract tokens
+          input_raaf_str = usage["input_tokens"]
+          input_raaf_sym = usage[:input_tokens]
+          input_openai_str = usage["prompt_tokens"]
+          input_openai_sym = usage[:prompt_tokens]
+          puts "🔍 [ACCUMULATE DEBUG] Input token extraction attempts:"
+          puts "  usage['input_tokens']: #{input_raaf_str.inspect}"
+          puts "  usage[:input_tokens]: #{input_raaf_sym.inspect}"
+          puts "  usage['prompt_tokens']: #{input_openai_str.inspect}"
+          puts "  usage[:prompt_tokens]: #{input_openai_sym.inspect}"
+          puts "  Final input_tokens: #{input_raaf_str || input_raaf_sym || input_openai_str || input_openai_sym || 0}"
+
+          # Support both RAAF-style (input_tokens, output_tokens) and OpenAI-style (prompt_tokens, completion_tokens)
+          state[:accumulated_usage][:input_tokens] += usage["input_tokens"] || usage[:input_tokens] || usage["prompt_tokens"] || usage[:prompt_tokens] || 0
+          state[:accumulated_usage][:output_tokens] += usage["output_tokens"] || usage[:output_tokens] || usage["completion_tokens"] || usage[:completion_tokens] || 0
+          state[:accumulated_usage][:total_tokens] += usage["total_tokens"] || usage[:total_tokens] || 0
+
+          puts "🔍 [ACCUMULATE DEBUG] After accumulation:"
+          puts "  state[:accumulated_usage]: #{state[:accumulated_usage].inspect}"
+
+          # Preserve nested token details (reasoning tokens, cached tokens, etc.)
+          # Handle both string and symbol keys
+          output_details = usage["output_tokens_details"] || usage[:output_tokens_details]
+          if output_details
+            state[:accumulated_usage][:output_tokens_details] ||= {}
+            output_details.each do |key, value|
+              # Convert key to symbol for consistency
+              sym_key = key.to_sym
+              state[:accumulated_usage][:output_tokens_details][sym_key] ||= 0
+              state[:accumulated_usage][:output_tokens_details][sym_key] += value if value
+            end
+          end
+
+          input_details = usage["input_tokens_details"] || usage[:input_tokens_details]
+          if input_details
+            state[:accumulated_usage][:input_tokens_details] ||= {}
+            input_details.each do |key, value|
+              # Convert key to symbol for consistency
+              sym_key = key.to_sym
+              state[:accumulated_usage][:input_tokens_details][sym_key] ||= 0
+              state[:accumulated_usage][:input_tokens_details][sym_key] += value if value
+            end
+          end
         end
 
         model_responses << response

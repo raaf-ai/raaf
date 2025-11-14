@@ -549,6 +549,16 @@ module RAAF
 
         parsed_response = RAAF::Utils.parse_json(response.body)
 
+        # Normalize token usage to canonical format
+        if parsed_response["usage"]
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            parsed_response,
+            provider_name: "openai",
+            model: body[:model]
+          )
+          parsed_response["usage"] = normalized_usage if normalized_usage
+        end
+
         # DEBUG: Log raw response to see all fields
         log_debug("📥 RAW OPENAI RESPONSES API RESPONSE",
                   category: "api_response",

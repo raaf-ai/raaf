@@ -93,15 +93,25 @@ module RAAF
           root_agent_span = @agent.current_span
 
           # Set this as the PERMANENT root span for ALL tool executions - never change it
-          RAAF::Tracing::ToolIntegration.with_agent_context(@agent, root_agent_span) do
+          result = RAAF::Tracing::ToolIntegration.with_agent_context(@agent, root_agent_span) do
             execute_core_logic(messages)
           end
+
+          # Populate span with usage data
+          populate_span_usage(root_agent_span, result)
+
+          result
         end
       else
         @agent.with_tracing(:execute,
                            parent_component: @agent.instance_variable_get(:@parent_component),
                            agent_name: agent_name) do
-          execute_core_logic(messages)
+          result = execute_core_logic(messages)
+
+          # Populate span with usage data
+          populate_span_usage(@agent.current_span, result)
+
+          result
         end
       end
     end
@@ -369,6 +379,26 @@ module RAAF
     end
 
     private
+
+    ##
+    # Populate span with accumulated usage data from result
+    #
+    # Extracts token counts from RunResult and writes them to span attributes
+    # so SpanSerializer can extract them for eval metrics.
+    #
+    # @param span [Span] The agent span to populate
+    # @param result [RunResult] The execution result with usage data
+    # @return [void]
+    #
+    def populate_span_usage(span, result)
+      return unless span && result.respond_to?(:usage) && result.usage
+
+      # Span is a Hash with :attributes key, not an object with setters
+      span[:attributes] ||= {}
+      span[:attributes][:input_tokens] = result.usage[:input_tokens] || 0
+      span[:attributes][:output_tokens] = result.usage[:output_tokens] || 0
+      span[:attributes][:total_tokens] = result.usage[:total_tokens] || 0
+    end
 
     ##
     # Create service bundle for the executor

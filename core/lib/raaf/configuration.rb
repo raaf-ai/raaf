@@ -175,6 +175,15 @@ module RAAF
         ttl: 3600,
         max_size: 1000,
         storage: "memory"
+      },
+
+      # Usage Pricing Configuration
+      usage: {
+        pricing_data: {
+          url: "https://www.helicone.ai/api/llm-costs",
+          ttl: 604_800, # 7 days in seconds
+          file_path: File.expand_path("~/.raaf/pricing_data.json")
+        }
       }
     }.freeze
 
@@ -191,7 +200,10 @@ module RAAF
       "RAAF_MAX_TURNS" => "agent.max_turns",
       "RAAF_DEFAULT_MODEL" => "agent.default_model",
       "RAAF_LOG_LEVEL" => "logging.level",
-      "RAAF_DEBUG" => "repl.debug_mode"
+      "RAAF_DEBUG" => "repl.debug_mode",
+      "RAAF_PRICING_DATA_URL" => "usage.pricing_data.url",
+      "RAAF_PRICING_DATA_TTL" => "usage.pricing_data.ttl",
+      "RAAF_PRICING_DATA_FILE" => "usage.pricing_data.file_path"
     }.freeze
 
     attr_reader :environment, :config_data, :config_paths

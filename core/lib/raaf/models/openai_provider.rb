@@ -277,38 +277,30 @@ module RAAF
       end
 
       ##
-      # Normalize OpenAI Chat Completions API response to match ResponsesProvider format
+      # Normalize OpenAI Chat Completions API response to use canonical token format
       #
-      # This method converts the legacy usage format (prompt_tokens, completion_tokens)
-      # to the new format (input_tokens, output_tokens) for backwards compatibility.
+      # This method uses RAAF::Usage::Normalizer to convert the legacy usage format
+      # (prompt_tokens, completion_tokens) to the canonical format (input_tokens, output_tokens).
       #
       # @param response [Hash] Raw response from OpenAI Chat Completions API
-      # @return [Hash] Normalized response with converted usage format
+      # @return [Hash] Normalized response with canonical usage format
       #
       def normalize_response_format(response)
-        # Convert usage format if present
+        # Use RAAF::Usage::Normalizer for consistent normalization
         if response.respond_to?(:[]) && response[:usage]
-          usage = response[:usage]
-
-          # Convert legacy field names to new format
-          if usage[:prompt_tokens] || usage["prompt_tokens"]
-            response[:usage] = {
-              input_tokens: usage[:prompt_tokens] || usage["prompt_tokens"] || 0,
-              output_tokens: usage[:completion_tokens] || usage["completion_tokens"] || 0,
-              total_tokens: usage[:total_tokens] || usage["total_tokens"] || 0
-            }
-          end
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            response,
+            provider_name: "openai",
+            model: response.dig(:model) || response.dig("model") || "unknown"
+          )
+          response[:usage] = normalized_usage if normalized_usage
         elsif response.respond_to?(:dig) && response["usage"]
-          usage = response["usage"]
-
-          # Convert legacy field names to new format for string keys
-          if usage["prompt_tokens"] || usage["completion_tokens"]
-            response["usage"] = {
-              "input_tokens" => usage["prompt_tokens"] || 0,
-              "output_tokens" => usage["completion_tokens"] || 0,
-              "total_tokens" => usage["total_tokens"] || 0
-            }
-          end
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            response,
+            provider_name: "openai",
+            model: response.dig(:model) || response.dig("model") || "unknown"
+          )
+          response["usage"] = normalized_usage if normalized_usage
         end
 
         response
