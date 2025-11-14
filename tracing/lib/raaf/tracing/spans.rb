@@ -80,6 +80,16 @@ module RAAF
       # @return [Symbol] Type of span (agent, llm, tool, etc.)
       attr_reader :kind
 
+      # Token usage attributes (populated by RunExecutor)
+      # @return [Integer, nil] Input tokens consumed
+      attr_accessor :input_tokens
+
+      # @return [Integer, nil] Output tokens generated
+      attr_accessor :output_tokens
+
+      # @return [Integer, nil] Total tokens (input + output)
+      attr_accessor :total_tokens
+
       # Creates a new span
       #
       # @param name [String] Name of the operation this span represents
@@ -245,7 +255,10 @@ module RAAF
           duration_ms: @attributes["duration_ms"],
           attributes: @attributes,
           events: @events,
-          status: @status
+          status: @status,
+          input_tokens: @input_tokens,
+          output_tokens: @output_tokens,
+          total_tokens: @total_tokens
         }
       end
 

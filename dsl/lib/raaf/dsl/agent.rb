@@ -2752,6 +2752,9 @@ module RAAF
         log_debug "Calling RAAF runner for #{self.class.name}"
         run_result = runner.run(user_prompt, context: run_context)
 
+        # Store runner result for usage tracking and other metadata access
+        @runner_result = run_result
+
         # Generic response logging
         log_debug "Received AI response for #{agent_name}"
 
