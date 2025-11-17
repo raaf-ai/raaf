@@ -89,6 +89,14 @@ module RAAF
             @evaluator = nil
           end
 
+          # Wrapper method for evaluator.evaluate to provide consistent API
+          # @param span_data [Hash] Span data to evaluate
+          # @param options [Hash] Additional options passed to evaluator
+          # @return [RAAF::Eval::Result] Evaluation result
+          def evaluate(span_data, **options)
+            evaluator.evaluate(span_data, **options)
+          end
+
           private
 
           # Build evaluator from stored DSL configuration
