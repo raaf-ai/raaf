@@ -5,14 +5,12 @@ require "spec_helper"
 RSpec.describe RAAF::Eval::DSL::EvaluationResult do
   let(:field_results) do
     {
-      "output" => {
-        passed: true,
+      "output" => { label: "good",
         score: 0.9,
         details: { quality: "high" },
         message: "Output quality is high"
       },
-      "usage.total_tokens" => {
-        passed: false,
+      "usage.total_tokens" => { label: "bad",
         score: 0.4,
         details: { efficiency: "low" },
         message: "Token usage is inefficient"
@@ -40,8 +38,8 @@ RSpec.describe RAAF::Eval::DSL::EvaluationResult do
   describe "passed? method" do
     it "returns true when all fields passed" do
       all_passed_results = {
-        "output" => { passed: true, score: 0.9 },
-        "tokens" => { passed: true, score: 0.8 }
+        "output" => { label: "good", score: 0.9 },
+        "tokens" => { label: "good", score: 0.8 }
       }
       result = described_class.new(field_results: all_passed_results)
       expect(result.passed?).to be true
@@ -147,8 +145,8 @@ RSpec.describe RAAF::Eval::DSL::EvaluationResult do
 
     it "returns nil when no scores available" do
       result_no_scores = described_class.new(field_results: {
-        "field1" => { passed: true },
-        "field2" => { passed: false }
+        "field1" => { label: "good" },
+        "field2" => { label: "bad" }
       })
       expect(result_no_scores.average_score).to be_nil
     end

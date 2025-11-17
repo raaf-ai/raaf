@@ -19,7 +19,7 @@ RSpec.describe "LLM Evaluators" do
       it "evaluates against criteria" do
         result = evaluator.evaluate(field_context, criteria: criteria)
         
-        expect(result).to have_key(:passed)
+        expect(result).to have_key(:label)
         expect(result).to have_key(:score)
         expect(result[:details][:criteria]).to eq(criteria)
         expect(result[:details][:reasoning]).not_to be_empty
@@ -33,7 +33,7 @@ RSpec.describe "LLM Evaluators" do
       it "fails without criteria parameter" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("requires :criteria")
       end
@@ -67,7 +67,7 @@ RSpec.describe "LLM Evaluators" do
       it "passes quality threshold" do
         result = evaluator.evaluate(field_context, min_score: 0.6)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.6
         expect(result[:details][:dimensions]).to include(:accuracy, :completeness, :coherence)
       end
@@ -85,7 +85,7 @@ RSpec.describe "LLM Evaluators" do
       it "fails quality threshold" do
         result = evaluator.evaluate(field_context, min_score: 0.7)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 0.7
       end
 
@@ -103,7 +103,7 @@ RSpec.describe "LLM Evaluators" do
         result = evaluator.evaluate(field_context)
         
         expect(result[:score]).to eq(0.0)
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
       end
     end
   end
@@ -132,7 +132,7 @@ RSpec.describe "LLM Evaluators" do
       it "evaluates against rubric criteria" do
         result = evaluator.evaluate(field_context, rubric: rubric)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.7
         expect(result[:details][:rubric_scores]).to have_key(:clarity)
         expect(result[:details][:rubric_scores]).to have_key(:evidence)
@@ -158,10 +158,10 @@ RSpec.describe "LLM Evaluators" do
         }
       end
 
-      it "fails when below passing score" do
+      it "returns label 'bad' when below passing score" do
         result = evaluator.evaluate(field_context, rubric: rubric)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 0.8
       end
     end
@@ -172,7 +172,7 @@ RSpec.describe "LLM Evaluators" do
       it "fails without rubric parameter" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("requires :rubric")
       end

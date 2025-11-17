@@ -90,7 +90,7 @@ RSpec.describe RAAF::Eval::DslEngine::EventEmitter do
 
   describe "#emit_evaluator_end" do
     it "emits evaluator_end event with result and duration" do
-      result = { passed: true, score: 0.92 }
+      result = { label: "good", score: 0.92 }
 
       emitter.emit_evaluator_end(:low_temp, :output, :semantic_similarity, result, 245.67)
 
@@ -100,13 +100,13 @@ RSpec.describe RAAF::Eval::DslEngine::EventEmitter do
       expect(event.metadata[:configuration_name]).to eq(:low_temp)
       expect(event.metadata[:field_name]).to eq(:output)
       expect(event.metadata[:evaluator_name]).to eq(:semantic_similarity)
-      expect(event.metadata[:evaluator_result][:passed]).to be true
+      expect(event.metadata[:evaluator_result][:label]).to eq("good")
       expect(event.metadata[:evaluator_result][:score]).to eq(0.92)
       expect(event.metadata[:duration_ms]).to eq(245.67)
     end
 
     it "uses failed status when result is not passed" do
-      result = { passed: false, score: 0.45 }
+      result = { label: "bad", score: 0.45 }
 
       emitter.emit_evaluator_end(:config, :field, :evaluator, result, 100)
 
@@ -130,7 +130,7 @@ RSpec.describe RAAF::Eval::DslEngine::EventEmitter do
       expect(event.type).to eq(:config_end)
       expect(event.status).to eq(:completed)
       expect(event.metadata[:configuration_name]).to eq(:low_temp)
-      expect(event.metadata[:configuration_result][:passed]).to be true
+      expect(event.metadata[:configuration_result][:label]).to eq("good")
       expect(event.metadata[:configuration_result][:aggregate_score]).to eq(0.85)
       expect(event.metadata[:evaluators_run]).to eq(5)
       expect(event.metadata[:duration_ms]).to be >= 0

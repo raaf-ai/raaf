@@ -25,7 +25,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
         evaluator_name :test_evaluator
 
         def evaluate(field_context, **options)
-          { passed: true, message: "Test passed" }
+          { label: "good", message: "Test passed" }
         end
       end
     end
@@ -71,7 +71,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
         evaluator_name :wrong_name
 
         def evaluate(field_context, **options)
-          { passed: true, message: "Test" }
+          { label: "good", message: "Test" }
         end
       end
 
@@ -94,7 +94,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
             define_singleton_method(:evaluator_name) { :"test_evaluator_#{i}" }
 
             def evaluate(field_context, **options)
-              { passed: true, message: "Test" }
+              { label: "good", message: "Test" }
             end
           end
           
@@ -118,7 +118,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
         evaluator_name :test_evaluator
 
         def evaluate(field_context, **options)
-          { passed: true, message: "Test passed" }
+          { label: "good", message: "Test passed" }
         end
       end
     end
@@ -161,7 +161,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
         evaluator_name :test_evaluator
 
         def evaluate(field_context, **options)
-          { passed: true, message: "Test passed" }
+          { label: "good", message: "Test passed" }
         end
       end
     end
@@ -188,7 +188,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
         evaluator_name :evaluator1
 
         def evaluate(field_context, **options)
-          { passed: true, message: "Test" }
+          { label: "good", message: "Test" }
         end
       end
     end
@@ -199,7 +199,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
         evaluator_name :evaluator2
 
         def evaluate(field_context, **options)
-          { passed: true, message: "Test" }
+          { label: "good", message: "Test" }
         end
       end
     end

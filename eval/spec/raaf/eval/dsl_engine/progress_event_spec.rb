@@ -44,13 +44,13 @@ RSpec.describe RAAF::Eval::DslEngine::ProgressEvent do
         status: :completed,
         metadata: {
           evaluator_name: :semantic_similarity,
-          evaluator_result: { passed: true, score: 0.92 },
+          evaluator_result: { label: "good", score: 0.92 },
           duration_ms: 245.67
         }
       )
 
       expect(event.type).to eq(:evaluator_end)
-      expect(event.metadata[:evaluator_result][:passed]).to be true
+      expect(event.metadata[:evaluator_result][:label]).to eq("good")
       expect(event.metadata[:duration_ms]).to eq(245.67)
     end
 

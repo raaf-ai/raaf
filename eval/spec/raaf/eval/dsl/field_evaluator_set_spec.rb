@@ -106,8 +106,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
           Class.new do
             def evaluate(_context, **options)
               threshold = options[:threshold] || 0.8
-              {
-                passed: true,
+              { label: "good",
                 score: 0.9,
                 details: { similarity_score: 0.9 },
                 message: "Similarity: 0.9 (threshold: #{threshold})"
@@ -118,8 +117,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
           Class.new do
             def evaluate(_context, **options)
               min_score = options[:min_score] || 0.7
-              {
-                passed: true,
+              { label: "good",
                 score: 0.85,
                 details: { coherence_score: 0.85 },
                 message: "Coherence: 0.85 (min: #{min_score})"
@@ -129,8 +127,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         when :failing_evaluator
           Class.new do
             def evaluate(_context, **_options)
-              {
-                passed: false,
+              { label: "bad",
                 score: 0.5,
                 details: {},
                 message: "Failed check"
@@ -151,7 +148,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       it "combines results with AND logic" do
         result = field_set.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(0.85) # minimum
       end
     end
@@ -163,10 +160,10 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         field_set.set_combination(:or)
       end
 
-      it "passes when at least one evaluator passes" do
+      it "returns label 'good' when at least one evaluator passes" do
         result = field_set.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(0.9) # maximum
       end
     end
@@ -179,7 +176,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         field_set.set_combination(lambda { |results|
           avg_score = (results[:sim][:score] + results[:coh][:score]) / 2.0
           {
-            passed: avg_score >= 0.8,
+            label: avg_score >= 0.8 ? "good" : (avg_score >= 0.6 ? "average" : "bad"),
             score: avg_score,
             details: { average: avg_score },
             message: "Average: #{avg_score}"
@@ -192,7 +189,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         
         expected_avg = (0.9 + 0.85) / 2.0
         expect(result[:score]).to eq(expected_avg)
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
     end
 
@@ -215,7 +212,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         result = field_set.evaluate(field_context)
         
         # Should fail because one evaluator failed (AND logic)
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
       end
 
       it "includes error details" do
@@ -237,14 +234,14 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         field_set.set_combination(:and)
         result = field_set.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
       end
 
       it "passes with OR when one passes" do
         field_set.set_combination(:or)
         result = field_set.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
     end
 
@@ -262,7 +259,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
 
             define_method(:evaluate) do |_context, **_options|
               @execution_order << @name
-              { passed: true, score: 0.8, details: {}, message: "Executed #{@name}" }
+              { label: "good", score: 0.8, details: {}, message: "Executed #{@name}" }
             end
           end
         end

@@ -18,7 +18,7 @@ RSpec.describe "Safety Evaluators" do
       it "passes with no bias detected" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("No bias detected")
       end
@@ -27,10 +27,10 @@ RSpec.describe "Safety Evaluators" do
     context "with biased content" do
       let(:result) { { content: "All those people are the same." } }
 
-      it "fails when bias detected" do
+      it "returns label 'bad' when bias detected" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
         expect(result[:message]).to include("bias detected")
       end
@@ -46,7 +46,7 @@ RSpec.describe "Safety Evaluators" do
       it "passes with safe content" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.7
         expect(result[:message]).to include("safe")
       end
@@ -58,7 +58,7 @@ RSpec.describe "Safety Evaluators" do
       it "fails with toxic content" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 0.7
         expect(result[:message]).to include("toxicity")
       end
@@ -74,7 +74,7 @@ RSpec.describe "Safety Evaluators" do
       it "passes general compliance" do
         result = evaluator.evaluate(field_context, policies: [:general])
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("complies")
       end
@@ -86,7 +86,7 @@ RSpec.describe "Safety Evaluators" do
       it "fails with misleading claims" do
         result = evaluator.evaluate(field_context, policies: [:general])
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
         expect(result[:details][:violations]).to include("misleading_claims")
       end
@@ -98,7 +98,7 @@ RSpec.describe "Safety Evaluators" do
       it "fails financial compliance" do
         result = evaluator.evaluate(field_context, policies: [:financial])
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:details][:violations]).to include("investment_guarantees")
       end
     end

@@ -58,7 +58,7 @@ RSpec.describe "LLM Matchers" do
     let(:mock_judge) do
       instance_double(
         RAAF::Eval::RSpec::LLMJudge,
-        check: { passed: true, confidence: 0.9, reasoning: "Output is informative and well-structured" }
+        check: { label: "good", confidence: 0.9, reasoning: "Output is informative and well-structured" }
       )
     end
 
@@ -67,13 +67,13 @@ RSpec.describe "LLM Matchers" do
       expect(helpful_result).to satisfy_llm_check("is informative and well-written")
     end
 
-    it "passes when judge approves" do
+    it "returns label 'good' when judge approves" do
       expect(helpful_result).to satisfy_llm_check("explains the topic clearly")
     end
 
-    it "fails when judge disapproves" do
+    it "returns label 'bad' when judge disapproves" do
       allow(mock_judge).to receive(:check).and_return(
-        { passed: false, confidence: 0.8, reasoning: "Output lacks detail" }
+        { label: "bad", confidence: 0.8, reasoning: "Output lacks detail" }
       )
 
       expect {
@@ -83,7 +83,7 @@ RSpec.describe "LLM Matchers" do
 
     it "provides clear failure message with judge reasoning" do
       allow(mock_judge).to receive(:check).and_return(
-        { passed: false, confidence: 0.8, reasoning: "Output lacks detail" }
+        { label: "bad", confidence: 0.8, reasoning: "Output lacks detail" }
       )
 
       begin
@@ -101,7 +101,7 @@ RSpec.describe "LLM Matchers" do
 
     it "supports custom confidence threshold" do
       allow(mock_judge).to receive(:check).and_return(
-        { passed: true, confidence: 0.6, reasoning: "Somewhat helpful" }
+        { label: "good", confidence: 0.6, reasoning: "Somewhat helpful" }
       )
 
       expect {
@@ -111,7 +111,7 @@ RSpec.describe "LLM Matchers" do
 
     it "respects confidence threshold" do
       allow(mock_judge).to receive(:check).and_return(
-        { passed: true, confidence: 0.6, reasoning: "Somewhat helpful" }
+        { label: "good", confidence: 0.6, reasoning: "Somewhat helpful" }
       )
 
       # Should pass with lower threshold
@@ -138,12 +138,11 @@ RSpec.describe "LLM Matchers" do
     let(:mock_judge) do
       instance_double(
         RAAF::Eval::RSpec::LLMJudge,
-        check_criteria: {
-          passed: true,
+        check_criteria: { label: "good",
           criteria: [
-            { name: "clarity", passed: true, reasoning: "Clear and concise" },
-            { name: "accuracy", passed: true, reasoning: "Technically accurate" },
-            { name: "completeness", passed: true, reasoning: "Covers key points" }
+            { name: "clarity", label: "good", reasoning: "Clear and concise" },
+            { name: "accuracy", label: "good", reasoning: "Technically accurate" },
+            { name: "completeness", label: "good", reasoning: "Covers key points" }
           ]
         }
       )
@@ -174,14 +173,13 @@ RSpec.describe "LLM Matchers" do
       expect(helpful_result).to satisfy_llm_criteria(criteria)
     end
 
-    it "fails when any criterion fails" do
+    it "returns label 'bad' when any criterion fails" do
       allow(mock_judge).to receive(:check_criteria).and_return(
-        {
-          passed: false,
+        { label: "bad",
           criteria: [
-            { name: "clarity", passed: true, reasoning: "Clear" },
-            { name: "accuracy", passed: false, reasoning: "Contains errors" },
-            { name: "completeness", passed: true, reasoning: "Complete" }
+            { name: "clarity", label: "good", reasoning: "Clear" },
+            { name: "accuracy", label: "bad", reasoning: "Contains errors" },
+            { name: "completeness", label: "good", reasoning: "Complete" }
           ]
         }
       )
@@ -193,12 +191,11 @@ RSpec.describe "LLM Matchers" do
 
     it "provides clear failure message listing failed criteria" do
       allow(mock_judge).to receive(:check_criteria).and_return(
-        {
-          passed: false,
+        { label: "bad",
           criteria: [
-            { name: "clarity", passed: true, reasoning: "Clear" },
-            { name: "accuracy", passed: false, reasoning: "Contains errors" },
-            { name: "completeness", passed: false, reasoning: "Incomplete" }
+            { name: "clarity", label: "good", reasoning: "Clear" },
+            { name: "accuracy", label: "bad", reasoning: "Contains errors" },
+            { name: "completeness", label: "bad", reasoning: "Incomplete" }
           ]
         }
       )
@@ -239,8 +236,8 @@ RSpec.describe "LLM Matchers" do
     let(:mock_judge) do
       instance_double(
         RAAF::Eval::RSpec::LLMJudge,
-        judge_single: { passed: true, reasoning: "Output meets description" },
-        judge: { passed: true, reasoning: "First output is better" }
+        judge_single: { label: "good", reasoning: "Output meets description" },
+        judge: { label: "good", reasoning: "First output is better" }
       )
     end
 
@@ -260,9 +257,9 @@ RSpec.describe "LLM Matchers" do
       expect(technical_result).to be_judged_as("more technical").than(:test)
     end
 
-    it "fails when judgment doesn't match" do
+    it "returns label 'bad' when judgment doesn't match" do
       allow(mock_judge).to receive(:judge_single).and_return(
-        { passed: false, reasoning: "Output doesn't match description" }
+        { label: "bad", reasoning: "Output doesn't match description" }
       )
 
       expect {
@@ -272,7 +269,7 @@ RSpec.describe "LLM Matchers" do
 
     it "provides clear failure message with reasoning" do
       allow(mock_judge).to receive(:judge_single).and_return(
-        { passed: false, reasoning: "Too brief and lacks examples" }
+        { label: "bad", reasoning: "Too brief and lacks examples" }
       )
 
       begin
@@ -318,9 +315,9 @@ RSpec.describe "LLM Matchers" do
     let(:mock_judge) do
       instance_double(
         RAAF::Eval::RSpec::LLMJudge,
-        check: { passed: true, confidence: 0.9, reasoning: "Good" },
-        check_criteria: { passed: true, criteria: [] },
-        judge_single: { passed: true, reasoning: "Good" }
+        check: { label: "good", confidence: 0.9, reasoning: "Good" },
+        check_criteria: { label: "good", criteria: [] },
+        judge_single: { label: "good", reasoning: "Good" }
       )
     end
 

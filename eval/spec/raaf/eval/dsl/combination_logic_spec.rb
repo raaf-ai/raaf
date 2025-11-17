@@ -5,15 +5,15 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "when all evaluators pass" do
       let(:evaluator_results) do
         [
-          { passed: true, score: 0.9, details: { check1: "pass" }, message: "Check 1 passed" },
-          { passed: true, score: 0.8, details: { check2: "pass" }, message: "Check 2 passed" },
-          { passed: true, score: 0.85, details: { check3: "pass" }, message: "Check 3 passed" }
+          { label: "good", score: 0.9, details: { check1: "pass" }, message: "Check 1 passed" },
+          { label: "good", score: 0.8, details: { check2: "pass" }, message: "Check 2 passed" },
+          { label: "good", score: 0.85, details: { check3: "pass" }, message: "Check 3 passed" }
         ]
       end
 
       it "returns passed result" do
         result = described_class.combine_and(evaluator_results)
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
 
       it "uses minimum score" do
@@ -38,15 +38,15 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "when one evaluator fails" do
       let(:evaluator_results) do
         [
-          { passed: true, score: 0.9, details: { check1: "pass" }, message: "Check 1 passed" },
-          { passed: false, score: 0.5, details: { check2: "fail" }, message: "Check 2 failed" },
-          { passed: true, score: 0.85, details: { check3: "pass" }, message: "Check 3 passed" }
+          { label: "good", score: 0.9, details: { check1: "pass" }, message: "Check 1 passed" },
+          { label: "bad", score: 0.5, details: { check2: "fail" }, message: "Check 2 failed" },
+          { label: "good", score: 0.85, details: { check3: "pass" }, message: "Check 3 passed" }
         ]
       end
 
       it "returns failed result" do
         result = described_class.combine_and(evaluator_results)
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
       end
 
       it "uses minimum score" do
@@ -58,14 +58,14 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "when all evaluators fail" do
       let(:evaluator_results) do
         [
-          { passed: false, score: 0.4, details: {}, message: "Check 1 failed" },
-          { passed: false, score: 0.3, details: {}, message: "Check 2 failed" }
+          { label: "bad", score: 0.4, details: {}, message: "Check 1 failed" },
+          { label: "bad", score: 0.3, details: {}, message: "Check 2 failed" }
         ]
       end
 
       it "returns failed result" do
         result = described_class.combine_and(evaluator_results)
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
       end
 
       it "uses minimum score" do
@@ -79,14 +79,14 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "when all evaluators pass" do
       let(:evaluator_results) do
         [
-          { passed: true, score: 0.9, details: { check1: "pass" }, message: "Check 1 passed" },
-          { passed: true, score: 0.8, details: { check2: "pass" }, message: "Check 2 passed" }
+          { label: "good", score: 0.9, details: { check1: "pass" }, message: "Check 1 passed" },
+          { label: "good", score: 0.8, details: { check2: "pass" }, message: "Check 2 passed" }
         ]
       end
 
       it "returns passed result" do
         result = described_class.combine_or(evaluator_results)
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
 
       it "uses maximum score" do
@@ -105,15 +105,15 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "when one evaluator passes" do
       let(:evaluator_results) do
         [
-          { passed: false, score: 0.4, details: { check1: "fail" }, message: "Check 1 failed" },
-          { passed: true, score: 0.85, details: { check2: "pass" }, message: "Check 2 passed" },
-          { passed: false, score: 0.3, details: { check3: "fail" }, message: "Check 3 failed" }
+          { label: "bad", score: 0.4, details: { check1: "fail" }, message: "Check 1 failed" },
+          { label: "good", score: 0.85, details: { check2: "pass" }, message: "Check 2 passed" },
+          { label: "bad", score: 0.3, details: { check3: "fail" }, message: "Check 3 failed" }
         ]
       end
 
       it "returns passed result" do
         result = described_class.combine_or(evaluator_results)
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
 
       it "uses maximum score" do
@@ -132,14 +132,14 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "when all evaluators fail" do
       let(:evaluator_results) do
         [
-          { passed: false, score: 0.4, details: {}, message: "Check 1 failed" },
-          { passed: false, score: 0.3, details: {}, message: "Check 2 failed" }
+          { label: "bad", score: 0.4, details: {}, message: "Check 1 failed" },
+          { label: "bad", score: 0.3, details: {}, message: "Check 2 failed" }
         ]
       end
 
       it "returns failed result" do
         result = described_class.combine_or(evaluator_results)
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
       end
 
       it "uses maximum score of failed evaluators" do
@@ -159,8 +159,8 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "with weighted average calculation" do
       let(:evaluator_results) do
         {
-          similarity: { passed: true, score: 0.9, details: {}, message: "High similarity" },
-          coherence: { passed: true, score: 0.7, details: {}, message: "Good coherence" }
+          similarity: { label: "good", score: 0.9, details: {}, message: "High similarity" },
+          coherence: { label: "good", score: 0.7, details: {}, message: "Good coherence" }
         }
       end
 
@@ -168,12 +168,12 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
         lambda { |results|
           similarity_weight = 0.7
           coherence_weight = 0.3
-          
+
           combined_score = (results[:similarity][:score] * similarity_weight) +
                            (results[:coherence][:score] * coherence_weight)
-          
+
           {
-            passed: combined_score >= 0.8,
+            label: combined_score >= 0.8 ? "good" : (combined_score >= 0.6 ? "average" : "bad"),
             score: combined_score,
             details: {
               similarity: results[:similarity],
@@ -193,7 +193,7 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
 
       it "returns passed when threshold met" do
         result = described_class.combine_lambda(evaluator_results, lambda_proc)
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
 
       it "includes detailed breakdown" do
@@ -205,20 +205,20 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "with conditional requirements logic" do
       let(:evaluator_results) do
         {
-          primary: { passed: true, score: 0.9, details: {}, message: "Primary check passed" },
-          secondary: { passed: false, score: 0.5, details: {}, message: "Secondary check failed" }
+          primary: { label: "good", score: 0.9, details: {}, message: "Primary check passed" },
+          secondary: { label: "bad", score: 0.5, details: {}, message: "Secondary check failed" }
         }
       end
 
       let(:lambda_proc) do
         lambda { |results|
           # Primary must pass, secondary is optional bonus
-          base_pass = results[:primary][:passed]
-          bonus = results[:secondary][:passed] ? 0.1 : 0
+          base_pass = results[:primary][:label] != "bad"
+          bonus = results[:secondary][:label] != "bad" ? 0.1 : 0
           final_score = results[:primary][:score] + bonus
-          
+
           {
-            passed: base_pass,
+            label: base_pass ? "good" : "bad",
             score: final_score,
             details: { primary: results[:primary], secondary: results[:secondary] },
             message: "Primary: #{base_pass}, Secondary bonus: #{bonus}"
@@ -226,9 +226,9 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
         }
       end
 
-      it "passes when primary passes even if secondary fails" do
+      it "returns label 'good' when primary passes even if secondary fails" do
         result = described_class.combine_lambda(evaluator_results, lambda_proc)
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
 
       it "calculates score with conditional bonus" do
@@ -240,8 +240,8 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
     context "with bonus scoring logic" do
       let(:evaluator_results) do
         {
-          baseline: { passed: true, score: 0.7, details: {}, message: "Baseline met" },
-          excellence: { passed: true, score: 0.95, details: {}, message: "Excellence achieved" }
+          baseline: { label: "good", score: 0.7, details: {}, message: "Baseline met" },
+          excellence: { label: "good", score: 0.95, details: {}, message: "Excellence achieved" }
         }
       end
 
@@ -249,13 +249,13 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
         lambda { |results|
           base_score = results[:baseline][:score]
           excellence_score = results[:excellence][:score]
-          
+
           # Award bonus if excellence threshold met
           bonus = excellence_score >= 0.9 ? 0.2 : 0
           final_score = [base_score + bonus, 1.0].min
-          
+
           {
-            passed: results[:baseline][:passed],
+            label: results[:baseline][:label],
             score: final_score,
             details: { bonus_awarded: bonus > 0 },
             message: "Score: #{final_score} (bonus: #{bonus})"
@@ -272,11 +272,11 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
 
     context "with invalid lambda result" do
       let(:evaluator_results) do
-        { test: { passed: true, score: 0.9, details: {}, message: "Test" } }
+        { test: { label: "good", score: 0.9, details: {}, message: "Test" } }
       end
 
       let(:invalid_lambda) do
-        lambda { |_results| { passed: true } } # Missing required fields
+        lambda { |_results| { label: "good" } } # Missing required fields
       end
 
       it "raises error for missing required fields" do

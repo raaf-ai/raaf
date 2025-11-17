@@ -14,7 +14,7 @@ RSpec.describe RAAF::Eval::DSL::Evaluator do
       value = field_context.value.to_f if field_context.value.respond_to?(:to_f)
 
       {
-        passed: value && value > threshold,
+        label: (value && value > threshold) ? "good" : "bad",
         score: value ? [value, 1.0].min : 0.0,
         details: { threshold: threshold, actual: value },
         message: "Test evaluator: #{value > threshold ? 'PASS' : 'FAIL'}"
@@ -41,8 +41,8 @@ RSpec.describe RAAF::Eval::DSL::Evaluator do
       result = evaluator.evaluate(field_context, threshold: 50)
 
       expect(result).to be_a(Hash)
-      expect(result).to include(:passed, :score, :details, :message)
-      expect(result[:passed]).to be_in([true, false])
+      expect(result).to include(:label, :score, :details, :message)
+      expect(result[:label]).to be_in(["good", "average", "bad"])
       expect(result[:score]).to be_a(Numeric).and be_between(0.0, 1.0)
     end
 
@@ -59,7 +59,7 @@ RSpec.describe RAAF::Eval::DSL::Evaluator do
         include RAAF::Eval::DSL::Evaluator
         evaluator_name :invalid
         def evaluate(field_context, **options)
-          { passed: true } # Missing required fields
+          { label: "good" } # Missing required fields
         end
       end.new
 

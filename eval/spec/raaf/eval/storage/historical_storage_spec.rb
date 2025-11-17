@@ -13,8 +13,8 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
     it "saves evaluation result with all metadata" do
       result = double(
         "EvaluationResult",
-        to_h: { field_results: {}, passed: true },
-        field_results: { output: { passed: true, score: 0.95 } },
+        to_h: { field_results: {}, label: "good" },
+        field_results: { output: { label: "good", score: 0.95 } },
         passed?: true,
         aggregate_score: 0.95
       )

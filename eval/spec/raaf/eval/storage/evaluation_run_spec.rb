@@ -15,8 +15,8 @@ RSpec.describe RAAF::Eval::Storage::EvaluationRun do
         configuration_name: "baseline",
         span_id: "span_123",
         tags: { environment: "test", version: "1.0.0" },
-        result_data: { field_results: {}, passed: true },
-        field_results: { output: { passed: true, score: 0.95 } },
+        result_data: { field_results: {}, label: "good" },
+        field_results: { output: { label: "good", score: 0.95 } },
         overall_passed: true,
         aggregate_score: 0.95,
         duration_ms: 1234.56
@@ -27,8 +27,8 @@ RSpec.describe RAAF::Eval::Storage::EvaluationRun do
       expect(run.configuration_name).to eq("baseline")
       expect(run.span_id).to eq("span_123")
       expect(run.tags).to eq({ environment: "test", version: "1.0.0" })
-      expect(run.result_data).to eq({ field_results: {}, passed: true })
-      expect(run.field_results).to eq({ output: { passed: true, score: 0.95 } })
+      expect(run.result_data).to eq({ field_results: {}, label: "good" })
+      expect(run.field_results).to eq({ output: { label: "good", score: 0.95 } })
       expect(run.overall_passed).to be true
       expect(run.aggregate_score).to eq(0.95)
       expect(run.duration_ms).to eq(1234.56)
@@ -181,7 +181,7 @@ RSpec.describe RAAF::Eval::Storage::EvaluationRun do
         configuration_name: "baseline",
         span_id: "span_123",
         tags: { env: "prod" },
-        result_data: { passed: true },
+        result_data: { label: "good" },
         field_results: { output: { score: 0.9 } },
         overall_passed: true,
         aggregate_score: 0.9,
@@ -195,7 +195,7 @@ RSpec.describe RAAF::Eval::Storage::EvaluationRun do
         configuration_name: "baseline",
         span_id: "span_123",
         tags: { env: "prod" },
-        result_data: { passed: true },
+        result_data: { label: "good" },
         field_results: { output: { score: 0.9 } },
         overall_passed: true,
         aggregate_score: 0.9,

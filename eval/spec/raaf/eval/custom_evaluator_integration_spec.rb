@@ -21,7 +21,7 @@ RSpec.describe "Custom Evaluator Integration" do
         grounded = verify_citations(citations, knowledge_base)
 
         {
-          passed: grounded[:unverified].empty?,
+          label: grounded[:unverified].empty? ? "good" : "bad",
           score: grounded[:verified_ratio],
           details: {
             field_evaluated: field_context.field_name,
@@ -86,7 +86,7 @@ RSpec.describe "Custom Evaluator Integration" do
         final_score = [adjusted_score - efficiency_penalty, 0].max
 
         {
-          passed: final_score >= 0.7,
+          label: final_score >= 0.7 ? "good" : (final_score >= 0.5 ? "average" : "bad"),
           score: final_score,
           details: {
             evaluated_field: field_context.field_name,
@@ -153,7 +153,7 @@ RSpec.describe "Custom Evaluator Integration" do
       evaluator_instance = citation_grounding_evaluator.new
       result = evaluator_instance.evaluate(field_context, knowledge_base: knowledge_base)
 
-      expect(result[:passed]).to be true
+      expect(result[:label]).to eq("good")
       expect(result[:details][:verified]).to eq([1, 2])
       expect(result[:details][:unverified]).to be_empty
     end
@@ -168,7 +168,7 @@ RSpec.describe "Custom Evaluator Integration" do
       evaluator_instance = citation_grounding_evaluator.new
       result = evaluator_instance.evaluate(field_context)
 
-      expect(result[:passed]).to be true # No citations means all are verified
+      expect(result[:label]).to eq("good") # No citations means all are verified
       expect(result[:details][:total_citations]).to eq(0)
     end
   end
@@ -189,7 +189,7 @@ RSpec.describe "Custom Evaluator Integration" do
       evaluator_instance = smart_quality_evaluator.new
       result = evaluator_instance.evaluate(field_context)
 
-      expect(result[:passed]).to be true
+      expect(result[:label]).to eq("good")
       expect(result[:details][:evaluated_field]).to eq(:output)
     end
 
@@ -233,7 +233,7 @@ RSpec.describe "Custom Evaluator Integration" do
         evaluator_name :invalid_result
 
         def evaluate(field_context, **options)
-          # Missing required :passed field
+          # Missing required :label field
           { score: 0.5, message: "Invalid" }
         end
       end
@@ -252,8 +252,8 @@ RSpec.describe "Custom Evaluator Integration" do
       
       expect {
         evaluator_instance.validate_result!(result)
-      }.to raise_error(RAAF::Eval::DSL::InvalidEvaluatorResultError, 
-                       /must include :passed/)
+      }.to raise_error(RAAF::Eval::DSL::InvalidEvaluatorResultError,
+                       /must include :label/)
     end
   end
 
@@ -275,13 +275,13 @@ RSpec.describe "Custom Evaluator Integration" do
         evaluator_instance = citation_grounding_evaluator.new
         result = evaluator_instance.evaluate(field_context, knowledge_base: knowledge_base)
 
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:details][:verified]).to eq([1, 2])
         expect(result[:details][:unverified]).to eq([3])
         expect(result[:score]).to be_within(0.01).of(0.67) # 2/3 verified
       end
 
-      it "passes when all citations are grounded" do
+      it "returns label 'good' when all citations are grounded" do
         result_hash = {
           output: "Paris [1] is the capital. The Eiffel Tower [2] is famous."
         }
@@ -292,7 +292,7 @@ RSpec.describe "Custom Evaluator Integration" do
         evaluator_instance = citation_grounding_evaluator.new
         result = evaluator_instance.evaluate(field_context, knowledge_base: knowledge_base)
 
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
       end
     end
@@ -330,7 +330,7 @@ RSpec.describe "Custom Evaluator Integration" do
 
         # Should have efficiency penalty
         expect(result[:details][:efficiency_penalty]).to eq(0.1)
-        expect(result[:passed]).to be false # Score drops below 0.7
+        expect(result[:label]).to eq("bad") # Score drops below 0.7
       end
     end
   end

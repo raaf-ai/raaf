@@ -9,17 +9,17 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
         output: {
           baseline_score: 0.85,
           configurations: {
-            medium_temp: { score: 0.88, delta: 0.03, delta_pct: 3.53, passed: true },
-            high_temp: { score: 0.82, delta: -0.03, delta_pct: -3.53, passed: true },
-            low_temp: { score: 0.86, delta: 0.01, delta_pct: 1.18, passed: true }
+            medium_temp: { score: 0.88, delta: 0.03, delta_pct: 3.53, label: "good" },
+            high_temp: { score: 0.82, delta: -0.03, delta_pct: -3.53, label: "good" },
+            low_temp: { score: 0.86, delta: 0.01, delta_pct: 1.18, label: "good" }
           }
         },
         tokens: {
           baseline_score: 1200,
           configurations: {
-            medium_temp: { score: 1250, delta: 50, delta_pct: 4.17, passed: true },
-            high_temp: { score: 1150, delta: -50, delta_pct: -4.17, passed: true },
-            low_temp: { score: 1200, delta: 0, delta_pct: 0.0, passed: true }
+            medium_temp: { score: 1250, delta: 50, delta_pct: 4.17, label: "good" },
+            high_temp: { score: 1150, delta: -50, delta_pct: -4.17, label: "good" },
+            low_temp: { score: 1200, delta: 0, delta_pct: 0.0, label: "good" }
           }
         }
       }
@@ -47,9 +47,9 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
         output: {
           baseline_score: 0.85,
           configurations: {
-            zebra: { score: 0.90, delta: 0.05, delta_pct: 5.88, passed: true },
-            apple: { score: 0.90, delta: 0.05, delta_pct: 5.88, passed: true },
-            banana: { score: 0.90, delta: 0.05, delta_pct: 5.88, passed: true }
+            zebra: { score: 0.90, delta: 0.05, delta_pct: 5.88, label: "good" },
+            apple: { score: 0.90, delta: 0.05, delta_pct: 5.88, label: "good" },
+            banana: { score: 0.90, delta: 0.05, delta_pct: 5.88, label: "good" }
           }
         }
       }
@@ -65,7 +65,7 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
         output: {
           baseline_score: 0.85,
           configurations: {
-            only_config: { score: 0.90, delta: 0.05, delta_pct: 5.88, passed: true }
+            only_config: { score: 0.90, delta: 0.05, delta_pct: 5.88, label: "good" }
           }
         }
       }
@@ -87,9 +87,9 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
   describe ".rank_field" do
     let(:configurations) do
       {
-        medium_temp: { score: 0.88, delta: 0.03, delta_pct: 3.53, passed: true },
-        high_temp: { score: 0.82, delta: -0.03, delta_pct: -3.53, passed: true },
-        low_temp: { score: 0.86, delta: 0.01, delta_pct: 1.18, passed: true }
+        medium_temp: { score: 0.88, delta: 0.03, delta_pct: 3.53, label: "good" },
+        high_temp: { score: 0.82, delta: -0.03, delta_pct: -3.53, label: "good" },
+        low_temp: { score: 0.86, delta: 0.01, delta_pct: 1.18, label: "good" }
       }
     end
 
@@ -110,8 +110,8 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
 
     it "uses alphabetical tie-breaking" do
       tied_configurations = {
-        zebra: { score: 0.90, delta: 0.05, delta_pct: 5.88, passed: true },
-        apple: { score: 0.90, delta: 0.05, delta_pct: 5.88, passed: true }
+        zebra: { score: 0.90, delta: 0.05, delta_pct: 5.88, label: "good" },
+        apple: { score: 0.90, delta: 0.05, delta_pct: 5.88, label: "good" }
       }
 
       result = described_class.rank_field(tied_configurations)

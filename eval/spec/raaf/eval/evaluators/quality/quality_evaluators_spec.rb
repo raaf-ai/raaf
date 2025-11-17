@@ -18,15 +18,15 @@ RSpec.describe "Quality Evaluators" do
       expect(described_class.evaluator_name).to eq(:semantic_similarity)
     end
 
-    it "passes when semantic similarity is above threshold" do
+    it "returns label 'good' when semantic similarity is above threshold" do
       result = evaluator.evaluate(field_context, threshold: 0.7)
 
-      expect(result[:passed]).to be true
+      expect(result[:label]).to eq("good")
       expect(result[:score]).to be >= 0.7
       expect(result[:message]).to include("semantic similarity")
     end
 
-    it "fails when texts are semantically different" do
+    it "returns label 'bad' when texts are semantically different" do
       different_context = RAAF::Eval::DSL::FieldContext.new(
         :output,
         { output: "Quantum physics studies subatomic particles",
@@ -35,7 +35,7 @@ RSpec.describe "Quality Evaluators" do
 
       result = evaluator.evaluate(different_context, threshold: 0.8)
 
-      expect(result[:passed]).to be false
+      expect(result[:label]).to eq("bad")
       expect(result[:score]).to be < 0.8
     end
 
@@ -60,7 +60,7 @@ RSpec.describe "Quality Evaluators" do
 
       result = evaluator.evaluate(coherent_context, min_score: 0.7)
 
-      expect(result[:passed]).to be true
+      expect(result[:label]).to eq("good")
       expect(result[:score]).to be >= 0.7
       expect(result[:message]).to include("coherence")
     end
@@ -73,7 +73,7 @@ RSpec.describe "Quality Evaluators" do
 
       result = evaluator.evaluate(incoherent_context, min_score: 0.8)
 
-      expect(result[:passed]).to be false
+      expect(result[:label]).to eq("bad")
       expect(result[:score]).to be < 0.8
     end
 
@@ -92,7 +92,7 @@ RSpec.describe "Quality Evaluators" do
       expect(described_class.evaluator_name).to eq(:hallucination_detection)
     end
 
-    it "passes when no hallucinations detected" do
+    it "returns label 'good' when no hallucinations detected" do
       factual_context = RAAF::Eval::DSL::FieldContext.new(
         :output,
         { output: "Paris is the capital of France.",
@@ -101,11 +101,11 @@ RSpec.describe "Quality Evaluators" do
 
       result = evaluator.evaluate(factual_context)
 
-      expect(result[:passed]).to be true
+      expect(result[:label]).to eq("good")
       expect(result[:message]).to include("No hallucinations detected")
     end
 
-    it "fails when hallucinations are detected" do
+    it "returns label 'bad' when hallucinations are detected" do
       hallucinated_context = RAAF::Eval::DSL::FieldContext.new(
         :output,
         { output: "Paris is the capital of France with a population of 50 million.",
@@ -114,7 +114,7 @@ RSpec.describe "Quality Evaluators" do
 
       result = evaluator.evaluate(hallucinated_context, strict: true)
 
-      expect(result[:passed]).to be false
+      expect(result[:label]).to eq("bad")
       expect(result[:details][:hallucinations]).to be_an(Array)
       expect(result[:details][:hallucinations]).not_to be_empty
     end
@@ -127,7 +127,7 @@ RSpec.describe "Quality Evaluators" do
       expect(described_class.evaluator_name).to eq(:relevance)
     end
 
-    it "passes when response is relevant" do
+    it "returns label 'good' when response is relevant" do
       relevant_context = RAAF::Eval::DSL::FieldContext.new(
         :output,
         { output: "The capital of France is Paris.",
@@ -136,12 +136,12 @@ RSpec.describe "Quality Evaluators" do
 
       result = evaluator.evaluate(relevant_context, threshold: 0.7)
 
-      expect(result[:passed]).to be true
+      expect(result[:label]).to eq("good")
       expect(result[:score]).to be >= 0.7
       expect(result[:message]).to include("relevant")
     end
 
-    it "fails when response is irrelevant" do
+    it "returns label 'bad' when response is irrelevant" do
       irrelevant_context = RAAF::Eval::DSL::FieldContext.new(
         :output,
         { output: "I like pizza.",
@@ -150,7 +150,7 @@ RSpec.describe "Quality Evaluators" do
 
       result = evaluator.evaluate(irrelevant_context, threshold: 0.7)
 
-      expect(result[:passed]).to be false
+      expect(result[:label]).to eq("bad")
       expect(result[:score]).to be < 0.7
     end
 

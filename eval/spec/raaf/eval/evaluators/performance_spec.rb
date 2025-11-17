@@ -16,19 +16,19 @@ RSpec.describe "Performance Evaluators" do
     context "with baseline comparison" do
       let(:result) { { tokens: 110, baseline_tokens: 100 } }
 
-      it "passes when under threshold" do
+      it "returns label 'good' when under threshold" do
         result = evaluator.evaluate(field_context, max_increase_pct: 15)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.5
         expect(result[:details][:percentage_change]).to eq(10.0)
         expect(result[:message]).to include("10.0%")
       end
 
-      it "fails when over threshold" do
+      it "returns label 'bad' when over threshold" do
         result = evaluator.evaluate(field_context, max_increase_pct: 5)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
     end
@@ -39,7 +39,7 @@ RSpec.describe "Performance Evaluators" do
       it "returns passing result with no baseline" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("No baseline")
       end
@@ -53,18 +53,18 @@ RSpec.describe "Performance Evaluators" do
     context "with valid latency" do
       let(:result) { { latency_ms: 1500 } }
 
-      it "passes when under threshold" do
+      it "returns label 'good' when under threshold" do
         result = evaluator.evaluate(field_context, max_ms: 2000)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.5
         expect(result[:message]).to include("1500ms")
       end
 
-      it "fails when over threshold" do
+      it "returns label 'bad' when over threshold" do
         result = evaluator.evaluate(field_context, max_ms: 1000)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
     end
@@ -75,7 +75,7 @@ RSpec.describe "Performance Evaluators" do
       it "fails with invalid value" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("Invalid")
       end
@@ -89,18 +89,18 @@ RSpec.describe "Performance Evaluators" do
     context "with valid throughput" do
       let(:result) { { tokens_per_second: 15.5 } }
 
-      it "passes when above minimum" do
+      it "returns label 'good' when above minimum" do
         result = evaluator.evaluate(field_context, min_tps: 10)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.7
         expect(result[:message]).to include("15.5")
       end
 
-      it "fails when below minimum" do
+      it "returns label 'bad' when below minimum" do
         result = evaluator.evaluate(field_context, min_tps: 20)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
     end
@@ -111,7 +111,7 @@ RSpec.describe "Performance Evaluators" do
       it "fails with zero value" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
       end
     end

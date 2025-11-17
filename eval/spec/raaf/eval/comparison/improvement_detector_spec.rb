@@ -8,25 +8,25 @@ RSpec.describe RAAF::Eval::Comparison::ImprovementDetector do
       output: {
         baseline_score: 0.85,
         configurations: {
-          medium_temp: { score: 0.88, delta: 0.03, delta_pct: 3.53, passed: true },
-          high_temp: { score: 0.82, delta: -0.03, delta_pct: -3.53, passed: true },
-          low_temp: { score: 0.86, delta: 0.01, delta_pct: 1.18, passed: true }
+          medium_temp: { score: 0.88, delta: 0.03, delta_pct: 3.53, label: "good" },
+          high_temp: { score: 0.82, delta: -0.03, delta_pct: -3.53, label: "good" },
+          low_temp: { score: 0.86, delta: 0.01, delta_pct: 1.18, label: "good" }
         }
       },
       tokens: {
         baseline_score: 1200,
         configurations: {
-          medium_temp: { score: 1250, delta: 50, delta_pct: 4.17, passed: true },
-          high_temp: { score: 1150, delta: -50, delta_pct: -4.17, passed: true },
-          low_temp: { score: 1200, delta: 0, delta_pct: 0.0, passed: true }
+          medium_temp: { score: 1250, delta: 50, delta_pct: 4.17, label: "good" },
+          high_temp: { score: 1150, delta: -50, delta_pct: -4.17, label: "good" },
+          low_temp: { score: 1200, delta: 0, delta_pct: 0.0, label: "good" }
         }
       },
       latency: {
         baseline_score: 500,
         configurations: {
-          medium_temp: { score: 480, delta: -20, delta_pct: -4.0, passed: true },
-          high_temp: { score: 450, delta: -50, delta_pct: -10.0, passed: true },
-          low_temp: { score: 520, delta: 20, delta_pct: 4.0, passed: true }
+          medium_temp: { score: 480, delta: -20, delta_pct: -4.0, label: "good" },
+          high_temp: { score: 450, delta: -50, delta_pct: -10.0, label: "good" },
+          low_temp: { score: 520, delta: 20, delta_pct: 4.0, label: "good" }
         }
       }
     }

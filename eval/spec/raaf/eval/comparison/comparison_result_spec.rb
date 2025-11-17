@@ -7,8 +7,8 @@ RSpec.describe RAAF::Eval::Comparison::ComparisonResult do
     double(
       "baseline_result",
       field_results: {
-        output: { score: 0.85, passed: true },
-        tokens: { score: 1200, passed: true }
+        output: { score: 0.85, label: "good" },
+        tokens: { score: 1200, label: "good" }
       }
     )
   end
@@ -17,8 +17,8 @@ RSpec.describe RAAF::Eval::Comparison::ComparisonResult do
     double(
       "medium_temp_result",
       field_results: {
-        output: { score: 0.88, passed: true },
-        tokens: { score: 1250, passed: true }
+        output: { score: 0.88, label: "good" },
+        tokens: { score: 1250, label: "good" }
       }
     )
   end
@@ -27,8 +27,8 @@ RSpec.describe RAAF::Eval::Comparison::ComparisonResult do
     double(
       "high_temp_result",
       field_results: {
-        output: { score: 0.82, passed: true },
-        tokens: { score: 1150, passed: true }
+        output: { score: 0.82, label: "good" },
+        tokens: { score: 1150, label: "good" }
       }
     )
   end

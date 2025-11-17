@@ -8,8 +8,8 @@ RSpec.describe RAAF::Eval::Comparison::FieldDeltaCalculator do
       double(
         "baseline_result",
         field_results: {
-          output: { score: 0.85, passed: true },
-          tokens: { score: 1200, passed: true }
+          output: { score: 0.85, label: "good" },
+          tokens: { score: 1200, label: "good" }
         }
       )
     end
@@ -18,8 +18,8 @@ RSpec.describe RAAF::Eval::Comparison::FieldDeltaCalculator do
       double(
         "medium_temp_result",
         field_results: {
-          output: { score: 0.88, passed: true },
-          tokens: { score: 1250, passed: true }
+          output: { score: 0.88, label: "good" },
+          tokens: { score: 1250, label: "good" }
         }
       )
     end
@@ -28,8 +28,8 @@ RSpec.describe RAAF::Eval::Comparison::FieldDeltaCalculator do
       double(
         "high_temp_result",
         field_results: {
-          output: { score: 0.82, passed: true },
-          tokens: { score: 1150, passed: true }
+          output: { score: 0.82, label: "good" },
+          tokens: { score: 1150, label: "good" }
         }
       )
     end
@@ -74,14 +74,14 @@ RSpec.describe RAAF::Eval::Comparison::FieldDeltaCalculator do
       baseline_result_zero = double(
         "baseline_result_zero",
         field_results: {
-          output: { score: 0.0, passed: true }
+          output: { score: 0.0, label: "good" }
         }
       )
 
       other_result = double(
         "other_result",
         field_results: {
-          output: { score: 0.5, passed: true }
+          output: { score: 0.5, label: "good" }
         }
       )
 
@@ -97,8 +97,8 @@ RSpec.describe RAAF::Eval::Comparison::FieldDeltaCalculator do
     it "includes passed status from field results" do
       result = described_class.calculate(baseline_result, other_results)
 
-      expect(result[:output][:configurations][:medium_temp][:passed]).to be true
-      expect(result[:output][:configurations][:high_temp][:passed]).to be true
+      expect(result[:output][:configurations][:medium_temp][:label]).to eq("good")
+      expect(result[:output][:configurations][:high_temp][:label]).to eq("good")
     end
 
     it "handles negative deltas" do
@@ -129,14 +129,14 @@ RSpec.describe RAAF::Eval::Comparison::FieldDeltaCalculator do
       baseline_result_precise = double(
         "baseline_result_precise",
         field_results: {
-          output: { score: 0.123456789, passed: true }
+          output: { score: 0.123456789, label: "good" }
         }
       )
 
       other_result_precise = double(
         "other_result_precise",
         field_results: {
-          output: { score: 0.987654321, passed: true }
+          output: { score: 0.987654321, label: "good" }
         }
       )
 

@@ -15,10 +15,10 @@ RSpec.describe "Structural Evaluators" do
     context "with valid JSON" do
       let(:result) { { output: '{"name": "test", "value": 42}' } }
 
-      it "passes validation" do
+      it "returns label 'good'" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("Valid JSON")
       end
@@ -27,10 +27,10 @@ RSpec.describe "Structural Evaluators" do
     context "with invalid JSON" do
       let(:result) { { output: '{"name": "test", "value": }' } }
 
-      it "fails validation" do
+      it "returns label 'bad'" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("Invalid JSON")
       end
@@ -42,7 +42,7 @@ RSpec.describe "Structural Evaluators" do
       it "converts and validates" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
       end
     end
@@ -64,10 +64,10 @@ RSpec.describe "Structural Evaluators" do
         }
       end
 
-      it "passes validation" do
+      it "returns label 'good'" do
         result = evaluator.evaluate(field_context, schema: schema)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("Matches schema")
       end
@@ -85,7 +85,7 @@ RSpec.describe "Structural Evaluators" do
       it "fails with missing fields" do
         result = evaluator.evaluate(field_context, schema: schema)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:details][:validation_errors]).to include("missing required field: age")
       end
     end
@@ -96,7 +96,7 @@ RSpec.describe "Structural Evaluators" do
       it "fails without schema parameter" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:message]).to include("requires :schema")
       end
     end
@@ -112,7 +112,7 @@ RSpec.describe "Structural Evaluators" do
         
         result = evaluator.evaluate(context, format: :email)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
       end
 
@@ -122,7 +122,7 @@ RSpec.describe "Structural Evaluators" do
         
         result = evaluator.evaluate(context, format: :email)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:details][:violations]).to include("invalid email format")
       end
     end
@@ -134,7 +134,7 @@ RSpec.describe "Structural Evaluators" do
         
         result = evaluator.evaluate(context, format: :url)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
       end
 
       it "fails invalid URL" do
@@ -143,7 +143,7 @@ RSpec.describe "Structural Evaluators" do
         
         result = evaluator.evaluate(context, format: :url)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
       end
     end
 
@@ -160,7 +160,7 @@ RSpec.describe "Structural Evaluators" do
       it "validates against custom pattern" do
         result = evaluator.evaluate(field_context, format: custom_format)
         
-        expect(result[:passed]).to be true
+        expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
       end
     end
@@ -171,7 +171,7 @@ RSpec.describe "Structural Evaluators" do
       it "fails without format parameter" do
         result = evaluator.evaluate(field_context)
         
-        expect(result[:passed]).to be false
+        expect(result[:label]).to eq("bad")
         expect(result[:message]).to include("requires :format")
       end
     end
