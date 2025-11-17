@@ -48,7 +48,16 @@
       "Bash(timeout 5 openssl s_client:*)",
       "Bash(sed:*)",
       "Bash(cat:*)",
-      "WebFetch(domain:ai.google.dev)"
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:deepeval.com)",
+      "WebFetch(domain:docs.confident-ai.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.evidentlyai.com)",
+      "WebFetch(domain:eugeneyan.com)",
+      "WebFetch(domain:docs.arize.com)",
+      "WebFetch(domain:langfuse.com)",
+      "WebFetch(domain:www.confident-ai.com)",
+      "WebFetch(domain:arize.com)"
     ],
     "deny": [],
     "additionalDirectories": [
