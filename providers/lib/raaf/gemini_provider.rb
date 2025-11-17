@@ -407,28 +407,52 @@ module RAAF
       end
 
       ##
-      # Converts OpenAI tool format to Gemini function declarations
+      # Converts OpenAI tool format to Gemini tool format
       #
-      # @param tools [Array<Hash>, nil] Tools in OpenAI format
+      # Supports two types of tools:
+      # 1. Function declarations (OpenAI format) - converted to functionDeclarations
+      # 2. Google Search grounding - passed through directly
+      #
+      # @param tools [Array<Hash>, nil] Tools in OpenAI format or grounding format
       # @return [Array<Hash>] Tools in Gemini format
       # @private
       #
       def convert_tools_to_gemini(tools)
         return [] unless tools
 
-        [{
-          functionDeclarations: tools.map do |tool|
-            if tool.is_a?(Hash) && tool[:type] == "function"
-              {
-                name: tool.dig(:function, :name),
-                description: tool.dig(:function, :description),
-                parameters: tool.dig(:function, :parameters) || {}
-              }
-            else
-              tool
-            end
+        # Separate tools into grounding tools and function tools
+        grounding_tools = []
+        function_tools = []
+
+        tools.each do |tool|
+          if tool.is_a?(Hash) && tool.key?(:google_search_retrieval)
+            # Google Search grounding tool - pass through directly
+            grounding_tools << { google_search_retrieval: tool[:google_search_retrieval] }
+          elsif tool.is_a?(Hash) && tool[:type] == "function"
+            # OpenAI function format - convert to Gemini function declaration
+            function_tools << {
+              name: tool.dig(:function, :name),
+              description: tool.dig(:function, :description),
+              parameters: tool.dig(:function, :parameters) || {}
+            }
+          else
+            # Unknown format - pass through as-is
+            function_tools << tool
           end
-        }]
+        end
+
+        # Build result array with both tool types
+        result = []
+
+        # Add function declarations if any
+        if function_tools.any?
+          result << { functionDeclarations: function_tools }
+        end
+
+        # Add grounding tools directly to array
+        result.concat(grounding_tools)
+
+        result
       end
 
       ##
