@@ -87,6 +87,17 @@ module RAAF
           @_schema_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
         end
 
+        def _grounding_config
+          # Use Concurrent::Hash for thread-safe hash operations
+          # Stores provider-level grounding configuration (e.g., Google Search grounding)
+          @_grounding_config ||= Concurrent::Hash.new
+        end
+
+        def _grounding_config=(value)
+          # Accept regular hashes and convert to Concurrent::Hash
+          @_grounding_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
+        end
+
         def _prompt_config
           # Use Concurrent::Hash for thread-safe hash operations
           # This ensures configuration persists across threads

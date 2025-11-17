@@ -110,11 +110,28 @@ module RAAF
         #   to runtime resolution, and resolution errors are raised only if the
         #   registry is still unavailable when the agent is instantiated.
         #
-        def tool(tool_identifier, **options, &block)
+        def tool(tool_identifier = nil, **options, &block)
           # Handle block configuration
           if block_given?
             block_config = ToolConfigurationBuilder.new(&block).to_h
             options = options.merge(block_config)
+          end
+
+          # SPECIAL CASE: Google Search grounding configuration (provider-level, not a tool)
+          # Can be passed as: tool(google_search_retrieval: {}) or tool({google_search_retrieval: {}})
+          if options.key?(:google_search_retrieval)
+            # Passed as keyword argument: tool google_search_retrieval: {}
+            _grounding_config[:google_search_retrieval] = options[:google_search_retrieval]
+            return
+          elsif tool_identifier.is_a?(Hash) && tool_identifier.key?(:google_search_retrieval)
+            # Passed as positional hash: tool({google_search_retrieval: {}})
+            _grounding_config[:google_search_retrieval] = tool_identifier[:google_search_retrieval]
+            return
+          end
+
+          # tool_identifier is required for regular tools
+          if tool_identifier.nil?
+            raise ArgumentError, "tool_identifier is required for tool registration"
           end
 
           # HYBRID RESOLUTION: Try eager resolution, fall back to lazy if registry not available
@@ -194,6 +211,13 @@ module RAAF
         tools = self.class._tools_config.map do |config|
           create_tool_instance_unified(config)
         end.compact
+
+        # Append grounding configuration if present (provider-level, not a tool instance)
+        grounding_config = self.class._grounding_config
+        if grounding_config && !grounding_config.empty?
+          # Convert to plain Hash for provider consumption
+          tools << { google_search_retrieval: grounding_config[:google_search_retrieval] }
+        end
 
         tools
       end
