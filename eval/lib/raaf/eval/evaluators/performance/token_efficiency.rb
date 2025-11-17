@@ -15,19 +15,16 @@ module RAAF
           # Evaluate token efficiency
           # @param field_context [FieldContext] The field context containing value and baseline
           # @param options [Hash] Options including:
-          #   :max_tokens - Maximum acceptable tokens
-          #   :max_increase_pct (default 10) - Maximum percentage increase from baseline
-          #   Discrete token thresholds (NEW):
+          #   Discrete token thresholds (RECOMMENDED):
           #     :good_threshold_tokens - Token threshold for "good" label (e.g., 2800 for 2800 tokens)
           #     :average_threshold_tokens - Token threshold for "average" label (e.g., 3500 for 3500 tokens)
-          #   Score-based thresholds (LEGACY):
+          #   Score-based thresholds (LEGACY - requires max_increase_pct):
+          #     :max_increase_pct (default 10) - Maximum percentage increase from baseline
           #     :threshold_good (default 0.85) - Score threshold for "good" label
           #     :threshold_average (default 0.7) - Score threshold for "average" label
-          #   Legacy: :good_threshold, :average_threshold also supported
+          #     Legacy: :good_threshold, :average_threshold also supported
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
-            max_increase_pct = options[:max_increase_pct] || 10
-            max_tokens = options[:max_tokens]
             current_tokens = field_context.value
             baseline_tokens = field_context.baseline_value
 
@@ -41,33 +38,35 @@ module RAAF
               }
             end
 
-            # Calculate percentage change for score calculation
-            delta = field_context.delta
-            percentage_change = if baseline_tokens > 0
-              ((current_tokens - baseline_tokens).to_f / baseline_tokens * 100).round(2)
-            else
-              current_tokens > 0 ? 100.0 : 0.0
-            end
-
-            # Calculate score first (for backward compatibility)
-            score = calculate_score(percentage_change, max_increase_pct)
-
-            # Determine label using discrete thresholds if provided, otherwise use score-based
+            # Use discrete thresholds if provided (RECOMMENDED)
             if options[:good_threshold_tokens] || options[:average_threshold_tokens]
               label = calculate_label_from_discrete_thresholds(
                 current_tokens,
                 good_threshold_tokens: options[:good_threshold_tokens],
                 average_threshold_tokens: options[:average_threshold_tokens]
               )
+              # Simple score mapping: good=1.0, average=0.5, bad=0.0
+              score = case label
+                      when :good then 1.0
+                      when :average then 0.5
+                      else 0.0
+                      end
               details = {
                 current_tokens: current_tokens,
-                max_tokens: max_tokens,
                 baseline_tokens: baseline_tokens,
                 good_threshold_tokens: options[:good_threshold_tokens],
                 average_threshold_tokens: options[:average_threshold_tokens]
               }
+              message = "[#{label.upcase}] Token usage: #{current_tokens} tokens"
             else
-              # Support both new and legacy naming for score-based thresholds
+              # Legacy score-based approach (requires max_increase_pct)
+              max_increase_pct = options[:max_increase_pct] || 10
+              percentage_change = if baseline_tokens > 0
+                ((current_tokens - baseline_tokens).to_f / baseline_tokens * 100).round(2)
+              else
+                current_tokens > 0 ? 100.0 : 0.0
+              end
+              score = calculate_score(percentage_change, max_increase_pct)
               threshold_good = options[:threshold_good] || options[:good_threshold] || 0.85
               threshold_average = options[:threshold_average] || options[:average_threshold] || 0.7
               label = calculate_label(score, good_threshold: threshold_good, threshold_average: threshold_average)
@@ -79,13 +78,14 @@ module RAAF
                 threshold_good: threshold_good,
                 threshold_average: threshold_average
               }
+              message = "[#{label.upcase}] Token usage: #{current_tokens} tokens (#{percentage_change}% change)"
             end
 
             {
               label: label,
               score: score,
               details: details,
-              message: "[#{label.upcase}] Token usage: #{current_tokens} tokens (max: #{max_tokens || 'unlimited'})"
+              message: message
             }
           end
 
