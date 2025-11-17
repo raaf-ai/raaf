@@ -33,32 +33,38 @@ module RAAF
 
           # Sort criteria alphabetically for consistent output
           stats.sort_by { |k, _| k.to_s }.each do |criterion, stat|
-            # Determine status emoji
-            status = if stat[:consistent]
-                       "✅"
-                     elsif stat[:range] <= @tolerance * 1.5
-                       "⚠️ "
-                     else
-                       "❌"
-                     end
+            # Determine status emoji and label
+            if stat[:consistent]
+              status_emoji = "✅"
+              status_label = "GOOD"
+            elsif stat[:range] <= @tolerance * 1.5
+              status_emoji = "⚠️ "
+              status_label = "AVERAGE"
+            else
+              status_emoji = "❌"
+              status_label = "BAD"
+            end
 
             # Format criterion name (capitalize and replace underscores)
             criterion_display = criterion.to_s.split('_').map(&:capitalize).join(' ')
 
-            puts "#{status} #{criterion_display}"
+            puts "#{status_emoji} #{criterion_display}: #{status_label}"
             puts "   #{field_label} Range: #{stat[:min]}-#{stat[:max]} (std dev: #{stat[:std_dev]})"
             puts "   Average: #{stat[:mean]}"
             puts "   Values: #{stat[:values].join(', ')}"
             puts ""
           end
 
-          # Overall summary
+          # Overall summary with good/average/bad breakdown
           total_criteria = stats.size
-          consistent_criteria = stats.count { |_, s| s[:consistent] }
-          consistency_rate = (consistent_criteria.to_f / total_criteria * 100).round(1)
+          good_count = stats.count { |_, s| s[:consistent] }
+          average_count = stats.count { |_, s| !s[:consistent] && s[:range] <= @tolerance * 1.5 }
+          bad_count = stats.count { |_, s| !s[:consistent] && s[:range] > @tolerance * 1.5 }
+          consistency_rate = (good_count.to_f / total_criteria * 100).round(1)
 
           puts "-" * 80
-          puts "Overall Consistency: #{consistent_criteria}/#{total_criteria} criteria (#{consistency_rate}%)"
+          puts "Overall Consistency: #{good_count}/#{total_criteria} criteria (#{consistency_rate}%)"
+          puts "Quality: ✅ #{good_count} good · ⚠️  #{average_count} average · ❌ #{bad_count} bad"
           puts "=" * 80
           puts ""
         end
