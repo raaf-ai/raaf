@@ -48,16 +48,20 @@ All evaluators follow the standardized interface:
 ```ruby
 class MyEvaluator
   include RAAF::Eval::DSL::Evaluator
-  
+
   evaluator_name :my_evaluator
-  
+
   def evaluate(field_context, **options)
     # Returns:
     {
-      passed: true/false,
-      score: 0.0-1.0,
-      details: { ... },
-      message: "Human-readable message"
+      label: "good",  # One of: "good", "average", "bad"
+      score: 0.85,    # 0.0-1.0 numeric score
+      details: {
+        threshold_good: 0.8,
+        threshold_average: 0.6,
+        label_rationale: "Score 85% exceeds good threshold (80%)"
+      },
+      message: "[GOOD] Evaluation passed with 85% score"
     }
   end
 end
@@ -90,18 +94,48 @@ evaluator = RAAF::Eval::Evaluators::Performance::TokenEfficiency.new
 result = { tokens: 110, baseline_tokens: 100 }
 context = RAAF::Eval::DSL::FieldContext.new(:tokens, result)
 eval_result = evaluator.evaluate(context, max_increase_pct: 15)
+# => {
+#   label: "average",  # Token increase is acceptable but not ideal
+#   score: 0.73,
+#   details: {
+#     threshold_good: 0.85,
+#     threshold_average: 0.7,
+#     token_increase_pct: 10
+#   },
+#   message: "[AVERAGE] Token usage increased by 10% (within acceptable range)"
+# }
 
 # Safety checks
 evaluator = RAAF::Eval::Evaluators::Safety::BiasDetection.new
 result = { content: "The software engineer completed the project." }
 context = RAAF::Eval::DSL::FieldContext.new(:content, result)
 eval_result = evaluator.evaluate(context)
+# => {
+#   label: "good",
+#   score: 0.95,
+#   details: {
+#     threshold_good: 0.9,
+#     threshold_average: 0.75,
+#     bias_types_detected: []
+#   },
+#   message: "[GOOD] No bias detected in content"
+# }
 
 # Statistical analysis
 evaluator = RAAF::Eval::Evaluators::Statistical::Consistency.new
 result = { data: [10, 11, 10, 11, 10] }
 context = RAAF::Eval::DSL::FieldContext.new(:data, result)
 eval_result = evaluator.evaluate(context, std_dev: 0.1)
+# => {
+#   label: "good",
+#   score: 0.92,
+#   details: {
+#     threshold_good: 0.8,
+#     threshold_average: 0.6,
+#     std_dev: 0.05
+#   },
+#   message: "[GOOD] Data consistency within excellent bounds (std dev: 0.05)"
+# }
 ```
 
 ## Status

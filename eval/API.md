@@ -4,6 +4,66 @@
 > Last Updated: 2025-11-07
 > Complete API Reference
 
+## 3-Tier Labeling System
+
+RAAF Eval uses a three-tier labeling system for all evaluation results:
+
+### Label Values
+
+- **good** - High quality, exceeds expectations
+- **average** - Acceptable quality, room for improvement
+- **bad** - Poor quality, requires attention
+
+### Evaluator Contract
+
+All evaluators must return a hash with:
+
+- `label` (String, required): One of "good", "average", or "bad"
+- `score` (Float, optional): Numeric score between 0.0 and 1.0
+- `details` (Hash, optional): Additional context including thresholds
+- `message` (String, optional): Human-readable description
+
+### Example Result
+
+```ruby
+{
+  label: "average",
+  score: 0.72,
+  details: {
+    threshold_good: 0.8,
+    threshold_average: 0.6,
+    label_rationale: "Score 72% is between average (60%) and good (80%) thresholds",
+    # evaluator-specific details
+  },
+  message: "[AVERAGE] Semantic similarity: 72%"
+}
+```
+
+### Category-Specific Thresholds
+
+Different evaluator categories use different thresholds:
+
+| Category | Good Threshold | Average Threshold | Rationale |
+|----------|---------------|-------------------|-----------|
+| Quality | 0.8 | 0.6 | Balanced quality expectations |
+| Performance | 0.85 | 0.7 | Higher bar for efficiency |
+| Safety | 0.9 | 0.75 | Strictest for safety-critical |
+| Structural | 0.9 | 0.7 | High precision for structure |
+| Statistical | 0.8 | 0.6 | Standard statistical confidence |
+| LLM | 0.8 | 0.6 | Balanced LLM judge expectations |
+
+### Custom Thresholds
+
+You can customize thresholds per evaluation:
+
+```ruby
+evaluate_field :output do
+  evaluate_with :semantic_similarity,
+    good_threshold: 0.85,
+    average_threshold: 0.65
+end
+```
+
 ## Core Classes
 
 ### RAAF::Eval::Engine

@@ -33,9 +33,60 @@ RAAF Eval's RSpec integration provides a comprehensive testing framework for AI 
 
 ✅ **Native RSpec Integration** - Familiar test syntax and matchers
 ✅ **40+ Custom Matchers** - Comprehensive evaluation coverage
+✅ **3-Tier Labeling System** - Nuanced quality assessment (good/average/bad)
 ✅ **Automatic Span Management** - No manual trace extraction
 ✅ **Statistical Rigor** - Confidence intervals, t-tests, effect sizes
 ✅ **Production-Ready** - Battle-tested in real RAAF projects
+
+## 3-Tier Labeling System
+
+RAAF Eval uses a three-tier labeling system for evaluation results:
+
+- **good** - High quality, exceeds expectations
+- **average** - Acceptable quality, room for improvement
+- **bad** - Poor quality, requires attention
+
+### Basic Label Matchers
+
+```ruby
+# Check specific labels
+expect(result).to be_good                    # Label is "good"
+expect(result).to be_average                 # Label is "average"
+expect(result).to be_bad                     # Label is "bad"
+
+# Check minimum quality level
+expect(result).to be_at_least("average")     # Label is "average" or "good"
+expect(result).to be_at_least("good")        # Label is "good"
+
+# Direct field access
+expect(result[:label]).to eq("good")         # Check label field
+expect(result[:score]).to be >= 0.8          # Check score threshold
+```
+
+### Category-Specific Thresholds
+
+Different evaluator categories use different thresholds:
+
+| Category | Good Threshold | Average Threshold | Rationale |
+|----------|---------------|-------------------|-----------|
+| Quality | 0.8 | 0.6 | Balanced quality expectations |
+| Performance | 0.85 | 0.7 | Higher bar for efficiency |
+| Safety | 0.9 | 0.75 | Strictest for safety-critical |
+| Structural | 0.9 | 0.7 | High precision for structure |
+| Statistical | 0.8 | 0.6 | Standard statistical confidence |
+| LLM | 0.8 | 0.6 | Balanced LLM judge expectations |
+
+### Custom Thresholds
+
+You can customize thresholds per evaluation:
+
+```ruby
+evaluate_field :output do
+  evaluate_with :semantic_similarity,
+    good_threshold: 0.85,
+    average_threshold: 0.65
+end
+```
 
 ---
 
@@ -113,9 +164,11 @@ RSpec.describe "Customer Support Agent" do
       mini: { model: "gpt-4o-mini" }
     })
 
-    # Assert quality maintained
-    expect(result).to maintain_quality.within(20).percent
-    expect(result).to_not have_regressions
+    # 3-tier labeling system assertions
+    expect(result).to be_good                    # Quality is "good"
+    expect(result).to be_at_least("average")     # At least "average"
+    expect(result[:label]).to eq("good")         # Direct label check
+    expect(result[:score]).to be >= 0.8          # Score threshold
   end
 end
 ```

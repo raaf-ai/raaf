@@ -13,6 +13,38 @@ RAAF Eval is an integrated AI evaluation framework that enables systematic testi
 - **Flexibility**: Support any RAAF agent configuration
 - **Extensibility**: Custom metrics and domain-specific evaluation
 
+## 3-Tier Labeling System Design
+
+### Rationale
+
+The 3-tier labeling system (good/average/bad) provides:
+
+1. **Nuanced Feedback**: "average" results indicate acceptable quality with room for improvement
+2. **Better UX**: Users see a quality spectrum rather than binary pass/fail
+3. **Improved Metrics**: Track distribution of quality levels over time
+4. **Actionable Insights**: "average" signals where optimization effort should focus
+
+### No Backward Compatibility
+
+The migration was implemented as a clean break:
+- Removed `:passed` field completely
+- All evaluators return `:label` field
+- All matchers check `:label` values
+- Simplified codebase without compatibility layers
+
+### Category-Specific Thresholds
+
+Different evaluator categories use different thresholds based on their purpose:
+
+| Category | Good Threshold | Average Threshold | Rationale |
+|----------|---------------|-------------------|-----------|
+| Quality | 0.8 | 0.6 | Balanced quality expectations |
+| Performance | 0.85 | 0.7 | Higher bar for efficiency |
+| Safety | 0.9 | 0.75 | Strictest for safety-critical |
+| Structural | 0.9 | 0.7 | High precision for structure |
+| Statistical | 0.8 | 0.6 | Standard statistical confidence |
+| LLM | 0.8 | 0.6 | Balanced LLM judge expectations |
+
 ## Architecture Diagram
 
 ```

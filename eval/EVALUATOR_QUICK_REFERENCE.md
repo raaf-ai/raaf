@@ -2,6 +2,23 @@
 
 **40+ RSpec Matchers Across 7 Categories**
 
+## 🎯 3-Tier Labeling System
+
+RAAF Eval uses a three-tier labeling system for evaluation results:
+
+- **good** - High quality, exceeds expectations (score ≥ good_threshold)
+- **average** - Acceptable quality, room for improvement (score ≥ average_threshold)
+- **bad** - Poor quality, requires attention (score < average_threshold)
+
+**Basic Matchers:**
+```ruby
+expect(result).to be_good                    # Label is "good"
+expect(result).to be_average                 # Label is "average"
+expect(result).to be_bad                     # Label is "bad"
+expect(result).to be_at_least("average")     # Label is "average" or "good"
+expect(result[:label]).to eq("good")         # Direct field access
+```
+
 ## 1️⃣ QUALITY MATCHERS (4)
 
 ```ruby

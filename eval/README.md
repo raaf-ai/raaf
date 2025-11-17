@@ -81,8 +81,10 @@ RSpec.describe "Model quality" do
       config.provider = "anthropic"
     end
 
-    expect(result).to maintain_semantic_similarity(threshold: 0.85)
-    expect(result).not_to regress_from_baseline
+    # 3-tier labeling system (good/average/bad)
+    expect(result).to be_good  # or be_average, be_at_least("average")
+    expect(result[:label]).to eq("good")
+    expect(result[:score]).to be >= 0.8
   end
 end
 ```
