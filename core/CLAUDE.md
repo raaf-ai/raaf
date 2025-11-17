@@ -94,6 +94,168 @@ RAAF::ProviderRegistry.registered?(:anthropic)  # => true
 - `:together` → `TogetherProvider`
 - `:litellm` → `LiteLLMProvider`
 
+## Usage Tracking and Token Field Naming
+
+**RAAF uses canonical token field names** aligned with modern LLM APIs for consistent usage tracking across all providers.
+
+### Canonical Field Names
+
+RAAF standardizes on these token field names:
+
+```ruby
+# ✅ CANONICAL RAAF FORMAT (use these)
+result.usage[:input_tokens]              # Input/prompt tokens
+result.usage[:output_tokens]             # Output/completion tokens
+result.usage[:total_tokens]              # Total tokens used
+result.usage[:cache_read_input_tokens]   # Cached tokens (if supported)
+
+# ❌ OLD CHAT COMPLETIONS FORMAT (deprecated)
+result.usage[:prompt_tokens]             # Legacy name
+result.usage[:completion_tokens]         # Legacy name
+```
+
+**Why canonical names?** Modern LLM APIs (Anthropic Claude, Google Gemini, etc.) use `input_tokens` and `output_tokens` as standard field names. RAAF aligns with this industry convention for consistency.
+
+### Architecture Pattern
+
+All providers follow a standardized pattern using `RAAF::Usage::Normalizer`:
+
+```ruby
+# Provider Implementation Pattern
+class MyProvider < RAAF::Models::Interface
+  def perform_chat_completion(messages:, model:, **kwargs)
+    # 1. Make API call (returns native provider format)
+    response = make_api_call(messages, model, kwargs)
+
+    # 2. Normalize to canonical RAAF format
+    if response["usage"]
+      normalized_usage = RAAF::Usage::Normalizer.normalize(
+        response,
+        provider_name: "my_provider",
+        model: model
+      )
+      response["usage"] = normalized_usage if normalized_usage
+    end
+
+    # 3. Return standardized response
+    response
+  end
+end
+```
+
+**Key Benefits:**
+
+1. **Single Source of Truth**: `Usage::Normalizer` handles all token field conversions
+2. **Provider Independence**: Downstream code doesn't need provider-specific logic
+3. **Automatic Conversion**: Normalizer reads both old and canonical formats
+4. **Future-Proof**: New providers automatically get canonical format
+
+### Provider-Specific Metadata
+
+Providers can preserve provider-specific metadata alongside canonical fields:
+
+```ruby
+# Example: Ollama provider preserves timing metadata
+{
+  "input_tokens" => 100,     # Canonical RAAF format
+  "output_tokens" => 50,     # Canonical RAAF format
+  "total_tokens" => 150,     # Canonical RAAF format
+  "total_duration" => 1234,  # Ollama-specific metadata
+  "load_duration" => 234     # Ollama-specific metadata
+}
+```
+
+### Usage::Normalizer Implementation
+
+The normalizer handles conversion from various provider formats:
+
+```ruby
+# Normalizer reads multiple formats and returns canonical format
+normalized = RAAF::Usage::Normalizer.normalize(
+  {
+    "usage" => {
+      "prompt_tokens" => 100,      # Old format
+      "completion_tokens" => 50    # Old format
+    },
+    "model" => "gpt-4o"
+  },
+  provider_name: "openai",
+  model: "gpt-4o"
+)
+
+# Returns canonical format
+normalized
+# => {
+#   "input_tokens" => 100,
+#   "output_tokens" => 50,
+#   "total_tokens" => 150
+# }
+```
+
+### Backward Compatibility
+
+Runner includes defensive fallbacks for old code:
+
+```ruby
+# Runner supports both formats (line 1522-1523)
+input_tokens = completion.usage[:input_tokens] || completion.usage[:prompt_tokens] || 0
+output_tokens = completion.usage[:output_tokens] || completion.usage[:completion_tokens] || 0
+
+# But all providers MUST return canonical format
+```
+
+### Migration Guide for Providers
+
+If you're implementing a custom provider, follow this pattern:
+
+```ruby
+# ✅ CORRECT: Use Usage::Normalizer
+def parse_response(api_response)
+  # Build intermediate structure
+  usage_body = {
+    "usage" => {
+      "prompt_tokens" => api_response["input_count"],
+      "completion_tokens" => api_response["output_count"]
+    },
+    "model" => api_response["model"]
+  }
+
+  # Normalize to canonical format
+  normalized_usage = RAAF::Usage::Normalizer.normalize(
+    usage_body,
+    provider_name: "my_provider",
+    model: api_response["model"]
+  )
+
+  {
+    "content" => api_response["text"],
+    "usage" => normalized_usage,
+    "model" => api_response["model"]
+  }
+end
+
+# ❌ WRONG: Explicit conversion (bypasses normalizer)
+def parse_response(api_response)
+  {
+    "content" => api_response["text"],
+    "usage" => {
+      "prompt_tokens" => api_response["input_count"],    # Don't do this!
+      "completion_tokens" => api_response["output_count"] # Don't do this!
+    }
+  }
+end
+```
+
+### Historical Context
+
+RAAF originally used the Chat Completions API format (`prompt_tokens`, `completion_tokens`) but migrated to the Responses API format (`input_tokens`, `output_tokens`) for:
+
+1. **Industry Alignment**: Match modern LLM APIs (Anthropic, Gemini, etc.)
+2. **Python SDK Compatibility**: Align with OpenAI Python SDK conventions
+3. **Clarity**: "input" and "output" are more intuitive than "prompt" and "completion"
+
+All 13 RAAF providers now use canonical field names exclusively.
+
 ## Rate Limiting and Throttling - Quick Start
 
 **RAAF provides two complementary rate limiting mechanisms** to prevent API quota exhaustion:

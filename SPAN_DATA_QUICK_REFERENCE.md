@@ -321,20 +321,22 @@ Concurrency Data     |      4      |   ⭐        | High
 ```ruby
 # File: raaf/tracing/lib/raaf/tracing/span_collectors/llm_collector.rb
 
-span usage_input_tokens: ->(comp) { comp.usage[:prompt_tokens] || 0 }
-span usage_output_tokens: ->(comp) { comp.usage[:completion_tokens] || 0 }
+# NOTE: Use canonical RAAF token field names (input_tokens, output_tokens)
+# Normalizer ensures consistent naming across all providers
+span usage_input_tokens: ->(comp) { comp.usage[:input_tokens] || 0 }
+span usage_output_tokens: ->(comp) { comp.usage[:output_tokens] || 0 }
 span usage_cache_read: ->(comp) { comp.usage[:cache_read_input_tokens] || 0 }
 span usage_total_tokens: ->(comp) { comp.usage[:total_tokens] || 0 }
 
 span cost_input: ->(comp) do
   calc = TokenCostCalculator.new(model: comp.model)
-  calc.input_cost(comp.usage[:prompt_tokens])
+  calc.input_cost(comp.usage[:input_tokens])
 end
 
 span cost_total: ->(comp) do
   calc = TokenCostCalculator.new(model: comp.model)
-  (calc.input_cost(comp.usage[:prompt_tokens]) +
-   calc.output_cost(comp.usage[:completion_tokens])).round(2)
+  (calc.input_cost(comp.usage[:input_tokens]) +
+   calc.output_cost(comp.usage[:output_tokens])).round(2)
 end
 
 span latency_total_ms: ->(comp) { comp.elapsed_time_ms || 0 }

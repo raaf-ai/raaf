@@ -1519,8 +1519,8 @@ module RAAF
         # DEBUG: Log response before accumulation
         puts "🔍 [RESPONSE DEBUG] response.class: #{response.class.name}"
         puts "🔍 [RESPONSE DEBUG] response.keys: #{response.keys.inspect}"
-        puts "🔍 [RESPONSE DEBUG] response['usage'].present?: #{response['usage'].present?}"
-        puts "🔍 [RESPONSE DEBUG] response[:usage].present?: #{response[:usage].present?}"
+        puts "🔍 [RESPONSE DEBUG] response['usage'] exists?: #{!response['usage'].nil?}"
+        puts "🔍 [RESPONSE DEBUG] response[:usage] exists?: #{!response[:usage].nil?}"
         puts "🔍 [RESPONSE DEBUG] response['usage']: #{response['usage'].inspect}"
         puts "🔍 [RESPONSE DEBUG] response[:usage]: #{response[:usage].inspect}"
 
@@ -1746,13 +1746,6 @@ module RAAF
       # Finalize agent execution and call on_agent_end hook
       finalize_agent_execution(context_wrapper, state[:current_agent], model_responses.last)
 
-      # Debug: Check what's in messages before building final_messages
-      log_debug("🔍 DEBUG: messages before final_messages creation",
-                messages_count: messages.size,
-                messages_details: messages.map.with_index do |msg, i|
-                  { index: i, role: msg[:role], keys: msg.keys, has_output: msg.key?(:output) }
-                end)
-
       # Use messages from context_wrapper which contain the filtered content
       # This ensures output guardrails are properly reflected in the final result
       final_messages = if context_wrapper&.messages && !context_wrapper.messages.empty?
@@ -1796,13 +1789,6 @@ module RAAF
           }
         end
       end
-
-      # Debug: Check final messages before RunResult creation
-      log_debug("🔍 DEBUG: final_messages before RunResult creation",
-                final_messages_count: final_messages.size,
-                final_messages_details: final_messages.map.with_index do |msg, i|
-                  { index: i, role: msg[:role], keys: msg.keys, has_output: msg.key?(:output) }
-                end)
 
       log_debug("🏁 FINAL RESULT: Creating RunResult",
                 final_agent: state[:current_agent].name,

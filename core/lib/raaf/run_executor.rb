@@ -245,12 +245,6 @@ module RAAF
     #
     def create_result(conversation, usage, context_wrapper, final_agent = nil, turns: nil, tool_results: nil)
       effective_agent = final_agent || @agent
-      # Debug: Check what's coming into create_result
-      log_debug("🔍 DEBUG: create_result input",
-                conversation_count: conversation.size,
-                conversation_details: conversation.map.with_index do |msg, i|
-                  { index: i, role: msg[:role], keys: msg.keys, has_output: msg.key?(:output) }
-                end)
 
       # IMPORTANT: For Python SDK compatibility, we need to check if this is just the current turn
       # or if it should include conversation history. The issue is that conversation manager
@@ -258,9 +252,6 @@ module RAAF
 
       # Check if we should have more messages based on context
       if context_wrapper&.messages && context_wrapper.messages.size > conversation.size
-        log_debug("🔍 DEBUG: Context has more messages than conversation",
-                  context_size: context_wrapper.messages.size,
-                  conversation_size: conversation.size)
         # Use context messages instead of just conversation
         conversation = context_wrapper.messages
       end
@@ -314,21 +305,11 @@ module RAAF
 
       # Add tool messages from tool_results if they're not already in the conversation
       if tool_results&.any?
-        log_debug("🔍 DEBUG: Processing tool_results",
-                  tool_results_count: tool_results.size,
-                  tool_results_structure: tool_results.map { |tr| tr.class.name },
-                  tool_results_keys: tool_results.map { |tr| tr.respond_to?(:keys) ? tr.keys : "not_hash" })
-
         tool_results.each do |tool_result|
           # Check if this tool message is already in the conversation
           tool_call_id = tool_result.dig(:metadata, :tool_call_id) ||
                          tool_result[:tool_call_id] ||
                          tool_result["tool_call_id"]
-
-          log_debug("🔍 DEBUG: Processing individual tool_result",
-                    tool_result_class: tool_result.class.name,
-                    tool_call_id: tool_call_id,
-                    has_output: tool_result.respond_to?(:dig) && (tool_result[:output] || tool_result["output"]))
 
           existing_tool_msg = filtered_messages.find do |msg|
             msg[:role] == "tool" && msg[:tool_call_id] == tool_call_id
@@ -351,12 +332,7 @@ module RAAF
           rescue StandardError
             tool_result.to_s[0..50]
           end
-          log_debug("🔍 DEBUG: Added tool message",
-                    tool_call_id: tool_call_id,
-                    content_preview: content_preview)
         end
-      else
-        log_debug("🔍 DEBUG: No tool_results provided", tool_results_nil: tool_results.nil?)
       end
 
       log_debug("🏁 RUN_EXECUTOR: Creating RunResult",
