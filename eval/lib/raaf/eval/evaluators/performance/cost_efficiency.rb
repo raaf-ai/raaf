@@ -6,20 +6,20 @@ module RAAF
   module Eval
     module Evaluators
       module Performance
-        # Evaluates token efficiency by checking token usage increase
-        class TokenEfficiency
+        # Evaluates cost efficiency by checking cost increase
+        class CostEfficiency
           include RAAF::Eval::DSL::Evaluator
 
-          evaluator_name :token_efficiency
+          evaluator_name :cost_efficiency
 
-          # Evaluate token efficiency
+          # Evaluate cost efficiency
           # @param field_context [FieldContext] The field context containing value and baseline
           # @param options [Hash] Options including:
-          #   :max_tokens - Maximum acceptable tokens
+          #   :max_cost - Maximum acceptable cost in USD
           #   :max_increase_pct (default 10) - Maximum percentage increase from baseline
-          #   Discrete token thresholds (NEW):
-          #     :good_threshold_tokens - Token threshold for "good" label (e.g., 2800 for 2800 tokens)
-          #     :average_threshold_tokens - Token threshold for "average" label (e.g., 3500 for 3500 tokens)
+          #   Discrete cost thresholds (NEW):
+          #     :good_threshold_cost - Cost threshold for "good" label (e.g., 0.40 for $0.40)
+          #     :average_threshold_cost - Cost threshold for "average" label (e.g., 0.50 for $0.50)
           #   Score-based thresholds (LEGACY):
           #     :threshold_good (default 0.85) - Score threshold for "good" label
           #     :threshold_average (default 0.7) - Score threshold for "average" label
@@ -27,44 +27,58 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_increase_pct = options[:max_increase_pct] || 10
-            max_tokens = options[:max_tokens]
-            current_tokens = field_context.value
-            baseline_tokens = field_context.baseline_value
+            max_cost = options[:max_cost]
+            current_cost = field_context.value
+            baseline_cost = field_context.baseline_value
+
+            # Handle invalid cost values
+            unless current_cost && current_cost.is_a?(Numeric) && current_cost >= 0
+              return {
+                label: :bad,
+                score: 0.0,
+                details: {
+                  current_cost: current_cost,
+                  error: "Invalid cost value",
+                  max_cost: max_cost
+                },
+                message: "[BAD] Invalid cost value: #{current_cost}"
+              }
+            end
 
             # Handle missing baseline
-            unless baseline_tokens
+            unless baseline_cost
               return {
                 label: :good,
                 score: 1.0,
-                details: { current_tokens: current_tokens, no_baseline: true },
+                details: { current_cost: current_cost, no_baseline: true },
                 message: "[GOOD] No baseline available for comparison"
               }
             end
 
             # Calculate percentage change for score calculation
             delta = field_context.delta
-            percentage_change = if baseline_tokens > 0
-              ((current_tokens - baseline_tokens).to_f / baseline_tokens * 100).round(2)
+            percentage_change = if baseline_cost > 0
+              ((current_cost - baseline_cost).to_f / baseline_cost * 100).round(2)
             else
-              current_tokens > 0 ? 100.0 : 0.0
+              current_cost > 0 ? 100.0 : 0.0
             end
 
             # Calculate score first (for backward compatibility)
             score = calculate_score(percentage_change, max_increase_pct)
 
             # Determine label using discrete thresholds if provided, otherwise use score-based
-            if options[:good_threshold_tokens] || options[:average_threshold_tokens]
+            if options[:good_threshold_cost] || options[:average_threshold_cost]
               label = calculate_label_from_discrete_thresholds(
-                current_tokens,
-                good_threshold_tokens: options[:good_threshold_tokens],
-                average_threshold_tokens: options[:average_threshold_tokens]
+                current_cost,
+                good_threshold_cost: options[:good_threshold_cost],
+                average_threshold_cost: options[:average_threshold_cost]
               )
               details = {
-                current_tokens: current_tokens,
-                max_tokens: max_tokens,
-                baseline_tokens: baseline_tokens,
-                good_threshold_tokens: options[:good_threshold_tokens],
-                average_threshold_tokens: options[:average_threshold_tokens]
+                current_cost: current_cost,
+                max_cost: max_cost,
+                baseline_cost: baseline_cost,
+                good_threshold_cost: options[:good_threshold_cost],
+                average_threshold_cost: options[:average_threshold_cost]
               }
             else
               # Support both new and legacy naming for score-based thresholds
@@ -72,8 +86,8 @@ module RAAF
               threshold_average = options[:threshold_average] || options[:average_threshold] || 0.7
               label = calculate_label(score, good_threshold: threshold_good, threshold_average: threshold_average)
               details = {
-                current_tokens: current_tokens,
-                baseline_tokens: baseline_tokens,
+                current_cost: current_cost,
+                baseline_cost: baseline_cost,
                 percentage_change: percentage_change,
                 threshold: max_increase_pct,
                 threshold_good: threshold_good,
@@ -85,7 +99,7 @@ module RAAF
               label: label,
               score: score,
               details: details,
-              message: "[#{label.upcase}] Token usage: #{current_tokens} tokens (max: #{max_tokens || 'unlimited'})"
+              message: "[#{label.upcase}] Cost: $#{current_cost.round(4)} (max: $#{max_cost || 'unlimited'})"
             }
           end
 
@@ -99,17 +113,17 @@ module RAAF
             1.0 - ((percentage_change - max_increase_pct) / max_increase_pct).clamp(0, 1)
           end
 
-          # Calculate label from discrete token thresholds
-          # @param tokens [Numeric] Current token usage
-          # @param good_threshold_tokens [Numeric, nil] Threshold for "good" label
-          # @param average_threshold_tokens [Numeric, nil] Threshold for "average" label
+          # Calculate label from discrete cost thresholds
+          # @param cost [Numeric] Current cost in USD
+          # @param good_threshold_cost [Numeric, nil] Threshold for "good" label
+          # @param average_threshold_cost [Numeric, nil] Threshold for "average" label
           # @return [Symbol] :good, :average, or :bad
-          def calculate_label_from_discrete_thresholds(tokens, good_threshold_tokens:, average_threshold_tokens:)
-            # If good_threshold_tokens provided and tokens are under it, return "good"
-            return :good if good_threshold_tokens && tokens <= good_threshold_tokens
+          def calculate_label_from_discrete_thresholds(cost, good_threshold_cost:, average_threshold_cost:)
+            # If good_threshold_cost provided and cost is under it, return "good"
+            return :good if good_threshold_cost && cost <= good_threshold_cost
 
-            # If average_threshold_tokens provided and tokens are under it, return "average"
-            return :average if average_threshold_tokens && tokens <= average_threshold_tokens
+            # If average_threshold_cost provided and cost is under it, return "average"
+            return :average if average_threshold_cost && cost <= average_threshold_cost
 
             # Otherwise, return "bad"
             :bad
