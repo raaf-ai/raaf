@@ -1,0 +1,37 @@
+task_groups:
+  - name: Foundation & Core Models
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
+  - name: Field Selection System
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
+  - name: Built-in Evaluator Types Implementation
+    claude_code_subagent: ruby-test-architect
+    standards:
+      - all
+  - name: Custom Evaluator System
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
+  - name: Multi-Evaluator Field System
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
+  - name: DSL API Surface & Evaluation Engine
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
+  - name: Progress Streaming System
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
+  - name: Historical Storage System
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
+  - name: Cross-Configuration Comparison
+    claude_code_subagent: ruby-refactor-specialist
+    standards:
+      - all
