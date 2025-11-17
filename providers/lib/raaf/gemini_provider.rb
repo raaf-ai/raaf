@@ -138,19 +138,10 @@ module RAAF
           # Accumulate content and usage
           accumulated_content += response_content
 
-          # DEBUG: Log what we're receiving
-          puts "🔍 [GEMINI DEBUG] usage hash received: #{usage.inspect}"
-          puts "🔍 [GEMINI DEBUG] usage keys: #{usage.keys.inspect}"
-          puts "🔍 [GEMINI DEBUG] trying input_tokens: #{usage["input_tokens"].inspect}"
-          puts "🔍 [GEMINI DEBUG] trying inputTokens: #{usage["inputTokens"].inspect}"
-          puts "🔍 [GEMINI DEBUG] trying prompt_tokens: #{usage["prompt_tokens"].inspect}"
-
           # Gemini API returns inputTokens/outputTokens - accumulate using OpenAI-compatible key names
           total_usage[:input_tokens] += usage["input_tokens"] || usage["inputTokens"] || usage["prompt_tokens"] || 0
           total_usage[:output_tokens] += usage["output_tokens"] || usage["outputTokens"] || usage["completion_tokens"] || 0
           total_usage[:total_tokens] += usage["total_tokens"] || usage["totalTokens"] || 0
-
-          puts "🔍 [GEMINI DEBUG] total_usage after accumulation: #{total_usage.inspect}"
 
           # Check if continuation is needed
           is_truncated = finish_reason == "length" # "length" is the OpenAI-compatible mapping for MAX_TOKENS
