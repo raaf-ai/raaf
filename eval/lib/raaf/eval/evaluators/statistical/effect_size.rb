@@ -18,42 +18,55 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             min_cohen_d = options[:cohen_d] || 0.5
-            
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
+
             # Expect value to be a hash with statistical data
             data = field_context.value
-            
+
             unless data.is_a?(Hash)
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "Expected hash with statistical data" },
-                message: "Invalid input: expected statistical data hash"
+                details: {
+                  error: "Expected hash with statistical data",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] Invalid input: expected statistical data hash"
               }
             end
 
             # Calculate or extract Cohen's d
             cohen_d = data[:cohen_d] || calculate_cohen_d(data)
-            
+
             unless cohen_d
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "Unable to calculate effect size" },
-                message: "Cannot calculate Cohen's d from provided data"
+                details: {
+                  error: "Unable to calculate effect size",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] Cannot calculate Cohen's d from provided data"
               }
             end
 
-            passed = cohen_d.abs >= min_cohen_d
+            score = calculate_score(cohen_d.abs, min_cohen_d)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(cohen_d.abs, min_cohen_d),
+              label: label,
+              score: score,
               details: {
                 cohen_d: cohen_d.round(3),
                 min_cohen_d: min_cohen_d,
-                effect_size_interpretation: interpret_effect_size(cohen_d.abs)
+                effect_size_interpretation: interpret_effect_size(cohen_d.abs),
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: "Cohen's d: #{cohen_d.round(3)} (#{interpret_effect_size(cohen_d.abs)}, min: #{min_cohen_d})"
+              message: "[#{label.upcase}] Cohen's d: #{cohen_d.round(3)} (#{interpret_effect_size(cohen_d.abs)}, min: #{min_cohen_d})"
             }
           end
 

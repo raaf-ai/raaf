@@ -40,36 +40,26 @@ module RAAF
         #   aggregator.grouped_field_values(:score)
         #   # => { industry: [90, 92, 91], geography: [85, 87, 86], ... }
         def grouped_field_values(field_name)
-          puts "🔍 DEBUG [Aggregator]: grouped_field_values called with field_name=#{field_name.inspect}"
-          puts "🔍 DEBUG [Aggregator]: output_path=#{@output_path.inspect}, group_by=#{@group_by.inspect}"
-
           unless @output_path && @group_by
-            puts "⚠️  DEBUG [Aggregator]: Missing output_path or group_by, returning empty hash"
             return {}
           end
 
           # Build grouped structure: { group_key => [values_from_all_runs] }
           grouped = Hash.new { |h, k| h[k] = [] }
 
-          puts "🔍 DEBUG [Aggregator]: Processing #{@runs.size} runs..."
-          @runs.each_with_index do |run, idx|
-            puts "🔍 DEBUG [Aggregator]: Run #{idx + 1}..."
+          @runs.each_with_index do |run, _idx|
             # Extract domain output array using output_path
             output_items = extract_output_items(run)
-            puts "🔍 DEBUG [Aggregator]: Extracted #{output_items.size} output items from run #{idx + 1}"
 
             # Group items and extract field values
-            output_items.each_with_index do |item, item_idx|
-              puts "🔍 DEBUG [Aggregator]:   Item #{item_idx}: #{item.inspect[0..200]}..." if item_idx < 2
+            output_items.each do |item|
               group_key = (item[@group_by] || item[@group_by.to_s])&.to_sym
               field_value = item[field_name] || item[field_name.to_s]
-              puts "🔍 DEBUG [Aggregator]:   Item #{item_idx}: group_key=#{group_key.inspect}, field_value=#{field_value.inspect}" if item_idx < 2
 
               grouped[group_key] << field_value if group_key && !field_value.nil?
             end
           end
 
-          puts "🔍 DEBUG [Aggregator]: Grouped result: #{grouped.inspect}"
           grouped
         end
 
@@ -127,11 +117,8 @@ module RAAF
         # @param run [Hash] Single evaluation run result
         # @return [Array<Hash>] Domain output items
         def extract_output_items(run)
-          puts "🔍 DEBUG [extract_output_items]: Starting extraction with path '#{@output_path}'"
-
           # Parse output_path (e.g., 'prospect_evaluations.*.criterion_scores')
           path_parts = @output_path.split('.')
-          puts "🔍 DEBUG [extract_output_items]: path_parts = #{path_parts.inspect}"
 
           # Try to find the data starting from the run's top level first
           # This allows paths like 'prospect_evaluations.*.criterion_scores'
@@ -140,20 +127,15 @@ module RAAF
 
           # Check if first part exists at run level
           if run[first_part] || run[first_part.to_sym]
-            puts "🔍 DEBUG [extract_output_items]: Found '#{first_part}' at run level"
             current = run
           else
             # Fall back to agent_result if first part not at run level
             agent_result = run[:agent_result] || run['agent_result']
-            puts "🔍 DEBUG [extract_output_items]: '#{first_part}' not at run level, using agent_result"
-            puts "🔍 DEBUG [extract_output_items]: agent_result present? #{!agent_result.nil?}"
             return [] unless agent_result
             current = agent_result
           end
 
-          puts "🔍 DEBUG [extract_output_items]: Starting navigation from #{current == run ? 'run' : 'agent_result'} (keys: #{current.keys.inspect})"
           path_parts.each_with_index do |part, index|
-            puts "🔍 DEBUG [extract_output_items]:   Step #{index}: part='#{part}', current type=#{current.class.name}"
             if part == '*'
               # Wildcard means "iterate over array elements"
               # The next part tells us which field to extract from each element

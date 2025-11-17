@@ -18,33 +18,41 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             rubric = options[:rubric]
-            
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
+
             unless rubric
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "No rubric provided" },
-                message: "Rubric evaluation requires :rubric parameter"
+                details: {
+                  error: "No rubric provided",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] Rubric evaluation requires :rubric parameter"
               }
             end
 
             value = field_context.value
-            
+
             # Evaluate against rubric
             rubric_scores = evaluate_rubric(value, rubric)
             overall_score = calculate_overall_score(rubric_scores, rubric)
-            
-            passed = overall_score >= (rubric[:passing_score] || 0.7)
+
+            label = calculate_label(overall_score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
+              label: label,
               score: overall_score,
               details: {
                 rubric_scores: rubric_scores,
                 rubric_criteria: rubric[:criteria]&.keys || [],
-                passing_score: rubric[:passing_score] || 0.7
+                passing_score: rubric[:passing_score] || 0.7,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: "Rubric score: #{(overall_score * 100).round}% (passing: #{((rubric[:passing_score] || 0.7) * 100).round}%)"
+              message: "[#{label.upcase}] Rubric score: #{(overall_score * 100).round}% (passing: #{((rubric[:passing_score] || 0.7) * 100).round}%)"
             }
           end
 

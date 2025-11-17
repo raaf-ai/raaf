@@ -18,39 +18,48 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_std_dev = options[:std_dev] || 0.1
-            
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
+
             # Expect value to be an array of results from multiple runs
             values = field_context.value
-            
+
             unless values.is_a?(Array) && !values.empty?
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "Expected array of values from multiple runs" },
-                message: "Invalid input: expected array of values"
+                details: {
+                  error: "Expected array of values from multiple runs",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] Invalid input: expected array of values"
               }
             end
 
             # Calculate standard deviation
             std_dev = calculate_std_dev(values)
             mean = calculate_mean(values)
-            
+
             # Normalize standard deviation by mean for coefficient of variation
             cv = mean == 0 ? 0 : std_dev / mean.abs
-            
-            passed = cv <= max_std_dev
+
+            score = calculate_score(cv, max_std_dev)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(cv, max_std_dev),
+              label: label,
+              score: score,
               details: {
                 values: values,
                 mean: mean.round(3),
                 std_dev: std_dev.round(3),
                 coefficient_of_variation: cv.round(3),
-                max_std_dev: max_std_dev
+                max_std_dev: max_std_dev,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: "Consistency CV: #{cv.round(3)} (max: #{max_std_dev})"
+              message: "[#{label.upcase}] Consistency CV: #{cv.round(3)} (max: #{max_std_dev})"
             }
           end
 

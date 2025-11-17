@@ -14,30 +14,45 @@ module RAAF
 
           # Evaluate semantic similarity
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :threshold (default 0.8)
+          # @param options [Hash] Options including :good_threshold (default 0.8), :average_threshold (default 0.6)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
-            threshold = options[:threshold] || 0.8
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
             text = field_context.value.to_s
             baseline = field_context.baseline_value.to_s
 
             # Calculate semantic similarity score (simplified implementation)
             score = calculate_similarity(text, baseline)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: score >= threshold,
+              label: label,
               score: score,
               details: {
-                threshold: threshold,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold,
                 text_length: text.length,
                 baseline_length: baseline.length,
-                similarity_method: "cosine"
+                similarity_method: "cosine",
+                label_rationale: "Score #{(score * 100).round(1)}% is #{label_description(label, score, good_threshold, average_threshold)}"
               },
-              message: "Semantic similarity: #{(score * 100).round(1)}% (threshold: #{(threshold * 100).round(1)}%)"
+              message: "[#{label.upcase}] Semantic similarity: #{(score * 100).round(1)}%"
             }
           end
 
           private
+
+          def label_description(label, score, good_threshold, average_threshold)
+            case label
+            when "good"
+              "above good threshold (#{(good_threshold * 100).round}%)"
+            when "average"
+              "between average (#{(average_threshold * 100).round}%) and good (#{(good_threshold * 100).round}%) thresholds"
+            when "bad"
+              "below average threshold (#{(average_threshold * 100).round}%)"
+            end
+          end
 
           def calculate_similarity(text1, text2)
             return 1.0 if text1 == text2

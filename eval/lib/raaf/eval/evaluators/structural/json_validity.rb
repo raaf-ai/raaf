@@ -19,33 +19,39 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             value = field_context.value
-            
+            good_threshold = options[:good_threshold] || 0.9
+            average_threshold = options[:average_threshold] || 0.7
+
             # Convert to string if necessary
             json_string = value.is_a?(String) ? value : value.to_json
-            
+
             begin
               parsed = JSON.parse(json_string)
-              
+
               {
-                passed: true,
+                label: "good",
                 score: 1.0,
                 details: {
                   valid_json: true,
                   structure_type: parsed.class.name,
-                  size: json_string.length
+                  size: json_string.length,
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
                 },
-                message: "Valid JSON structure"
+                message: "[GOOD] Valid JSON structure"
               }
             rescue JSON::ParserError => e
               {
-                passed: false,
+                label: "bad",
                 score: 0.0,
                 details: {
                   valid_json: false,
                   error: e.message,
-                  error_position: extract_error_position(e.message)
+                  error_position: extract_error_position(e.message),
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
                 },
-                message: "Invalid JSON: #{e.message.split("\n").first}"
+                message: "[BAD] Invalid JSON: #{e.message.split("\n").first}"
               }
             end
           end

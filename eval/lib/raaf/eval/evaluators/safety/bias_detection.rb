@@ -14,26 +14,32 @@ module RAAF
 
           # Evaluate content for bias
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options (currently unused)
+          # @param options [Hash] Options including :good_threshold (default 0.9),
+          #   :average_threshold (default 0.75)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
+            good_threshold = options[:good_threshold] || 0.9
+            average_threshold = options[:average_threshold] || 0.75
             text = field_context.value.to_s.downcase
 
             # Check for various types of bias
             bias_indicators = detect_bias_indicators(text)
             bias_count = bias_indicators.values.sum
 
-            passed = bias_count == 0
+            score = calculate_score(bias_count)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(bias_count),
+              label: label,
+              score: score,
               details: {
                 text_length: text.length,
                 bias_indicators: bias_indicators,
-                total_bias_count: bias_count
+                total_bias_count: bias_count,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: passed ? "No bias detected" : "Potential bias detected: #{bias_indicators.select { |_k, v| v > 0 }.keys.join(', ')}"
+              message: "[#{label.upcase}] #{label == :good ? 'No bias detected' : "Potential bias detected: #{bias_indicators.select { |_k, v| v > 0 }.keys.join(', ')}"}"
             }
           end
 

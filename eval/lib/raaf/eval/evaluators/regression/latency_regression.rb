@@ -14,38 +14,44 @@ module RAAF
 
           # Evaluate latency regression
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :max_ms (default 200)
+          # @param options [Hash] Options including :max_ms (default 200),
+          #   :good_threshold (default 0.8), :average_threshold (default 0.6)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_ms = options[:max_ms] || 200
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
             current_latency = field_context.value
             baseline_latency = field_context.baseline_value
 
             # Handle missing baseline
             unless baseline_latency
               return {
-                passed: true,
+                label: :good,
                 score: 1.0,
                 details: { current_latency: current_latency, no_baseline: true },
-                message: "No baseline for latency regression check"
+                message: "[GOOD] No baseline for latency regression check"
               }
             end
 
             # Calculate latency increase
             increase_ms = [current_latency - baseline_latency, 0].max
 
-            passed = increase_ms <= max_ms
+            score = calculate_score(increase_ms, max_ms)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(increase_ms, max_ms),
+              label: label,
+              score: score,
               details: {
                 current_latency: current_latency,
                 baseline_latency: baseline_latency,
                 increase_ms: increase_ms,
-                max_ms: max_ms
+                max_ms: max_ms,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: "Latency increase: #{increase_ms}ms (max: #{max_ms}ms)"
+              message: "[#{label.upcase}] Latency increase: #{increase_ms}ms (max: #{max_ms}ms)"
             }
           end
 

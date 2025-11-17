@@ -18,67 +18,75 @@ module RAAF
           #   - :tolerance [Numeric] Maximum allowed drop from baseline (default: 0)
           #   - :alert_on_drop [Boolean] Alert on any drop (default: true)
           #   - :severity [Symbol] Severity level (unused, for compatibility)
+          #   - :good_threshold [Numeric] Score threshold for good label (default: 0.8)
+          #   - :average_threshold [Numeric] Score threshold for average label (default: 0.6)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             current_value = field_context.value
             baseline_value = field_context.baseline_value
             tolerance = options[:tolerance] || 0
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
 
             # Handle missing baseline
             unless baseline_value
               return {
-                passed: true,
+                label: :good,
                 score: 1.0,
                 details: { current_value: current_value, no_baseline: true },
-                message: "No baseline available for regression check"
+                message: "[GOOD] No baseline available for regression check"
               }
             end
 
             # Handle array values - check each element
             if current_value.is_a?(Array) && baseline_value.is_a?(Array)
-              return evaluate_array_regression(current_value, baseline_value, tolerance, field_context)
+              return evaluate_array_regression(current_value, baseline_value, tolerance, field_context,
+                                              good_threshold, average_threshold)
             end
 
             # For numeric values, check if current is not worse (within tolerance)
             if numeric?(current_value) && numeric?(baseline_value)
               drop = baseline_value - current_value
-              passed = drop <= tolerance
-              score = passed ? 1.0 : calculate_regression_score(current_value, baseline_value, tolerance)
+              score = drop <= tolerance ? 1.0 : calculate_regression_score(current_value, baseline_value, tolerance)
             else
               # For non-numeric, check equality
-              passed = current_value == baseline_value
-              score = passed ? 1.0 : 0.5
+              score = current_value == baseline_value ? 1.0 : 0.5
             end
 
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+
             {
-              passed: passed,
+              label: label,
               score: score,
               details: {
                 current_value: current_value,
                 baseline_value: baseline_value,
                 delta: field_context.delta,
                 tolerance: tolerance,
-                drop: baseline_value - current_value
+                drop: baseline_value - current_value,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: passed ? "No regression detected" : "Regression detected from baseline"
+              message: "[#{label.upcase}] #{label == :good ? 'No regression detected' : 'Regression detected from baseline'}"
             }
           end
 
           private
 
           # Evaluate regression for array values (element-by-element comparison)
-          def evaluate_array_regression(current_array, baseline_array, tolerance, field_context)
+          def evaluate_array_regression(current_array, baseline_array, tolerance, field_context,
+                                       good_threshold, average_threshold)
             # Ensure arrays are same length
             if current_array.length != baseline_array.length
               return {
-                passed: false,
+                label: :bad,
                 score: 0.0,
                 details: {
                   current_value: current_array,
                   baseline_value: baseline_array,
                   error: "Array length mismatch"
                 },
-                message: "Array length mismatch: cannot compare arrays of different sizes"
+                message: "[BAD] Array length mismatch: cannot compare arrays of different sizes"
               }
             end
 
@@ -91,10 +99,9 @@ module RAAF
             # Check if any drop exceeds tolerance
             max_drop = drops.compact.max || 0
             excessive_drops = drops.compact.select { |drop| drop > tolerance }
-            passed = excessive_drops.empty?
 
             # Calculate score based on worst regression
-            if passed
+            if excessive_drops.empty?
               score = 1.0
             elsif max_drop > 0
               # Score based on how much the worst drop exceeds tolerance
@@ -106,8 +113,10 @@ module RAAF
               score = 0.5
             end
 
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+
             {
-              passed: passed,
+              label: label,
               score: score,
               details: {
                 current_value: current_array,
@@ -116,9 +125,11 @@ module RAAF
                 tolerance: tolerance,
                 drops: drops,
                 max_drop: max_drop,
-                excessive_drops_count: excessive_drops.length
+                excessive_drops_count: excessive_drops.length,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: passed ? "No regression detected in array" : "Regression detected: #{excessive_drops.length} element(s) exceed tolerance"
+              message: "[#{label.upcase}] #{label == :good ? 'No regression detected in array' : "Regression detected: #{excessive_drops.length} element(s) exceed tolerance"}"
             }
           end
 

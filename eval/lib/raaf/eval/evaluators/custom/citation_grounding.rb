@@ -35,10 +35,12 @@ module RAAF
           def evaluate(field_context, **options)
             text = field_context.value
             knowledge_base = options[:knowledge_base] || []
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
 
             # Extract citations from text
             citations = extract_citations(text)
-            
+
             # Verify citations against knowledge base
             grounded = verify_citations(citations, knowledge_base)
 
@@ -46,21 +48,26 @@ module RAAF
             model = field_context[:configuration][:model] rescue "unknown"
             tokens = field_context[:usage][:total_tokens] rescue 0
 
+            score = grounded[:verified_ratio]
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+
             {
-              passed: grounded[:unverified].empty?,
-              score: grounded[:verified_ratio],
+              label: label,
+              score: score,
               details: {
                 field_evaluated: field_context.field_name,
                 total_citations: citations.count,
                 verified: grounded[:verified].count,
                 unverified: grounded[:unverified],
                 ratio: grounded[:verified_ratio],
+                threshold_good: good_threshold,
+                threshold_average: average_threshold,
                 context: {
                   model: model,
                   tokens: tokens
                 }
               },
-              message: "#{grounded[:verified].count}/#{citations.count} citations grounded in #{field_context.field_name}"
+              message: "[#{label.upcase}] #{grounded[:verified].count}/#{citations.count} citations grounded in #{field_context.field_name}"
             }
           end
 

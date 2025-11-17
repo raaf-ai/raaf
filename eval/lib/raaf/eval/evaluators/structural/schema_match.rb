@@ -19,30 +19,41 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             schema = options[:schema]
-            
+            good_threshold = options[:good_threshold] || 0.9
+            average_threshold = options[:average_threshold] || 0.7
+
             unless schema
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "No schema provided" },
-                message: "Schema validation requires :schema parameter"
+                details: {
+                  error: "No schema provided",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] Schema validation requires :schema parameter"
               }
             end
 
             value = field_context.value
             validation_errors = validate_against_schema(value, schema)
-            
-            passed = validation_errors.empty?
+
+            score = calculate_score(validation_errors)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(validation_errors),
+              label: label,
+              score: score,
               details: {
                 validation_errors: validation_errors,
                 schema_keys: schema.keys,
-                value_type: value.class.name
+                value_type: value.class.name,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: passed ? "Matches schema" : "Schema violations: #{validation_errors.join(', ')}"
+              message: validation_errors.empty? ?
+                "[#{label.upcase}] Matches schema" :
+                "[#{label.upcase}] Schema violations: #{validation_errors.join(', ')}"
             }
           end
 

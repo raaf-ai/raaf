@@ -3,129 +3,122 @@
 module RAAF
   module Eval
     module DSL
-      # Stores the configuration for an evaluator definition
-      # Manages field selections, evaluator attachments, progress callbacks, and history settings
-      class EvaluatorDefinition
-        attr_reader :name, :selected_fields, :field_evaluators, :progress_callbacks, :history_config,
-                    :field_evaluator_sets
-
-        # Initialize a new evaluator definition
-        # @param name [String] Optional name for the evaluator
-        def initialize(name: nil)
-          @name = name
-          @selected_fields = []
-          @field_evaluators = {}
-          @field_evaluator_sets = {}
-          @progress_callbacks = []
-          @history_config = default_history_config
+      # Module that provides class-level DSL for defining evaluators
+      # Eliminates the need for `class << self` singleton pattern
+      # Provides automatic caching and configuration building
+      #
+      # @example Basic usage
+      #   class MyEvaluator
+      #     include RAAF::Eval::DSL::EvaluatorDefinition
+      #
+      #     select 'output', as: :output
+      #     evaluate_field :output do
+      #       evaluate_with :semantic_similarity, threshold: 0.85
+      #     end
+      #   end
+      #
+      #   evaluator = MyEvaluator.evaluator  # Automatic caching
+      module EvaluatorDefinition
+        # Hook called when module is included in a class
+        # Extends the class with ClassMethods and initializes configuration
+        def self.included(base)
+          base.extend(ClassMethods)
+          base.instance_variable_set(:@_evaluator_config, {
+            selections: [],
+            field_evaluations: {},
+            progress_callback: nil,
+            history_options: {}
+          })
         end
 
-        # Add a field to be evaluated
-        # @param path [String] The field path (supports dot notation)
-        # @param as [String, nil] Optional alias for the field
-        def add_field(path, as: nil)
-          @selected_fields << { path: path, alias: as }
-        end
-
-        # Get a field by its path
-        # @param path [String] The field path
-        # @return [Hash, nil] The field configuration or nil if not found
-        def get_field(path)
-          @selected_fields.find { |field| field[:path] == path }
-        end
-
-        # Get a field by its alias
-        # @param alias_name [String] The alias name
-        # @return [Hash, nil] The field configuration or nil if not found
-        def get_field_by_alias(alias_name)
-          @selected_fields.find { |field| field[:alias] == alias_name }
-        end
-
-        # Add evaluator configuration for a field
-        # @param field_name [String] The field name to evaluate
-        # @param config [Hash] The evaluator configuration
-        def add_field_evaluator(field_name, config)
-          @field_evaluators[field_name] = config
-        end
-
-        # Get evaluator configuration for a field
-        # @param field_name [String] The field name
-        # @return [Hash, nil] The evaluator configuration or nil if not found
-        def get_field_evaluator(field_name)
-          @field_evaluators[field_name]
-        end
-
-        # Add a progress callback
-        # @param block [Proc] The callback block to execute on progress events
-        def add_progress_callback(&block)
-          @progress_callbacks << block if block_given?
-        end
-
-        # Trigger progress callbacks with an event
-        # @param event [Hash] The progress event data
-        def trigger_progress(event)
-          @progress_callbacks.each do |callback|
-            callback.call(event)
+        # Class methods added to including class
+        module ClassMethods
+          # Select a field for evaluation with optional alias
+          # @param path [String] Field path (supports dot notation)
+          # @param as [Symbol] Alias for the field
+          # @example
+          #   select 'usage.total_tokens', as: :tokens
+          def select(path, as:)
+            @_evaluator_config[:selections] << { path: path, as: as }
           end
-        end
 
-        # Configure history settings
-        # @param config [Hash] History configuration options
-        def configure_history(config)
-          @history_config = @history_config.merge(config)
-        end
+          # Define evaluators for a specific field
+          # @param name [Symbol] Field name to evaluate
+          # @yield Block for field evaluator DSL
+          # @example
+          #   evaluate_field :output do
+          #     evaluate_with :semantic_similarity, threshold: 0.85
+          #     combine_with :and
+          #   end
+          def evaluate_field(name, &block)
+            @_evaluator_config[:field_evaluations][name] = block
+          end
 
-        # Define multiple evaluators for a field with combination logic
-        # @param field_name [Symbol] The field name to evaluate
-        # @yield Block for field evaluator DSL
-        def evaluate_field(field_name, &block)
-          field_set = FieldEvaluatorSet.new(field_name)
+          # Register a progress callback
+          # @yield Block that receives progress events
+          # @example
+          #   on_progress do |event|
+          #     puts "#{event.status}: #{event.progress}%"
+          #   end
+          def on_progress(&block)
+            @_evaluator_config[:progress_callback] = block
+          end
 
-          # Create DSL context for field block
-          field_dsl = FieldEvaluatorDSL.new(field_set)
-          field_dsl.instance_eval(&block)
+          # Configure historical storage
+          # @param options [Hash] History configuration options
+          # @option options [Boolean] :baseline Enable baseline tracking
+          # @option options [Integer] :last_n Number of recent runs to retain
+          # @option options [Boolean] :auto_save Automatically save results
+          # @option options [Integer] :retention_days Days to retain history
+          # @option options [Integer] :retention_count Max number of runs to retain
+          # @example
+          #   history baseline: true, last_n: 10, auto_save: true
+          def history(**options)
+            @_evaluator_config[:history_options].merge!(options)
+          end
 
-          @field_evaluator_sets[field_name] = field_set
-        end
+          # Return cached evaluator or build new one from DSL configuration
+          # @return [RAAF::Eval::Evaluator] The evaluator instance
+          def evaluator
+            @evaluator ||= build_evaluator_from_config
+          end
 
-        # Get field evaluator set for a field
-        # @param field_name [Symbol] The field name
-        # @return [FieldEvaluatorSet, nil] The field evaluator set or nil if not found
-        def get_field_evaluator_set(field_name)
-          @field_evaluator_sets[field_name]
-        end
+          # Clear cached evaluator (useful for testing)
+          # @return [nil]
+          def reset_evaluator!
+            @evaluator = nil
+          end
 
-        private
+          private
 
-        # Default history configuration
-        def default_history_config
-          {
-            auto_save: false,
-            retention_days: nil,
-            retention_count: nil,
-            tags: []
-          }
-        end
-      end
+          # Build evaluator from stored DSL configuration
+          # @return [RAAF::Eval::Evaluator] New evaluator instance
+          def build_evaluator_from_config
+            config = @_evaluator_config
 
-      # DSL context for defining field evaluators
-      class FieldEvaluatorDSL
-        def initialize(field_set)
-          @field_set = field_set
-        end
+            RAAF::Eval.define do
+              # Apply field selections
+              config[:selections].each do |selection|
+                select selection[:path], as: selection[:as]
+              end
 
-        # Add an evaluator to the field
-        # @param evaluator_name [Symbol] The evaluator name
-        # @param options [Hash] Options for the evaluator
-        def evaluate_with(evaluator_name, **options)
-          evaluator_alias = options.delete(:as)
-          @field_set.add_evaluator(evaluator_name, options, evaluator_alias: evaluator_alias)
-        end
+              # Apply field evaluations
+              config[:field_evaluations].each do |field_name, evaluation_block|
+                evaluate_field field_name, &evaluation_block
+              end
 
-        # Set combination strategy for field evaluators
-        # @param strategy [Symbol, Proc] Strategy (:and, :or) or custom lambda
-        def combine_with(strategy)
-          @field_set.set_combination(strategy)
+              # Apply progress callback
+              on_progress(&config[:progress_callback]) if config[:progress_callback]
+
+              # Apply history configuration
+              if config[:history_options].any?
+                history_opts = config[:history_options]
+                history do
+                  history_opts.each { |k, v| send(k, v) }
+                end
+              end
+            end
+          end
         end
       end
     end

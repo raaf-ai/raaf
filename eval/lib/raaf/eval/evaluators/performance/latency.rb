@@ -14,33 +14,46 @@ module RAAF
 
           # Evaluate response latency
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :max_ms (default 2000)
+          # @param options [Hash] Options including :max_ms (default 2000),
+          #   :threshold_good (default 0.85), :threshold_average (default 0.7)
+          #   Legacy: :good_threshold, :average_threshold also supported
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_ms = options[:max_ms] || 2000
+            # Support both new and legacy naming
+            threshold_good = options[:threshold_good] || options[:good_threshold] || 0.85
+            threshold_average = options[:threshold_average] || options[:average_threshold] || 0.7
             current_latency = field_context.value
 
             # Handle invalid latency values
             unless current_latency && current_latency.is_a?(Numeric) && current_latency >= 0
               return {
-                passed: false,
+                label: :bad,
                 score: 0.0,
-                details: { current_latency: current_latency, error: "Invalid latency value" },
-                message: "Invalid latency value: #{current_latency}"
+                details: {
+                  current_latency: current_latency,
+                  error: "Invalid latency value",
+                  threshold_good: threshold_good,
+                  threshold_average: threshold_average
+                },
+                message: "[BAD] Invalid latency value: #{current_latency}"
               }
             end
 
-            passed = current_latency <= max_ms
+            score = calculate_score(current_latency, max_ms)
+            label = calculate_label(score, threshold_good: threshold_good, threshold_average: threshold_average)
 
             {
-              passed: passed,
-              score: calculate_score(current_latency, max_ms),
+              label: label,
+              score: score,
               details: {
                 current_latency: current_latency,
                 max_ms: max_ms,
-                baseline_latency: field_context.baseline_value
+                baseline_latency: field_context.baseline_value,
+                threshold_good: threshold_good,
+                threshold_average: threshold_average
               },
-              message: "Latency: #{current_latency}ms (max: #{max_ms}ms)"
+              message: "[#{label.upcase}] Latency: #{current_latency}ms (max: #{max_ms}ms)"
             }
           end
 

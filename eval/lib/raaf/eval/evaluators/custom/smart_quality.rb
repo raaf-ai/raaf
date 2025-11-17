@@ -35,6 +35,8 @@ module RAAF
           def evaluate(field_context, **options)
             output = field_context.value
             min_score = options[:min_score] || 0.7
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
 
             # Access cross-field context
             tokens = field_context[:usage][:total_tokens] rescue 0
@@ -53,21 +55,25 @@ module RAAF
             # Calculate final score
             final_score = [adjusted_score - efficiency_penalty, 0].max
 
+            label = calculate_label(final_score, good_threshold: good_threshold, average_threshold: average_threshold)
+
             {
-              passed: final_score >= min_score,
+              label: label,
               score: final_score,
               details: {
                 evaluated_field: field_context.field_name,
                 base_quality: base_score,
                 model_adjustment: adjusted_score - base_score,
                 efficiency_penalty: efficiency_penalty,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold,
                 context: {
                   model: model,
                   tokens: tokens,
                   latency: latency
                 }
               },
-              message: "Quality: #{(final_score * 100).round}% (model: #{model}, tokens: #{tokens})"
+              message: "[#{label.upcase}] Quality: #{(final_score * 100).round}% (model: #{model}, tokens: #{tokens})"
             }
           end
 

@@ -18,15 +18,9 @@ module RAAF
         # @param field_name [Symbol, String] Field to analyze (e.g., :score)
         # @param field_label [String] Human-readable field label (e.g., "Score")
         def generate(field_name: :score, field_label: "Score")
-          puts "🔍 DEBUG [Reporter]: Calling grouped_consistency_stats..."
           stats = @aggregator.grouped_consistency_stats(field_name, tolerance: @tolerance)
-          puts "🔍 DEBUG [Reporter]: Stats returned: #{stats.inspect}"
-          puts "🔍 DEBUG [Reporter]: Stats empty? #{stats.empty?}"
 
-          if stats.empty?
-            puts "⚠️  DEBUG [Reporter]: Stats is empty, returning early"
-            return
-          end
+          return if stats.empty?
 
           puts ""
           puts "=" * 80

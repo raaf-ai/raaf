@@ -35,34 +35,43 @@ module RAAF
           def evaluate(field_context, **options)
             output = field_context.value.to_s
             expected_format = options[:expected_format]
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
 
             unless expected_format
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
                 details: {
                   field: field_context.field_name,
-                  error: "expected_format option is required"
+                  error: "expected_format option is required",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
                 },
-                message: "Format validation failed: expected_format not provided"
+                message: "[BAD] Format validation failed: expected_format not provided"
               }
             end
 
             # Perform validation
             matches = validate_format(output, expected_format)
 
+            score = matches ? 1.0 : 0.0
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+
             {
-              passed: matches,
-              score: matches ? 1.0 : 0.0,
+              label: label,
+              score: score,
               details: {
                 field: field_context.field_name,
                 output: output,
                 expected_format: format_description(expected_format),
-                matched: matches
+                matched: matches,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: matches ? 
-                "Output matches expected format" : 
-                "Output does not match expected format #{format_description(expected_format)}"
+              message: matches ?
+                "[#{label.upcase}] Output matches expected format" :
+                "[#{label.upcase}] Output does not match expected format #{format_description(expected_format)}"
             }
           end
 

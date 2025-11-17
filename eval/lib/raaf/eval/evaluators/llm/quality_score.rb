@@ -18,24 +18,29 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             min_score = options[:min_score] || 0.7
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
             value = field_context.value
-            
+
             # Simulate quality scoring
             # In production, this would use an LLM to assess quality
             quality_assessment = assess_quality(value)
 
-            passed = quality_assessment[:score] >= min_score
+            score = quality_assessment[:score]
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: quality_assessment[:score],
+              label: label,
+              score: score,
               details: {
                 min_score: min_score,
                 dimensions: quality_assessment[:dimensions],
                 strengths: quality_assessment[:strengths],
-                weaknesses: quality_assessment[:weaknesses]
+                weaknesses: quality_assessment[:weaknesses],
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: "Quality score: #{(quality_assessment[:score] * 100).round}% (min: #{(min_score * 100).round}%)"
+              message: "[#{label.upcase}] Quality score: #{(score * 100).round}% (min: #{(min_score * 100).round}%)"
             }
           end
 

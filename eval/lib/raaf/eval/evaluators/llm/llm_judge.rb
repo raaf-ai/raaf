@@ -14,33 +14,41 @@ module RAAF
 
           # Evaluate using LLM judge
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :criteria (required)
+          # @param options [Hash] Options including :criteria (required), :good_threshold (default 0.8), :average_threshold (default 0.6)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             criteria = options[:criteria]
-            
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
+
             unless criteria
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "No evaluation criteria provided" },
-                message: "LLM judge requires :criteria parameter"
+                details: {
+                  error: "No evaluation criteria provided",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] LLM judge requires :criteria parameter"
               }
             end
 
             value = field_context.value
-            
+
             # Simulate LLM judgment
             # In production, this would call an actual LLM API
-            judgment = simulate_llm_judgment(value, criteria)
+            judgment = simulate_llm_judgment(value, criteria, good_threshold, average_threshold)
 
             {
-              passed: judgment[:passed],
+              label: judgment[:label],
               score: judgment[:score],
               details: {
                 criteria: criteria,
                 reasoning: judgment[:reasoning],
-                confidence: judgment[:confidence]
+                confidence: judgment[:confidence],
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
               message: judgment[:summary]
             }
@@ -48,15 +56,14 @@ module RAAF
 
           private
 
-          def simulate_llm_judgment(value, criteria)
+          def simulate_llm_judgment(value, criteria, good_threshold, average_threshold)
             # Simplified simulation of LLM judgment
             # In production, would make actual LLM API call
-            
+
             text = value.to_s.downcase
-            
+
             # Simple heuristic-based simulation
             score = 0.7
-            passed = true
             reasoning = []
 
             if criteria.include?("accuracy")
@@ -90,14 +97,15 @@ module RAAF
               end
             end
 
-            passed = score >= 0.6
+            score = [score, 1.0].min
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: [score, 1.0].min,
+              label: label,
+              score: score,
               reasoning: reasoning.join("; "),
               confidence: 0.85,
-              summary: "LLM evaluation: #{(score * 100).round}% (#{passed ? 'PASS' : 'FAIL'})"
+              summary: "[#{label.upcase}] LLM evaluation: #{(score * 100).round}%"
             }
           end
         end

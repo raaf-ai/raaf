@@ -3,11 +3,11 @@
 # Load all built-in evaluators
 # This file is required by EvaluatorRegistry for auto-registration
 
-# Quality evaluators (1 implemented, 3 stubs)
+# Quality evaluators (1 implemented, 3 stubs not yet implemented)
 require_relative "quality/semantic_similarity"
-# require_relative "quality/coherence"  # TODO: Stub - not yet implemented
-# require_relative "quality/hallucination_detection"  # TODO: Stub - not yet implemented
-# require_relative "quality/relevance"  # TODO: Stub - not yet implemented
+# require_relative "quality/coherence"  # TODO: Empty stub - not yet implemented
+# require_relative "quality/hallucination_detection"  # TODO: Empty stub - not yet implemented
+# require_relative "quality/relevance"  # TODO: Empty stub - not yet implemented
 
 # Performance evaluators (3)
 require_relative "performance/token_efficiency"
@@ -38,3 +38,8 @@ require_relative "structural/format_compliance"
 require_relative "llm/llm_judge"
 require_relative "llm/quality_score"
 require_relative "llm/rubric_evaluation"
+
+# Custom evaluators (3)
+require_relative "custom/citation_grounding"
+require_relative "custom/format_validator"
+require_relative "custom/smart_quality"

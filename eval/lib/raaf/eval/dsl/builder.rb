@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "field_selector"
-require_relative "evaluator_definition"
+require_relative "evaluator_config"
 
 module RAAF
   module Eval
@@ -13,7 +13,7 @@ module RAAF
 
         def initialize
           @field_selector = FieldSelector.new
-          @evaluator_definition = EvaluatorDefinition.new
+          @evaluator_definition = EvaluatorConfig.new
           @progress_callbacks = []
           @history_config = default_history_config
         end

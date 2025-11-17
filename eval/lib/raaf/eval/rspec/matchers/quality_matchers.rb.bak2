@@ -9,7 +9,7 @@ module RAAF
         module QualityMatchers
           ##
           # Label-specific matchers for 3-tier labeling system
-          ::RSpec::Matchers.define :be_good do
+          ::::RSpec::Matchers.define :be_good do
             match do |evaluation_result|
               label = evaluation_result.is_a?(Hash) ? evaluation_result[:label] : evaluation_result.label
               label == "good"

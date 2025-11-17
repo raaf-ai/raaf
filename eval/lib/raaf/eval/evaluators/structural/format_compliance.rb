@@ -18,30 +18,41 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             expected_format = options[:format]
-            
+            good_threshold = options[:good_threshold] || 0.9
+            average_threshold = options[:average_threshold] || 0.7
+
             unless expected_format
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "No format specified" },
-                message: "Format validation requires :format parameter"
+                details: {
+                  error: "No format specified",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] Format validation requires :format parameter"
               }
             end
 
             value = field_context.value
             violations = check_format_compliance(value, expected_format)
-            
-            passed = violations.empty?
+
+            score = calculate_score(violations)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(violations),
+              label: label,
+              score: score,
               details: {
                 expected_format: expected_format,
                 violations: violations,
-                value_type: value.class.name
+                value_type: value.class.name,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: passed ? "Complies with format: #{expected_format}" : "Format violations: #{violations.join(', ')}"
+              message: violations.empty? ?
+                "[#{label.upcase}] Complies with format: #{expected_format}" :
+                "[#{label.upcase}] Format violations: #{violations.join(', ')}"
             }
           end
 

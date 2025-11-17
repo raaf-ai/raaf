@@ -18,34 +18,43 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             threshold_p_value = options[:p_value] || 0.05
-            
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
+
             # Expect value to be a hash with test results
             test_data = field_context.value
-            
+
             unless test_data.is_a?(Hash)
               return {
-                passed: false,
+                label: "bad",
                 score: 0.0,
-                details: { error: "Expected hash with test results" },
-                message: "Invalid input: expected test results hash"
+                details: {
+                  error: "Expected hash with test results",
+                  threshold_good: good_threshold,
+                  threshold_average: average_threshold
+                },
+                message: "[BAD] Invalid input: expected test results hash"
               }
             end
 
             # Extract or calculate p-value
             p_value = test_data[:p_value] || calculate_p_value(test_data)
-            
-            passed = p_value && p_value <= threshold_p_value
+
+            score = calculate_score(p_value, threshold_p_value)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(p_value, threshold_p_value),
+              label: label,
+              score: score,
               details: {
                 p_value: p_value&.round(4),
                 threshold: threshold_p_value,
                 sample_size: test_data[:sample_size],
-                effect_size: test_data[:effect_size]
+                effect_size: test_data[:effect_size],
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: p_value ? "P-value: #{p_value.round(4)} (threshold: #{threshold_p_value})" : "Unable to calculate p-value"
+              message: p_value ? "[#{label.upcase}] P-value: #{p_value.round(4)} (threshold: #{threshold_p_value})" : "[BAD] Unable to calculate p-value"
             }
           end
 

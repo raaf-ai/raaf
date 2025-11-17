@@ -17,12 +17,15 @@ module RAAF
           @metadata = metadata || {}
         end
 
-        # Check if all fields passed
+        # Check if all fields passed (backward compatibility - checks for "good" or "average" labels)
         # @return [Boolean] true if all fields passed (or no fields evaluated)
         def passed?
           return true if @field_results.empty?
 
-          @field_results.values.all? { |result| result[:passed] }
+          @field_results.values.all? { |result|
+            label = result[:label]
+            label == "good" || label == "average"
+          }
         end
 
         # Get result for a specific field
@@ -32,16 +35,60 @@ module RAAF
           @field_results[field_name]
         end
 
-        # Get list of fields that passed
+        # Get list of fields that passed (good or average labels)
         # @return [Array<String>] Field names that passed
         def passed_fields
-          @field_results.select { |_field, result| result[:passed] }.keys
+          @field_results.select { |_field, result|
+            label = result[:label]
+            label == "good" || label == "average"
+          }.keys
         end
 
-        # Get list of fields that failed
+        # Get list of fields that failed (bad label)
         # @return [Array<String>] Field names that failed
         def failed_fields
-          @field_results.reject { |_field, result| result[:passed] }.keys
+          @field_results.select { |_field, result| result[:label] == "bad" }.keys
+        end
+
+        # Get list of fields with "good" label
+        # @return [Array<String>] Field names rated as good
+        def good_fields
+          @field_results.select { |_field, result| result[:label] == "good" }.keys
+        end
+
+        # Get list of fields with "average" label
+        # @return [Array<String>] Field names rated as average
+        def average_fields
+          @field_results.select { |_field, result| result[:label] == "average" }.keys
+        end
+
+        # Get list of fields with "bad" label
+        # @return [Array<String>] Field names rated as bad
+        def bad_fields
+          @field_results.select { |_field, result| result[:label] == "bad" }.keys
+        end
+
+        # Calculate overall quality based on label distribution
+        # @return [String] Overall quality: "good", "average", or "bad"
+        def overall_quality
+          return "bad" if @field_results.empty?
+
+          good_count = good_fields.size
+          average_count = average_fields.size
+          bad_count = bad_fields.size
+          total = @field_results.size
+
+          # If majority are good (>50%), overall is good
+          return "good" if good_count.to_f / total > 0.5
+
+          # If no bad fields and some good fields, overall is average
+          return "average" if bad_count.zero? && good_count.positive?
+
+          # If majority are average or mixed, overall is average
+          return "average" if (good_count + average_count).to_f / total >= 0.5
+
+          # Otherwise, overall is bad
+          "bad"
         end
 
         # Get configuration name
@@ -97,6 +144,10 @@ module RAAF
         def summary
           {
             passed: passed?,
+            overall_quality: overall_quality,
+            good_fields: good_fields.size,
+            average_fields: average_fields.size,
+            bad_fields: bad_fields.size,
             passed_fields: passed_fields.size,
             failed_fields: failed_fields.size,
             total_fields: @field_results.size,

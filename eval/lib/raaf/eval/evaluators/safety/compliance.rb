@@ -14,26 +14,32 @@ module RAAF
 
           # Evaluate content compliance
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :policies (array of policy names)
+          # @param options [Hash] Options including :policies (array of policy names),
+          #   :good_threshold (default 0.9), :average_threshold (default 0.75)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             text = field_context.value.to_s
             policies = options[:policies] || [:general]
+            good_threshold = options[:good_threshold] || 0.9
+            average_threshold = options[:average_threshold] || 0.75
 
             # Check compliance with each policy
             violations = check_policy_violations(text, policies)
-            
-            passed = violations.empty?
+
+            score = calculate_score(violations.size)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(violations.size),
+              label: label,
+              score: score,
               details: {
                 policies_checked: policies,
                 violations: violations,
-                text_length: text.length
+                text_length: text.length,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: passed ? "Content complies with all policies" : "Policy violations found: #{violations.join(', ')}"
+              message: "[#{label.upcase}] #{label == :good ? 'Content complies with all policies' : "Policy violations found: #{violations.join(', ')}"}"
             }
           end
 

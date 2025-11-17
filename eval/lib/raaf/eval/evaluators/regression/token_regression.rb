@@ -14,20 +14,23 @@ module RAAF
 
           # Evaluate token regression
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :max_pct (default 10)
+          # @param options [Hash] Options including :max_pct (default 10),
+          #   :good_threshold (default 0.8), :average_threshold (default 0.6)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_pct = options[:max_pct] || 10
+            good_threshold = options[:good_threshold] || 0.8
+            average_threshold = options[:average_threshold] || 0.6
             current_tokens = field_context.value
             baseline_tokens = field_context.baseline_value
 
             # Handle missing baseline
             unless baseline_tokens
               return {
-                passed: true,
+                label: :good,
                 score: 1.0,
                 details: { current_tokens: current_tokens, no_baseline: true },
-                message: "No baseline for token regression check"
+                message: "[GOOD] No baseline for token regression check"
               }
             end
 
@@ -38,18 +41,21 @@ module RAAF
               current_tokens > 0 ? 100.0 : 0.0
             end
 
-            passed = increase_pct <= max_pct
+            score = calculate_score(increase_pct, max_pct)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(increase_pct, max_pct),
+              label: label,
+              score: score,
               details: {
                 current_tokens: current_tokens,
                 baseline_tokens: baseline_tokens,
                 increase_pct: increase_pct.round(2),
-                max_pct: max_pct
+                max_pct: max_pct,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: "Token increase: #{increase_pct.round(2)}% (max: #{max_pct}%)"
+              message: "[#{label.upcase}] Token increase: #{increase_pct.round(2)}% (max: #{max_pct}%)"
             }
           end
 

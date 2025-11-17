@@ -14,20 +14,23 @@ module RAAF
 
           # Evaluate token efficiency
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :max_increase_pct (default 10)
+          # @param options [Hash] Options including :max_increase_pct (default 10),
+          #   :good_threshold (default 0.85), :average_threshold (default 0.7)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_increase_pct = options[:max_increase_pct] || 10
+            good_threshold = options[:good_threshold] || 0.85
+            average_threshold = options[:average_threshold] || 0.7
             current_tokens = field_context.value
             baseline_tokens = field_context.baseline_value
 
             # Handle missing baseline
             unless baseline_tokens
               return {
-                passed: true,
+                label: :good,
                 score: 1.0,
                 details: { current_tokens: current_tokens, no_baseline: true },
-                message: "No baseline available for comparison"
+                message: "[GOOD] No baseline available for comparison"
               }
             end
 
@@ -39,18 +42,21 @@ module RAAF
               current_tokens > 0 ? 100.0 : 0.0
             end
 
-            passed = percentage_change <= max_increase_pct
+            score = calculate_score(percentage_change, max_increase_pct)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
-              passed: passed,
-              score: calculate_score(percentage_change, max_increase_pct),
+              label: label,
+              score: score,
               details: {
                 current_tokens: current_tokens,
                 baseline_tokens: baseline_tokens,
                 percentage_change: percentage_change,
-                threshold: max_increase_pct
+                threshold: max_increase_pct,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
               },
-              message: "Token usage: #{percentage_change}% change (max: #{max_increase_pct}%)"
+              message: "[#{label.upcase}] Token usage: #{percentage_change}% change (max: #{max_increase_pct}%)"
             }
           end
 
