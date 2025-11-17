@@ -350,13 +350,24 @@ module RAAF
         end
 
         # Add usage information if available
+        # Transform Cohere's nested structure and normalize to canonical format
         if cohere_response["usage"]
-          response["usage"] = {
-            "prompt_tokens" => cohere_response["usage"]["billed_units"]["input_tokens"] || 0,
-            "completion_tokens" => cohere_response["usage"]["billed_units"]["output_tokens"] || 0,
-            "total_tokens" => (cohere_response["usage"]["billed_units"]["input_tokens"] || 0) +
-                              (cohere_response["usage"]["billed_units"]["output_tokens"] || 0)
+          # Build intermediate structure that Normalizer can process
+          usage_body = {
+            "usage" => {
+              "prompt_tokens" => cohere_response["usage"]["billed_units"]["input_tokens"] || 0,
+              "completion_tokens" => cohere_response["usage"]["billed_units"]["output_tokens"] || 0
+            },
+            "model" => cohere_response["model"]
           }
+
+          # Normalize to canonical RAAF format (input_tokens, output_tokens)
+          normalized_usage = RAAF::Usage::Normalizer.normalize(
+            usage_body,
+            provider_name: "cohere",
+            model: cohere_response["model"]
+          )
+          response["usage"] = normalized_usage if normalized_usage
         end
 
         response
@@ -450,12 +461,19 @@ module RAAF
               "finish_reason" => map_finish_reason(cohere_chunk["finish_reason"])
             }],
             "usage" => if cohere_chunk["usage"]
-                         {
-                           "prompt_tokens" => cohere_chunk["usage"]["billed_units"]["input_tokens"] || 0,
-                           "completion_tokens" => cohere_chunk["usage"]["billed_units"]["output_tokens"] || 0,
-                           "total_tokens" => (cohere_chunk["usage"]["billed_units"]["input_tokens"] || 0) +
-                             (cohere_chunk["usage"]["billed_units"]["output_tokens"] || 0)
+                         # Transform Cohere's nested structure and normalize to canonical format
+                         usage_body = {
+                           "usage" => {
+                             "prompt_tokens" => cohere_chunk["usage"]["billed_units"]["input_tokens"] || 0,
+                             "completion_tokens" => cohere_chunk["usage"]["billed_units"]["output_tokens"] || 0
+                           },
+                           "model" => cohere_chunk["model"]
                          }
+                         RAAF::Usage::Normalizer.normalize(
+                           usage_body,
+                           provider_name: "cohere",
+                           model: cohere_chunk["model"]
+                         )
                        end
           }
         else

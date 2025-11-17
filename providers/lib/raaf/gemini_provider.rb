@@ -196,14 +196,10 @@ module RAAF
           }
         end
 
-        # Return final accumulated response
-        # Keep prompt_tokens/completion_tokens format for Usage::Normalizer compatibility
-        # The Normalizer expects these key names, not input_tokens/output_tokens
-        normalized_usage = {
-          "prompt_tokens" => total_usage[:input_tokens],
-          "completion_tokens" => total_usage[:output_tokens],
-          "total_tokens" => total_usage[:total_tokens]
-        }
+        # Return final accumulated response with canonical RAAF token field names
+        # Usage::Normalizer can read both old (prompt_tokens) and canonical (input_tokens) formats
+        # We return canonical format directly - no conversion needed
+        normalized_usage = total_usage
 
         {
           "choices" => [{
@@ -542,10 +538,9 @@ module RAAF
           "model" => result["modelVersion"] || result["model"]
         }
 
-        # NOTE: extract_usage_metadata already returns correct format
-        # {"prompt_tokens" => X, "completion_tokens" => Y, "total_tokens" => Z}
-        # No normalization needed - RAAF::Usage::Normalizer expects different keys
-        # (input_tokens/output_tokens) and would overwrite with zeros
+        # NOTE: extract_usage_metadata returns canonical RAAF format
+        # {"input_tokens" => X, "output_tokens" => Y, "total_tokens" => Z}
+        # This matches Usage::Normalizer's expected output format
 
         response
       end
@@ -589,18 +584,18 @@ module RAAF
       end
 
       ##
-      # Extracts usage metadata and converts to OpenAI format
+      # Extracts usage metadata and converts to canonical RAAF format
       #
       # @param metadata [Hash] Gemini usage metadata
-      # @return [Hash] Usage in OpenAI format
+      # @return [Hash] Usage in canonical format (input_tokens, output_tokens, total_tokens)
       # @private
       #
       def extract_usage_metadata(metadata)
         return {} unless metadata
 
         {
-          "prompt_tokens" => metadata["promptTokenCount"] || 0,
-          "completion_tokens" => metadata["candidatesTokenCount"] || 0,
+          "input_tokens" => metadata["promptTokenCount"] || 0,
+          "output_tokens" => metadata["candidatesTokenCount"] || 0,
           "total_tokens" => metadata["totalTokenCount"] || 0
         }
       end

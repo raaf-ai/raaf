@@ -205,16 +205,31 @@ module RAAF
           "tool_calls" => parse_tool_calls(ollama_response),
           "model" => ollama_response["model"],
           "finish_reason" => map_finish_reason(ollama_response["done_reason"]),
-          "usage" => {
-            "prompt_tokens" => ollama_response["prompt_eval_count"] || 0,
-            "completion_tokens" => ollama_response["eval_count"] || 0,
-            "total_tokens" => (ollama_response["prompt_eval_count"] || 0) + (ollama_response["eval_count"] || 0),
-            # Ollama-specific metadata
-            "total_duration" => ollama_response["total_duration"],
-            "load_duration" => ollama_response["load_duration"],
-            "prompt_eval_count" => ollama_response["prompt_eval_count"],
-            "eval_count" => ollama_response["eval_count"]
-          }
+          "usage" => begin
+            # Build intermediate response for normalizer
+            usage_body = {
+              "usage" => {
+                "prompt_tokens" => ollama_response["prompt_eval_count"] || 0,
+                "completion_tokens" => ollama_response["eval_count"] || 0
+              },
+              "model" => ollama_response["model"]
+            }
+
+            # Normalize to canonical RAAF format (input_tokens, output_tokens)
+            normalized_usage = RAAF::Usage::Normalizer.normalize(
+              usage_body,
+              provider_name: "ollama",
+              model: ollama_response["model"]
+            )
+
+            # Merge normalized usage with Ollama-specific metadata
+            (normalized_usage || {}).merge({
+              "total_duration" => ollama_response["total_duration"],
+              "load_duration" => ollama_response["load_duration"],
+              "prompt_eval_count" => ollama_response["prompt_eval_count"],
+              "eval_count" => ollama_response["eval_count"]
+            })
+          end
         }
       end
 
@@ -308,18 +323,34 @@ module RAAF
 
             # Handle final chunk with metadata
             if parsed["done"]
+              # Build intermediate structure for normalizer
+              usage_body = {
+                "usage" => {
+                  "prompt_tokens" => parsed["prompt_eval_count"] || 0,
+                  "completion_tokens" => parsed["eval_count"] || 0
+                },
+                "model" => parsed["model"]
+              }
+
+              # Normalize to canonical RAAF format (input_tokens, output_tokens)
+              normalized_usage = RAAF::Usage::Normalizer.normalize(
+                usage_body,
+                provider_name: "ollama",
+                model: parsed["model"]
+              )
+
+              # Merge normalized usage with Ollama-specific metadata
+              final_usage = (normalized_usage || {}).merge({
+                "total_duration" => parsed["total_duration"],
+                "load_duration" => parsed["load_duration"],
+                "prompt_eval_count" => parsed["prompt_eval_count"],
+                "eval_count" => parsed["eval_count"]
+              })
+
               final_metadata = {
                 model: parsed["model"],
                 finish_reason: map_finish_reason(parsed["done_reason"]),
-                usage: {
-                  "prompt_tokens" => parsed["prompt_eval_count"] || 0,
-                  "completion_tokens" => parsed["eval_count"] || 0,
-                  "total_tokens" => (parsed["prompt_eval_count"] || 0) + (parsed["eval_count"] || 0),
-                  "total_duration" => parsed["total_duration"],
-                  "load_duration" => parsed["load_duration"],
-                  "prompt_eval_count" => parsed["prompt_eval_count"],
-                  "eval_count" => parsed["eval_count"]
-                }
+                usage: final_usage
               }
 
               yield({
