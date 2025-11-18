@@ -49,6 +49,9 @@ Gem::Specification.new do |spec|
   # JSON handling
   spec.add_dependency "json", "~> 2.0"
 
+  # CSV export support (Ruby 3.4+ requires explicit dependency)
+  spec.add_dependency "csv", "~> 3.0"
+
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"
