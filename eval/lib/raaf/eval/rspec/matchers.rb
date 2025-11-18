@@ -8,6 +8,9 @@ require_relative "matchers/safety_matchers"
 require_relative "matchers/statistical_matchers"
 require_relative "matchers/structural_matchers"
 require_relative "matchers/llm_matchers"
+require_relative "matchers/g_eval_matchers"
+require_relative "matchers/rag_matchers"
+require_relative "matchers/agentic_matchers"
 
 module RAAF
   module Eval
