@@ -45,12 +45,25 @@ module RAAF
         def set_combination(strategy)
           validate_strategy!(strategy)
           @combination_strategy = strategy
+          @explicit_combination_set = true
+        end
+
+        # Check if explicit combination was set (for validation)
+        def explicit_combination?
+          @explicit_combination_set ||= false
         end
 
         # Evaluate all evaluators and combine results
         # @param field_context [FieldContext] The field context to evaluate
         # @return [Hash] Combined evaluation result
         def evaluate(field_context)
+          # Validate: warn if explicit combination with single evaluator
+          if @evaluators.size == 1 && explicit_combination?
+            warn "[RAAF::Eval] WARNING: combine_with #{@combination_strategy.inspect} specified for field '#{@field_name}' " \
+                 "but only one evaluator exists. combine_with is meant for combining MULTIPLE evaluators. " \
+                 "The combination strategy will be ignored and the evaluator result will be returned directly."
+          end
+
           results = execute_evaluators(field_context)
           combine_results(results)
         end
@@ -87,6 +100,17 @@ module RAAF
         # @param results [Hash] Hash of results keyed by alias
         # @return [Hash] Combined result
         def combine_results(results)
+          # If only one evaluator, return result directly without combination
+          # This preserves the :label field from custom evaluators
+          if results.size == 1
+            result = results.values.first
+            # Transform :label to :passed for compatibility
+            if result[:label] && !result.key?(:passed)
+              result[:passed] = label_to_passed(result[:label])
+            end
+            return result
+          end
+
           case @combination_strategy
           when :and
             CombinationLogic.combine_and(results.values)
@@ -97,6 +121,13 @@ module RAAF
           else
             raise InvalidCombinationStrategyError, "Unknown strategy: #{@combination_strategy}"
           end
+        end
+
+        # Convert label string to passed boolean
+        # @param label [String] The label ("good", "average", "bad")
+        # @return [Boolean] True if label is "good" or "average", false otherwise
+        def label_to_passed(label)
+          %w[good average].include?(label.to_s.downcase)
         end
 
         # Validate combination strategy

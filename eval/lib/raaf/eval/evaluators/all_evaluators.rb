@@ -34,10 +34,24 @@ require_relative "structural/json_validity"
 require_relative "structural/schema_match"
 require_relative "structural/format_compliance"
 
-# LLM evaluators (3)
+# LLM evaluators
+require_relative "llm/base_evaluator"  # Base class for LLM evaluators
 require_relative "llm/llm_judge"
 require_relative "llm/quality_score"
 require_relative "llm/rubric_evaluation"
+
+# LLM-oriented evaluators (DeepEval-inspired)
+require_relative "llm/hallucination"
+require_relative "llm/answer_relevancy"
+require_relative "llm/faithfulness"
+require_relative "llm/bias"
+require_relative "llm/toxicity"
+require_relative "llm/g_eval"
+
+# RAG evaluators
+require_relative "llm/contextual_relevancy"
+require_relative "llm/contextual_precision"
+require_relative "llm/contextual_recall"
 
 # Custom evaluators (3)
 require_relative "custom/citation_grounding"
