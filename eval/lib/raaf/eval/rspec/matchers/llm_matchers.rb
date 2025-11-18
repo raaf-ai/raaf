@@ -304,6 +304,157 @@ module RAAF
                 "Does this output match the description '#{description}'? Provide reasoning."
             end
           end
+
+          ##
+          # DeepEval-inspired specific matchers for LLM quality evaluation
+          module DeepEvalMatchers
+            include Base
+
+            # Hallucination matchers
+            ::RSpec::Matchers.define :have_hallucinations do |threshold: 0.90|
+              match do |result|
+                result[:score] < threshold
+              end
+
+              failure_message do |result|
+                "Expected hallucinations (score < #{threshold}), but got score #{result[:score]}"
+              end
+
+              failure_message_when_negated do |result|
+                "Expected no hallucinations (score ≥ #{threshold}), but got score #{result[:score]}"
+              end
+            end
+
+            ::RSpec::Matchers.define :be_factually_accurate do |threshold: 0.90|
+              match do |result|
+                result[:label] == "good" && result[:score] >= threshold
+              end
+
+              failure_message do |result|
+                "Expected factually accurate output (good label, score ≥ #{threshold}), " \
+                  "but got label '#{result[:label]}' with score #{result[:score]}"
+              end
+            end
+
+            # Answer relevancy matchers
+            ::RSpec::Matchers.define :have_answer_relevancy do |threshold: 0.80|
+              match do |result|
+                result[:score] >= threshold
+              end
+
+              failure_message do |result|
+                "Expected answer relevancy score ≥ #{threshold}, but got #{result[:score]}"
+              end
+            end
+
+            ::RSpec::Matchers.define :be_relevant_to_query do |threshold: 0.80|
+              match do |result|
+                result[:label] != "bad" && result[:score] >= threshold
+              end
+
+              failure_message do |result|
+                "Expected relevant answer (not bad, score ≥ #{threshold}), " \
+                  "but got label '#{result[:label]}' with score #{result[:score]}"
+              end
+            end
+
+            # Faithfulness matchers (RAG-specific)
+            ::RSpec::Matchers.define :be_faithful_to_context do |threshold: 0.90|
+              match do |result|
+                result[:score] >= threshold
+              end
+
+              failure_message do |result|
+                "Expected faithfulness to context (score ≥ #{threshold}), " \
+                  "but got score #{result[:score]}"
+              end
+            end
+
+            # Bias matchers
+            ::RSpec::Matchers.define :have_bias do |threshold: 0.90|
+              match do |result|
+                result[:score] < threshold
+              end
+
+              failure_message do |result|
+                "Expected bias (score < #{threshold}), but got score #{result[:score]}"
+              end
+
+              failure_message_when_negated do |result|
+                "Expected no bias (score ≥ #{threshold}), but got score #{result[:score]}"
+              end
+            end
+
+            ::RSpec::Matchers.define :be_unbiased do |threshold: 0.90|
+              match do |result|
+                result[:label] == "good" && result[:score] >= threshold
+              end
+
+              failure_message do |result|
+                "Expected unbiased content (good label, score ≥ #{threshold}), " \
+                  "but got label '#{result[:label]}' with score #{result[:score]}"
+              end
+            end
+
+            # Toxicity matchers
+            ::RSpec::Matchers.define :be_toxic do |threshold: 0.95|
+              match do |result|
+                result[:score] < threshold
+              end
+
+              failure_message do |result|
+                "Expected toxic content (score < #{threshold}), but got score #{result[:score]}"
+              end
+
+              failure_message_when_negated do |result|
+                "Expected safe content (score ≥ #{threshold}), but got score #{result[:score]}"
+              end
+            end
+
+            ::RSpec::Matchers.define :be_safe do |threshold: 0.95|
+              match do |result|
+                result[:label] == "good" && result[:score] >= threshold
+              end
+
+              failure_message do |result|
+                "Expected safe content (good label, score ≥ #{threshold}), " \
+                  "but got label '#{result[:label]}' with score #{result[:score]}"
+              end
+            end
+
+            # Generic threshold matcher
+            ::RSpec::Matchers.define :meet_quality_threshold do |expected_threshold|
+              match do |result|
+                result[:score] >= expected_threshold
+              end
+
+              failure_message do |result|
+                "Expected score ≥ #{expected_threshold}, but got #{result[:score]} " \
+                  "(label: #{result[:label]})"
+              end
+
+              failure_message_when_negated do |result|
+                "Expected score < #{expected_threshold}, but got #{result[:score]}"
+              end
+            end
+
+            # Composite matcher for multiple evaluations
+            ::RSpec::Matchers.define :pass_all_evaluations do
+              match do |results|
+                return false unless results.is_a?(Hash)
+
+                results.values.all? do |result|
+                  result[:label] == "good" || result[:label] == "average"
+                end
+              end
+
+              failure_message do |results|
+                failed = results.select { |_, v| v[:label] == "bad" }
+                "Expected all evaluations to pass (good or average), but #{failed.size} failed: " \
+                  "#{failed.keys.join(', ')}"
+              end
+            end
+          end
         end
       end
     end
