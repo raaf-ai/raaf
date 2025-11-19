@@ -87,10 +87,10 @@ module RAAF
           field_contexts = create_field_contexts(field_data, config_name, span)
 
           # Execute evaluators for each field with progress events
-          field_results = execute_field_evaluations(field_contexts, config_name)
+          field_results, evaluator_results = execute_field_evaluations(field_contexts, config_name)
 
           # Aggregate results
-          result = ResultAggregator.aggregate(field_results, config_name, field_data)
+          result = ResultAggregator.aggregate(field_results, evaluator_results, config_name, field_data)
 
           # Calculate total duration
           total_duration_ms = ((Time.now - start_time) * 1000).round(2)
@@ -151,10 +151,10 @@ module RAAF
             field_contexts = create_field_contexts(field_data, name, span)
 
             # Execute evaluators for each field with progress events
-            field_results = execute_field_evaluations(field_contexts, name)
+            field_results, evaluator_results = execute_field_evaluations(field_contexts, name)
 
             # Aggregate results for this configuration
-            result = ResultAggregator.aggregate(field_results, name, field_data)
+            result = ResultAggregator.aggregate(field_results, evaluator_results, name, field_data)
             results[name] = result
 
             # Emit config end
@@ -185,9 +185,12 @@ module RAAF
         # Execute evaluators for all fields
         # @param field_contexts [Hash] Field name => FieldContext
         # @param config_name [Symbol] Configuration name for event emission
-        # @return [Hash] Field name => evaluation result
+        # @return [Array<Hash, Hash>] [field_results, evaluator_results]
+        #   field_results: Field name => combined evaluation result
+        #   evaluator_results: Field name => { alias => individual result }
         def execute_field_evaluations(field_contexts, config_name)
           field_results = {}
+          evaluator_results = {}
           evaluator_index = 0
           total_field_sets = count_total_evaluators  # Total number of field evaluator sets
 
@@ -209,17 +212,26 @@ module RAAF
 
             # Execute the evaluator set and time it
             start_time = Time.now
-            result = evaluator_set.evaluate(field_context)
+            evaluation_result = evaluator_set.evaluate(field_context)
             duration_ms = ((Time.now - start_time) * 1000).round(2)
 
-            field_results[field_name] = result
+            # Extract combined and individual results from new return format
+            # FieldEvaluatorSet.evaluate now returns { combined: ..., individual: {...} }
+            combined_result = evaluation_result[:combined]
+            individual_results = evaluation_result[:individual]
+
+            # Store combined result for field_results (backward compatibility)
+            field_results[field_name] = combined_result
+
+            # Store individual results for evaluator_results (new feature)
+            evaluator_results[field_name] = individual_results
 
             # Emit single evaluator end event for the field evaluation
             @event_emitter.emit_evaluator_end(
               config_name,
               field_name,
               evaluator_name,
-              { passed: result[:passed], score: result[:score] },
+              { passed: combined_result[:passed], score: combined_result[:score] },
               duration_ms
             )
 
@@ -228,7 +240,7 @@ module RAAF
             evaluator_index += 1
           end
 
-          field_results
+          [field_results, evaluator_results]
         end
 
         # Create field contexts for extracted field data

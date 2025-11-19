@@ -55,7 +55,7 @@ module RAAF
 
         # Evaluate all evaluators and combine results
         # @param field_context [FieldContext] The field context to evaluate
-        # @return [Hash] Combined evaluation result
+        # @return [Hash] Combined evaluation result with individual evaluator results
         def evaluate(field_context)
           # Validate: warn if explicit combination with single evaluator
           if @evaluators.size == 1 && explicit_combination?
@@ -64,8 +64,15 @@ module RAAF
                  "The combination strategy will be ignored and the evaluator result will be returned directly."
           end
 
-          results = execute_evaluators(field_context)
-          combine_results(results)
+          individual_results = execute_evaluators(field_context)
+          combined_result = combine_results(individual_results)
+
+          # Return both combined result and individual results
+          # Individual results are keyed by alias for easy lookup
+          {
+            combined: combined_result,
+            individual: individual_results
+          }
         end
 
         private

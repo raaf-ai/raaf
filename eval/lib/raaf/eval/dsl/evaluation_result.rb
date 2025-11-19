@@ -5,16 +5,18 @@ module RAAF
     module DSL
       # Stores and manages evaluation results across configurations
       class EvaluationResult
-        attr_reader :field_results, :configuration, :metadata
+        attr_reader :field_results, :configuration, :metadata, :evaluator_results
 
         # Initialize evaluation result
         # @param field_results [Hash] Results for each evaluated field
         # @param configuration [Hash] Configuration used for this evaluation
         # @param metadata [Hash] Execution metadata
-        def initialize(field_results: {}, configuration: nil, metadata: nil)
+        # @param evaluator_results [Hash] Individual evaluator results before combination
+        def initialize(field_results: {}, configuration: nil, metadata: nil, evaluator_results: nil)
           @field_results = field_results
           @configuration = configuration || {}
           @metadata = metadata || {}
+          @evaluator_results = evaluator_results || {}
         end
 
         # Check if all fields passed (backward compatibility - checks for "good" or "average" labels)
@@ -167,6 +169,7 @@ module RAAF
           {
             passed: passed?,
             field_results: @field_results,
+            evaluator_results: @evaluator_results,
             configuration: @configuration,
             metadata: @metadata,
             summary: summary

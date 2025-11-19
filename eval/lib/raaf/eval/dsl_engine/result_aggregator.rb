@@ -9,17 +9,19 @@ module RAAF
       class ResultAggregator
         class << self
           # Aggregate field results into evaluation result
-          # @param field_results [Hash] Field name => evaluation result
+          # @param field_results [Hash] Field name => combined evaluation result
+          # @param evaluator_results [Hash] Field name => { alias => individual result }
           # @param config_name [Symbol] Configuration name
           # @param field_data [Hash] Original field data
           # @return [DSL::EvaluationResult] Aggregated result
-          def aggregate(field_results, config_name, field_data)
+          def aggregate(field_results, evaluator_results, config_name, field_data)
             # Determine overall pass status (all fields must pass)
             passed = field_results.values.all? { |result| result[:passed] }
 
-            # Build evaluation result (EvaluationResult only accepts field_results, configuration, metadata)
+            # Build evaluation result with both field_results and evaluator_results
             DSL::EvaluationResult.new(
               field_results: field_results,
+              evaluator_results: evaluator_results,
               configuration: config_name,
               metadata: {
                 evaluated_at: Time.now,
