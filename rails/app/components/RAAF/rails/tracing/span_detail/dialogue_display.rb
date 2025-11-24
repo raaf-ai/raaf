@@ -16,7 +16,7 @@ module RAAF
           def view_template
             return render_empty_state if @messages.empty?
 
-            div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 mb-6") do
+            div(id: "dialogue", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 mb-6 scroll-mt-6") do
               render_header
               render_content
             end

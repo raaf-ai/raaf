@@ -9,6 +9,7 @@ module RAAF
         def view_template
           div(class: "space-y-6") do
             render_agent_overview
+            render_section_navigation
             render_agent_configuration
 
             # Show sections in the desired order: System -> User -> Dialogue -> Response -> Statistics
@@ -39,6 +40,39 @@ module RAAF
         end
 
         private
+
+        def render_section_navigation
+          # Determine which sections will be rendered
+          sections = []
+          sections << { id: "configuration", label: "Configuration", icon: "bi-gear" }
+          sections << { id: "system-prompt", label: "System Prompt", icon: "bi-gear" } if system_prompt_content.present?
+          sections << { id: "user-prompt", label: "User Prompt", icon: "bi-person" } if user_prompt_content.present?
+          sections << { id: "dialogue", label: "Dialogue", icon: "bi-chat-dots" } if dialogue_messages.present?
+          sections << { id: "response", label: "Response", icon: "bi-robot" } if final_agent_response.present?
+          sections << { id: "statistics", label: "Statistics", icon: "bi-bar-chart" } if conversation_stats_data.present?
+          sections << { id: "conversation-flow", label: "Flow", icon: "bi-chat-dots" } if dialogue_messages.present? || tool_executions_data.present?
+          sections << { id: "tool-executions", label: "Tools", icon: "bi-tools" } if tool_executions_data.present?
+          sections << { id: "context", label: "Context", icon: "bi-layers" } if context_data.present?
+
+          return if sections.empty?
+
+          div(class: "bg-white border border-gray-200 rounded-lg shadow-sm mb-6 sticky top-0 z-10") do
+            div(class: "px-4 py-3") do
+              div(class: "flex items-center gap-2 flex-wrap") do
+                span(class: "text-sm font-medium text-gray-700 mr-2") { "Jump to:" }
+                sections.each do |section|
+                  a(
+                    href: "##{section[:id]}",
+                    class: "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors border border-gray-200 hover:border-gray-300"
+                  ) do
+                    i(class: "#{section[:icon]} text-gray-500")
+                    plain section[:label]
+                  end
+                end
+              end
+            end
+          end
+        end
 
         def agent_name
           @agent_name ||= extract_span_attribute("agent.name") ||
@@ -278,7 +312,7 @@ module RAAF
         end
 
         def render_agent_configuration
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "configuration", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             # Modern compact header
             div(class: "px-4 py-3 border-b border-emerald-200 bg-emerald-50") do
               div(class: "flex items-center gap-2") do
@@ -401,7 +435,7 @@ module RAAF
         end
 
         def render_context_information
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "context", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-purple-200 bg-purple-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-layers text-purple-600 text-lg")
@@ -416,7 +450,7 @@ module RAAF
 
 
         def render_system_prompt_section
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "system-prompt", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-blue-200 bg-blue-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-gear text-blue-600 text-lg")
@@ -443,7 +477,7 @@ module RAAF
         end
 
         def render_user_prompt_section
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "user-prompt", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-green-200 bg-green-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-person text-green-600 text-lg")
@@ -470,7 +504,7 @@ module RAAF
         end
 
         def render_agent_response_section
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "response", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-purple-200 bg-purple-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-robot text-purple-600 text-lg")
@@ -524,7 +558,7 @@ module RAAF
         end
 
         def render_conversation_flow_section
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "conversation-flow", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-green-200 bg-green-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-chat-dots text-green-600 text-lg")
@@ -600,7 +634,7 @@ module RAAF
         end
 
         def render_tool_executions_section
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "tool-executions", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-yellow-200 bg-yellow-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-tools text-yellow-600 text-lg")
@@ -639,7 +673,7 @@ module RAAF
         def render_conversation_statistics_section
           return unless conversation_stats_data
 
-          div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
+          div(id: "statistics", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-purple-200 bg-purple-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-bar-chart text-purple-600 text-lg")
