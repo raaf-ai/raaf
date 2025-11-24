@@ -94,6 +94,7 @@ module RAAF
         end
 
         # Check if a field exists in the result
+        # Supports both hash-style bracket notation and method access
         # @param field [String, Symbol] Field name (supports dot notation)
         # @return [Boolean] true if field exists
         def field_exists?(field)
@@ -108,8 +109,14 @@ module RAAF
 
           current = @result
           parts.each do |part|
-            return false unless current.is_a?(Hash) && current.key?(part)
-            current = current[part]
+            # Check hash-style access (try both string and symbol keys)
+            if current.is_a?(Hash) && (current.key?(part) || current.key?(part.to_sym))
+              current = current[part] || current[part.to_sym]
+            elsif current.respond_to?(part.to_sym)
+              current = current.public_send(part.to_sym)
+            else
+              return false
+            end
           end
           true
         end
@@ -123,6 +130,7 @@ module RAAF
         end
 
         # Extract a field value using dot notation
+        # Supports both hash-style bracket notation and method access
         def extract_field_value(field_path)
           # First check if the field exists at the top level (for pre-extracted values)
           # This handles cases where wildcard extraction has already been performed
@@ -133,8 +141,12 @@ module RAAF
 
           current = @result
           parts.each do |part|
-            if current.is_a?(Hash)
-              current = current[part]
+            # Try hash-style access first (try both string and symbol keys)
+            if current.is_a?(Hash) && (current.key?(part) || current.key?(part.to_sym))
+              current = current[part] || current[part.to_sym]
+            # Fall back to method access (for RunResult and other objects)
+            elsif current.respond_to?(part.to_sym)
+              current = current.public_send(part.to_sym)
             else
               return nil
             end

@@ -105,12 +105,18 @@ RSpec.describe RAAF::Eval::DSL::FieldContext do
 
     it "provides usage accessor" do
       context = described_class.new("output", result_hash)
-      expect(context.usage).to eq(result_hash[:usage])
+      # Compare nested values rather than hash equality (HashWithIndifferentAccess uses string keys)
+      expect(context.usage[:total_tokens]).to eq(150)
+      expect(context.usage[:prompt_tokens]).to eq(50)
+      expect(context.usage[:completion_tokens]).to eq(100)
     end
 
     it "provides baseline_usage accessor" do
       context = described_class.new("output", result_hash)
-      expect(context.baseline_usage).to eq(result_hash[:baseline_usage])
+      # Compare nested values rather than hash equality (HashWithIndifferentAccess uses string keys)
+      expect(context.baseline_usage[:total_tokens]).to eq(120)
+      expect(context.baseline_usage[:prompt_tokens]).to eq(40)
+      expect(context.baseline_usage[:completion_tokens]).to eq(80)
     end
 
     it "provides latency_ms accessor" do
@@ -120,7 +126,10 @@ RSpec.describe RAAF::Eval::DSL::FieldContext do
 
     it "provides configuration accessor" do
       context = described_class.new("output", result_hash)
-      expect(context.configuration).to eq(result_hash[:configuration])
+      # Compare nested values rather than hash equality (HashWithIndifferentAccess uses string keys)
+      expect(context.configuration[:model]).to eq("gpt-4")
+      expect(context.configuration[:temperature]).to eq(0.7)
+      expect(context.configuration[:max_tokens]).to eq(1000)
     end
   end
 
@@ -157,8 +166,9 @@ RSpec.describe RAAF::Eval::DSL::FieldContext do
 
     it "provides [] method to access any field" do
       expect(context[:output]).to eq("This is the AI output")
-      expect(context[:usage]).to eq(result_hash[:usage])
-      expect(context["configuration"]).to eq(result_hash[:configuration])
+      # Compare nested values (HashWithIndifferentAccess uses string keys)
+      expect(context[:usage][:total_tokens]).to eq(150)
+      expect(context["configuration"][:model]).to eq("gpt-4")
     end
 
     it "supports nested paths in [] method" do
@@ -167,7 +177,10 @@ RSpec.describe RAAF::Eval::DSL::FieldContext do
     end
 
     it "returns full_result hash" do
-      expect(context.full_result).to eq(result_hash)
+      # Verify values are present (HashWithIndifferentAccess changes key types)
+      expect(context.full_result[:output]).to eq("This is the AI output")
+      expect(context.full_result[:usage][:total_tokens]).to eq(150)
+      expect(context.full_result[:configuration][:model]).to eq("gpt-4")
     end
   end
 
