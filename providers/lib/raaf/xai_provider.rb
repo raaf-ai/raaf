@@ -64,6 +64,7 @@ module RAAF
         grok-4
         grok-3
         grok-3-mini
+        grok-2-1212
         grok-code-fast-1
       ].freeze
 
