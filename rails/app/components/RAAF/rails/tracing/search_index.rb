@@ -4,9 +4,10 @@ module RAAF
   module Rails
     module Tracing
       class SearchIndex < BaseComponent
-        def initialize(query: nil, results: nil)
+        def initialize(query: nil, results: nil, params: {})
           @query = query
           @results = results
+          @params = params
         end
 
         def view_template
@@ -93,10 +94,6 @@ module RAAF
                   plain " traces and "
                   span(class: "font-semibold") { @results[:total_spans].to_s }
                   plain " spans"
-
-                  if @results[:total_traces] > 10 || @results[:total_spans] > 20
-                    plain " (showing top results)"
-                  end
                 end
               end
             end
@@ -104,28 +101,66 @@ module RAAF
         end
 
         def render_trace_results
+          traces = @results[:traces]
+
           div(class: "bg-white rounded-lg shadow") do
             div(class: "px-6 py-4 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") do
-                "Traces ("
-                span(class: "text-blue-600") { @results[:total_traces].to_s }
-                plain ")"
+              div(class: "flex items-center justify-between") do
+                h3(class: "text-lg font-medium text-gray-900") do
+                  "Traces ("
+                  span(class: "text-blue-600") { @results[:total_traces].to_s }
+                  plain ")"
+                end
+
+                if traces.total_pages > 1
+                  span(class: "text-sm text-gray-500") do
+                    "Page #{traces.current_page} of #{traces.total_pages}"
+                  end
+                end
               end
             end
 
             div(class: "divide-y divide-gray-200") do
-              @results[:traces].each do |trace|
+              traces.each do |trace|
                 render_trace_result(trace)
               end
             end
 
-            if @results[:total_traces] > 10
-              div(class: "px-6 py-4 bg-gray-50 text-center") do
-                link_to(
-                  "View all #{@results[:total_traces]} trace results",
-                  "/raaf/tracing/traces?search=#{@query}",
-                  class: "text-blue-600 hover:text-blue-500 font-medium"
-                )
+            render_traces_pagination if traces.total_pages > 1
+          end
+        end
+
+        def render_traces_pagination
+          traces = @results[:traces]
+
+          div(class: "px-6 py-4 bg-gray-50 border-t border-gray-200") do
+            div(class: "flex items-center justify-between") do
+              div(class: "text-sm text-gray-700") do
+                plain "Showing "
+                span(class: "font-medium") { ((traces.current_page - 1) * traces.limit_value + 1).to_s }
+                plain " to "
+                span(class: "font-medium") { [traces.current_page * traces.limit_value, traces.total_count].min.to_s }
+                plain " of "
+                span(class: "font-medium") { traces.total_count.to_s }
+                plain " traces"
+              end
+
+              div(class: "flex space-x-2") do
+                unless traces.first_page?
+                  link_to(
+                    "Previous",
+                    "/raaf/tracing/search?q=#{@query}&traces_page=#{traces.prev_page}&spans_page=#{@params[:spans_page]}",
+                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  )
+                end
+
+                unless traces.last_page?
+                  link_to(
+                    "Next",
+                    "/raaf/tracing/search?q=#{@query}&traces_page=#{traces.next_page}&spans_page=#{@params[:spans_page]}",
+                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  )
+                end
               end
             end
           end
@@ -136,29 +171,29 @@ module RAAF
             div(class: "flex items-center justify-between") do
               div(class: "flex-1 min-w-0") do
                 div(class: "flex items-center space-x-3") do
-                  render_status_badge(trace[:status])
+                  render_status_badge(trace.status)
 
                   div do
                     div(class: "text-sm font-medium text-gray-900") do
                       link_to(
-                        trace[:workflow_name] || "Unnamed Workflow",
-                        "/raaf/tracing/traces/#{trace[:trace_id]}",
+                        trace.workflow_name || "Unnamed Workflow",
+                        "/raaf/tracing/traces/#{trace.trace_id}",
                         class: "text-blue-600 hover:text-blue-500"
                       )
                     end
-                    div(class: "text-sm text-gray-500 font-mono") { trace[:trace_id] }
+                    div(class: "text-sm text-gray-500 font-mono") { trace.trace_id }
                   end
                 end
 
                 div(class: "mt-2 flex items-center text-sm text-gray-500 space-x-4") do
                   span do
-                    plain "Duration: #{format_duration(trace[:duration_ms])}"
+                    plain "Duration: #{format_duration(trace.duration_ms)}"
                   end
                   span do
-                    plain "Spans: #{trace[:span_count]}"
+                    plain "Spans: #{trace.spans.count}"
                   end
                   span do
-                    plain "Started: #{trace[:started_at]&.strftime('%Y-%m-%d %H:%M:%S')}"
+                    plain "Started: #{trace.started_at&.strftime('%Y-%m-%d %H:%M:%S')}"
                   end
                 end
               end
@@ -167,69 +202,107 @@ module RAAF
         end
 
         def render_span_results
+          spans = @results[:spans]
+
           div(class: "bg-white rounded-lg shadow") do
             div(class: "px-6 py-4 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") do
-                "Spans ("
-                span(class: "text-blue-600") { @results[:total_spans].to_s }
-                plain ")"
+              div(class: "flex items-center justify-between") do
+                h3(class: "text-lg font-medium text-gray-900") do
+                  "Spans ("
+                  span(class: "text-blue-600") { @results[:total_spans].to_s }
+                  plain ")"
+                end
+
+                if spans.total_pages > 1
+                  span(class: "text-sm text-gray-500") do
+                    "Page #{spans.current_page} of #{spans.total_pages}"
+                  end
+                end
               end
             end
 
             div(class: "divide-y divide-gray-200") do
-              @results[:spans].each do |span|
+              spans.each do |span|
                 render_span_result(span)
               end
             end
 
-            if @results[:total_spans] > 20
-              div(class: "px-6 py-4 bg-gray-50 text-center") do
-                link_to(
-                  "View all #{@results[:total_spans]} span results",
-                  "/raaf/tracing/spans?search=#{@query}",
-                  class: "text-blue-600 hover:text-blue-500 font-medium"
-                )
+            render_spans_pagination if spans.total_pages > 1
+          end
+        end
+
+        def render_spans_pagination
+          spans = @results[:spans]
+
+          div(class: "px-6 py-4 bg-gray-50 border-t border-gray-200") do
+            div(class: "flex items-center justify-between") do
+              div(class: "text-sm text-gray-700") do
+                plain "Showing "
+                span(class: "font-medium") { ((spans.current_page - 1) * spans.limit_value + 1).to_s }
+                plain " to "
+                span(class: "font-medium") { [spans.current_page * spans.limit_value, spans.total_count].min.to_s }
+                plain " of "
+                span(class: "font-medium") { spans.total_count.to_s }
+                plain " spans"
+              end
+
+              div(class: "flex space-x-2") do
+                unless spans.first_page?
+                  link_to(
+                    "Previous",
+                    "/raaf/tracing/search?q=#{@query}&traces_page=#{@params[:traces_page]}&spans_page=#{spans.prev_page}",
+                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  )
+                end
+
+                unless spans.last_page?
+                  link_to(
+                    "Next",
+                    "/raaf/tracing/search?q=#{@query}&traces_page=#{@params[:traces_page]}&spans_page=#{spans.next_page}",
+                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  )
+                end
               end
             end
           end
         end
 
-        def render_span_result(span)
+        def render_span_result(span_record)
           div(class: "px-6 py-4 hover:bg-gray-50") do
             div(class: "flex items-center justify-between") do
               div(class: "flex-1 min-w-0") do
                 div(class: "flex items-center space-x-3") do
-                  render_kind_badge(span[:kind])
-                  render_status_badge(span[:status])
+                  render_kind_badge(span_record.kind)
+                  render_status_badge(span_record.status)
 
                   div do
                     div(class: "text-sm font-medium text-gray-900") do
                       link_to(
-                        span[:name],
-                        "/raaf/tracing/spans/#{span[:span_id]}",
+                        span_record.name,
+                        "/raaf/tracing/spans/#{span_record.span_id}",
                         class: "text-blue-600 hover:text-blue-500"
                       )
                     end
-                    div(class: "text-sm text-gray-500 font-mono") { span[:span_id] }
+                    div(class: "text-sm text-gray-500 font-mono") { span_record.span_id }
                   end
                 end
 
                 div(class: "mt-2 flex items-center text-sm text-gray-500 space-x-4") do
                   span do
-                    plain "Duration: #{format_duration(span[:duration_ms])}"
+                    plain "Duration: #{format_duration(span_record.duration_ms)}"
                   end
-                  if span[:workflow_name]
+                  if span_record.trace&.workflow_name
                     span do
                       plain "Workflow: "
                       link_to(
-                        span[:workflow_name],
-                        "/raaf/tracing/traces/#{span[:trace_id]}",
+                        span_record.trace.workflow_name,
+                        "/raaf/tracing/traces/#{span_record.trace_id}",
                         class: "text-blue-600 hover:text-blue-500"
                       )
                     end
                   end
                   span do
-                    plain "Started: #{span[:start_time]&.strftime('%Y-%m-%d %H:%M:%S')}"
+                    plain "Started: #{span_record.start_time&.strftime('%Y-%m-%d %H:%M:%S')}"
                   end
                 end
               end

@@ -180,8 +180,14 @@ module RAAF
             div(class: "px-6 py-4 border-b border-gray-200") do
               div(class: "flex items-center justify-between") do
                 h3(class: "text-lg font-medium text-gray-900") { "Recent Errors" }
-                if @recent_errors.size >= 50
-                  span(class: "text-sm text-gray-500") { "Showing 50 most recent" }
+                if @recent_errors.total_count > 0
+                  span(class: "text-sm text-gray-500") do
+                    if @recent_errors.total_pages > 1
+                      "Page #{@recent_errors.current_page} of #{@recent_errors.total_pages} (#{@recent_errors.total_count} total)"
+                    else
+                      "#{@recent_errors.total_count} error#{'s' if @recent_errors.total_count != 1}"
+                    end
+                  end
                 end
               end
             end
@@ -193,15 +199,7 @@ module RAAF
                 end
               end
 
-              if @recent_errors.size >= 50
-                div(class: "px-6 py-4 bg-gray-50 text-center") do
-                  link_to(
-                    "View all error spans",
-                    "/raaf/tracing/spans?status=error",
-                    class: "text-blue-600 hover:text-blue-500 font-medium"
-                  )
-                end
-              end
+              render_errors_pagination if @recent_errors.total_pages > 1
             else
               div(class: "p-6 text-center text-gray-500") do
                 i(class: "bi bi-check-circle text-4xl text-green-500 mb-2")
@@ -210,6 +208,50 @@ module RAAF
               end
             end
           end
+        end
+
+        def render_errors_pagination
+          div(class: "px-6 py-4 bg-gray-50 border-t border-gray-200") do
+            div(class: "flex items-center justify-between") do
+              div(class: "text-sm text-gray-700") do
+                plain "Showing "
+                span(class: "font-medium") { ((@recent_errors.current_page - 1) * @recent_errors.limit_value + 1).to_s }
+                plain " to "
+                span(class: "font-medium") { [@recent_errors.current_page * @recent_errors.limit_value, @recent_errors.total_count].min.to_s }
+                plain " of "
+                span(class: "font-medium") { @recent_errors.total_count.to_s }
+                plain " errors"
+              end
+
+              div(class: "flex space-x-2") do
+                unless @recent_errors.first_page?
+                  link_to(
+                    "Previous",
+                    build_errors_url(@recent_errors.prev_page),
+                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  )
+                end
+
+                unless @recent_errors.last_page?
+                  link_to(
+                    "Next",
+                    build_errors_url(@recent_errors.next_page),
+                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  )
+                end
+              end
+            end
+          end
+        end
+
+        def build_errors_url(page)
+          params = []
+          params << "page=#{page}"
+          params << "start_time=#{@params[:start_time]}" if @params[:start_time].present?
+          params << "end_time=#{@params[:end_time]}" if @params[:end_time].present?
+          params << "severity=#{@params[:severity]}" if @params[:severity].present?
+          params << "per_page=#{@params[:per_page]}" if @params[:per_page].present?
+          "/raaf/tracing/dashboard/errors?#{params.join('&')}"
         end
 
         def render_error_row(error_span)

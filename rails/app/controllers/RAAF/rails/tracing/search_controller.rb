@@ -15,7 +15,8 @@ module RAAF
           format.html do
             search_component = RAAF::Rails::Tracing::SearchIndex.new(
               query: @query,
-              results: @results
+              results: @results,
+              params: params.permit(:q, :traces_page, :spans_page)
             )
 
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Search") do
@@ -57,11 +58,19 @@ module RAAF
       def perform_search
         return {} if @query.blank?
 
+        # Paginate traces (10 per page)
+        traces_query = search_traces
+        paginated_traces = traces_query.page(params[:traces_page]).per(10)
+
+        # Paginate spans (20 per page)
+        spans_query = search_spans
+        paginated_spans = spans_query.page(params[:spans_page]).per(20)
+
         {
-          traces: search_traces.limit(10),
-          spans: search_spans.limit(20),
-          total_traces: search_traces.count,
-          total_spans: search_spans.count
+          traces: paginated_traces,
+          spans: paginated_spans,
+          total_traces: paginated_traces.total_count,
+          total_spans: paginated_spans.total_count
         }
       end
 

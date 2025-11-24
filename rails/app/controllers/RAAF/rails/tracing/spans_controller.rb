@@ -17,32 +17,24 @@ module RAAF
         # Apply filters
         @spans = filter_spans(@spans)
 
+        # Paginate results using Kaminari
+        @per_page = [params[:per_page]&.to_i || 50, 100].min
+        @paginated_spans = @spans.recent.page(params[:page]).per(@per_page)
+
         # Default to hierarchical view unless explicitly set to 'list'
         if params[:view] != 'list'
-          @spans = organize_spans_hierarchically(@spans)
-          # Don't paginate for hierarchical view to maintain structure
-          @page = 1
-          @per_page = [@spans.count, 1].max  # Ensure @per_page is at least 1 to avoid division by zero
+          # Organize paginated spans hierarchically for display
+          @display_spans = organize_spans_hierarchically(@paginated_spans)
         else
-          # Paginate results for list view
-          @page = params[:page]&.to_i || 1
-          @per_page = [params[:per_page]&.to_i || 50, 100].min
-          @spans = paginate_records(@spans.recent, page: @page, per_page: @per_page)
+          @display_spans = @paginated_spans
         end
-
-        # Calculate pagination info
-        @total_count = SpanRecord.count
-        @total_pages = @per_page > 0 ? (@total_count.to_f / @per_page).ceil : 1
 
         respond_to do |format|
           format.html do
             spans_component = RAAF::Rails::Tracing::SpansIndex.new(
-              spans: @spans,
-              params: params.permit(:search, :kind, :status, :start_time, :end_time, :trace_id, :view),
-              page: @page,
-              total_pages: @total_pages,
-              per_page: @per_page,
-              total_count: @total_count
+              spans: @display_spans,
+              paginated_spans: @paginated_spans,
+              params: params.permit(:search, :kind, :status, :start_time, :end_time, :trace_id, :view)
             )
 
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Spans") do
@@ -52,7 +44,7 @@ module RAAF
             render layout
           end
           format.js { render :index }
-          format.json { render json: serialize_spans(@spans) }
+          format.json { render json: serialize_spans(@paginated_spans) }
         end
       end
 
@@ -110,25 +102,16 @@ module RAAF
         # Store the unpaginated query for statistics
         @total_tool_spans = @tool_spans_base
 
-        # Paginate results
-        @page = params[:page]&.to_i || 1
+        # Paginate results using Kaminari
         @per_page = [params[:per_page]&.to_i || 50, 100].min
-        @tool_spans = paginate_records(@tool_spans_base.recent, page: @page, per_page: @per_page)
+        @tool_spans = @tool_spans_base.recent.page(params[:page]).per(@per_page)
 
         respond_to do |format|
           format.html do
-            # Calculate pagination info
-            @total_count = @tool_spans_base.count
-            @total_pages = (@total_count.to_f / @per_page).ceil
-
             tools_component = RAAF::Rails::Tracing::ToolSpans.new(
               tool_spans: @tool_spans,
               total_tool_spans: @total_tool_spans,
-              params: params.permit(:search, :function_name, :status, :trace_id, :start_time, :end_time),
-              page: @page,
-              total_pages: @total_pages,
-              per_page: @per_page,
-              total_count: @total_count
+              params: params.permit(:search, :function_name, :status, :trace_id, :start_time, :end_time)
             )
 
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Tool Spans") do
@@ -232,8 +215,8 @@ module RAAF
             !trace_spans.any? { |ts| ts.span_id == s.parent_id }
           end
 
-          # Sort root spans by start_time
-          root_spans.sort_by! { |s| s.start_time || Time.current }
+          # Sort root spans by start_time (newest first)
+          root_spans.sort_by! { |s| -(s.start_time || Time.current).to_i }
 
           # For each root span, add it and all its descendants
           root_spans.each do |root_span|
@@ -282,8 +265,8 @@ module RAAF
         # Find direct children of this span
         children = all_spans.select { |s| s.parent_id == parent_span.span_id }
 
-        # Sort children by start_time to maintain chronological order
-        children.sort_by! { |c| c.start_time || Time.current }
+        # Sort children by start_time (newest first)
+        children.sort_by! { |c| -(c.start_time || Time.current).to_i }
 
         # For each child, recursively add its hierarchy
         children.each do |child|
@@ -473,8 +456,10 @@ module RAAF
             }
           end,
           pagination: {
-            page: @page,
-            per_page: @per_page
+            page: spans.current_page,
+            per_page: spans.limit_value,
+            total_count: spans.total_count,
+            total_pages: spans.total_pages
           }
         }
       end
@@ -579,8 +564,10 @@ module RAAF
             }
           end,
           pagination: {
-            page: @page,
-            per_page: @per_page
+            page: spans.current_page,
+            per_page: spans.limit_value,
+            total_count: spans.total_count,
+            total_pages: spans.total_pages
           }
         }
       end

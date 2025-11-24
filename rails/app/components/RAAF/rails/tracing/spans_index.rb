@@ -4,20 +4,17 @@ module RAAF
   module Rails
     module Tracing
       class SpansIndex < BaseComponent
-        def initialize(spans:, params: {}, page: 1, total_pages: 1, per_page: 20, total_count: 0)
+        def initialize(spans:, paginated_spans:, params: {})
           @spans = spans
+          @paginated_spans = paginated_spans
           @params = params
-          @page = page
-          @total_pages = total_pages
-          @per_page = per_page
-          @total_count = total_count
         end
 
         def view_template
           div(class: "p-6") do
             render_header
 
-            if @params[:view] == 'hierarchical'
+            if hierarchical_view?
               render_hierarchy_legend
             end
 
@@ -28,11 +25,15 @@ module RAAF
 
         private
 
+        def hierarchical_view?
+          @params[:view] != 'list'
+        end
+
         def render_header
           div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
             div(class: "min-w-0 flex-1") do
               h1(class: "text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate") { "Spans" }
-              if @params[:view] == 'hierarchical'
+              if hierarchical_view?
                 p(class: "mt-1 text-sm text-gray-500") { "Hierarchical view showing parent-child relationships between spans" }
               else
                 p(class: "mt-1 text-sm text-gray-500") { "Detailed view of all execution spans" }
@@ -130,12 +131,12 @@ module RAAF
 
         def render_spans_table
           if @spans.any?
-            if @params[:view] == 'hierarchical'
+            if hierarchical_view?
               render_hierarchical_table
             else
               render_list_table
             end
-            render_pagination if @total_pages > 1 && @params[:view] != 'hierarchical'
+            render_pagination if @paginated_spans.total_pages > 1
           else
             render_empty_state
           end
@@ -344,7 +345,11 @@ module RAAF
             end
 
             td(class: "px-6 py-4 whitespace-nowrap text-sm text-gray-500") do
-              span.start_time&.strftime("%Y-%m-%d %H:%M:%S.%3N")
+              if span.start_time
+                plain "#{time_ago_in_words(span.start_time)} ago"
+              else
+                plain "N/A"
+              end
             end
 
             td(class: "px-6 py-4 whitespace-nowrap text-sm") do
@@ -365,29 +370,31 @@ module RAAF
           nav(class: "bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6") do
             div(class: "hidden sm:block") do
               p(class: "text-sm text-gray-700") do
+                start_item = (@paginated_spans.current_page - 1) * @paginated_spans.limit_value + 1
+                end_item = [@paginated_spans.current_page * @paginated_spans.limit_value, @paginated_spans.total_count].min
                 plain "Showing "
-                span(class: "font-medium") { ((@page - 1) * @per_page + 1).to_s }
+                span(class: "font-medium") { start_item.to_s }
                 plain " to "
-                span(class: "font-medium") { [@page * @per_page, @total_count].min.to_s }
+                span(class: "font-medium") { end_item.to_s }
                 plain " of "
-                span(class: "font-medium") { @total_count.to_s }
+                span(class: "font-medium") { @paginated_spans.total_count.to_s }
                 plain " spans"
               end
             end
 
             div(class: "flex-1 flex justify-between sm:justify-end") do
-              if @page > 1
+              unless @paginated_spans.first_page?
                 link_to(
                   "Previous",
-                  tracing_spans_path(@params.merge(page: @page - 1)),
+                  tracing_spans_path(@params.merge(page: @paginated_spans.prev_page)),
                   class: "relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
 
-              if @page < @total_pages
+              unless @paginated_spans.last_page?
                 link_to(
                   "Next",
-                  tracing_spans_path(@params.merge(page: @page + 1)),
+                  tracing_spans_path(@params.merge(page: @paginated_spans.next_page)),
                   class: "ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
@@ -437,23 +444,20 @@ module RAAF
           div(class: "flex items-center space-x-2") do
             span(class: "text-sm font-medium text-gray-700") { "View:" }
 
-            # Hierarchical is now the default view
-            current_view = @params[:view]
-            list_active = current_view == 'list'
-            hierarchical_active = current_view != 'list'  # Default when view param is nil or 'hierarchical'
+            list_active = !hierarchical_view?
 
-            # Hierarchical view button (default)
+            # Hierarchical view button (default) - reset to page 1 when switching views
             link_to(
-              tracing_spans_path(@params.except(:view)),
-              class: "px-3 py-2 text-sm font-medium rounded-l-md border #{hierarchical_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
+              tracing_spans_path(@params.except(:view, :page)),
+              class: "px-3 py-2 text-sm font-medium rounded-l-md border #{hierarchical_view? ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
             ) do
               i(class: "bi bi-diagram-3 mr-1")
               plain "Hierarchy"
             end
 
-            # List view button (optional)
+            # List view button - reset to page 1 when switching views
             link_to(
-              tracing_spans_path(@params.merge(view: 'list')),
+              tracing_spans_path(@params.except(:page).merge(view: 'list')),
               class: "px-3 py-2 text-sm font-medium rounded-r-md border-t border-r border-b #{list_active ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}"
             ) do
               i(class: "bi bi-list mr-1")
@@ -474,8 +478,6 @@ module RAAF
             )
           end
         end
-
-        private
 
         def render_expand_button(span_id)
           # Use Phlex button helper with text chevron (more reliable than icon font)

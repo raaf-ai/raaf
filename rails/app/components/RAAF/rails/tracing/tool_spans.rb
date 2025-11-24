@@ -4,14 +4,10 @@ module RAAF
   module Rails
     module Tracing
       class ToolSpans < BaseComponent
-        def initialize(tool_spans:, total_tool_spans:, params: {}, page: 1, total_pages: 1, per_page: 20, total_count: 0)
+        def initialize(tool_spans:, total_tool_spans:, params: {})
           @tool_spans = tool_spans
           @total_tool_spans = total_tool_spans
           @params = params
-          @page = page
-          @total_pages = total_pages
-          @per_page = per_page
-          @total_count = total_count
         end
 
         def view_template
@@ -144,7 +140,7 @@ module RAAF
                 render_table_body
               end
             end
-            render_pagination if @total_pages > 1
+            render_pagination if @tool_spans.total_pages > 1
           else
             render_empty_state
           end
@@ -305,29 +301,31 @@ module RAAF
           nav(class: "bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6") do
             div(class: "hidden sm:block") do
               p(class: "text-sm text-gray-700") do
+                start_item = (@tool_spans.current_page - 1) * @tool_spans.limit_value + 1
+                end_item = [@tool_spans.current_page * @tool_spans.limit_value, @tool_spans.total_count].min
                 plain "Showing "
-                span(class: "font-medium") { ((@page - 1) * @per_page + 1).to_s }
+                span(class: "font-medium") { start_item.to_s }
                 plain " to "
-                span(class: "font-medium") { [@page * @per_page, @total_count].min.to_s }
+                span(class: "font-medium") { end_item.to_s }
                 plain " of "
-                span(class: "font-medium") { @total_count.to_s }
+                span(class: "font-medium") { @tool_spans.total_count.to_s }
                 plain " tool spans"
               end
             end
 
             div(class: "flex-1 flex justify-between sm:justify-end") do
-              if @page > 1
+              unless @tool_spans.first_page?
                 link_to(
                   "Previous",
-                  tools_tracing_spans_path(@params.merge(page: @page - 1)),
+                  tools_tracing_spans_path(@params.merge(page: @tool_spans.prev_page)),
                   class: "relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
 
-              if @page < @total_pages
+              unless @tool_spans.last_page?
                 link_to(
                   "Next",
-                  tools_tracing_spans_path(@params.merge(page: @page + 1)),
+                  tools_tracing_spans_path(@params.merge(page: @tool_spans.next_page)),
                   class: "ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end

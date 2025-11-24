@@ -16,7 +16,7 @@ module RAAF
       include RAAF::Logger
 
       protect_from_forgery with: :exception
-      
+
       # Disable layout since Phlex components are self-contained
       layout false
 
@@ -52,15 +52,6 @@ module RAAF
         end
 
         render layout, status: :internal_server_error
-      end
-
-      # Pagination helper
-      def paginate_records(relation, page: 1, per_page: 25)
-        page = [page.to_i, 1].max
-        per_page = [per_page.to_i, 100].min
-        per_page = 25 if per_page < 1
-
-        relation.offset((page - 1) * per_page).limit(per_page)
       end
 
       # Time range helper for filtering

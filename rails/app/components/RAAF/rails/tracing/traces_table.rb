@@ -4,12 +4,8 @@ module RAAF
   module Rails
     module Tracing
       class TracesTable < BaseComponent
-        def initialize(traces:, page: 1, total_pages: 1, per_page: 20, total_count: 0, params: {})
+        def initialize(traces:, params: {})
           @traces = traces
-          @page = page
-          @total_pages = total_pages
-          @per_page = per_page
-          @total_count = total_count
           @params = params
         end
 
@@ -17,7 +13,7 @@ module RAAF
           div(class: "bg-white shadow rounded-lg overflow-hidden") do
             if @traces.any?
               render_table
-              render_pagination if @total_pages > 1
+              render_pagination if @traces.total_pages > 1
             else
               render_empty_state
             end
@@ -216,7 +212,7 @@ module RAAF
         end
 
         def render_spans_hierarchy(trace)
-          spans = trace.spans.includes(:parent_span).order(:start_time).limit(10)
+          spans = trace.spans.includes(:parent_span).order(start_time: :desc).limit(10)
           root_spans = spans.select { |s| s.parent_id.nil? }
           child_spans = spans.select { |s| s.parent_id.present? }.group_by(&:parent_id)
 
@@ -267,29 +263,31 @@ module RAAF
           nav(class: "bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6") do
             div(class: "hidden sm:block") do
               p(class: "text-sm text-gray-700") do
+                start_item = (@traces.current_page - 1) * @traces.limit_value + 1
+                end_item = [@traces.current_page * @traces.limit_value, @traces.total_count].min
                 plain "Showing "
-                span(class: "font-medium") { ((@page - 1) * @per_page + 1).to_s }
+                span(class: "font-medium") { start_item.to_s }
                 plain " to "
-                span(class: "font-medium") { [@page * @per_page, @total_count].min.to_s }
+                span(class: "font-medium") { end_item.to_s }
                 plain " of "
-                span(class: "font-medium") { @total_count.to_s }
+                span(class: "font-medium") { @traces.total_count.to_s }
                 plain " traces"
               end
             end
 
             div(class: "flex-1 flex justify-between sm:justify-end") do
-              if @page > 1
+              unless @traces.first_page?
                 link_to(
                   "Previous",
-                  "/raaf/tracing/traces?#{@params.merge(page: @page - 1).to_query}",
+                  "/raaf/tracing/traces?#{@params.merge(page: @traces.prev_page).to_query}",
                   class: "relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end
 
-              if @page < @total_pages
+              unless @traces.last_page?
                 link_to(
                   "Next",
-                  "/raaf/tracing/traces?#{@params.merge(page: @page + 1).to_query}",
+                  "/raaf/tracing/traces?#{@params.merge(page: @traces.next_page).to_query}",
                   class: "ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 )
               end

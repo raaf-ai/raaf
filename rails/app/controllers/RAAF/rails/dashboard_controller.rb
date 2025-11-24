@@ -214,11 +214,12 @@ module RAAF
         # Error trends over time
         @error_trends = calculate_error_trends(@time_range)
 
-        # Recent errors with details
+        # Recent errors with details - paginated with Kaminari
+        @per_page = [params[:per_page]&.to_i || 25, 100].min
         @recent_errors = RAAF::Rails::Tracing::SpanRecord.errors.within_timeframe(@time_range.begin, @time_range.end)
                                    .includes(:trace)
                                    .recent
-                                   .limit(50)
+                                   .page(params[:page]).per(@per_page)
 
         respond_to do |format|
           format.html do
@@ -226,7 +227,7 @@ module RAAF
               error_analysis: @error_analysis,
               error_trends: @error_trends,
               recent_errors: @recent_errors,
-              params: params.permit(:start_time, :end_time, :severity)
+              params: params.permit(:start_time, :end_time, :severity, :page, :per_page)
             )
 
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Error Dashboard") do

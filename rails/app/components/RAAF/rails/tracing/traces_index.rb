@@ -4,14 +4,10 @@ module RAAF
   module Rails
     module Tracing
       class TracesIndex < BaseComponent
-        def initialize(traces:, stats: nil, params: {}, total_pages: 1, page: 1, per_page: 20, total_count: 0)
+        def initialize(traces:, stats: nil, params: {})
           @traces = traces
           @stats = stats
           @params = params
-          @total_pages = total_pages
-          @page = page
-          @per_page = per_page
-          @total_count = total_count
         end
 
         def view_template
@@ -208,10 +204,6 @@ module RAAF
           ) do
             render TracesTable.new(
               traces: @traces,
-              page: @page,
-              total_pages: @total_pages,
-              per_page: @per_page,
-              total_count: @total_count,
               params: @params
             )
           end

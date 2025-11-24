@@ -24,14 +24,9 @@ module RAAF
         # Get summary statistics
         @stats = calculate_summary_stats(@traces)
 
-        # Paginate results
-        @page = params[:page]&.to_i || 1
+        # Paginate results using Kaminari
         @per_page = [params[:per_page]&.to_i || 25, 100].min
-        @traces = paginate_records(@traces.recent, page: @page, per_page: @per_page)
-
-        # Calculate pagination info
-        @total_count = TraceRecord.count
-        @total_pages = (@total_count.to_f / @per_page).ceil
+        @traces = @traces.recent.page(params[:page]).per(@per_page)
 
         respond_to do |format|
           format.html do
@@ -39,10 +34,6 @@ module RAAF
               # For AJAX requests, render just the traces table component
               render RAAF::Rails::Tracing::TracesTable.new(
                 traces: @traces,
-                page: @page,
-                total_pages: @total_pages,
-                per_page: @per_page,
-                total_count: @total_count,
                 params: params.permit(:search, :workflow, :status, :start_time, :end_time)
               ), layout: false
             else
@@ -50,11 +41,7 @@ module RAAF
               traces_component = RAAF::Rails::Tracing::TracesIndex.new(
                 traces: @traces,
                 stats: @stats,
-                params: params.permit(:search, :workflow, :status, :start_time, :end_time),
-                total_pages: @total_pages,
-                page: @page,
-                per_page: @per_page,
-                total_count: @total_count
+                params: params.permit(:search, :workflow, :status, :start_time, :end_time)
               )
 
               layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Traces") do
@@ -71,7 +58,7 @@ module RAAF
       # GET /traces/:id
       # Shows detailed view of a specific trace
       def show
-        @spans = @trace.spans.includes(:children).order(:start_time)
+        @spans = @trace.spans.includes(:children).order(start_time: :desc)
         @performance_summary = @trace.performance_summary
         @cost_analysis = @trace.cost_analysis
         @span_hierarchy = @trace.span_hierarchy
@@ -94,7 +81,7 @@ module RAAF
       # GET /traces/:id/spans
       # Lists all spans for a trace
       def spans
-        @spans = @trace.spans.includes(:children).order(:start_time)
+        @spans = @trace.spans.includes(:children).order(start_time: :desc)
 
         respond_to do |format|
           format.html { render :show }
@@ -262,10 +249,10 @@ module RAAF
             }
           end,
           pagination: {
-            page: @page,
-            per_page: @per_page,
-            total_count: @total_count,
-            total_pages: @total_pages
+            page: traces.current_page,
+            per_page: traces.limit_value,
+            total_count: traces.total_count,
+            total_pages: traces.total_pages
           },
           stats: @stats
         }
