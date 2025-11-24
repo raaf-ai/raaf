@@ -1294,6 +1294,13 @@ module RAAF
         # Initialize processor
         processor = RAAF::DSL::IncrementalProcessor.new(self, incremental_config)
 
+        # Initialize usage accumulator for incremental processing
+        accumulated_usage = {
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0
+        }
+
         # Process with skip/load/persist logic
         # The block processes non-skipped items through the normal agent flow
         processed_results = processor.process(input_data, @context) do |items_to_process, ctx|
@@ -1304,16 +1311,36 @@ module RAAF
           # Run normal agent processing on non-skipped items only
           agent_result = run_agent_on_batch(items_to_process, temp_context, context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
 
+          # Accumulate usage from this batch
+          if agent_result[:usage].is_a?(Hash)
+            accumulated_usage[:input_tokens] += (agent_result[:usage][:input_tokens] || 0)
+            accumulated_usage[:output_tokens] += (agent_result[:usage][:output_tokens] || 0)
+            accumulated_usage[:total_tokens] += (agent_result[:usage][:total_tokens] || 0)
+
+            # Preserve output_tokens_details if present (for reasoning tokens)
+            if agent_result[:usage][:output_tokens_details]
+              accumulated_usage[:output_tokens_details] ||= {}
+              agent_result[:usage][:output_tokens_details].each do |key, value|
+                accumulated_usage[:output_tokens_details][key] ||= 0
+                accumulated_usage[:output_tokens_details][key] += value if value.is_a?(Numeric)
+              end
+            end
+
+            log_debug "🔍 [#{self.class.name}::run_with_incremental_processing] Accumulated usage from batch: #{accumulated_usage.inspect}"
+          end
+
           # Extract results from agent response
           agent_result[output_field] || []
         end
 
         log_info "✅ [#{self.class.name}] Incremental processing complete: #{processed_results.count} total items"
+        log_debug "🔍 [#{self.class.name}::run_with_incremental_processing] Final accumulated usage: #{accumulated_usage.inspect}"
 
-        # Return results in standard format
+        # Return results in standard format with accumulated usage
         {
           success: true,
-          output_field => processed_results
+          output_field => processed_results,
+          usage: accumulated_usage
         }
       end
 
@@ -1497,6 +1524,14 @@ module RAAF
         if raaf_result.is_a?(Hash) && raaf_result.key?(:metadata)
           base_result[:metadata] = raaf_result[:metadata]
           log_debug "🔍 [#{self.class.name}::process_raaf_result] Preserved metadata: #{raaf_result[:metadata].keys.inspect}"
+        end
+
+        # Preserve usage from the original raaf_result (token tracking for evaluations)
+        if raaf_result.is_a?(Hash) && raaf_result.key?(:usage)
+          base_result[:usage] = raaf_result[:usage]
+          log_info "🔍 [#{self.class.name}::process_raaf_result] Preserved usage: #{raaf_result[:usage].inspect}"
+        else
+          log_warn "⚠️ [#{self.class.name}::process_raaf_result] No :usage key in raaf_result! Keys: #{raaf_result.is_a?(Hash) ? raaf_result.keys.inspect : raaf_result.class.name}"
         end
 
         # Apply result transformations if configured, or auto-generate them for output fields
@@ -2825,8 +2860,20 @@ module RAAF
         # Extract parsed output from messages (works for any AI provider)
         parsed_output = extract_final_output(run_result)
 
+        # Extract usage data from run_result if available
+        usage_data = if run_result.respond_to?(:usage)
+          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
+          run_result.usage
+        elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result['usage'])
+          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
+          run_result[:usage] || run_result['usage']
+        else
+          log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
+          nil
+        end
+
         # Build result in expected DSL format
-        {
+        result_hash = {
           workflow_status: "completed",
           success: true,
           message: parsed_output || {},
@@ -2840,6 +2887,11 @@ module RAAF
             execution_time: nil
           }
         }
+
+        # Include usage data if available (for token tracking in evaluations)
+        result_hash[:usage] = usage_data if usage_data
+
+        result_hash
       end
 
       # Apply result transformations if configured
@@ -3574,9 +3626,11 @@ module RAAF
       #
       # @return [Boolean] true if schema is defined with fields
       def has_schema_defined?
-        self.class.respond_to?(:_schema_config) &&
-          self.class._schema_config.present? &&
-          self.class._schema_config[:fields]&.any?
+        # Check _schema_definition (set by schema DSL method)
+        # NOT _schema_config (which is unused/empty)
+        self.class.respond_to?(:_schema_definition) &&
+          self.class._schema_definition.present? &&
+          self.class._schema_definition[:schema].present?
       end
 
       def extract_result_data(results)
@@ -3588,6 +3642,23 @@ module RAAF
 
         # If results is already a Hash with structured data matching agent's output fields, return it
         if results.is_a?(Hash) && !results.empty?
+          # NEW: If schema is defined and results has schema fields, return directly
+          if has_schema_defined? && self.class.respond_to?(:_schema_definition)
+            schema_def = self.class._schema_definition
+            if schema_def && schema_def[:schema]
+              # Schema uses string keys, not symbol keys
+              schema_properties = schema_def[:schema]["properties"] || schema_def[:schema][:properties]
+              if schema_properties
+                schema_fields = schema_properties.keys
+                # Check if results contains any of the schema fields
+                if schema_fields.any? { |field| results.key?(field.to_sym) || results.key?(field.to_s) }
+                  log_debug "✅ [#{self.class.name}] Schema-based extraction successful - found #{schema_fields.length} schema fields"
+                  return ActiveSupport::HashWithIndifferentAccess.new({ success: true }.merge(results))
+                end
+              end
+            end
+          end
+
           # NEW: Universal text extraction for all providers (schema-less agents)
           # Handles responses from ResponsesProvider, GeminiProvider, AnthropicProvider,
           # PerplexityProvider, GroqProvider, and CohereProvider
@@ -3966,6 +4037,18 @@ module RAAF
         # Extract parsed output from messages (works for any AI provider)
         parsed_output = extract_final_output(run_result)
 
+        # Extract usage data from run_result if available (for token tracking in evaluations)
+        usage_data = if run_result.respond_to?(:usage)
+          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
+          run_result.usage
+        elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result['usage'])
+          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
+          run_result[:usage] || run_result['usage']
+        else
+          log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
+          nil
+        end
+
         # Build result in expected DSL format
         raaf_result = {
           workflow_status: "completed",
@@ -3975,6 +4058,9 @@ module RAAF
           context_variables: run_context,
           summary: build_result_summary(parsed_output)
         }
+
+        # Include usage data if available (for token tracking in evaluations)
+        raaf_result[:usage] = usage_data if usage_data
 
         # Preserve metadata from provider response (generic for all providers)
         # This is critical for passing citations and search results through the pipeline
