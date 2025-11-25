@@ -7,13 +7,16 @@ require_relative "configuration_comparator"
 require_relative "callback_manager"
 require_relative "progress_calculator"
 require_relative "event_emitter"
-require_relative "../storage/historical_storage"
 
 module RAAF
   module Eval
     module DslEngine
       # Main evaluation engine that executes evaluators on span data
       # Handles single and multi-configuration evaluations with progress tracking
+      #
+      # @note History configuration (auto_save, retention) has been removed.
+      #   Evaluation results are now stored via the continuous evaluation system
+      #   using EvaluationPolicy and ContinuousEvaluationResult.
       class Evaluator
         attr_reader :definition
 
@@ -23,7 +26,6 @@ module RAAF
           @definition = definition
           @field_selector = definition[:field_selector]
           @evaluator_definition = definition[:evaluator_definition]
-          @history_config = definition[:history_config] || {}
 
           # Initialize callback manager and register progress callbacks
           @callback_manager = CallbackManager.new
@@ -69,7 +71,6 @@ module RAAF
           @event_emitter = EventEmitter.new(@callback_manager, @progress_calculator)
 
           # Emit start event
-          start_time = Time.now
           @event_emitter.emit_start(
             total_configurations: 1,
             total_fields: @field_selector.fields.size,
@@ -91,12 +92,6 @@ module RAAF
 
           # Aggregate results
           result = ResultAggregator.aggregate(field_results, evaluator_results, config_name, field_data)
-
-          # Calculate total duration
-          total_duration_ms = ((Time.now - start_time) * 1000).round(2)
-
-          # Store historically if configured
-          store_result(span, config_name, result, total_duration_ms) if @history_config[:auto_save]
 
           # Emit config end
           @event_emitter.emit_config_end(config_name, result, total_evaluators)
@@ -273,41 +268,6 @@ module RAAF
         # @return [Integer] Total number of field evaluator sets
         def count_total_evaluators
           @evaluator_definition.field_evaluator_sets.size
-        end
-
-        # Store evaluation result to history
-        # @param span [Hash] The span data
-        # @param config_name [Symbol] Configuration name
-        # @param result [DSL::EvaluationResult] Evaluation result
-        # @param duration_ms [Float] Total evaluation duration
-        def store_result(span, config_name, result, duration_ms)
-          # Extract evaluator name from definition or use default
-          evaluator_name = @evaluator_definition.respond_to?(:name) ? @evaluator_definition.name : "unnamed_evaluator"
-
-          # Save to historical storage
-          Storage::HistoricalStorage.save(
-            evaluator_name: evaluator_name.to_s,
-            configuration_name: config_name,
-            span_id: extract_span_id(span),
-            result: result,
-            tags: @history_config[:tags] || {},
-            duration_ms: duration_ms
-          )
-
-          # Run retention cleanup if configured
-          if @history_config[:retention_days] || @history_config[:retention_count]
-            Storage::HistoricalStorage.cleanup_retention(
-              retention_days: @history_config[:retention_days],
-              retention_count: @history_config[:retention_count]
-            )
-          end
-        end
-
-        # Extract span ID from span data
-        # @param span [Hash] Span data
-        # @return [String] Span ID
-        def extract_span_id(span)
-          span.is_a?(Hash) ? (span[:id] || span["id"] || "unknown") : span.to_s
         end
       end
 

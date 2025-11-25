@@ -1,0 +1,63 @@
+# Solid Queue Configuration for RAAF Continuous Evaluation
+#
+# This configuration defines queue processing for automated span evaluation.
+# Two queues are used:
+#   - raaf_evaluations: High-priority evaluation jobs
+#   - raaf_evaluations_low: Low-priority background tasks (metrics, cleanup)
+
+default: &default
+  dispatchers:
+    # Main dispatcher polls for jobs and assigns them to workers
+    - polling_interval: 1
+      batch_size: 500
+
+  workers:
+    # High-priority evaluation workers
+    # Process actual span evaluations with configured evaluators
+    - queues: [raaf_evaluations]
+      threads: 5          # Concurrent evaluations per process
+      processes: 2        # Number of worker processes
+      polling_interval: 0.1
+
+    # Low-priority workers for maintenance tasks
+    # Handle metrics aggregation, cleanup, and reporting
+    - queues: [raaf_evaluations_low]
+      threads: 2
+      processes: 1
+      polling_interval: 1
+
+development:
+  <<: *default
+  workers:
+    - queues: [raaf_evaluations]
+      threads: 2
+      processes: 1
+      polling_interval: 0.5
+    - queues: [raaf_evaluations_low]
+      threads: 1
+      processes: 1
+      polling_interval: 2
+
+test:
+  <<: *default
+  dispatchers:
+    - polling_interval: 0.1
+      batch_size: 10
+  workers:
+    - queues: [raaf_evaluations, raaf_evaluations_low]
+      threads: 1
+      processes: 1
+      polling_interval: 0.1
+
+production:
+  <<: *default
+  workers:
+    # Scale evaluation workers based on expected load
+    - queues: [raaf_evaluations]
+      threads: 10
+      processes: 4
+      polling_interval: 0.1
+    - queues: [raaf_evaluations_low]
+      threads: 3
+      processes: 1
+      polling_interval: 1

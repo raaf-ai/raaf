@@ -26,12 +26,22 @@ require_relative "eval/comparison/ranking_engine"
 require_relative "eval/comparison/improvement_detector"
 require_relative "eval/comparison/best_configuration_selector"
 require_relative "eval/comparison/comparison_result"
+require_relative "eval/errors"
+
+# Require continuous evaluation module (services)
+require_relative "eval/continuous"
+
+# Require continuous evaluation models only when ActiveRecord is available
+if defined?(ActiveRecord::Base)
+  require_relative "eval/models/continuous"
+end
 
 module RAAF
   module Eval
-    class Error < StandardError; end
-    class ConfigurationError < Error; end
-    class EvaluationError < Error; end
+    # Keep these for backwards compatibility - they're also defined in errors.rb
+    class Error < StandardError; end unless const_defined?(:Error)
+    class ConfigurationError < Error; end unless const_defined?(:ConfigurationError)
+    class EvaluationError < Error; end unless const_defined?(:EvaluationError)
     class SpanNotFoundError < Error; end
 
     class << self

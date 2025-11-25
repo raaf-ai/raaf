@@ -13,6 +13,7 @@ RAAF Eval provides systematic testing and validation of AI agent behavior across
 - **Evaluation Engine** - Re-execute agents with modified configurations
 - **RSpec Integration** - 40+ matchers for automated testing
 - **Comprehensive Metrics** - Token usage, latency, quality, safety
+- **Continuous Evaluation** 🆕 - Automatic production span evaluation with policies
 
 ## Quick Start
 
@@ -118,11 +119,37 @@ Run with: `bundle exec rspec spec/evaluations/`
 - ✅ **Statistical**: Confidence intervals, significance testing
 - ✅ **Custom**: Define domain-specific metrics
 
+## Continuous Evaluation (NEW) 🆕
+
+Automatically evaluate production spans with policy-based rules:
+
+```ruby
+# Create an evaluation policy
+policy = RAAF::Eval::Models::EvaluationPolicy.create!(
+  name: "Production GPT-4 Monitor",
+  agent_name: "CustomerSupportAgent",
+  environment: "production",
+  sampling_mode: "percentage",
+  sample_rate: 10,  # Evaluate 10% of spans
+  max_daily_evaluations: 1000,  # Cost control
+  evaluators: [
+    { "type" => "llm_judge", "name" => "quality_judge" }
+  ],
+  active: true
+)
+
+# Spans matching the policy are automatically evaluated in background
+# Results available in dashboard or via API
+```
+
+See **[Continuous Evaluation Guide](../RAAF_EVAL.md#continuous-evaluation-phase-6-)** for complete documentation.
+
 ## Documentation
 
 ### Getting Started
 - **[Complete Tutorial](GETTING_STARTED.md)** - Comprehensive guide with examples
 - **[Master Documentation](../RAAF_EVAL.md)** - Full feature overview and navigation
+- **[Continuous Evaluation](lib/raaf/eval/continuous/README.md)** - Production monitoring setup
 
 ### Technical Reference
 - **[Architecture](ARCHITECTURE.md)** - System design and components

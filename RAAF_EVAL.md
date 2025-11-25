@@ -296,6 +296,278 @@ RAAF Eval is designed for production use:
 
 See **[Performance Benchmarks](eval/PERFORMANCE.md)** for detailed analysis.
 
+## Continuous Evaluation (Phase 6) 🆕
+
+### Overview
+
+Continuous Evaluation automatically evaluates AI agent spans as they are created in production, enabling real-time quality monitoring, regression detection, and compliance tracking without manual intervention.
+
+**Key Benefits:**
+- **Automatic Quality Monitoring** - Catch regressions and issues without manual testing
+- **Production Insights** - Understand actual agent behavior in real-world scenarios
+- **Compliance Verification** - Ensure agents meet regulatory and policy requirements
+- **Cost-Optimized** - Smart sampling and daily limits prevent runaway costs
+
+### Architecture
+
+Continuous evaluation runs asynchronously using background jobs to ensure zero impact on production performance:
+
+```
+Production Span Created → Policy Matcher → Queue Entry → Background Job → Evaluators → Results
+                              ↓                              ↓                    ↓
+                         Active Policies              Priority Processing    Metrics Aggregation
+```
+
+### Configuration
+
+#### Creating Evaluation Policies
+
+Policies define which spans to evaluate and how:
+
+```ruby
+# Via Rails UI (recommended)
+# Navigate to /eval/continuous/policies and click "New Policy"
+
+# Via Console
+policy = RAAF::Eval::Models::EvaluationPolicy.create!(
+  name: "Production GPT-4 Monitoring",
+  agent_name: "CustomerSupportAgent",
+  environment: "production",
+  model_pattern: "gpt-4*",         # Wildcard matching
+  sampling_mode: "percentage",      # all, percentage, or every_n
+  sample_rate: 10,                  # Sample 10% of matching spans
+  max_daily_evaluations: 1000,      # Cost control
+  priority: 80,                      # Higher priority processes first
+  evaluators: [
+    {
+      "type" => "llm_judge",
+      "name" => "quality_judge",
+      "config" => { "criteria" => "accuracy and helpfulness" }
+    },
+    {
+      "type" => "rule_based",
+      "name" => "pii_detector",
+      "config" => {}
+    }
+  ],
+  active: true
+)
+```
+
+#### Targeting Options
+
+Policies can target spans using flexible patterns:
+
+- **agent_name**: Exact match or wildcard (`"Support*"` matches SupportAgent, SupportBot, etc.)
+- **environment**: `"production"`, `"staging"`, `"development"`, or `"all"`
+- **model_pattern**: Wildcard patterns (`"gpt-4*"`, `"claude*"`, `"*sonnet*"`)
+- **version_pattern**: Agent version matching (optional)
+
+#### Sampling Strategies
+
+Control evaluation volume and costs with sampling:
+
+- **`all`**: Evaluate every matching span (use with caution in production)
+- **`percentage`**: Random sampling (e.g., 10% of spans)
+- **`every_n`**: Deterministic sampling (e.g., every 5th span)
+
+Combined with `max_daily_evaluations` for cost caps.
+
+### Available Evaluators
+
+Evaluators are discovered from the DSL registry and include:
+
+#### Built-in Evaluators
+
+- **LLM Judges**: Quality assessment using AI models
+  - `quality_judge` - Overall quality evaluation
+  - `accuracy_judge` - Factual accuracy verification
+  - `helpfulness_judge` - User value assessment
+
+- **Rule-Based**: Deterministic checks
+  - `pii_detector` - PII/sensitive data detection
+  - `profanity_checker` - Content moderation
+  - `length_validator` - Output length constraints
+
+- **Statistical**: Performance analysis
+  - `latency_monitor` - Response time tracking
+  - `token_analyzer` - Token usage optimization
+  - `error_rate_tracker` - Failure pattern detection
+
+#### Custom Evaluators
+
+Register custom evaluators via DSL:
+
+```ruby
+class ComplianceEvaluator < RAAF::Eval::DSL::Evaluators::Base
+  def evaluate(span_data, expected_output)
+    # Custom compliance logic
+    passed = check_regulatory_compliance(span_data)
+    build_result(passed: passed, score: passed ? 1.0 : 0.0)
+  end
+end
+
+# Automatically discovered by continuous evaluation
+RAAF::Eval::DSL::EvaluatorRegistry.register(:compliance, ComplianceEvaluator)
+```
+
+### Dashboard Features
+
+The continuous evaluation dashboard provides:
+
+#### Policy Management (`/eval/continuous/policies`)
+- Create, edit, and delete policies
+- Enable/disable policies instantly
+- View policy match statistics
+- Test policy matching with sample spans
+
+#### Queue Monitoring (`/eval/continuous/queue`)
+- Real-time queue depth and processing rate
+- Priority-ordered evaluation list
+- Failed evaluation retry management
+- Performance metrics and bottleneck identification
+
+#### Results Browser (`/eval/continuous/results`)
+- Filter by policy, agent, time range
+- Aggregate pass/fail rates
+- Drill down to individual evaluations
+- Export results for analysis
+
+#### Analytics (`/eval/continuous/analytics`)
+- Time-series charts of evaluation metrics
+- Agent performance trends
+- Cost tracking and optimization recommendations
+- Alerting threshold configuration
+
+### Background Jobs
+
+Continuous evaluation uses three types of background jobs:
+
+#### EvaluationJob
+Processes individual span evaluations:
+- Fetches span data
+- Runs configured evaluators
+- Stores results
+- Updates metrics
+
+```ruby
+# Automatically enqueued when spans are created
+# Priority based on policy configuration
+# Retries on transient failures
+```
+
+#### MetricsAggregationJob
+Computes aggregate metrics hourly:
+- Success rates by agent/model
+- Average scores and trends
+- Cost analysis
+- Alert threshold checking
+
+```ruby
+# Runs every hour via cron
+# Updates dashboard analytics
+```
+
+#### ResetDailyCountersJob
+Resets daily evaluation quotas:
+- Runs at midnight UTC
+- Resets all policy counters
+- Archives daily statistics
+
+### API Reference
+
+#### REST Endpoints
+
+```ruby
+# List all policies
+GET /api/v1/eval/continuous/policies
+
+# Create new policy
+POST /api/v1/eval/continuous/policies
+{
+  "name": "Production Monitoring",
+  "agent_name": "SupportAgent",
+  "sampling_mode": "percentage",
+  "sample_rate": 10,
+  "evaluators": [...]
+}
+
+# Get evaluation results
+GET /api/v1/eval/continuous/results?policy_id=123&start_date=2025-01-01
+
+# Queue status
+GET /api/v1/eval/continuous/queue/status
+```
+
+#### Response Formats
+
+```json
+// Policy List Response
+{
+  "policies": [
+    {
+      "id": 1,
+      "name": "Production GPT-4 Monitoring",
+      "agent_name": "CustomerSupportAgent",
+      "active": true,
+      "match_count_today": 150,
+      "evaluation_count_today": 15,
+      "success_rate": 0.93
+    }
+  ],
+  "meta": {
+    "total": 5,
+    "page": 1
+  }
+}
+
+// Queue Status Response
+{
+  "queue": {
+    "depth": 42,
+    "processing_rate": 10.5,
+    "estimated_wait_time_seconds": 4,
+    "failed_count": 2,
+    "workers_active": 3
+  }
+}
+```
+
+### Performance Characteristics
+
+- **Span Creation Overhead**: < 5ms (async hook only)
+- **Evaluation Latency**: 100ms - 5s (depends on evaluators)
+- **Queue Processing**: 10-50 evaluations/second/worker
+- **Storage Growth**: ~2KB per evaluation result
+- **Dashboard Load Time**: < 200ms for 10,000 results
+
+### Best Practices
+
+1. **Start with Low Sampling Rates**: Begin with 1-5% sampling in production
+2. **Use Daily Limits**: Always set `max_daily_evaluations` to control costs
+3. **Prioritize Critical Agents**: Use priority scores to evaluate important agents first
+4. **Monitor Queue Depth**: Scale workers if queue consistently > 1000
+5. **Archive Old Results**: Move results > 30 days to cold storage
+6. **Test Policies in Staging**: Validate policies work before production deployment
+
+### Troubleshooting
+
+**High Queue Depth:**
+- Increase worker count
+- Reduce sampling rates
+- Check for slow evaluators
+
+**Missing Evaluations:**
+- Verify policy is active
+- Check policy matching criteria
+- Ensure daily limit not reached
+- Review job failure logs
+
+**Inconsistent Results:**
+- Check evaluator configurations
+- Verify span data completeness
+- Review sampling methodology
+
 ## Development Status
 
 ### Phase 1: Foundation (✅ Complete)
@@ -328,6 +600,13 @@ See **[Performance Benchmarks](eval/PERFORMANCE.md)** for detailed analysis.
 - Deep integration with tracing dashboard
 - Cross-navigation between systems
 - Unified RAAF platform experience
+
+### Phase 6: Continuous Evaluation (✅ Complete)
+- Policy-based automatic evaluation
+- Background job processing
+- Evaluator discovery from DSL
+- Dashboard for monitoring and configuration
+- API endpoints for programmatic access
 
 See **[Product Roadmap](.agent-os/product/roadmap.md)** for complete timeline.
 

@@ -7,6 +7,10 @@ module RAAF
       # Eliminates the need for `class << self` singleton pattern
       # Provides automatic caching and configuration building
       #
+      # @note The `history` DSL method has been removed in favor of
+      #   database-driven configuration via EvaluationPolicy. See
+      #   docs/CONTINUOUS_EVAL_MIGRATION.md for migration instructions.
+      #
       # @example Basic usage
       #   class MyEvaluator
       #     include RAAF::Eval::DSL::EvaluatorDefinition
@@ -26,8 +30,7 @@ module RAAF
           base.instance_variable_set(:@_evaluator_config, {
             selections: [],
             field_evaluations: {},
-            progress_callback: nil,
-            history_options: {}
+            progress_callback: nil
           })
         end
 
@@ -64,17 +67,23 @@ module RAAF
             @_evaluator_config[:progress_callback] = block
           end
 
-          # Configure historical storage
-          # @param options [Hash] History configuration options
-          # @option options [Boolean] :baseline Enable baseline tracking
-          # @option options [Integer] :last_n Number of recent runs to retain
-          # @option options [Boolean] :auto_save Automatically save results
-          # @option options [Integer] :retention_days Days to retain history
-          # @option options [Integer] :retention_count Max number of runs to retain
-          # @example
+          # @deprecated The `history` DSL method has been removed.
+          #   Evaluation configuration is now managed via database-backed EvaluationPolicy.
+          #   See docs/CONTINUOUS_EVAL_MIGRATION.md for migration instructions.
+          #
+          # @raise [RAAF::Eval::DeprecatedDSLError] Always raises when called
+          # @example Migration
+          #   # OLD (removed):
           #   history baseline: true, last_n: 10, auto_save: true
-          def history(**options)
-            @_evaluator_config[:history_options].merge!(options)
+          #
+          #   # NEW: Use EvaluationPolicy in database
+          #   RAAF::Eval::Models::Continuous::EvaluationPolicy.create!(
+          #     name: "my_policy",
+          #     enabled: true,
+          #     evaluators: [{ name: "my_evaluator" }]
+          #   )
+          def history(**_options)
+            raise RAAF::Eval::DeprecatedDSLError.new("history")
           end
 
           # Return cached evaluator or build new one from DSL configuration
@@ -118,13 +127,8 @@ module RAAF
               # Apply progress callback
               on_progress(&config[:progress_callback]) if config[:progress_callback]
 
-              # Apply history configuration
-              if config[:history_options].any?
-                history_opts = config[:history_options]
-                history do
-                  history_opts.each { |k, v| send(k, v) }
-                end
-              end
+              # Note: history configuration is no longer supported via DSL
+              # Use database-backed EvaluationPolicy instead
             end
           end
         end

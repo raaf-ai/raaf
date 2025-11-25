@@ -503,6 +503,38 @@ expect(result).to maintain_semantic_similarity(threshold: 0.85)
 expect(result).not_to regress_from_baseline
 ```
 
+### Continuous Evaluation (NEW) 🆕
+
+**Automatically evaluate production spans in real-time** with policy-based rules:
+
+```ruby
+# Create a policy to monitor production agents
+policy = RAAF::Eval::Models::EvaluationPolicy.create!(
+  name: "Production Quality Monitor",
+  agent_name: "CustomerSupportAgent",
+  environment: "production",
+  sampling_mode: "percentage",
+  sample_rate: 10,  # Evaluate 10% of spans
+  max_daily_evaluations: 1000,  # Cost control
+  evaluators: [
+    { "type" => "llm_judge", "name" => "quality_judge" },
+    { "type" => "rule_based", "name" => "pii_detector" }
+  ],
+  active: true
+)
+
+# Spans are automatically evaluated in background
+# View results in dashboard at /eval/continuous
+```
+
+**Key Features:**
+- Zero production impact (async background processing)
+- Smart sampling and cost controls
+- Built-in and custom evaluators
+- Real-time dashboard and analytics
+
+See **[Continuous Evaluation Guide](RAAF_EVAL.md#continuous-evaluation-phase-6-)** for setup and configuration.
+
 See **[RAAF_EVAL.md](RAAF_EVAL.md)** for complete documentation.
 
 ## Agent OS Documentation

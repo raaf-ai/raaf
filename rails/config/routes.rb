@@ -51,7 +51,7 @@ RAAF::Rails::Engine.routes.draw do
         get :analytics
       end
     end
-    
+
     resources :spans, only: [:index, :show] do
       collection do
         get :tools
@@ -59,16 +59,54 @@ RAAF::Rails::Engine.routes.draw do
         post :destroy_all
       end
     end
-    
+
     get "timeline", to: "timeline#show"
     get "search", to: "search#index"
-    
+
     # Cost management routes
     get "costs", to: "costs#index"
     get "costs/breakdown", to: "costs#breakdown"
     get "costs/trends", to: "costs#trends"
     get "costs/forecast", to: "costs#forecast"
     get "costs/optimization", to: "costs#optimization"
+  end
+
+  # Continuous evaluation routes
+  namespace :continuous do
+    # Evaluator discovery (read-only)
+    resources :evaluators, only: [:index, :show]
+
+    # Policy management with custom actions
+    resources :policies do
+      member do
+        post :activate
+        post :deactivate
+        post :duplicate
+      end
+    end
+
+    # Queue management
+    resources :queue, only: [:index, :show] do
+      member do
+        post :retry
+        post :cancel
+      end
+      collection do
+        post :retry_failed
+        delete :clear_completed
+      end
+    end
+
+    # Results browsing
+    resources :results, only: [:index, :show]
+
+    # Analytics dashboard with data endpoints
+    resource :analytics, only: [:show] do
+      get :pass_rate_data
+      get :score_distribution_data
+      get :model_comparison_data
+      get :failure_analysis_data
+    end
   end
 
   # WebSocket routes - Action Cable handles WebSocket connections

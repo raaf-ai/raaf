@@ -564,6 +564,12 @@ module RAAF
             path: tracing_search_path,
             icon_name: "search",
             active: false
+          },
+          {
+            label: "Evaluations",
+            path: continuous_policies_path,
+            icon_name: "check-circle",
+            active: false
           }
         ]
       end

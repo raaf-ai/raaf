@@ -43,6 +43,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "phlex-preline", "~> 0.1"
   spec.add_dependency "redcarpet", "~> 3.6"
   spec.add_dependency "kaminari", "~> 1.2"
+  spec.add_dependency "solid_queue", "~> 1.0"
 
   # Development dependencies
   spec.add_development_dependency "bundler"

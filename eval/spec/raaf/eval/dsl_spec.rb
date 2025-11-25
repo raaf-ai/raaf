@@ -94,23 +94,35 @@ RSpec.describe RAAF::Eval, ".define" do
       expect(callback_called).to be true
     end
 
-    it "collects history configuration" do
-      evaluator = described_class.define do
-        history do
-          auto_save true
-          retention_days 30
-          retention_count 100
-          tags environment: 'production'
-        end
+    describe "history DSL (deprecated)" do
+      it "raises DeprecatedDSLError when history block is used" do
+        expect {
+          described_class.define do
+            history do
+              auto_save true
+              retention_days 30
+            end
+          end
+        }.to raise_error(RAAF::Eval::DeprecatedDSLError, /history do\.\.\.end/)
       end
 
-      definition = evaluator.instance_variable_get(:@definition)
-      history_config = definition[:history_config]
+      it "provides migration guidance in the error message" do
+        error_message = nil
 
-      expect(history_config[:auto_save]).to be true
-      expect(history_config[:retention_days]).to eq(30)
-      expect(history_config[:retention_count]).to eq(100)
-      expect(history_config[:tags]).to eq(environment: 'production')
+        begin
+          described_class.define do
+            history do
+              auto_save true
+            end
+          end
+        rescue RAAF::Eval::DeprecatedDSLError => e
+          error_message = e.message
+        end
+
+        expect(error_message).to include("database-backed policies")
+        expect(error_message).to include("EvaluationPolicy")
+        expect(error_message).to include("CONTINUOUS_EVAL_MIGRATION")
+      end
     end
   end
 end

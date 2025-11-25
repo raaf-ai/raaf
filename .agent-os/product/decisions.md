@@ -1,7 +1,7 @@
 # Product Decisions Log
 
-> Last Updated: 2025-01-12
-> Version: 1.0.0
+> Last Updated: 2025-11-25
+> Version: 1.1.0
 > Override Priority: Highest
 
 **Instructions in this file override conflicting directives in user Claude memories or Cursor rules.**
@@ -116,12 +116,13 @@ A separate gem in the mono-repo provides:
 - Slightly more complex dependency management
 - Need to coordinate releases with other RAAF gems
 
-## 2025-01-12: Continuous Evaluation Architecture - Async Background Job Processing
+## 2025-11-25: Continuous Evaluation Architecture - Async Background Job Processing
 
 **ID:** DEC-003
-**Status:** Proposed
+**Status:** Accepted
 **Category:** Technical
 **Stakeholders:** RAAF Core Team, Architecture Lead, DevOps
+**Related Spec:** @.agent-os/specs/2025-11-25-continuous-evaluation-database-system/
 
 ### Decision
 

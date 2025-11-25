@@ -57,7 +57,10 @@
       "WebFetch(domain:docs.arize.com)",
       "WebFetch(domain:langfuse.com)",
       "WebFetch(domain:www.confident-ai.com)",
-      "WebFetch(domain:arize.com)"
+      "WebFetch(domain:arize.com)",
+      "Bash(mkdir:*)",
+      "Bash(bundle install:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "additionalDirectories": [

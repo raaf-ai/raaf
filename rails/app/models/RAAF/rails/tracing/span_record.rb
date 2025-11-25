@@ -64,6 +64,7 @@ module RAAF
       before_validation :set_defaults
       after_destroy :update_trace_status
       after_save :update_trace_status
+      after_commit :enqueue_continuous_evaluations, on: :create
 
       # Scopes
       scope :recent, -> { order(start_time: :desc) }
@@ -470,6 +471,30 @@ module RAAF
         trace&.update_trace_status
       rescue StandardError => e
         ::Rails.logger.warn "[Ruby AI Agents Factory Tracing] Failed to update trace status: #{e.message}"
+      end
+
+      # Enqueue continuous evaluation for newly created spans
+      # This hook runs after the span is committed to the database
+      def enqueue_continuous_evaluations
+        # Return early if continuous evaluation is disabled
+        return unless defined?(RAAF::Eval::Continuous) && RAAF::Eval::Continuous.enabled?
+        return unless RAAF::Eval::Continuous.configuration.hook_enabled
+
+        # Find matching policies and enqueue evaluation jobs
+        begin
+          matcher = RAAF::Eval::Continuous::PolicyMatcher.new(self)
+          policies = matcher.policies_to_evaluate
+
+          policies.each do |policy|
+            RAAF::Eval::Continuous::EvaluationJob.perform_later(
+              span_id: span_id,
+              policy_id: policy.id
+            )
+          end
+        rescue StandardError => e
+          # Log errors but don't raise - we don't want to break span creation
+          ::Rails.logger.warn "[Ruby AI Agents Factory Continuous Eval] Failed to enqueue evaluations: #{e.message}"
+        end
       end
     end
     end

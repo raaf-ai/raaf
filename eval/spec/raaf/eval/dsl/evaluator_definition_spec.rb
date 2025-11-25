@@ -24,8 +24,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
       expect(config).to include(
         selections: [],
         field_evaluations: {},
-        progress_callback: nil,
-        history_options: {}
+        progress_callback: nil
       )
     end
 
@@ -120,27 +119,31 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
       end
     end
 
-    describe ".history" do
-      it "stores history configuration options" do
-        test_class.history baseline: true, last_n: 10
-
-        config = test_class.instance_variable_get(:@_evaluator_config)
-        expect(config[:history_options]).to eq(
-          baseline: true,
-          last_n: 10
-        )
+    describe ".history (deprecated)" do
+      it "raises DeprecatedDSLError when called with options" do
+        expect {
+          test_class.history baseline: true, last_n: 10
+        }.to raise_error(RAAF::Eval::DeprecatedDSLError, /history/)
       end
 
-      it "merges multiple history calls" do
-        test_class.history baseline: true
-        test_class.history last_n: 10, auto_save: true
+      it "raises DeprecatedDSLError when called without options" do
+        expect {
+          test_class.history
+        }.to raise_error(RAAF::Eval::DeprecatedDSLError, /history/)
+      end
 
-        config = test_class.instance_variable_get(:@_evaluator_config)
-        expect(config[:history_options]).to eq(
-          baseline: true,
-          last_n: 10,
-          auto_save: true
-        )
+      it "provides migration guidance in the error message" do
+        error_message = nil
+
+        begin
+          test_class.history auto_save: true
+        rescue RAAF::Eval::DeprecatedDSLError => e
+          error_message = e.message
+        end
+
+        expect(error_message).to include("database-backed policies")
+        expect(error_message).to include("EvaluationPolicy")
+        expect(error_message).to include("CONTINUOUS_EVAL_MIGRATION")
       end
     end
   end

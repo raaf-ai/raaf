@@ -4,9 +4,12 @@ module RAAF
   module Eval
     module DSL
       # Stores the configuration for an evaluator definition
-      # Manages field selections, evaluator attachments, progress callbacks, and history settings
+      # Manages field selections, evaluator attachments, and progress callbacks
+      #
+      # @note History configuration has been removed in favor of database-driven
+      #   configuration via EvaluationPolicy. See docs/CONTINUOUS_EVAL_MIGRATION.md.
       class EvaluatorConfig
-        attr_reader :name, :selected_fields, :field_evaluators, :progress_callbacks, :history_config,
+        attr_reader :name, :selected_fields, :field_evaluators, :progress_callbacks,
                     :field_evaluator_sets
 
         # Initialize a new evaluator definition
@@ -17,7 +20,6 @@ module RAAF
           @field_evaluators = {}
           @field_evaluator_sets = {}
           @progress_callbacks = []
-          @history_config = default_history_config
         end
 
         # Add a field to be evaluated
@@ -69,10 +71,13 @@ module RAAF
           end
         end
 
-        # Configure history settings
-        # @param config [Hash] History configuration options
-        def configure_history(config)
-          @history_config = @history_config.merge(config)
+        # @deprecated History configuration has been removed.
+        #   Use database-backed EvaluationPolicy instead.
+        #   See docs/CONTINUOUS_EVAL_MIGRATION.md for migration instructions.
+        #
+        # @raise [RAAF::Eval::DeprecatedDSLError] Always raises when called
+        def configure_history(_config)
+          raise RAAF::Eval::DeprecatedDSLError.new("configure_history")
         end
 
         # Define multiple evaluators for a field with combination logic
@@ -93,18 +98,6 @@ module RAAF
         # @return [FieldEvaluatorSet, nil] The field evaluator set or nil if not found
         def get_field_evaluator_set(field_name)
           @field_evaluator_sets[field_name]
-        end
-
-        private
-
-        # Default history configuration
-        def default_history_config
-          {
-            auto_save: false,
-            retention_days: nil,
-            retention_count: nil,
-            tags: []
-          }
         end
       end
 
