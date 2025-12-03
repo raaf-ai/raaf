@@ -37,6 +37,11 @@ if defined?(ActiveRecord::Base)
   require_relative "eval/models/continuous"
 end
 
+# Statistical LLM Judge module (lazy loaded)
+# Based on: Lee et al. "How to Correctly Report LLM-as-a-Judge Evaluations" (arXiv:2511.21140)
+# @see eval/docs/LLM_JUDGE_GUIDE.md
+autoload :LLMJudge, "raaf/eval/llm_judge"
+
 module RAAF
   module Eval
     # Keep these for backwards compatibility - they're also defined in errors.rb

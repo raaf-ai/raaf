@@ -23,6 +23,7 @@ RAAF Eval is a comprehensive AI agent evaluation and testing framework for Ruby 
 - **[API Reference](eval/API.md)** - Complete API documentation
 - **[Metrics System](eval/METRICS.md)** - Understanding evaluation metrics
 - **[Performance Benchmarks](eval/PERFORMANCE.md)** - Performance characteristics
+- **[Statistical LLM Judge Guide](eval/docs/LLM_JUDGE_GUIDE.md)** - Bias-corrected LLM-as-a-Judge evaluation
 
 ### UI Documentation
 - **[UI Installation](eval-ui/README.md)** - Setting up the web interface
@@ -91,6 +92,15 @@ Use the web UI for exploratory testing:
 - ✅ **Real-time Progress** - Turbo Streams updates
 - ✅ **Results Comparison** - Side-by-side metrics
 - ✅ **Session Management** - Save and resume experiments
+
+### Statistical LLM Judge (NEW)
+Based on [Lee et al. "How to Correctly Report LLM-as-a-Judge Evaluations"](https://arxiv.org/abs/2511.21140):
+- ✅ **Bias-Corrected Accuracy** - Corrects for judge sensitivity/specificity
+- ✅ **Calibration Support** - Ground-truth labeled calibration sets
+- ✅ **Confidence Intervals** - Accounts for test and calibration uncertainty
+- ✅ **Multi-Judge Consensus** - Aggregate multiple models for reliability
+- ✅ **Bias Mitigation** - Position, length, and format bias detection
+- ✅ **RSpec Matchers** - `have_bias_corrected_accuracy`, `satisfy_judge_consensus`, etc.
 
 ## Architecture
 
