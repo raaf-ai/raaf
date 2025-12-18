@@ -1,38 +1,50 @@
 # frozen_string_literal: true
 
-RSpec.describe RAAF::Eval::Continuous::EvaluatorDiscovery do
-  # Mock evaluator class for testing
-  let(:test_evaluator_class) do
-    Class.new do
-      include RAAF::Eval::DSL::Evaluator
+# Define test evaluator class at module level so it's available for discovery tests
+# This must be a named constant for EvaluatorDefinition tracking to work
+module Eval
+  class TestEvaluator
+    include RAAF::Eval::DSL::EvaluatorDefinition
 
-      def self.evaluator_type
-        "rule_based"
-      end
+    evaluator_name :test_evaluator
 
-      def self.description
-        "A test evaluator for testing"
-      end
+    def self.evaluator_type
+      "rule_based"
+    end
 
-      def self.configurable_options
-        [
-          { name: :threshold, type: :float, default: 0.8, description: "Score threshold" },
-          { name: :max_tokens, type: :integer, default: 4000, description: "Maximum tokens" }
-        ]
-      end
+    def self.description
+      "A test evaluator for testing"
+    end
 
-      def initialize(options = {})
-        @options = options
-      end
+    def self.configurable_options
+      [
+        { name: :threshold, type: :float, default: 0.8, description: "Score threshold" },
+        { name: :max_tokens, type: :integer, default: 4000, description: "Maximum tokens" }
+      ]
+    end
 
-      def evaluate(field_context, **options)
-        { label: "good", score: 0.9, message: "Test passed" }
-      end
+    select "output", as: :output
+    select "tokens", as: :tokens
+
+    evaluate_field :output do
+      evaluate_with :semantic_similarity
+    end
+
+    evaluate_field :tokens do
+      evaluate_with :threshold, max: 4000
+    end
+
+    def initialize(**options)
+      @options = options
     end
   end
+end
+
+RSpec.describe RAAF::Eval::Continuous::EvaluatorDiscovery do
+  let(:test_evaluator_class) { Eval::TestEvaluator }
 
   before do
-    # Clear registry and register test evaluator
+    # Also register in the registry for .build and .available_evaluators tests
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:all_names).and_return([:test_evaluator, :token_limit])
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:get).with(:test_evaluator).and_return(test_evaluator_class)
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:get).with(:token_limit).and_return(test_evaluator_class)
@@ -77,31 +89,52 @@ RSpec.describe RAAF::Eval::Continuous::EvaluatorDiscovery do
       expect(test_detail[:configurable_options]).to be_an(Array)
       expect(test_detail[:configurable_options].first[:name]).to eq(:threshold)
     end
+
+    it "includes agent_name derived from class name" do
+      details = described_class.evaluator_details
+      test_detail = details.find { |d| d[:name] == "test_evaluator" }
+      expect(test_detail[:agent_name]).to eq("TestEvaluator")
+    end
+
+    it "includes checks (evaluated fields) with detailed info" do
+      details = described_class.evaluator_details
+      test_detail = details.find { |d| d[:name] == "test_evaluator" }
+      expect(test_detail[:checks]).to be_an(Array)
+      # Checks now return detailed hashes with field_name, evaluator_type, check_type, etc.
+      field_names = test_detail[:checks].map { |c| c[:field_name] }
+      expect(field_names).to include(:output, :tokens)
+      # Verify structure of each check
+      output_check = test_detail[:checks].find { |c| c[:field_name] == :output }
+      expect(output_check).to include(:evaluator_type, :check_type, :display_name, :description)
+    end
   end
 
   describe ".build" do
     let(:config) { { "name" => "test_evaluator", "config" => { "threshold" => 0.9 } } }
 
-    it "builds an evaluator instance from policy configuration" do
+    it "returns the class for EvaluatorDefinition-based evaluators" do
+      # EvaluatorDefinition-based classes are returned as CLASS, not instance
+      # because they use class methods (like transform_span_data hooks)
       evaluator = described_class.build(config)
-      expect(evaluator).to be_a(test_evaluator_class)
+      expect(evaluator).to eq(test_evaluator_class)
     end
 
-    it "passes config options to the evaluator" do
+    it "returns class that responds to evaluate" do
+      # The class should respond to the evaluate class method
       evaluator = described_class.build(config)
-      expect(evaluator.instance_variable_get(:@options)).to eq({ "threshold" => 0.9 })
+      expect(evaluator).to respond_to(:evaluate)
     end
 
     it "works with symbol keys" do
       symbol_config = { name: :test_evaluator, config: { threshold: 0.9 } }
       evaluator = described_class.build(symbol_config)
-      expect(evaluator).to be_a(test_evaluator_class)
+      expect(evaluator).to eq(test_evaluator_class)
     end
 
     it "handles missing config gracefully" do
       minimal_config = { "name" => "test_evaluator" }
       evaluator = described_class.build(minimal_config)
-      expect(evaluator).to be_a(test_evaluator_class)
+      expect(evaluator).to eq(test_evaluator_class)
     end
 
     it "raises error for unknown evaluator" do

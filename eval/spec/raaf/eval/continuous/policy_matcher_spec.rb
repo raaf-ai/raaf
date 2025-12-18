@@ -148,27 +148,6 @@ RSpec.describe RAAF::Eval::Continuous::PolicyMatcher do
   end
 
   describe "#should_evaluate?" do
-    let!(:policy) do
-      create(:evaluation_policy,
-             agent_name: "TestAgent",
-             environment: "all",
-             model_pattern: "all",
-             active: true,
-             sampling_mode: "percentage",
-             sample_rate: 50)
-    end
-
-    context "with percentage sampling" do
-      it "samples approximately the correct percentage" do
-        srand(12345) # Fixed seed for reproducibility
-        matcher = described_class.new(span)
-
-        # Run many times to verify statistical behavior
-        samples = 100.times.count { matcher.should_evaluate?(policy) }
-        expect(samples).to be_within(20).of(50)
-      end
-    end
-
     context "with every_n sampling" do
       let!(:every_n_policy) do
         create(:evaluation_policy,
@@ -263,6 +242,61 @@ RSpec.describe RAAF::Eval::Continuous::PolicyMatcher do
       matcher = described_class.new(span)
       policies = matcher.policies_to_evaluate
       expect(policies.first.priority).to be >= policies.last.priority
+    end
+
+    context "with evaluation-generated spans" do
+      let(:eval_span_data) do
+        {
+          span_id: SecureRandom.uuid,
+          trace_id: SecureRandom.uuid,
+          agent_name: "TestAgent",
+          environment: "production",
+          model: "gpt-4o",
+          version: "1.0",
+          source: "evaluation_run"
+        }
+      end
+
+      let(:eval_span) { double("EvaluationSpan", **eval_span_data) }
+
+      it "returns empty array to prevent recursive evaluation" do
+        matcher = described_class.new(eval_span)
+        policies = matcher.policies_to_evaluate
+        expect(policies).to be_empty
+      end
+
+      it "does not count eval spans toward policy sample rate" do
+        # Production span should match
+        prod_span = double("SpanRecord", **span_data.merge(source: "production_trace"))
+        prod_matcher = described_class.new(prod_span)
+        expect(prod_matcher.policies_to_evaluate).not_to be_empty
+
+        # Eval span should be skipped entirely
+        eval_matcher = described_class.new(eval_span)
+        expect(eval_matcher.policies_to_evaluate).to be_empty
+      end
+    end
+
+    context "with production spans" do
+      let(:prod_span_data) do
+        {
+          span_id: SecureRandom.uuid,
+          trace_id: SecureRandom.uuid,
+          agent_name: "TestAgent",
+          environment: "production",
+          model: "gpt-4o",
+          version: "1.0",
+          source: "production_trace"
+        }
+      end
+
+      let(:prod_span) { double("SpanRecord", **prod_span_data) }
+
+      it "returns matching policies for production spans" do
+        matcher = described_class.new(prod_span)
+        policies = matcher.policies_to_evaluate
+        expect(policies).to include(policy1, policy2)
+      end
     end
   end
 

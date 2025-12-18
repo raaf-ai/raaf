@@ -68,9 +68,9 @@ RSpec.describe RAAF::Eval::Models::EvaluationMetric, type: :model do
   describe "scopes" do
     before do
       create(:evaluation_metric, agent_name: "AgentA", period_type: "daily")
-      create(:evaluation_metric, agent_name: "AgentA", period_type: "hourly", :hourly)
+      create(:evaluation_metric, agent_name: "AgentA", period_type: "hourly")
       create(:evaluation_metric, agent_name: "AgentB", period_type: "daily")
-      create(:evaluation_metric, agent_name: "AgentA", period_type: "weekly", :weekly)
+      create(:evaluation_metric, agent_name: "AgentA", period_type: "weekly")
     end
 
     it "filters by agent_name" do

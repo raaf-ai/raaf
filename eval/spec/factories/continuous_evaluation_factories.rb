@@ -8,9 +8,8 @@ FactoryBot.define do
     environment { "all" }
     model_pattern { "all" }
     version_pattern { "all" }
-    sampling_mode { "percentage" }
-    sample_rate { 10 }
-    sample_every_n { nil }
+    sampling_mode { "every_n" }
+    sample_every_n { 10 }
     sample_counter { 0 }
     max_daily_evaluations { 100 }
     today_evaluation_count { 0 }
@@ -36,12 +35,10 @@ FactoryBot.define do
     trait :every_n_sampling do
       sampling_mode { "every_n" }
       sample_every_n { 5 }
-      sample_rate { nil }
     end
 
     trait :all_spans do
       sampling_mode { "all" }
-      sample_rate { nil }
       sample_every_n { nil }
     end
 

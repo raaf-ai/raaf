@@ -28,22 +28,11 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
     end
 
     it "accepts valid sampling_mode values" do
-      %w[percentage every_n all].each do |mode|
+      %w[every_n all].each do |mode|
         policy = build(:evaluation_policy, sampling_mode: mode)
         policy.sample_every_n = 5 if mode == "every_n"
         expect(policy).to be_valid, "Expected sampling_mode '#{mode}' to be valid"
       end
-    end
-
-    it "validates sample_rate is between 1 and 100 for percentage mode" do
-      policy = build(:evaluation_policy, sampling_mode: "percentage", sample_rate: 0)
-      expect(policy).not_to be_valid
-
-      policy.sample_rate = 101
-      expect(policy).not_to be_valid
-
-      policy.sample_rate = 50
-      expect(policy).to be_valid
     end
 
     it "requires sample_every_n for every_n mode" do
@@ -132,6 +121,47 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
       expect(policy.matches_span?(span_data)).to be true
     end
 
+    context "with comma-separated agent names" do
+      it "matches when span agent matches any of the comma-separated names" do
+        policy.update!(agent_name: "AgentA, TestAgent, AgentC")
+        span_data = { agent_name: "TestAgent", environment: "production", model: "gpt-4o" }
+        expect(policy.matches_span?(span_data)).to be true
+      end
+
+      it "matches first agent in comma-separated list" do
+        policy.update!(agent_name: "TestAgent, AgentB, AgentC")
+        span_data = { agent_name: "TestAgent", environment: "production", model: "gpt-4o" }
+        expect(policy.matches_span?(span_data)).to be true
+      end
+
+      it "matches last agent in comma-separated list" do
+        policy.update!(agent_name: "AgentA, AgentB, TestAgent")
+        span_data = { agent_name: "TestAgent", environment: "production", model: "gpt-4o" }
+        expect(policy.matches_span?(span_data)).to be true
+      end
+
+      it "does not match when span agent is not in the list" do
+        policy.update!(agent_name: "AgentA, AgentB, AgentC")
+        span_data = { agent_name: "TestAgent", environment: "production", model: "gpt-4o" }
+        expect(policy.matches_span?(span_data)).to be false
+      end
+
+      it "supports wildcards in comma-separated names" do
+        policy.update!(agent_name: "Other*, Test*, Final*")
+        span_data = { agent_name: "TestAgent", environment: "production", model: "gpt-4o" }
+        expect(policy.matches_span?(span_data)).to be true
+      end
+
+      it "handles spaces around commas" do
+        policy.update!(agent_name: "AgentA,TestAgent,AgentC") # No spaces
+        span_data = { agent_name: "TestAgent", environment: "production", model: "gpt-4o" }
+        expect(policy.matches_span?(span_data)).to be true
+
+        policy.update!(agent_name: "AgentA ,  TestAgent  , AgentC") # Extra spaces
+        expect(policy.matches_span?(span_data)).to be true
+      end
+    end
+
     it "does not match different agent" do
       span_data = { agent_name: "OtherAgent", environment: "production", model: "gpt-4o" }
       expect(policy.matches_span?(span_data)).to be false
@@ -164,17 +194,6 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
   end
 
   describe "#should_sample?" do
-    context "with percentage sampling" do
-      let(:policy) { create(:evaluation_policy, sampling_mode: "percentage", sample_rate: 50) }
-
-      it "samples approximately the correct percentage" do
-        # Use a fixed seed for reproducibility
-        srand(12345)
-        samples = 1000.times.count { policy.should_sample? }
-        expect(samples).to be_within(100).of(500) # Allow 10% variance
-      end
-    end
-
     context "with every_n sampling" do
       let(:policy) { create(:evaluation_policy, :every_n_sampling, sample_every_n: 5) }
 
@@ -197,10 +216,9 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
     end
 
     context "with daily limit" do
-      let(:policy) { create(:evaluation_policy, max_daily_evaluations: 10, today_evaluation_count: 5) }
+      let(:policy) { create(:evaluation_policy, sampling_mode: "all", max_daily_evaluations: 10, today_evaluation_count: 5) }
 
       it "samples when under limit" do
-        allow(policy).to receive(:rand).and_return(0.01)
         expect(policy.should_sample?).to be true
       end
 

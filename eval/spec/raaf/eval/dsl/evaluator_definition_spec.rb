@@ -17,6 +17,16 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
       expect(test_class).to respond_to(:history)
       expect(test_class).to respond_to(:evaluator)
       expect(test_class).to respond_to(:reset_evaluator!)
+      expect(test_class).to respond_to(:evaluator_name)
+    end
+
+    it "includes the Evaluator module for interface compliance" do
+      expect(test_class.included_modules).to include(RAAF::Eval::DSL::Evaluator)
+    end
+
+    it "provides instance evaluate method" do
+      instance = test_class.new
+      expect(instance).to respond_to(:evaluate)
     end
 
     it "initializes evaluator configuration on inclusion" do
@@ -186,6 +196,173 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
       result = test_class.reset_evaluator!
 
       expect(result).to be_nil
+    end
+  end
+
+  describe "auto-registration with evaluator_name" do
+    let(:registry) { RAAF::Eval::DSL::EvaluatorRegistry.instance }
+
+    # Use unique names for each test to avoid conflicts
+    let(:unique_name) { :"test_auto_register_#{SecureRandom.hex(4)}" }
+
+    it "auto-registers when evaluator_name is called with a name" do
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end
+      test_class.evaluator_name(unique_name)
+
+      expect(registry.registered?(unique_name)).to be true
+      expect(registry.get(unique_name)).to eq(test_class)
+    end
+
+    it "returns the evaluator name when called as getter" do
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end
+      test_class.evaluator_name(unique_name)
+
+      expect(test_class.evaluator_name).to eq(unique_name)
+    end
+
+    it "converts string names to symbols" do
+      string_name = "string_eval_#{SecureRandom.hex(4)}"
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end
+      test_class.evaluator_name(string_name)
+
+      expect(test_class.evaluator_name).to eq(string_name.to_sym)
+      expect(registry.registered?(string_name.to_sym)).to be true
+    end
+
+    it "returns nil when evaluator_name not set" do
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end
+
+      expect(test_class.evaluator_name).to be_nil
+    end
+  end
+
+  describe "for_agent and agent_name" do
+    it "stores the agent name when for_agent is called with a name" do
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+        for_agent "Prospect::Scoring"
+      end
+
+      expect(test_class.for_agent).to eq("Prospect::Scoring")
+    end
+
+    it "returns nil for for_agent when not set" do
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end
+
+      expect(test_class.for_agent).to be_nil
+    end
+
+    it "returns explicit agent name via agent_name method" do
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+        for_agent "Custom::Agent"
+      end
+
+      expect(test_class.agent_name).to eq("Custom::Agent")
+    end
+
+    it "derives agent name from class name when not explicitly set" do
+      # Create a class with a proper name in Eval namespace
+      stub_const("Eval::Prospect::Scoring", Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end)
+
+      expect(Eval::Prospect::Scoring.agent_name).to eq("Prospect::Scoring")
+    end
+
+    it "returns nil when class is not in Eval namespace and for_agent not set" do
+      # Anonymous class has no name
+      test_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end
+
+      expect(test_class.agent_name).to be_nil
+    end
+  end
+
+  describe "evaluated_fields and field_selections" do
+    let(:test_class) do
+      Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+
+        select "output", as: :output
+        select "usage.total_tokens", as: :tokens
+        select "latency", as: :latency
+
+        evaluate_field :output do
+          evaluate_with :semantic_similarity
+        end
+
+        evaluate_field :tokens do
+          evaluate_with :threshold, max: 4000
+        end
+      end
+    end
+
+    it "returns all field names being evaluated via evaluated_fields" do
+      expect(test_class.evaluated_fields).to contain_exactly(:output, :tokens)
+    end
+
+    it "returns all field selections via field_selections" do
+      expect(test_class.field_selections).to contain_exactly(
+        { path: "output", as: :output },
+        { path: "usage.total_tokens", as: :tokens },
+        { path: "latency", as: :latency }
+      )
+    end
+
+    it "returns empty array when no fields are evaluated" do
+      empty_class = Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+      end
+
+      expect(empty_class.evaluated_fields).to eq([])
+      expect(empty_class.field_selections).to eq([])
+    end
+  end
+
+  describe "instance evaluate delegation" do
+    let(:test_class) do
+      Class.new do
+        include RAAF::Eval::DSL::EvaluatorDefinition
+
+        select "output", as: :output
+        evaluate_field :output do
+          evaluate_with :json_validity
+        end
+      end
+    end
+
+    it "delegates instance evaluate to class evaluator" do
+      instance = test_class.new
+      mock_evaluator = double("evaluator")
+      field_context = double("field_context")
+
+      allow(test_class).to receive(:evaluator).and_return(mock_evaluator)
+      expect(mock_evaluator).to receive(:evaluate).with(field_context, foo: :bar)
+
+      instance.evaluate(field_context, foo: :bar)
+    end
+
+    it "passes options through to the evaluator" do
+      instance = test_class.new
+      mock_evaluator = double("evaluator")
+      field_context = double("field_context")
+
+      allow(test_class).to receive(:evaluator).and_return(mock_evaluator)
+      expect(mock_evaluator).to receive(:evaluate).with(field_context, threshold: 0.9, strict: true)
+
+      instance.evaluate(field_context, threshold: 0.9, strict: true)
     end
   end
 end
