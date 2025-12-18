@@ -32,10 +32,24 @@ require_relative "raaf/eval/models/evaluation_span"
 require_relative "raaf/eval/models/evaluation_configuration"
 require_relative "raaf/eval/models/evaluation_result"
 
+# Load DSL components (required before continuous evaluation)
+require_relative "raaf/eval/dsl/evaluator"
+require_relative "raaf/eval/dsl/evaluator_registry"
+require_relative "raaf/eval/dsl/evaluator_definition"
+require_relative "raaf/eval/dsl/field_context"
+require_relative "raaf/eval/dsl/evaluation_result"
+
+# Load continuous evaluation models (Phase 6)
+require_relative "raaf/eval/models/continuous"
+
+# Load continuous evaluation module (configuration, policy matcher, evaluator discovery)
+require_relative "raaf/eval/continuous"
+
 # Load serialization components
 require_relative "raaf/eval/span_serializer"
 require_relative "raaf/eval/span_deserializer"
 require_relative "raaf/eval/span_accessor"
+require_relative "raaf/eval/span_replayer"
 
 # Load evaluation engine
 require_relative "raaf/eval/evaluation_engine"

@@ -7,6 +7,7 @@ require_relative "eval/span_repository"
 require_relative "eval/span_accessor"
 require_relative "eval/span_serializer"
 require_relative "eval/span_deserializer"
+require_relative "eval/span_replayer"
 require_relative "eval/run_result_adapter"
 require_relative "eval/evaluation_run"
 require_relative "eval/evaluation_result"
@@ -42,7 +43,7 @@ module RAAF
     class Error < StandardError; end unless const_defined?(:Error)
     class ConfigurationError < Error; end unless const_defined?(:ConfigurationError)
     class EvaluationError < Error; end unless const_defined?(:EvaluationError)
-    class SpanNotFoundError < Error; end
+    class SpanNotFoundError < Error; end unless const_defined?(:SpanNotFoundError)
 
     class << self
       ##

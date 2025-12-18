@@ -23,20 +23,20 @@ module RAAF
         validates :trace_id, presence: true
         validates :evaluator_name, presence: true
         validates :evaluator_type, presence: true,
-                  inclusion: { in: %w[rule_based statistical llm_judge] }
+                  inclusion: { in: %w[rule_based statistical llm_judge custom] }
         validates :agent_name, presence: true
         validates :status, presence: true,
-                  inclusion: { in: %w[passed failed warning error] }
+                  inclusion: { in: %w[good average bad error] }
         validates :evaluation_type, inclusion: { in: %w[automated] }
         validates :score, numericality: { in: 0..1 }, allow_nil: true
 
-        # Scopes
-        scope :passed, -> { where(status: "passed") }
-        scope :failed, -> { where(status: "failed") }
-        scope :warning, -> { where(status: "warning") }
+        # Scopes - using quality labels: good, average, bad, error
+        scope :good_quality, -> { where(status: "good") }
+        scope :average_quality, -> { where(status: "average") }
+        scope :bad_quality, -> { where(status: "bad") }
         scope :errored, -> { where(status: "error") }
-        scope :successful, -> { where(status: %w[passed warning]) }
-        scope :unsuccessful, -> { where(status: %w[failed error]) }
+        scope :acceptable, -> { where(status: %w[good average]) }
+        scope :unacceptable, -> { where(status: %w[bad error]) }
         scope :for_agent, ->(name) { where(agent_name: name) }
         scope :for_evaluator, ->(name) { where(evaluator_name: name) }
         scope :for_environment, ->(env) { where(environment: env) }

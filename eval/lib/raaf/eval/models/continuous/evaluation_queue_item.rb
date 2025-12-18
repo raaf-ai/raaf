@@ -21,14 +21,16 @@ module RAAF
         # Validations
         validates :span_id, presence: true
         validates :trace_id, presence: true
-        validates :status, presence: true, inclusion: { in: %w[pending running completed failed cancelled] }
+        validates :status, presence: true, inclusion: { in: %w[pending running completed partial failed cancelled] }
 
         # Scopes
         scope :pending, -> { where(status: "pending") }
         scope :running, -> { where(status: "running") }
         scope :completed, -> { where(status: "completed") }
+        scope :partial, -> { where(status: "partial") }
         scope :failed, -> { where(status: "failed") }
         scope :cancelled, -> { where(status: "cancelled") }
+        scope :finished_successfully, -> { where(status: %w[completed partial]) }
         scope :processable, -> { pending.where("scheduled_at <= ? OR scheduled_at IS NULL", Time.current).order(priority: :desc, scheduled_at: :asc) }
         scope :retryable, -> { pending.where.not(next_retry_at: nil).where("next_retry_at <= ?", Time.current) }
 
@@ -51,6 +53,21 @@ module RAAF
           raise RAAF::Eval::InvalidStateTransition, "Cannot complete item in #{status} state" unless status == "running"
 
           update!(status: "completed", completed_at: Time.current)
+        end
+
+        ##
+        # Mark this item as completed with partial failures
+        # Some evaluators succeeded, some failed
+        # @param error_summary [String] Summary of failures
+        # @raise [InvalidStateTransition] if not in running state
+        def complete_partial!(error_summary = nil)
+          raise RAAF::Eval::InvalidStateTransition, "Cannot complete item in #{status} state" unless status == "running"
+
+          update!(
+            status: "partial",
+            completed_at: Time.current,
+            error_message: error_summary
+          )
         end
 
         ##
@@ -134,10 +151,17 @@ module RAAF
         end
 
         ##
-        # Check if item has finished (completed, failed, or cancelled)
+        # Check if item has finished (completed, partial, failed, or cancelled)
         # @return [Boolean]
         def finished?
-          %w[completed failed cancelled].include?(status)
+          %w[completed partial failed cancelled].include?(status)
+        end
+
+        ##
+        # Check if item completed with at least some success
+        # @return [Boolean]
+        def successful?
+          %w[completed partial].include?(status)
         end
 
         ##

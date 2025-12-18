@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRaafEvaluationMetrics < ActiveRecord::Migration[7.0]
+class CreateRAAFEvaluationMetrics < ActiveRecord::Migration[7.0]
   def change
     create_table :raaf_evaluation_metrics do |t|
       # Aggregation dimensions

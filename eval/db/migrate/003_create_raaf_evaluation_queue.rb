@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRaafEvaluationQueue < ActiveRecord::Migration[7.0]
+class CreateRAAFEvaluationQueue < ActiveRecord::Migration[7.0]
   def change
     create_table :raaf_evaluation_queue do |t|
       # References

@@ -51,7 +51,7 @@ class CreateEvaluationTables < ActiveRecord::Migration[7.0]
       t.timestamps
     end
 
-    add_index :evaluation_configurations, [:evaluation_run_id, :execution_order]
+    add_index :evaluation_configurations, [:evaluation_run_id, :execution_order], name: "idx_eval_configs_on_run_id_and_order"
     add_index :evaluation_configurations, :configuration_type
     add_index :evaluation_configurations, :changes, using: :gin
 

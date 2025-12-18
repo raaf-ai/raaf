@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRaafEvaluationPolicies < ActiveRecord::Migration[7.0]
+class CreateRAAFEvaluationPolicies < ActiveRecord::Migration[7.0]
   def change
     create_table :raaf_evaluation_policies do |t|
       # Identity

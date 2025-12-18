@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRaafEvaluationResults < ActiveRecord::Migration[7.0]
+class CreateRAAFEvaluationResults < ActiveRecord::Migration[7.0]
   def change
     create_table :raaf_evaluation_results do |t|
       # Span reference
