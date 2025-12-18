@@ -61,6 +61,9 @@ RAAF::Rails::Engine.routes.draw do
         get :flows
         post :destroy_all
       end
+
+      # Span replay routes for debugging and experimentation
+      resources :replays, only: [:index, :new, :create, :show]
     end
 
     get "timeline", to: "timeline#show"

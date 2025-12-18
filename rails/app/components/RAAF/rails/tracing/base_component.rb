@@ -168,6 +168,24 @@ module RAAF
           "/raaf/continuous/analytics"
         end
 
+        # Span replay routes
+        def tracing_span_replays_path(span_id, params = {})
+          span_id_str = span_id.respond_to?(:span_id) ? span_id.span_id : span_id
+          path = "/raaf/tracing/spans/#{span_id_str}/replays"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def new_tracing_span_replay_path(span_id)
+          span_id_str = span_id.respond_to?(:span_id) ? span_id.span_id : span_id
+          "/raaf/tracing/spans/#{span_id_str}/replays/new"
+        end
+
+        def tracing_span_replay_path(span_id, replay_id)
+          span_id_str = span_id.respond_to?(:span_id) ? span_id.span_id : span_id
+          replay_id_str = replay_id.respond_to?(:id) ? replay_id.id : replay_id
+          "/raaf/tracing/spans/#{span_id_str}/replays/#{replay_id_str}"
+        end
+
         def render_status_badge(status, skip_reason: nil)
           render SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason, style: :modern)
         end

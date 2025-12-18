@@ -26,6 +26,13 @@ module RAAF
             # Highlight.js CSS for syntax highlighting
             link(href: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css", rel: "stylesheet")
 
+            # Diff2html CSS for diff highlighting
+            link(href: "https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/css/diff2html.min.css", rel: "stylesheet")
+
+            # Diff libraries (loaded as UMD globals)
+            script(src: "https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js")
+            script(src: "https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/js/diff2html-ui.min.js")
+
             # Custom CSS for tracing-specific styles
             style do
               plain(tracing_styles)
@@ -413,6 +420,448 @@ module RAAF
               }
             }
 
+            // Replay form controller - handles provider/model selection and form submission
+            class ReplayFormController extends Controller {
+              static targets = [
+                "provider",
+                "model",
+                "temperature",
+                "temperatureValue",
+                "maxTokens",
+                "topP",
+                "topPValue",
+                "frequencyPenalty",
+                "frequencyPenaltyValue",
+                "presencePenalty",
+                "presencePenaltyValue"
+              ]
+
+              static values = {
+                submitUrl: String,
+                spanId: String,
+                debug: { type: Boolean, default: false }
+              }
+
+              // Model definitions by provider
+              static models = {
+                openai: [
+                  // GPT-5 Series (Latest)
+                  { value: "gpt-5", label: "GPT-5" },
+                  // GPT-4.1 Series (April 2025)
+                  { value: "gpt-4.1", label: "GPT-4.1" },
+                  { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+                  { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
+                  // GPT-4o Series
+                  { value: "gpt-4o", label: "GPT-4o" },
+                  { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+                  { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+                  // O-Series Reasoning Models
+                  { value: "o3-pro", label: "O3 Pro" },
+                  { value: "o3", label: "O3" },
+                  { value: "o4-mini", label: "O4 Mini" },
+                  { value: "o1-preview", label: "O1 Preview" },
+                  { value: "o1-mini", label: "O1 Mini" },
+                  { value: "o3-mini", label: "O3 Mini" }
+                ],
+                anthropic: [
+                  { value: "claude-sonnet-4-20250514", label: "Claude 4 Sonnet" },
+                  { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
+                  { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
+                  { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" }
+                ],
+                google: [
+                  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+                  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+                  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+                  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+                  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+                  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+                  { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" }
+                ],
+                perplexity: [
+                  { value: "sonar-pro", label: "Sonar Pro" },
+                  { value: "sonar", label: "Sonar" },
+                  { value: "sonar-reasoning-pro", label: "Sonar Reasoning Pro" },
+                  { value: "sonar-reasoning", label: "Sonar Reasoning" }
+                ],
+                groq: [
+                  { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
+                  { value: "llama-3.1-70b-versatile", label: "Llama 3.1 70B" },
+                  { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B" },
+                  { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B" }
+                ],
+                xai: [
+                  { value: "grok-2-1212", label: "Grok 2" },
+                  { value: "grok-2-vision-1212", label: "Grok 2 Vision" },
+                  { value: "grok-beta", label: "Grok Beta" }
+                ]
+              }
+
+              connect() {
+                if (this.debugValue) {
+                  console.log("Replay form controller connected")
+                }
+
+                // Initialize model filtering based on current provider selection
+                if (this.hasProviderTarget && this.hasModelTarget) {
+                  this.updateModelOptions()
+                }
+              }
+
+              // Rebuild model dropdown with only models for the selected provider
+              updateModelOptions() {
+                if (!this.hasProviderTarget || !this.hasModelTarget) {
+                  return
+                }
+
+                const selectedProvider = this.providerTarget.value
+                const modelSelect = this.modelTarget
+                const currentModel = modelSelect.value
+                const models = this.constructor.models[selectedProvider] || []
+
+                if (this.debugValue) {
+                  console.log("Updating models for provider:", selectedProvider, models)
+                }
+
+                // Clear existing options
+                modelSelect.innerHTML = ""
+
+                // Add new options for the selected provider
+                let selectedFound = false
+                models.forEach((model, index) => {
+                  const option = document.createElement("option")
+                  option.value = model.value
+                  option.textContent = model.label
+
+                  // Try to preserve current selection if it exists in the new provider
+                  if (model.value === currentModel) {
+                    option.selected = true
+                    selectedFound = true
+                  } else if (index === 0 && !selectedFound) {
+                    // Select first option by default
+                    option.selected = true
+                  }
+
+                  modelSelect.appendChild(option)
+                })
+
+                if (this.debugValue) {
+                  console.log("Model dropdown updated, selected:", modelSelect.value)
+                }
+              }
+
+              // Update slider value display when slider changes
+              updateSliderValue(event) {
+                const slider = event.currentTarget
+                const name = slider.name
+                const value = slider.value
+
+                // Find the corresponding value display element
+                const valueDisplay = document.getElementById(name + "-value")
+                if (valueDisplay) {
+                  valueDisplay.textContent = value
+                }
+
+                if (this.debugValue) {
+                  console.log("Slider " + name + " updated to " + value)
+                }
+              }
+
+              // Collect form data and submit via Turbo
+              submit(event) {
+                event.preventDefault()
+
+                const formData = this.collectFormData()
+
+                if (this.debugValue) {
+                  console.log("Submitting replay with data:", formData)
+                }
+
+                this.submitReplay(formData)
+              }
+
+              // Collect all form data
+              collectFormData() {
+                const data = {
+                  span_replay: {
+                    configuration_changes: {},
+                    system_prompt: null,
+                    user_messages: []
+                  }
+                }
+
+                // Collect provider and model settings
+                if (this.hasProviderTarget) {
+                  data.span_replay.configuration_changes.provider = this.providerTarget.value
+                }
+
+                if (this.hasModelTarget) {
+                  data.span_replay.configuration_changes.model = this.modelTarget.value
+                }
+
+                if (this.hasTemperatureTarget) {
+                  data.span_replay.configuration_changes.temperature = parseFloat(this.temperatureTarget.value)
+                }
+
+                if (this.hasMaxTokensTarget) {
+                  data.span_replay.configuration_changes.max_tokens = parseInt(this.maxTokensTarget.value, 10)
+                }
+
+                if (this.hasTopPTarget) {
+                  data.span_replay.configuration_changes.top_p = parseFloat(this.topPTarget.value)
+                }
+
+                if (this.hasFrequencyPenaltyTarget) {
+                  data.span_replay.configuration_changes.frequency_penalty = parseFloat(this.frequencyPenaltyTarget.value)
+                }
+
+                if (this.hasPresencePenaltyTarget) {
+                  data.span_replay.configuration_changes.presence_penalty = parseFloat(this.presencePenaltyTarget.value)
+                }
+
+                // Collect system prompt
+                const systemPrompt = document.getElementById("system_prompt")
+                if (systemPrompt) {
+                  data.span_replay.system_prompt = systemPrompt.value
+                }
+
+                // Collect user messages
+                const messagesContainer = document.getElementById("messages-container")
+                if (messagesContainer) {
+                  const messageFields = messagesContainer.querySelectorAll("[data-message-index]")
+                  messageFields.forEach((field) => {
+                    const textarea = field.querySelector("textarea")
+                    const roleInput = field.querySelector("input[type='hidden']")
+                    if (textarea && roleInput) {
+                      data.span_replay.user_messages.push({
+                        role: roleInput.value,
+                        content: textarea.value
+                      })
+                    }
+                  })
+                }
+
+                // Collect notes
+                const notesField = document.getElementById("notes")
+                if (notesField) {
+                  data.span_replay.notes = notesField.value
+                }
+
+                return data
+              }
+
+              // Submit the replay request
+              async submitReplay(formData) {
+                const statusContainer = document.getElementById("replay-status")
+
+                // Show loading state
+                if (statusContainer) {
+                  statusContainer.innerHTML = '<div class="bg-blue-50 border border-blue-200 rounded-xl p-4"><div class="flex items-center"><div class="animate-spin mr-3"><i class="bi bi-arrow-repeat text-blue-600 text-xl"></i></div><div><span class="font-medium text-blue-800">Starting replay...</span><span class="ml-2 text-sm text-blue-600">Please wait while we process your request.</span></div></div></div>'
+                }
+
+                try {
+                  // Get the form element to extract the URL
+                  const form = this.element.closest("form") || document.querySelector("form")
+                  const url = form ? form.action : this.submitUrlValue
+
+                  const response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json, text/vnd.turbo-stream.html, text/html",
+                      "X-CSRF-Token": this.getCsrfToken()
+                    },
+                    body: JSON.stringify(formData)
+                  })
+
+                  if (response.ok) {
+                    const contentType = response.headers.get("content-type")
+
+                    if (contentType && contentType.includes("text/vnd.turbo-stream.html")) {
+                      // Handle Turbo Stream response - apply it then redirect to show page
+                      const html = await response.text()
+                      // Use window.Turbo if available (set by @hotwired/turbo-rails)
+                      if (typeof window !== 'undefined' && window.Turbo && window.Turbo.renderStreamMessage) {
+                        window.Turbo.renderStreamMessage(html)
+                      }
+
+                      // Extract replay_id from the turbo-stream response and redirect to show page
+                      // The stream HTML contains the replay ID in the target element
+                      const parser = new DOMParser()
+                      const doc = parser.parseFromString(html, 'text/html')
+                      const streamEl = doc.querySelector('turbo-stream')
+
+                      // Try to extract replay_id from the response
+                      const replayIdMatch = html.match(/replay[_-]?(\\d+)/i) || html.match(/replays\\/(\\d+)/)
+                      if (replayIdMatch && replayIdMatch[1]) {
+                        const replayId = replayIdMatch[1]
+                        const currentPath = window.location.pathname
+                        // Convert /new to /:id in the URL path
+                        const showPath = currentPath.replace(/\\/new$/, '/' + replayId)
+                        console.log("🚀 Redirecting to replay show page:", showPath)
+                        setTimeout(() => { window.location.href = showPath }, 500)
+                      } else {
+                        console.log("✅ Replay created, status updated in place")
+                      }
+                    } else if (contentType && contentType.includes("application/json")) {
+                      // Handle JSON response - redirect to show page
+                      const result = await response.json()
+                      if (result.replay_id) {
+                        window.location.href = result.redirect_url || window.location.pathname.replace("/new", "/" + result.replay_id)
+                      }
+                    } else {
+                      // Handle HTML response
+                      const html = await response.text()
+                      if (statusContainer) {
+                        statusContainer.innerHTML = html
+                      }
+                    }
+                  } else {
+                    throw new Error("Request failed with status " + response.status)
+                  }
+                } catch (error) {
+                  console.error("Replay submission failed:", error)
+
+                  if (statusContainer) {
+                    statusContainer.innerHTML = '<div class="bg-red-50 border border-red-200 rounded-xl p-4"><div class="flex items-center"><i class="bi bi-exclamation-triangle text-red-600 text-xl mr-3"></i><div><span class="font-medium text-red-800">Submission failed</span><span class="ml-2 text-sm text-red-600">' + error.message + '</span></div></div></div>'
+                  }
+                }
+              }
+
+              getCsrfToken() {
+                const meta = document.querySelector('meta[name="csrf-token"]')
+                return meta ? meta.getAttribute("content") : ""
+              }
+
+              disconnect() {
+                if (this.debugValue) {
+                  console.log("Replay form controller disconnected")
+                }
+              }
+            }
+
+            // Diff controller for showing differences between original and replayed output
+            // Uses global Diff and Diff2HtmlUI from CDN scripts
+            class DiffController extends Controller {
+              static targets = ["container"]
+              static values = {
+                original: String,
+                replayed: String,
+                outputStyle: { type: String, default: "side-by-side" }
+              }
+
+              connect() {
+                console.log("🔍 Diff controller connected")
+                // Wait for libraries to load
+                this.waitForLibraries().then(() => this.renderDiff())
+              }
+
+              waitForLibraries() {
+                return new Promise((resolve) => {
+                  const check = () => {
+                    if (window.Diff && window.Diff2HtmlUI) {
+                      resolve()
+                    } else {
+                      setTimeout(check, 50)
+                    }
+                  }
+                  check()
+                })
+              }
+
+              renderDiff() {
+                const original = this.originalValue || ""
+                const replayed = this.replayedValue || ""
+
+                if (!original && !replayed) {
+                  this.containerTarget.innerHTML = '<p class="text-gray-500 italic p-4">No output to compare</p>'
+                  return
+                }
+
+                // Create unified diff using the global Diff library
+                const unifiedDiff = window.Diff.createTwoFilesPatch(
+                  "original",
+                  "replayed",
+                  original,
+                  replayed,
+                  "Original Output",
+                  "Replayed Output",
+                  { context: 3 }
+                )
+
+                // Render with diff2html (global Diff2HtmlUI)
+                const diff2htmlUi = new window.Diff2HtmlUI(this.containerTarget, unifiedDiff, {
+                  drawFileList: false,
+                  matching: "lines",
+                  outputFormat: this.outputStyleValue === "line-by-line" ? "line-by-line" : "side-by-side",
+                  highlight: true,
+                  renderNothingWhenEmpty: false
+                })
+
+                diff2htmlUi.draw()
+                diff2htmlUi.highlightCode()
+                console.log("✅ Diff rendered successfully")
+              }
+
+              toggleView(event) {
+                const newStyle = event.params.outputStyle || "side-by-side"
+                this.outputStyleValue = newStyle
+
+                // Update button styles
+                const buttons = event.target.parentElement.querySelectorAll("button")
+                buttons.forEach(btn => {
+                  btn.classList.remove("bg-blue-100", "text-blue-700")
+                  btn.classList.add("text-gray-600", "hover:bg-gray-100")
+                })
+                event.target.classList.remove("text-gray-600", "hover:bg-gray-100")
+                event.target.classList.add("bg-blue-100", "text-blue-700")
+
+                this.renderDiff()
+              }
+            }
+
+            // Poll controller for auto-refreshing replay status
+            class PollController extends Controller {
+              static values = {
+                url: String,
+                interval: { type: Number, default: 2000 }
+              }
+
+              connect() {
+                console.log("🔄 Poll controller connected, polling", this.urlValue, "every", this.intervalValue, "ms")
+                this.poll()
+              }
+
+              disconnect() {
+                if (this.timer) {
+                  clearTimeout(this.timer)
+                }
+              }
+
+              poll() {
+                fetch(this.urlValue, {
+                  headers: { "Accept": "application/json" }
+                })
+                  .then(response => response.json())
+                  .then(data => {
+                    console.log("📊 Poll response:", data.status)
+                    if (data.status === "completed" || data.status === "failed") {
+                      // Reload the page to show the final result
+                      console.log("✅ Replay finished, reloading page...")
+                      window.location.reload()
+                    } else {
+                      // Continue polling
+                      this.timer = setTimeout(() => this.poll(), this.intervalValue)
+                    }
+                  })
+                  .catch(error => {
+                    console.error("Poll error:", error)
+                    // Retry on error
+                    this.timer = setTimeout(() => this.poll(), this.intervalValue)
+                  })
+              }
+            }
+
             // Register all controllers
             application.register("span-detail", SpanDetailController)
             application.register("auto-refresh", AutoRefreshController)
@@ -420,6 +869,9 @@ module RAAF
             application.register("json-highlight", JsonHighlightController)
             application.register("evaluator-toggle", EvaluatorToggleController)
             application.register("check-sampling", CheckSamplingController)
+            application.register("replay-form", ReplayFormController)
+            application.register("poll", PollController)
+            application.register("diff", DiffController)
 
             console.log("✅ All RAAF Stimulus controllers registered")
 
@@ -840,6 +1292,22 @@ module RAAF
           .language-json .hljs-bracket {
             color: #24292e !important;
             font-weight: bold;
+          }
+
+          /* Override dark theme for JSON code blocks */
+          .language-json,
+          pre.language-json,
+          code.language-json,
+          pre code.hljs.language-json {
+            background: transparent !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            outline: none !important;
+          }
+
+          pre.language-json {
+            background: #f9fafb !important;
           }
         CSS
       end

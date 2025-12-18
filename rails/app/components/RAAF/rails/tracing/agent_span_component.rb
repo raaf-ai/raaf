@@ -442,8 +442,10 @@ module RAAF
           @system_prompt_content ||= extract_span_attribute("agent.system_instructions") ||
                                      extract_span_attribute("system_instructions") ||
                                      extract_span_attribute("system_prompt") ||
-                                     extract_span_attribute("llm.request.system") ||
-                                     extract_dialogue_system_prompt
+                                     extract_span_attribute("llm.request.system")
+          # NOTE: Do NOT call extract_dialogue_system_prompt here - it creates
+          # infinite recursion with dialogue_messages -> system_prompt_content ->
+          # extract_dialogue_system_prompt -> dialogue_messages
         end
 
         def user_prompt_content
@@ -509,11 +511,61 @@ module RAAF
         end
 
         def render_agent_overview
-          render_span_overview_header(
-            "bi bi-robot",
-            "Agent Execution",
-            "#{agent_name} • #{model_name}"
-          )
+          div(class: "bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6") do
+            div(class: "flex items-center justify-between") do
+              div(class: "flex items-center gap-3") do
+                i(class: "bi bi-robot text-blue-600 text-lg")
+                div do
+                  h3(class: "font-semibold text-blue-900") { "Agent Execution" }
+                  p(class: "text-sm text-blue-700") { "#{agent_name} • #{model_name}" }
+                end
+              end
+
+              # Replay button - only show if span has LLM request data
+              if replayable?
+                a(
+                  href: new_tracing_span_replay_path(@span.span_id),
+                  class: "inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                ) do
+                  i(class: "bi bi-arrow-repeat")
+                  plain "Replay & Debug"
+                end
+              end
+            end
+          end
+        end
+
+        # Check if this span can be replayed (has required LLM data)
+        def replayable?
+          # Check for messages in various storage formats
+          messages = extract_span_attribute("llm.request.messages") ||
+                     @span.span_attributes&.dig("llm", "request", "messages") ||
+                     extract_span_attribute("agent.conversation_messages") ||
+                     extract_span_attribute("conversation_messages")
+
+          # Try to parse JSON if it's a string
+          if messages.is_a?(String) && messages.present?
+            begin
+              messages = JSON.parse(messages)
+            rescue JSON::ParserError
+              messages = nil
+            end
+          end
+
+          # If no messages found, check if we can reconstruct from system/user prompts
+          if messages.blank? || (messages.is_a?(Array) && messages.empty?)
+            has_prompts = system_prompt_content.present? || user_prompt_content.present?
+            messages = has_prompts ? [{ "role" => "user", "content" => "placeholder" }] : nil
+          end
+
+          # Check for model in various storage formats
+          model = extract_span_attribute("llm.request.model") ||
+                  @span.span_attributes&.dig("llm", "request", "model") ||
+                  extract_span_attribute("model") ||
+                  extract_span_attribute("agent.model") ||
+                  extract_span_attribute("llm.model")
+
+          messages.present? && model.present?
         end
 
         def render_dialogue_section
@@ -709,8 +761,8 @@ module RAAF
             if final_agent_response && final_agent_response.length > 500
               render_expandable_json_text(final_agent_response, "agent-response")
             else
-              div(class: "bg-gray-50 p-4 rounded-lg border relative", data: { controller: "json-highlight" }) do
-                pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
+              div(class: "bg-white rounded-lg relative", data: { controller: "json-highlight" }) do
+                pre(class: "text-sm p-4 rounded overflow-x-auto text-gray-900") do
                   code(
                     class: "language-json",
                     data: { json_highlight_target: "json" }
@@ -945,8 +997,8 @@ module RAAF
           text_id = "#{section_id}-#{@span.span_id}"
 
           div(data: { controller: "json-highlight" }) do
-            div(id: text_id, class: "bg-gray-50 p-4 rounded-lg border relative") do
-              pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
+            div(id: text_id, class: "bg-white rounded-lg relative") do
+              pre(class: "text-sm p-4 rounded overflow-x-auto text-gray-900") do
                 code(
                   class: "language-json",
                   data: { json_highlight_target: "json" }
@@ -989,8 +1041,8 @@ module RAAF
               if final_agent_response && final_agent_response.length > 500
                 render_expandable_json_text(final_agent_response, "agent-response")
               else
-                div(class: "bg-gray-50 p-4 rounded-lg border relative", data: { controller: "json-highlight" }) do
-                  pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
+                div(class: "bg-white rounded-lg relative", data: { controller: "json-highlight" }) do
+                  pre(class: "text-sm p-4 rounded overflow-x-auto text-gray-900") do
                     code(
                       class: "language-json",
                       data: { json_highlight_target: "json" }
@@ -1240,8 +1292,8 @@ module RAAF
 
           div(data: { controller: "span-detail json-highlight" }) do
             # RAAF EVAL: Full JSON visible by default for debugging
-            div(id: text_id, class: "bg-gray-50 p-4 rounded-lg border relative") do
-              pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
+            div(id: text_id, class: "bg-white rounded-lg relative") do
+              pre(class: "text-sm p-4 rounded overflow-x-auto text-gray-900") do
                 code(
                   class: "language-json",
                   data: { json_highlight_target: "json" }
@@ -1251,8 +1303,8 @@ module RAAF
               end
             end
             # Preview hidden by default
-            div(id: "#{text_id}-preview", class: "hidden bg-gray-50 p-4 rounded-lg border relative") do
-              pre(class: "text-sm bg-white p-4 rounded border overflow-x-auto text-gray-900") do
+            div(id: "#{text_id}-preview", class: "hidden bg-white rounded-lg relative") do
+              pre(class: "text-sm p-4 rounded overflow-x-auto text-gray-900") do
                 code(
                   class: "language-json",
                   data: { json_highlight_target: "json" }
