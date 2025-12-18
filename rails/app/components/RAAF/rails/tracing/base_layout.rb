@@ -331,11 +331,95 @@ module RAAF
               }
             }
 
+            // Evaluator toggle controller (for policy form check selection)
+            // Also handles showing/hiding the "Evaluate every" control based on trigger mode
+            class EvaluatorToggleController extends Controller {
+              static targets = ["checkbox", "config", "triggerMode", "samplingConfig"]
+
+              connect() {
+                this.updateVisibility()
+                this.updateSamplingVisibility()
+              }
+
+              toggle() {
+                this.updateVisibility()
+              }
+
+              triggerModeChanged() {
+                this.updateSamplingVisibility()
+              }
+
+              updateVisibility() {
+                const isChecked = this.checkboxTarget.checked
+
+                if (isChecked) {
+                  this.configTarget.classList.remove("hidden")
+                  this.element.classList.add("bg-blue-50")
+                  this.element.classList.remove("hover:bg-gray-50")
+                } else {
+                  this.configTarget.classList.add("hidden")
+                  this.element.classList.remove("bg-blue-50")
+                  this.element.classList.add("hover:bg-gray-50")
+                }
+              }
+
+              updateSamplingVisibility() {
+                if (!this.hasTriggerModeTarget || !this.hasSamplingConfigTarget) {
+                  return
+                }
+
+                const triggerMode = this.triggerModeTarget.value
+
+                if (triggerMode === "manual") {
+                  this.samplingConfigTarget.classList.add("hidden")
+                } else {
+                  this.samplingConfigTarget.classList.remove("hidden")
+                }
+              }
+            }
+
+            // Check sampling controller (for per-check sampling mode toggle)
+            class CheckSamplingController extends Controller {
+              static targets = ["modeSelect", "percentageFields", "everyNFields"]
+
+              connect() {
+                this.updateVisibility()
+              }
+
+              toggle() {
+                this.updateVisibility()
+              }
+
+              updateVisibility() {
+                if (!this.hasModeSelectTarget) return
+
+                const selectedMode = this.modeSelectTarget.value
+
+                if (this.hasPercentageFieldsTarget) {
+                  if (selectedMode === "every_n") {
+                    this.percentageFieldsTarget.classList.add("hidden")
+                  } else {
+                    this.percentageFieldsTarget.classList.remove("hidden")
+                  }
+                }
+
+                if (this.hasEveryNFieldsTarget) {
+                  if (selectedMode === "every_n") {
+                    this.everyNFieldsTarget.classList.remove("hidden")
+                  } else {
+                    this.everyNFieldsTarget.classList.add("hidden")
+                  }
+                }
+              }
+            }
+
             // Register all controllers
             application.register("span-detail", SpanDetailController)
             application.register("auto-refresh", AutoRefreshController)
             application.register("tooltip", TooltipController)
             application.register("json-highlight", JsonHighlightController)
+            application.register("evaluator-toggle", EvaluatorToggleController)
+            application.register("check-sampling", CheckSamplingController)
 
             console.log("✅ All RAAF Stimulus controllers registered")
 

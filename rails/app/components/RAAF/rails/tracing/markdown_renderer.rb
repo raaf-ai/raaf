@@ -105,20 +105,99 @@ module RAAF
         private
 
         # Format JSON content (borrowed from existing implementation)
+        # Also handles Ruby hash-like syntax (without quotes around keys)
         def format_json_content(content)
           case content
           when String
             begin
+              # First try standard JSON parsing
               parsed = JSON.parse(content)
               JSON.pretty_generate(parsed)
             rescue JSON::ParserError
-              content
+              # Try to convert Ruby hash-like syntax to JSON
+              converted = convert_ruby_hash_to_json(content)
+              if converted != content
+                begin
+                  parsed = JSON.parse(converted)
+                  JSON.pretty_generate(parsed)
+                rescue JSON::ParserError
+                  # If conversion also fails, format the original with indentation
+                  format_hash_like_content(content)
+                end
+              else
+                # If no conversion needed but still failed, format with indentation
+                format_hash_like_content(content)
+              end
             end
           when Hash, Array
             JSON.pretty_generate(content)
           else
             content.to_s
           end
+        end
+
+        # Convert Ruby hash-like syntax to valid JSON
+        # e.g., {name:value} -> {"name":"value"}
+        def convert_ruby_hash_to_json(content)
+          return content unless content.is_a?(String)
+
+          result = content.dup
+
+          # Add quotes around unquoted keys (word characters followed by colon)
+          # This handles: {key:value} -> {"key":value}
+          result = result.gsub(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/) do
+            "#{$1}\"#{$2}\"#{$3}"
+          end
+
+          # Add quotes around unquoted string values
+          # This is trickier - we need to identify unquoted values
+          # For now, handle common cases like :value after colon that aren't numbers/booleans/null
+          result = result.gsub(/:(\s*)([a-zA-Z_][a-zA-Z0-9_\-\.\/\s@]*)([,}\]])/) do
+            value = $2.strip
+            # Check if it's a boolean, null, or number
+            if %w[true false null].include?(value.downcase) || value.match?(/^-?\d+\.?\d*$/)
+              ":#{$1}#{value}#{$3}"
+            else
+              ":#{$1}\"#{value}\"#{$3}"
+            end
+          end
+
+          result
+        end
+
+        # Format hash-like content with proper indentation for readability
+        def format_hash_like_content(content)
+          return content unless content.is_a?(String)
+
+          indent_level = 0
+          result = ""
+          i = 0
+
+          while i < content.length
+            char = content[i]
+
+            case char
+            when "{", "["
+              result += char + "\n"
+              indent_level += 1
+              result += "  " * indent_level
+            when "}", "]"
+              result += "\n"
+              indent_level -= 1
+              result += "  " * indent_level + char
+            when ","
+              result += char + "\n"
+              result += "  " * indent_level
+            when ":"
+              result += ": "
+            else
+              result += char unless char == " " && result.end_with?("  ")
+            end
+
+            i += 1
+          end
+
+          result
         end
       end
     end

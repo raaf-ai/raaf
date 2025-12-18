@@ -80,6 +80,94 @@ module RAAF
           "/raaf/tracing/search"
         end
 
+        # Continuous evaluation routes
+        def continuous_policies_path(params = {})
+          path = "/raaf/continuous/policies"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def continuous_policy_path(id)
+          policy_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/policies/#{policy_id}"
+        end
+
+        def new_continuous_policy_path
+          "/raaf/continuous/policies/new"
+        end
+
+        def edit_continuous_policy_path(id)
+          policy_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/policies/#{policy_id}/edit"
+        end
+
+        def activate_continuous_policy_path(id)
+          policy_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/policies/#{policy_id}/activate"
+        end
+
+        def deactivate_continuous_policy_path(id)
+          policy_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/policies/#{policy_id}/deactivate"
+        end
+
+        def duplicate_continuous_policy_path(id)
+          policy_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/policies/#{policy_id}/duplicate"
+        end
+
+        def continuous_evaluators_path(params = {})
+          path = "/raaf/continuous/evaluators"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def continuous_evaluator_path(id)
+          "/raaf/continuous/evaluators/#{id}"
+        end
+
+        def continuous_queue_index_path(params = {})
+          path = "/raaf/continuous/queue"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        # Alias for consistency
+        def continuous_queue_items_path(params = {})
+          continuous_queue_index_path(params)
+        end
+
+        def continuous_queue_path(id)
+          queue_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/queue/#{queue_id}"
+        end
+
+        # Alias for consistency
+        def continuous_queue_item_path(id)
+          continuous_queue_path(id)
+        end
+
+        def retry_continuous_queue_item_path(id)
+          queue_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/queue/#{queue_id}/retry"
+        end
+
+        def cancel_continuous_queue_item_path(id)
+          queue_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/queue/#{queue_id}/cancel"
+        end
+
+        def continuous_results_path(params = {})
+          path = "/raaf/continuous/results"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def continuous_result_path(id)
+          result_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/continuous/results/#{result_id}"
+        end
+
+        def continuous_analytics_path
+          "/raaf/continuous/analytics"
+        end
+
         def render_status_badge(status, skip_reason: nil)
           render SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason, style: :modern)
         end
