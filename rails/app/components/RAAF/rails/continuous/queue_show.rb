@@ -3,10 +3,7 @@
 module RAAF
   module Rails
     module Continuous
-      class QueueShow < Phlex::HTML
-        include Phlex::Rails::Helpers::LinkTo
-        include Phlex::Rails::Helpers::ButtonTo
-        include Phlex::Rails::Helpers::TimeAgoInWords
+      class QueueShow < RAAF::Rails::Tracing::BaseComponent
 
         def initialize(queue_item:, results: [])
           @queue_item = queue_item
@@ -14,15 +11,15 @@ module RAAF
         end
 
         def view_template
-          div(class: "container-fluid") do
+          div(class: "p-6") do
             render_header
-            div(class: "row") do
-              div(class: "col-md-8") do
+            div(class: "grid grid-cols-1 lg:grid-cols-3 gap-6") do
+              div(class: "lg:col-span-2 space-y-6") do
                 render_queue_details
                 render_error_section if @queue_item.error_message.present?
                 render_results_section
               end
-              div(class: "col-md-4") do
+              div(class: "space-y-6") do
                 render_status_sidebar
                 render_actions_sidebar
               end
@@ -33,47 +30,49 @@ module RAAF
         private
 
         def render_header
-          div(class: "d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom") do
+          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
             div do
-              h1(class: "h2") do
-                plain "Queue Item "
+              div(class: "flex items-center gap-3") do
+                h1(class: "text-2xl font-bold text-gray-900") { "Queue Item" }
                 render_status_badge(@queue_item.status)
               end
-              p(class: "text-muted") do
+              p(class: "mt-1 text-sm text-gray-500") do
                 plain "Created "
                 plain time_ago_in_words(@queue_item.created_at)
                 plain " ago"
               end
             end
 
-            div(class: "btn-toolbar mb-2 mb-md-0") do
-              div(class: "btn-group me-2") do
-                if @queue_item.status == "failed"
-                  button_to("Retry",
-                    retry_continuous_queue_item_path(@queue_item),
-                    method: :patch,
-                    class: "btn btn-sm btn-success")
-                end
+            div(class: "mt-4 sm:mt-0 flex gap-2") do
+              if @queue_item.status == "failed"
+                button_to(
+                  "Retry",
+                  retry_continuous_queue_item_path(@queue_item),
+                  method: :patch,
+                  class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700 px-3 py-2"
+                )
+              end
 
-                if %w[pending running].include?(@queue_item.status)
-                  button_to("Cancel",
-                    cancel_continuous_queue_item_path(@queue_item),
-                    method: :patch,
-                    class: "btn btn-sm btn-warning",
-                    data: { confirm: "Cancel this evaluation?" })
-                end
+              if %w[pending running].include?(@queue_item.status)
+                button_to(
+                  "Cancel",
+                  cancel_continuous_queue_item_path(@queue_item),
+                  method: :patch,
+                  class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-yellow-600 bg-yellow-600 text-white hover:bg-yellow-700 px-3 py-2",
+                  data: { confirm: "Cancel this evaluation?" }
+                )
               end
             end
           end
         end
 
         def render_queue_details
-          div(class: "card mb-4") do
-            div(class: "card-header") do
-              h5(class: "card-title mb-0") { "Queue Item Details" }
+          div(class: "bg-white shadow rounded-lg overflow-hidden") do
+            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
+              h3(class: "text-lg font-medium text-gray-900") { "Queue Item Details" }
             end
-            div(class: "card-body") do
-              dl(class: "row mb-0") do
+            div(class: "px-4 py-5 sm:p-6") do
+              dl(class: "grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2") do
                 render_detail_row("Span ID", render_span_link(@queue_item.span_id))
                 render_detail_row("Policy", render_policy_link(@queue_item.policy))
                 render_detail_row("Status", render_status_badge(@queue_item.status))
@@ -93,28 +92,29 @@ module RAAF
         end
 
         def render_error_section
-          div(class: "card mb-4 border-danger") do
-            div(class: "card-header bg-danger text-white") do
-              h5(class: "card-title mb-0") do
-                i(class: "bi bi-exclamation-triangle me-2")
+          div(class: "bg-white shadow rounded-lg overflow-hidden border border-red-200") do
+            div(class: "px-4 py-5 sm:px-6 border-b border-red-200 bg-red-600") do
+              h3(class: "text-lg font-medium text-white flex items-center") do
+                i(class: "bi bi-exclamation-triangle mr-2")
                 plain "Error Details"
               end
             end
-            div(class: "card-body") do
+            div(class: "px-4 py-5 sm:p-6") do
               if @queue_item.error_message.present?
-                div(class: "alert alert-danger mb-3") do
-                  strong { "Error Message:" }
-                  br
-                  pre(class: "mb-0 mt-2", style: "white-space: pre-wrap;") do
+                div(class: "bg-red-50 border border-red-200 rounded-md p-4 mb-4") do
+                  span(class: "font-semibold text-red-800") { "Error Message:" }
+                  pre(class: "mt-2 text-sm text-red-700 whitespace-pre-wrap") do
                     @queue_item.error_message
                   end
                 end
               end
 
               if @queue_item.error_backtrace.present?
-                details do
-                  summary(class: "btn btn-sm btn-outline-danger mb-2") { "Show Backtrace" }
-                  pre(class: "bg-light p-3 mt-2", style: "max-height: 300px; overflow-y: auto;") do
+                details(class: "group") do
+                  summary(class: "cursor-pointer inline-flex items-center px-3 py-1.5 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50") do
+                    "Show Backtrace"
+                  end
+                  pre(class: "mt-4 bg-gray-50 p-4 rounded-md text-xs text-gray-700 overflow-y-auto max-h-72") do
                     @queue_item.error_backtrace
                   end
                 end
@@ -124,40 +124,42 @@ module RAAF
         end
 
         def render_results_section
-          div(class: "card mb-4") do
-            div(class: "card-header d-flex justify-content-between align-items-center") do
-              h5(class: "card-title mb-0") { "Evaluation Results" }
+          div(class: "bg-white shadow rounded-lg overflow-hidden") do
+            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center") do
+              h3(class: "text-lg font-medium text-gray-900") { "Evaluation Results" }
               if @results.any?
-                span(class: "badge bg-primary") { @results.count.to_s }
+                span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800") do
+                  @results.count.to_s
+                end
               end
             end
-            div(class: "card-body") do
+            div(class: "px-4 py-5 sm:p-6") do
               if @results.any?
-                div(class: "list-group list-group-flush") do
+                div(class: "divide-y divide-gray-200") do
                   @results.each do |result|
                     render_result_item(result)
                   end
                 end
               else
-                p(class: "text-muted mb-0") { "No results available yet" }
+                p(class: "text-gray-500") { "No results available yet" }
               end
             end
           end
         end
 
         def render_status_sidebar
-          div(class: "card mb-4") do
-            div(class: "card-header") do
-              h5(class: "card-title mb-0") { "Status" }
+          div(class: "bg-white shadow rounded-lg overflow-hidden") do
+            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
+              h3(class: "text-lg font-medium text-gray-900") { "Status" }
             end
-            div(class: "card-body") do
+            div(class: "px-4 py-5 sm:p-6") do
               render_status_timeline
             end
           end
         end
 
         def render_status_timeline
-          div(class: "timeline") do
+          div(class: "space-y-4") do
             render_timeline_item("Created", @queue_item.created_at, true)
             render_timeline_item("Started", @queue_item.started_at, @queue_item.started_at.present?)
             render_timeline_item("Completed", @queue_item.completed_at, @queue_item.completed_at.present?)
@@ -165,139 +167,182 @@ module RAAF
         end
 
         def render_timeline_item(label, timestamp, completed)
-          div(class: "d-flex mb-3") do
-            div(class: "me-3") do
+          div(class: "flex items-start") do
+            div(class: "mr-3 flex-shrink-0") do
               if completed
-                i(class: "bi bi-check-circle text-success fs-4")
+                i(class: "bi bi-check-circle text-green-500 text-xl")
               else
-                i(class: "bi bi-circle text-muted")
+                i(class: "bi bi-circle text-gray-300 text-xl")
               end
             end
             div do
-              strong { label }
-              br
-              if timestamp
-                small(class: "text-muted") { format_timestamp(timestamp) }
-              else
-                small(class: "text-muted") { "Not yet" }
+              span(class: "font-medium text-gray-900") { label }
+              div(class: "text-sm text-gray-500") do
+                if timestamp
+                  plain format_timestamp(timestamp)
+                else
+                  plain "Not yet"
+                end
               end
             end
           end
         end
 
         def render_actions_sidebar
-          div(class: "card") do
-            div(class: "card-header") do
-              h5(class: "card-title mb-0") { "Actions" }
+          div(class: "bg-white shadow rounded-lg overflow-hidden") do
+            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
+              h3(class: "text-lg font-medium text-gray-900") { "Actions" }
             end
-            div(class: "list-group list-group-flush") do
-              link_to("/raaf/tracing/spans/#{@queue_item.span_id}",
-                class: "list-group-item list-group-item-action") do
-                i(class: "bi bi-eye me-2")
+            div(class: "divide-y divide-gray-200") do
+              link_to(
+                "/raaf/tracing/spans/#{@queue_item.span_id}",
+                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
+              ) do
+                i(class: "bi bi-eye mr-3 text-gray-400")
                 plain "View Span"
               end
 
               if @queue_item.policy
-                link_to(continuous_policy_path(@queue_item.policy),
-                  class: "list-group-item list-group-item-action") do
-                  i(class: "bi bi-shield-check me-2")
+                link_to(
+                  continuous_policy_path(@queue_item.policy),
+                  class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
+                ) do
+                  i(class: "bi bi-shield-check mr-3 text-gray-400")
                   plain "View Policy"
                 end
               end
 
               if @results.any?
                 @results.each do |result|
-                  link_to(continuous_result_path(result),
-                    class: "list-group-item list-group-item-action") do
-                    i(class: "bi bi-graph-up me-2")
+                  link_to(
+                    continuous_result_path(result),
+                    class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
+                  ) do
+                    i(class: "bi bi-graph-up mr-3 text-gray-400")
                     plain "View #{result.evaluator_name} Result"
                   end
                 end
               end
 
-              hr(class: "my-0")
-
               if @queue_item.status == "failed"
-                button_to("Retry Evaluation",
+                button_to(
+                  "Retry Evaluation",
                   retry_continuous_queue_item_path(@queue_item),
                   method: :patch,
-                  class: "list-group-item list-group-item-action text-success")
+                  class: "flex items-center w-full px-4 py-3 hover:bg-gray-50 text-green-600"
+                )
               end
 
               if %w[pending running].include?(@queue_item.status)
-                button_to("Cancel Evaluation",
+                button_to(
+                  "Cancel Evaluation",
                   cancel_continuous_queue_item_path(@queue_item),
                   method: :patch,
-                  class: "list-group-item list-group-item-action text-warning",
-                  data: { confirm: "Cancel this evaluation?" })
+                  class: "flex items-center w-full px-4 py-3 hover:bg-gray-50 text-yellow-600",
+                  data: { confirm: "Cancel this evaluation?" }
+                )
               end
             end
           end
         end
 
         def render_result_item(result)
-          div(class: "list-group-item") do
-            div(class: "d-flex justify-content-between align-items-start") do
+          div(class: "py-4 first:pt-0 last:pb-0") do
+            div(class: "flex justify-between items-start") do
               div do
-                strong { result.evaluator_name }
-                br
-                render_result_status_badge(result)
-                if result.score
-                  span(class: "ms-2") { "Score: #{result.score.round(2)}" }
+                span(class: "font-medium text-gray-900") { result.evaluator_name }
+                div(class: "mt-1 flex items-center gap-2") do
+                  render_result_status_badge(result)
+                  if result.score
+                    span(class: "text-sm text-gray-600") { "Score: #{result.score.round(2)}" }
+                  end
                 end
               end
-              link_to("View", continuous_result_path(result), class: "btn btn-sm btn-outline-primary")
+              link_to(
+                "View",
+                continuous_result_path(result),
+                class: "text-sm text-blue-600 hover:text-blue-500"
+              )
             end
           end
         end
 
         def render_detail_row(label, value)
-          dt(class: "col-sm-4 text-muted") { label }
-          dd(class: "col-sm-8") { value }
+          div do
+            dt(class: "text-sm font-medium text-gray-500") { label }
+            dd(class: "mt-1 text-sm text-gray-900") { value }
+          end
         end
 
         def render_status_badge(status)
           badge_config = case status.to_s
                         when "pending"
-                          { class: "bg-warning text-dark", icon: "clock", text: "Pending" }
+                          { color: "yellow", icon: "bi-clock", text: "Pending" }
                         when "running"
-                          { class: "bg-primary", icon: "play-circle", text: "Running" }
+                          { color: "blue", icon: "bi-play-circle", text: "Running" }
                         when "completed"
-                          { class: "bg-success", icon: "check-circle", text: "Completed" }
+                          { color: "green", icon: "bi-check-circle", text: "Completed" }
                         when "failed"
-                          { class: "bg-danger", icon: "x-circle", text: "Failed" }
+                          { color: "red", icon: "bi-x-circle", text: "Failed" }
                         else
-                          { class: "bg-secondary", icon: "question-circle", text: status }
+                          { color: "gray", icon: "bi-question-circle", text: status }
                         end
 
-          span(class: "badge #{badge_config[:class]}") do
-            i(class: "bi bi-#{badge_config[:icon]} me-1")
+          color_classes = case badge_config[:color]
+                         when "yellow" then "bg-yellow-100 text-yellow-800"
+                         when "blue" then "bg-blue-100 text-blue-800"
+                         when "green" then "bg-green-100 text-green-800"
+                         when "red" then "bg-red-100 text-red-800"
+                         else "bg-gray-100 text-gray-800"
+                         end
+
+          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
+            i(class: "#{badge_config[:icon]} mr-1")
             plain badge_config[:text]
           end
         end
 
         def render_result_status_badge(result)
-          case result.status
-          when "passed"
-            span(class: "badge bg-success") { "Passed" }
-          when "failed"
-            span(class: "badge bg-danger") { "Failed" }
-          when "error"
-            span(class: "badge bg-warning text-dark") { "Error" }
-          else
-            span(class: "badge bg-secondary") { result.status }
+          badge_config = case result.status
+                        when "passed"
+                          { color: "green", text: "Passed" }
+                        when "failed"
+                          { color: "red", text: "Failed" }
+                        when "error"
+                          { color: "yellow", text: "Error" }
+                        else
+                          { color: "gray", text: result.status }
+                        end
+
+          color_classes = case badge_config[:color]
+                         when "green" then "bg-green-100 text-green-800"
+                         when "red" then "bg-red-100 text-red-800"
+                         when "yellow" then "bg-yellow-100 text-yellow-800"
+                         else "bg-gray-100 text-gray-800"
+                         end
+
+          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
+            badge_config[:text]
           end
         end
 
         def render_span_link(span_id)
-          link_to(span_id, "/raaf/tracing/spans/#{span_id}", class: "font-monospace text-decoration-none")
+          link_to(
+            span_id,
+            "/raaf/tracing/spans/#{span_id}",
+            class: "font-mono text-blue-600 hover:text-blue-500"
+          )
         end
 
         def render_policy_link(policy)
           if policy
-            link_to(policy.name, continuous_policy_path(policy), class: "text-decoration-none")
+            link_to(
+              policy.name,
+              continuous_policy_path(policy),
+              class: "text-blue-600 hover:text-blue-500"
+            )
           else
-            span(class: "text-muted") { "Unknown policy" }
+            span(class: "text-gray-400") { "Unknown policy" }
           end
         end
 
