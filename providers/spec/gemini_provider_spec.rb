@@ -197,6 +197,48 @@ RSpec.describe RAAF::Models::GeminiProvider do
         expect(gemini_tools[0][:functionDeclarations][0][:name]).to eq("tool1")
         expect(gemini_tools[0][:functionDeclarations][1][:name]).to eq("tool2")
       end
+
+      describe "Google Search grounding tools" do
+        it "converts google_search tool for Gemini 2.0+" do
+          tools = [{ google_search: {} }]
+
+          gemini_tools = provider.send(:convert_tools_to_gemini, tools)
+
+          expect(gemini_tools).to eq([{ googleSearch: {} }])
+        end
+
+        it "converts google_search tool with string key" do
+          tools = [{ "google_search" => {} }]
+
+          gemini_tools = provider.send(:convert_tools_to_gemini, tools)
+
+          expect(gemini_tools).to eq([{ googleSearch: {} }])
+        end
+
+        it "converts google_search_retrieval tool for Gemini 1.5" do
+          tools = [{ google_search_retrieval: { dynamic_retrieval_config: { mode: "MODE_DYNAMIC" } } }]
+
+          gemini_tools = provider.send(:convert_tools_to_gemini, tools)
+
+          expect(gemini_tools).to eq([{ googleSearchRetrieval: { dynamic_retrieval_config: { mode: "MODE_DYNAMIC" } } }])
+        end
+
+        it "handles mixed grounding and function tools" do
+          tools = [
+            { google_search: {} },
+            {
+              type: "function",
+              function: { name: "get_weather", description: "Get weather", parameters: {} }
+            }
+          ]
+
+          gemini_tools = provider.send(:convert_tools_to_gemini, tools)
+
+          expect(gemini_tools.length).to eq(2)
+          expect(gemini_tools[0]).to have_key(:functionDeclarations)
+          expect(gemini_tools[1]).to eq({ googleSearch: {} })
+        end
+      end
     end
   end
 
@@ -259,8 +301,8 @@ RSpec.describe RAAF::Models::GeminiProvider do
         expect(openai_response["choices"][0]["message"]["role"]).to eq("assistant")
         expect(openai_response["choices"][0]["message"]["content"]).to eq("Hello! How can I help?")
         expect(openai_response["choices"][0]["finish_reason"]).to eq("stop")
-        expect(openai_response["usage"]["prompt_tokens"]).to eq(5)
-        expect(openai_response["usage"]["completion_tokens"]).to eq(10)
+        expect(openai_response["usage"]["input_tokens"]).to eq(5)
+        expect(openai_response["usage"]["output_tokens"]).to eq(10)
         expect(openai_response["usage"]["total_tokens"]).to eq(15)
         expect(openai_response["model"]).to eq("gemini-2.0-flash-exp")
       end
@@ -311,8 +353,8 @@ RSpec.describe RAAF::Models::GeminiProvider do
 
         usage = provider.send(:extract_usage_metadata, metadata)
 
-        expect(usage["prompt_tokens"]).to eq(10)
-        expect(usage["completion_tokens"]).to eq(20)
+        expect(usage["input_tokens"]).to eq(10)
+        expect(usage["output_tokens"]).to eq(20)
         expect(usage["total_tokens"]).to eq(30)
       end
 
@@ -325,8 +367,8 @@ RSpec.describe RAAF::Models::GeminiProvider do
         metadata = {}
         usage = provider.send(:extract_usage_metadata, metadata)
 
-        expect(usage["prompt_tokens"]).to eq(0)
-        expect(usage["completion_tokens"]).to eq(0)
+        expect(usage["input_tokens"]).to eq(0)
+        expect(usage["output_tokens"]).to eq(0)
         expect(usage["total_tokens"]).to eq(0)
       end
     end
@@ -383,6 +425,142 @@ RSpec.describe RAAF::Models::GeminiProvider do
 
         expect(tool_calls_1[0][:id]).not_to eq(tool_calls_2[0][:id])
         expect(tool_calls_1[0][:id]).to start_with("call_")
+      end
+    end
+  end
+
+  describe "grounding metadata extraction" do
+    describe "#extract_grounding_metadata" do
+      it "extracts web search queries" do
+        metadata = {
+          "webSearchQueries" => ["euro 2024 winner", "european championship 2024"]
+        }
+
+        result = provider.send(:extract_grounding_metadata, metadata)
+
+        expect(result["web_search_queries"]).to eq(["euro 2024 winner", "european championship 2024"])
+      end
+
+      it "extracts grounding chunks with URIs and titles" do
+        metadata = {
+          "groundingChunks" => [
+            { "web" => { "uri" => "https://example.com/article1", "title" => "Euro 2024 Results" } },
+            { "web" => { "uri" => "https://example.com/article2", "title" => "Championship Final" } }
+          ]
+        }
+
+        result = provider.send(:extract_grounding_metadata, metadata)
+
+        expect(result["grounding_chunks"]).to eq([
+          { "uri" => "https://example.com/article1", "title" => "Euro 2024 Results" },
+          { "uri" => "https://example.com/article2", "title" => "Championship Final" }
+        ])
+      end
+
+      it "extracts grounding supports with segment mappings" do
+        metadata = {
+          "groundingSupports" => [
+            {
+              "segment" => { "startIndex" => 0, "endIndex" => 50 },
+              "groundingChunkIndices" => [0],
+              "confidenceScores" => [0.95]
+            }
+          ]
+        }
+
+        result = provider.send(:extract_grounding_metadata, metadata)
+
+        expect(result["grounding_supports"]).to be_an(Array)
+        expect(result["grounding_supports"][0]["segment"]).to eq({ "startIndex" => 0, "endIndex" => 50 })
+        expect(result["grounding_supports"][0]["grounding_chunk_indices"]).to eq([0])
+        expect(result["grounding_supports"][0]["confidence_scores"]).to eq([0.95])
+      end
+
+      it "extracts search entry point" do
+        metadata = {
+          "searchEntryPoint" => {
+            "renderedContent" => "<div>Search suggestions...</div>"
+          }
+        }
+
+        result = provider.send(:extract_grounding_metadata, metadata)
+
+        expect(result["search_entry_point"]["rendered_content"]).to eq("<div>Search suggestions...</div>")
+      end
+
+      it "returns nil for nil metadata" do
+        result = provider.send(:extract_grounding_metadata, nil)
+        expect(result).to be_nil
+      end
+
+      it "returns nil for empty metadata" do
+        result = provider.send(:extract_grounding_metadata, {})
+        expect(result).to be_nil
+      end
+
+      it "handles complete grounding response" do
+        metadata = {
+          "webSearchQueries" => ["ruby 3.4 features"],
+          "groundingChunks" => [
+            { "web" => { "uri" => "https://ruby-lang.org", "title" => "Ruby 3.4" } }
+          ],
+          "groundingSupports" => [
+            { "segment" => { "startIndex" => 0 }, "groundingChunkIndices" => [0] }
+          ],
+          "searchEntryPoint" => { "renderedContent" => "<div>...</div>" }
+        }
+
+        result = provider.send(:extract_grounding_metadata, metadata)
+
+        expect(result["web_search_queries"]).to be_an(Array)
+        expect(result["grounding_chunks"]).to be_an(Array)
+        expect(result["grounding_supports"]).to be_an(Array)
+        expect(result["search_entry_point"]).to be_a(Hash)
+      end
+    end
+
+    describe "grounding metadata in response" do
+      it "includes grounding_metadata in converted response when present" do
+        gemini_response = {
+          "candidates" => [{
+            "content" => {
+              "parts" => [{ "text" => "Spain won Euro 2024." }],
+              "role" => "model"
+            },
+            "finishReason" => "STOP",
+            "groundingMetadata" => {
+              "webSearchQueries" => ["euro 2024 winner"],
+              "groundingChunks" => [
+                { "web" => { "uri" => "https://uefa.com", "title" => "Euro 2024" } }
+              ]
+            }
+          }],
+          "usageMetadata" => {
+            "promptTokenCount" => 10,
+            "candidatesTokenCount" => 5,
+            "totalTokenCount" => 15
+          }
+        }
+
+        openai_response = provider.send(:convert_gemini_to_openai_format, gemini_response)
+
+        expect(openai_response).to have_key("grounding_metadata")
+        expect(openai_response["grounding_metadata"]["web_search_queries"]).to eq(["euro 2024 winner"])
+        expect(openai_response["grounding_metadata"]["grounding_chunks"][0]["uri"]).to eq("https://uefa.com")
+      end
+
+      it "does not include grounding_metadata when not present" do
+        gemini_response = {
+          "candidates" => [{
+            "content" => { "parts" => [{ "text" => "Hello!" }] },
+            "finishReason" => "STOP"
+          }],
+          "usageMetadata" => {}
+        }
+
+        openai_response = provider.send(:convert_gemini_to_openai_format, gemini_response)
+
+        expect(openai_response).not_to have_key("grounding_metadata")
       end
     end
   end

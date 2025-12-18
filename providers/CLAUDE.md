@@ -250,6 +250,67 @@ runner.stream("Write a long story about Ruby") do |chunk|
 end
 ```
 
+#### Google Search Grounding
+
+**Gemini supports real-time web search grounding**, allowing the model to search Google and provide responses with citations to verifiable sources. This reduces hallucinations and provides up-to-date information.
+
+```ruby
+# Enable Google Search grounding for Gemini 2.0+
+agent = RAAF::Agent.new(
+  name: "Grounded Assistant",
+  instructions: "Provide factual, up-to-date information with citations",
+  model: "gemini-2.0-flash"
+)
+
+# Add google_search tool to enable grounding
+grounding_tool = { google_search: {} }
+agent.instance_variable_get(:@tools) << grounding_tool
+
+gemini_provider = RAAF::Models::GeminiProvider.new
+runner = RAAF::Runner.new(agent: agent, provider: gemini_provider)
+
+result = runner.run("Who won Euro 2024?")
+
+# Access the response content
+puts result.dig("choices", 0, "message", "content")
+# => "Spain won Euro 2024, defeating England 2-1 in the final..."
+
+# Access grounding metadata (sources and citations)
+if result["grounding_metadata"]
+  puts "Search queries: #{result["grounding_metadata"]["web_search_queries"]}"
+  # => ["euro 2024 winner"]
+
+  puts "Sources:"
+  result["grounding_metadata"]["grounding_chunks"]&.each do |source|
+    puts "  - #{source["title"]}: #{source["uri"]}"
+  end
+end
+```
+
+**Grounding Tool Types:**
+
+| Gemini Version | Tool | Description |
+|----------------|------|-------------|
+| Gemini 2.0+ | `google_search: {}` | Recommended for current models |
+| Gemini 1.5 | `google_search_retrieval: {}` | Legacy support |
+
+**Grounding Metadata Structure:**
+
+```ruby
+result["grounding_metadata"] = {
+  "web_search_queries" => ["query1", "query2"],       # Searches Gemini executed
+  "grounding_chunks" => [                             # Sources with URIs
+    { "uri" => "https://...", "title" => "Article" }
+  ],
+  "grounding_supports" => [                           # Text-to-source mappings
+    { "segment" => {...}, "grounding_chunk_indices" => [0] }
+  ],
+  "search_entry_point" => { "rendered_content" => "..." }  # Search suggestions
+}
+```
+
+**Billing Note:** Each search query Gemini executes is billed separately. If Gemini executes multiple searches for one prompt, each counts as a separate billable event.
+
 #### Best Practices
 
 1. **Model Selection**
@@ -281,6 +342,7 @@ end
 - ✅ System instructions
 - ✅ RAAF DSL compatibility
 - ✅ Multi-agent handoffs
+- ✅ Google Search grounding (real-time web search with citations)
 
 **Gemini Limitations:**
 - ⚠️ Rate limits vary by tier (free tier has lower limits)

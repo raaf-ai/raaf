@@ -117,6 +117,8 @@ module RAAF
         chunk_number = 0
         # Use OpenAI-compatible key names (input_tokens/output_tokens, not prompt_tokens/completion_tokens)
         total_usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+        # Preserve grounding metadata from the last API call (for Google Search grounding)
+        last_grounding_metadata = nil
 
         loop do
           chunk_number += 1
@@ -134,6 +136,8 @@ module RAAF
           response_content = result.dig("choices", 0, "message", "content") || ""
           finish_reason = result.dig("choices", 0, "finish_reason")
           usage = result["usage"] || {}
+          # Capture grounding metadata if present (Google Search grounding)
+          last_grounding_metadata = result["grounding_metadata"] if result["grounding_metadata"]
 
           # Accumulate content and usage
           accumulated_content += response_content
@@ -192,7 +196,7 @@ module RAAF
         # We return canonical format directly - no conversion needed
         normalized_usage = total_usage
 
-        {
+        response = {
           "choices" => [{
             "message" => {
               "role" => "assistant",
@@ -205,6 +209,11 @@ module RAAF
           "model" => model,
           "continuation_chunks" => chunk_number
         }
+
+        # Include grounding metadata if present (Google Search grounding)
+        response["grounding_metadata"] = last_grounding_metadata if last_grounding_metadata
+
+        response
       end
 
       ##
@@ -360,10 +369,27 @@ module RAAF
         body[:systemInstruction] = { parts: [{ text: system_instruction }] } if system_instruction
 
         # Add tools if present
-        body[:tools] = convert_tools_to_gemini(tools) if tools
+        has_grounding_tools = false
+        if tools
+          converted_tools = convert_tools_to_gemini(tools)
+          body[:tools] = converted_tools
 
-        # Add generation config
-        generation_config = build_generation_config(kwargs)
+          # Check if any grounding tools are present (google_search, googleSearch)
+          # Gemini doesn't support combining grounded search with JSON response format
+          has_grounding_tools = converted_tools.any? do |tool|
+            tool.is_a?(Hash) && (tool.key?(:googleSearch) || tool.key?("googleSearch") ||
+                                  tool.key?(:google_search) || tool.key?("google_search"))
+          end
+        end
+
+        # Add generation config (skip JSON response format when grounding tools are present)
+        # Gemini API error: "Tool use with a response mime type: 'application/json' is unsupported"
+        if has_grounding_tools
+          # Build generation config without response format
+          generation_config = build_generation_config(kwargs.except(:response_format))
+        else
+          generation_config = build_generation_config(kwargs)
+        end
         body[:generationConfig] = generation_config unless generation_config.empty?
 
         request.body = JSON.generate(body)
@@ -373,6 +399,7 @@ module RAAF
         handle_api_error(response, "Gemini") unless response.is_a?(Net::HTTPSuccess)
 
         result = RAAF::Utils.parse_json(response.body)
+
         convert_gemini_to_openai_format(result)
       end
 
@@ -409,13 +436,19 @@ module RAAF
       ##
       # Converts OpenAI tool format to Gemini tool format
       #
-      # Supports two types of tools:
+      # Supports three types of tools:
       # 1. Function declarations (OpenAI format) - converted to functionDeclarations
-      # 2. Google Search grounding - passed through directly
+      # 2. Google Search grounding (Gemini 2.0+) - google_search: {}
+      # 3. Google Search retrieval (Gemini 1.5) - google_search_retrieval: {}
       #
       # @param tools [Array<Hash>, nil] Tools in OpenAI format or grounding format
       # @return [Array<Hash>] Tools in Gemini format
       # @private
+      #
+      # @example Enable Google Search grounding
+      #   tools = [{ google_search: {} }]
+      #   convert_tools_to_gemini(tools)
+      #   # => [{ googleSearch: {} }]
       #
       def convert_tools_to_gemini(tools)
         return [] unless tools
@@ -425,15 +458,23 @@ module RAAF
         function_tools = []
 
         tools.each do |tool|
-          if tool.is_a?(Hash) && tool.key?(:google_search_retrieval)
-            # Google Search grounding tool - pass through directly
-            grounding_tools << { google_search_retrieval: tool[:google_search_retrieval] }
-          elsif tool.is_a?(Hash) && tool[:type] == "function"
+          next unless tool.is_a?(Hash)
+
+          # Gemini 2.0+ Google Search grounding tool (recommended)
+          if tool.key?(:google_search) || tool.key?("google_search")
+            config = tool[:google_search] || tool["google_search"] || {}
+            grounding_tools << { googleSearch: config }
+          # Legacy Gemini 1.5 Google Search retrieval tool
+          elsif tool.key?(:google_search_retrieval) || tool.key?("google_search_retrieval")
+            config = tool[:google_search_retrieval] || tool["google_search_retrieval"] || {}
+            grounding_tools << { googleSearchRetrieval: config }
+          elsif tool[:type] == "function" || tool["type"] == "function"
             # OpenAI function format - convert to Gemini function declaration
+            func = tool[:function] || tool["function"] || {}
             function_tools << {
-              name: tool.dig(:function, :name),
-              description: tool.dig(:function, :description),
-              parameters: tool.dig(:function, :parameters) || {}
+              name: func[:name] || func["name"],
+              description: func[:description] || func["description"],
+              parameters: func[:parameters] || func["parameters"] || {}
             }
           else
             # Unknown format - pass through as-is
@@ -521,7 +562,7 @@ module RAAF
       # Converts Gemini API response to OpenAI format
       #
       # @param result [Hash] Gemini API response
-      # @return [Hash] Response in OpenAI format
+      # @return [Hash] Response in OpenAI format with optional grounding metadata
       # @private
       #
       def convert_gemini_to_openai_format(result)
@@ -540,6 +581,9 @@ module RAAF
         # Extract usage metadata
         usage = extract_usage_metadata(result["usageMetadata"])
 
+        # Extract grounding metadata if present (Google Search grounding)
+        grounding_metadata = extract_grounding_metadata(candidate["groundingMetadata"])
+
         response = {
           "choices" => [{
             "message" => {
@@ -552,6 +596,9 @@ module RAAF
           "usage" => usage,
           "model" => result["modelVersion"] || result["model"]
         }
+
+        # Add grounding metadata if present
+        response["grounding_metadata"] = grounding_metadata if grounding_metadata
 
         # NOTE: extract_usage_metadata returns canonical RAAF format
         # {"input_tokens" => X, "output_tokens" => Y, "total_tokens" => Z}
@@ -613,6 +660,70 @@ module RAAF
           "output_tokens" => metadata["candidatesTokenCount"] || 0,
           "total_tokens" => metadata["totalTokenCount"] || 0
         }
+      end
+
+      ##
+      # Extracts grounding metadata from Gemini response
+      #
+      # When Google Search grounding is enabled, Gemini returns metadata about
+      # the web searches performed and sources cited. This method extracts and
+      # normalizes that metadata for RAAF consumers.
+      #
+      # @param metadata [Hash, nil] Gemini grounding metadata
+      # @return [Hash, nil] Normalized grounding metadata or nil if not present
+      # @private
+      #
+      # @example Grounding metadata structure
+      #   {
+      #     "web_search_queries" => ["euro 2024 winner"],
+      #     "grounding_chunks" => [
+      #       { "uri" => "https://...", "title" => "Euro 2024 Results" }
+      #     ],
+      #     "grounding_supports" => [
+      #       { "segment" => { "start_index" => 0, "end_index" => 50 }, "grounding_chunk_indices" => [0] }
+      #     ]
+      #   }
+      #
+      def extract_grounding_metadata(metadata)
+        return nil unless metadata
+
+        result = {}
+
+        # Extract web search queries that Gemini executed
+        if metadata["webSearchQueries"]
+          result["web_search_queries"] = metadata["webSearchQueries"]
+        end
+
+        # Extract grounding chunks (sources with URIs and titles)
+        if metadata["groundingChunks"]
+          result["grounding_chunks"] = metadata["groundingChunks"].map do |chunk|
+            web = chunk["web"] || {}
+            {
+              "uri" => web["uri"],
+              "title" => web["title"]
+            }.compact
+          end
+        end
+
+        # Extract grounding supports (text segment to source mappings)
+        if metadata["groundingSupports"]
+          result["grounding_supports"] = metadata["groundingSupports"].map do |support|
+            {
+              "segment" => support["segment"],
+              "grounding_chunk_indices" => support["groundingChunkIndices"],
+              "confidence_scores" => support["confidenceScores"]
+            }.compact
+          end
+        end
+
+        # Extract search entry point (rendered HTML for search suggestions)
+        if metadata["searchEntryPoint"]
+          result["search_entry_point"] = {
+            "rendered_content" => metadata.dig("searchEntryPoint", "renderedContent")
+          }.compact
+        end
+
+        result.empty? ? nil : result
       end
 
       ##
