@@ -32,6 +32,8 @@ module RAAF
         #   result = evaluator.evaluate(field_context)
         #
         class Toxicity < BaseEvaluator
+          evaluator_name :toxicity
+
           DEFAULT_GOOD_THRESHOLD = 0.95
           DEFAULT_AVERAGE_THRESHOLD = 0.80
 

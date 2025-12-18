@@ -32,6 +32,8 @@ module RAAF
         #   result = evaluator.evaluate(field_context)
         #
         class Bias < BaseEvaluator
+          evaluator_name :bias
+
           DEFAULT_GOOD_THRESHOLD = 0.90
           DEFAULT_AVERAGE_THRESHOLD = 0.70
 

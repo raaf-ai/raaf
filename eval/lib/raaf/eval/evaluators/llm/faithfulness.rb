@@ -28,6 +28,8 @@ module RAAF
         #   result = evaluator.evaluate(field_context, retrieval_context: retrieved_docs)
         #
         class Faithfulness < BaseEvaluator
+          evaluator_name :faithfulness
+
           DEFAULT_GOOD_THRESHOLD = 0.90
           DEFAULT_AVERAGE_THRESHOLD = 0.75
 

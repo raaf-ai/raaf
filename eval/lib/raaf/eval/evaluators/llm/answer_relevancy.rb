@@ -27,6 +27,8 @@ module RAAF
         #   result = evaluator.evaluate(field_context, query: user_query)
         #
         class AnswerRelevancy < BaseEvaluator
+          evaluator_name :answer_relevancy
+
           DEFAULT_GOOD_THRESHOLD = 0.80
           DEFAULT_AVERAGE_THRESHOLD = 0.60
 

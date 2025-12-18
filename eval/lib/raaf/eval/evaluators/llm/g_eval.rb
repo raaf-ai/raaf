@@ -40,6 +40,8 @@ module RAAF
         #   )
         #
         class GEval < BaseEvaluator
+          evaluator_name :g_eval
+
           DEFAULT_GOOD_THRESHOLD = 0.80
           DEFAULT_AVERAGE_THRESHOLD = 0.60
 

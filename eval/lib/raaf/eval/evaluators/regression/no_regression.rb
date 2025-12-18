@@ -12,6 +12,48 @@ module RAAF
 
           evaluator_name :no_regression
 
+          # Format evaluation result as markdown
+          # @param result [Hash] The evaluation result with :score and :details
+          # @return [String] Markdown-formatted result
+          def self.format_result(result)
+            details = result[:details] || {}
+            score = result[:score]
+
+            no_baseline = details[:no_baseline] || details['no_baseline']
+            max_drop = details[:max_drop] || details['max_drop']
+            drop = details[:drop] || details['drop']
+            tolerance = details[:tolerance] || details['tolerance'] || 0
+
+            md = String.new("### Regression Check\n\n")
+
+            if no_baseline
+              md << "- **Status:** ✓ Establishing baseline\n"
+              md << "- **Note:** No previous data to compare. This run establishes the baseline.\n"
+            else
+              actual_drop = max_drop || drop || 0
+              # Determine status based on drop relative to tolerance
+              status = if actual_drop <= 0
+                         "✓ Good"
+                       elsif actual_drop <= tolerance
+                         "◐ Average"
+                       else
+                         "✗ Bad"
+                       end
+
+              md << "| Metric | Value | Threshold | Result |\n"
+              md << "|--------|------:|----------:|--------|\n"
+              md << "| Max Score Drop | #{actual_drop} pts | ≤#{tolerance} pts | #{status} |\n"
+              md << "\n"
+
+              if status == "✗ Bad"
+                md << "**Issue:** Score dropped by #{actual_drop} points, exceeding the "
+                md << "#{tolerance} point threshold.\n"
+              end
+            end
+
+            md
+          end
+
           # Evaluate that there's no regression from baseline
           # @param field_context [FieldContext] The field context containing value and baseline
           # @param options [Hash] Options:

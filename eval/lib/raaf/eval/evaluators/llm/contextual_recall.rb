@@ -20,6 +20,8 @@ module RAAF
         #   result = evaluator.evaluate(field_context)
         #   # => { label: "good", score: 0.85, ... }
         class ContextualRecall < BaseEvaluator
+          evaluator_name :contextual_recall
+
           DEFAULT_GOOD_THRESHOLD = 0.75
           DEFAULT_AVERAGE_THRESHOLD = 0.50
           RELEVANCE_THRESHOLD = 0.60  # Threshold for considering a document relevant

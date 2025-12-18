@@ -36,6 +36,8 @@ module RAAF
         #   )
         #
         class Hallucination < BaseEvaluator
+          evaluator_name :hallucination
+
           DEFAULT_GOOD_THRESHOLD = 0.90
           DEFAULT_AVERAGE_THRESHOLD = 0.70
 

@@ -19,6 +19,8 @@ module RAAF
         #   result = evaluator.evaluate(field_context)
         #   # => { label: "good", score: 0.85, ... }
         class ContextualRelevancy < BaseEvaluator
+          evaluator_name :contextual_relevancy
+
           DEFAULT_GOOD_THRESHOLD = 0.75
           DEFAULT_AVERAGE_THRESHOLD = 0.50
 
