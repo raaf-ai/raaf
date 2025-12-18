@@ -118,13 +118,22 @@ module RAAF
           end
 
           # SPECIAL CASE: Google Search grounding configuration (provider-level, not a tool)
-          # Can be passed as: tool(google_search_retrieval: {}) or tool({google_search_retrieval: {}})
-          if options.key?(:google_search_retrieval)
-            # Passed as keyword argument: tool google_search_retrieval: {}
+          # Gemini 2.0+: tool(google_search: {}) - recommended for current models
+          # Gemini 1.5:  tool(google_search_retrieval: {}) - legacy support
+          if options.key?(:google_search)
+            # Passed as keyword argument: tool google_search: {} (Gemini 2.0+)
+            _grounding_config[:google_search] = options[:google_search]
+            return
+          elsif tool_identifier.is_a?(Hash) && tool_identifier.key?(:google_search)
+            # Passed as positional hash: tool({google_search: {}}) (Gemini 2.0+)
+            _grounding_config[:google_search] = tool_identifier[:google_search]
+            return
+          elsif options.key?(:google_search_retrieval)
+            # Passed as keyword argument: tool google_search_retrieval: {} (Gemini 1.5 legacy)
             _grounding_config[:google_search_retrieval] = options[:google_search_retrieval]
             return
           elsif tool_identifier.is_a?(Hash) && tool_identifier.key?(:google_search_retrieval)
-            # Passed as positional hash: tool({google_search_retrieval: {}})
+            # Passed as positional hash: tool({google_search_retrieval: {}}) (Gemini 1.5 legacy)
             _grounding_config[:google_search_retrieval] = tool_identifier[:google_search_retrieval]
             return
           end
@@ -216,7 +225,12 @@ module RAAF
         grounding_config = self.class._grounding_config
         if grounding_config && !grounding_config.empty?
           # Convert to plain Hash for provider consumption
-          tools << { google_search_retrieval: grounding_config[:google_search_retrieval] }
+          # Support both Gemini 2.0+ (google_search) and Gemini 1.5 (google_search_retrieval)
+          if grounding_config.key?(:google_search)
+            tools << { google_search: grounding_config[:google_search] }
+          elsif grounding_config.key?(:google_search_retrieval)
+            tools << { google_search_retrieval: grounding_config[:google_search_retrieval] }
+          end
         end
 
         tools

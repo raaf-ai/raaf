@@ -150,6 +150,29 @@ module RAAF
     autoload :SchemaGenerator, "raaf/dsl/schema_generator"
     autoload :SchemaCache, "raaf/dsl/schema_cache"
 
+    # Behavioral Guidelines System (Parlant-inspired)
+    # Provides programmatic constraint enforcement for AI agents
+    module Guidelines
+      autoload :Guideline, "raaf/dsl/guidelines/guideline"
+      autoload :Condition, "raaf/dsl/guidelines/condition"
+      autoload :AlwaysCondition, "raaf/dsl/guidelines/condition"
+      autoload :RegexCondition, "raaf/dsl/guidelines/condition"
+      autoload :KeywordCondition, "raaf/dsl/guidelines/condition"
+      autoload :SchemaCondition, "raaf/dsl/guidelines/condition"
+      autoload :ProcCondition, "raaf/dsl/guidelines/condition"
+      autoload :LLMCondition, "raaf/dsl/guidelines/condition"
+      autoload :AndCondition, "raaf/dsl/guidelines/condition"
+      autoload :OrCondition, "raaf/dsl/guidelines/condition"
+      autoload :NotCondition, "raaf/dsl/guidelines/condition"
+      autoload :GuidelineMatchResult, "raaf/dsl/guidelines/guideline_result"
+      autoload :CritiqueResult, "raaf/dsl/guidelines/guideline_result"
+      autoload :Violation, "raaf/dsl/guidelines/guideline_result"
+      autoload :GuidelineExecutionLog, "raaf/dsl/guidelines/guideline_result"
+      autoload :GuidelineEngine, "raaf/dsl/guidelines/guideline_engine"
+      autoload :SelfCritiqueEngine, "raaf/dsl/guidelines/self_critique_engine"
+      autoload :CommonGuidelines, "raaf/dsl/guidelines/common_guidelines"
+    end
+
     module Schema
       autoload :SchemaGenerator, "raaf/dsl/schema/schema_generator"
       autoload :SchemaCache, "raaf/dsl/schema/schema_cache"

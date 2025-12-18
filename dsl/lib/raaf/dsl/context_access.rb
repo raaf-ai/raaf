@@ -25,7 +25,44 @@ module RAAF
     #   end
     #
     module ContextAccess
-      
+      # Maximum recursion depth for method_missing to prevent stack overflow
+      # This guards against infinite recursion in context variable access chains
+      MAX_RECURSION_DEPTH = 5
+      RECURSION_DEPTH_KEY = :raaf_context_access_depth
+
+      # Methods that should never be claimed via respond_to_missing?
+      # These are Ruby core methods that if claimed can cause infinite recursion
+      # during serialization, inspection, or type coercion
+      EXCLUDED_METHODS = %i[
+        as_json to_json to_s to_str to_a to_ary to_h to_hash to_yaml
+        inspect pretty_print pretty_print_cycle encode_with
+        marshal_dump marshal_load _dump _load
+        to_io to_int to_proc to_regexp
+        duplicable? blank? present? presence
+        deep_dup deep_symbolize_keys deep_stringify_keys
+      ].freeze
+
+      # Track recursion depth using Thread.current for thread safety
+      # Returns current recursion depth (0 if not set)
+      def context_access_depth
+        Thread.current[RECURSION_DEPTH_KEY] ||= 0
+      end
+
+      # Increment recursion depth counter
+      def increment_context_access_depth
+        Thread.current[RECURSION_DEPTH_KEY] = context_access_depth + 1
+      end
+
+      # Decrement recursion depth counter (never goes below 0)
+      def decrement_context_access_depth
+        Thread.current[RECURSION_DEPTH_KEY] = [context_access_depth - 1, 0].max
+      end
+
+      # Reset recursion depth counter to 0
+      def reset_context_access_depth
+        Thread.current[RECURSION_DEPTH_KEY] = 0
+      end
+
       def self.included(base)
         base.class_eval do
           # Ensure context is always a ContextVariables object for consistency and safety
@@ -56,9 +93,9 @@ module RAAF
       end
       
       # Universal context variable access via method_missing
-      # 
+      #
       # Provides consistent context resolution across Agent and Prompt classes:
-      # 1. Handles variable assignment (variable = value) 
+      # 1. Handles variable assignment (variable = value)
       # 2. Handles variable access (variable)
       # 3. Falls back through multiple context sources
       # 4. Provides helpful error messages with available context keys
@@ -70,6 +107,26 @@ module RAAF
       # @raise [NameError] If variable doesn't exist in any context source
       # TODO: Add respond_to_missing? implementation for proper Ruby method resolution
       def method_missing(method_name, *args, &block)
+        # CRITICAL: Delegate excluded methods to super immediately
+        # This prevents interference with Ruby core serialization/inspection methods
+        return super if EXCLUDED_METHODS.include?(method_name.to_sym)
+
+        # Guard against infinite recursion - return nil if max depth reached
+        if context_access_depth >= MAX_RECURSION_DEPTH
+          RAAF.logger.warn "[ContextAccess] Max recursion depth (#{MAX_RECURSION_DEPTH}) reached for '#{method_name}', returning nil"
+          return nil
+        end
+
+        begin
+          increment_context_access_depth
+          method_missing_impl(method_name, *args, &block)
+        ensure
+          decrement_context_access_depth
+        end
+      end
+
+      # Implementation of method_missing logic (separated for recursion guard)
+      def method_missing_impl(method_name, *args, &block)
         method_str = method_name.to_s
 
         # Handle assignment calls (variable = value)
@@ -164,7 +221,7 @@ module RAAF
       end
       
       # Respond to missing for Ruby introspection
-      # 
+      #
       # Indicates whether this object responds to a given variable name by checking
       # all available context sources.
       #
@@ -172,10 +229,22 @@ module RAAF
       # @param include_private [Boolean] Whether to include private methods
       # @return [Boolean] true if the variable exists in any context source
       def respond_to_missing?(method_name, include_private = false)
-        return true if variable_exists_in_context?(method_name)
-        return true if method_name.to_s.end_with?('=') && variable_exists_in_context?(method_name.to_s.chomp('=').to_sym)
-        
-        super
+        # CRITICAL: Never claim to respond to serialization methods
+        # This prevents infinite recursion when ActiveSupport's as_json checks respond_to?(:as_json)
+        # which would trigger method_missing → serialization → as_json → respond_to? → infinite loop
+        return false if EXCLUDED_METHODS.include?(method_name.to_sym)
+
+        # Guard against infinite recursion in respond_to? checks
+        return false if context_access_depth >= MAX_RECURSION_DEPTH
+
+        begin
+          increment_context_access_depth
+          return true if variable_exists_in_context?(method_name)
+          return true if method_name.to_s.end_with?('=') && variable_exists_in_context?(method_name.to_s.chomp('=').to_sym)
+          super
+        ensure
+          decrement_context_access_depth
+        end
       end
       
       private

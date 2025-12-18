@@ -98,6 +98,16 @@ module RAAF
           @_grounding_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
         end
 
+        # Behavioral Guidelines System (Parlant-inspired)
+        # Stores guidelines for programmatic constraint enforcement
+        def _guidelines_config
+          @_guidelines_config ||= Concurrent::Array.new
+        end
+
+        def _guidelines_config=(value)
+          @_guidelines_config = value.is_a?(Concurrent::Array) ? value : Concurrent::Array.new(value)
+        end
+
         def _prompt_config
           # Use Concurrent::Hash for thread-safe hash operations
           # This ensures configuration persists across threads
@@ -138,6 +148,7 @@ module RAAF
           subclass._tools_config = Concurrent::Array.new
           subclass._schema_config = Concurrent::Hash.new
           subclass._prompt_config = Concurrent::Hash.new
+          subclass._guidelines_config = Concurrent::Array.new
 
           # Copy retry configuration from parent class
           subclass._retry_config = _retry_config&.dup || {}
@@ -344,6 +355,68 @@ module RAAF
           else
             _prompt_config[:instruction_template]
           end
+        end
+
+        # ============================================================
+        # Behavioral Guidelines DSL (Parlant-inspired)
+        # ============================================================
+        #
+        # Define behavioral constraints that are contextually matched and
+        # verified at runtime. Guidelines provide programmatic constraint
+        # enforcement beyond prompt-based "hope" compliance.
+        #
+        # @param name [Symbol] Unique identifier for the guideline
+        # @param condition [Regexp, Hash, Proc, TrueClass] When the guideline applies
+        # @param action [String] The behavioral requirement (injected into prompt)
+        # @param verification [String, Proc, nil] Optional verification for self-critique
+        # @param priority [Symbol] Evaluation order (:critical, :high, :normal, :low)
+        # @param enabled [Boolean] Whether the guideline is active (default: true)
+        # @param metadata [Hash] Optional metadata (tags, description, etc.)
+        #
+        # @example Always-active guideline (Proc condition)
+        #   guideline :no_fabrication,
+        #     condition: ->(_ctx, _input) { true },
+        #     action: "Only use data from tools/context, never fabricate",
+        #     priority: :high
+        #
+        # @example Schema-based condition (Hash with field/operator/value)
+        #   guideline :gdpr_compliance,
+        #     condition: { field: :region, operator: :in, value: %w[EU EEA NL DE FR] },
+        #     action: "Include GDPR compliance notice in all responses"
+        #
+        # @example Regex-based condition (pattern matching on input)
+        #   guideline :cite_sources,
+        #     condition: /company|business|organization/i,
+        #     action: "Include source URLs for all company data"
+        #
+        # @example Keyword-based condition (simple string matching)
+        #   guideline :sensitive_data,
+        #     condition: %w[salary compensation benefits],
+        #     action: "Redact personal financial information"
+        #
+        def guideline(name, condition:, action:, verification: nil, priority: :normal, enabled: true, metadata: {})
+          require_relative "guidelines/guideline"
+          _guidelines_config << Guidelines::Guideline.new(
+            name: name,
+            condition: condition,
+            action: action,
+            verification: verification,
+            priority: priority,
+            enabled: enabled,
+            metadata: metadata
+          )
+        end
+
+        # Check if any guidelines are defined for this agent
+        # @return [Boolean] true if guidelines exist
+        def has_guidelines?
+          _guidelines_config.any?
+        end
+
+        # Get all defined guidelines for this agent
+        # @return [Array<Guidelines::Guideline>] List of guidelines
+        def agent_guidelines
+          _guidelines_config.to_a
         end
 
         # Configure whether this agent should use AutoMerge functionality
@@ -2542,7 +2615,9 @@ module RAAF
           tool_list = build_tools_from_config
 
           # Convert DSL tools to FunctionTool instances for RAAF compatibility
-          converted = tool_list.map { |tool| convert_to_function_tool(tool) }.compact
+          converted = tool_list.map { |tool|
+            convert_to_function_tool(tool)
+          }.compact
           converted
         end
 
@@ -2943,6 +3018,15 @@ module RAAF
 
         # If already a FunctionTool (from core tool wrapping), return as-is
         return tool_instance if tool_instance.is_a?(RAAF::FunctionTool)
+
+        # Pass through grounding configuration hashes unchanged
+        # These are provider-level settings (e.g., google_search for Gemini grounding)
+        if tool_instance.is_a?(Hash)
+          grounding_keys = [:google_search, :google_search_retrieval, "google_search", "google_search_retrieval"]
+          if (tool_instance.keys & grounding_keys).any?
+            return tool_instance
+          end
+        end
 
         # If tool has a function_tool method, use it
         return tool_instance.function_tool if tool_instance.respond_to?(:function_tool)

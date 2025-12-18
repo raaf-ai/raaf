@@ -137,6 +137,7 @@ module RAAF
                     changes: changes
                   })
 
+
         # Create new instance
         new_instance = self.class.new(
           merged_variables,
@@ -536,22 +537,43 @@ module RAAF
         details
       end
 
-      # Debug logging helper
+      # Debug logging helper with recursion protection
       def debug_log(action, data = {})
         return unless @debug_enabled
 
-        # Ensure proxies are handled properly in debug output
-        debug_data = data.transform_values do |value|
-          if value.is_a?(Hash)
-            value.transform_values do |v|
-              (v.respond_to?(:proxy?) && v.proxy?) ? "<ObjectProxy:#{v.__target__.class.name}>" : v
-            end
-          else
-            (value.respond_to?(:proxy?) && value.proxy?) ? "<ObjectProxy:#{value.__target__.class.name}>" : value
-          end
+        begin
+          # Ensure proxies are handled properly in debug output
+          # usage of safe_data_transform to prevent recursion
+          safe_data = safe_data_transform(data)
+          RAAF.logger.debug("[ContextVariables] #{action}", category: :context, data: safe_data)
+        rescue SystemStackError, StandardError => e
+          RAAF.logger.debug("[ContextVariables] #{action} (Error logging data: #{e.message})", category: :context)
         end
+      end
 
-        RAAF.logger.debug("[ContextVariables] #{action}", category: :context, data: debug_data)
+      # Safe transformation of data for logging
+      def safe_data_transform(data, depth = 0)
+        return "..." if depth > 5 # strict depth limit for logs
+
+        if data.is_a?(Hash)
+          data.transform_values { |v| safe_value_transform(v, depth + 1) }
+        elsif data.is_a?(Array)
+          data.take(20).map { |v| safe_value_transform(v, depth + 1) } # Limit array size
+        else
+          safe_value_transform(data, depth)
+        end
+      end
+
+      def safe_value_transform(value, depth)
+        if value.respond_to?(:proxy?) && value.proxy?
+          "<ObjectProxy:#{value.__target__.class.name}>"
+        elsif defined?(ActiveRecord::Base) && value.is_a?(ActiveRecord::Base)
+          "<#{value.class.name}:#{value.id}>"
+        elsif value.is_a?(Hash) || value.is_a?(Array)
+          safe_data_transform(value, depth)
+        else
+          value
+        end
       end
 
       # Basic variable validation

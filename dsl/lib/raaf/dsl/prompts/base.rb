@@ -96,6 +96,58 @@ module RAAF
         attr_reader :context
         attr_reader :context_variables
 
+        # Prevent method_missing from handling serialization methods
+        # These explicit implementations prevent infinite recursion during JSON serialization
+        # when ActiveSupport's as_json checks respond_to?(:to_hash) which would otherwise
+        # trigger method_missing → respond_to_missing? → as_json → infinite loop
+
+        # Return false for to_hash - prompts should not be treated as hashable
+        # This prevents ActiveSupport from trying to convert us to a Hash
+        def respond_to_to_hash?
+          false
+        end
+
+        # Explicit as_json implementation to prevent method_missing interception
+        # @param options [Hash] Serialization options (ignored)
+        # @return [String] Simple string representation
+        def as_json(options = nil)
+          "#<#{self.class.name}>"
+        end
+
+        # Explicit to_json implementation to prevent method_missing interception
+        # @param options [Hash] Serialization options (ignored)
+        # @return [String] JSON string representation
+        def to_json(options = nil)
+          as_json(options).to_json
+        end
+
+        # Explicit to_s implementation
+        # @return [String] String representation
+        def to_s
+          "#<#{self.class.name}>"
+        end
+
+        # Explicit inspect implementation
+        # @return [String] Inspection string
+        def inspect
+          "#<#{self.class.name} context_keys=#{@context&.keys || []}>"
+        end
+
+        # Explicit to_h - prompts are NOT hashable, but we provide a safe response
+        # to prevent method_missing from handling this
+        # @return [Hash] Empty hash (prompts should not be converted to hash)
+        def to_h
+          {}
+        end
+
+        # Explicit to_hash - prompts are NOT hashable
+        # Returns nil to indicate this object should not be implicitly converted to hash
+        # This is important because ActiveSupport checks respond_to?(:to_hash) during as_json
+        # @return [nil] Returns nil to indicate no implicit hash conversion
+        def to_hash
+          nil
+        end
+
         # System prompt - override in subclasses
         def system
           raise NotImplementedError, "Subclasses must implement #system"

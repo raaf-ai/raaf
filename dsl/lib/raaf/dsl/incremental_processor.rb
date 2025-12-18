@@ -142,7 +142,8 @@ module RAAF
             failed_batches << { batch_number: batch_number, error: e.message, error_class: e.class.name }
 
             # Mark skipped items as processed (with error) to maintain order
-            all_skipped.concat(skipped_items)
+            # GUARD: skipped_items may be nil if partition_batch raised before assignment
+            all_skipped.concat(skipped_items) if skipped_items
             # Continue with next batch instead of failing entire process
           ensure
             # CRITICAL: Flush traces after each batch to preserve partial results
