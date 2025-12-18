@@ -49,20 +49,40 @@ module RAAF
       # Default Gemini API endpoint
       DEFAULT_API_BASE = "https://generativelanguage.googleapis.com"
 
-      # List of supported Gemini models
+      # List of supported Gemini models (updated December 2025)
+      # Note: Gemini 1.5 and 1.0 models were deprecated April 29, 2025
+      # See: https://ai.google.dev/gemini-api/docs/models
       SUPPORTED_MODELS = %w[
+        gemini-3-pro-preview
+        gemini-3-pro-image-preview
+        gemini-3-flash-preview
         gemini-2.5-pro
+        gemini-2.5-pro-preview-09-2025
         gemini-2.5-flash
+        gemini-2.5-flash-preview-09-2025
         gemini-2.5-flash-lite
+        gemini-2.5-flash-lite-preview-09-2025
+        gemini-2.5-flash-image
         gemini-2.0-flash
+        gemini-2.0-flash-001
         gemini-2.0-flash-exp
         gemini-2.0-flash-lite
-        gemini-1.5-pro-latest
-        gemini-1.5-flash-latest
-        gemini-1.5-pro
-        gemini-1.5-flash
-        gemini-1.0-pro
+        gemini-2.0-flash-lite-001
       ].freeze
+
+      # Model aliases for backwards compatibility with deprecated model names
+      # Maps old/deprecated names to current working equivalents
+      MODEL_ALIASES = {
+        # Gemini 1.5 models deprecated April 2025 -> map to 2.5/2.0 equivalents
+        "gemini-1.5-flash" => "gemini-2.0-flash",
+        "gemini-1.5-flash-latest" => "gemini-2.0-flash",
+        "gemini-1.5-pro" => "gemini-2.5-pro",
+        "gemini-1.5-pro-latest" => "gemini-2.5-pro",
+        "gemini-1.0-pro" => "gemini-2.0-flash",
+        # Preview model aliases
+        "gemini-2.5-pro-preview-06-05" => "gemini-2.5-pro-preview-09-2025",
+        "gemini-2.5-flash-preview-05-20" => "gemini-2.5-flash-preview-09-2025"
+      }.freeze
 
       # HTTP timeout accessor for Runner integration
       attr_accessor :http_timeout
@@ -105,6 +125,8 @@ module RAAF
       # @raise [APIError] if the API request fails
       #
       def perform_chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+        # Normalize model name (apply aliases for deprecated models)
+        model = normalize_model_name(model)
         validate_model(model)
 
         # Extract continuation parameters
@@ -271,6 +293,8 @@ module RAAF
       # @return [Hash] Final response with accumulated content
       #
       def perform_stream_completion(messages:, model:, tools: nil, **kwargs, &block)
+        # Normalize model name (apply aliases for deprecated models)
+        model = normalize_model_name(model)
         validate_model(model)
 
         endpoint = "streamGenerateContent"
@@ -332,6 +356,25 @@ module RAAF
       end
 
       private
+
+      ##
+      # Normalizes model name by applying aliases for deprecated models
+      #
+      # @param model [String] Model name to normalize
+      # @return [String] Normalized model name
+      # @private
+      #
+      def normalize_model_name(model)
+        return model if model.nil?
+
+        if MODEL_ALIASES.key?(model)
+          new_model = MODEL_ALIASES[model]
+          log_warn("Model '#{model}' is deprecated, using '#{new_model}' instead")
+          new_model
+        else
+          model
+        end
+      end
 
       ##
       # Makes a single Gemini API call without continuation logic
@@ -529,14 +572,14 @@ module RAAF
       end
 
       ##
-      # Recursively filters out additionalProperties fields from schema
+      # Recursively sanitizes schema for Gemini API compatibility
       #
-      # Gemini's API doesn't support the additionalProperties field that
-      # OpenAI requires for strict schemas. This method removes all
-      # additionalProperties keys while preserving all other schema fields.
+      # Gemini's API requires standard JSON Schema format, so we need to:
+      # 1. Remove additionalProperties (not supported by Gemini)
+      # 2. Convert items_type to items: { type: ... } (RAAF internal format to JSON Schema)
       #
       # @param schema [Hash, Array, Object] Schema structure to filter
-      # @return [Hash, Array, Object] Filtered schema without additionalProperties
+      # @return [Hash, Array, Object] Filtered schema compatible with Gemini
       # @private
       #
       def filter_additional_properties(schema)
@@ -544,6 +587,14 @@ module RAAF
 
         # Remove additionalProperties from current level (handle both string and symbol keys)
         filtered = schema.reject { |k, _| k == "additionalProperties" || k == :additionalProperties }
+
+        # Convert items_type to standard JSON Schema format
+        # RAAF uses: { type: "array", items_type: "string" }
+        # JSON Schema expects: { type: "array", items: { type: "string" } }
+        items_type = filtered.delete("items_type") || filtered.delete(:items_type)
+        if items_type && !filtered.key?("items") && !filtered.key?(:items)
+          filtered[:items] = { type: items_type.to_s }
+        end
 
         # Recursively filter nested structures
         filtered.transform_values do |value|
