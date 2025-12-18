@@ -22,12 +22,21 @@ export default class extends Controller {
       return
     }
 
+    // Skip if already highlighted to prevent double-processing corruption
+    // highlight.js adds 'hljs' class to processed elements
+    if (element.classList.contains('hljs') || element.dataset.highlighted === 'true') {
+      return
+    }
+
     try {
       // Ensure the element has the correct class for JSON highlighting
       element.classList.add('language-json')
 
       // Apply syntax highlighting
       window.hljs.highlightElement(element)
+
+      // Mark as highlighted to prevent double-processing
+      element.dataset.highlighted = 'true'
 
       // Add custom styling for better JSON readability
       this.addJsonFormatting(element)

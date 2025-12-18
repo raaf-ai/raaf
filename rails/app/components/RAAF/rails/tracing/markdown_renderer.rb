@@ -109,24 +109,26 @@ module RAAF
         def format_json_content(content)
           case content
           when String
+            # Strip markdown code fences if present (```json ... ``` or ``` ... ```)
+            cleaned = strip_markdown_code_fences(content)
             begin
               # First try standard JSON parsing
-              parsed = JSON.parse(content)
+              parsed = JSON.parse(cleaned)
               JSON.pretty_generate(parsed)
             rescue JSON::ParserError
               # Try to convert Ruby hash-like syntax to JSON
-              converted = convert_ruby_hash_to_json(content)
-              if converted != content
+              converted = convert_ruby_hash_to_json(cleaned)
+              if converted != cleaned
                 begin
                   parsed = JSON.parse(converted)
                   JSON.pretty_generate(parsed)
                 rescue JSON::ParserError
-                  # If conversion also fails, format the original with indentation
-                  format_hash_like_content(content)
+                  # If conversion also fails, format the cleaned content with indentation
+                  format_hash_like_content(cleaned)
                 end
               else
                 # If no conversion needed but still failed, format with indentation
-                format_hash_like_content(content)
+                format_hash_like_content(cleaned)
               end
             end
           when Hash, Array
@@ -134,6 +136,36 @@ module RAAF
           else
             content.to_s
           end
+        end
+
+        # Strip markdown code fences from content
+        # Handles: ```json\n{...}\n``` or ```\n{...}\n``` or `{...}`
+        def strip_markdown_code_fences(content)
+          return content unless content.is_a?(String)
+
+          stripped = content.strip
+
+          # Handle triple backtick code blocks: ```json\n...\n``` or ```\n...\n```
+          if stripped.start_with?("```")
+            # Remove opening fence (```json or ```)
+            stripped = stripped.sub(/\A```[a-z]*\s*\n?/, "")
+            # Remove closing fence
+            stripped = stripped.sub(/\n?```\s*\z/, "")
+            return stripped.strip
+          end
+
+          # Handle single backtick wrapped content: `{...}`
+          if stripped.start_with?("`") && stripped.end_with?("`")
+            return stripped[1..-2].strip
+          end
+
+          # Handle content that starts with backtick but doesn't end with one
+          # (partial markdown fence)
+          if stripped.start_with?("`")
+            return stripped[1..-1].strip
+          end
+
+          content
         end
 
         # Convert Ruby hash-like syntax to valid JSON
