@@ -538,17 +538,22 @@ module RAAF
         sanitized = {}
         visited = Set.new
         attributes.each do |key, value|
+          key_str = key.to_s
           # Special handling for LLM request messages - preserve full content without truncation
           # These are critical for debugging and should never be truncated
-          if key.to_s.include?("llm.request.messages") && value.is_a?(Array)
+          if key_str.include?("llm.request.messages") && value.is_a?(Array)
             # Preserve all messages without truncation (do not limit to 100 items)
             # Sanitize each message's content to handle circular references
-            sanitized[key.to_s] = value.map { |msg| sanitize_message_for_storage(msg, visited.dup) }
+            sanitized[key_str] = value.map { |msg| sanitize_message_for_storage(msg, visited.dup) }
           # Special handling for conversation messages - don't truncate JSON structure
-          elsif key.to_s.include?("conversation_messages") && value.is_a?(String)
-            sanitized[key.to_s] = value  # Keep conversation messages intact
+          elsif key_str.include?("conversation_messages") && value.is_a?(String)
+            sanitized[key_str] = value  # Keep conversation messages intact
+          # Special handling for prompt content - preserve full text without truncation
+          # Prompt content is critical for debugging and RAAF Eval analysis
+          elsif prompt_attribute?(key_str) && value.is_a?(String)
+            sanitized[key_str] = value  # Keep prompt content intact
           else
-            sanitized[key.to_s] = sanitize_value(value, visited)
+            sanitized[key_str] = sanitize_value(value, visited)
           end
         end
         sanitized
@@ -630,6 +635,27 @@ module RAAF
             "[SANITIZATION_ERROR: #{e.class}]"
           end
         end
+      end
+
+      # Check if attribute key is a prompt-related attribute that should not be truncated
+      #
+      # Prompt content is critical for debugging, RAAF Eval analysis, and replay functionality.
+      # These attributes contain the full system/user prompt text sent to the LLM.
+      #
+      # @param key [String] The attribute key to check
+      # @return [Boolean] True if this is a prompt attribute that should be preserved
+      def prompt_attribute?(key)
+        # List of prompt-related attribute key patterns that should never be truncated
+        prompt_patterns = %w[
+          user_prompt
+          initial_user_prompt
+          system_prompt
+          system_instructions
+          agent.initial_user_prompt
+          agent.system_instructions
+        ]
+
+        prompt_patterns.any? { |pattern| key.include?(pattern) }
       end
 
       # Sanitize span events for database storage
