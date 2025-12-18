@@ -552,6 +552,10 @@ module RAAF
           # Prompt content is critical for debugging and RAAF Eval analysis
           elsif prompt_attribute?(key_str) && value.is_a?(String)
             sanitized[key_str] = value  # Keep prompt content intact
+          # Special handling for response content - preserve full text without truncation
+          # Response content is critical for debugging, RAAF Eval comparison, and replay features
+          elsif response_attribute?(key_str) && value.is_a?(String)
+            sanitized[key_str] = value  # Keep response content intact
           else
             sanitized[key_str] = sanitize_value(value, visited)
           end
@@ -656,6 +660,27 @@ module RAAF
         ]
 
         prompt_patterns.any? { |pattern| key.include?(pattern) }
+      end
+
+      # Check if attribute key is a response-related attribute that should not be truncated
+      #
+      # Response content is critical for debugging, RAAF Eval analysis, and replay comparison.
+      # These attributes contain the full AI response output from the LLM.
+      #
+      # @param key [String] The attribute key to check
+      # @return [Boolean] True if this is a response attribute that should be preserved
+      def response_attribute?(key)
+        # List of response-related attribute key patterns that should never be truncated
+        response_patterns = %w[
+          final_agent_response
+          agent.final_agent_response
+          llm.response.content
+          llm.response.output
+          agent_response
+          response_content
+        ]
+
+        response_patterns.any? { |pattern| key.include?(pattern) }
       end
 
       # Sanitize span events for database storage
