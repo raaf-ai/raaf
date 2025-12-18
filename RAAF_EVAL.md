@@ -429,7 +429,7 @@ The continuous evaluation dashboard provides:
 
 #### Results Browser (`/eval/continuous/results`)
 - Filter by policy, agent, time range
-- Aggregate pass/fail rates
+- Aggregate good/average/bad rates
 - Drill down to individual evaluations
 - Export results for analysis
 

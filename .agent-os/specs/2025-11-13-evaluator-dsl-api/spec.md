@@ -69,8 +69,8 @@ result = evaluator.evaluate(span) do
 end
 
 # Check results
-puts result.passed?  # Overall pass/fail
-puts result.field_results[:output]  # Field-specific results
+puts result.passed?  # True if all checks are 'good' or 'average'
+puts result.field_results[:output]  # Field-specific results (good/average/bad)
 
 # Compare configurations
 comparison = result.compare(:low_temp, :high_temp)
@@ -109,7 +109,7 @@ As a RAAF developer, I want to select specific fields from span results using ne
 
 ### Story 2: Attach Multiple Evaluators to Single Field with Logic
 
-As a RAAF tester, I want to attach multiple evaluators (semantic similarity, coherence, hallucination detection) to a single field like `output` and specify AND/OR/custom logic so that I can validate multiple quality dimensions simultaneously with flexible pass/fail criteria.
+As a RAAF tester, I want to attach multiple evaluators (semantic similarity, coherence, hallucination detection) to a single field like `output` and specify AND/OR/custom logic so that I can validate multiple quality dimensions simultaneously with flexible quality thresholds (good/average/bad).
 
 **Workflow:**
 1. Developer defines field evaluators within `evaluate_field :output` block
@@ -176,7 +176,7 @@ As a RAAF developer, I want to compare evaluation results across multiple config
 - Collect results from all evaluators before applying combination logic
 - Support evaluator-specific configuration parameters via `evaluate_with(name, **params)`
 - Map evaluator names to existing RSpec matchers (semantic_similarity → maintain_semantic_similarity)
-- Provide clear pass/fail results per evaluator and combined result
+- Provide clear good/average/bad results per evaluator and combined result
 - **Mark evaluator as failed on exception, continue with other evaluators, fail combined result**
 - Pass FieldContext object to all evaluators with field-specific value and full result access
 - Create FieldContext with field_name, value, baseline_value, delta, and convenience accessors

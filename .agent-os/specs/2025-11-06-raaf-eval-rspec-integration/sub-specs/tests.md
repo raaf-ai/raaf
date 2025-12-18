@@ -261,7 +261,7 @@ This is the tests coverage details for the spec detailed in @.agent-os/specs/202
 - When I write RSpec test with evaluation DSL
 - And use matchers for quality and performance
 - Then test runs and asserts correctly
-- And I get clear pass/fail feedback
+- And I get clear good/average/bad feedback
 
 **Compare Multiple Models**
 - Given a baseline span

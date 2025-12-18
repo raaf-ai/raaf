@@ -14,7 +14,7 @@ Enable RAAF developers to write AI agent evaluation tests using familiar RSpec s
 
 As a RAAF developer, I want to write evaluation tests using standard RSpec syntax in my spec/ directory, so that I can test agent behavior changes alongside my regular unit and integration tests without learning a new testing framework.
 
-**Workflow:** Developer creates `spec/evaluations/my_agent_eval_spec.rb` → writes RSpec test using evaluation DSL → runs `bundle exec rspec spec/evaluations/` → system executes evaluations and reports results with familiar RSpec output → tests pass/fail based on custom matchers → CI/CD pipeline runs evals automatically on every commit.
+**Workflow:** Developer creates `spec/evaluations/my_agent_eval_spec.rb` → writes RSpec test using evaluation DSL → runs `bundle exec rspec spec/evaluations/` → system executes evaluations and reports results (good/average/bad) with familiar RSpec output → tests pass based on quality thresholds → CI/CD pipeline runs evals automatically on every commit.
 
 ### Story 2: Define Evaluations with Clean Declarative DSL
 
@@ -26,7 +26,7 @@ As a RAAF user optimizing agent prompts, I want a clean DSL to define evaluation
 
 As a RAAF framework maintainer, I want RSpec matchers specifically designed for evaluation assertions (quality preservation, token usage limits, latency thresholds, regression detection), so that I can write expressive, readable tests that clearly communicate what behavior is being validated.
 
-**Workflow:** Developer writes evaluation expectations → uses matchers like `have_similar_quality`, `use_tokens.within(10).percent_of(:baseline)`, `complete_within(2).seconds`, `not_have_regressions` → runs test → matchers compare evaluation results against baseline and thresholds → receive clear pass/fail with detailed explanations (e.g., "expected token usage within 10% of baseline (500), but got 650 tokens (30% increase)").
+**Workflow:** Developer writes evaluation expectations → uses matchers like `have_similar_quality`, `use_tokens.within(10).percent_of(:baseline)`, `complete_within(2).seconds`, `not_have_regressions` → runs test → matchers compare evaluation results against baseline and thresholds → receive clear good/average/bad results with detailed explanations (e.g., "expected token usage within 10% of baseline (500), but got 650 tokens (30% increase)").
 
 ## Spec Scope
 

@@ -120,7 +120,7 @@ The LLM-powered matchers use an AI judge to evaluate outputs based on natural la
 **Core Implementation:**
 - Use dedicated "Judge" agent from Phase 1 AI comparator infrastructure
 - Accept natural language assertion descriptions
-- Return pass/fail with detailed reasoning
+- Return good/average/bad with detailed reasoning
 - Support configuration of judge model (default: gpt-4o for accuracy)
 - Cache judge results to avoid redundant API calls
 
@@ -142,7 +142,7 @@ expect(result).to satisfy_llm_check("Response is helpful").with_confidence(0.9)
 **Implementation Details:**
 - Sends baseline output and result output to judge agent
 - Judge evaluates: "Does the output satisfy: [PROMPT]?"
-- Returns: pass/fail, confidence score (0.0-1.0), reasoning
+- Returns: good/average/bad, confidence score (0.0-1.0), reasoning
 - Failure message includes judge's reasoning for debugging
 
 **satisfy_llm_criteria(criteria) Matcher:**
@@ -166,9 +166,9 @@ expect(result).to satisfy_llm_criteria(
 
 **Implementation Details:**
 - Evaluates multiple criteria in single judge call (cost optimization)
-- Each criterion gets pass/fail + reasoning
-- Overall pass requires all criteria to pass (or weighted threshold)
-- Failure message lists which criteria failed with reasons
+- Each criterion gets good/average/bad rating + reasoning
+- Overall success requires all criteria to be good or average (or weighted threshold)
+- Failure message lists which criteria scored bad with reasons
 
 **be_judged_as(description) Matcher:**
 
