@@ -12,6 +12,7 @@ require_relative "raaf/guardrails/providers/openai_moderator"
 require_relative "raaf/guardrails/providers/azure_moderator"
 require_relative "raaf/guardrails/providers/aws_moderator"
 require_relative "raaf/guardrails/providers/google_moderator"
+require_relative "raaf/guardrails/guideline_guardrail"
 
 module RAAF
   ##
