@@ -2,6 +2,20 @@
 
 namespace :raaf do
   namespace :continuous_evaluation do
+    # Helper to format sampling configuration for display
+    def format_sampling(policy)
+      case policy.sampling_mode
+      when 'percentage'
+        "#{policy.sample_rate}% of spans"
+      when 'every_n'
+        "Every #{policy.sample_every_n}th span"
+      when 'all'
+        "All spans"
+      else
+        "Not configured"
+      end
+    end
+
     desc "Migrate DSL history configurations to database-backed EvaluationPolicy records"
     task migrate: :environment do
       puts "=" * 80
@@ -28,7 +42,7 @@ namespace :raaf do
         puts
         puts "To manually create evaluation policies, use the RAAF Dashboard UI or:"
         puts
-        puts "  RAAF::Eval::Models::Continuous::EvaluationPolicy.create!("
+        puts "  RAAF::Eval::Models::EvaluationPolicy.create!("
         puts "    name: 'my_policy',"
         puts "    enabled: true,"
         puts "    evaluators: ["
@@ -49,8 +63,8 @@ namespace :raaf do
         puts
 
         # Check for existing policies
-        if defined?(RAAF::Eval::Models::Continuous::EvaluationPolicy)
-          existing_policies = RAAF::Eval::Models::Continuous::EvaluationPolicy.count
+        if defined?(RAAF::Eval::Models::EvaluationPolicy)
+          existing_policies = RAAF::Eval::Models::EvaluationPolicy.count
           puts "[INFO] Found #{existing_policies} existing evaluation policies."
           puts
         else
@@ -69,15 +83,15 @@ namespace :raaf do
         evaluator_names.each do |name|
           policy_name = "auto_#{name}"
 
-          if defined?(RAAF::Eval::Models::Continuous::EvaluationPolicy)
-            existing = RAAF::Eval::Models::Continuous::EvaluationPolicy.find_by(name: policy_name)
+          if defined?(RAAF::Eval::Models::EvaluationPolicy)
+            existing = RAAF::Eval::Models::EvaluationPolicy.find_by(name: policy_name)
 
             if existing
               puts "[SKIP] Policy '#{policy_name}' already exists (ID: #{existing.id})"
               skipped_count += 1
             else
               begin
-                policy = RAAF::Eval::Models::Continuous::EvaluationPolicy.create!(
+                policy = RAAF::Eval::Models::EvaluationPolicy.create!(
                   name: policy_name,
                   description: "Auto-generated policy for #{name} evaluator",
                   enabled: false, # Disabled by default for safety
@@ -107,7 +121,7 @@ namespace :raaf do
         puts "IMPORTANT: Newly created policies are DISABLED by default."
         puts "Enable them via the RAAF Dashboard UI or:"
         puts
-        puts "  policy = RAAF::Eval::Models::Continuous::EvaluationPolicy.find_by(name: 'auto_my_evaluator')"
+        puts "  policy = RAAF::Eval::Models::EvaluationPolicy.find_by(name: 'auto_my_evaluator')"
         puts "  policy.update!(enabled: true, sample_rate: 10.0)"
         puts
       end
@@ -124,26 +138,28 @@ namespace :raaf do
       puts "=" * 80
       puts
 
-      unless defined?(RAAF::Eval::Models::Continuous::EvaluationPolicy)
+      unless defined?(RAAF::Eval::Models::EvaluationPolicy)
         puts "[ERROR] EvaluationPolicy model not loaded."
         puts "        Ensure migrations have been run."
         exit 1
       end
 
-      policies = RAAF::Eval::Models::Continuous::EvaluationPolicy.order(:name)
+      policies = RAAF::Eval::Models::EvaluationPolicy.order(:name)
 
       if policies.empty?
         puts "[INFO] No evaluation policies found."
         puts "       Create policies via the RAAF Dashboard UI or rake task."
       else
         policies.each do |policy|
-          status = policy.enabled? ? "[ENABLED]" : "[DISABLED]"
+          status = policy.active? ? "[ENABLED]" : "[DISABLED]"
           puts "#{status} #{policy.name} (ID: #{policy.id})"
           puts "         Description: #{policy.description || '(none)'}"
           puts "         Evaluators: #{policy.evaluators&.map { |e| e['name'] }&.join(', ') || 'none'}"
-          puts "         Sample Rate: #{policy.sample_rate}%"
-          puts "         Agent Pattern: #{policy.agent_pattern || '*'}"
-          puts "         Environment: #{policy.environment_pattern || '*'}"
+          puts "         Sampling: #{format_sampling(policy)}"
+          # Format comma-separated agent names as separate items
+          agent_names = policy.agent_name.present? ? policy.agent_name.split(",").map(&:strip) : ["*"]
+          puts "         Agents: #{agent_names.join(', ')}"
+          puts "         Environment: #{policy.environment || 'all'}"
           puts
         end
       end

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "raaf-eval" # Required for continuous evaluation controllers
 require_relative "raaf/rails/version"
 require_relative "raaf/rails/engine"
 # require_relative "raaf/rails/websocket_handler" # Disabled - requires websocket-rails

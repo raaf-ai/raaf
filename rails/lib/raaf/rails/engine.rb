@@ -36,6 +36,9 @@ module RAAF
       config.eager_load_paths << File.expand_path("../../../app/controllers", __dir__)
       config.eager_load_paths << File.expand_path("../../../app/components", __dir__)
 
+      # Add generators path for install generator
+      config.generators.templates << File.expand_path("../../generators", __dir__)
+
       # Set up asset pipeline
       config.assets.enabled = true
       config.assets.paths << File.expand_path("../../../app/assets", __dir__)

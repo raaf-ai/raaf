@@ -475,9 +475,14 @@ module RAAF
 
       # Enqueue continuous evaluation for newly created spans
       # This hook runs after the span is committed to the database
+      #
+      # Note: This callback also exists in RAAF::Tracing::SpanRecord (tracing gem).
+      # Both classes may be used to create spans depending on the context.
+      # The callback is safe to run on both since it handles duplicates gracefully.
       def enqueue_continuous_evaluations
         # Return early if continuous evaluation is disabled
-        return unless defined?(RAAF::Eval::Continuous) && RAAF::Eval::Continuous.enabled?
+        return unless defined?(RAAF::Eval::Continuous)
+        return unless RAAF::Eval::Continuous.enabled?
         return unless RAAF::Eval::Continuous.configuration.hook_enabled
 
         # Find matching policies and enqueue evaluation jobs
@@ -486,7 +491,7 @@ module RAAF
           policies = matcher.policies_to_evaluate
 
           policies.each do |policy|
-            RAAF::Eval::Continuous::EvaluationJob.perform_later(
+            RAAF::Rails::Continuous::EvaluationJob.perform_later(
               span_id: span_id,
               policy_id: policy.id
             )

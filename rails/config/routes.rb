@@ -53,6 +53,9 @@ RAAF::Rails::Engine.routes.draw do
     end
 
     resources :spans, only: [:index, :show] do
+      member do
+        post :evaluate
+      end
       collection do
         get :tools
         get :flows
@@ -106,6 +109,11 @@ RAAF::Rails::Engine.routes.draw do
       get :score_distribution_data
       get :model_comparison_data
       get :failure_analysis_data
+    end
+
+    # System health monitoring
+    resource :health, only: [:show], controller: 'health' do
+      get :dashboard
     end
   end
 
