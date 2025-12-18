@@ -7,7 +7,7 @@ module RAAF
     module Tracing
     # Controller for managing and viewing individual spans
     class SpansController < ApplicationController
-      before_action :set_span, only: %i[show events]
+      before_action :set_span, only: %i[show events evaluate]
 
       # GET /spans
       # Lists spans with filtering options
@@ -86,6 +86,73 @@ module RAAF
           format.html { render :show }
           format.js { render :events }
           format.json { render json: { events: @events } }
+        end
+      end
+
+      # POST /spans/:id/evaluate
+      # Manually triggers evaluation for a span with a specific policy
+      def evaluate
+        policy_id = params[:policy_id]
+
+        unless policy_id.present?
+          respond_to do |format|
+            format.html { redirect_to tracing_span_path(@span.span_id), alert: "Policy ID is required." }
+            format.json { render json: { error: "Policy ID is required" }, status: :unprocessable_entity }
+          end
+          return
+        end
+
+        # Check if continuous evaluation is available
+        unless defined?(RAAF::Eval::Models::EvaluationPolicy) && defined?(RAAF::Rails::Continuous::EvaluationJob)
+          respond_to do |format|
+            format.html { redirect_to tracing_span_path(@span.span_id), alert: "Continuous evaluation is not available." }
+            format.json { render json: { error: "Continuous evaluation not available" }, status: :service_unavailable }
+          end
+          return
+        end
+
+        # Find the policy
+        policy = RAAF::Eval::Models::EvaluationPolicy.find_by(id: policy_id)
+        unless policy
+          respond_to do |format|
+            format.html { redirect_to tracing_span_path(@span.span_id), alert: "Policy not found." }
+            format.json { render json: { error: "Policy not found" }, status: :not_found }
+          end
+          return
+        end
+
+        # Queue the evaluation job with force: true to allow re-evaluation
+        # and manual: true to run ALL checks (including manual trigger mode checks)
+        begin
+          RAAF::Rails::Continuous::EvaluationJob.perform_later(
+            span_id: @span.span_id,
+            policy_id: policy.id,
+            force: true,
+            manual: true
+          )
+
+          respond_to do |format|
+            format.turbo_stream do
+              # Re-render the applicable policies section to show "Running..." status
+              render turbo_stream: turbo_stream.replace(
+                "evaluation-policies",
+                RAAF::Rails::Tracing::ApplicablePoliciesSection.new(span: @span)
+              )
+            end
+            format.html { redirect_to tracing_span_path(@span.span_id), notice: "Evaluation queued for policy '#{policy.name}'." }
+            format.json { render json: { message: "Evaluation queued", span_id: @span.span_id, policy_id: policy.id } }
+          end
+        rescue StandardError => e
+          respond_to do |format|
+            format.turbo_stream do
+              render turbo_stream: turbo_stream.replace(
+                "evaluation-policies",
+                RAAF::Rails::Tracing::ApplicablePoliciesSection.new(span: @span)
+              )
+            end
+            format.html { redirect_to tracing_span_path(@span.span_id), alert: "Failed to queue evaluation: #{e.message}" }
+            format.json { render json: { error: e.message }, status: :internal_server_error }
+          end
         end
       end
 

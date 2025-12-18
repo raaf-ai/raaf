@@ -5,6 +5,9 @@ module RAAF
     module Continuous
       # Controller for monitoring and managing the evaluation queue
       class QueueController < BaseController
+        # Alias the models for cleaner code
+        EvaluationQueue = RAAF::Eval::Models::EvaluationQueueItem
+
         before_action :set_queue_item, only: %i[show retry cancel]
 
         # GET /raaf/rails/continuous/queue
@@ -20,11 +23,39 @@ module RAAF
             failed: EvaluationQueue.where(status: 'failed').count,
             completed_1h: EvaluationQueue.where(status: 'completed').where('completed_at > ?', 1.hour.ago).count
           }
+
+          respond_to do |format|
+            format.html do
+              queue_list = RAAF::Rails::Continuous::QueueList.new(
+                queue_items: @queue_items,
+                filters: params.permit(:status, :policy_id).to_h
+              )
+              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Evaluation Queue") do
+                render queue_list
+              end
+              render layout
+            end
+            format.json { render json: @queue_items }
+          end
         end
 
         # GET /raaf/rails/continuous/queue/:id
         def show
-          @results = @queue_item.evaluation_results.order(created_at: :desc)
+          @results = @queue_item.continuous_evaluation_results.order(created_at: :desc)
+
+          respond_to do |format|
+            format.html do
+              queue_show = RAAF::Rails::Continuous::QueueShow.new(
+                queue_item: @queue_item,
+                results: @results
+              )
+              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Queue Item Details") do
+                render queue_show
+              end
+              render layout
+            end
+            format.json { render json: @queue_item }
+          end
         end
 
         # POST /raaf/rails/continuous/queue/:id/retry

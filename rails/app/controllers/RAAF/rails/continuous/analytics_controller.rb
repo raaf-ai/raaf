@@ -5,6 +5,10 @@ module RAAF
     module Continuous
       # Controller for analytics and data visualization
       class AnalyticsController < BaseController
+        # Alias the models for cleaner code
+        EvaluationResult = RAAF::Eval::Models::ContinuousEvaluationResult
+        EvaluationMetric = RAAF::Eval::Models::EvaluationMetric
+
         before_action :set_filters
 
         # GET /raaf/rails/continuous/analytics
@@ -14,6 +18,22 @@ module RAAF
           @models = EvaluationResult.distinct.pluck(:model).compact.sort
 
           @overview_stats = calculate_overview_stats
+
+          respond_to do |format|
+            format.html do
+              analytics_dashboard = RAAF::Rails::Continuous::AnalyticsDashboard.new(
+                stats: @overview_stats,
+                agents: @agents,
+                environments: @environments,
+                filters: params.permit(:agent, :environment, :from, :to).to_h
+              )
+              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Continuous Evaluation Analytics") do
+                render analytics_dashboard
+              end
+              render layout
+            end
+            format.json { render json: @overview_stats }
+          end
         end
 
         # GET /raaf/rails/continuous/analytics/pass_rate_data
