@@ -258,13 +258,19 @@ module RAAF
       # @param overrides [Hash] Override options
       # @return [Object] Provider instance
       def build_provider(model, overrides)
-        # Use provider override if specified
+        # Use provider override if specified (can be a provider instance or a string name)
         if overrides[:provider]
-          return overrides[:provider]
-        end
+          # If it's already a provider instance, return it directly
+          unless overrides[:provider].is_a?(String) || overrides[:provider].is_a?(Symbol)
+            return overrides[:provider]
+          end
 
-        # Detect provider from model name
-        provider_type = RAAF::ProviderRegistry.detect(model)
+          # It's a provider name string/symbol, use it to determine provider type
+          provider_type = overrides[:provider].to_sym
+        else
+          # Detect provider from model name
+          provider_type = RAAF::ProviderRegistry.detect(model)
+        end
 
         RAAF.logger.info "[SpanReplayer] Detected provider type: #{provider_type} for model: #{model}"
 
@@ -278,7 +284,7 @@ module RAAF
             RAAF.logger.warn "[SpanReplayer] AnthropicProvider not available, falling back to ResponsesProvider"
             RAAF::Models::ResponsesProvider.new
           end
-        when :gemini
+        when :gemini, :google
           if defined?(RAAF::Models::GeminiProvider)
             RAAF::Models::GeminiProvider.new
           else
