@@ -224,6 +224,14 @@ module RAAF
       def build_model_params(agent, _runner)
         model_params = build_base_model_params(agent)
 
+        # Add tools from agent
+        if agent&.tools?
+          model_params[:tools] = agent.tools
+          log_debug_api("StandardApiStrategy: Added tools to model_params",
+                        tool_count: agent.tools.count,
+                        tools: agent.tools.map { |t| t.respond_to?(:name) ? t.name : t.keys.first.to_s })
+        end
+
         # Add prompt support for compatible providers
         if agent&.prompt && provider.respond_to?(:supports_prompts?) && provider.supports_prompts?
           prompt_input = PromptUtil.to_model_input(agent.prompt, nil, agent)
@@ -420,8 +428,13 @@ module RAAF
       # @private
       #
       def format_agent_tools(agent)
+        puts "[format_agent_tools] Called with agent: #{agent&.name}"
+        puts "[format_agent_tools] agent.tools?: #{agent&.respond_to?(:tools)}"
+        puts "[format_agent_tools] agent.tools: #{agent&.tools.inspect}"
+        puts "[format_agent_tools] agent.tools.empty?: #{agent&.tools&.empty?}"
         return nil unless agent&.tools && !agent.tools.empty?
 
+        puts "[format_agent_tools] Processing tools..."
         agent.tools.map do |tool|
           if tool.respond_to?(:to_tool_definition)
             tool.to_tool_definition

@@ -111,6 +111,11 @@ module RAAF
       @provider = provider ||
                   extract_provider_from_agent(agent) ||
                   create_default_provider(http_timeout: timeout)
+      # If we received http_timeout and provider supports it, update the provider's timeout
+      # This ensures the timeout is applied even if provider was extracted from agent
+      if timeout && @provider.respond_to?(:http_timeout=)
+        @provider.http_timeout = timeout
+      end
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @parent_span = parent_span
@@ -623,6 +628,9 @@ module RAAF
     #   }
     #
     def get_all_tools_for_api(agent, visited_agents = Set.new)
+      puts "[Runner::get_all_tools_for_api] Called for agent: #{agent.name}"
+      puts "[Runner::get_all_tools_for_api] agent.tools?: #{agent.tools?}"
+      puts "[Runner::get_all_tools_for_api] agent.tools: #{agent.tools.inspect}"
       log_debug("🔧 HANDOFF FLOW: Starting tool collection for agent", agent: agent.name)
 
       # Circular reference detection
@@ -638,10 +646,13 @@ module RAAF
       if agent.tools?
         regular_tools_count = agent.tools.count
         all_tools.concat(agent.tools)
+        puts "[Runner::get_all_tools_for_api] Added #{regular_tools_count} tools to all_tools: #{all_tools.inspect}"
+        # Get tool names safely (handle hashes)
+        tool_names = agent.tools.map { |t| t.respond_to?(:name) ? t.name : t.keys.first.to_s }.join(", ")
         log_debug("🔧 HANDOFF FLOW: Added regular tools",
                   agent: agent.name,
                   regular_tools_count: regular_tools_count,
-                  tool_names: agent.tools.map(&:name).join(", "))
+                  tool_names: tool_names)
       else
         log_debug("🔧 HANDOFF FLOW: No regular tools found", agent: agent.name)
       end
