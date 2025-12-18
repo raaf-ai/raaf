@@ -216,10 +216,28 @@ module RAAF
             RAAF::Eval::Evaluators::Structural::SchemaMatch,
             RAAF::Eval::Evaluators::Structural::FormatCompliance,
 
-            # LLM evaluators (3)
+            # LLM evaluators - Core (3)
             RAAF::Eval::Evaluators::LLM::LlmJudge,
             RAAF::Eval::Evaluators::LLM::QualityScore,
-            RAAF::Eval::Evaluators::LLM::RubricEvaluation
+            RAAF::Eval::Evaluators::LLM::RubricEvaluation,
+
+            # LLM evaluators - DeepEval-inspired (6)
+            RAAF::Eval::Evaluators::LLM::Hallucination,
+            RAAF::Eval::Evaluators::LLM::AnswerRelevancy,
+            RAAF::Eval::Evaluators::LLM::Faithfulness,
+            RAAF::Eval::Evaluators::LLM::Bias,
+            RAAF::Eval::Evaluators::LLM::Toxicity,
+            RAAF::Eval::Evaluators::LLM::GEval,
+
+            # RAG evaluators (3)
+            RAAF::Eval::Evaluators::LLM::ContextualRelevancy,
+            RAAF::Eval::Evaluators::LLM::ContextualPrecision,
+            RAAF::Eval::Evaluators::LLM::ContextualRecall,
+
+            # Custom evaluators (3)
+            RAAF::Eval::Evaluators::Custom::CitationGrounding,
+            RAAF::Eval::Evaluators::Custom::FormatValidator,
+            RAAF::Eval::Evaluators::Custom::SmartQuality
           ]
         end
       end

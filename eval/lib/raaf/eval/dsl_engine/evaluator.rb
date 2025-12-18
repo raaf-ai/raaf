@@ -40,17 +40,21 @@ module RAAF
         # Execute evaluation on span data
         # @param span [Hash] The span data to evaluate
         # @param configuration [Symbol, nil] Configuration name for single-config evaluation
+        # @param only_fields [Array<Symbol>, nil] If provided, only evaluate these fields
         # @yield Optional block for multi-configuration evaluation
         # @return [DSL::EvaluationResult] Evaluation results
         # @example Single configuration
         #   result = evaluator.evaluate(span, configuration: :baseline)
+        # @example Filter specific fields
+        #   result = evaluator.evaluate(span, only_fields: [:individual_scores, :reasoning_texts])
         # @example Multiple configurations
         #   result = evaluator.evaluate(span) do
         #     configuration :low_temp, temperature: 0.3
         #     configuration :high_temp, temperature: 1.0
         #     baseline :low_temp
         #   end
-        def evaluate(span, configuration: nil)
+        def evaluate(span, configuration: nil, only_fields: nil)
+          @only_fields = only_fields&.map(&:to_sym)
           if block_given?
             evaluate_multi_config(span, &Proc.new)
           else
@@ -66,7 +70,8 @@ module RAAF
         # @return [DSL::EvaluationResult] Single-config results
         def evaluate_single_config(span, config_name)
           # Initialize progress tracking for single config
-          total_evaluators = count_total_evaluators
+          # Use filtered count if only_fields is specified
+          total_evaluators = count_total_evaluators_filtered
           @progress_calculator = ProgressCalculator.new(1, @field_selector.fields.size, total_evaluators)
           @event_emitter = EventEmitter.new(@callback_manager, @progress_calculator)
 
@@ -82,7 +87,8 @@ module RAAF
           @event_emitter.emit_config_start(config_name, 0, 1, {})
 
           # Extract selected fields from span
-          field_data = SpanExtractor.extract_fields(span, @field_selector)
+          # If only_fields is specified, only extract those fields (for efficiency and to avoid missing field errors)
+          field_data = SpanExtractor.extract_fields(span, @field_selector, only_fields: @only_fields)
 
           # Create field contexts
           field_contexts = create_field_contexts(field_data, config_name, span)
@@ -142,7 +148,8 @@ module RAAF
             @event_emitter.emit_config_start(name, index, configurations.size, params)
 
             # Extract fields and create contexts
-            field_data = SpanExtractor.extract_fields(span, @field_selector)
+            # If only_fields is specified, only extract those fields
+            field_data = SpanExtractor.extract_fields(span, @field_selector, only_fields: @only_fields)
             field_contexts = create_field_contexts(field_data, name, span)
 
             # Execute evaluators for each field with progress events
@@ -187,9 +194,17 @@ module RAAF
           field_results = {}
           evaluator_results = {}
           evaluator_index = 0
-          total_field_sets = count_total_evaluators  # Total number of field evaluator sets
 
-          @evaluator_definition.field_evaluator_sets.each do |field_name, evaluator_set|
+          # Filter field evaluator sets if only_fields is specified
+          field_sets_to_evaluate = if @only_fields.present?
+            @evaluator_definition.field_evaluator_sets.select { |name, _| @only_fields.include?(name.to_sym) }
+          else
+            @evaluator_definition.field_evaluator_sets
+          end
+
+          total_field_sets = field_sets_to_evaluate.size  # Use filtered count
+
+          field_sets_to_evaluate.each do |field_name, evaluator_set|
             field_context = field_contexts[field_name]
             next unless field_context # Skip if field not found
 
@@ -268,6 +283,16 @@ module RAAF
         # @return [Integer] Total number of field evaluator sets
         def count_total_evaluators
           @evaluator_definition.field_evaluator_sets.size
+        end
+
+        # Count total field evaluator sets respecting only_fields filter
+        # @return [Integer] Number of field evaluator sets that will be evaluated
+        def count_total_evaluators_filtered
+          if @only_fields.present?
+            @evaluator_definition.field_evaluator_sets.count { |name, _| @only_fields.include?(name.to_sym) }
+          else
+            count_total_evaluators
+          end
         end
       end
 

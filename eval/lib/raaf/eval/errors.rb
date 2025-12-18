@@ -49,5 +49,11 @@ module RAAF
 
     # Error raised when trying to use unknown evaluator
     class UnknownEvaluatorError < Error; end
+
+    # Error raised when API rate limit is exceeded
+    class RateLimitError < Error; end
+
+    # Error raised when a span cannot be found
+    class SpanNotFoundError < Error; end
   end
 end

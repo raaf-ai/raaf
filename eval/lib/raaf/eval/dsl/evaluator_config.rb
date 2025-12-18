@@ -110,15 +110,51 @@ module RAAF
         # Add an evaluator to the field
         # @param evaluator_name [Symbol] The evaluator name
         # @param options [Hash] Options for the evaluator
+        # @option options [Symbol] :as Alias for this evaluator
+        # @option options [String] :name Human-readable display name for this check
+        # @option options [String] :description Description of what this check validates
         def evaluate_with(evaluator_name, **options)
           evaluator_alias = options.delete(:as)
-          @field_set.add_evaluator(evaluator_name, options, evaluator_alias: evaluator_alias)
+          display_name = options.delete(:name)
+          description = options.delete(:description)
+          @field_set.add_evaluator(
+            evaluator_name,
+            options,
+            evaluator_alias: evaluator_alias,
+            display_name: display_name,
+            description: description
+          )
         end
 
         # Set combination strategy for field evaluators
         # @param strategy [Symbol, Proc] Strategy (:and, :or) or custom lambda
         def combine_with(strategy)
           @field_set.set_combination(strategy)
+        end
+
+        # Set a result formatter for this field
+        # The block receives the field_result and span_data, and should return markdown.
+        #
+        # @yield [field_result, span_data] Block that formats results as markdown
+        # @yieldparam field_result [Hash] The evaluation result for this field
+        # @yieldparam span_data [Hash] The original span data being evaluated
+        # @yieldreturn [String] Markdown-formatted result description
+        #
+        # @example Per-field formatting
+        #   evaluate_field :individual_scores do
+        #     evaluate_with :consistency, std_dev: 0.1
+        #     evaluate_with :no_regression, tolerance: 0
+        #     combine_with :and
+        #
+        #     result_format do |field_result, span_data|
+        #       cv = field_result.dig(:details, :coefficient_of_variation)
+        #       md = "### Score Consistency\n\n"
+        #       md << "- **CV:** #{(cv * 100).round(1)}%\n" if cv
+        #       md
+        #     end
+        #   end
+        def result_format(&block)
+          @field_set.result_format(&block)
         end
       end
     end

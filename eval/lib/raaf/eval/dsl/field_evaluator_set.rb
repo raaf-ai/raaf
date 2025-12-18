@@ -10,7 +10,7 @@ module RAAF
       # Container for multiple evaluators on a single field
       # Manages evaluator execution and result combination
       class FieldEvaluatorSet
-        attr_reader :field_name, :evaluators, :combination_strategy
+        attr_reader :field_name, :evaluators, :combination_strategy, :result_formatter
 
         # Initialize a field evaluator set
         # @param field_name [Symbol] The field name being evaluated
@@ -19,22 +19,42 @@ module RAAF
           @evaluators = []
           @combination_strategy = :and  # default
           @aliases = {}
+          @result_formatter = nil
+        end
+
+        # Set a result formatter for this field
+        # The block receives the field_result and span_data, and should return markdown.
+        # @yield [field_result, span_data] Block that formats results as markdown
+        # @yieldparam field_result [Hash] The evaluation result for this field
+        # @yieldparam span_data [Hash] The original span data being evaluated
+        # @yieldreturn [String] Markdown-formatted result description
+        # @example
+        #   result_format do |field_result, span_data|
+        #     cv = field_result.dig(:details, :coefficient_of_variation)
+        #     "### Consistency\n\n- **CV:** #{(cv * 100).round(1)}%"
+        #   end
+        def result_format(&block)
+          @result_formatter = block
         end
 
         # Add an evaluator to the set
         # @param evaluator_name [Symbol] The evaluator name
         # @param options [Hash] Options to pass to the evaluator
         # @param evaluator_alias [Symbol, nil] Optional alias for this evaluator
+        # @param display_name [String, nil] Human-readable name for this check
+        # @param description [String, nil] Description of what this check validates
         # @raise [DuplicateAliasError] If alias is already used
-        def add_evaluator(evaluator_name, options = {}, evaluator_alias: nil)
+        def add_evaluator(evaluator_name, options = {}, evaluator_alias: nil, display_name: nil, description: nil)
           alias_name = evaluator_alias || evaluator_name
-          
+
           raise DuplicateAliasError, "Alias '#{alias_name}' is already used" if @aliases.key?(alias_name)
-          
+
           @evaluators << {
             name: evaluator_name,
             alias: alias_name,
-            options: options
+            options: options,
+            display_name: display_name,
+            description: description
           }
           @aliases[alias_name] = true
         end
