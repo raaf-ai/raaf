@@ -475,7 +475,11 @@ module RAAF
         ].freeze
 
         def _agent_hooks
-          Thread.current["raaf_dsl_agent_hooks_#{object_id}"] ||= begin
+          # Use class instance variable (not Thread.current) so hooks persist across threads.
+          # This mirrors the fix applied to _tools_config: Thread.current fails in background
+          # job workers (SolidQueue/Sidekiq) because hooks registered during class loading in
+          # the main thread are invisible to worker threads that have their own Thread.current.
+          @_agent_hooks ||= begin
             hooks = {}
             HOOK_TYPES.each { |hook_type| hooks[hook_type] = [] }
             hooks
@@ -483,7 +487,7 @@ module RAAF
         end
 
         def _agent_hooks=(value)
-          Thread.current["raaf_dsl_agent_hooks_#{object_id}"] = value
+          @_agent_hooks = value
         end
 
         # Hook registration methods
