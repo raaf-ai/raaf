@@ -135,19 +135,6 @@ module RAAF
 
         private
 
-        # Fallback for safe_join if not available
-        def safe_join(array, sep = nil)
-          return array.join(sep || "") unless respond_to?(:raw)
-
-          # Use ActionView's safe_join if available
-          if defined?(ActionView::Helpers::OutputSafetyHelper)
-            super
-          else
-            # Safely join without using raw
-            array.map { |item| ERB::Util.html_escape(item) }.join(sep || "")
-          end
-        end
-
         # Fallback for simple_format if not available (in controllers)
         # Renamed to avoid conflict with Rails' simple_format method
         def raaf_simple_format(text, options = {})
