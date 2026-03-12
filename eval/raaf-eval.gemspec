@@ -39,7 +39,7 @@ Gem::Specification.new do |spec|
   # Database and ORM
   spec.add_dependency "activerecord", "~> 8.0"
   spec.add_dependency "activesupport", "~> 8.0"
-  spec.add_dependency "pg", "~> 1.4"
+  spec.add_dependency "pg", "~> 1.5"
 
   # NLP and statistical analysis
   spec.add_dependency "rouge", "~> 4.0"

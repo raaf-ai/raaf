@@ -55,7 +55,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "google-cloud-storage", "~> 1.0"
   spec.add_dependency "jwt", "~> 2.0"
   spec.add_dependency "pdf-reader", "~> 2.0"
-  spec.add_dependency "pg", "~> 1.0"
+  spec.add_dependency "pg", "~> 1.5"
   spec.add_dependency "ruby-openai", "~> 7.0"
   spec.add_dependency "selenium-webdriver", "~> 4.0"
 

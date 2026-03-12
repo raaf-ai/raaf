@@ -37,7 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "digest", "~> 3.0"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "openssl", "~> 3.0"
-  spec.add_dependency "pg", "~> 1.0"
+  spec.add_dependency "pg", "~> 1.5"
   spec.add_dependency "prawn", "~> 2.4"
   spec.add_dependency "prawn-table", "~> 0.2"
   spec.add_dependency "raaf-core", "0.1.0"
