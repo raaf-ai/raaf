@@ -138,6 +138,14 @@ module RAAF
             RAAF.logger.error "📋 Error class: #{e.class.name}"
             RAAF.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
 
+            # Report to Rails error subscriber (flows to Faultline) as handled
+            # NOTE: Must use ::Rails to avoid resolving to RAAF::Rails inside this namespace
+            ::Rails.error.report(e, handled: true, context: {
+              source: "raaf.incremental_processor",
+              agent_name: agent_name,
+              batch_number: batch_number
+            })
+
             # Track failed batch for reporting
             failed_batches << { batch_number: batch_number, error: e.message, error_class: e.class.name }
 
