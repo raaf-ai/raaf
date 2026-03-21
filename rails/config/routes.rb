@@ -120,6 +120,52 @@ RAAF::Rails::Engine.routes.draw do
     end
   end
 
+  # Opik-inspired features: Datasets, Experiments, Feedback Scores, Prompts
+  namespace :eval do
+    resources :datasets do
+      member do
+        post :new_version
+        post :archive
+      end
+      resources :items, controller: 'dataset_items', only: %i[index show create destroy] do
+        collection do
+          post :import_from_span
+        end
+      end
+    end
+
+    resources :experiments do
+      member do
+        post :run
+        post :cancel
+      end
+      resources :results, controller: 'experiment_results', only: %i[index show]
+    end
+
+    resources :feedback_scores, only: %i[index show create destroy] do
+      collection do
+        post :score_span
+        post :score_trace
+        get :statistics
+      end
+    end
+
+    resources :feedback_score_definitions, only: %i[index show create update destroy]
+
+    resources :prompts do
+      resources :versions, controller: 'prompt_versions', only: %i[index show create] do
+        member do
+          post :publish
+          post :archive
+        end
+      end
+      member do
+        get :diff
+        get :history
+      end
+    end
+  end
+
   # WebSocket routes - Action Cable handles WebSocket connections
   # mount ActionCable.server => "/cable" if RAAF::Rails.config[:enable_websockets]
 end
