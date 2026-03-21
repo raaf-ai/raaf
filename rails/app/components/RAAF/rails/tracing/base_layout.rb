@@ -1106,6 +1106,30 @@ module RAAF
             path: continuous_policies_path,
             icon_name: "check-circle",
             active: false
+          },
+          {
+            label: "Datasets",
+            path: eval_datasets_path,
+            icon_name: "database",
+            active: false
+          },
+          {
+            label: "Experiments",
+            path: eval_experiments_path,
+            icon_name: "flask",
+            active: false
+          },
+          {
+            label: "Feedback",
+            path: eval_feedback_scores_path,
+            icon_name: "star",
+            active: false
+          },
+          {
+            label: "Prompts",
+            path: eval_prompts_path,
+            icon_name: "file-text",
+            active: false
           }
         ]
       end

@@ -168,6 +168,42 @@ module RAAF
           "/raaf/continuous/analytics"
         end
 
+        # Eval feature routes (Opik-inspired: Datasets, Experiments, Feedback, Prompts)
+        def eval_datasets_path(params = {})
+          path = "/raaf/eval/datasets"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def eval_dataset_path(id)
+          dataset_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/eval/datasets/#{dataset_id}"
+        end
+
+        def eval_experiments_path(params = {})
+          path = "/raaf/eval/experiments"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def eval_experiment_path(id)
+          experiment_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/eval/experiments/#{experiment_id}"
+        end
+
+        def eval_feedback_scores_path(params = {})
+          path = "/raaf/eval/feedback_scores"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def eval_prompts_path(params = {})
+          path = "/raaf/eval/prompts"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def eval_prompt_path(id)
+          prompt_id = id.respond_to?(:id) ? id.id : id
+          "/raaf/eval/prompts/#{prompt_id}"
+        end
+
         # Span replay routes
         def tracing_span_replays_path(span_id, params = {})
           span_id_str = span_id.respond_to?(:span_id) ? span_id.span_id : span_id
