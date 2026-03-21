@@ -32,6 +32,16 @@ require_relative "raaf/eval/models/evaluation_span"
 require_relative "raaf/eval/models/evaluation_configuration"
 require_relative "raaf/eval/models/evaluation_result"
 
+# Load Opik-inspired models (Datasets, Experiments, Feedback, Prompts)
+require_relative "raaf/eval/models/dataset"
+require_relative "raaf/eval/models/dataset_item"
+require_relative "raaf/eval/models/experiment"
+require_relative "raaf/eval/models/experiment_result"
+require_relative "raaf/eval/models/feedback_score"
+require_relative "raaf/eval/models/feedback_score_definition"
+require_relative "raaf/eval/models/prompt"
+require_relative "raaf/eval/models/prompt_version"
+
 # Load DSL components (required before continuous evaluation)
 require_relative "raaf/eval/dsl/evaluator"
 require_relative "raaf/eval/dsl/evaluator_registry"
@@ -53,6 +63,9 @@ require_relative "raaf/eval/span_replayer"
 
 # Load evaluation engine
 require_relative "raaf/eval/evaluation_engine"
+
+# Load experiment engine (Opik-inspired)
+require_relative "raaf/eval/experiment_engine"
 
 # Load metrics system
 require_relative "raaf/eval/metrics/token_metrics"
