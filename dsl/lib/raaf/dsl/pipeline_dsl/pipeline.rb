@@ -240,6 +240,13 @@ module RAAF
         # Auto-merge all agent results intelligently
         merged_result = auto_merge_results(@agent_results)
 
+        # Merge declared context output fields into result
+        output_fields = self.class.context_config[:output] || []
+        context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
+        output_fields.each do |field|
+          merged_result[field] = context_hash[field] if context_hash.key?(field)
+        end
+
         # Execute on_end hook if defined and capture modified result
         if self.class.on_end_block
           merged_result = execute_callback_with_parameters(merged_result, &self.class.on_end_block)

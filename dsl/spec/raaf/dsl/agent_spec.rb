@@ -1171,4 +1171,94 @@ RSpec.describe RAAF::DSL::Agent do
       end
     end
   end
+
+  describe "#run_with_incremental_processing" do
+    # Regression test: persistence_handler context output fields must appear in the result.
+    #
+    # Bug: run_with_incremental_processing returned only {success:, <output_field>:, usage:}.
+    # Values set on @context by persistence_handler (e.g. accumulated IDs and counts) were
+    # silently dropped, so callers always received 0 for any count they relied on.
+    #
+    # Fix: after building the result hash, declared output fields present in @context are
+    # merged in, making persistence_handler-accumulated state visible to callers.
+
+    let(:agent_class) do
+      Class.new(described_class) do
+        agent_name "IncrementalOutputFieldAgent"
+        model "gpt-4o"
+
+        # Declare what this agent produces
+        context do
+          required :items
+          output :processed_items    # primary output (the array)
+          output :created_ids        # accumulated by persistence_handler
+          output :total_created      # accumulated by persistence_handler
+        end
+
+        incremental_input_field  :items
+        incremental_output_field :processed_items
+
+        schema do
+          field :processed_items, type: :array, required: true do
+            field :id,   type: :integer, required: true
+            field :name, type: :string,  required: true
+          end
+        end
+
+        incremental_processing do
+          chunk_size 2
+
+          skip_if { |_item, _ctx| false }  # never skip
+
+          persistence_handler do |batch_results, context|
+            # Accumulate IDs and count across batches – exactly how Prospect::Scoring works
+            context[:created_ids] ||= []
+            context[:created_ids].concat(batch_results.map { |r| r[:id] })
+            context[:total_created] = context[:created_ids].size
+          end
+        end
+
+        def build_instructions = "Process items"
+      end
+    end
+
+    let(:input_items) do
+      [
+        { id: 1, name: "Alpha" },
+        { id: 2, name: "Beta" },
+        { id: 3, name: "Gamma" }
+      ]
+    end
+
+    let(:agent) { agent_class.new(items: input_items) }
+
+    before do
+      # Stub run_agent_on_batch so we don't need a live LLM.
+      # Return a result whose :processed_items mirrors the batch passed in.
+      allow(agent).to receive(:run_agent_on_batch) do |items, _ctx, **|
+        { success: true, processed_items: items, usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 } }
+      end
+    end
+
+    it "includes persistence_handler-accumulated context output fields in the result" do
+      result = agent.run
+
+      expect(result[:created_ids]).to eq([1, 2, 3])
+      expect(result[:total_created]).to eq(3)
+    end
+
+    it "still includes the primary output field in the result" do
+      result = agent.run
+
+      expect(result[:processed_items]).to be_an(Array)
+      expect(result[:processed_items].map { |i| i[:id] }).to contain_exactly(1, 2, 3)
+    end
+
+    it "includes success and usage in the result" do
+      result = agent.run
+
+      expect(result[:success]).to eq(true)
+      expect(result[:usage]).to be_a(Hash)
+    end
+  end
 end

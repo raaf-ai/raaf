@@ -1414,11 +1414,25 @@ module RAAF
         log_debug "🔍 [#{self.class.name}::run_with_incremental_processing] Final accumulated usage: #{accumulated_usage.inspect}"
 
         # Return results in standard format with accumulated usage
-        {
+        result = {
           success: true,
           output_field => processed_results,
           usage: accumulated_usage
         }
+
+        # Include context output fields set during incremental processing (e.g., by persistence_handler)
+        # These are values accumulated across batches (like prospect_ids, counts) that don't come
+        # from the AI result_transform but are set directly on @context by the persistence_handler.
+        context_rules = self.class._context_config&.dig(:context_rules)
+        declared_output_fields = context_rules&.dig(:output) || []
+        declared_output_fields.each do |field|
+          field_sym = field.to_sym
+          next if field_sym == output_field.to_sym  # Already included above
+          value = @context[field_sym]
+          result[field_sym] = value unless value.nil?
+        end
+
+        result
       end
 
       # Run the agent on a batch of items
