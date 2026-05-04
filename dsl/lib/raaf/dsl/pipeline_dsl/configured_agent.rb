@@ -65,12 +65,17 @@ module RAAF
             context_hash = enhanced_context.is_a?(RAAF::DSL::ContextVariables) ? enhanced_context.to_h : enhanced_context
             agent = @agent_class.new(**context_hash)
 
-            # Delegate to agent.run which handles:
+            # Delegate to agent.run or service.call (Services use call, Agents use run).
+            # Both paths handle:
             # - Retry logic (via execute_with_retry)
             # - Timeout logic (via execution_timeout config)
             # - Circuit breaker
-            # - All smart features from ApplicationAgent
-            result = agent.run
+            # - All smart features from ApplicationAgent/Service
+            result = if @agent_class < RAAF::DSL::Service
+                       agent.call
+                     else
+                       agent.run
+                     end
 
             # Merge results back into original context
             if @agent_class.respond_to?(:provided_fields)

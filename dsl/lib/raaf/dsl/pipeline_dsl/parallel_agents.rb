@@ -125,7 +125,12 @@ module RAAF
             return {} unless agent.requirements_met?(context)
 
             agent_instance = agent.new(context: context)
-            result = agent_instance.run
+            # Services use call, Agents use run
+            result = if agent < RAAF::DSL::Service
+                       agent_instance.call
+                     else
+                       agent_instance.run
+                     end
 
             # Check for failure in result - propagate immediately if agent failed
             if result.is_a?(Hash) && result.key?(:success) && result[:success] == false
