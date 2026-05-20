@@ -78,8 +78,10 @@ module RAAF
             # Validate field context
             validate_field_context!(field_context)
 
-            # Extract output value
-            output = field_context.value
+            # Extract output value — serialize non-String values (Hashes, Arrays) to JSON
+            # so downstream string operations (downcase, split) work correctly
+            raw_output = field_context.value
+            output = raw_output.is_a?(String) ? raw_output : raw_output.to_json
 
             # Use LLM judge to evaluate against criteria
             criteria_results, chain_of_thought = llm_judge_criteria(
@@ -182,12 +184,95 @@ module RAAF
           # @param model [String, nil] LLM model for judging
           # @return [Array<Array<Hash>, String>] Criteria results and chain-of-thought reasoning
           def llm_judge_criteria(output:, criteria:, model: nil)
-            # Build evaluation prompt with chain-of-thought structure
             prompt = build_g_eval_prompt(output, criteria)
+            judge_model = model || "gpt-4o-mini"
 
-            # Call LLM for evaluation (placeholder - will integrate with RAAF LLM call)
-            # TODO: Replace with actual RAAF LLM call
+            response_text = call_llm(prompt, judge_model)
+
+            if response_text
+              result = parse_llm_response(response_text, criteria)
+              return result if result
+            end
+
+            RAAF.logger&.warn("[GEval] LLM judge unavailable, falling back to mock evaluation")
             mock_criteria_evaluation(output, criteria)
+          end
+
+          # Make a direct OpenAI chat completions call for evaluation
+          #
+          # @param prompt [String] Evaluation prompt
+          # @param model [String] Model to use
+          # @return [String, nil] JSON response text or nil on failure
+          def call_llm(prompt, model)
+            require "net/http"
+            require "json"
+
+            api_key = ENV["OPENAI_API_KEY"]
+            unless api_key&.present?
+              RAAF.logger&.warn("[GEval] OPENAI_API_KEY not set, cannot run LLM judge")
+              return nil
+            end
+
+            uri = URI("https://api.openai.com/v1/chat/completions")
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = true
+            http.read_timeout = 30
+            http.open_timeout = 10
+
+            req = Net::HTTP::Post.new(uri)
+            req["Authorization"] = "Bearer #{api_key}"
+            req["Content-Type"] = "application/json"
+            req.body = JSON.generate({
+              model: model,
+              messages: [{ role: "user", content: prompt }],
+              temperature: 0,
+              response_format: { type: "json_object" }
+            })
+
+            response = http.request(req)
+            unless response.is_a?(Net::HTTPSuccess)
+              RAAF.logger&.warn("[GEval] OpenAI API returned #{response.code}: #{response.body[0..200]}")
+              return nil
+            end
+
+            data = JSON.parse(response.body)
+            data.dig("choices", 0, "message", "content")
+          rescue => e
+            RAAF.logger&.warn("[GEval] LLM call failed: #{e.class}: #{e.message}")
+            nil
+          end
+
+          # Parse LLM JSON response into criteria results
+          #
+          # @param response_text [String] JSON text from LLM
+          # @param criteria [Array<Hash>] Original criteria
+          # @return [Array<Array<Hash>, String>, nil] [criteria_results, chain_of_thought] or nil on failure
+          def parse_llm_response(response_text, criteria)
+            data = JSON.parse(response_text)
+            llm_criteria = Array(data["criteria"])
+            chain = data["overall_chain_of_thought"].to_s
+
+            criteria_results = criteria.map.with_index do |criterion, index|
+              llm_result = llm_criteria.find { |c| c["criterion"] == "criterion_#{index + 1}" } ||
+                           llm_criteria[index] ||
+                           {}
+
+              raw_score = llm_result["score"].to_f
+              score = [[raw_score, 0.0].max, 1.0].min
+
+              {
+                criterion: criterion[:criterion],
+                description: criterion[:description],
+                weight: criterion[:weight],
+                score: score,
+                reasoning: llm_result["reasoning"].to_s.presence || "Score: #{(score * 100).round}%"
+              }
+            end
+
+            [criteria_results, chain]
+          rescue JSON::ParserError => e
+            RAAF.logger&.warn("[GEval] JSON parse failed: #{e.message}. Response: #{response_text[0..200]}")
+            nil
           end
 
           # Build G-Eval prompt with chain-of-thought structure
