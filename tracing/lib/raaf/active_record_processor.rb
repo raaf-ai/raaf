@@ -103,7 +103,7 @@ module RAAF
         # Lazy validation flag
         @database_validated = false
 
-        log_info("ActiveRecord processor initialized",
+        log_info("ActiveRecord processor initialized (v2-workflow-fix)",
           sampling_rate_percent: (@sampling_rate * 100).round(1),
           batch_size: @batch_size
         )
@@ -272,6 +272,7 @@ module RAAF
             # Fall through to DB check below to wait for or create trace
           else
             log_debug_tracing("ActiveRecord trace confirmed persisted in DB", trace_id: actual_trace_id)
+            update_workflow_name_if_better(actual_trace_id, span)
             return
           end
         end
@@ -281,6 +282,7 @@ module RAAF
         if existing_trace
           log_debug_tracing("ActiveRecord found existing trace in DB", trace_id: actual_trace_id)
           @trace_buffer[actual_trace_id] = existing_trace
+          update_workflow_name_if_better(actual_trace_id, span)
           return
         end
 
@@ -844,6 +846,56 @@ module RAAF
         log_warn("Failed to update trace status",
                  trace_id: trace_id,
                  error: e.message)
+      end
+
+      # Update trace workflow_name when span carries an explicit "trace.workflow_name" attribute
+      # and the trace was initially created with a generic name (e.g. "run").
+      # This handles the case where search/component spans are flushed before the parent
+      # job span, causing the trace to be created under the component name.
+      #
+      # @param trace_id [String] The trace ID
+      # @param span [Span, Hash] The incoming span that may carry a better workflow_name
+      def update_workflow_name_if_better(trace_id, span)
+        span_kind = span.is_a?(Hash) ? span[:kind] : span.kind
+        attributes = span.is_a?(Hash) ? (span[:attributes] || {}) : (span.attributes || {})
+
+        log_debug_tracing("ActiveRecord update_workflow_name_if_better called",
+                          trace_id: trace_id,
+                          span_kind: span_kind,
+                          has_workflow_attr: attributes.key?("trace.workflow_name"),
+                          attr_keys: attributes.keys.select { |k| k.to_s.include?("trace.") }.join(", "))
+
+        new_name = attributes["trace.workflow_name"]
+        unless new_name.present?
+          log_debug_tracing("ActiveRecord update_workflow_name_if_better: no trace.workflow_name in span",
+                            trace_id: trace_id, span_kind: span_kind)
+          return
+        end
+
+        trace_record = @trace_buffer[trace_id]
+        unless trace_record
+          log_debug_tracing("ActiveRecord update_workflow_name_if_better: trace not in buffer",
+                            trace_id: trace_id)
+          return
+        end
+
+        if trace_record.workflow_name == new_name
+          log_debug_tracing("ActiveRecord update_workflow_name_if_better: workflow_name already correct",
+                            trace_id: trace_id, workflow_name: new_name)
+          return
+        end
+
+        log_info("ActiveRecord updating trace workflow_name",
+                 trace_id: trace_id,
+                 old_name: trace_record.workflow_name,
+                 new_name: new_name)
+
+        trace_record.update!(workflow_name: new_name)
+      rescue StandardError => e
+        log_warn("Failed to update trace workflow_name",
+                 trace_id: trace_id,
+                 error: e.message,
+                 error_class: e.class.name)
       end
 
       # Validate that database tables exist

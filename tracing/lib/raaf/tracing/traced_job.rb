@@ -65,6 +65,8 @@ module RAAF
             end
           end
         end
+      ensure
+        force_flush_traces
       end
 
       # Ensure we have a tracer context for the job
