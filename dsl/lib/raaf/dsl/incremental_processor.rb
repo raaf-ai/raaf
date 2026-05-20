@@ -266,17 +266,16 @@ module RAAF
             # Use processed data
             processed_item = processed_items[processed_index]
 
-            # Check for nil - indicates result_transform broke 1:1 correspondence
+            # Check for nil - LLM returned fewer items than expected (non-determinism)
             if processed_item.nil?
               agent_name = @agent.class.name.split('::').last
-              error_msg = "❌ [#{agent_name}] CRITICAL: result_transform broke 1:1 correspondence! " \
-                          "Expected #{original_items.count - skipped_items.count} processed items, " \
-                          "but only got #{processed_items.compact.count}. " \
-                          "This usually means result_transform is filtering items (e.g., .select, .reject). " \
-                          "Result transforms must return ALL processed items to maintain order."
+              warn_msg = "⚠️ [#{agent_name}] LLM returned fewer processed items than expected! " \
+                         "Expected #{original_items.count - skipped_items.count} processed items, " \
+                         "but only got #{processed_items.compact.count}. " \
+                         "Missing items will be omitted from results."
 
-              RAAF.logger.error error_msg
-              raise ArgumentError, error_msg
+              RAAF.logger.warn warn_msg
+              next
             end
 
             result << processed_item
