@@ -50,11 +50,6 @@ module RAAF
         # Hook called when module is included in a class
         # Includes Evaluator interface and extends with ClassMethods
         def self.included(base)
-          # Use safe logging in case RAAF.logger is not available during load
-          safe_log = ->(msg) { RAAF.logger.info(msg) rescue puts(msg) }
-          safe_log.call "[EvaluatorDefinition] Module included in: #{base.name}"
-          safe_log.call "[EvaluatorDefinition] Setting up @_evaluator_config..."
-
           # Track all classes that include this module
           @mutex.synchronize { @included_classes << base }
 
@@ -68,7 +63,6 @@ module RAAF
             span_transformer: nil
           }
           base.instance_variable_set(:@_evaluator_config, config)
-          safe_log.call "[EvaluatorDefinition] @_evaluator_config set with object_id: #{config.object_id}"
 
           # Override Evaluator's evaluate method with delegation to DSL evaluator
           # This must be defined here (not as module method) because Evaluator
@@ -320,10 +314,7 @@ module RAAF
           #     span_data.merge(prospect_evaluations: transformed)
           #   end
           def transform_span_data(&block)
-            RAAF.logger.info "[EvaluatorDefinition] transform_span_data called on #{name}"
-            RAAF.logger.info "[EvaluatorDefinition] Setting span_transformer block: #{block.present?}"
             @_evaluator_config[:span_transformer] = block
-            RAAF.logger.info "[EvaluatorDefinition] @_evaluator_config[:span_transformer] now set: #{@_evaluator_config[:span_transformer].present?}"
           end
 
           # Returns the span transformer block if defined
@@ -394,25 +385,10 @@ module RAAF
           # @param options [Hash] Additional options passed to evaluator
           # @return [RAAF::Eval::Result] Evaluation result
           def evaluate(span_data, **options)
-            # Debug logging to trace transformation
-            RAAF.logger.info "=" * 60
-            RAAF.logger.info "[EvaluatorDefinition] CLASS METHOD evaluate called!"
-            RAAF.logger.info "[EvaluatorDefinition] Self: #{self.inspect}"
-            RAAF.logger.info "[EvaluatorDefinition] Self.name: #{name}"
-            RAAF.logger.info "[EvaluatorDefinition] @_evaluator_config present: #{@_evaluator_config.present?}"
-            RAAF.logger.info "[EvaluatorDefinition] @_evaluator_config object_id: #{@_evaluator_config&.object_id}"
-            RAAF.logger.info "[EvaluatorDefinition] span_transformer present: #{@_evaluator_config&.dig(:span_transformer).present?}"
-            RAAF.logger.info "[EvaluatorDefinition] span_transformer object: #{@_evaluator_config&.dig(:span_transformer).inspect[0..100]}"
-            RAAF.logger.info "=" * 60
-
             # Apply span transformer if defined
             transformed_data = if @_evaluator_config&.dig(:span_transformer)
-              RAAF.logger.info "[EvaluatorDefinition] Applying span transformer"
-              result = @_evaluator_config[:span_transformer].call(span_data)
-              RAAF.logger.info "[EvaluatorDefinition] Transformation complete"
-              result
+              @_evaluator_config[:span_transformer].call(span_data)
             else
-              RAAF.logger.info "[EvaluatorDefinition] No span transformer, using original data"
               span_data
             end
 

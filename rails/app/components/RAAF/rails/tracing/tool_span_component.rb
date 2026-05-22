@@ -97,15 +97,15 @@ module RAAF
         end
 
         def render_io_flow
-          div(class: "grid grid-cols-1 lg:grid-cols-2 gap-6") do
-            # Input Parameters
+          div(class: "space-y-6") do
+            # Input Parameters (query)
             input_data = tool_data.dig("input") || tool_data.dig("arguments") || extract_span_attribute("tool_arguments")
             if input_data
               div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
                 div(class: "px-4 py-5 sm:px-6 border-b border-blue-200 bg-blue-50") do
                   div(class: "flex items-center gap-3") do
-                    i(class: "bi bi-arrow-right text-blue-600 text-lg")
-                    h3(class: "text-lg font-semibold text-blue-900") { "Input Parameters" }
+                    i(class: "bi bi-search text-blue-600 text-lg")
+                    h3(class: "text-lg font-semibold text-blue-900") { "Query" }
                   end
                 end
                 div(class: "px-4 py-5 sm:p-6") do
@@ -113,10 +113,9 @@ module RAAF
                 end
               end
             else
-              # Empty state for inputs
               div(class: "bg-white overflow-hidden shadow rounded-lg border-2 border-dashed border-gray-200") do
                 div(class: "px-4 py-8 text-center") do
-                  i(class: "bi bi-arrow-right text-gray-400 text-2xl mb-2")
+                  i(class: "bi bi-search text-gray-400 text-2xl mb-2")
                   p(class: "text-sm text-gray-500") { "No input parameters" }
                 end
               end
@@ -131,16 +130,15 @@ module RAAF
               div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
                 div(class: "px-4 py-5 sm:px-6 border-b border-green-200 bg-green-50") do
                   div(class: "flex items-center gap-3") do
-                    i(class: "bi bi-arrow-left text-green-600 text-lg")
-                    h3(class: "text-lg font-semibold text-green-900") { "Output Results" }
+                    i(class: "bi bi-body-text text-green-600 text-lg")
+                    h3(class: "text-lg font-semibold text-green-900") { "Results" }
                   end
                 end
                 div(class: "px-4 py-5 sm:p-6") do
-                  render_json_section("Output Data", output_data, collapsed: false, use_json_highlighter: true)
+                  render_full_json_output(output_data)
                 end
               end
             elsif result_metadata.any?
-              # Show metadata when actual output isn't captured
               div(class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200") do
                 div(class: "px-4 py-5 sm:px-6 border-b border-yellow-200 bg-yellow-50") do
                   div(class: "flex items-center gap-3") do
@@ -161,14 +159,26 @@ module RAAF
                 end
               end
             else
-              # Empty state for outputs
               div(class: "bg-white overflow-hidden shadow rounded-lg border-2 border-dashed border-gray-200") do
                 div(class: "px-4 py-8 text-center") do
-                  i(class: "bi bi-arrow-left text-gray-400 text-2xl mb-2")
+                  i(class: "bi bi-body-text text-gray-400 text-2xl mb-2")
                   p(class: "text-sm text-gray-500") { "No output results" }
                 end
               end
             end
+          end
+        end
+
+        def render_full_json_output(data)
+          json_str = format_json_display(data)
+          pre(
+            class: "bg-white p-3 rounded border text-xs overflow-x-auto font-mono overflow-y-auto text-gray-900",
+            data: {
+              controller: "json-highlight",
+              json_highlight_target: "json"
+            }
+          ) do
+            json_str
           end
         end
 

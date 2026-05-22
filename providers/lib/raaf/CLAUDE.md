@@ -8,4 +8,17 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #1572 | 1:53 PM | 🔵 | RAAF Agent Result Structure - Schema Fields in :message Key | ~378 |
+
+### May 20, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #4923 | 5:20 PM | ⚖️ | DMU Discovery Migration: Brave Search + Gemini Architecture Designed | ~742 |
+| #4906 | 4:02 PM | 🔄 | Migrated DMU Discovery Agent from Perplexity to Gemini with Google Search Grounding | ~522 |
+
+### May 21, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #4993 | 10:59 AM | 🔵 | GeminiProvider implements responses_completion without tracing instrumentation | ~273 |
 </claude-mem-context>

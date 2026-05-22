@@ -52,6 +52,8 @@ module RAAF
             render_response_span_component
           when "speech_group", "speech", "transcription", "mcp_list_tools"
             render_specialized_span_component
+          when "component"
+            render_component_span
           else
             render_generic_span_component
           end
@@ -96,6 +98,16 @@ module RAAF
           render base_component.render_timing_details
           render_attributes_section
           # Specialized span sections will be added in later tasks
+        end
+
+        def render_component_span
+          component_type = @span.span_attributes&.dig("component.type")
+          case component_type
+          when "search"
+            render SearchSpanComponent.new(span: @span, trace: @trace)
+          else
+            render SpanDetail::GenericSpanComponent.new(span: @span, trace: @trace)
+          end
         end
 
         def render_generic_span_component
