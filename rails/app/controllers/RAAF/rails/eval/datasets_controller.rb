@@ -53,6 +53,17 @@ module RAAF
           end
         end
 
+        # GET /raaf/eval/datasets/:id/edit
+        def edit
+          respond_to do |format|
+            format.html do
+              component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
+              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@dataset.name}") { render component }
+              render layout
+            end
+          end
+        end
+
         # POST /raaf/eval/datasets
         def create
           @dataset = Dataset.new(dataset_params)
