@@ -109,13 +109,18 @@ module RAAF
           return AgentCollector.new
         end
 
+        # Anonymous classes (e.g. Class.new(Base) without assignment) have nil
+        # #name. They can never match a *Collector constant, so go straight to
+        # the BaseCollector fallback instead of NoMethodError on nil.split.
+        return BaseCollector.new if class_name.nil?
+
         # Standard naming convention for other components
-        collector_name = "#{class_name.split('::').last}Collector"
+        base_name = class_name.split('::').last
+        collector_name = "#{base_name}Collector"
         if const_defined?(collector_name)
           const_get(collector_name).new
         else
           # Pattern-based fallback
-          base_name = class_name.split('::').last
           return ToolCollector.new if base_name.end_with?('Tool')
           return PipelineCollector.new if base_name.end_with?('Pipeline')
           return JobCollector.new if base_name.end_with?('Job')
