@@ -88,7 +88,7 @@ module RAAF
               plain " to enable evaluation."
             end
             a(
-              href: helpers.continuous_policies_path,
+              href: continuous_policies_path,
               class: "inline-flex items-center gap-1 mt-3 text-sm text-indigo-600 hover:text-indigo-800"
             ) do
               i(class: "bi-plus-circle")
@@ -170,11 +170,11 @@ module RAAF
           button_class = existing_result ? "text-gray-700 bg-gray-100 hover:bg-gray-200" : "text-white bg-indigo-600 hover:bg-indigo-700"
 
           form(
-            action: helpers.evaluate_tracing_span_path(@span.span_id, policy_id: policy.id),
+            action: evaluate_tracing_span_path(@span.span_id, policy_id: policy.id),
             method: "post",
             data: { turbo: true }
           ) do
-            input(type: "hidden", name: "authenticity_token", value: helpers.form_authenticity_token)
+            input(type: "hidden", name: "authenticity_token", value: form_authenticity_token)
             button(
               type: "submit",
               class: "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{button_class}"

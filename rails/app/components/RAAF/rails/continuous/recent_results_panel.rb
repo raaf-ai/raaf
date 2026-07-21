@@ -56,14 +56,14 @@ module RAAF
           display_name = check_details[:display_name] || field_name&.to_s&.humanize || "Evaluation"
 
           a(
-            href: helpers.continuous_result_path(result),
+            href: continuous_result_path(result),
             class: "flex items-center justify-between p-2 rounded hover:bg-gray-50 transition-colors"
           ) do
             div(class: "flex items-center gap-2") do
               render_result_status_badge(result)
               span(class: "text-sm font-medium text-gray-700") { display_name }
             end
-            span(class: "text-xs text-gray-400") { helpers.time_ago_in_words(result.created_at) + " ago" }
+            span(class: "text-xs text-gray-400") { time_ago_in_words(result.created_at) + " ago" }
           end
         end
 

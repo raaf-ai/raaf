@@ -15,6 +15,7 @@ module RAAF
         include Phlex::Rails::Helpers::Routes
         include Phlex::Rails::Helpers::CSRFMetaTags
         include Phlex::Rails::Helpers::CSPMetaTag
+        include Phlex::Rails::Helpers::FormAuthenticityToken
         include RAAF::Logging
 
         private
@@ -78,6 +79,12 @@ module RAAF
 
         def tracing_search_path
           "/raaf/tracing/search"
+        end
+
+        def evaluate_tracing_span_path(span_id, params = {})
+          span_id_str = span_id.respond_to?(:span_id) ? span_id.span_id : span_id
+          path = "/raaf/tracing/spans/#{span_id_str}/evaluate"
+          params.empty? ? path : "#{path}?#{params.to_query}"
         end
 
         # Continuous evaluation routes
