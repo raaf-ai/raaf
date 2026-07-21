@@ -464,6 +464,10 @@ module RAAF
           }
         end
 
+        # Copy token usage + model out of the JSON payload into native columns
+        # so cost aggregation can SUM/GROUP BY without scanning span_attributes.
+        span_attributes.merge!(self.class.token_columns_from(span_attributes[:span_attributes]))
+
         log_debug_tracing("ActiveRecord creating span record", span_kind: span_attributes[:kind], span_name: span_attributes[:name], span_id: span_attributes[:span_id])
 
         ::RAAF::Tracing::SpanRecord.create!(span_attributes)
@@ -517,6 +521,77 @@ module RAAF
         else
           nil
         end
+      end
+
+      # Extract token usage and model into the native indexed columns.
+      #
+      # Token usage and model are emitted inside the span attributes payload,
+      # never as dedicated fields. Agent spans carry top-level +input_tokens+/
+      # +output_tokens+/+agent.model+; LLM spans use the +llm.usage.*+ /
+      # +llm.request.model+ keys. Copying them into columns lets cost queries
+      # aggregate with plain SUM/GROUP BY instead of scanning the JSON blob.
+      #
+      # Returns a hash of only the columns that could be resolved, so callers
+      # can merge it without clobbering existing values with nils.
+      #
+      # @param attributes [Hash, nil] Sanitized span attributes
+      # @return [Hash] Subset of { input_tokens:, output_tokens:, agent_model: }
+      def self.token_columns_from(attributes)
+        cols = {}
+        input = attr_lookup(attributes, "input_tokens") ||
+                attr_lookup(attributes, "llm.usage.input_tokens") ||
+                attr_lookup(attributes, "llm.usage.prompt_tokens") ||
+                usage_lookup(attributes, "input_tokens") ||
+                usage_lookup(attributes, "prompt_tokens")
+        output = attr_lookup(attributes, "output_tokens") ||
+                 attr_lookup(attributes, "llm.usage.output_tokens") ||
+                 attr_lookup(attributes, "llm.usage.completion_tokens") ||
+                 usage_lookup(attributes, "output_tokens") ||
+                 usage_lookup(attributes, "completion_tokens")
+        model = attr_lookup(attributes, "agent.model") ||
+                attr_lookup(attributes, "llm.request.model") ||
+                attr_lookup(attributes, "llm.model") ||
+                attr_lookup(attributes, "model")
+
+        input_i  = token_to_i(input)
+        output_i = token_to_i(output)
+        model_s  = clean_model(model)
+        cols[:input_tokens]  = input_i  unless input_i.nil?
+        cols[:output_tokens] = output_i unless output_i.nil?
+        cols[:agent_model]   = model_s  unless model_s.nil?
+        cols
+      end
+
+      # Read a key from an attributes hash, tolerating string or symbol keys.
+      def self.attr_lookup(attrs, key)
+        return nil unless attrs.is_a?(Hash)
+
+        attrs[key].nil? ? attrs[key.to_sym] : attrs[key]
+      end
+
+      # Read a token key nested under a "usage" hash (alert-engine style payloads).
+      def self.usage_lookup(attrs, key)
+        usage = attr_lookup(attrs, "usage")
+        attr_lookup(usage, key)
+      end
+
+      # Coerce a token value to a non-negative integer, or nil if not numeric.
+      def self.token_to_i(value)
+        return nil if value.nil?
+        return value if value.is_a?(Integer)
+
+        str = value.to_s.strip
+        str.match?(/\A\d+\z/) ? str.to_i : nil
+      end
+
+      # Clean a model value, rejecting placeholders like "N/A".
+      def self.clean_model(value)
+        return nil if value.nil?
+
+        str = value.to_s.strip
+        return nil if str.empty? || %w[N/A n/a unknown].include?(str)
+
+        str.slice(0, 100)
       end
 
       # Sanitize span attributes for database storage
