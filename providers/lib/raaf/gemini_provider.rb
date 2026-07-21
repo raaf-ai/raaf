@@ -618,7 +618,9 @@ module RAAF
       #
       def convert_gemini_to_openai_format(result)
         candidate = result["candidates"]&.first || {}
-        content_part = candidate.dig("content", "parts")&.first || {}
+        parts = candidate.dig("content", "parts") || []
+        # Skip thinking/thought parts (Gemini 2.5 Flash returns these before the actual response)
+        content_part = parts.find { |p| !p["thought"] } || parts.first || {}
 
         # Extract text content
         content = content_part["text"] || ""
@@ -796,7 +798,8 @@ module RAAF
           candidate = json_data["candidates"]&.first
           return unless candidate
 
-          content_part = candidate.dig("content", "parts")&.first
+          parts = candidate.dig("content", "parts") || []
+          content_part = parts.find { |p| !p["thought"] } || parts.first
           return unless content_part
 
           delta = content_part["text"]
