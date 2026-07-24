@@ -1583,6 +1583,117 @@ result = runner.run("Task", num_ctx: 2048)  # Smaller context = less memory
 - ❌ Resource-constrained environments (< 8 GB RAM)
 - ❌ Applications requiring latest model capabilities
 
+## OpenAI-Compatible Providers (DeepSeek, Qwen, GLM, MiMo + EU gateways)
+
+Many newer vendors ship an endpoint that speaks the exact OpenAI
+`/chat/completions` wire format. Rather than duplicate the HTTP/streaming/error
+logic per vendor, they share a base class:
+
+- **`RAAF::Models::OpenAICompatibleProvider`** (`lib/raaf/openai_compatible_provider.rb`) —
+  handles the request body, SSE streaming, usage normalization, and OpenAI-style
+  error bodies. Subclasses supply only constants: `API_BASE`, `SUPPORTED_MODELS`,
+  `API_KEY_ENV`, `PROVIDER_DISPLAY_NAME`, `USAGE_PROVIDER_KEY`.
+
+To add another OpenAI-compatible vendor, subclass it and set those five constants —
+no HTTP code needed.
+
+### Two categories
+
+| Category | Providers | Model freshness | Data residency |
+|----------|-----------|-----------------|----------------|
+| **Vendor-direct** | DeepSeek, Qwen, GLM, MiMo | Latest (vendor's own API) | China-hosted — **not** GDPR-safe for EU PII |
+| **EU gateways** | Scaleway, OVHcloud, Nebius | Trails (open-weight re-hosting) | EU-resident (see per-provider caveats) |
+
+The vendor-direct and EU-gateway providers run the **same open-weight models**;
+they differ only in *who hosts the inference and where the data goes*. For prospect
+PII, prefer an EU gateway. For non-PII work or experimentation with the newest
+model versions, the vendor-direct APIs are fine.
+
+### Vendor-direct providers
+
+Auto-detected from the model name (e.g. `model: "deepseek-v4-pro"` selects
+`:deepseek`). China-hosted; do not route EU prospect PII here.
+
+| Provider | Class | `API_BASE` | API key env | Model-name pattern |
+|----------|-------|-----------|-------------|--------------------|
+| DeepSeek | `DeepSeekProvider` | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` | `^deepseek` |
+| Qwen (DashScope) | `QwenProvider` | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | `DASHSCOPE_API_KEY` | `^qwen` |
+| GLM (Zhipu / Z.ai) | `GLMProvider` | `https://api.z.ai/api/paas/v4` | `ZHIPUAI_API_KEY` (or `Z_AI_API_KEY`) | `^glm-` |
+| MiMo (Xiaomi) | `MimoProvider` | `https://api.xiaomimimo.com/v1` | `MIMO_API_KEY` | `^mimo` |
+
+```ruby
+# Auto-detected provider from model name
+provider = RAAF::Models::DeepSeekProvider.new(api_key: ENV["DEEPSEEK_API_KEY"])
+result = provider.chat_completion(
+  messages: [{ role: "user", content: "Summarize this filing" }],
+  model: "deepseek-v4-pro"
+)
+
+# Or via the DSL with auto-detection
+class ClassifierAgent < RAAF::DSL::Agent
+  model "qwen3-max"       # auto-detects :qwen
+  provider :qwen          # optional — made explicit
+end
+```
+
+**Region overrides** (China endpoints): set `api_base` to
+`https://dashscope.aliyuncs.com/compatible-mode/v1` (Qwen China) or
+`https://open.bigmodel.cn/api/paas/v4` (GLM China).
+
+> ⚠️ **DeepSeek naming:** `deepseek-chat` / `deepseek-reasoner` were retired
+> 2026-07-24 and map onto `deepseek-v4-flash`. Prefer the V4 ids
+> (`deepseek-v4-pro`, `deepseek-v4-flash`).
+
+### EU gateway providers (GDPR)
+
+These re-host the same open-weight models on EU infrastructure — the GDPR-safe
+way to run Qwen/DeepSeek/GLM/Kimi without sending PII to a China-hosted API.
+
+They are **gateways**, so:
+- **Explicit selection only** — not auto-detected (ids like `qwen3-32b` would
+  collide with the `:qwen` vendor-direct pattern). Choose with `provider :scaleway`.
+- **Permissive model id** — `validate_model` accepts any non-empty string
+  (host catalogues change; the live catalogue is the source of truth).
+  `SUPPORTED_MODELS` is a documented reference, not an allow-list.
+
+| Provider | Class | `API_BASE` | API key env | Region | Serves |
+|----------|-------|-----------|-------------|--------|--------|
+| Scaleway | `ScalewayProvider` | `https://api.scaleway.ai/v1` | `SCW_SECRET_KEY` | Paris 🇫🇷 (EU-only) | Qwen, DeepSeek, Llama, gpt-oss |
+| OVHcloud | `OVHProvider` | `https://oai.endpoints.kepler.ai.cloud.ovh.net/v1` | `OVHCLOUD_API_KEY` | Gravelines 🇫🇷 (EU-only) | Qwen, DeepSeek(-R1), Llama, Mistral |
+| Nebius | `NebiusProvider` | `https://api.tokenfactory.nebius.com/v1` | `NEBIUS_API_KEY` | EU **via dedicated endpoints** | DeepSeek, Qwen, **GLM**, **Kimi K2** |
+
+```ruby
+# Route a PII agent to EU-resident inference
+class EntityClassifierAgent < RAAF::DSL::Agent
+  provider :scaleway
+  model "qwen3.5-397b-a17b"   # a Scaleway catalogue id
+end
+# export SCW_SECRET_KEY=...
+```
+
+Model-id examples per host:
+- Scaleway: `qwen3.5-397b-a17b`, `qwen3-235b-a22b-instruct-2507`, `deepseek-r1-distill-llama-70b`
+- OVHcloud: `qwen3-32b`, `qwen3-coder-30b-a3b-instruct`, `deepseek-r1-distill-llama-70b`
+- Nebius: `deepseek-ai/DeepSeek-R1-0528`, `Qwen/Qwen3-235B-A22B`, `zai-org/GLM-4.6`, `moonshotai/Kimi-K2-Instruct` (HuggingFace `org/name` format)
+
+> ⚠️ **Nebius residency:** serverless endpoints may route outside the EU.
+> EU-resident inference requires a **dedicated endpoint** in an EU region —
+> point `api_base` at it, or verify the region before sending PII. Scaleway and
+> OVHcloud are EU-only by design and are the safer default for PII. Nebius is the
+> only one of the three carrying **GLM and Kimi K2**.
+
+### Choosing a target for ProspectsRadar agents
+
+| Need | Use |
+|------|-----|
+| Cheap, EU-resident, PII-safe, structured extraction | **Scaleway** or **OVHcloud** running Qwen3 / DeepSeek |
+| GLM or Kimi K2, EU-resident | **Nebius** dedicated EU endpoint |
+| Newest model versions, non-PII / experimentation | Vendor-direct (`:deepseek`, `:qwen`, `:glm`, `:mimo`) |
+| Zero compliance change, marginal cost cut | `gemini-2.5-flash-lite` (same vendor as current `gemini-2.5-flash`) |
+
+Perplexity `sonar` / `sonar-pro` agents (web-grounded search) are **not**
+replaceable by these — they have no built-in search grounding.
+
 ## Multi-Provider Support
 
 ```ruby

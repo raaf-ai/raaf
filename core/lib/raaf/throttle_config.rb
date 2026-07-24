@@ -50,6 +50,7 @@ module RAAF
       mimo: 60,              # Xiaomi MiMo standard tier
       scaleway: 300,         # Scaleway Generative APIs (EU-hosted)
       ovh: 120,              # OVHcloud AI Endpoints (EU-hosted)
+      nebius: 120,           # Nebius Token Factory (EU via dedicated endpoints)
       litellm: nil,          # LiteLLM depends on backend provider
       openrouter: nil        # OpenRouter depends on selected model
     }.freeze

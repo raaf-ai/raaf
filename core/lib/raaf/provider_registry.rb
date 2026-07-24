@@ -49,7 +49,8 @@ module RAAF
       glm: "RAAF::Models::GLMProvider",
       mimo: "RAAF::Models::MimoProvider",
       scaleway: "RAAF::Models::ScalewayProvider",
-      ovh: "RAAF::Models::OVHProvider"
+      ovh: "RAAF::Models::OVHProvider",
+      nebius: "RAAF::Models::NebiusProvider"
     }.freeze
 
     # Map of model name patterns to provider short names
