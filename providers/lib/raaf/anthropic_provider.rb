@@ -50,6 +50,11 @@ module RAAF
       # List of supported Claude models
       # Includes latest Claude 3.5 and Claude 3 models
       SUPPORTED_MODELS = %w[
+        claude-fable-5
+        claude-opus-4-8 claude-opus-4-7 claude-opus-4-6 claude-opus-4-5
+        claude-opus-4-1 claude-opus-4-0
+        claude-sonnet-5 claude-sonnet-4-6 claude-sonnet-4-5 claude-sonnet-4-0
+        claude-haiku-4-5
         claude-3-5-sonnet-20241022 claude-3-5-haiku-20241022
         claude-3-opus-20240229 claude-3-sonnet-20240229 claude-3-haiku-20240307
       ].freeze

@@ -53,6 +53,8 @@ module RAAF
       # Note: Gemini 1.5 and 1.0 models were deprecated April 29, 2025
       # See: https://ai.google.dev/gemini-api/docs/models
       SUPPORTED_MODELS = %w[
+        gemini-3.6-flash
+        gemini-3.5-flash-lite
         gemini-3-pro-preview
         gemini-3-pro-image-preview
         gemini-3-flash-preview
