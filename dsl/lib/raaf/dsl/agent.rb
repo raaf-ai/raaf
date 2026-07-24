@@ -3426,14 +3426,19 @@ module RAAF
         # Get explicit provider from configuration
         provider_name = self.class.provider
 
-        # If no explicit provider and auto-detection enabled, detect from model
+        # If no explicit provider and auto-detection enabled, detect from model.
+        # Use the instance #model_name (which resolves config/ai_agents.yml via
+        # RAAF::DSL::Config), NOT self.class.model. The class-level getter returns
+        # its "gpt-4o" default whenever the class declares no `model`, so detecting
+        # from it would route a yml-configured Gemini/Perplexity agent to OpenAI —
+        # the actual request is built with #model_name, and the provider must match it.
         if provider_name.nil? && auto_detect
-          model_name = self.class.model
-          provider_name = RAAF::ProviderRegistry.detect(model_name) if model_name
+          detected_model = model_name
+          provider_name = RAAF::ProviderRegistry.detect(detected_model) if detected_model
 
           if @debug_enabled && provider_name
             log_debug("Auto-detected provider",
-                      model: model_name,
+                      model: detected_model,
                       provider: provider_name,
                       category: :provider)
           end
