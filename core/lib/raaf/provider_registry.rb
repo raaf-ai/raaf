@@ -43,7 +43,13 @@ module RAAF
       xai: "RAAF::Models::XAIProvider",
       litellm: "RAAF::Models::LiteLLMProvider",
       openrouter: "RAAF::Models::OpenRouterProvider",
-      moonshot: "RAAF::Models::MoonshotProvider"
+      moonshot: "RAAF::Models::MoonshotProvider",
+      deepseek: "RAAF::Models::DeepSeekProvider",
+      qwen: "RAAF::Models::QwenProvider",
+      glm: "RAAF::Models::GLMProvider",
+      mimo: "RAAF::Models::MimoProvider",
+      scaleway: "RAAF::Models::ScalewayProvider",
+      ovh: "RAAF::Models::OVHProvider"
     }.freeze
 
     # Map of model name patterns to provider short names
@@ -63,7 +69,11 @@ module RAAF
       /^perplexity$/i => :perplexity,  # Support plain "perplexity" as model name
       /^gemini-/i => :gemini,  # Gemini models
       /^kimi-/i => :moonshot,  # Kimi K2 models (kimi-k2-instruct, kimi-k2-thinking)
-      /^moonshot-/i => :moonshot  # Moonshot models (moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k)
+      /^moonshot-/i => :moonshot,  # Moonshot models (moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k)
+      /^deepseek/i => :deepseek,  # DeepSeek (deepseek-chat, deepseek-reasoner, deepseek-v4-*)
+      /^qwen/i => :qwen,  # Alibaba Qwen / DashScope (qwen3-max, qwen-plus, ...)
+      /^glm-/i => :glm,  # Zhipu GLM (glm-4.6, glm-5, ...)
+      /^mimo/i => :mimo  # Xiaomi MiMo (mimo-v2.5-pro, mimo-v2.5, ...)
     }.freeze
 
     class << self

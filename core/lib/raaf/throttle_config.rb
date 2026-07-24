@@ -44,6 +44,12 @@ module RAAF
       moonshot: 60,          # Moonshot standard tier
       huggingface: 1000,     # Hugging Face inference API
       together: 600,         # Together AI standard tier
+      deepseek: 60,          # DeepSeek standard tier
+      qwen: 60,              # Alibaba Qwen / DashScope standard tier
+      glm: 60,               # Zhipu GLM standard tier
+      mimo: 60,              # Xiaomi MiMo standard tier
+      scaleway: 300,         # Scaleway Generative APIs (EU-hosted)
+      ovh: 120,              # OVHcloud AI Endpoints (EU-hosted)
       litellm: nil,          # LiteLLM depends on backend provider
       openrouter: nil        # OpenRouter depends on selected model
     }.freeze
