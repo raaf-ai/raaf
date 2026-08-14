@@ -49,6 +49,71 @@ RSpec.describe RAAF::Rails::Engine do
     end
   end
 
+  describe "CORS middleware" do
+    # The engine's Rack::Cors covers config[:api_path], which belongs to the
+    # host application rather than to the engine's mount point. Two Rack::Cors
+    # instances compete instead of merging — the first in the stack answers
+    # every preflight — so installing one by default silently replaced the
+    # host's own policy. These examples pin the insertion to explicit opt-in.
+    let(:inserted) { [] }
+
+    let(:host_app) do
+      stack = Object.new
+      recorder = inserted
+      stack.define_singleton_method(:insert_before) do |index, klass, &block|
+        recorder << { index: index, klass: klass, block: block }
+      end
+      config = Struct.new(:middleware).new(stack)
+      Struct.new(:config).new(config)
+    end
+
+    def run_initializer(overrides)
+      config = RAAF::Rails::DEFAULT_CONFIG.merge(
+        enable_background_jobs: false,
+        enable_websockets: false,
+        monitoring: { enabled: false }
+      ).merge(overrides)
+      allow(RAAF::Rails).to receive(:config).and_return(config)
+
+      described_class.initializers.find { |i| i.name == "raaf-rails.initialize" }.run(host_app)
+    end
+
+    it "installs no CORS middleware by default" do
+      run_initializer({})
+
+      expect(inserted).to be_empty
+    end
+
+    it "installs no CORS middleware even when origins are configured, unless asked" do
+      run_initializer(allowed_origins: ["https://myapp.com"])
+
+      expect(inserted).to be_empty
+    end
+
+    context "when the host opts in" do
+      before { skip("rack-cors not available") unless defined?(Rack::Cors) }
+
+      it "installs a single Rack::Cors" do
+        run_initializer(configure_cors: true)
+
+        expect(inserted.map { |i| i[:klass] }).to eq([Rack::Cors])
+      end
+
+      it "covers the configured api_path rather than a hardcoded one" do
+        run_initializer(configure_cors: true, api_path: "/agents/api/v2")
+
+        resource_paths = []
+        cors = Object.new
+        cors.define_singleton_method(:allow) { |&block| instance_eval(&block) }
+        cors.define_singleton_method(:origins) { |*| }
+        cors.define_singleton_method(:resource) { |path, **| resource_paths << path }
+        cors.instance_eval(&inserted.first[:block])
+
+        expect(resource_paths).to eq(["/agents/api/v2/*"])
+      end
+    end
+  end
+
   describe "routes" do
     it "defines routes configuration" do
       expect(described_class).to respond_to(:routes)

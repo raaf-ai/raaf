@@ -116,6 +116,11 @@ module RAAF
       dashboard_path: "/dashboard",
       api_path: "/api/v1",
       websocket_path: "/chat",
+      # Off by default. When enabled, the engine installs a Rack::Cors over
+      # api_path, which lives in the host application rather than under the
+      # engine mount. A host that configures its own CORS should leave this
+      # off, otherwise the two middlewares compete and the engine's wins.
+      configure_cors: false,
       allowed_origins: ["*"],
       rate_limit: {
         enabled: true,
@@ -160,6 +165,9 @@ module RAAF
       #     config[:websocket_path] = "/chat"
       #
       #     # Security
+      #     # Let the engine manage CORS over api_path. Leave off (the default)
+      #     # if the host application configures CORS itself.
+      #     config[:configure_cors] = true
       #     config[:allowed_origins] = ["https://myapp.com"]
       #     config[:rate_limit] = {
       #       enabled: true,

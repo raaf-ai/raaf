@@ -61,12 +61,33 @@ module RAAF
 
       # Initialize the engine
       initializer "raaf-rails.initialize" do |app|
-        # Configure CORS if needed
-        if defined?(Rack::Cors)
+        # Install CORS only when the host application asks for it.
+        #
+        # This middleware covers config[:api_path], which is a path in the HOST
+        # application, not under the engine's mount point. Installing it by
+        # default silently overrode whatever CORS policy the host had configured
+        # for its own API, because two Rack::Cors instances do not merge — they
+        # compete. The first one in the stack answers every preflight, matched
+        # or not, and on a simple request the one below still stamps its own
+        # Access-Control-Allow-Origin on the response. With the previous
+        # `allowed_origins` default of ["*"], that turned a host's restrictive
+        # allowlist into decoration and opened its whole API to any website.
+        #
+        # Hosts that want the engine to manage CORS opt in explicitly and set
+        # their own origins:
+        #
+        #   RAAF::Rails.configure do |config|
+        #     config[:configure_cors]  = true
+        #     config[:allowed_origins] = ["https://myapp.com"]
+        #   end
+        if RAAF::Rails.config[:configure_cors] && defined?(Rack::Cors)
+          api_path = RAAF::Rails.config[:api_path]
+          allowed_origins = RAAF::Rails.config[:allowed_origins]
+
           app.config.middleware.insert_before 0, Rack::Cors do
             allow do
-              origins(*RAAF::Rails.config[:allowed_origins])
-              resource "/api/v1/*",
+              origins(*allowed_origins)
+              resource "#{api_path}/*",
                        headers: :any,
                        methods: %i[get post put patch delete options head]
             end
