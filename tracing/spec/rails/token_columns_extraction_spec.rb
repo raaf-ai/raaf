@@ -23,6 +23,27 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor, ".token_columns_from" do
       expect(cols).to eq(
         input_tokens: 2832,
         output_tokens: 1569,
+        total_tokens: 5747,
+        agent_model: "gemini-2.5-flash"
+      )
+    end
+  end
+
+  context "with an llm span payload carrying a total" do
+    let(:attributes) do
+      {
+        "llm.request.model" => "gemini-2.5-flash",
+        "llm.usage.input_tokens" => 100,
+        "llm.usage.output_tokens" => 40,
+        "llm.usage.total_tokens" => 300
+      }
+    end
+
+    it "maps the total alongside input and output" do
+      expect(cols).to eq(
+        input_tokens: 100,
+        output_tokens: 40,
+        total_tokens: 300,
         agent_model: "gemini-2.5-flash"
       )
     end
@@ -44,11 +65,16 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor, ".token_columns_from" do
 
   context "with token usage nested under a usage hash" do
     let(:attributes) do
-      { "model" => "claude-sonnet-5", "usage" => { "input_tokens" => 5, "output_tokens" => 7 } }
+      {
+        "model" => "claude-sonnet-5",
+        "usage" => { "input_tokens" => 5, "output_tokens" => 7, "total_tokens" => 12 }
+      }
     end
 
     it "digs into the usage hash" do
-      expect(cols).to eq(input_tokens: 5, output_tokens: 7, agent_model: "claude-sonnet-5")
+      expect(cols).to eq(
+        input_tokens: 5, output_tokens: 7, total_tokens: 12, agent_model: "claude-sonnet-5"
+      )
     end
   end
 

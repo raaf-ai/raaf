@@ -371,6 +371,49 @@ RSpec.describe RAAF::Models::GeminiProvider do
         expect(usage["output_tokens"]).to eq(0)
         expect(usage["total_tokens"]).to eq(0)
       end
+
+      it "bills thinking tokens as output" do
+        metadata = {
+          "promptTokenCount" => 10,
+          "candidatesTokenCount" => 20,
+          "thoughtsTokenCount" => 70,
+          "totalTokenCount" => 100
+        }
+
+        usage = provider.send(:extract_usage_metadata, metadata)
+
+        expect(usage["input_tokens"]).to eq(10)
+        expect(usage["output_tokens"]).to eq(90)
+        expect(usage["reasoning_tokens"]).to eq(70)
+        expect(usage["total_tokens"]).to eq(100)
+      end
+
+      it "derives thinking tokens from the total when the count is absent" do
+        metadata = {
+          "promptTokenCount" => 10,
+          "candidatesTokenCount" => 20,
+          "totalTokenCount" => 100
+        }
+
+        usage = provider.send(:extract_usage_metadata, metadata)
+
+        expect(usage["output_tokens"]).to eq(90)
+        expect(usage["reasoning_tokens"]).to eq(70)
+      end
+
+      it "never derives a negative thinking count" do
+        metadata = {
+          "promptTokenCount" => 10,
+          "candidatesTokenCount" => 20,
+          "totalTokenCount" => 5
+        }
+
+        usage = provider.send(:extract_usage_metadata, metadata)
+
+        expect(usage["output_tokens"]).to eq(20)
+        expect(usage["reasoning_tokens"]).to eq(0)
+        expect(usage["total_tokens"]).to eq(30)
+      end
     end
   end
 
