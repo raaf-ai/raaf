@@ -703,17 +703,36 @@ module RAAF
       ##
       # Extracts usage metadata and converts to canonical RAAF format
       #
+      # Gemini 2.5 reports thinking tokens outside +candidatesTokenCount+ and
+      # bills them at the output rate, so +candidatesTokenCount+ alone
+      # understates what a call costs — on ProspectsRadar's production traffic
+      # by roughly 3x. Output here is candidates + thoughts, which is the figure
+      # Google's output price applies to.
+      #
+      # +thoughtsTokenCount+ is only present on thinking models, and older
+      # responses omit it while still counting thinking inside
+      # +totalTokenCount+, so it falls back to the residual
+      # total - prompt - candidates. That residual is floored at zero, and a
+      # total below the sum of its parts is treated as unreliable and recomputed.
+      #
       # @param metadata [Hash] Gemini usage metadata
-      # @return [Hash] Usage in canonical format (input_tokens, output_tokens, total_tokens)
+      # @return [Hash] Usage in canonical format (input_tokens, output_tokens,
+      #   reasoning_tokens, total_tokens)
       # @private
       #
       def extract_usage_metadata(metadata)
         return {} unless metadata
 
+        prompt = metadata["promptTokenCount"] || 0
+        candidates = metadata["candidatesTokenCount"] || 0
+        total = metadata["totalTokenCount"] || 0
+        thoughts = metadata["thoughtsTokenCount"] || [total - prompt - candidates, 0].max
+
         {
-          "input_tokens" => metadata["promptTokenCount"] || 0,
-          "output_tokens" => metadata["candidatesTokenCount"] || 0,
-          "total_tokens" => metadata["totalTokenCount"] || 0
+          "input_tokens" => prompt,
+          "output_tokens" => candidates + thoughts,
+          "reasoning_tokens" => thoughts,
+          "total_tokens" => [total, prompt + candidates + thoughts].max
         }
       end
 

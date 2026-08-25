@@ -34,9 +34,16 @@ module RAAF
         "claude-3-sonnet-20240229" => { input: 3.00, output: 15.00 },
         "claude-3-haiku-20240307" => { input: 0.25, output: 1.25 },
 
-        # Google Gemini
-        "gemini-2.5-flash" => { input: 0.15, output: 0.60 },
-        "gemini-2.5-pro" => { input: 2.50, output: 10.00 },
+        # Google Gemini — paid-tier list prices, verified August 2026 against
+        # https://ai.google.dev/gemini-api/docs/pricing. Output covers thinking
+        # tokens: Gemini 2.5 bills them at the output rate and reports them in
+        # usageMetadata.thoughtsTokenCount, outside candidatesTokenCount.
+        # Gemini 2.5 Pro is tiered on prompt size (1.25/10.00 up to 200k input
+        # tokens, 2.50/15.00 above it); a flat table cannot express that, so the
+        # common tier is used and long-prompt Pro calls read low.
+        "gemini-2.5-flash" => { input: 0.30, output: 2.50 },
+        "gemini-2.5-flash-lite" => { input: 0.10, output: 0.40 },
+        "gemini-2.5-pro" => { input: 1.25, output: 10.00 },
         "gemini-2.0-flash-exp" => { input: 0.00, output: 0.00 }, # Free during preview
         "gemini-exp-1206" => { input: 0.00, output: 0.00 }, # Free during preview
         "gemini-1.5-pro" => { input: 1.25, output: 5.00 },

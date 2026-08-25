@@ -466,7 +466,10 @@ module RAAF
 
         # Copy token usage + model out of the JSON payload into native columns
         # so cost aggregation can SUM/GROUP BY without scanning span_attributes.
-        span_attributes.merge!(self.class.token_columns_from(span_attributes[:span_attributes]))
+        # Filtered against the live schema: total_tokens arrived later than the
+        # other three, and writing a column an app has not migrated yet would
+        # lose the whole span to UnknownAttributeError.
+        span_attributes.merge!(self.class.persistable_token_columns(span_attributes[:span_attributes]))
 
         log_debug_tracing("ActiveRecord creating span record", span_kind: span_attributes[:kind], span_name: span_attributes[:name], span_id: span_attributes[:span_id])
 
@@ -534,8 +537,15 @@ module RAAF
       # Returns a hash of only the columns that could be resolved, so callers
       # can merge it without clobbering existing values with nils.
       #
+      # +total_tokens+ is carried because some providers bill more than
+      # input + output: Gemini 2.5 reports thinking tokens only inside its
+      # total, and a cost query that never sees the total cannot charge for
+      # them. Storing it keeps that reconstruction possible after the JSON
+      # payload has been aged out by a retention sweep.
+      #
       # @param attributes [Hash, nil] Sanitized span attributes
-      # @return [Hash] Subset of { input_tokens:, output_tokens:, agent_model: }
+      # @return [Hash] Subset of
+      #   { input_tokens:, output_tokens:, total_tokens:, agent_model: }
       def self.token_columns_from(attributes)
         cols = {}
         input = attr_lookup(attributes, "input_tokens") ||
@@ -548,6 +558,9 @@ module RAAF
                  attr_lookup(attributes, "llm.usage.completion_tokens") ||
                  usage_lookup(attributes, "output_tokens") ||
                  usage_lookup(attributes, "completion_tokens")
+        total = attr_lookup(attributes, "total_tokens") ||
+                attr_lookup(attributes, "llm.usage.total_tokens") ||
+                usage_lookup(attributes, "total_tokens")
         model = attr_lookup(attributes, "agent.model") ||
                 attr_lookup(attributes, "llm.request.model") ||
                 attr_lookup(attributes, "llm.model") ||
@@ -555,11 +568,25 @@ module RAAF
 
         input_i  = token_to_i(input)
         output_i = token_to_i(output)
+        total_i  = token_to_i(total)
         model_s  = clean_model(model)
         cols[:input_tokens]  = input_i  unless input_i.nil?
         cols[:output_tokens] = output_i unless output_i.nil?
+        cols[:total_tokens]  = total_i  unless total_i.nil?
         cols[:agent_model]   = model_s  unless model_s.nil?
         cols
+      end
+
+      # +token_columns_from+ narrowed to the columns the span table actually
+      # has, so a host app running an older schema keeps its spans instead of
+      # losing them to an unknown attribute.
+      #
+      # @param attributes [Hash, nil] Sanitized span attributes
+      # @return [Hash] Resolvable columns that exist on raaf_tracing_spans
+      def self.persistable_token_columns(attributes)
+        columns = token_columns_from(attributes)
+        known = ::RAAF::Tracing::SpanRecord.column_names
+        columns.select { |column, _value| known.include?(column.to_s) }
       end
 
       # Read a key from an attributes hash, tolerating string or symbol keys.

@@ -52,10 +52,23 @@ RSpec.describe RAAF::Usage::CostCalculator do
       it 'calculates cost correctly' do
         result = described_class.calculate_cost(usage, model: 'gemini-2.5-flash')
 
-        # gemini-2.5-flash: $0.15 per 1M input, $0.60 per 1M output
-        expect(result[:input_cost]).to eq(0.00075)  # 5K * 0.15 / 1M
-        expect(result[:output_cost]).to eq(0.0015)  # 2.5K * 0.60 / 1M
-        expect(result[:total_cost]).to eq(0.00225)
+        # gemini-2.5-flash paid tier: $0.30 per 1M input, $2.50 per 1M output
+        expect(result[:input_cost]).to eq(0.0015)    # 5K * 0.30 / 1M
+        expect(result[:output_cost]).to eq(0.00625)  # 2.5K * 2.50 / 1M
+        expect(result[:total_cost]).to eq(0.00775)
+      end
+    end
+
+    context 'with gemini-2.5-flash-lite model' do
+      let(:usage) { { input_tokens: 5000, output_tokens: 2500 } }
+
+      it 'calculates cost correctly' do
+        result = described_class.calculate_cost(usage, model: 'gemini-2.5-flash-lite')
+
+        # gemini-2.5-flash-lite paid tier: $0.10 per 1M input, $0.40 per 1M output
+        expect(result[:input_cost]).to eq(0.0005)   # 5K * 0.10 / 1M
+        expect(result[:output_cost]).to eq(0.001)   # 2.5K * 0.40 / 1M
+        expect(result[:total_cost]).to eq(0.0015)
       end
     end
 
@@ -402,6 +415,7 @@ RSpec.describe RAAF::Usage::CostCalculator do
 
     it 'includes all major Gemini models' do
       expect(described_class::PRICING).to have_key('gemini-2.5-flash')
+      expect(described_class::PRICING).to have_key('gemini-2.5-flash-lite')
       expect(described_class::PRICING).to have_key('gemini-2.5-pro')
       expect(described_class::PRICING).to have_key('gemini-1.5-pro')
     end
