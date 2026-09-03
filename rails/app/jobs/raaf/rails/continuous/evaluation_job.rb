@@ -22,6 +22,13 @@ module RAAF
       class EvaluationJob < RAAF::Rails::ApplicationJob
         queue_as :raaf_evaluations
 
+        # How many recent spans historical consistency scans for ones sharing
+        # the evaluated span's input. A bound because the digest has to be
+        # computed in Ruby from each candidate's recorded messages; past this
+        # many spans without a repeat, the answer is that the question was not
+        # asked again.
+        HISTORICAL_SCAN_LIMIT = 50
+
         # Discard on permanent errors
         discard_on RAAF::Eval::SpanNotFoundError
         discard_on ActiveRecord::RecordNotFound
@@ -389,12 +396,16 @@ module RAAF
 
           RAAF.logger.info "[ContinuousEval] Replaying LLM call #{max_trials} times (max across #{only_fields&.size || 0} fields)"
 
-          # Replay the LLM call max_trials times
+          # Replay the LLM call max_trials times, keeping what the replays
+          # themselves spent: each one repeats the agent's own model call, and
+          # that spend appears in no tracing span, so this is its only record.
           run_results = []
+          replay_usage = Hash.new(0)
           max_trials.times do |i|
             begin
               RAAF.logger.debug "[ContinuousEval] Replay #{i + 1}/#{max_trials} for #{agent_name}"
               replay_result = replayer.replay
+              (replay_result[:usage] || {}).each { |key, value| replay_usage[key.to_sym] += value.to_i }
               if replay_result[:success] && replay_result[:content].present?
                 # Parse the JSON response content
                 parsed_result = parse_replay_content(replay_result[:content])
@@ -428,10 +439,28 @@ module RAAF
           evaluation_metadata = {
             mode: "replay",
             successful_reruns: run_results.size,
-            replay_model: replayer.original_model
+            replay_model: replayer.original_model,
+            replay_usage: replay_usage,
+            replay_cost_usd: price_replay_usage(replay_usage, replayer.original_model)
           }
           result = evaluator.evaluate(span_data, only_fields: only_fields)
           { result: result, evaluation_metadata: evaluation_metadata }
+        end
+
+        ##
+        # What the replays cost, priced from their accumulated token usage.
+        # The host application's cost model assumes an evaluation grades a span
+        # that already happened; a replay breaks that assumption, so its spend
+        # has to land on the stored results rather than on nobody's bill.
+        #
+        # @param usage [Hash] summed token usage across replays
+        # @param model [String, nil] the replayed model
+        # @return [Float] USD
+        def price_replay_usage(usage, model)
+          return 0.0 if usage.empty? || model.blank?
+
+          priced = RAAF::Usage::CostCalculator.calculate_cost(usage, model: model)
+          priced ? priced[:total_cost] : 0.0
         end
 
         ##
@@ -470,8 +499,8 @@ module RAAF
         # @return [Hash] Hash with :result (EvaluationResult) and :evaluation_metadata (Hash)
         def execute_statistical_with_historical(span, evaluator, evaluator_config, only_fields, check_trials, default_trials, agent_name,
                                                 fallback_reason: nil, attempted_reruns: nil, successful_reruns: nil)
-          # Fetch historical spans for consistency comparison
-          historical_spans = fetch_historical_spans(agent_name, span.span_id, default_trials)
+          # Fetch historical spans that asked the same question, for consistency comparison
+          historical_spans = fetch_historical_spans(agent_name, span, default_trials)
 
           # Build evaluation metadata including fallback information
           evaluation_metadata = {}
@@ -483,19 +512,29 @@ module RAAF
             evaluation_metadata[:note] = "Complex agents with incremental processing may not support re-run mode. Using historical spans instead."
           end
 
+          # Refuse rather than grade what cannot be compared. Without a repeat
+          # of the same input there is nothing to measure consistency against;
+          # evaluating the single span anyway hands the consistency evaluator a
+          # scalar, which it scores 0.0 — a confident wrong answer instead of an
+          # honest missing one.
           if historical_spans.empty?
-            RAAF.logger.info "[ContinuousEval] No historical spans found for #{agent_name}, using single-span evaluation"
-            span_data = span_to_result_hash(span)
-            evaluation_metadata = evaluation_metadata.merge(mode: "single_span", historical_spans_found: 0)
-            result = evaluator.evaluate(span_data, only_fields: only_fields)
-            return { result: result, evaluation_metadata: evaluation_metadata }
+            reason = if span_input_digest(span).nil?
+              "The span records no input messages to key on"
+            else
+              "No recorded #{agent_name} span shares this span's input (scanned up to the " \
+              "#{HISTORICAL_SCAN_LIMIT} most recent)"
+            end
+            raise RAAF::Eval::NoComparableSpansError,
+                  "#{reason}. Historical consistency compares repeats of the same question; comparing spans " \
+                  "with different inputs would report population variance as inconsistency, so it refuses instead."
           end
 
-          RAAF.logger.info "[ContinuousEval] Found #{historical_spans.size} historical spans for consistency comparison"
+          RAAF.logger.info "[ContinuousEval] Found #{historical_spans.size} same-input historical spans for consistency comparison"
 
           # Build span_data with historical values for each field
           # For consistency evaluation, we need to merge values from multiple spans
-          span_data = build_historical_span_data(span, historical_spans, only_fields, check_trials, default_trials)
+          span_data = build_historical_span_data(span, historical_spans, only_fields, check_trials, default_trials,
+                                                 evaluator_config: evaluator_config)
           evaluation_metadata = evaluation_metadata.merge(mode: "historical", historical_spans_found: historical_spans.size)
 
           # Execute evaluation
@@ -865,30 +904,83 @@ module RAAF
         end
 
         ##
-        # Fetch historical spans from the same agent for consistency comparison
+        # Fetch historical spans that asked the agent the same question.
+        #
+        # Matching on agent name alone lined up company A's score against
+        # company B's and reported the spread as inconsistency — different
+        # inputs producing different answers is the agent working. The input
+        # digest is what narrows the set to genuine repeats. It cannot be
+        # filtered in SQL (nothing stores it), so a bounded window of recent
+        # spans is scanned in Ruby.
+        #
         # @param agent_name [String] Agent name to match
-        # @param current_span_id [String] Current span ID to exclude
-        # @param limit [Integer] Maximum number of historical spans to fetch
-        # @return [Array<SpanRecord>] Historical spans
-        def fetch_historical_spans(agent_name, current_span_id, limit)
+        # @param current_span [SpanRecord] Current span, excluded from the set
+        # @param limit [Integer] Maximum number of historical spans to return
+        # @return [Array<SpanRecord>] Historical spans sharing the input
+        def fetch_historical_spans(agent_name, current_span, limit)
+          digest = span_input_digest(current_span)
+          return [] if digest.nil?
+
           RAAF::Rails::Tracing::SpanRecord
             .where("span_attributes->>'agent.name' = ?", agent_name)
-            .where.not(span_id: current_span_id)
+            .where.not(span_id: current_span.span_id)
             .order(created_at: :desc)
-            .limit(limit)
+            .limit(HISTORICAL_SCAN_LIMIT)
+            .select { |candidate| span_input_digest(candidate) == digest }
+            .first(limit)
+        end
+
+        ##
+        # The identity of the question a span asked its model: a digest of the
+        # recorded request messages, with the model's own turns excluded. Two
+        # spans with the same digest are the same question asked again — the
+        # only pair a consistency check may compare.
+        #
+        # @param span [SpanRecord]
+        # @return [String, nil] digest, or nil when the span records no input
+        def span_input_digest(span)
+          attrs = span.span_attributes || {}
+          messages_json = attrs['agent.conversation_messages']
+          return nil if messages_json.blank?
+
+          messages = messages_json.is_a?(String) ? JSON.parse(messages_json) : messages_json
+          input = messages.reject { |message| (message['role'] || message[:role]).to_s == 'assistant' }
+                          .map { |message| [(message['role'] || message[:role]), (message['content'] || message[:content])] }
+          return nil if input.empty?
+
+          Digest::SHA256.hexdigest(JSON.generate(input))
+        rescue JSON::ParserError
+          nil
         end
 
         ##
         # Build span_data with historical values for consistency evaluation.
-        # For each field, collects values from current + historical spans.
+        # For each field, collects values from current + historical spans,
+        # resolving evaluator field selections (aliases like :industry_score)
+        # the same way the rerun path does — a field only reachable through a
+        # selection path used to collect nothing here, so the "comparison"
+        # silently graded the current span alone.
         # @param span [SpanRecord] Current span
         # @param historical_spans [Array<SpanRecord>] Historical spans
         # @param only_fields [Array<Symbol>, nil] Fields to evaluate
         # @param check_trials [Hash] Per-field trial configuration
         # @param default_trials [Integer] Default number of trials
+        # @param evaluator_config [Hash, nil] Evaluator configuration for transformation lookup
         # @return [Hash] Span data with historical values
-        def build_historical_span_data(span, historical_spans, only_fields, check_trials, default_trials)
+        def build_historical_span_data(span, historical_spans, only_fields, check_trials, default_trials, evaluator_config: nil)
           current_data = span_to_result_hash(span)
+
+          evaluator_class = nil
+          if evaluator_config
+            evaluator_name = evaluator_config['name'] || evaluator_config[:name]
+            evaluator_class = RAAF::Eval::Continuous::EvaluatorDiscovery.find_custom_evaluator_by_name(evaluator_name)
+          end
+          field_selections = evaluator_class.respond_to?(:field_selections) ? evaluator_class.field_selections : []
+
+          transformed_current = apply_span_transformer(evaluator_class, current_data)
+          transformed_historical = historical_spans.map do |hist_span|
+            apply_span_transformer(evaluator_class, span_to_result_hash(hist_span))
+          end
 
           # For each field, collect historical values
           only_fields&.each do |field_name|
@@ -896,12 +988,8 @@ module RAAF
             trials = check_trials[field_key] || check_trials[field_name.to_sym] || default_trials
 
             # Collect values from current and historical spans (up to trials count)
-            values = []
-            values << current_data[field_name] if current_data[field_name].present?
-
-            historical_spans.first(trials - 1).each do |hist_span|
-              hist_data = span_to_result_hash(hist_span)
-              values << hist_data[field_name] if hist_data[field_name].present?
+            values = ([transformed_current] + transformed_historical.first(trials - 1)).filter_map do |data|
+              extract_field_value_from_result(data, field_name, field_selections)
             end
 
             # For consistency evaluator, the field value should be an array
@@ -913,6 +1001,19 @@ module RAAF
           end
 
           current_data
+        end
+
+        ##
+        # Apply the evaluator's span_transformer block to span data, if it has one.
+        # @param evaluator_class [Class, nil]
+        # @param data [Hash]
+        # @return [Hash]
+        def apply_span_transformer(evaluator_class, data)
+          if evaluator_class && evaluator_class.respond_to?(:span_transformer_block) && evaluator_class.span_transformer_block
+            evaluator_class.span_transformer_block.call(data)
+          else
+            data
+          end
         end
 
         ##
@@ -974,6 +1075,12 @@ module RAAF
           # Calculate duration per field (approximate)
           per_field_duration = fields_to_store.any? ? (duration_ms / fields_to_store.size) : duration_ms
 
+          # One set of replays serves every field this evaluator graded, so each
+          # row carries its share — summing rows then gives the true total
+          # instead of the total multiplied by the field count.
+          replay_cost = evaluation_metadata[:replay_cost_usd].to_f
+          per_field_replay_cost = fields_to_store.any? ? replay_cost / fields_to_store.size : replay_cost
+
           # Get span data for result formatting
           span_data = span_to_result_hash(span)
 
@@ -1001,6 +1108,9 @@ module RAAF
               specific_evaluators: specific_evaluators
             }.merge(evaluation_metadata)
 
+            spend = evaluation_spend(field_result, field_evaluators)
+            spend[:evaluation_cost] = (spend[:evaluation_cost] + per_field_replay_cost).round(6) if per_field_replay_cost.positive?
+
             RAAF::Eval::Models::ContinuousEvaluationResult.create!(
               span_id: span.span_id,
               trace_id: span.trace_id,
@@ -1018,7 +1128,7 @@ module RAAF
               status: determine_field_status(field_result),
               score: field_result[:score],
               scores: { field_name.to_s => field_result[:score] },
-              metrics: extract_metrics(span).merge(evaluation_spend(field_result, field_evaluators)),
+              metrics: extract_metrics(span).merge(spend),
               reasoning: reasoning,
               details: {
                 field_name: field_name.to_s,

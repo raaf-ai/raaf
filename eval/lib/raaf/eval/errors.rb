@@ -55,5 +55,11 @@ module RAAF
 
     # Error raised when a span cannot be found
     class SpanNotFoundError < Error; end
+
+    # Error raised when a historical consistency check finds no recorded span
+    # sharing the evaluated span's input. Comparing spans with different inputs
+    # measures population variance and labels it inconsistency, so the check
+    # refuses rather than report a number that means nothing.
+    class NoComparableSpansError < Error; end
   end
 end
