@@ -205,7 +205,7 @@ module RAAF
               button_to(
                 "Deactivate",
                 deactivate_continuous_policy_path(policy),
-                method: :patch,
+                method: :post,
                 class: "text-yellow-600 hover:text-yellow-800 text-sm font-medium",
                 data: { confirm: "Deactivate this policy?" }
               )
@@ -213,7 +213,7 @@ module RAAF
               button_to(
                 "Activate",
                 activate_continuous_policy_path(policy),
-                method: :patch,
+                method: :post,
                 class: "text-green-600 hover:text-green-800 text-sm font-medium"
               )
             end

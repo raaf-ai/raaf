@@ -143,10 +143,10 @@ module RAAF
             end
 
             td(class: "px-4 py-4 text-sm") do
-              if item.policy
+              if item.evaluation_policy
                 link_to(
-                  item.policy.name,
-                  continuous_policy_path(item.policy),
+                  item.evaluation_policy.name,
+                  continuous_policy_path(item.evaluation_policy),
                   class: "text-blue-600 hover:text-blue-500"
                 )
               else
@@ -204,7 +204,7 @@ module RAAF
               button_to(
                 "Retry",
                 retry_continuous_queue_item_path(item),
-                method: :patch,
+                method: :post,
                 class: "text-green-600 hover:text-green-800 text-sm font-medium"
               )
             end
@@ -213,7 +213,7 @@ module RAAF
               button_to(
                 "Cancel",
                 cancel_continuous_queue_item_path(item),
-                method: :patch,
+                method: :post,
                 class: "text-yellow-600 hover:text-yellow-800 text-sm font-medium",
                 data: { confirm: "Cancel this evaluation?" }
               )

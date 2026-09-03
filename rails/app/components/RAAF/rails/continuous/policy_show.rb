@@ -54,7 +54,7 @@ module RAAF
               if @policy.active?
                 button_to(
                   deactivate_continuous_policy_path(@policy),
-                  method: :patch,
+                  method: :post,
                   class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-yellow-600 bg-yellow-600 text-white hover:bg-yellow-700 px-3 py-2"
                 ) do
                   i(class: "bi bi-pause-circle")
@@ -63,7 +63,7 @@ module RAAF
               else
                 button_to(
                   activate_continuous_policy_path(@policy),
-                  method: :patch,
+                  method: :post,
                   class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700 px-3 py-2"
                 ) do
                   i(class: "bi bi-play-circle")

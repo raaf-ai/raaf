@@ -48,7 +48,7 @@ module RAAF
                 button_to(
                   "Retry",
                   retry_continuous_queue_item_path(@queue_item),
-                  method: :patch,
+                  method: :post,
                   class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700 px-3 py-2"
                 )
               end
@@ -57,7 +57,7 @@ module RAAF
                 button_to(
                   "Cancel",
                   cancel_continuous_queue_item_path(@queue_item),
-                  method: :patch,
+                  method: :post,
                   class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-yellow-600 bg-yellow-600 text-white hover:bg-yellow-700 px-3 py-2",
                   data: { confirm: "Cancel this evaluation?" }
                 )
@@ -74,7 +74,7 @@ module RAAF
             div(class: "px-4 py-5 sm:p-6") do
               dl(class: "grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2") do
                 render_detail_row("Span ID", render_span_link(@queue_item.span_id))
-                render_detail_row("Policy", render_policy_link(@queue_item.policy))
+                render_detail_row("Policy", render_policy_link(@queue_item.evaluation_policy))
                 render_detail_row("Status", render_status_badge(@queue_item.status))
                 render_detail_row("Priority", @queue_item.priority.to_s)
                 render_detail_row("Attempts", @queue_item.attempts.to_s)
@@ -202,9 +202,9 @@ module RAAF
                 plain "View Span"
               end
 
-              if @queue_item.policy
+              if @queue_item.evaluation_policy
                 link_to(
-                  continuous_policy_path(@queue_item.policy),
+                  continuous_policy_path(@queue_item.evaluation_policy),
                   class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
                 ) do
                   i(class: "bi bi-shield-check mr-3 text-gray-400")
@@ -228,7 +228,7 @@ module RAAF
                 button_to(
                   "Retry Evaluation",
                   retry_continuous_queue_item_path(@queue_item),
-                  method: :patch,
+                  method: :post,
                   class: "flex items-center w-full px-4 py-3 hover:bg-gray-50 text-green-600"
                 )
               end
@@ -237,7 +237,7 @@ module RAAF
                 button_to(
                   "Cancel Evaluation",
                   cancel_continuous_queue_item_path(@queue_item),
-                  method: :patch,
+                  method: :post,
                   class: "flex items-center w-full px-4 py-3 hover:bg-gray-50 text-yellow-600",
                   data: { confirm: "Cancel this evaluation?" }
                 )
