@@ -70,6 +70,26 @@ module RAAF
             queue_item.retry!
           end
 
+          # The daily cap is checked here as well as at enqueue time, because at
+          # enqueue time it cannot bind. PolicyMatcher reads
+          # today_evaluation_count, and nothing increments that until an
+          # evaluation has already run and spent — so every span in a burst is
+          # admitted before the first of them finishes. Measured on a policy
+          # capped at 2: 25 spans produced 25 enqueued evaluations, counter still
+          # at 0. The cap only ever limited a queue that was already empty.
+          #
+          # Checked before start!, so a span over the limit costs a row and no
+          # model call. A manual evaluation is exempt: somebody pressed a button
+          # and is entitled to an answer.
+          if !manual && policy.at_daily_limit?
+            RAAF.logger.info(
+              "[ContinuousEval] Policy #{policy.id} is at its daily limit " \
+              "(#{policy.today_evaluation_count}/#{policy.max_daily_evaluations}); skipping span #{span_id}"
+            )
+            queue_item.cancel!
+            return
+          end
+
           # Execute evaluation with partial failure handling
           begin
             queue_item.start!
