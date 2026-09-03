@@ -123,15 +123,24 @@ module RAAF
           # Calculate aggregate statistics
           stats = calculate_statistics(results)
 
-          # Upsert metric record
-          RAAF::Eval::Models::EvaluationMetric.upsert(
+          # find_or_initialize, not upsert. The unique index behind
+          # `unique_by: [...]` covers environment, model and evaluator_name, all
+          # of which are nullable, and Postgres treats NULLs in a unique index as
+          # distinct — so ON CONFLICT never fired for a span whose model was not
+          # recorded and every hourly run inserted the period again. A day of
+          # that reports twenty-four times the evaluations that happened and
+          # skews every percentile weighted by them. find_or_initialize_by
+          # generates `model IS NULL` and matches the row that is already there.
+          RAAF::Eval::Models::EvaluationMetric.upsert_for_period(
             {
               agent_name: dimensions[:agent_name],
               environment: dimensions[:environment],
               model: dimensions[:model],
               evaluator_name: dimensions[:evaluator_name],
               period_type: period_type,
-              period_start: period_start,
+              period_start: period_start
+            },
+            {
               total_evaluations: stats[:total_evaluations],
               passed_count: stats[:passed_count],
               failed_count: stats[:failed_count],
@@ -147,10 +156,8 @@ module RAAF
               score_distribution: stats[:score_distribution],
               avg_evaluation_duration_ms: stats[:avg_duration_ms],
               total_evaluation_cost: stats[:total_cost],
-              additional_metrics: {},
-              updated_at: Time.current
-            },
-            unique_by: [:agent_name, :environment, :model, :evaluator_name, :period_type, :period_start]
+              additional_metrics: {}
+            }
           )
         end
 

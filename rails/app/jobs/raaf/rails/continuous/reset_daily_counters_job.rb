@@ -48,14 +48,20 @@ module RAAF
           policy.reset_daily_counter!
         end
 
+        # RAAF.logger, not RAAF::Rails.logger — the latter is not defined, so
+        # every run of this job raised NoMethodError on its last line, after the
+        # counters had already been reset. ApplicationJob's blanket retry_on
+        # swallowed it, so the job "worked" while reporting failure to anything
+        # measuring it, and reset the counters three times per scheduled run.
+        # Every other job in this directory already logs through RAAF.logger.
         def log_info(message, data = {})
-          RAAF::Rails.logger.info(
+          RAAF.logger.info(
             "[ResetDailyCountersJob] #{message}: #{data.inspect}"
           )
         end
 
         def log_error(message, error)
-          RAAF::Rails.logger.error(
+          RAAF.logger.error(
             "[ResetDailyCountersJob] #{message}: #{error.class} - #{error.message}"
           )
         end
