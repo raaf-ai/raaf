@@ -164,9 +164,15 @@ module RAAF
 
           {
             total_evaluations: results.size,
-            passed_count: results.count { |r| r.status == 'passed' },
-            failed_count: results.count { |r| r.status == 'failed' },
-            warning_count: results.count { |r| r.status == 'warning' },
+            # ContinuousEvaluationResult validates status as good/average/bad/error
+            # (EvaluationJob#determine_field_status writes those three labels, and
+            # the model's inclusion validation permits nothing else). The metric
+            # columns predate that vocabulary, so the mapping is spelled out here
+            # rather than left to a name match that can never succeed: counting
+            # 'passed'/'failed'/'warning' left every count column permanently 0.
+            passed_count: results.count { |r| r.status == 'good' },
+            warning_count: results.count { |r| r.status == 'average' },
+            failed_count: results.count { |r| r.status == 'bad' },
             error_count: results.count { |r| r.status == 'error' },
             avg_score: calculate_average(scores),
             min_score: scores.min,
@@ -177,7 +183,11 @@ module RAAF
             p95_score: calculate_percentile(scores, 95),
             score_distribution: calculate_score_distribution(scores),
             avg_duration_ms: calculate_average(durations),
-            total_cost: results.sum { |r| r.metrics.dig('cost') || 0 }
+            # What the evaluations themselves cost, not what the graded spans cost.
+            # metrics['cost'] is the span's own spend and belongs to the agent
+            # run; evaluation_cost is written by EvaluationJob#evaluation_spend
+            # from the judge's token usage.
+            total_cost: results.sum { |r| (r.metrics || {})['evaluation_cost'].to_f }
           }
         end
 

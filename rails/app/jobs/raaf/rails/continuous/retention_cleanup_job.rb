@@ -47,44 +47,103 @@ module RAAF
         private
 
         ##
-        # Clean up old evaluation results
-        def cleanup_evaluation_results(retention_period)
-          cutoff = retention_period.ago
+        # Clean up old evaluation results, honouring each policy's own
+        # retention_days before falling back to the job-wide default.
+        #
+        # A policy declares how long its results are worth keeping, and that
+        # declaration is the reviewable one: it sits beside the sampling rate in
+        # the policy registry, where the person choosing to evaluate an agent
+        # also chooses how long to remember the answers. Deleting everything on
+        # one hard-coded period silently overrode it — a policy asking for 90
+        # days lost its results at 30.
+        #
+        # Results whose policy was deleted, or which never had one, fall back to
+        # the default period. Nothing is immortal.
+        #
+        # @param default_period [ActiveSupport::Duration] fallback retention
+        # @return [Integer] rows deleted
+        def cleanup_evaluation_results(default_period)
+          deleted = each_policy_retention do |policy, cutoff|
+            RAAF::Eval::Models::ContinuousEvaluationResult
+              .where(evaluation_policy_id: policy.id)
+              .where("created_at < ?", cutoff)
+              .delete_all
+          end
 
-          deleted = RAAF::Eval::Models::ContinuousEvaluationResult
-            .where("created_at < ?", cutoff)
+          deleted += RAAF::Eval::Models::ContinuousEvaluationResult
+            .where(evaluation_policy_id: [ nil ] + policies_without_retention_ids)
+            .where("created_at < ?", default_period.ago)
             .delete_all
 
-          RAAF.logger.info "[ContinuousEval] Deleted #{deleted} evaluation results older than #{retention_period.inspect}"
+          RAAF.logger.info "[ContinuousEval] Deleted #{deleted} evaluation results (per-policy retention_days, default #{default_period.inspect})"
           deleted
         end
 
         ##
-        # Clean up old queue items
+        # Clean up old queue items. A finished queue item is the record that an
+        # evaluation happened at all, so it lives as long as the results it
+        # produced — same retention_days, same fallback. Failed and cancelled
+        # items keep their own shorter default, since nothing downstream reads
+        # them once somebody has looked.
         def cleanup_queue_items(retention)
-          completed_cutoff = retention[:queue_items_completed].ago
-          failed_cutoff = retention[:queue_items_failed].ago
+          finished_deleted = each_policy_retention do |policy, cutoff|
+            RAAF::Eval::Models::EvaluationQueueItem
+              .where(evaluation_policy_id: policy.id, status: %w[completed partial])
+              .where("completed_at < ?", cutoff)
+              .delete_all
+          end
 
-          # Delete completed items older than threshold
-          completed_deleted = RAAF::Eval::Models::EvaluationQueueItem
-            .where(status: %w[completed partial])
-            .where("completed_at < ?", completed_cutoff)
+          finished_deleted += RAAF::Eval::Models::EvaluationQueueItem
+            .where(evaluation_policy_id: [ nil ] + policies_without_retention_ids, status: %w[completed partial])
+            .where("completed_at < ?", retention[:queue_items_completed].ago)
             .delete_all
 
-          # Delete failed/cancelled items older than threshold
           failed_deleted = RAAF::Eval::Models::EvaluationQueueItem
             .where(status: %w[failed cancelled])
-            .where("completed_at < ?", failed_cutoff)
+            .where("completed_at < ?", retention[:queue_items_failed].ago)
             .delete_all
 
-          total = completed_deleted + failed_deleted
-          RAAF.logger.info "[ContinuousEval] Deleted #{total} queue items (#{completed_deleted} completed, #{failed_deleted} failed)"
+          total = finished_deleted + failed_deleted
+          RAAF.logger.info "[ContinuousEval] Deleted #{total} queue items (#{finished_deleted} finished, #{failed_deleted} failed)"
           total
         end
 
         ##
-        # Clean up old resolved alerts
+        # Yield each policy that declares a retention_days along with its cutoff,
+        # summing what the block deletes.
+        #
+        # @yieldparam policy [RAAF::Eval::Models::EvaluationPolicy]
+        # @yieldparam cutoff [Time]
+        # @return [Integer] rows deleted across all policies
+        def each_policy_retention
+          policies_with_retention.inject(0) do |deleted, policy|
+            deleted + yield(policy, policy.retention_days.days.ago)
+          end
+        end
+
+        def policies_with_retention
+          @policies_with_retention ||= RAAF::Eval::Models::EvaluationPolicy
+            .where.not(retention_days: nil).to_a
+        end
+
+        def policies_without_retention_ids
+          @policies_without_retention_ids ||= RAAF::Eval::Models::EvaluationPolicy
+            .where(retention_days: nil).pluck(:id)
+        end
+
+        ##
+        # Clean up old resolved alerts.
+        #
+        # Skipped where the table was never migrated. The alerts table is
+        # optional — an application can adopt continuous evaluation without
+        # adopting alerting, and several have — and an unguarded delete_all
+        # there raised StatementInvalid, which ApplicationJob's blanket
+        # retry_on swallowed. The visible effect was that results and queue
+        # items were never swept at all, because this ran before them and took
+        # the whole job down. cleanup_metrics already had this guard.
         def cleanup_alerts(retention_period)
+          return 0 unless table_present?(RAAF::Eval::Models::EvaluationAlert)
+
           cutoff = retention_period.ago
 
           deleted = RAAF::Eval::Models::EvaluationAlert
@@ -94,11 +153,16 @@ module RAAF
 
           RAAF.logger.info "[ContinuousEval] Deleted #{deleted} resolved alerts older than #{retention_period.inspect}"
           deleted
+        rescue StandardError => e
+          RAAF.logger.debug "[ContinuousEval] Skipped alert cleanup: #{e.message}"
+          0
         end
 
         ##
         # Clean up old metrics based on granularity
         def cleanup_metrics(retention)
+          return 0 unless table_present?(RAAF::Eval::Models::EvaluationMetric)
+
           total_deleted = 0
 
           # Clean hourly metrics
@@ -131,6 +195,26 @@ module RAAF
           # Don't fail if metrics table doesn't exist yet
           RAAF.logger.debug "[ContinuousEval] Skipped metrics cleanup: #{e.message}"
           0
+        end
+
+        ##
+        # Whether a table this sweep touches was ever migrated.
+        #
+        # Asked before the query rather than rescued after it: a statement that
+        # fails inside a transaction aborts the whole transaction, so every
+        # later delete in the same sweep fails too with
+        # "current transaction is aborted". Rescuing the first failure hides its
+        # cause and keeps none of its consequences.
+        #
+        # @param model [Class] an ActiveRecord model
+        # @return [Boolean]
+        def table_present?(model)
+          @table_present ||= {}
+          return @table_present[model] if @table_present.key?(model)
+
+          @table_present[model] = model.table_exists?
+        rescue StandardError
+          false
         end
 
         ##

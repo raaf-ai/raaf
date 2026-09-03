@@ -104,6 +104,12 @@ module RAAF
               criteria_count: @criteria.size,
               chain_of_thought: chain_of_thought,
               criteria_evaluation: criteria_results,
+              # What this judgement cost. The judge is a billed model call that
+              # leaves no tracing span — call_llm talks to OpenAI directly — so
+              # unless the usage travels out with the result there is no record
+              # of it anywhere and total_evaluation_cost can only ever be zero.
+              judge_model: @judge_model,
+              judge_usage: @judge_usage,
               evaluation_note: g_eval_note(overall_score, criteria_results, good_threshold, average_threshold)
             )
           end
@@ -187,6 +193,9 @@ module RAAF
             prompt = build_g_eval_prompt(output, criteria)
             judge_model = model || "gpt-4o-mini"
 
+            @judge_model = judge_model
+            @judge_usage = nil
+
             response_text = call_llm(prompt, judge_model)
 
             if response_text
@@ -236,10 +245,32 @@ module RAAF
             end
 
             data = JSON.parse(response.body)
+            @judge_usage = extract_usage(data["usage"])
             data.dig("choices", 0, "message", "content")
           rescue => e
             RAAF.logger&.warn("[GEval] LLM call failed: #{e.class}: #{e.message}")
             nil
+          end
+
+          # Normalise the usage block OpenAI returns into the keys
+          # RAAF::Usage::CostCalculator expects. A response without usage (a
+          # mocked or cached judge) yields nil rather than zeros, so "we did not
+          # measure" stays distinguishable from "it was free".
+          #
+          # @param usage [Hash, nil] raw usage block from the API response
+          # @return [Hash, nil] input/output/total token counts
+          def extract_usage(usage)
+            return nil unless usage.is_a?(Hash)
+
+            input = usage["prompt_tokens"] || usage["input_tokens"]
+            output = usage["completion_tokens"] || usage["output_tokens"]
+            return nil if input.nil? && output.nil?
+
+            {
+              input_tokens: input.to_i,
+              output_tokens: output.to_i,
+              total_tokens: (usage["total_tokens"] || (input.to_i + output.to_i)).to_i
+            }
           end
 
           # Parse LLM JSON response into criteria results

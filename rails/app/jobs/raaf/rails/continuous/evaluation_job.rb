@@ -998,7 +998,7 @@ module RAAF
               status: determine_field_status(field_result),
               score: field_result[:score],
               scores: { field_name.to_s => field_result[:score] },
-              metrics: extract_metrics(span),
+              metrics: extract_metrics(span).merge(evaluation_spend(field_result, field_evaluators)),
               reasoning: reasoning,
               details: {
                 field_name: field_name.to_s,
@@ -1260,6 +1260,64 @@ module RAAF
             tokens: extract_token_usage(span),
             cost: calculate_cost(span)
           }
+        end
+
+        ##
+        # What this evaluation cost to produce, as opposed to what the span it
+        # graded cost. LLM-judge evaluators call the judge model directly, so
+        # their spend appears in no tracing span and in no cost report; the
+        # usage rides out on the evaluator's own result details and is priced
+        # here. Rule-based evaluators spend nothing and report zero, which is a
+        # measurement rather than a gap.
+        #
+        # @param field_result [Hash] combined result for one field
+        # @param field_evaluators [Hash] individual evaluator results for that field
+        # @return [Hash] evaluation_cost, evaluation_usage and the judge models used
+        def evaluation_spend(field_result, field_evaluators)
+          usages = collect_judge_usages(field_result, field_evaluators)
+
+          # inject rather than sum: host applications carrying
+          # descriptive_statistics have a process-wide Enumerable#sum that reads
+          # a Hash as its values, hands a two-argument block nil for the second
+          # parameter, and returns nil for an empty Hash. A rule-based evaluator
+          # spends nothing, so the empty case is the common one.
+          cost = usages.inject(0.0) do |total, (model, usage)|
+            priced = RAAF::Usage::CostCalculator.calculate_cost(usage, model: model)
+            total + (priced ? priced[:total_cost] : 0.0)
+          end
+
+          {
+            evaluation_cost: cost.round(6),
+            evaluation_models: usages.keys,
+            evaluation_usage: usages.values.each_with_object(Hash.new(0)) { |usage, totals|
+              usage.each { |key, value| totals[key] += value }
+            }
+          }
+        end
+
+        ##
+        # Sum judge token usage per model across a field's evaluators. The
+        # combined field result and the individual evaluator results can both
+        # carry it, so both are walked and identical entries are summed rather
+        # than counted twice — an evaluator alias appears once in each place.
+        #
+        # @return [Hash{String => Hash}] usage totals keyed by judge model
+        def collect_judge_usages(field_result, field_evaluators)
+          candidates = [ field_result ] + Array(field_evaluators&.values)
+
+          candidates.each_with_object({}) do |result, totals|
+            details = result.is_a?(Hash) ? (result[:details] || result["details"]) : nil
+            next unless details.is_a?(Hash)
+
+            usage = details[:judge_usage] || details["judge_usage"]
+            next unless usage.is_a?(Hash)
+
+            model = (details[:judge_model] || details["judge_model"]).to_s
+            next if model.empty?
+
+            totals[model] ||= Hash.new(0)
+            usage.each { |key, value| totals[model][key.to_sym] += value.to_i }
+          end
         end
 
         def calculate_latency(span)

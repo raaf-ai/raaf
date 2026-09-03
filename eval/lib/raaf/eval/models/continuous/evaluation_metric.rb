@@ -93,11 +93,16 @@ module RAAF
           def aggregate_from_results(results, **dimensions)
             scores = results.where.not(score: nil).pluck(:score)
 
+            # ContinuousEvaluationResult validates status as good/average/bad/error
+            # and permits nothing else, so counting "passed"/"failed"/"warning"
+            # here returned 0 for every column no matter how many results existed.
+            # The metric columns keep their older names; the mapping is what
+            # makes them mean something.
             metrics = {
               total_evaluations: results.count,
-              passed_count: results.where(status: "passed").count,
-              failed_count: results.where(status: "failed").count,
-              warning_count: results.where(status: "warning").count,
+              passed_count: results.where(status: "good").count,
+              warning_count: results.where(status: "average").count,
+              failed_count: results.where(status: "bad").count,
               error_count: results.where(status: "error").count,
               avg_score: scores.any? ? scores.sum / scores.size : nil,
               min_score: scores.min,

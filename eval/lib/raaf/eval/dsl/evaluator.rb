@@ -22,6 +22,27 @@ module RAAF
               @evaluator_name
             end
           end
+
+          # Declare what kind of work this evaluator does: :llm_judge,
+          # :statistical or :rule_based.
+          #
+          # EvaluatorDefinition#evaluated_checks otherwise infers the kind from a
+          # fixed list of built-in evaluator names, so every application-defined
+          # evaluator is reported as rule_based no matter what it does. An
+          # evaluator that wraps an LLM judge is then indistinguishable from a
+          # free one, which is wrong in the direction that matters: it is the
+          # llm_judge checks that spend money, and anything pricing a policy or
+          # showing a user what a check costs reads this.
+          #
+          # @param type [Symbol, nil] the kind, or nil to read it back
+          # @return [Symbol, nil]
+          def evaluator_type(type = nil)
+            if type
+              @evaluator_type = type.to_sym
+            else
+              @evaluator_type
+            end
+          end
         end
 
         # Validate that result matches the evaluator contract

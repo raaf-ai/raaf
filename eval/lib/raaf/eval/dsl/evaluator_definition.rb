@@ -220,8 +220,25 @@ module RAAF
             when 'consistency', 'no_regression', 'variance'
               :statistical
             else
-              :rule_based
+              # Anything not built in gets to say for itself. Without this an
+              # application evaluator that wraps GEval reports as rule_based —
+              # free — and a policy built from those checks looks like it costs
+              # nothing to run.
+              declared_check_type(evaluator_name) || :rule_based
             end
+          end
+
+          # Ask the registered evaluator class what kind of check it performs.
+          #
+          # @param evaluator_name [Symbol, String]
+          # @return [Symbol, nil] the declared type, or nil when it declares none
+          def declared_check_type(evaluator_name)
+            klass = EvaluatorRegistry.instance.get(evaluator_name.to_sym)
+            return nil unless klass.respond_to?(:evaluator_type)
+
+            klass.evaluator_type&.to_sym
+          rescue EvaluatorRegistry::UnregisteredEvaluatorError
+            nil
           end
 
           public
