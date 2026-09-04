@@ -85,6 +85,9 @@ module RAAF
                 render_detail_row("Environment", @policy.environment.presence || "All environments")
                 render_detail_row("Model Pattern", @policy.model_pattern.presence || "All models")
                 render_detail_row("Sampling Mode", format_sampling_mode)
+                if (to_go = @policy.spans_until_next_sample)
+                  render_detail_row("Next Sample", "In #{to_go} more matching span#{'s' unless to_go == 1}")
+                end
                 render_detail_row("Daily Limit", @policy.max_daily_evaluations&.to_s || "Unlimited")
                 render_detail_row("Retention", "#{@policy.retention_days} days")
                 render_detail_row("Priority", @policy.priority.to_s)

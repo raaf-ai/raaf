@@ -144,6 +144,11 @@ module RAAF
               span(class: "font-medium") { policy.sample_every_n.to_s }
               span(class: "text-gray-500") { "th span" }
             end
+            if policy.respond_to?(:spans_until_next_sample) && (to_go = policy.spans_until_next_sample)
+              p(class: "mt-1 text-xs text-gray-500") do
+                "next in #{to_go} span#{'s' unless to_go == 1}"
+              end
+            end
           when 'all'
             render_badge("All spans", "blue")
           else

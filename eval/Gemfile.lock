@@ -32,6 +32,7 @@ PATH
       csv (~> 3.0)
       json (~> 2.0)
       matrix (~> 0.4)
+      ostruct (~> 0.6)
       pg (~> 1.5)
       raaf-core (= 0.1.0)
       raaf-tracing (= 0.1.0)
@@ -109,24 +110,6 @@ GEM
     google-protobuf (4.33.0)
       bigdecimal
       rake (>= 13)
-    google-protobuf (4.33.0-aarch64-linux-gnu)
-      bigdecimal
-      rake (>= 13)
-    google-protobuf (4.33.0-aarch64-linux-musl)
-      bigdecimal
-      rake (>= 13)
-    google-protobuf (4.33.0-arm64-darwin)
-      bigdecimal
-      rake (>= 13)
-    google-protobuf (4.33.0-x86_64-darwin)
-      bigdecimal
-      rake (>= 13)
-    google-protobuf (4.33.0-x86_64-linux-gnu)
-      bigdecimal
-      rake (>= 13)
-    google-protobuf (4.33.0-x86_64-linux-musl)
-      bigdecimal
-      rake (>= 13)
     googleapis-common-protos-types (1.22.0)
       google-protobuf (~> 4.26)
     i18n (1.14.7)
@@ -169,17 +152,12 @@ GEM
       opentelemetry-semantic_conventions
     opentelemetry-semantic_conventions (1.36.0)
       opentelemetry-api (~> 1.0)
+    ostruct (0.6.3)
     parallel (1.27.0)
     parser (3.3.10.0)
       ast (~> 2.4.1)
       racc
     pg (1.6.2)
-    pg (1.6.2-aarch64-linux)
-    pg (1.6.2-aarch64-linux-musl)
-    pg (1.6.2-arm64-darwin)
-    pg (1.6.2-x86_64-darwin)
-    pg (1.6.2-x86_64-linux)
-    pg (1.6.2-x86_64-linux-musl)
     prism (1.6.0)
     protocol-hpack (1.5.1)
     protocol-http (0.55.0)
@@ -198,9 +176,6 @@ GEM
     racc (1.8.1)
     rainbow (3.1.1)
     rake (13.3.1)
-    rake-compiler-dock (1.12.0)
-    rb_sys (0.9.130)
-      rake-compiler-dock (= 1.12.0)
     regexp_parser (2.11.3)
     rouge (4.6.1)
     rspec (3.13.2)
@@ -233,14 +208,7 @@ GEM
     ruby-progressbar (1.13.0)
     ruby-statistics (3.0.2)
     securerandom (0.4.1)
-    tiktoken_ruby (0.0.13)
-      rb_sys (~> 0.9)
-    tiktoken_ruby (0.0.13-aarch64-linux)
-    tiktoken_ruby (0.0.13-arm-linux)
-    tiktoken_ruby (0.0.13-arm64-darwin)
-    tiktoken_ruby (0.0.13-x86_64-darwin)
-    tiktoken_ruby (0.0.13-x86_64-linux)
-    tiktoken_ruby (0.0.13-x86_64-linux-musl)
+    tiktoken_ruby (0.0.17-arm64-darwin)
     timecop (0.9.10)
     timeout (0.4.4)
     traces (0.18.2)
@@ -252,15 +220,7 @@ GEM
     uri (1.1.1)
 
 PLATFORMS
-  aarch64-linux
-  aarch64-linux-gnu
-  aarch64-linux-musl
-  arm-linux
-  arm64-darwin
-  x86_64-darwin
-  x86_64-linux
-  x86_64-linux-gnu
-  x86_64-linux-musl
+  arm64-darwin-23
 
 DEPENDENCIES
   bundler (~> 2.0)

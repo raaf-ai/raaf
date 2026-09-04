@@ -52,6 +52,9 @@ Gem::Specification.new do |spec|
   # CSV export support (Ruby 3.4+ requires explicit dependency)
   spec.add_dependency "csv", "~> 3.0"
 
+  # SpanAccessor wraps span rows in OpenStruct (Ruby 4.0+ requires explicit dependency)
+  spec.add_dependency "ostruct", "~> 0.6"
+
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"

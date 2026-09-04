@@ -229,6 +229,35 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
     end
   end
 
+  describe "#spans_until_next_sample" do
+    it "reports the full interval on a fresh counter" do
+      policy = create(:evaluation_policy, :every_n_sampling, sample_every_n: 20, sample_counter: 0)
+      expect(policy.spans_until_next_sample).to eq(20)
+    end
+
+    it "reports the remaining distance mid-interval" do
+      policy = create(:evaluation_policy, :every_n_sampling, sample_every_n: 20, sample_counter: 9)
+      expect(policy.spans_until_next_sample).to eq(11)
+    end
+
+    it "reports the full interval again right after a sample fired" do
+      policy = create(:evaluation_policy, :every_n_sampling, sample_every_n: 20, sample_counter: 20)
+      expect(policy.spans_until_next_sample).to eq(20)
+    end
+
+    it "counts down as spans are sampled" do
+      policy = create(:evaluation_policy, :every_n_sampling, sample_every_n: 5)
+      before = policy.spans_until_next_sample
+      policy.should_sample?
+      expect(policy.reload.spans_until_next_sample).to eq(before == 1 ? 5 : before - 1)
+    end
+
+    it "is nil for all-spans sampling" do
+      policy = create(:evaluation_policy, :all_spans)
+      expect(policy.spans_until_next_sample).to be_nil
+    end
+  end
+
   describe "#increment_evaluation_count!" do
     let(:policy) { create(:evaluation_policy) }
 

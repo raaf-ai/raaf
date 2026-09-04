@@ -170,6 +170,22 @@ module RAAF
         end
 
         ##
+        # How many more matching spans until the next one is sampled.
+        #
+        # Mirrors #check_and_increment_counter: each matching span increments
+        # the counter first, and is sampled when the new value is divisible by
+        # sample_every_n. Note the counter does not advance while the daily
+        # limit is reached, so this distance freezes on a capped day.
+        #
+        # @return [Integer, nil] span count for every_n mode, nil for other modes
+        def spans_until_next_sample
+          return nil unless every_n_sampling?
+          return nil unless sample_every_n.to_i.positive?
+
+          sample_every_n - (sample_counter.to_i % sample_every_n)
+        end
+
+        ##
         # Check if daily evaluation limit has been reached
         # @return [Boolean]
         def at_daily_limit?
