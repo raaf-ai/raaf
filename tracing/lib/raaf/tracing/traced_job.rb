@@ -5,7 +5,9 @@ require_relative "traceable"
 require_relative "tracing_registry"
 
 module RAAF
+
   module Tracing
+
     # Base class for ActiveJob classes that need automatic tracing
     #
     # This class provides automatic span creation for job execution with:
@@ -32,7 +34,9 @@ module RAAF
     #   end
     #
     class TracedJob < ActiveJob::Base
+
       include Traceable
+
       trace_as :job
 
       around_perform :with_job_tracing
@@ -55,13 +59,14 @@ module RAAF
           job_metadata = extract_job_metadata.merge("trace.workflow_name" => self.class.name)
 
           with_tracing(:perform, **job_metadata) do
+            previous_job_span = Thread.current[:raaf_job_span]
             begin
               # Make job span available to nested components
               store_job_span_context
               block.call
             ensure
-              # Always clean up span context
-              cleanup_job_span_context
+              # Always restore the span context we found
+              cleanup_job_span_context(previous_job_span)
             end
           end
         end
@@ -106,14 +111,20 @@ module RAAF
       # This method makes the job's current span available to any nested operations
       # so they can properly establish parent-child relationships in the trace hierarchy.
       def store_job_span_context
-        if current_span
-          Thread.current[:raaf_job_span] = self
-        end
+        return unless current_span
+
+        Thread.current[:raaf_job_span] = self
       end
 
-      # Clean up job span context
-      def cleanup_job_span_context
-        Thread.current[:raaf_job_span] = nil
+      # Restore the job span context that was in place before this job ran
+      #
+      # A job invoked with +perform_now+ from inside another job has to hand the
+      # caller's span back. Clearing it instead would make every span the caller
+      # creates afterwards a root span of its own trace.
+      #
+      # @param previous_job_span [Object, nil] the span context found on entry
+      def cleanup_job_span_context(previous_job_span = nil)
+        Thread.current[:raaf_job_span] = previous_job_span
       end
 
       # Extract job metadata for span attributes
@@ -197,9 +208,7 @@ module RAAF
             sanitized_hash[sanitized_key] = sanitize_hash_value(key, value)
           end
 
-          if arg.size > 10
-            sanitized_hash["..."] = "#{arg.size - 10} more keys"
-          end
+          sanitized_hash["..."] = "#{arg.size - 10} more keys" if arg.size > 10
 
           sanitized_hash
         when Array
@@ -238,7 +247,11 @@ module RAAF
         when String, Symbol
           key
         else
-          key.to_s rescue "<key>"
+          begin
+            key.to_s
+          rescue StandardError
+            "<key>"
+          end
         end
       end
 
@@ -273,5 +286,7 @@ module RAAF
       end
 
     end
+
   end
+
 end

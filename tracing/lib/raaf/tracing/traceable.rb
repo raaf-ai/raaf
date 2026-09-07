@@ -6,7 +6,9 @@ require_relative "tracing_registry"
 require_relative "no_op_tracer"
 
 module RAAF
+
   module Tracing
+
     # Unified tracing module where classes control their own span content
     # Traceable provides framework (timing, hierarchy, errors) + asks classes what to store
     #
@@ -35,11 +37,13 @@ module RAAF
     #   child_agent.run("message") # Automatically creates child span
     #
     module Traceable
+
       def self.included(base)
         base.extend(ClassMethods)
       end
 
       module ClassMethods
+
         # Define what type of component this is for tracing
         #
         # @param component_type [Symbol] The component type (:agent, :pipeline, :tool, etc.)
@@ -50,9 +54,27 @@ module RAAF
 
         # Get the component type for tracing
         #
+        # A +trace_as+ declaration is stored in a class-level instance variable,
+        # which Ruby does not copy to subclasses. Walking the superclass chain
+        # keeps the declaration meaningful when it sits on a base class: without
+        # it, a provider inheriting from a base that declared +trace_as :custom+
+        # would fall back to inference and be recorded as a plain component.
+        #
         # @return [Symbol] The component type
         def trace_component_type
-          @trace_component_type || infer_component_type
+          declared_trace_component_type || infer_component_type
+        end
+
+        protected
+
+        # The nearest +trace_as+ declaration on this class or its ancestors
+        #
+        # @return [Symbol, nil] The declared component type, or nil if none was declared
+        def declared_trace_component_type
+          return @trace_component_type if defined?(@trace_component_type) && @trace_component_type
+          return unless superclass.respond_to?(:declared_trace_component_type, true)
+
+          superclass.send(:declared_trace_component_type)
         end
 
         private
@@ -76,6 +98,7 @@ module RAAF
             end
           end
         end
+
       end
 
       # Main tracing wrapper - handles framework concerns, asks class for content
@@ -148,7 +171,9 @@ module RAAF
             return collector.collect_attributes(self)
           rescue StandardError => e
             # Log error and fall back to original implementation
-            puts "Warning: Collector error, falling back to original implementation: #{e.message}" if ENV['RAAF_DEBUG_CATEGORIES']&.include?('tracing')
+            if ENV["RAAF_DEBUG_CATEGORIES"]&.include?("tracing")
+              puts "Warning: Collector error, falling back to original implementation: #{e.message}"
+            end
           end
         end
 
@@ -173,7 +198,9 @@ module RAAF
             # Log error and fall back to original implementation
             # Note: Using puts for now since logger may not be available
             # TODO: Replace with proper logging when available
-            puts "Warning: Collector error, falling back to original implementation: #{e.message}" if ENV['RAAF_DEBUG_CATEGORIES']&.include?('tracing')
+            if ENV["RAAF_DEBUG_CATEGORIES"]&.include?("tracing")
+              puts "Warning: Collector error, falling back to original implementation: #{e.message}"
+            end
           end
         end
 
@@ -224,7 +251,7 @@ module RAAF
         fiber_store = span_storage[Fiber.current.object_id]
         return nil unless fiber_store
 
-        stack = fiber_store[self.object_id]
+        stack = fiber_store[object_id]
         stack&.last
       end
 
@@ -269,7 +296,7 @@ module RAAF
 
       def push_span(span_data)
         fiber_store = span_storage[Fiber.current.object_id] ||= {}
-        stack = fiber_store[self.object_id] ||= []
+        stack = fiber_store[object_id] ||= []
         stack.push(span_data)
       end
 
@@ -277,15 +304,15 @@ module RAAF
         fiber_store = span_storage[Fiber.current.object_id]
         return unless fiber_store
 
-        stack = fiber_store[self.object_id]
+        stack = fiber_store[object_id]
         return unless stack
 
         stack.pop
 
-        if stack.empty?
-          fiber_store.delete(self.object_id)
-          span_storage.delete(Fiber.current.object_id) if fiber_store.empty?
-        end
+        return unless stack.empty?
+
+        fiber_store.delete(object_id)
+        span_storage.delete(Fiber.current.object_id) if fiber_store.empty?
       end
 
       def span_storage
@@ -298,7 +325,7 @@ module RAAF
       # @param method_name [Symbol, String, nil] Name of the method being traced
       # @param parent_component_arg [Object, nil] Explicit parent component
       # @return [Hash, nil] Existing span data if reusable, nil if new span needed
-      def detect_existing_span(method_name, parent_component_arg)
+      def detect_existing_span(method_name, _parent_component_arg)
         # Check if we already have an active span for this component
         current = current_span
         return nil unless current
@@ -339,7 +366,6 @@ module RAAF
         component_name = self.class.name
         span_id = "span_#{SecureRandom.hex(16)}"
 
-
         parent_span_id = get_parent_span_id(parent_component_arg)
         trace_id = get_trace_id(parent_component_arg)
 
@@ -353,13 +379,13 @@ module RAAF
           actual_kind = :llm
 
           # Determine the type of LLM operation from metadata
-          if metadata[:streaming]
-            display_name = "streaming"
-          elsif metadata[:tool_calls]
-            display_name = "tool_call"
-          else
-            display_name = "completion"
-          end
+          display_name = if metadata[:streaming]
+                           "streaming"
+                         elsif metadata[:tool_calls]
+                           "tool_call"
+                         else
+                           "completion"
+                         end
 
           # Set method_name to match display_name to prevent duplication
           method_name = display_name
@@ -401,9 +427,7 @@ module RAAF
           # CRITICAL FIX: For tool execution within agent context, use ORIGINAL agent span as parent
           # Check for original agent span first (prevents tool-to-tool nesting)
           original_agent_span = Thread.current[:original_agent_span]
-          if original_agent_span && original_agent_span[:span_id]
-            return original_agent_span[:span_id]
-          end
+          return original_agent_span[:span_id] if original_agent_span && original_agent_span[:span_id]
 
           # Fallback: Check if we're in an agent context (thread-local storage)
           agent_context = Thread.current[:current_agent]
@@ -454,9 +478,7 @@ module RAAF
 
         # CRITICAL FIX: Check for original agent span first (prevents trace fragmentation)
         original_agent_span = Thread.current[:original_agent_span]
-        if original_agent_span && original_agent_span[:trace_id]
-          return original_agent_span[:trace_id]
-        end
+        return original_agent_span[:trace_id] if original_agent_span && original_agent_span[:trace_id]
 
         # Fallback: Check agent context for trace ID inheritance
         agent_context = Thread.current[:current_agent]
@@ -488,9 +510,7 @@ module RAAF
           base_name = "run.workflow.#{component_type}"
 
           # Always include component name if available and not "Runner"
-          if component_name && component_name != "Runner"
-            base_name = "#{base_name}.#{component_name}"
-          end
+          base_name = "#{base_name}.#{component_name}" if component_name && component_name != "Runner"
 
           # Add method name if it's not the default 'run' method
           # AND it's not the same as the component name (prevents duplication)
@@ -509,7 +529,7 @@ module RAAF
       # @param span_data [Hash] Span data to complete
       # @param result [Object] Result of the operation
       # @return [void]
-      def complete_span(span_data, result)
+      def complete_span(span_data, _result)
         span_data[:end_time] = Time.now.utc
         span_data[:attributes]["duration_ms"] = calculate_duration(span_data)
         span_data[:attributes]["success"] = true
@@ -539,24 +559,23 @@ module RAAF
         tracer = get_tracer_for_span_sending
 
         # Only send if there's a tracer available - don't normalize unless sending
-        if tracer
-          # Check for duplicate spans before sending
-          return if span_already_sent?(span_data)
+        return unless tracer
+        # Check for duplicate spans before sending
+        return if span_already_sent?(span_data)
 
-          # Make a copy and normalize it for sending
-          normalized_span = span_data.dup
-          normalize_span_data!(normalized_span)
+        # Make a copy and normalize it for sending
+        normalized_span = span_data.dup
+        normalize_span_data!(normalized_span)
 
-          # Create actual Span object for processor compatibility
-          span_obj = create_span_object(normalized_span)
+        # Create actual Span object for processor compatibility
+        span_obj = create_span_object(normalized_span)
 
-          tracer.processors.each do |processor|
-            processor.on_span_end(span_obj) if processor.respond_to?(:on_span_end)
-          end
-
-          # Mark span as sent
-          mark_span_as_sent(span_data)
+        tracer.processors.each do |processor|
+          processor.on_span_end(span_obj) if processor.respond_to?(:on_span_end)
         end
+
+        # Mark span as sent
+        mark_span_as_sent(span_data)
       end
 
       # Create a Span object from span data for processor compatibility
@@ -603,10 +622,10 @@ module RAAF
 
         # Clean up old sent spans to prevent memory leaks
         # Keep only last 1000 span IDs
-        if @sent_spans.size > 1000
-          old_spans = @sent_spans.to_a[0..-501]  # Remove oldest 500
-          old_spans.each { |id| @sent_spans.delete(id) }
-        end
+        return unless @sent_spans.size > 1000
+
+        old_spans = @sent_spans.to_a[0..-501] # Remove oldest 500
+        old_spans.each { |id| @sent_spans.delete(id) }
       end
 
       # Normalize span data to RAAF format
@@ -620,10 +639,8 @@ module RAAF
         span_data[:events] ||= []
 
         # Ensure Time objects are in UTC for consistency but keep as Time objects
-        [:start_time, :end_time].each do |time_field|
-          if span_data[time_field].is_a?(Time)
-            span_data[time_field] = span_data[time_field].utc
-          end
+        %i[start_time end_time].each do |time_field|
+          span_data[time_field] = span_data[time_field].utc if span_data[time_field].is_a?(Time)
         end
 
         span_data
@@ -706,20 +723,21 @@ module RAAF
       #     raise
       #   end
       def force_flush_traces
-        begin
-          if defined?(RAAF::Tracing::TraceProvider)
-            RAAF::Tracing::TraceProvider.force_flush
+        if defined?(RAAF::Tracing::TraceProvider)
+          RAAF::Tracing::TraceProvider.force_flush
 
-            # Give network time to complete (critical for error scenarios)
-            # This small sleep ensures HTTP requests complete before process exits
-            sleep(0.1)
-          end
-        rescue StandardError => e
-          # Don't let flushing errors hide the original error
-          # Use warn instead of raise to prevent masking the real exception
-          warn "[Traceable] Failed to flush traces: #{e.message}"
+          # Give network time to complete (critical for error scenarios)
+          # This small sleep ensures HTTP requests complete before process exits
+          sleep(0.1)
         end
+      rescue StandardError => e
+        # Don't let flushing errors hide the original error
+        # Use warn instead of raise to prevent masking the real exception
+        warn "[Traceable] Failed to flush traces: #{e.message}"
       end
+
     end
+
   end
+
 end
