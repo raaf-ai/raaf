@@ -5,7 +5,9 @@ require_relative "spec_helper"
 # Load Capybara for feature specs
 begin
   require "capybara/rspec"
-  require "capybara/rails" if defined?(Rails)
+  # spec_helper defines a stand-in Rails module; capybara/rails needs a real
+  # application (it reads Rails.root at load time), so only load it for one.
+  require "capybara/rails" if defined?(Rails) && Rails.respond_to?(:root)
 rescue LoadError
   # Capybara not available in minimal test environments
 end
@@ -15,8 +17,9 @@ Dir[File.join(__dir__, "support/**/*.rb")].sort.each { |f| require f }
 
 # Configure RSpec for Rails-style testing
 RSpec.configure do |config|
-  # Infer spec type from file location
-  config.infer_spec_type_from_file_location!
+  # Infer spec type from file location. rspec-rails provides this, and it is only
+  # loadable inside a real Rails application, so skip it when running standalone.
+  config.infer_spec_type_from_file_location! if config.respond_to?(:infer_spec_type_from_file_location!)
 
   # Include URL helpers for request specs
   config.include TestHelpers

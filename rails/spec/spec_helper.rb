@@ -44,13 +44,13 @@ module Rails
     end
 
     MockConfig = Struct.new(:generators, :assets, :autoload_paths, :eager_load_paths, :after_initialize, :to_prepare, :i18n)
-    MockGenerators = Struct.new(:test_framework)
+    MockGenerators = Struct.new(:test_framework, :templates)
     MockAssets = Struct.new(:enabled, :paths, :precompile)
     MockI18n = Struct.new(:load_path)
 
     def self.config
       @config ||= MockConfig.new(
-        MockGenerators.new(:rspec),
+        MockGenerators.new(:rspec, []),
         MockAssets.new(true, [], []),
         [],
         [],
@@ -165,6 +165,12 @@ module ActionController
   end
 end
 
+# raaf-rails loads raaf-eval, whose models subclass the real ActiveRecord::Base.
+# Defining the constant here first would shadow active_record's autoload and leave
+# Base without table_name=, has_many and friends, so load the real thing before
+# reopening it with the query stubs these specs rely on.
+require "active_record"
+
 # Mock ActiveRecord for basic Rails compatibility
 module ActiveRecord
   class Base
@@ -257,11 +263,8 @@ module ActiveRecord
     end
   end
 
-  module Schema
-    def self.define(&block)
-      # No-op for testing
-    end
-  end
+  # ActiveRecord::Schema is a class in active_record; it already provides .define,
+  # so there is nothing to stub here.
 end
 
 # Mock ActiveSupport for Rails compatibility
