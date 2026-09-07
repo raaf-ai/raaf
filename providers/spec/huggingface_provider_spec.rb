@@ -199,6 +199,9 @@ RSpec.describe RAAF::Models::HuggingFaceProvider do
 
       it "logs warning when using tools with non-function-calling model" do
         non_fc_model = "custom-org/non-function-calling-model"
+        # An unverified model also triggers a "not in the verified models list"
+        # warning; allow that one so the mock does not reject it.
+        allow(provider).to receive(:log_warn)
         expect(provider).to receive(:log_warn).with(
           /may not support function calling/,
           hash_including(provider: "HuggingFaceProvider", model: non_fc_model)

@@ -12,6 +12,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
     end
 
     it "initializes with API key from ENV" do
+      allow(ENV).to receive(:fetch).and_call_original
       allow(ENV).to receive(:fetch).with("PERPLEXITY_API_KEY", nil).and_return("env-key")
       allow(ENV).to receive(:fetch).with("PERPLEXITY_TIMEOUT", "180").and_return("180")
       allow(ENV).to receive(:fetch).with("PERPLEXITY_OPEN_TIMEOUT", "30").and_return("30")
@@ -20,6 +21,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
     end
 
     it "raises AuthenticationError if no API key provided" do
+      allow(ENV).to receive(:fetch).and_call_original
       allow(ENV).to receive(:fetch).with("PERPLEXITY_API_KEY", nil).and_return(nil)
       allow(ENV).to receive(:fetch).with("PERPLEXITY_TIMEOUT", "180").and_return("180")
       allow(ENV).to receive(:fetch).with("PERPLEXITY_OPEN_TIMEOUT", "30").and_return("30")
@@ -249,7 +251,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
         expect(result).to have_key("choices")
       end
 
-      it "respects max_attempts configuration (default 3)" do
+      it "respects max_attempts configuration (default 5)" do
         call_count = 0
         allow(provider).to receive(:make_api_call) do
           call_count += 1
@@ -258,7 +260,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
 
         expect { provider.chat_completion(messages: messages, model: model) }
           .to raise_error(Net::ReadTimeout)
-        expect(call_count).to eq(3) # Initial attempt + 2 retries
+        expect(call_count).to eq(5) # Initial attempt + 4 retries
       end
 
       it "does not retry on non-retryable errors" do

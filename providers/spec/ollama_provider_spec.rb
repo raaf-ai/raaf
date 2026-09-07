@@ -386,8 +386,8 @@ RSpec.describe RAAF::Models::OllamaProvider do
       final_chunk = chunks.last
       expect(final_chunk[:type]).to eq("finish")
       expect(final_chunk[:finish_reason]).to eq("stop")
-      expect(final_chunk[:usage]["prompt_tokens"]).to eq(10)
-      expect(final_chunk[:usage]["completion_tokens"]).to eq(20)
+      expect(final_chunk[:usage][:input_tokens]).to eq(10)
+      expect(final_chunk[:usage][:output_tokens]).to eq(20)
     end
 
     it "returns accumulated content and metadata" do

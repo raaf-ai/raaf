@@ -19,6 +19,7 @@ require_relative "raaf/nebius_provider"
 require_relative "raaf/multi_provider"
 require_relative "raaf/litellm_provider"
 require_relative "raaf/xai_provider"
+require_relative "raaf/openrouter_provider"
 
 ##
 # RAAF Providers - Additional LLM provider integrations

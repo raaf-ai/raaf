@@ -64,11 +64,10 @@ RSpec.describe RAAF::Models::GeminiProvider do
       expect(models).to include("gemini-2.0-flash")
       expect(models).to include("gemini-2.0-flash-exp")
       expect(models).to include("gemini-2.0-flash-lite")
-      # Gemini 1.5 series
-      expect(models).to include("gemini-1.5-pro-latest")
-      expect(models).to include("gemini-1.5-flash-latest")
-      # Legacy
-      expect(models).to include("gemini-1.0-pro")
+      # The 1.5 and 1.0 series were deprecated in April 2025; they are no longer
+      # supported models, they are aliases onto the 2.x equivalents.
+      expect(models).not_to include("gemini-1.5-pro-latest")
+      expect(described_class::MODEL_ALIASES).to include("gemini-1.5-flash-latest")
     end
 
     it "includes all expected model variants" do
