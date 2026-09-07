@@ -15,11 +15,55 @@ module RAAF
       # screens that do not exist yet — so this list doubles as the roadmap.
       #
       class BaseLayout < BaseComponent
+        # Which nav item is current is read off the request path. The adapter
+        # is what phlex-rails offers in place of reaching for the view context
+        # directly; `helpers` is the same thing with a deprecation on it.
+        include Phlex::Rails::Helpers::Request
+
         # @param range_href [#call, nil] receives a range, returns its URL.
         #   Without it the header leaves the time range out entirely, which is
         #   how a screen that does not filter by time opts out.
+        # Front-end libraries a page can ask for by name.
+        #
+        # The head used to load all of them on every screen, so the Overview
+        # paid for a megabyte of diff renderer it never called and the policy
+        # list paid for a syntax highlighter with nothing to highlight. None of
+        # the tags carried +defer+, so all of it blocked the first paint.
+        # Measured against the CDNs on 2026-09-07: diff2html-ui 1,024 kB, its
+        # stylesheet 17 kB, jsdiff 17 kB, highlight.js 122 kB and its JSON
+        # grammar 0.5 kB — 1.18 MB that most of the console has no use for.
+        #
+        # A page names what it needs and pays for nothing else. The Stimulus
+        # controllers that drive these libraries stay registered everywhere:
+        # they are defined inline, cost nothing until an element asks for one,
+        # and only a page that asked for the bundle carries such an element.
+        #
+        # No page asks for +:syntax+ on its own today. The components that print
+        # a highlighted payload — +SpanDetail::Component+ and the per-kind
+        # +*SpanComponent+ family — are orphaned: the console rebuild replaced
+        # that screen with +Ui::Organisms::SpanInspector+, which renders a bare
+        # +pre+ that +hljs.highlightAll+ does not even match, and nothing
+        # constructs the old components any more. It stays a bundle because
+        # +:diff+ depends on it and because those components are still here, so
+        # whoever revives that screen finds the loader rather than the symptom.
+        BUNDLES = %i[diff syntax].freeze
+
+        # Bundles that pull in other bundles.
+        #
+        # diff2html ships three builds and they differ only in how much
+        # highlighter they carry: the full one 1,024 kB, the slim one 291 kB,
+        # the base one 92 kB. The base build takes an +hljs+ implementation as
+        # its fourth constructor argument and +highlightCode+ throws without
+        # one, so the console loads that and its own highlight.js rather than
+        # a second copy welded into a megabyte bundle — 1,024 kB against the
+        # 215 kB this pair costs, for the same diff.
+        BUNDLE_DEPENDENCIES = { diff: %i[syntax] }.freeze
+
+        # @param bundles [Array<Symbol>] any of {BUNDLES}; anything else is
+        #   ignored rather than raised on, so a typo in a caller costs the page
+        #   its highlighting instead of a 500.
         def initialize(title: "Overview", crumb: nil, current: nil, range: "24h",
-                       range_href: nil, live: true, breadcrumb: nil)
+                       range_href: nil, live: true, breadcrumb: nil, bundles: [])
           @title = title
           @crumb = crumb
           @current = current
@@ -27,6 +71,8 @@ module RAAF
           @range_href = range_href
           @live = live
           @breadcrumb = breadcrumb
+          requested = Array(bundles).map(&:to_sym) & BUNDLES
+          @bundles = requested.flat_map { |name| [ name, *BUNDLE_DEPENDENCIES[name] ] }.uniq
         end
 
         def view_template(&block)
@@ -56,22 +102,63 @@ module RAAF
           link(rel: "stylesheet",
                href: "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css")
 
-          link(rel: "stylesheet",
-               href: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css")
-          link(rel: "stylesheet",
-               href: "https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/css/diff2html.min.css")
-          script(src: "https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js")
-          script(src: "https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/js/diff2html-ui.min.js")
+          if bundle?(:diff)
+            link(rel: "stylesheet",
+                 href: "https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/css/diff2html.min.css")
+          end
 
           # MIGRATION SCAFFOLDING — remove once every page component has been
           # converted to the UI library. Pages still carrying Tailwind utility
           # classes depend on this; converted pages do not touch it.
           script(src: "https://cdn.tailwindcss.com")
 
-          style { raw(safe(Ui::Stylesheet.call)) }
+          # Linked rather than inlined: 156 kB of CSS in every document, on
+          # every navigation, that the browser could never keep. The path
+          # carries the stylesheet's content hash, so this is fetched once and
+          # re-fetched exactly when the CSS changes.
+          link(rel: "stylesheet", href: console_stylesheet_path(Ui::Stylesheet.digest))
 
           csrf_meta_tags
           csp_meta_tag
+        end
+
+        # @param name [Symbol]
+        # @return [Boolean] whether this page asked for that bundle
+        def bundle?(name)
+          @bundles.include?(name)
+        end
+
+        # jsdiff and diff2html, for the replay comparison view.
+        #
+        # The base diff2html build, which expects the highlighter to be handed
+        # to it — +:diff+ brings +:syntax+ along for exactly that, and
+        # +DiffController+ passes +window.hljs+ when it constructs the UI.
+        # Its stylesheet is linked from the head; these go at the end of the
+        # body, where they no longer hold up the first paint. The controller
+        # polls for both globals, so arriving late costs it one 50 ms tick.
+        def render_diff_bundle
+          script(src: "https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js")
+          script(src: "https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/js/diff2html-ui-base.min.js")
+        end
+
+        # highlight.js and its JSON grammar, for the screens that print a
+        # payload.
+        #
+        # No stylesheet comes with it: +molecules/syntax.css+ themes the
+        # +.hljs-*+ classes for the console's own dark surface, scoped under
+        # +.raaf-root+, so the CDN's default theme was loaded only to be
+        # overridden by the inline stylesheet that follows it.
+        def render_syntax_bundle
+          script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js")
+          script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js")
+
+          script do
+            safe(<<~JS)
+              document.addEventListener('DOMContentLoaded', function() {
+                if (typeof hljs !== 'undefined') { hljs.highlightAll(); }
+              });
+            JS
+          end
         end
 
         def shell
@@ -161,10 +248,11 @@ module RAAF
           nav_items.find { |item| item[:key] == key }&.fetch(:group)
         end
 
+        # Nil when there is no request to read — a component spec, or a render
+        # outside a view context. A layout with no path simply has no current
+        # nav item, which is the same answer as a path matching nothing.
         def request_path
-          return nil unless respond_to?(:helpers) && helpers.respond_to?(:request)
-
-          helpers.request&.path
+          request&.path
         rescue StandardError
           nil
         end
@@ -472,10 +560,14 @@ module RAAF
                   })
                 }
 
-                highlightElement(element) {
+                highlightElement(element, attempt = 0) {
                   if (!window.hljs) {
-                    // If highlight.js hasn't loaded yet, retry after a short delay
-                    setTimeout(() => this.highlightElement(element), 100)
+                    // highlight.js only loads on pages that asked for the
+                    // syntax bundle, and a CDN can fail anywhere. Give it two
+                    // seconds, then leave the payload unhighlighted rather
+                    // than polling this element for the life of the tab.
+                    if (attempt >= 20) return
+                    setTimeout(() => this.highlightElement(element, attempt + 1), 100)
                     return
                   }
 
@@ -982,15 +1074,31 @@ module RAAF
 
                 connect() {
                   console.log("🔍 Diff controller connected")
-                  // Wait for libraries to load
-                  this.waitForLibraries().then(() => this.renderDiff())
+                  // Wait for libraries to load. They come from a CDN, so say
+                  // so in the container when they never arrive rather than
+                  // leaving the reader looking at an empty box.
+                  this.waitForLibraries()
+                    .then(() => this.renderDiff())
+                    .catch((error) => {
+                      console.warn("Diff libraries unavailable:", error)
+                      if (this.hasContainerTarget) {
+                        this.containerTarget.textContent =
+                          "Could not load the diff viewer. Check the network tab for a blocked CDN request."
+                      }
+                    })
                 }
 
                 waitForLibraries() {
-                  return new Promise((resolve) => {
+                  return new Promise((resolve, reject) => {
+                    // hljs is in the list because the base diff2html build has
+                    // no highlighter of its own -- highlightCode() throws
+                    // without the one handed to the constructor.
+                    let attempts = 0
                     const check = () => {
-                      if (window.Diff && window.Diff2HtmlUI) {
+                      if (window.Diff && window.Diff2HtmlUI && window.hljs) {
                         resolve()
+                      } else if (++attempts > 200) {
+                        reject(new Error("diff libraries did not load"))
                       } else {
                         setTimeout(check, 50)
                       }
@@ -1026,7 +1134,7 @@ module RAAF
                     outputFormat: this.outputStyleValue === "line-by-line" ? "line-by-line" : "side-by-side",
                     highlight: true,
                     renderNothingWhenEmpty: false
-                  })
+                  }, window.hljs)
 
                   diff2htmlUi.draw()
                   diff2htmlUi.highlightCode()
@@ -1305,24 +1413,10 @@ module RAAF
             JS
           end
 
-          # Highlight.js for syntax highlighting
-          script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js")
-          script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js")
-
-          # Initialize highlight.js after loading
-          script do
-            safe(<<~JS)
-              // Initialize highlight.js when it loads
-              document.addEventListener('DOMContentLoaded', function() {
-                if (typeof hljs !== 'undefined') {
-                  console.log('✅ Highlight.js loaded, initializing syntax highlighting');
-                  hljs.highlightAll();
-                } else {
-                  console.warn('⚠️ Highlight.js not loaded');
-                }
-              });
-            JS
-          end
+          # Syntax first: the base diff2html build is handed the highlighter
+          # rather than carrying one.
+          render_syntax_bundle if bundle?(:syntax)
+          render_diff_bundle if bundle?(:diff)
 
           # Preline JS
           script(src: "https://preline.co/assets/js/preline.js")

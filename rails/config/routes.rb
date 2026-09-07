@@ -3,6 +3,12 @@
 RAAF::Rails::Engine.routes.draw do
   root "dashboard#index"
 
+  # The console's stylesheet, at a path carrying its own content hash so it can
+  # be cached for a year. See RAAF::Rails::AssetsController.
+  get "/assets/console-:digest.css",
+      to: "assets#stylesheet", as: :console_stylesheet,
+      constraints: { digest: /[0-9a-f]{16}/ }, format: false
+
   # Dashboard routes
   get "/dashboard", to: "dashboard#index"
   get "/dashboard/performance", to: "dashboard#performance"

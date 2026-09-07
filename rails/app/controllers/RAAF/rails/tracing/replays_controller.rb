@@ -48,7 +48,8 @@ module RAAF
                   original_span: @span,
                   view: params[:view]
                 ),
-                title: "Replay ##{@replay.id}"
+                title: "Replay ##{@replay.id}",
+                bundles: [ :diff ]
               )
             end
             format.json { render json: build_replay_result_data(@replay) }
@@ -141,8 +142,14 @@ module RAAF
           params[:span_id].present?
         end
 
-        def render_in_layout(component, title:)
-          layout = RAAF::Rails::Tracing::BaseLayout.new(title: title, current: :replays) do
+        # @param bundles [Array<Symbol>] front-end libraries this screen needs;
+        #   see {RAAF::Rails::Tracing::BaseLayout::BUNDLES}. The list and the
+        #   form ask for none — only the comparison view renders a diff or
+        #   prints a payload.
+        def render_in_layout(component, title:, bundles: [])
+          layout = RAAF::Rails::Tracing::BaseLayout.new(
+            title: title, current: :replays, bundles: bundles
+          ) do
             render component
           end
 

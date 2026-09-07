@@ -81,6 +81,12 @@ module RAAF
           "/raaf/dashboard"
         end
 
+        # @param digest [String] {RAAF::Rails::Ui::Stylesheet.digest}
+        # @return [String] path to the console stylesheet for that content
+        def console_stylesheet_path(digest)
+          "/raaf/assets/console-#{digest}.css"
+        end
+
         def dashboard_performance_path
           "/raaf/dashboard/performance"
         end

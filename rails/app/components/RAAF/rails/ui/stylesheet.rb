@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 module RAAF
   module Rails
     module Ui
@@ -31,6 +33,20 @@ module RAAF
           def call
             @call = nil if reload?
             @call ||= build
+          end
+
+          # A short content hash, for a URL that can be cached forever.
+          #
+          # The stylesheet is served at a path carrying this, so a browser may
+          # keep it until the CSS itself changes — at which point the path
+          # changes with it and the old copy is simply never asked for again.
+          # In development it is recomputed per request along with {call}, so
+          # editing a component's CSS produces a new URL on the next reload.
+          #
+          # @return [String] 16 hex characters
+          def digest
+            @digest = nil if reload?
+            @digest ||= ::Digest::SHA256.hexdigest(call)[0, 16]
           end
 
           private

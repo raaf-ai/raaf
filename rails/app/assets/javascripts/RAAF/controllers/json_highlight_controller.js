@@ -15,10 +15,13 @@ export default class extends Controller {
     })
   }
 
-  highlightElement(element) {
+  highlightElement(element, attempt = 0) {
     if (!window.hljs) {
-      // If highlight.js hasn't loaded yet, retry after a short delay
-      setTimeout(() => this.highlightElement(element), 100)
+      // highlight.js only loads on pages that asked for the syntax bundle, and
+      // a CDN can fail anywhere. Give it two seconds, then leave the payload
+      // unhighlighted rather than polling this element for the life of the tab.
+      if (attempt >= 20) return
+      setTimeout(() => this.highlightElement(element, attempt + 1), 100)
       return
     }
 
