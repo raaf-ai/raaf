@@ -10,6 +10,7 @@ require "raaf-core"
 require "raaf/errors" # Load error classes
 require "raaf-dsl"
 require "raaf/perplexity_provider"
+require "raaf-testing"
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
@@ -22,6 +23,10 @@ RSpec.configure do |config|
 
   config.shared_context_metadata_behavior = :apply_to_host_groups
   config.filter_run_when_matching :focus
+
+  # Same convention as core: integration specs drive a full Runner and are opt-in.
+  # Run them with RUN_INTEGRATION=1.
+  config.filter_run_excluding :integration unless ENV["RUN_INTEGRATION"]
   config.example_status_persistence_file_path = "spec/examples.txt"
   config.disable_monkey_patching!
   config.warnings = true

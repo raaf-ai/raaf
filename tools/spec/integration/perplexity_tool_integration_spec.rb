@@ -1,9 +1,62 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "raaf/tools/perplexity_tool"
 
 RSpec.describe "PerplexityTool End-to-End Integration", :integration do
   let(:api_key) { "test-perplexity-api-key" }
+
+  # Queue-style stand-in for the agent's LLM provider. RAAF::Testing::MockProvider
+  # is keyed by input (add_response(input, response)) and exposes process_request
+  # rather than chat_completion, so it cannot drive a Runner the way these examples
+  # need. Anything that is not a ResponsesProvider goes through StandardApiStrategy,
+  # which only calls #chat_completion.
+  let(:mock_llm_provider_class) do
+    Class.new do
+      attr_reader :chat_completion_calls
+
+      def initialize(*_args, **_kwargs)
+        @chat_completion_calls = []
+        @responses = []
+      end
+
+      def add_response(content, tool_calls: nil)
+        @responses << { content: content, tool_calls: tool_calls }
+        self
+      end
+
+      def provider_name = "MockLLM"
+      def supported_models = ["gpt-4o", "claude-3-5-sonnet-20241022"]
+
+      def chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
+        @chat_completion_calls << { messages: messages, model: model, tools: tools, **kwargs }
+        queued = @responses.shift || { content: "Default test response", tool_calls: nil }
+
+        message = { "role" => "assistant", "content" => queued[:content] }
+        if queued[:tool_calls]
+          message["tool_calls"] = queued[:tool_calls].each_with_index.map do |tc, i|
+            {
+              "id" => "call_#{i + 1}",
+              "type" => "function",
+              "function" => {
+                "name" => tc.dig(:function, :name),
+                "arguments" => tc.dig(:function, :arguments)
+              }
+            }
+          end
+        end
+
+        {
+          "choices" => [{
+            "message" => message,
+            "finish_reason" => queued[:tool_calls] ? "tool_calls" : "stop"
+          }],
+          "model" => model,
+          "usage" => { "prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30 }
+        }
+      end
+    end
+  end
 
   # Mock Perplexity provider class for testing
   let(:mock_perplexity_provider_class) do
@@ -21,6 +74,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       def chat_completion(**kwargs)
         @chat_completion_calls << kwargs
+        @responses.shift || default_response
+      end
+
+      # PerplexityTool talks to RAAF::Perplexity::HttpClient, so this is the
+      # method that actually gets exercised; it records the request body.
+      def make_api_call(body, api_type: "chat")
+        @chat_completion_calls << body
         @responses.shift || default_response
       end
 
@@ -43,10 +103,11 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
   end
 
   let(:mock_perplexity_provider_instance) { mock_perplexity_provider_class.new }
+  let(:perplexity_model) { "sonar" }
   let(:perplexity_tool) do
-    tool = RAAF::Tools::PerplexityTool.new(api_key: api_key)
+    tool = RAAF::Tools::PerplexityTool.new(api_key: api_key, model: perplexity_model)
     # Inject mock provider instance
-    tool.instance_variable_set(:@provider, mock_perplexity_provider_instance)
+    tool.instance_variable_set(:@http_client, mock_perplexity_provider_instance)
     tool
   end
 
@@ -99,7 +160,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
       agent.add_tool(function_tool)
 
       # Mock OpenAI provider
-      mock_openai_provider = RAAF::Testing::MockProvider.new
+      mock_openai_provider = mock_llm_provider_class.new
 
       # OpenAI decides to use the tool
       mock_openai_provider.add_response(
@@ -107,7 +168,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "latest Ruby 3.4 features", "model": "sonar"}'
+            arguments: '{"query": "latest Ruby 3.4 features"}'
           }
         }]
       )
@@ -153,7 +214,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
       agent.add_tool(function_tool)
 
       # Mock Anthropic provider (mimicking ResponsesProvider format)
-      mock_anthropic_provider = RAAF::Testing::MockProvider.new
+      mock_anthropic_provider = mock_llm_provider_class.new
 
       # Claude decides to use the tool
       mock_anthropic_provider.add_response(
@@ -161,7 +222,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby security updates 2024", "model": "sonar", "search_recency_filter": "month"}'
+            arguments: '{"query": "Ruby security updates 2024", "search_recency_filter": "month"}'
           }
         }]
       )
@@ -209,7 +270,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
 
       # First search: Ruby features
       mock_provider.add_response(
@@ -217,7 +278,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby 3.4 new features", "model": "sonar"}'
+            arguments: '{"query": "Ruby 3.4 new features"}'
           }
         }]
       )
@@ -228,7 +289,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby 3.4 vs 3.3 performance", "model": "sonar"}'
+            arguments: '{"query": "Ruby 3.4 vs 3.3 performance"}'
           }
         }]
       )
@@ -272,13 +333,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
       mock_provider.add_response(
         "Searching...",
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby news", "model": "sonar"}'
+            arguments: '{"query": "Ruby news"}'
           }
         }]
       )
@@ -290,10 +351,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
       result = runner.run("Find Ruby news")
 
       expect(result.success?).to be true
-      expect(mock_perplexity_provider_instance.chat_completion_calls.length).to be > 0.with(
+      expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
         hash_including(model: "sonar")
       )
     end
+
+    context "with the sonar-pro model" do
+      let(:perplexity_model) { "sonar-pro" }
 
     it "works with sonar-pro model" do
       agent = RAAF::Agent.new(
@@ -310,13 +374,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
       mock_provider.add_response(
         "Performing deep search...",
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby performance analysis", "model": "sonar-pro"}'
+            arguments: '{"query": "Ruby performance analysis"}'
           }
         }]
       )
@@ -330,10 +394,14 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
       result = runner.run("Deep analysis of Ruby performance")
 
       expect(result.success?).to be true
-      expect(mock_perplexity_provider_instance.chat_completion_calls.length).to be > 0.with(
+      expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
         hash_including(model: "sonar-pro")
       )
     end
+    end
+
+    context "with the sonar-reasoning model" do
+      let(:perplexity_model) { "sonar-reasoning" }
 
     it "works with sonar-reasoning model" do
       agent = RAAF::Agent.new(
@@ -350,13 +418,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
       mock_provider.add_response(
         "Analyzing...",
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby vs Python comparison", "model": "sonar-reasoning"}'
+            arguments: '{"query": "Ruby vs Python comparison"}'
           }
         }]
       )
@@ -370,9 +438,10 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
       result = runner.run("Compare Ruby and Python")
 
       expect(result.success?).to be true
-      expect(mock_perplexity_provider_instance.chat_completion_calls.length).to be > 0.with(
+      expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
         hash_including(model: "sonar-reasoning")
       )
+    end
     end
   end
 
@@ -392,13 +461,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
       mock_provider.add_response(
         "Searching official Ruby sources...",
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby 3.4 release", "model": "sonar", "search_domain_filter": ["ruby-lang.org", "github.com"]}'
+            arguments: '{"query": "Ruby 3.4 release", "search_domain_filter": ["ruby-lang.org", "github.com"]}'
           }
         }]
       )
@@ -410,7 +479,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
       result = runner.run("Find Ruby 3.4 info from official sources")
 
       expect(result.success?).to be true
-      expect(mock_perplexity_provider_instance.chat_completion_calls.length).to be > 0.with(
+      expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
         hash_including(
           web_search_options: hash_including(
             search_domain_filter: ["ruby-lang.org", "github.com"]
@@ -436,13 +505,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
       mock_provider.add_response(
         "Searching recent news...",
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby security updates", "model": "sonar", "search_recency_filter": "week"}'
+            arguments: '{"query": "Ruby security updates", "search_recency_filter": "week"}'
           }
         }]
       )
@@ -454,7 +523,7 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
       result = runner.run("Find Ruby security updates from the past week")
 
       expect(result.success?).to be true
-      expect(mock_perplexity_provider_instance.chat_completion_calls.length).to be > 0.with(
+      expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
         hash_including(
           web_search_options: hash_including(
             search_recency_filter: "week"
@@ -480,13 +549,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
       mock_provider.add_response(
         "Searching...",
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby 3.4", "model": "sonar"}'
+            arguments: '{"query": "Ruby 3.4"}'
           }
         }]
       )
@@ -532,13 +601,13 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       agent.add_tool(function_tool)
 
-      mock_provider = RAAF::Testing::MockProvider.new
+      mock_provider = mock_llm_provider_class.new
       mock_provider.add_response(
         "Searching...",
         tool_calls: [{
           function: {
             name: "perplexity_search",
-            arguments: '{"query": "Ruby 3.4 performance", "model": "sonar"}'
+            arguments: '{"query": "Ruby 3.4 performance"}'
           }
         }]
       )
