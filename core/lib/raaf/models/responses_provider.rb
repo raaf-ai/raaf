@@ -194,7 +194,7 @@ module RAAF
           log_debug("🔄 Continuation sequence iteration",
                     chunk_number: chunk_number,
                     max_chunks: max_chunks,
-                    current_response_id: current_response_id)
+                    previous_response_id: current_response_id)
 
           # Make the API call
           response = fetch_response(
@@ -215,27 +215,31 @@ module RAAF
           # Collect this chunk
           collected_chunks << response
 
-          # Check if we need to continue
-          # Use infer_finish_reason to properly detect truncation in Responses API
-          # This method checks incomplete_details and truncation fields from OpenAI
+          # Check if we need to continue. Only a truncated response is worth
+          # asking to continue: "tool_calls", "content_filter", "error" and an
+          # absent finish_reason all mean the model is done with this request,
+          # and re-sending would just buy an identical answer at full price.
+          # "incomplete" is reported to the caller with remediation guidance
+          # rather than continued automatically.
           finish_reason = infer_finish_reason(response)
-          is_truncated = %w[length incomplete].include?(finish_reason)
-
-          # Determine if response is complete
-          response_complete = finish_reason == "stop" && !is_truncated
+          is_truncated = finish_reason == "length"
 
           log_debug("🔍 Checking if continuation needed",
                     finish_reason: finish_reason,
                     truncation: is_truncated,
-                    response_complete: response_complete,
                     chunk_number: chunk_number,
                     max_chunks: max_chunks)
 
-          # Exit loop if response is complete
-          if response_complete
+          unless is_truncated
             log_debug("✅ Response complete, exiting continuation loop",
                       finish_reason: finish_reason,
                       total_chunks: chunk_number)
+            break
+          end
+
+          unless auto_continuation
+            log_warn("⚠️ Response truncated but auto_continuation=false",
+                     response_id: response["id"])
             break
           end
 
@@ -256,8 +260,7 @@ module RAAF
                     response_id: current_response_id)
         end
 
-        # Return the final response (or merged response if multiple chunks)
-        collected_chunks.last
+        merge_continuation_chunks(collected_chunks)
       end
 
       # Implement streaming completion to match ModelInterface
@@ -327,6 +330,51 @@ module RAAF
                     incomplete_details: incomplete_details)
           "stop"
         end
+      end
+
+      ##
+      # Combine the chunks of a continued response into one response
+      #
+      # The last chunk is the shape the caller expects, but on its own it holds
+      # only the tail of the text and the usage of the final call. Text from
+      # every chunk is concatenated into it and usage is summed, so a response
+      # that took three calls to finish reads like one answer that cost three
+      # calls.
+      #
+      # @param chunks [Array<Hash>] Responses collected by the continuation loop
+      # @return [Hash] Single response, returned untouched when there is only one
+      #
+      def merge_continuation_chunks(chunks)
+        return chunks.last if chunks.size <= 1
+
+        merged = chunks.last
+        combined_text = chunks.map { |chunk| extract_response_text(chunk) }.compact.join
+
+        text_content = merged.dig("output", 0, "content", 0)
+        text_content["text"] = combined_text if text_content.is_a?(Hash) && text_content.key?("text")
+
+        merged["usage"] = sum_chunk_usage(chunks)
+        merged["continuation_chunks"] = chunks.size
+        merged
+      end
+
+      ##
+      # Add up token usage across continuation chunks
+      #
+      # @param chunks [Array<Hash>] Responses collected by the continuation loop
+      # @return [Hash] Usage totals, or the last chunk's usage if none report any
+      #
+      def sum_chunk_usage(chunks)
+        totals = { "input_tokens" => 0, "output_tokens" => 0, "total_tokens" => 0 }
+
+        chunks.each do |chunk|
+          usage = chunk["usage"]
+          next unless usage.is_a?(Hash)
+
+          totals.each_key { |key| totals[key] += usage[key].to_i }
+        end
+
+        chunks.last["usage"].is_a?(Hash) ? chunks.last["usage"].merge(totals) : totals
       end
 
       # Extracts text content from Responses API response

@@ -104,7 +104,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 200, body: filtered_response.to_json)
 
-        expect(provider).to receive(:log_warn).with(/content_filter/)
+        expect(provider).to receive(:log_warn).with(/Content filtered by safety system/, hash_including(:filter_type))
 
         result = provider.responses_completion(messages: messages, model: model)
         expect(result["finish_reason"]).to eq("content_filter")
@@ -119,7 +119,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 200, body: incomplete_response.to_json)
 
-        expect(provider).to receive(:log_warn).with(/incomplete/)
+        expect(provider).to receive(:log_warn).with(/Response marked as incomplete/, hash_including(:suggestion))
 
         result = provider.responses_completion(messages: messages, model: model)
         expect(result["finish_reason"]).to eq("incomplete")
@@ -134,7 +134,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         stub_request(:post, "https://api.openai.com/v1/responses")
           .to_return(status: 200, body: error_response.to_json)
 
-        expect(provider).to receive(:log_error).with(/error finish_reason/)
+        expect(provider).to receive(:log_error).with(/error finish_reason/, hash_including(:error))
 
         result = provider.responses_completion(messages: messages, model: model)
         expect(result["finish_reason"]).to eq("error")
@@ -314,25 +314,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: continuation_response.to_json)
 
-      allow(provider).to receive(:should_continue?).and_return(true, false)
-      allow(provider).to receive(:merge_responses).and_call_original
-
-      responses = []
       response = provider.responses_completion(messages: messages, model: model)
-      responses << response
 
-      if response["finish_reason"] == "length"
-        continuation = provider.responses_completion(
-          messages: [],
-          model: model,
-          previous_response_id: response["id"]
-        )
-        responses << continuation
-      end
-
-      expect(responses.size).to eq(2)
-      expect(responses.first["finish_reason"]).to eq("length")
-      expect(responses.last["finish_reason"]).to eq("stop")
+      # The truncated first chunk is continued before the caller sees anything,
+      # so what comes back is the finished response.
+      expect(response["finish_reason"]).to eq("stop")
+      expect(response["continuation_chunks"]).to eq(2)
     end
 
     it "makes additional API call in continuation" do
@@ -341,14 +328,19 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: continuation_response.to_json)
 
-      first = provider.responses_completion(messages: messages, model: model)
-      provider.responses_completion(
-        messages: [],
-        model: model,
-        previous_response_id: first["id"]
-      )
+      provider.responses_completion(messages: messages, model: model)
 
       expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses").times(2)
+    end
+
+    it "does not continue when auto_continuation is disabled" do
+      stub_request(:post, "https://api.openai.com/v1/responses")
+        .to_return(status: 200, body: first_response.to_json)
+
+      response = provider.responses_completion(messages: messages, model: model, auto_continuation: false)
+
+      expect(response["finish_reason"]).to eq("length")
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses").times(1)
     end
 
     it "accumulates content from multiple chunks" do
@@ -372,21 +364,39 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: third_response.to_json)
 
-      accumulated_content = []
+      response = provider.responses_completion(messages: messages, model: model)
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-      accumulated_content << response1["output"].first["content"].first["text"]
-
-      response2 = provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
-      accumulated_content << response2["output"].first["content"].first["text"]
-
-      response3 = provider.responses_completion(messages: [], model: model, previous_response_id: response2["id"])
-      accumulated_content << response3["output"].first["content"].first["text"]
-
-      full_text = accumulated_content.join("")
+      # Text from every chunk survives into the merged response.
+      full_text = response["output"].first["content"].first["text"]
       expect(full_text).to include("first part")
       expect(full_text).to include("continuation")
       expect(full_text).to include("Final piece")
+      expect(response["continuation_chunks"]).to eq(3)
+    end
+
+    it "sums usage across chunks" do
+      third_response = {
+        id: "resp_003",
+        finish_reason: "stop",
+        output: [{ type: "message", role: "assistant", content: [{ type: "text", text: " Final piece." }] }],
+        usage: { input_tokens: 80, output_tokens: 10, total_tokens: 90 }
+      }
+
+      stub_request(:post, "https://api.openai.com/v1/responses")
+        .to_return(status: 200, body: first_response.merge(usage: { input_tokens: 40, output_tokens: 30,
+                                                                    total_tokens: 70 }).to_json)
+        .then
+        .to_return(status: 200, body: continuation_response.merge(finish_reason: "length",
+                                                                  usage: { input_tokens: 60, output_tokens: 20,
+                                                                           total_tokens: 80 }).to_json)
+        .then
+        .to_return(status: 200, body: third_response.to_json)
+
+      response = provider.responses_completion(messages: messages, model: model)
+
+      expect(response["usage"]["input_tokens"]).to eq(180)
+      expect(response["usage"]["output_tokens"]).to eq(60)
+      expect(response["usage"]["total_tokens"]).to eq(240)
     end
 
     it "tracks continuation attempts" do
@@ -414,24 +424,11 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         end
       end
 
-      prev_id = nil
-      attempts = []
+      response = provider.responses_completion(messages: messages, model: model)
 
-      5.times do |i|
-        response = if i == 0
-                     provider.responses_completion(messages: messages, model: model)
-                   else
-                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-                   end
-
-        attempts << response["id"]
-        prev_id = response["id"]
-
-        break if response["finish_reason"] == "stop"
-      end
-
-      expect(attempts.size).to eq(5)
-      expect(attempts.last).to eq("resp_4")
+      expect(response["continuation_chunks"]).to eq(5)
+      expect(response["id"]).to eq("resp_4")
+      expect(response["finish_reason"]).to eq("stop")
     end
 
     it "respects max_attempts limit" do
@@ -459,22 +456,10 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         end
       end
 
-      max_attempts = 3
-      attempts = []
-      prev_id = nil
+      response = provider.responses_completion(messages: messages, model: model, max_continuation_attempts: 3)
 
-      max_attempts.times do |i|
-        response = if i == 0
-                     provider.responses_completion(messages: messages, model: model)
-                   else
-                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-                   end
-
-        attempts << response["id"]
-        prev_id = response["id"]
-      end
-
-      expect(attempts.size).to eq(max_attempts)
+      expect(response["continuation_chunks"]).to eq(3)
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses").times(3)
     end
 
     it "stops continuation on non-length finish_reason" do
@@ -485,34 +470,22 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: second_response.to_json)
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-      response2 = provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
+      response = provider.responses_completion(messages: messages, model: model)
 
-      expect(response1["finish_reason"]).to eq("length")
-      expect(response2["finish_reason"]).to eq("tool_calls")
+      # The second chunk asks for a tool, which is not truncation -- stop there.
+      expect(response["finish_reason"]).to eq("tool_calls")
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses").times(2)
     end
 
     it "handles max_attempts exceeded gracefully" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_return(status: 200, body: first_response.to_json)
 
-      max_attempts = 3
-      attempts = []
-      prev_id = nil
+      response = provider.responses_completion(messages: messages, model: model, max_continuation_attempts: 3)
 
-      max_attempts.times do |i|
-        response = if i == 0
-                     provider.responses_completion(messages: messages, model: model)
-                   else
-                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-                   end
-
-        attempts << response
-        prev_id = response["id"]
-      end
-
-      expect(attempts.size).to eq(max_attempts)
-      expect(attempts.last["finish_reason"]).to eq("length")
+      # Still truncated when the budget runs out -- returned rather than raised.
+      expect(response["finish_reason"]).to eq("length")
+      expect(response["continuation_chunks"]).to eq(3)
     end
 
     it "logs each continuation attempt" do
@@ -521,11 +494,13 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: continuation_response.to_json)
 
-      expect(provider).to receive(:log_debug).with(/Continuation attempt 1/, anything).at_least(:once)
-      expect(provider).to receive(:log_debug).with(/Continuation attempt 2/, anything).at_least(:once)
+      expect(provider).to receive(:log_debug)
+        .with(/Continuation sequence iteration/, hash_including(chunk_number: 1)).at_least(:once)
+      expect(provider).to receive(:log_debug)
+        .with(/Continuation sequence iteration/, hash_including(chunk_number: 2)).at_least(:once)
+      allow(provider).to receive(:log_debug)
 
       provider.responses_completion(messages: messages, model: model)
-      provider.responses_completion(messages: [], model: model, previous_response_id: "resp_001")
     end
   end
 
@@ -563,7 +538,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
     it "passes previous_response_id in continuation request" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .with(body: hash_including("previous_response_id" => "resp_first"))
-        .to_return(status: 200, body: response_with_id.to_json)
+        .to_return(status: 200, body: response_with_id.merge(finish_reason: "stop").to_json)
 
       provider.responses_completion(
         messages: [],
@@ -596,16 +571,14 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: second.to_json)
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-      response2 = provider.responses_completion(
-        messages: [],
-        model: model,
-        previous_response_id: response1["id"]
-      )
+      response = provider.responses_completion(messages: messages, model: model)
 
-      expect(response1["id"]).to eq("resp_001")
-      expect(response2["id"]).to eq("resp_002")
-      expect(response2["previous_response_id"]).to eq("resp_001")
+      # The continuation is issued against the first chunk's id, and the
+      # response that comes back is the one that finished the sequence.
+      expect(response["id"]).to eq("resp_002")
+      expect(response["previous_response_id"]).to eq("resp_001")
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+        .with(body: hash_including("previous_response_id" => "resp_001"))
     end
 
     it "handles missing previous_response_id gracefully" do
@@ -647,24 +620,17 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         end
       end
 
-      prev_id = nil
-      3.times do |i|
-        response = if i == 0
-                     provider.responses_completion(messages: messages, model: model)
-                   else
-                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-                   end
+      response = provider.responses_completion(messages: messages, model: model)
+      responses << response
 
-        responses << response
-        prev_id = response["id"]
-      end
-
-      expect(responses[0]["id"]).to eq("resp_0")
-      expect(responses[0]["previous_response_id"]).to be_nil
-      expect(responses[1]["id"]).to eq("resp_1")
-      expect(responses[1]["previous_response_id"]).to eq("resp_0")
-      expect(responses[2]["id"]).to eq("resp_2")
-      expect(responses[2]["previous_response_id"]).to eq("resp_1")
+      # Each chunk is requested against the previous chunk's id, so the chain is
+      # visible in the requests that were made.
+      expect(response["id"]).to eq("resp_2")
+      expect(response["previous_response_id"]).to eq("resp_1")
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+        .with(body: hash_including("previous_response_id" => "resp_0"))
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
+        .with(body: hash_including("previous_response_id" => "resp_1"))
     end
 
     it "includes previous_response_id in logs" do
@@ -675,6 +641,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         anything,
         hash_including(previous_response_id: "resp_xyz789")
       ).at_least(:once)
+      allow(provider).to receive(:log_debug)
 
       provider.responses_completion(
         messages: [],
@@ -730,7 +697,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_return(status: 200, body: response_with_metadata.to_json)
 
-      result = provider.responses_completion(messages: messages, model: model)
+      result = provider.responses_completion(messages: messages, model: model, auto_continuation: false)
 
       chunks_metadata << {
         chunk_index: 0,
@@ -906,7 +873,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
       stub_request(:post, "https://api.openai.com/v1/responses")
         .to_return(status: 200, body: large_response.to_json)
 
-      result = provider.responses_completion(messages: messages, model: model)
+      result = provider.responses_completion(messages: messages, model: model, auto_continuation: false)
 
       expect(result["output"].first["content"].first["text"].length).to eq(10_000)
       expect(result["finish_reason"]).to eq("length")
@@ -924,46 +891,37 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
           }.to_json)
       end
 
-      responses = []
-      prev_id = nil
+      response = provider.responses_completion(messages: messages, model: model, max_continuation_attempts: 5)
 
-      5.times do |i|
-        response = if i == 0
-                     provider.responses_completion(messages: messages, model: model)
-                   else
-                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-                   end
-
-        responses << response
-        prev_id = response["id"]
-        expect(response["finish_reason"]).to eq("length")
-      end
-
-      expect(responses.size).to eq(5)
-      expect(responses.map { |r| r["id"] }).to eq((0..4).map { |i| "resp_#{i}" })
+      # Truncated all the way to the attempt limit; every chunk's text is kept.
+      expect(response["finish_reason"]).to eq("length")
+      expect(response["continuation_chunks"]).to eq(5)
+      expect(response["id"]).to eq("resp_4")
+      expect(response["output"].first["content"].first["text"]).to eq("Part 0Part 1Part 2Part 3Part 4")
     end
 
     it "handles mixed finish_reasons in sequence" do
       finish_reasons = %w[length tool_calls length stop]
 
-      finish_reasons.each_with_index do |reason, i|
-        stub_request(:post, "https://api.openai.com/v1/responses")
-          .to_return(status: 200, body: {
-            id: "resp_#{i}",
-            finish_reason: reason,
-            output: [{ type: "message", role: "assistant", content: [{ type: "text", text: "Part #{i}" }] }],
-            usage: { input_tokens: 10, output_tokens: 20 }
-          }.to_json).times(1)
+      bodies = finish_reasons.each_with_index.map do |reason, i|
+        {
+          id: "resp_#{i}",
+          finish_reason: reason,
+          output: [{ type: "message", role: "assistant", content: [{ type: "text", text: "Part #{i}" }] }],
+          usage: { input_tokens: 10, output_tokens: 20 }
+        }.to_json
       end
 
-      collected_reasons = []
+      stub = stub_request(:post, "https://api.openai.com/v1/responses")
+      bodies.each { |body| stub = stub.to_return(status: 200, body: body).then }
 
-      4.times do |_i|
-        response = provider.responses_completion(messages: messages, model: model)
-        collected_reasons << response["finish_reason"]
-      end
+      response = provider.responses_completion(messages: messages, model: model)
 
-      expect(collected_reasons).to eq(finish_reasons)
+      # "length" continues, "tool_calls" does not -- the sequence stops at the
+      # second chunk and the remaining stubs go unused.
+      expect(response["finish_reason"]).to eq("tool_calls")
+      expect(response["continuation_chunks"]).to eq(2)
+      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses").times(2)
     end
 
     it "preserves response order across continuations" do
@@ -1009,11 +967,11 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: empty_response.to_json)
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-      response2 = provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
+      response = provider.responses_completion(messages: messages, model: model)
 
-      expect(response2["output"].first["content"].first["text"]).to eq("")
-      expect(response2["usage"]["output_tokens"]).to eq(0)
+      # The continuation added nothing, so only the first chunk's text remains.
+      expect(response["id"]).to eq("resp_empty")
+      expect(response["output"].first["content"].first["text"]).to eq("Content")
     end
   end
 
@@ -1028,10 +986,8 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_raise(Net::ReadTimeout)
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-
       expect do
-        provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
+        provider.responses_completion(messages: messages, model: model)
       end.to raise_error(Net::ReadTimeout)
     end
 
@@ -1041,10 +997,8 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 200, body: "invalid json")
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-
       expect do
-        provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
+        provider.responses_completion(messages: messages, model: model)
       end.to raise_error(JSON::ParserError)
     end
 
@@ -1054,10 +1008,8 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_timeout
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-
       expect do
-        provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
+        provider.responses_completion(messages: messages, model: model)
       end.to raise_error(Net::OpenTimeout)
     end
 
@@ -1080,7 +1032,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       expect do
         provider.responses_completion(messages: messages, model: model)
-      end.to raise_error(RAAF::APIError)
+      end.to raise_error(RAAF::Models::APIError)
     end
 
     it "allows graceful degradation with partial response" do
@@ -1094,14 +1046,11 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .then
         .to_return(status: 500, body: "Internal Server Error")
 
-      response1 = provider.responses_completion(messages: messages, model: model)
-      expect(response1["output"].first["content"].first["text"]).to eq("Part 1")
-
+      # A chunk that fails mid-sequence surfaces as an error rather than as a
+      # silently shortened answer.
       expect do
-        provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
-      end.to raise_error(RAAF::APIError)
-
-      expect(response1).not_to be_nil
+        provider.responses_completion(messages: messages, model: model)
+      end.to raise_error(RAAF::Models::ServerError)
     end
   end
 end
