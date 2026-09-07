@@ -33,10 +33,27 @@ module RAAF
       DEFAULT_URL = "https://www.helicone.ai/api/llm-costs"
       DEFAULT_TTL = 604_800 # 7 days in seconds
 
+      # Net::HTTP defaults to 60s for each of these, and this fetch happens
+      # inside whichever web request first prices a span. Pricing is a nicety
+      # on a dashboard, so it gets a few seconds rather than a minute.
+      DEFAULT_OPEN_TIMEOUT = 5
+      DEFAULT_READ_TIMEOUT = 5
+
+      # How long to stop asking after a failed fetch.
+      #
+      # Without this a failure leaves @last_fetch unset, so every later call
+      # sees stale data and tries again — and because the retry happens under
+      # the mutex below, every thread that prices a span queues behind it. An
+      # unreachable Helicone took the whole process down at request rate; now
+      # it costs one attempt per interval and the rest read stale-or-empty
+      # pricing, which is what a dashboard can live with.
+      DEFAULT_FAILURE_BACKOFF = 300 # 5 minutes
+
       def initialize
         @mutex = Mutex.new
         @data = nil
         @last_fetch = nil
+        @last_failure = nil
         @config = RAAF::Configuration.new
       end
 
@@ -83,22 +100,40 @@ module RAAF
           last_fetch: @last_fetch,
           stale: stale?,
           model_count: @data&.size || 0,
-          ttl: ttl
+          ttl: ttl,
+          # Without these two a process serving empty pricing looks identical
+          # whether Helicone is down or nobody has asked yet.
+          last_failure: @last_failure,
+          backing_off: backing_off?
         }
       end
 
       private
 
       # Ensure data is loaded and fresh
+      #
+      # Both guards are checked before the mutex as well as inside it. The
+      # outer pair is what keeps a blocked fetch from collecting every other
+      # thread behind it; the inner pair is what keeps the ones already
+      # collected from each repeating the attempt.
       def ensure_data_loaded
         return unless stale?
+        return if backing_off?
 
         @mutex.synchronize do
           # Double-check after acquiring mutex
           return unless stale?
+          return if backing_off?
 
           fetch_and_transform
         end
+      end
+
+      # Whether a recent failure means we should leave Helicone alone for now.
+      def backing_off?
+        return false if @last_failure.nil?
+
+        Time.now - @last_failure < failure_backoff
       end
 
       # Fetch data from Helicone and transform to RAAF format
@@ -106,13 +141,20 @@ module RAAF
       # @return [Boolean] true if successful, false otherwise
       def fetch_and_transform
         raw_data = fetch_helicone_data
-        return false unless raw_data
+        return record_failure unless raw_data
 
         @data = transform_helicone_data(raw_data)
         @last_fetch = Time.now
+        @last_failure = nil
         true
       rescue StandardError => e
         RAAF.logger.error "Failed to fetch pricing data: #{e.message}"
+        record_failure
+      end
+
+      # Opens the backoff window and reports the failure to the caller.
+      def record_failure
+        @last_failure = Time.now
         false
       end
 
@@ -122,7 +164,13 @@ module RAAF
       def fetch_helicone_data
         url = URI(data_url)
 
-        response = Net::HTTP.get_response(url)
+        response = Net::HTTP.start(url.host, url.port,
+                                   use_ssl: url.scheme == "https",
+                                   open_timeout: open_timeout,
+                                   read_timeout: read_timeout) do |http|
+          http.request(Net::HTTP::Get.new(url))
+        end
+
         unless response.is_a?(Net::HTTPSuccess)
           RAAF.logger.warn "Helicone API returned #{response.code}"
           return nil
@@ -204,6 +252,21 @@ module RAAF
       # @return [Integer] TTL in seconds
       def ttl
         @config.get("usage.pricing_data.ttl", DEFAULT_TTL)
+      end
+
+      # @return [Integer] seconds to wait for the connection
+      def open_timeout
+        @config.get("usage.pricing_data.open_timeout", DEFAULT_OPEN_TIMEOUT)
+      end
+
+      # @return [Integer] seconds to wait for the response
+      def read_timeout
+        @config.get("usage.pricing_data.read_timeout", DEFAULT_READ_TIMEOUT)
+      end
+
+      # @return [Integer] seconds to stop asking after a failed fetch
+      def failure_backoff
+        @config.get("usage.pricing_data.failure_backoff", DEFAULT_FAILURE_BACKOFF)
       end
 
     end

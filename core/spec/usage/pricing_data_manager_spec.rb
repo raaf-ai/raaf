@@ -36,9 +36,16 @@ RSpec.describe RAAF::Usage::PricingDataManager do
   end
 
   before do
-    # Reset singleton state before each test
+    # Reset singleton state before each test. @last_failure belongs here with
+    # the other two: a failing example leaves the backoff window open, and
+    # every later example would then read empty pricing without a request.
     manager.instance_variable_set(:@data, nil)
     manager.instance_variable_set(:@last_fetch, nil)
+    manager.instance_variable_set(:@last_failure, nil)
+    # The "configuration" group injects its own config and cannot put this one
+    # back, so on any seed that runs it first every later example was asking a
+    # custom URL that nothing stubs, and reading nil pricing.
+    manager.instance_variable_set(:@config, RAAF::Configuration.new)
 
     # Stub HTTP request by default
     stub_request(:get, helicone_url)
@@ -153,6 +160,54 @@ RSpec.describe RAAF::Usage::PricingDataManager do
       manager.refresh!
 
       expect(manager.instance_variable_get(:@last_fetch)).to eq(freeze_time)
+    end
+  end
+
+  describe "failure handling" do
+    it "bounds the fetch with connect and read timeouts" do
+      expect(Net::HTTP).to receive(:start)
+        .with("www.helicone.ai", 443, hash_including(open_timeout: 5, read_timeout: 5))
+        .and_call_original
+
+      manager.get_pricing("gpt-4o")
+    end
+
+    it "stops asking after a failed fetch" do
+      stub_request(:get, helicone_url).to_return(status: 500)
+
+      manager.get_pricing("gpt-4o")
+      manager.get_pricing("gpt-4o")
+
+      expect(WebMock).to have_requested(:get, helicone_url).once
+    end
+
+    it "asks again once the backoff window has passed" do
+      stub_request(:get, helicone_url).to_return(status: 500)
+      manager.get_pricing("gpt-4o")
+
+      allow(Time).to receive(:now).and_return(Time.now + described_class::DEFAULT_FAILURE_BACKOFF + 1)
+      manager.get_pricing("gpt-4o")
+
+      expect(WebMock).to have_requested(:get, helicone_url).twice
+    end
+
+    it "reports that it is backing off" do
+      stub_request(:get, helicone_url).to_return(status: 500)
+      manager.get_pricing("gpt-4o")
+
+      expect(manager.status).to include(backing_off: true)
+    end
+
+    it "clears the backoff after a later fetch succeeds" do
+      stub_request(:get, helicone_url).to_return(status: 500)
+      manager.get_pricing("gpt-4o")
+
+      stub_request(:get, helicone_url)
+        .to_return(status: 200, body: mock_helicone_response.to_json,
+                   headers: { "Content-Type" => "application/json" })
+      manager.refresh!
+
+      expect(manager.status).to include(backing_off: false)
     end
   end
 
