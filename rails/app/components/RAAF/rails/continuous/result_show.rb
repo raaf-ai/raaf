@@ -3,639 +3,654 @@
 module RAAF
   module Rails
     module Continuous
+      ##
+      # One graded verdict, from the Result screen in RAAF Continuous.dc.html:
+      # a header carrying the span, the verdict and the score; the scorer
+      # breakdown, the judge's reasoning and the payload that was scored down
+      # the left; the evaluation's own metadata, its timeline and its
+      # neighbours down the right.
+      #
+      # Three departures from the canvas, all of them data rather than layout:
+      #
+      # - **No threshold marker.** The canvas draws each scorer's bar against
+      #   the threshold it had to clear, and prints the composite's threshold
+      #   under it. No threshold is stored on a policy, an evaluator or a
+      #   result, so a marker here would be a line drawn at a number nobody
+      #   set.
+      # - **No findings list.** The canvas itemises what a scorer found — the
+      #   entity, where in the output it sat, why it counted. An evaluator
+      #   records a score and prose; the spans of text behind them are not
+      #   kept, so the reasoning is the whole of what can be shown.
+      # - **The payload is the span's, not a stored copy.** The canvas prints
+      #   the input and output the scorer saw. A result stores neither, so
+      #   this reads them off the span it graded, and says so when the span
+      #   has since been pruned.
+      #
+      # One addition the canvas does not draw: an LLM judge's own call. Where
+      # a rule-based scorer's verdict can be re-derived from the payload and
+      # the rule, a judge's cannot be checked at all without reading what it
+      # was asked and what it answered, so the exchange gets a section.
+      #
       class ResultShow < RAAF::Rails::Tracing::BaseComponent
-        def initialize(result:)
+        # Above this a score is healthy, below the lower bound it is failing.
+        # The tiers every other eval screen uses.
+        GOOD = 0.8
+        POOR = 0.5
+
+        # @param span [RAAF::Rails::Tracing::SpanRecord, nil] the span that was
+        #   graded, when it is still on record
+        # @param sibling_results [Enumerable] the other results for this span
+        # @param policy_results [Enumerable] recent results from this policy,
+        #   for other spans
+        def initialize(result:, span: nil, sibling_results: [], policy_results: [])
           @result = result
+          @span = span
+          @sibling_results = sibling_results
+          @policy_results = policy_results
           load_evaluator_metadata
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            div(class: "grid grid-cols-1 lg:grid-cols-3 gap-6") do
-              div(class: "lg:col-span-2 space-y-6") do
-                render_score_section
-                render_formatted_result_section
-                render_reasoning_section if @result.reasoning.present?
-                render_metrics_section if @result.metrics.present?
-                render_metadata_section
-              end
-              div(class: "space-y-6") do
-                render_summary_sidebar
-                render_links_sidebar
-              end
+          div(class: "raaf-page") do
+            breadcrumb
+            header
+            div(class: "raaf-detail-split") do
+              div(class: "raaf-stack") { main_column }
+              div(class: "raaf-stack") { side_column }
             end
           end
         end
 
         private
 
-        # Load evaluator metadata for fancy names
+        def main_column
+          scorer_breakdown
+          evaluation_details
+          reasoning
+          judge_call
+          payload
+          sibling_results
+        end
+
+        def side_column
+          metadata
+          timeline
+          policy_results
+        end
+
+        # ── Header ────────────────────────────────────────────────────────
+
+        def breadcrumb
+          render Molecules::Breadcrumb.new(items: [
+                                             { label: "Results", href: continuous_results_path },
+                                             { label: "##{@result.id}" }
+                                           ])
+        end
+
+        def header
+          render(Organisms::RecordHead.new(
+                   title: @result.span_id.to_s, mono: true,
+                   description: summary,
+                   status: @result.status,
+                   meta: head_meta,
+                   stats: head_stats
+                 )) { links }
+        end
+
+        # What this check is for, not what it decided this time.
+        #
+        # The canvas leads with a summary written for the run and keeps the
+        # judge's reasoning in its own section below. Only one piece of prose
+        # is stored per result, and it is the reasoning — which runs to
+        # paragraphs and belongs in a section rather than in a header. So the
+        # header carries the check's own description, which is short and says
+        # what was being asked, and the reasoning keeps its section.
+        def summary
+          check_description(field_name).presence || @evaluator_description.presence
+        end
+
+        def head_meta
+          [policy_name, @result.agent_name.presence, evaluator_fancy_name,
+           @result.model.presence].compact.join(" · ")
+        end
+
+        def head_stats
+          [{ label: "Score", value: score_text(@result.score), tone: score_tone(@result.score) },
+           { label: "Check", value: field_label },
+           { label: "Scored", value: @result.created_at ? time_ago(@result.created_at) : "—" }]
+        end
+
+        # Where this verdict came from and what else it belongs to. The trace
+        # rather than the span: every span row in this console opens its trace
+        # with itself selected, so the run around it is readable too.
+        def links
+          div(class: "raaf-result-links") do
+            trace = trace_span_path(@result.span_id, @result.trace_id)
+            render Atoms::Link.new("open trace", href: trace, mono: true) if trace
+
+            if @result.evaluation_policy
+              render Atoms::Link.new(policy_name, mono: true,
+                                     href: continuous_policy_path(@result.evaluation_policy))
+            end
+
+            if @result.evaluation_queue_item
+              render Atoms::Link.new("queue item", mono: true,
+                                     href: continuous_queue_item_path(@result.evaluation_queue_item))
+            end
+
+            render Atoms::Link.new("more from #{@result.agent_name}", mono: true,
+                                   href: continuous_results_path(agent: @result.agent_name))
+          end
+        end
+
+        # ── Scorer breakdown ──────────────────────────────────────────────
+
+        def scorer_breakdown
+          render(Organisms::Card.new(title: "Scorer breakdown", subtitle: breakdown_subtitle)) do
+            if scorers.empty?
+              render Molecules::EmptyState.new(
+                icon: "sliders", title: "No score recorded",
+                text: "This evaluation finished without a number — read the reasoning below."
+              )
+            else
+              scorers.each { |scorer| scorer_row(scorer) }
+            end
+          end
+        end
+
+        def scorer_row(scorer)
+          score = scorer[:score].to_f
+
+          render Molecules::MeterRow.new(
+            name: scorer[:name].to_s.tr("_", " "),
+            value: score_text(score),
+            pct: (score * 100).round,
+            tone: score_tone(score),
+            sub: scorer[:note].presence,
+            tip: "#{score_text(score)} of a possible 1.00"
+          )
+        end
+
+        def breakdown_subtitle
+          count = scorers.size
+          return nil if count.zero?
+          return "one scorer, on #{field_label}" if count == 1
+
+          "#{pluralize(count, 'scorer')} on #{field_label}"
+        end
+
+        # Prefer the individual evaluators behind the field, when the run kept
+        # them: a check made of three judges reads as three bars, not as one
+        # average with the disagreement hidden inside it.
+        def scorers
+          @scorers ||= detailed_scorers.presence || flat_scorers
+        end
+
+        def detailed_scorers
+          inner = @result.details&.dig("result")
+          inner = inner.is_a?(Hash) ? (inner["details"] || inner[:details]) : nil
+          return [] unless inner.is_a?(Hash)
+
+          inner.filter_map do |name, payload|
+            next unless payload.is_a?(Hash)
+
+            score = payload["score"] || payload[:score]
+            next if score.nil?
+
+            { name: name, score: score,
+              note: payload["reasoning"] || payload["message"] ||
+                    payload[:reasoning] || payload[:message] }
+          end
+        end
+
+        # `scores` is written as `{ field_name => score }`, so this is the
+        # single bar for the field. Falls back to the result's own score for
+        # rows written before that column was populated.
+        def flat_scorers
+          stored = @result.scores
+          return stored.filter_map { |name, score| { name: name, score: score } if score } if stored.is_a?(Hash) && stored.any?
+          return [] if @result.score.nil?
+
+          [{ name: field_label, score: @result.score }]
+        end
+
+        # ── Reasoning and details ─────────────────────────────────────────
+
+        # The evaluator's own rendering of what it found, when it defines one.
+        def evaluation_details
+          markdown = @result.details&.dig("formatted_markdown") ||
+                     @result.details&.dig(:formatted_markdown)
+          return if markdown.blank?
+
+          render(Organisms::Card.new(title: "Evaluation details")) do
+            div(class: "raaf-prose") do
+              raw(safe(RAAF::Rails::Tracing::MarkdownRenderer.markdown_to_html(markdown)))
+            end
+          end
+        end
+
+        def reasoning
+          return if @result.reasoning.blank?
+
+          render(Organisms::Card.new(title: reasoning_title)) do
+            render Atoms::Text.new(@result.reasoning, tone: :secondary, wrap: true)
+          end
+        end
+
+        def reasoning_title
+          @result.evaluator_type.to_s == "llm_judge" ? "Judge reasoning" : "Reasoning"
+        end
+
+        # ── The judge's own call ──────────────────────────────────────────
+
+        # An LLM judge's score is an opinion, and the only way to weigh one is
+        # to read what it was asked and what it said. The reasoning above is
+        # the judge's summary of itself; this is the exchange it came out of.
+        # Shown for anything that recorded a call, and for a judge that did
+        # not — an evaluator typed rule-based can still run one judge among
+        # its checks, and this row is that one check.
+        def judge_call
+          return unless judge_recorded? || @result.evaluator_type.to_s == "llm_judge"
+
+          render(Organisms::Card.new(title: "Judge call", subtitle: judge_call_subtitle,
+                                     flush: !judge_recorded?)) do
+            if judge_recorded?
+              judge_blocks
+            else
+              render Molecules::EmptyState.new(
+                icon: "chat-square-text", title: "Call not recorded",
+                text: "This judge kept no transcript, so what it was sent and what " \
+                      "it answered are not on record."
+              )
+            end
+          end
+        end
+
+        def judge_blocks
+          if judge_prompt.present?
+            render Molecules::PayloadBlock.new(role: "prompt to the judge", tone: :agent,
+                                               body: judge_prompt)
+          end
+
+          if judge_response.present?
+            render Molecules::PayloadBlock.new(role: "the judge's answer", tone: :llm,
+                                               body: judge_response)
+          end
+
+          judge_fallback_note
+        end
+
+        # A judge that could not be reached, or answered something unparseable,
+        # is silently replaced by a heuristic upstream. The score below it then
+        # looks like a judgement and is not one, so the substitution is said
+        # here rather than left to be inferred from a missing answer.
+        def judge_fallback_note
+          return if judge_fallback.blank?
+
+          render Molecules::ErrorCallout.new(
+            klass: "not judged",
+            message: "#{judge_fallback.to_s.capitalize} — the score above came from a " \
+                     "heuristic stand-in, not from the model."
+          )
+        end
+
+        def judge_recorded?
+          judge_prompt.present? || judge_response.present?
+        end
+
+        def judge_call_subtitle
+          return nil unless judge_recorded?
+
+          model = judge_model.presence
+          model ? "sent to #{model}" : "what the judge was sent and what it returned"
+        end
+
+        # The judge writes its transcript into the evaluator's own details,
+        # which the job stores whole under details.result.
+        def judge_details
+          @judge_details ||= begin
+            inner = @result.details&.dig("result")
+            details = inner.is_a?(Hash) ? (inner["details"] || inner[:details]) : nil
+            details.is_a?(Hash) ? details : {}
+          end
+        end
+
+        def judge_prompt
+          judge_details["judge_prompt"] || judge_details[:judge_prompt]
+        end
+
+        def judge_response
+          judge_details["judge_response"] || judge_details[:judge_response]
+        end
+
+        def judge_fallback
+          judge_details["judge_fallback"] || judge_details[:judge_fallback]
+        end
+
+        def judge_model
+          judge_details["judge_model"] || judge_details[:judge_model]
+        end
+
+        # ── Payload ───────────────────────────────────────────────────────
+
+        def payload
+          render(Organisms::Card.new(title: "Scored payload", subtitle: payload_subtitle,
+                                     flush: @span.nil?)) do
+            if @span.nil?
+              render Molecules::EmptyState.new(
+                icon: "file-earmark-x", title: "Span not on record",
+                text: "The span this graded has been pruned, so what the scorer read " \
+                      "cannot be shown."
+              )
+            else
+              payload_blocks
+            end
+          end
+        end
+
+        def payload_subtitle
+          return nil if @span.nil?
+
+          "read from #{@span.span_id} · the scorer saw this run, not a stored copy"
+        end
+
+        def payload_blocks
+          input = span_payload("input", "messages", "prompt")
+          output = span_payload("output", "result", "response")
+
+          render Molecules::PayloadBlock.new(role: "input", body: input, tone: :agent) if input
+          render Molecules::PayloadBlock.new(role: "output", body: output, tone: :llm) if output
+
+          return if input || output
+
+          render Molecules::EmptyState.new(
+            icon: "braces", title: "Nothing recorded",
+            text: "The span carries no input or output attributes."
+          )
+        end
+
+        # Span attributes are written under different keys by different span
+        # kinds, so the first of the aliases that is present wins.
+        def span_payload(*keys)
+          attributes = @span.span_attributes
+          return nil unless attributes.is_a?(Hash)
+
+          value = keys.filter_map { |key| attributes[key] }.first
+          return nil if value.nil?
+
+          value.is_a?(String) ? value : JSON.pretty_generate(value)
+        rescue StandardError
+          nil
+        end
+
+        # ── Neighbours ────────────────────────────────────────────────────
+
+        def sibling_results
+          return if @sibling_results.blank?
+
+          render(Organisms::Card.new(title: "Other results for this span",
+                                     subtitle: "what the policies made of the same run",
+                                     flush: true)) do
+            @sibling_results.each { |result| neighbour_row(result, label: :check) }
+          end
+        end
+
+        def policy_results
+          return if @result.evaluation_policy.blank?
+
+          render(Organisms::Card.new(title: "Nearby results · same policy",
+                                     subtitle: "whether this verdict is the odd one out",
+                                     flush: true)) do |card|
+            card.actions { all_results_link }
+
+            if @policy_results.blank?
+              render Molecules::EmptyState.new(
+                icon: "clipboard-check", title: "Nothing else yet",
+                text: "This policy has graded no other span."
+              )
+            else
+              @policy_results.each { |result| neighbour_row(result, label: :span) }
+            end
+          end
+        end
+
+        def all_results_link
+          render Atoms::Button.new(label: "All results", size: :sm, icon: "list-ul",
+                                   href: continuous_results_path(policy: @result.evaluation_policy_id))
+        end
+
+        def neighbour_row(result, label:)
+          a(href: continuous_result_path(result), class: "raaf-result-neighbour") do
+            span(class: "raaf-result-neighbour-body") do
+              render Atoms::Mono.new(neighbour_title(result, label))
+              render Atoms::Mono.new(neighbour_meta(result), tone: :muted)
+            end
+
+            render Atoms::StatusBadge.new(result.status)
+            render Atoms::Mono.new(score_text(result.score), tone: score_tone(result.score))
+          end
+        end
+
+        def neighbour_title(result, label)
+          return result.span_id.to_s.delete_prefix("span_").first(12) if label == :span
+
+          field_of(result)
+        end
+
+        def neighbour_meta(result)
+          [result.evaluator_name.presence&.tr("_", " "),
+           result.created_at && time_ago(result.created_at)].compact.join(" · ")
+        end
+
+        # ── Metadata ──────────────────────────────────────────────────────
+
+        def metadata
+          render(Organisms::Card.new(title: "Evaluation metadata", flush: true)) do
+            render(Molecules::KeyValueList.new(layout: :rows, mono: true,
+                                               pairs: metadata_pairs))
+          end
+        end
+
+        def metadata_pairs
+          {
+            "Scored at" => timestamp(@result.created_at),
+            "Duration" => duration_text,
+            "Evaluator" => evaluator_fancy_name,
+            "Type" => evaluator_type_label,
+            "Version" => @result.evaluator_version.presence || "—",
+            "Model" => @result.model.presence || "—",
+            "Provider" => @result.provider.presence || "—",
+            "Environment" => @result.environment.presence || "—",
+            "Trace" => @result.trace_id.to_s,
+            "Judge cost" => judge_cost,
+            "Judge tokens" => judge_tokens
+          }.compact
+        end
+
+        def evaluator_type_label
+          case @result.evaluator_type.to_s
+          when "llm_judge" then "LLM judge"
+          when "rule_based" then "Rule-based"
+          else @result.evaluator_type.to_s.tr("_", " ").capitalize
+          end
+        end
+
+        def duration_text
+          ms = @result.evaluation_duration_ms
+          return "—" if ms.nil?
+
+          ms < 1000 ? "#{ms.round}ms" : "#{(ms / 1000.0).round(2)}s"
+        end
+
+        # What grading this cost, which only an LLM judge spends anything on.
+        # Absent rather than "$0.00" for a rule-based scorer: nought is what a
+        # judge that failed to bill would also show.
+        def judge_cost
+          cost = @result.metrics&.dig("evaluation_cost")
+          return nil if cost.nil?
+
+          "$#{'%.4f' % cost.to_f}"
+        end
+
+        def judge_tokens
+          usage = @result.metrics&.dig("evaluation_usage")
+          return nil unless usage.is_a?(Hash)
+
+          total = usage["total_tokens"] || usage.values.select { |v| v.is_a?(Numeric) }.sum
+          return nil if total.to_i.zero?
+
+          "#{delimited(total)} tok"
+        end
+
+        # ── Timeline ──────────────────────────────────────────────────────
+
+        # Only the moments that were actually recorded. A run whose evaluator
+        # never stamped a start shows three entries rather than a fourth one
+        # invented from the row's own timestamps.
+        def timeline
+          entries = timeline_entries
+          return if entries.empty?
+
+          render(Organisms::Card.new(title: "Timeline", flush: true)) do
+            entries.each { |entry| timeline_row(entry) }
+          end
+        end
+
+        def timeline_entries
+          queued = @result.evaluation_queue_item&.created_at
+
+          [{ icon: "record-circle", tone: :accent, text: "Queued for evaluation", at: queued },
+           { icon: "cpu", tone: :accent, text: "Evaluation started",
+             at: @result.evaluation_started_at },
+           { icon: verdict_icon, tone: score_tone(@result.score) || :muted,
+             text: "Scored #{score_text(@result.score)} — #{@result.status}",
+             at: @result.evaluation_completed_at },
+           { icon: "check2-circle", tone: :ok, text: "Result recorded",
+             at: @result.created_at }].select { |entry| entry[:at] }
+        end
+
+        def verdict_icon
+          case @result.status.to_s
+          when "good" then "check2-circle"
+          when "average" then "dash-circle"
+          when "error" then "exclamation-triangle"
+          else "x-octagon"
+          end
+        end
+
+        def timeline_row(entry)
+          div(class: "raaf-result-event") do
+            render Atoms::Icon.new(entry[:icon], size: :sm, tone: icon_tone(entry[:tone]))
+
+            span(class: "raaf-result-event-body") do
+              render Atoms::Text.new(entry[:text], size: :sm, wrap: true)
+              render Atoms::Mono.new(timestamp(entry[:at]), tone: :muted)
+            end
+          end
+        end
+
+        # Icon::TONES speaks in semantic names; map the score tones onto it.
+        def icon_tone(tone)
+          { ok: :success, warn: :warning, bad: :danger, accent: :accent, muted: :muted }[tone]
+        end
+
+        # ── Evaluator metadata ────────────────────────────────────────────
+
+        # The display names and descriptions an evaluator class declares, so a
+        # screen can say "Groundedness" where the row says "groundedness_llm".
+        # Best-effort: an evaluator that has since been renamed or removed
+        # leaves the raw names, which are still true.
         def load_evaluator_metadata
           @evaluator_display_name = nil
           @evaluator_description = nil
           @evaluator_checks = []
 
-          return unless @result.evaluator_name.present?
+          return if @result.evaluator_name.blank?
 
-          begin
-            evaluator_class = RAAF::Eval::Continuous::EvaluatorDiscovery.build(
-              { "name" => @result.evaluator_name }
-            )
+          evaluator_class = RAAF::Eval::Continuous::EvaluatorDiscovery.build(
+            { "name" => @result.evaluator_name }
+          )
 
-            @evaluator_display_name = evaluator_class.display_name if evaluator_class.respond_to?(:display_name)
-
-            @evaluator_description = evaluator_class.description if evaluator_class.respond_to?(:description)
-
-            @evaluator_checks = evaluator_class.evaluated_checks if evaluator_class.respond_to?(:evaluated_checks)
-          rescue StandardError
-            # If evaluator lookup fails, we'll fall back to raw names
-          end
+          @evaluator_display_name = evaluator_class.display_name if evaluator_class.respond_to?(:display_name)
+          @evaluator_description = evaluator_class.description if evaluator_class.respond_to?(:description)
+          @evaluator_checks = evaluator_class.evaluated_checks if evaluator_class.respond_to?(:evaluated_checks)
+        rescue StandardError
+          nil
         end
 
-        # Get fancy display name for the evaluator
         def evaluator_fancy_name
-          @evaluator_display_name.presence || @result.evaluator_name.to_s.humanize.titleize
+          @evaluator_display_name.presence || @result.evaluator_name.to_s.tr("_", " ")
         end
 
-        # Get fancy display name for a check/field
-        def check_fancy_name(field_name)
-          return field_name.to_s.humanize unless @evaluator_checks.any?
-
-          # field_name format: "original_field_path:evaluator_type" e.g., "individual_scores:consistency"
-          field_part, evaluator_type = field_name.to_s.split(":", 2)
-
-          # Find matching check
-          check = @evaluator_checks.find do |c|
-            check_field = c[:field_name].to_s
-            check_type = c[:evaluator_type].to_s
-
-            # Match on field name and evaluator type
-            check_field == field_part && check_type == evaluator_type
-          end
-
-          check&.dig(:display_name).presence || field_name.to_s.humanize
+        def field_name
+          @field_name ||= @result.metadata&.dig("field_name").presence ||
+                          @result.metadata&.dig(:field_name).presence ||
+                          @result.details&.dig("field_name").presence
         end
 
-        # Get description for a check/field
-        def check_description(field_name)
-          return nil unless @evaluator_checks.any?
+        def field_label
+          return evaluator_fancy_name if field_name.blank?
 
-          field_part, evaluator_type = field_name.to_s.split(":", 2)
-
-          check = @evaluator_checks.find do |c|
-            check_field = c[:field_name].to_s
-            check_type = c[:evaluator_type].to_s
-            check_field == field_part && check_type == evaluator_type
-          end
-
-          check&.dig(:description)
+          check_display_name(field_name)
         end
 
-        def render_header
-          field_name = @result.metadata&.dig("field_name") || @result.metadata&.dig(:field_name)
-          field_display_name = field_name.present? ? check_fancy_name(field_name) : nil
-          field_desc = field_name.present? ? check_description(field_name) : nil
+        def field_of(result)
+          field = result.metadata&.dig("field_name").presence ||
+                  result.details&.dig("field_name").presence
+          field.to_s.tr("_", " ").presence || result.evaluator_name.to_s.tr("_", " ")
+        end
 
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              div(class: "flex items-center gap-3") do
-                h1(class: "text-2xl font-bold text-gray-900") do
-                  plain evaluator_fancy_name
-                  if field_display_name.present?
-                    span(class: "text-gray-400 mx-2") { "/" }
-                    span(class: "text-blue-600") { field_display_name }
-                  end
-                end
-                render_status_badge(@result.status)
-              end
-              # Show check description if available, otherwise evaluator description
-              description = field_desc.presence || @evaluator_description
-              if description.present?
-                p(class: "mt-1 text-sm text-gray-500") { description }
-              else
-                p(class: "mt-1 text-sm text-gray-500") do
-                  plain "Evaluation result from "
-                  plain time_ago_in_words(@result.created_at)
-                  plain " ago"
-                end
-              end
-            end
+        # A field is recorded as "original_field_path:evaluator_type", which
+        # is how a check is looked up among the ones its evaluator declares.
+        def check_for(field)
+          return nil if @evaluator_checks.blank?
+
+          path, type = field.to_s.split(":", 2)
+          @evaluator_checks.find do |check|
+            check[:field_name].to_s == path && check[:evaluator_type].to_s == type
           end
         end
 
-        def render_score_section
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Score" }
-            end
-            div(class: "px-4 py-5 sm:p-6 text-center") do
-              if @result.score
-                render_score_visualization(@result.score)
-              else
-                p(class: "text-gray-500") { "No score available" }
-              end
-            end
+        def check_display_name(field)
+          check_for(field)&.dig(:display_name).presence || field.to_s.tr("_", " ")
+        end
+
+        def check_description(field)
+          check_for(field)&.dig(:description)
+        end
+
+        # ── Formatting ────────────────────────────────────────────────────
+
+        def policy_name
+          @result.evaluation_policy&.name.presence || "policy removed"
+        end
+
+        def score_text(score)
+          return "—" if score.nil?
+
+          # `format` is not Kernel's here — Phlex's element methods take the
+          # name, so the operator form is the one that survives.
+          "%.2f" % score.to_f
+        end
+
+        def score_tone(score)
+          return nil if score.nil?
+
+          case score.to_f
+          when GOOD.. then :ok
+          when POOR...GOOD then :warn
+          else :bad
           end
         end
 
-        def render_score_visualization(score)
-          numeric_score = score.to_f
-          percentage = (numeric_score * 100).round
+        def timestamp(time)
+          return "—" if time.nil?
 
-          div(class: "mb-6") do
-            div(class: "text-6xl font-bold text-gray-900") do
-              plain percentage.to_s
-              span(class: "text-2xl text-gray-500") { "%" }
-            end
-          end
-
-          div(class: "mb-4") do
-            progress_color = if numeric_score >= 0.8
-                               "bg-green-600"
-                             elsif numeric_score >= 0.6
-                               "bg-yellow-500"
-                             else
-                               "bg-red-600"
-                             end
-
-            div(class: "w-full bg-gray-200 rounded-full h-6") do
-              div(
-                class: "#{progress_color} h-6 rounded-full transition-all duration-300 flex items-center justify-center",
-                style: "width: #{percentage}%"
-              ) do
-                span(class: "text-xs text-white font-medium") { "#{percentage}%" } if percentage >= 20
-              end
-            end
-          end
-
-          div do
-            badge_config = if numeric_score >= 0.8
-                             { color: "green", text: "Good" }
-                           elsif numeric_score >= 0.5
-                             { color: "yellow", text: "Average" }
-                           else
-                             { color: "red", text: "Bad" }
-                           end
-
-            color_classes = case badge_config[:color]
-                            when "green" then "bg-green-100 text-green-800"
-                            when "yellow" then "bg-yellow-100 text-yellow-800"
-                            when "red" then "bg-red-100 text-red-800"
-                            else "bg-gray-100 text-gray-800"
-                            end
-
-            span(class: "inline-flex items-center px-4 py-2 rounded-full text-lg font-medium #{color_classes}") do
-              badge_config[:text]
-            end
-          end
+          time.utc.strftime("%Y-%m-%d %H:%M:%S UTC")
         end
 
-        def render_formatted_result_section
-          # Get formatted markdown from details
-          markdown = @result.details&.dig("formatted_markdown") ||
-                     @result.details&.dig(:formatted_markdown)
-          return if markdown.blank?
-
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Evaluation Details" }
-            end
-            div(class: "px-4 py-5 sm:p-6") do
-              # Render markdown as HTML with prose styling for proper formatting
-              div(class: "prose prose-sm max-w-none") do
-                raw RAAF::Rails::Tracing::MarkdownRenderer.markdown_to_html(markdown)
-              end
-            end
-          end
-        end
-
-        def render_reasoning_section
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Reasoning" }
-            end
-            div(class: "px-4 py-5 sm:p-6") do
-              div(class: "bg-gray-50 p-4 rounded-md") do
-                p(class: "text-sm text-gray-700 whitespace-pre-wrap") { @result.reasoning }
-              end
-            end
-          end
-        end
-
-        def render_metrics_section
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Metrics" }
-            end
-            div(class: "px-4 py-5 sm:p-6") do
-              if @result.metrics.is_a?(Hash)
-                # Check if this has evaluation-specific data (current_value, baseline_value, etc.)
-                if has_evaluation_details?(@result.metrics)
-                  render_rich_evaluation_metrics(@result.metrics)
-                else
-                  dl(class: "grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2") do
-                    @result.metrics.each do |key, value|
-                      div do
-                        dt(class: "text-sm font-medium text-gray-500") { format_key(key) }
-                        dd(class: "mt-1 text-sm text-gray-900") { format_value(value) }
-                      end
-                    end
-                  end
-                end
-              else
-                pre(class: "bg-gray-50 p-4 rounded-md text-sm text-gray-700 overflow-x-auto") do
-                  JSON.pretty_generate(@result.metrics)
-                end
-              end
-            end
-          end
-        end
-
-        # Check if metrics contain evaluation-specific details
-        def has_evaluation_details?(metrics)
-          evaluation_keys = %w[current_value baseline_value max_drop threshold_good threshold_average
-                               current_tokens baseline_tokens current_latency baseline_latency drop tolerance]
-          metrics.keys.any? { |k| evaluation_keys.include?(k.to_s) }
-        end
-
-        # Render rich evaluation metrics with visual indicators
-        def render_rich_evaluation_metrics(metrics)
-          div(class: "space-y-4") do
-            # Value comparison section (if we have current and baseline values)
-            render_value_comparison(metrics)
-
-            # Threshold visualization
-            render_threshold_visualization(metrics)
-
-            # Additional metrics that don't fit above
-            render_additional_metrics(metrics)
-          end
-        end
-
-        def render_value_comparison(metrics)
-          current_value = metrics["current_value"] || metrics[:current_value]
-          baseline_value = metrics["baseline_value"] || metrics[:baseline_value]
-          drop = metrics["drop"] || metrics[:drop]
-          max_drop = metrics["max_drop"] || metrics[:max_drop]
-
-          return unless current_value || baseline_value
-
-          div(class: "bg-gray-50 rounded-lg p-4") do
-            h4(class: "text-sm font-medium text-gray-900 mb-3") { "Value Comparison" }
-            div(class: "grid grid-cols-1 sm:grid-cols-3 gap-4") do
-              # Current value
-              render_value_card("Current Value", current_value, "text-blue-600", "bi-bullseye") if current_value
-
-              # Baseline value
-              render_value_card("Baseline Value", baseline_value, "text-gray-600", "bi-flag") if baseline_value
-
-              # Drop/Change
-              if drop || max_drop
-                drop_value = max_drop || drop
-                drop_color = drop_value.to_f > 0 ? "text-red-600" : "text-green-600"
-                drop_icon = drop_value.to_f > 0 ? "bi-arrow-down" : "bi-arrow-up"
-                render_value_card("Change", format_numeric(drop_value), drop_color, drop_icon)
-              end
-            end
-          end
-        end
-
-        def render_value_card(label, value, color_class, icon_class)
-          div(class: "bg-white rounded-md p-3 border border-gray-200") do
-            div(class: "flex items-center gap-2") do
-              i(class: "#{icon_class} #{color_class} text-lg")
-              span(class: "text-xs text-gray-500") { label }
-            end
-            div(class: "mt-1 text-lg font-semibold #{color_class}") do
-              if value.is_a?(Array)
-                plain "[#{value.map { |v| format_numeric(v) }.join(', ')}]"
-              else
-                plain format_numeric(value)
-              end
-            end
-          end
-        end
-
-        def render_threshold_visualization(metrics)
-          threshold_good = metrics["threshold_good"] || metrics[:threshold_good]
-          threshold_average = metrics["threshold_average"] || metrics[:threshold_average]
-          tolerance = metrics["tolerance"] || metrics[:tolerance]
-
-          return unless threshold_good || threshold_average || tolerance
-
-          div(class: "bg-gray-50 rounded-lg p-4 mt-4") do
-            h4(class: "text-sm font-medium text-gray-900 mb-3") { "Evaluation Thresholds" }
-
-            # Visual threshold bar
-            render_threshold_bar(threshold_good.to_f, threshold_average.to_f) if threshold_good && threshold_average
-
-            # Threshold values
-            div(class: "grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3") do
-              if threshold_good
-                div(class: "flex items-center gap-2") do
-                  span(class: "inline-block w-3 h-3 rounded-full bg-green-500")
-                  span(class: "text-sm text-gray-600") { "Good: ≥ #{format_numeric(threshold_good)}" }
-                end
-              end
-
-              if threshold_average
-                div(class: "flex items-center gap-2") do
-                  span(class: "inline-block w-3 h-3 rounded-full bg-yellow-500")
-                  span(class: "text-sm text-gray-600") { "Average: ≥ #{format_numeric(threshold_average)}" }
-                end
-              end
-
-              if tolerance
-                div(class: "flex items-center gap-2") do
-                  span(class: "inline-block w-3 h-3 rounded-full bg-blue-500")
-                  span(class: "text-sm text-gray-600") { "Tolerance: #{format_numeric(tolerance)}" }
-                end
-              end
-            end
-          end
-        end
-
-        def render_threshold_bar(good_threshold, average_threshold)
-          score = @result.score&.to_f || 0.0
-          score_percent = (score * 100).clamp(0, 100)
-          good_percent = (good_threshold * 100).clamp(0, 100)
-          avg_percent = (average_threshold * 100).clamp(0, 100)
-
-          div(class: "relative h-6 bg-gradient-to-r from-red-200 via-yellow-200 to-green-200 rounded-full overflow-hidden") do
-            # Threshold markers
-            div(class: "absolute top-0 bottom-0 w-0.5 bg-yellow-600", style: "left: #{avg_percent}%")
-            div(class: "absolute top-0 bottom-0 w-0.5 bg-green-600", style: "left: #{good_percent}%")
-
-            # Score marker
-            div(class: "absolute top-0 bottom-0 w-1 bg-blue-600 rounded",
-                style: "left: calc(#{score_percent}% - 2px)") do
-              div(class: "absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs font-medium text-blue-600") do
-                plain "#{score_percent.round}%"
-              end
-            end
-          end
-        end
-
-        def render_additional_metrics(metrics)
-          # Filter out keys we've already displayed
-          displayed_keys = %w[current_value baseline_value drop max_drop threshold_good threshold_average tolerance]
-          remaining = metrics.reject { |k, _| displayed_keys.include?(k.to_s) }
-
-          return if remaining.empty?
-
-          div(class: "bg-gray-50 rounded-lg p-4 mt-4") do
-            h4(class: "text-sm font-medium text-gray-900 mb-3") { "Additional Details" }
-            dl(class: "grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2") do
-              remaining.each do |key, value|
-                next if value.nil?
-
-                div(class: "flex justify-between py-1") do
-                  dt(class: "text-sm text-gray-500") { format_key(key) }
-                  dd(class: "text-sm font-medium text-gray-900") { format_value(value) }
-                end
-              end
-            end
-          end
-        end
-
-        def format_numeric(value)
-          return "N/A" if value.nil?
-          return value.to_s unless value.is_a?(Numeric)
-
-          if value.is_a?(Float)
-            if value.abs < 0.01 && value != 0
-              sprintf("%.4f", value)
-            elsif value.abs >= 1000
-              number_with_delimiter(value.round)
-            else
-              value.round(2).to_s
-            end
-          else
-            number_with_delimiter(value)
-          end
-        end
-
-        def number_with_delimiter(number)
-          number.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
-        end
-
-        def render_metadata_section
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Metadata" }
-            end
-            div(class: "px-4 py-5 sm:p-6") do
-              dl(class: "grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2") do
-                render_detail_row("Result ID", @result.id)
-                render_detail_row("Agent Name", @result.agent_name)
-                render_detail_row("Evaluator", evaluator_fancy_name)
-                render_detail_row("Evaluator Type", format_evaluator_type(@result.evaluator_type))
-                render_detail_row("Status", render_status_badge(@result.status))
-                render_detail_row("Created", format_timestamp(@result.created_at))
-                if @result.evaluation_duration_ms
-                  render_detail_row("Duration",
-                                    format_duration(@result.evaluation_duration_ms))
-                end
-
-                if @result.metrics&.dig("tokens").present?
-                  render_detail_row("Tokens Used", @result.metrics["tokens"].to_s)
-                end
-
-                if @result.metrics&.dig("cost").present?
-                  render_detail_row("Cost", "$#{sprintf('%.4f', @result.metrics['cost'])}")
-                end
-              end
-            end
-          end
-        end
-
-        def render_summary_sidebar
-          field_name = @result.metadata&.dig("field_name") || @result.metadata&.dig(:field_name)
-          field_display_name = field_name.present? ? check_fancy_name(field_name) : nil
-          specific_evaluators = @result.metadata&.dig("specific_evaluators") || @result.metadata&.dig(:specific_evaluators) || []
-
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Summary" }
-            end
-            div(class: "divide-y divide-gray-200") do
-              render_summary_item("Status", render_status_badge(@result.status))
-              render_summary_item("Score", format_score(@result.score))
-              render_summary_item("Check", field_display_name) if field_display_name.present?
-              render_summary_item("Agent", @result.agent_name || "Unknown")
-              render_summary_item("Evaluator", evaluator_fancy_name)
-              render_summary_item("Type", format_evaluator_type(@result.evaluator_type))
-              render_summary_item("Checks", render_evaluator_badges(specific_evaluators)) if specific_evaluators.any?
-            end
-          end
-        end
-
-        def render_evaluator_badges(evaluators)
-          div(class: "flex flex-wrap gap-1") do
-            evaluators.each do |evaluator|
-              span(class: "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium #{evaluator_badge_color(evaluator)}") do
-                evaluator.to_s.gsub("_", " ")
-              end
-            end
-          end
-        end
-
-        def evaluator_badge_color(evaluator)
-          case evaluator.to_s
-          when /llm_judge|semantic/ then "bg-purple-100 text-purple-800"
-          when /consistency/ then "bg-blue-100 text-blue-800"
-          when /regression|no_regression/ then "bg-orange-100 text-orange-800"
-          when /bias/ then "bg-red-100 text-red-800"
-          when /token|latency|performance/ then "bg-cyan-100 text-cyan-800"
-          else "bg-gray-100 text-gray-800"
-          end
-        end
-
-        def format_evaluator_type(type)
-          case type.to_s
-          when "llm_judge" then "LLM Judge"
-          when "rule_based" then "Rule-based"
-          when "statistical" then "Statistical"
-          when "custom" then "Custom"
-          else type.to_s.split("_").map(&:capitalize).join(" ")
-          end
-        end
-
-        def render_links_sidebar
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Related" }
-            end
-            div(class: "divide-y divide-gray-200") do
-              link_to(
-                "/raaf/tracing/spans/#{@result.span_id}",
-                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-              ) do
-                i(class: "bi bi-eye mr-3 text-gray-400")
-                plain "View Span"
-              end
-
-              if @result.evaluation_queue_item
-                link_to(
-                  continuous_queue_item_path(@result.evaluation_queue_item),
-                  class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-                ) do
-                  i(class: "bi bi-list-task mr-3 text-gray-400")
-                  plain "View Queue Item"
-                end
-              end
-
-              if @result.evaluation_policy
-                link_to(
-                  continuous_policy_path(@result.evaluation_policy),
-                  class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-                ) do
-                  i(class: "bi bi-shield-check mr-3 text-gray-400")
-                  plain "View Policy"
-                end
-              end
-
-              link_to(
-                continuous_results_path(agent_name: @result.agent_name),
-                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-              ) do
-                i(class: "bi bi-filter mr-3 text-gray-400")
-                plain "More from this Agent"
-              end
-
-              link_to(
-                continuous_results_path(evaluator_name: @result.evaluator_name),
-                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-              ) do
-                i(class: "bi bi-filter mr-3 text-gray-400")
-                plain "More from this Evaluator"
-              end
-            end
-          end
-        end
-
-        def render_summary_item(label, value)
-          div(class: "flex justify-between items-center px-4 py-3") do
-            span(class: "text-sm text-gray-500") { label }
-            span(class: "text-sm text-gray-900") { value }
-          end
-        end
-
-        def render_detail_row(label, value)
-          div do
-            dt(class: "text-sm font-medium text-gray-500") { label }
-            dd(class: "mt-1 text-sm text-gray-900") { value }
-          end
-        end
-
-        def render_status_badge(status)
-          badge_config = case status.to_s
-                         when "good"
-                           { color: "green", icon: "bi-check-circle", text: "Good" }
-                         when "average"
-                           { color: "yellow", icon: "bi-dash-circle", text: "Average" }
-                         when "bad"
-                           { color: "red", icon: "bi-x-circle", text: "Bad" }
-                         when "error"
-                           { color: "orange", icon: "bi-exclamation-triangle", text: "Error" }
-                         else
-                           { color: "gray", icon: "bi-question-circle", text: status }
-                         end
-
-          color_classes = case badge_config[:color]
-                          when "green" then "bg-green-100 text-green-800"
-                          when "yellow" then "bg-yellow-100 text-yellow-800"
-                          when "red" then "bg-red-100 text-red-800"
-                          when "orange" then "bg-orange-100 text-orange-800"
-                          else "bg-gray-100 text-gray-800"
-                          end
-
-          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
-            i(class: "#{badge_config[:icon]} mr-1")
-            plain badge_config[:text]
-          end
-        end
-
-        def format_score(score)
-          return "N/A" unless score
-
-          score.is_a?(Numeric) ? score.round(2).to_s : score.to_s
-        end
-
-        def format_timestamp(time)
-          return "N/A" unless time
-
-          time.strftime("%Y-%m-%d %H:%M:%S")
-        end
-
-        def format_duration(ms)
-          return "N/A" unless ms
-
-          if ms < 1000
-            "#{ms.round}ms"
-          else
-            "#{(ms / 1000.0).round(2)}s"
-          end
-        end
-
-        def format_key(key)
-          key.to_s.split("_").map(&:capitalize).join(" ")
-        end
-
-        def format_value(value)
-          case value
-          when Numeric
-            value.is_a?(Float) ? value.round(3).to_s : value.to_s
-          when TrueClass, FalseClass
-            value ? "Yes" : "No"
-          when Hash
-            pre(class: "text-xs bg-gray-50 p-2 rounded") { JSON.pretty_generate(value) }
-          when Array
-            value.join(", ")
-          else
-            value.to_s
-          end
+        def delimited(number)
+          number.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
         end
       end
     end

@@ -26,7 +26,7 @@ module RAAF
             summary_bar
             div(class: "raaf-trace-split") do
               waterfall
-              inspector
+              aside
             end
           end
         end
@@ -99,6 +99,26 @@ module RAAF
         end
 
         # ── Inspector ─────────────────────────────────────────────────────
+
+        # The inspector reads what the span recorded; the panel under it is
+        # what can be done to the span. They share the column so that the
+        # waterfall keeps its width, and because a policy is worth seeing only
+        # once a span is picked.
+        def aside
+          div(class: "raaf-trace-aside") do
+            inspector
+            span_policies
+          end
+        end
+
+        # Absent unless this span is one a policy could grade — the panel
+        # decides that for itself, since the rule is the pipeline's, not this
+        # page's.
+        def span_policies
+          return if selected.nil?
+
+          render RAAF::Rails::Continuous::SpanPoliciesPanel.new(span: selected)
+        end
 
         def inspector
           if selected.nil?

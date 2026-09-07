@@ -26,7 +26,10 @@ module RAAF
         class ScopeFilter < Base
           # @param name [String] the query parameter this sets
           # @param value [String, nil] the current value
-          # @param options [Array<String>]
+          # @param options [Array<String>, Array<Array(String, String)>] the
+          #   choices, either as plain strings where the label is the value, or
+          #   as `[label, value]` pairs where they differ — a policy is chosen
+          #   by name and filtered by id.
           # @param action [String] form target
           # @param prefix [String] shown before the value, as in `workflow:`
           # @param icon [String] leading Bootstrap Icons name
@@ -66,7 +69,8 @@ module RAAF
               option(value: "", selected: @value.nil?) { @blank_label }
 
               @options.each do |candidate|
-                option(value: candidate, selected: candidate == @value) { candidate }
+                label, value = Array(candidate).size > 1 ? candidate : [candidate, candidate]
+                option(value: value.to_s, selected: value.to_s == @value.to_s) { label.to_s }
               end
             end
           end

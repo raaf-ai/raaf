@@ -51,6 +51,7 @@ module RAAF
               configuration
             end
             trend
+            recent_results
             matching_spans
           end
         end
@@ -68,6 +69,73 @@ module RAAF
         # feature, which is exactly how this went missing before.
         def matching_spans
           render MatchingSpansPanel.new(policy: @policy, spans: @matching_spans)
+        end
+
+        # The individual verdicts behind every number above. The page reported
+        # averages, a trend and a scorer breakdown, and gave no way to read a
+        # single one of the results they are made of — the controller has
+        # loaded them since this page was written, and nothing rendered them.
+        #
+        # Ten rows, because the point is to reach one and read it, not to
+        # browse the set; "All results" leads to the table filtered to this
+        # policy for that.
+        def recent_results
+          render(Organisms::Card.new(title: "Recent results", subtitle: RESULTS_SUBTITLE,
+                                     flush: true)) do |card|
+            card.actions { all_results_link }
+
+            if @recent_results.blank?
+              render Molecules::EmptyState.new(
+                icon: "clipboard-check", title: "No results yet",
+                text: "Nothing this policy graded has been recorded. Evaluate a span below " \
+                      "to produce the first one."
+              )
+            else
+              @recent_results.each { |result| result_row(result) }
+            end
+          end
+        end
+
+        RESULTS_SUBTITLE = "One row per graded field, newest first. Open one to read the " \
+                           "score, the reasoning and the span it came from."
+
+        def all_results_link
+          render Atoms::Button.new(label: "All results", size: :sm, icon: "list-ul",
+                                   href: continuous_results_path(policy: @policy.id))
+        end
+
+        def result_row(result)
+          div(class: "raaf-matching-span") do
+            div(class: "raaf-matching-span-body") do
+              div(class: "raaf-cluster") do
+                a(href: continuous_result_path(result), class: "raaf-matching-span-name") do
+                  plain result_label(result)
+                end
+                render Atoms::StatusBadge.new(result.status)
+              end
+
+              render Atoms::Mono.new(result_meta(result), tone: :muted)
+            end
+
+            render Atoms::Mono.new(score_text(result.score), tone: score_tone(result.score))
+          end
+        end
+
+        # A result is about one field of one evaluator, and the field is what
+        # distinguishes ten rows a policy wrote for the same span. Where a
+        # result records no field, the evaluator's own name is the best label
+        # left.
+        def result_label(result)
+          field = result.details&.dig("field_name") || result.metadata&.dig("field_name")
+          return result.evaluator_name.to_s.tr("_", " ") if field.blank?
+
+          field.to_s.tr("_", " ")
+        end
+
+        def result_meta(result)
+          [result.evaluator_name.presence&.tr("_", " "),
+           result.agent_name.presence,
+           result.created_at && time_ago(result.created_at)].compact.join(" · ")
         end
 
         # ── Header ────────────────────────────────────────────────────────

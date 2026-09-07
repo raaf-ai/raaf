@@ -31,6 +31,21 @@
   flex-wrap: wrap;
 }
 
+/* A detail screen's two columns: the record on the left, what it relates to
+   on the right. `raaf-policy-split` and `raaf-trace-split` are this shape at
+   their own ratios and predate it; a third one-off would have been the point
+   where the pattern stopped being visible. */
+.raaf-detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--raaf-space-4);
+  align-items: start;
+}
+
+@media (width <= 1024px) {
+  .raaf-detail-split { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* A page's own actions. The design gives the Tracing screens no banner — the
    shell's topbar already carries the crumb and title — so a screen that needs
    Export or Clear puts those buttons here instead of inside a hero that would

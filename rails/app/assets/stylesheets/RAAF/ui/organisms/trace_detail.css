@@ -11,9 +11,23 @@
   align-items: start;
 }
 
+/* The inspector and the span's policy panel share the right column. The
+   column is what sticks, so the panel travels with the inspector rather than
+   scrolling out from under it. */
+.raaf-trace-aside {
+  position: sticky;
+  top: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+}
+
+.raaf-trace-aside .raaf-inspector { position: static; }
+
 @media (width <= 1024px) {
   .raaf-trace-split { grid-template-columns: minmax(0, 1fr); }
   .raaf-inspector { position: static; }
+  .raaf-trace-aside { position: static; }
 }
 
 .raaf-waterfall { display: flex; flex-direction: column; }

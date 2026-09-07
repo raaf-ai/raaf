@@ -1,0 +1,111 @@
+/* ============================================================================
+   Organism — Continuous results
+   The Results and Result screens from RAAF Continuous.dc.html: the three
+   panels describing the population above the table, and the rows the detail
+   screen is built from.
+   ========================================================================= */
+
+/* ── Panels above the table ──────────────────────────────────────────────
+   Three equal columns on the canvas. They collapse to one before they get
+   narrow enough for the histogram's ten buckets to stop being readable. */
+.raaf-results-panels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--raaf-space-4);
+  align-items: start;
+}
+
+@media (width <= 1200px) {
+  .raaf-results-panels { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Score distribution ──────────────────────────────────────────────────
+   A sparkline at chart height. The molecule already normalises the buckets
+   against the tallest and carries the hover readouts; the only thing a
+   histogram needs on top of that is room and an axis. */
+.raaf-sparkbars.raaf-histogram {
+  height: 96px;
+  gap: 5px;
+}
+
+.raaf-histogram .raaf-sparkbar {
+  border-radius: 3px 3px 0 0;
+}
+
+/* Same track widths and gap as the bars above, so a label sits under the
+   bucket it names rather than near it. */
+.raaf-histogram-axis {
+  display: flex;
+  gap: 5px;
+  margin-top: var(--raaf-space-2);
+  font-family: var(--raaf-font-mono);
+  font-size: 9.5px;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-histogram-axis > span {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+/* ── Result header ───────────────────────────────────────────────────────
+   Where this verdict came from, on the line under the header's figures. */
+.raaf-result-links {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-4);
+  flex-wrap: wrap;
+  width: 100%;
+  padding-top: var(--raaf-space-3);
+  border-top: 1px solid var(--raaf-border);
+  font-size: 12px;
+}
+
+/* ── Neighbouring results ────────────────────────────────────────────────
+   The same row idiom the policy screen uses for its recent results, so a
+   result reads the same wherever it is listed. */
+.raaf-result-neighbour {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-3) var(--raaf-space-4);
+  border-bottom: 1px solid var(--raaf-border);
+  color: inherit;
+  text-decoration: none;
+}
+
+.raaf-result-neighbour:last-child { border-bottom: 0; }
+.raaf-result-neighbour:hover { background: var(--raaf-glass-white-5); }
+
+.raaf-result-neighbour-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Timeline ────────────────────────────────────────────────────────────
+   An icon in the gutter, the moment beside it. */
+.raaf-result-event {
+  display: flex;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-3) var(--raaf-space-4);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-result-event:last-child { border-bottom: 0; }
+
+.raaf-result-event > .raaf-icon {
+  margin-top: 2px;
+  flex: none;
+}
+
+.raaf-result-event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
