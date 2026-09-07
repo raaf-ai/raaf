@@ -48,8 +48,8 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
       config1 = class1.instance_variable_get(:@_evaluator_config)
       config2 = class2.instance_variable_get(:@_evaluator_config)
 
-      expect(config1[:selections]).to eq([{ path: "field1", as: :f1 }])
-      expect(config2[:selections]).to eq([{ path: "field2", as: :f2 }])
+      expect(config1[:selections]).to eq([{ path: "field1", as: :f1, optional: false }])
+      expect(config2[:selections]).to eq([{ path: "field2", as: :f2, optional: false }])
     end
   end
 
@@ -67,8 +67,8 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
 
         config = test_class.instance_variable_get(:@_evaluator_config)
         expect(config[:selections]).to contain_exactly(
-          { path: "usage.total_tokens", as: :tokens },
-          { path: "messages.*.content", as: :messages }
+          { path: "usage.total_tokens", as: :tokens, optional: false },
+          { path: "messages.*.content", as: :messages, optional: false }
         )
       end
 
@@ -86,7 +86,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
         test_class.select "field3", as: :f3
 
         config = test_class.instance_variable_get(:@_evaluator_config)
-        expect(config[:selections].map { |s| s[:as] }).to eq([:f1, :f2, :f3])
+        expect(config[:selections].map { |s| s[:as] }).to eq(%i[f1 f2 f3])
       end
     end
 
@@ -120,8 +120,8 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
       end
 
       it "replaces previous callback" do
-        test_class.on_progress { |e| puts "first" }
-        second_callback = ->(e) { puts "second" }
+        test_class.on_progress { |_e| puts "first" }
+        second_callback = ->(_e) { puts "second" }
         test_class.on_progress(&second_callback)
 
         config = test_class.instance_variable_get(:@_evaluator_config)
@@ -131,15 +131,15 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
 
     describe ".history (deprecated)" do
       it "raises DeprecatedDSLError when called with options" do
-        expect {
+        expect do
           test_class.history baseline: true, last_n: 10
-        }.to raise_error(RAAF::Eval::DeprecatedDSLError, /history/)
+        end.to raise_error(RAAF::Eval::DeprecatedDSLError, /history/)
       end
 
       it "raises DeprecatedDSLError when called without options" do
-        expect {
+        expect do
           test_class.history
-        }.to raise_error(RAAF::Eval::DeprecatedDSLError, /history/)
+        end.to raise_error(RAAF::Eval::DeprecatedDSLError, /history/)
       end
 
       it "provides migration guidance in the error message" do
@@ -248,6 +248,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
     it "stores the agent name when for_agent is called with a name" do
       test_class = Class.new do
         include RAAF::Eval::DSL::EvaluatorDefinition
+
         for_agent "Prospect::Scoring"
       end
 
@@ -265,6 +266,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
     it "returns explicit agent name via agent_name method" do
       test_class = Class.new do
         include RAAF::Eval::DSL::EvaluatorDefinition
+
         for_agent "Custom::Agent"
       end
 
@@ -315,9 +317,9 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorDefinition do
 
     it "returns all field selections via field_selections" do
       expect(test_class.field_selections).to contain_exactly(
-        { path: "output", as: :output },
-        { path: "usage.total_tokens", as: :tokens },
-        { path: "latency", as: :latency }
+        { path: "output", as: :output, optional: false },
+        { path: "usage.total_tokens", as: :tokens, optional: false },
+        { path: "latency", as: :latency, optional: false }
       )
     end
 

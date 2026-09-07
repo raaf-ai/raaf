@@ -24,10 +24,11 @@ module RAAF
         # Select a field for evaluation with optional alias
         # @param field_path [String] The field path (supports dot notation)
         # @param as [Symbol, nil] Optional alias for the field
+        # @param optional [Boolean] Tolerate spans that do not carry the field
         # @example
         #   select 'usage.total_tokens', as: :tokens
-        def select(field_path, as: nil)
-          @field_selector.add_field(field_path, as: as)
+        def select(field_path, as: nil, optional: false)
+          @field_selector.add_field(field_path, as: as, optional: optional)
         end
 
         # Define evaluators for a specific field
@@ -38,8 +39,8 @@ module RAAF
         #     evaluate_with :semantic_similarity, threshold: 0.85
         #     combine_with :and
         #   end
-        def evaluate_field(field_name, &block)
-          @evaluator_definition.evaluate_field(field_name, &block)
+        def evaluate_field(field_name, &)
+          @evaluator_definition.evaluate_field(field_name, &)
         end
 
         # Register a progress callback
@@ -71,7 +72,7 @@ module RAAF
         #     evaluators: [{ name: "my_evaluator" }],
         #     retention_days: 30
         #   )
-        def history(&_block)
+        def history(&)
           raise RAAF::Eval::DeprecatedDSLError.new("history do...end")
         end
 

@@ -17,17 +17,17 @@ module RAAF
 
             # Filter fields if only_fields is specified
             fields_to_extract = if only_fields.present?
-              # Get field paths that correspond to the requested aliases
-              only_fields_set = only_fields.map(&:to_sym).to_set
-              field_selector.fields.select do |field_path|
-                # Check if this field path or its alias is in the only_fields list
-                alias_name = field_selector.aliases.key(field_path)
-                key = alias_name ? alias_name.to_sym : field_path.to_sym
-                only_fields_set.include?(key)
-              end
-            else
-              field_selector.fields
-            end
+                                  # Get field paths that correspond to the requested aliases
+                                  only_fields_set = only_fields.map(&:to_sym).to_set
+                                  field_selector.fields.select do |field_path|
+                                    # Check if this field path or its alias is in the only_fields list
+                                    alias_name = field_selector.aliases.key(field_path)
+                                    key = alias_name ? alias_name.to_sym : field_path.to_sym
+                                    only_fields_set.include?(key)
+                                  end
+                                else
+                                  field_selector.fields
+                                end
 
             fields_to_extract.each_with_object({}) do |field_path, hash|
               # Check if the alias exists at the top level of span (for overridden values)
@@ -43,9 +43,20 @@ module RAAF
                 end
               end
 
-              # Fall back to extracting via the field path
-              value = field_selector.extract_value(field_path, span)
-              hash[field_path] = value
+              # Fall back to extracting via the field path.
+              #
+              # A field declared optional is one whose presence depends on how
+              # the evaluated subject is configured -- a scoring dimension the
+              # product does not use, say. Omitting it from the extracted data
+              # is what makes the checks declared on it skip: create_field_contexts
+              # builds contexts only from the keys present here, and
+              # execute_field_evaluations skips a field with no context. A
+              # required field still raises, so a mistyped path fails loudly.
+              begin
+                hash[field_path] = field_selector.extract_value(field_path, span)
+              rescue DSL::FieldNotFoundError
+                raise unless field_selector.optional?(field_path)
+              end
             end
           end
 
@@ -76,6 +87,7 @@ module RAAF
           def dig(*keys)
             keys.reduce(self) do |obj, key|
               return nil unless obj.respond_to?(:[])
+
               obj[key]
             end
           end

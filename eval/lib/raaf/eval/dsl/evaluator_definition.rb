@@ -215,9 +215,9 @@ module RAAF
           # @return [Symbol] The check type category (:llm_judge, :statistical, :rule_based)
           def determine_check_type(evaluator_name)
             case evaluator_name.to_s
-            when 'llm_judge', 'semantic_similarity'
+            when "llm_judge", "semantic_similarity"
               :llm_judge
-            when 'consistency', 'no_regression', 'variance'
+            when "consistency", "no_regression", "variance"
               :statistical
             else
               # Anything not built in gets to say for itself. Without this an
@@ -254,8 +254,8 @@ module RAAF
           # @param as [Symbol] Alias for the field
           # @example
           #   select 'usage.total_tokens', as: :tokens
-          def select(path, as:)
-            @_evaluator_config[:selections] << { path: path, as: as }
+          def select(path, as:, optional: false)
+            @_evaluator_config[:selections] << { path: path, as: as, optional: optional }
           end
 
           # Define evaluators for a specific field
@@ -401,15 +401,15 @@ module RAAF
           # @param span_data [Hash] Span data to evaluate
           # @param options [Hash] Additional options passed to evaluator
           # @return [RAAF::Eval::Result] Evaluation result
-          def evaluate(span_data, **options)
+          def evaluate(span_data, **)
             # Apply span transformer if defined
             transformed_data = if @_evaluator_config&.dig(:span_transformer)
-              @_evaluator_config[:span_transformer].call(span_data)
-            else
-              span_data
-            end
+                                 @_evaluator_config[:span_transformer].call(span_data)
+                               else
+                                 span_data
+                               end
 
-            evaluator.evaluate(transformed_data, **options)
+            evaluator.evaluate(transformed_data, **)
           end
 
           private
@@ -422,7 +422,7 @@ module RAAF
             RAAF::Eval.define do
               # Apply field selections
               config[:selections].each do |selection|
-                select selection[:path], as: selection[:as]
+                select selection[:path], as: selection[:as], optional: selection[:optional] || false
               end
 
               # Apply field evaluations
@@ -433,7 +433,7 @@ module RAAF
               # Apply progress callback
               on_progress(&config[:progress_callback]) if config[:progress_callback]
 
-              # Note: history configuration is no longer supported via DSL
+              # NOTE: history configuration is no longer supported via DSL
               # Use database-backed EvaluationPolicy instead
             end
           end

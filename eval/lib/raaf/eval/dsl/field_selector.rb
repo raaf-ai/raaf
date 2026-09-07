@@ -8,40 +8,55 @@ module RAAF
     module DSL
       # Error raised when field path format is invalid
       class InvalidPathError < StandardError; end
-      
+
       # Error raised when a field is not found
       class FieldNotFoundError < StandardError; end
-      
+
       # Error raised when duplicate alias is detected
       class DuplicateAliasError < StandardError; end
 
       # Handles field selection, extraction, and aliasing for evaluation DSL
       # Supports nested path parsing, field value extraction, and alias management
       class FieldSelector
-        attr_reader :fields, :aliases
+        attr_reader :fields, :aliases, :optional_fields
 
         def initialize
           @fields = []
           @aliases = {}
+          @optional_fields = Set.new
           @path_cache = {}
         end
 
         # Add a field to be selected with optional alias
         # @param field_path [String, Symbol] The field path (supports dot notation)
         # @param as [Symbol, String, nil] Optional alias for the field
-        def add_field(field_path, as: nil)
+        # @param optional [Boolean] When true, a span that does not carry this
+        #   field is not an error. Extraction omits the field instead of raising,
+        #   and the checks declared on it are skipped for that span. Use it for a
+        #   field whose presence depends on how the evaluated subject is
+        #   configured, never to paper over a mistyped path.
+        def add_field(field_path, as: nil, optional: false)
           validate_path(field_path)
-          
+
           field_path = field_path.to_s
           @fields << field_path unless @fields.include?(field_path)
-          
-          if as
-            alias_name = as.to_s
-            if @aliases.key?(alias_name) && @aliases[alias_name] != field_path
-              raise DuplicateAliasError, "Alias '#{alias_name}' is already assigned to field '#{@aliases[alias_name]}'"
-            end
-            @aliases[alias_name] = field_path
+          @optional_fields << field_path if optional
+
+          return unless as
+
+          alias_name = as.to_s
+          if @aliases.key?(alias_name) && @aliases[alias_name] != field_path
+            raise DuplicateAliasError, "Alias '#{alias_name}' is already assigned to field '#{@aliases[alias_name]}'"
           end
+
+          @aliases[alias_name] = field_path
+        end
+
+        # Whether a field was declared optional
+        # @param field_path [String, Symbol] The field path
+        # @return [Boolean] true if a missing value for this field is tolerated
+        def optional?(field_path)
+          @optional_fields.include?(field_path.to_s)
         end
 
         # Parse a field path into its components
@@ -49,10 +64,10 @@ module RAAF
         # @return [Array<String>] The parsed path components
         def parse_path(path)
           validate_path(path)
-          
+
           path_str = path.to_s
           return @path_cache[path_str] if @path_cache.key?(path_str)
-          
+
           parsed = path_str.split(".")
           @path_cache[path_str] = parsed
           parsed
@@ -96,29 +111,26 @@ module RAAF
         # Validate that a path is in correct format
         # @param path [Object] The path to validate
         def validate_path(path)
-          if path.nil?
-            raise InvalidPathError, "Field path is empty or invalid"
-          end
-          
+          raise InvalidPathError, "Field path is empty or invalid" if path.nil?
+
           unless path.is_a?(String) || path.is_a?(Symbol)
             raise InvalidPathError, "Field path must be a string or symbol, got #{path.class}"
           end
-          
+
           path_str = path.to_s
-          
-          if path_str.empty?
-            raise InvalidPathError, "Field path is empty or invalid"
-          end
-          
+
+          raise InvalidPathError, "Field path is empty or invalid" if path_str.empty?
+
           # Check for invalid formats (consecutive dots, leading/trailing dots)
-          if path_str.include?("..") || path_str.start_with?(".") || path_str.end_with?(".")
-            raise InvalidPathError, "Invalid path format: '#{path_str}'"
-          end
+          return unless path_str.include?("..") || path_str.start_with?(".") || path_str.end_with?(".")
+
+          raise InvalidPathError, "Invalid path format: '#{path_str}'"
         end
 
         # Ensure hash uses indifferent access
         def ensure_indifferent_access(hash)
           return hash if hash.is_a?(ActiveSupport::HashWithIndifferentAccess)
+
           ActiveSupport::HashWithIndifferentAccess.new(hash)
         end
 
@@ -134,7 +146,7 @@ module RAAF
           part = parts.first
           remaining = parts[1..]
 
-          if part == '*'
+          if part == "*"
             # Wildcard: iterate over array and collect values
             unless current.is_a?(Array)
               raise FieldNotFoundError,
@@ -149,11 +161,12 @@ module RAAF
           else
             # Regular path component: navigate into hash
             if current.is_a?(Hash)
-              if current.key?(part)
-                extract_value_recursive(remaining, current[part], full_path)
-              else
+              unless current.key?(part)
                 raise FieldNotFoundError, "Field '#{full_path}' not found in result (missing key '#{part}')"
               end
+
+              extract_value_recursive(remaining, current[part], full_path)
+
             else
               raise FieldNotFoundError,
                     "Expected hash at '#{part}' in '#{full_path}', got #{current.class}"
