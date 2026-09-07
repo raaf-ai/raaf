@@ -626,9 +626,6 @@ module RAAF
     #   }
     #
     def get_all_tools_for_api(agent, visited_agents = Set.new)
-      puts "[Runner::get_all_tools_for_api] Called for agent: #{agent.name}"
-      puts "[Runner::get_all_tools_for_api] agent.tools?: #{agent.tools?}"
-      puts "[Runner::get_all_tools_for_api] agent.tools: #{agent.tools.inspect}"
       log_debug("🔧 HANDOFF FLOW: Starting tool collection for agent", agent: agent.name)
 
       # Circular reference detection
@@ -644,7 +641,6 @@ module RAAF
       if agent.tools?
         regular_tools_count = agent.tools.count
         all_tools.concat(agent.tools)
-        puts "[Runner::get_all_tools_for_api] Added #{regular_tools_count} tools to all_tools: #{all_tools.inspect}"
         # Get tool names safely (handle hashes)
         tool_names = agent.tools.map { |t| t.respond_to?(:name) ? t.name : t.keys.first.to_s }.join(", ")
         log_debug("🔧 HANDOFF FLOW: Added regular tools",
@@ -1483,12 +1479,6 @@ module RAAF
         # Validate response structure for Responses API
         raise StandardError, "Invalid response structure: missing 'output' field" unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
 
-        # DEBUG: Log what keys are actually in the response
-        puts "🔍 [RUNNER DEBUG] Response keys: #{response.keys.inspect}"
-        puts "🔍 [RUNNER DEBUG] response['usage']: #{response["usage"].inspect}"
-        puts "🔍 [RUNNER DEBUG] response[:usage]: #{response[:usage].inspect}"
-        puts "🔍 [RUNNER DEBUG] Response class: #{response.class.name}"
-
         # Log the response details
         log_debug_api("📥 RUNNER: Received API response",
                       provider: @provider.class.name,
@@ -1524,37 +1514,14 @@ module RAAF
                         })
         end
 
-        # DEBUG: Log response before accumulation
-        puts "🔍 [RESPONSE DEBUG] response.class: #{response.class.name}"
-        puts "🔍 [RESPONSE DEBUG] response.keys: #{response.keys.inspect}"
-        puts "🔍 [RESPONSE DEBUG] response['usage'] exists?: #{!response["usage"].nil?}"
-        puts "🔍 [RESPONSE DEBUG] response[:usage] exists?: #{!response[:usage].nil?}"
-        puts "🔍 [RESPONSE DEBUG] response['usage']: #{response["usage"].inspect}"
-        puts "🔍 [RESPONSE DEBUG] response[:usage]: #{response[:usage].inspect}"
-
         # Accumulate usage (support both RAAF and OpenAI key formats)
         if response["usage"]
           usage = response["usage"]
-
-          # DEBUG: Log all attempts to extract tokens
-          input_raaf_str = usage["input_tokens"]
-          input_raaf_sym = usage[:input_tokens]
-          input_openai_str = usage["prompt_tokens"]
-          input_openai_sym = usage[:prompt_tokens]
-          puts "🔍 [ACCUMULATE DEBUG] Input token extraction attempts:"
-          puts "  usage['input_tokens']: #{input_raaf_str.inspect}"
-          puts "  usage[:input_tokens]: #{input_raaf_sym.inspect}"
-          puts "  usage['prompt_tokens']: #{input_openai_str.inspect}"
-          puts "  usage[:prompt_tokens]: #{input_openai_sym.inspect}"
-          puts "  Final input_tokens: #{input_raaf_str || input_raaf_sym || input_openai_str || input_openai_sym || 0}"
 
           # Support both RAAF-style (input_tokens, output_tokens) and OpenAI-style (prompt_tokens, completion_tokens)
           state[:accumulated_usage][:input_tokens] += usage["input_tokens"] || usage[:input_tokens] || usage["prompt_tokens"] || usage[:prompt_tokens] || 0
           state[:accumulated_usage][:output_tokens] += usage["output_tokens"] || usage[:output_tokens] || usage["completion_tokens"] || usage[:completion_tokens] || 0
           state[:accumulated_usage][:total_tokens] += usage["total_tokens"] || usage[:total_tokens] || 0
-
-          puts "🔍 [ACCUMULATE DEBUG] After accumulation:"
-          puts "  state[:accumulated_usage]: #{state[:accumulated_usage].inspect}"
 
           # Preserve nested token details (reasoning tokens, cached tokens, etc.)
           # Handle both string and symbol keys

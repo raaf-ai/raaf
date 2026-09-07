@@ -428,13 +428,8 @@ module RAAF
       # @private
       #
       def format_agent_tools(agent)
-        puts "[format_agent_tools] Called with agent: #{agent&.name}"
-        puts "[format_agent_tools] agent.tools?: #{agent&.respond_to?(:tools)}"
-        puts "[format_agent_tools] agent.tools: #{agent&.tools.inspect}"
-        puts "[format_agent_tools] agent.tools.empty?: #{agent&.tools&.empty?}"
         return nil unless agent&.tools && !agent.tools.empty?
 
-        puts "[format_agent_tools] Processing tools..."
         agent.tools.map do |tool|
           if tool.respond_to?(:to_tool_definition)
             tool.to_tool_definition
