@@ -1,15 +1,24 @@
 # frozen_string_literal: true
 
 require "raaf/logging"
+require_relative "tracing/span_usage"
 
 module RAAF
+
   module Tracing
+
     class CostManager
+
       include RAAF::Tracing
       include RAAF::Logger
 
       # Advanced cost management with multi-tenant allocation, budgeting, and optimization
 
+      # Per-token fallback rates, kept only so a +CostManager+ built with no
+      # pricing at all still answers. The maintained per-model table lives in
+      # +RAAF::Usage::CostCalculator+ and is what {SpanUsage} consults; this
+      # constant is not consulted unless a caller passes it back in as their
+      # own +:pricing+ override.
       DEFAULT_PRICING = {
         "gpt-4" => { input: 0.00003, output: 0.00006 },
         "gpt-4o" => { input: 0.000005, output: 0.000015 },
@@ -21,6 +30,11 @@ module RAAF
       }.freeze
 
       def initialize(config = {})
+        # A caller-supplied table is an override and takes precedence per model;
+        # without one, pricing comes from RAAF::Usage::CostCalculator via
+        # SpanUsage instead of from the stale seven-model constant below.
+        @custom_pricing = config[:pricing]
+
         @config = {
           # Pricing configuration
           pricing: config[:pricing] || DEFAULT_PRICING,
@@ -47,57 +61,80 @@ module RAAF
 
         @budgets = {}
         @cost_cache = {}
+
+        # OptimizationEngine is defined at the bottom of this class but was
+        # never instantiated, so get_cost_optimization_recommendations called
+        # analyze_and_recommend on nil — which 500s the whole costs dashboard,
+        # since that page asks for recommendations on every render.
+        @optimization_engine = OptimizationEngine.new(@config) if @config[:enable_optimization]
       end
 
+      # Cost of the token usage a single span recorded.
+      #
+      # Any span that recorded usage is costed, not only +kind: "llm"+. In
+      # practice almost nothing emits an LLM span — the DSL agent records its
+      # model and token counts on the agent span itself — so restricting this
+      # to LLM spans reported a near-zero bill for a workload that had spent
+      # real money.
+      #
+      # @param span [#span_attributes] Span or span record
+      # @return [Hash] Cost breakdown; zeroed when the span recorded no usage
       def calculate_span_cost(span)
-        unless span.kind == "llm" && span.span_attributes
-          return { total_cost: 0.0, input_tokens: 0, output_tokens: 0,
-                   model: "unknown" }
-        end
+        usage = SpanUsage.for_span(span)
+        model = usage[:model]
+        tokens = SpanUsage.total_tokens(usage)
 
-        # Debug logging
+        return empty_span_cost unless model && tokens
+
         log_debug_tracing("Calculating cost for span",
-          span_id: span.span_id,
-          has_attributes: !span.span_attributes.nil?
-        )
+                          span_id: span.span_id,
+                          model: model,
+                          total_tokens: tokens)
 
-        usage = span.span_attributes.dig("llm", "usage")
-        return { total_cost: 0.0, input_tokens: 0, output_tokens: 0, model: "unknown" } unless usage
+        input_tokens = usage[:input].to_i
+        output_tokens = usage[:output].to_i
 
-        model = span.span_attributes.dig("llm", "request", "model") || "gpt-4"
-        input_tokens = usage["input_tokens"] || 0
-        output_tokens = usage["output_tokens"] || 0
+        # Billed and reported output differ when the provider charges for
+        # tokens it does not itemise. Cost is computed off the billed figure;
+        # +output_tokens+ stays as recorded, so a dashboard adding it up next
+        # to a token count from anywhere else gets the same number.
+        billable_output = SpanUsage.billable_output(usage)
+        costs = span_costs(model, input_tokens, billable_output)
 
-        pricing = @config[:pricing][model] || @config[:pricing]["gpt-4"]
+        counts = { model: model,
+                   input_tokens: input_tokens,
+                   output_tokens: output_tokens,
+                   billable_output_tokens: billable_output,
+                   total_tokens: tokens }
 
-        input_cost = input_tokens * pricing[:input]
-        output_cost = output_tokens * pricing[:output]
-        total_cost = input_cost + output_cost
+        return empty_span_cost.merge(counts) unless costs
 
-        {
-          model: model,
-          input_tokens: input_tokens,
-          output_tokens: output_tokens,
-          input_cost: input_cost,
-          output_cost: output_cost,
-          total_cost: total_cost,
+        counts.merge(
+          input_cost: costs[:input],
+          output_cost: costs[:output],
+          total_cost: costs[:input] + costs[:output],
           currency: @config[:default_currency],
           calculated_at: Time.now
-        }
+        )
       end
 
       def calculate_trace_cost(trace)
-        llm_spans = trace.spans.where(kind: "llm")
+        # Costed span by span rather than filtered by kind: a span carries a
+        # cost when it recorded a model and token counts, wherever the tracer
+        # chose to hang them.
+        spans = trace.spans.to_a
 
         total_cost = 0.0
         total_input_tokens = 0
         total_output_tokens = 0
-        llm_spans.count
+        costed_spans = 0
         models_used = {}
 
-        llm_spans.each do |span|
+        spans.each do |span|
           span_cost = calculate_span_cost(span)
+          next unless span_cost[:model]
 
+          costed_spans += 1
           total_cost += span_cost[:total_cost]
           total_input_tokens += span_cost[:input_tokens]
           total_output_tokens += span_cost[:output_tokens]
@@ -119,17 +156,17 @@ module RAAF
           total_input_tokens: total_input_tokens,
           total_output_tokens: total_output_tokens,
           models_used: models_used,
-          llm_span_count: llm_spans.count,
+          llm_span_count: costed_spans,
           currency: @config[:default_currency],
           **tenant_info
         }
       end
 
-      def get_cost_breakdown(timeframe: 24*3600, tenant_id: nil, project_id: nil, user_id: nil)
+      def get_cost_breakdown(timeframe: 24 * 3600, tenant_id: nil, project_id: nil, user_id: nil)
         end_time = Time.now
         start_time = end_time - timeframe
 
-        traces = TraceRecord.within_timeframe(start_time, end_time)
+        traces = trace_model.within_timeframe(start_time, end_time)
         traces = filter_by_tenant(traces, tenant_id, project_id, user_id)
 
         breakdown = {
@@ -289,7 +326,7 @@ module RAAF
         status
       end
 
-      def get_cost_optimization_recommendations(timeframe: 7*24*3600, tenant_id: nil, project_id: nil)
+      def get_cost_optimization_recommendations(timeframe: 7 * 24 * 3600, tenant_id: nil, project_id: nil)
         return [] unless @config[:enable_optimization]
 
         @optimization_engine.analyze_and_recommend(
@@ -299,7 +336,7 @@ module RAAF
         )
       end
 
-      def forecast_costs(timeframe: 30*24*3600, tenant_id: nil, project_id: nil, user_id: nil)
+      def forecast_costs(timeframe: 30 * 24 * 3600, tenant_id: nil, project_id: nil, user_id: nil)
         # Historical data for forecasting
         historical_period = timeframe
         historical_costs = get_cost_breakdown(
@@ -318,7 +355,7 @@ module RAAF
 
         trend = calculate_cost_trend(daily_costs.values)
 
-        forecast_days = (timeframe / (24*3600)).to_i
+        forecast_days = (timeframe / (24 * 3600)).to_i
         forecasted_costs = []
 
         forecast_days.times do |day|
@@ -349,9 +386,9 @@ module RAAF
         }
       end
 
-      def generate_cost_report(format: :json, timeframe: 30*24*3600, **filters)
+      def generate_cost_report(format: :json, timeframe: 30 * 24 * 3600, **filters)
         breakdown = get_cost_breakdown(timeframe: timeframe, **filters)
-        forecast = forecast_costs(timeframe: 30*24*3600, **filters)
+        forecast = forecast_costs(timeframe: 30 * 24 * 3600, **filters)
         recommendations = get_cost_optimization_recommendations(timeframe: timeframe, **filters)
 
         report = {
@@ -401,6 +438,54 @@ module RAAF
 
       private
 
+      # The trace model to query.
+      #
+      # A bare +TraceRecord+ here resolves through +RAAF::Tracing+, whose
+      # +const_missing+ builds a minimal model with an association and a
+      # cleanup method and nothing else — so every aggregation in this class
+      # died on +undefined method 'within_timeframe'+ before it read a single
+      # trace. The full model lives in raaf-rails; prefer it when the host app
+      # has it, and fall back to the lazy one so a tracing-only install still
+      # gets a sensible NoMethodError rather than a NameError.
+      def trace_model
+        @trace_model ||=
+          if defined?(::RAAF::Rails::Tracing::TraceRecord)
+            ::RAAF::Rails::Tracing::TraceRecord
+          else
+            ::RAAF::Tracing::TraceRecord
+          end
+      end
+
+      # Zeroed cost for a span that recorded nothing to charge for.
+      def empty_span_cost
+        { total_cost: 0.0, input_tokens: 0, output_tokens: 0, billable_output_tokens: 0,
+          total_tokens: 0, model: nil, input_cost: 0.0, output_cost: 0.0,
+          currency: @config[:default_currency] }
+      end
+
+      # Input and output cost in the configured currency, or nil when no
+      # pricing is known for the model.
+      #
+      # A caller-supplied pricing table wins, since overriding the rates is the
+      # documented reason to pass one. Anything it does not cover falls through
+      # to +SpanUsage+, which reads the maintained per-model table in raaf-core
+      # (refreshed from Helicone when that is reachable) — a far wider and more
+      # current list than the seven-model constant this class shipped with.
+      def span_costs(model, input_tokens, output_tokens)
+        if @custom_pricing && (rates = @custom_pricing[model])
+          return { input: input_tokens * rates[:input], output: output_tokens * rates[:output] }
+        end
+
+        # +output_tokens+ has already had thinking tokens folded in by the
+        # caller, so no total is passed — it would double-count them.
+        breakdown = SpanUsage.cost_breakdown(
+          { input: input_tokens, output: output_tokens, total: nil, model: model }
+        )
+        return nil unless breakdown
+
+        { input: breakdown[:input_cost], output: breakdown[:output_cost] }
+      end
+
       def extract_tenant_info(trace)
         metadata = trace.metadata || {}
 
@@ -432,7 +517,7 @@ module RAAF
       def calculate_period_dates(period)
         case period
         when :daily
-          [Time.now.to_date.to_time, Time.now.to_date.to_time + 24*3600 - 1]
+          [Time.now.to_date.to_time, Time.now.to_date.to_time + (24 * 3600) - 1]
         when :weekly
           [Time.current.beginning_of_week, Time.current.end_of_week]
         when :monthly
@@ -451,7 +536,7 @@ module RAAF
         while current_hour < end_time
           hour_end = current_hour + 3600
 
-          hour_traces = TraceRecord.within_timeframe(current_hour, hour_end)
+          hour_traces = trace_model.within_timeframe(current_hour, hour_end)
           hour_traces = filter_by_tenant(hour_traces, tenant_id, project_id, user_id)
 
           hour_cost = hour_traces.sum { |trace| calculate_trace_cost(trace)[:total_cost] }
@@ -477,7 +562,7 @@ module RAAF
           day_start = current_day.beginning_of_day
           day_end = current_day.end_of_day
 
-          day_traces = TraceRecord.within_timeframe(day_start, day_end)
+          day_traces = trace_model.within_timeframe(day_start, day_end)
           day_traces = filter_by_tenant(day_traces, tenant_id, project_id, user_id)
 
           day_cost = day_traces.sum { |trace| calculate_trace_cost(trace)[:total_cost] }
@@ -488,23 +573,35 @@ module RAAF
             trace_count: day_traces.count
           }
 
-          current_day += 24*3600
+          current_day += 24 * 3600
         end
 
         daily_costs.values
       end
 
+      # Least-squares slope of a daily cost series, in dollars per day.
+      #
+      # Summed with +inject+ rather than +sum+ throughout: the
+      # descriptive_statistics gem reopens Enumerable and replaces +sum+ with
+      # one that hands the block a single value. A two-parameter block written
+      # for +each_with_index+ therefore received the cost in the first
+      # parameter and nil in the second, and the forecast — and with it the
+      # whole costs dashboard — died on "nil can't be coerced into Integer"
+      # in any application that loads that gem.
       def calculate_cost_trend(daily_costs)
         return 0 if daily_costs.size < 2
 
         # Simple linear regression
         n = daily_costs.size
-        sum_x = (0...n).sum
-        sum_y = daily_costs.sum
-        sum_xy = daily_costs.each_with_index.sum { |cost, i| cost * i }
-        sum_x2 = (0...n).sum { |i| i * i }
+        sum_x = (0...n).inject(0, :+)
+        sum_y = daily_costs.inject(0, :+)
+        sum_xy = daily_costs.each_with_index.inject(0) { |acc, (cost, i)| acc + (cost * i) }
+        sum_x2 = (0...n).inject(0) { |acc, i| acc + (i * i) }
 
-        slope = ((n * sum_xy) - (sum_x * sum_y)).to_f / ((n * sum_x2) - (sum_x * sum_x))
+        denominator = (n * sum_x2) - (sum_x * sum_x)
+        return 0 if denominator.zero?
+
+        slope = ((n * sum_xy) - (sum_x * sum_y)).to_f / denominator
         slope.round(8)
       end
 
@@ -516,13 +613,13 @@ module RAAF
         [base_confidence - data_penalty, 5].max
       end
 
-      def generate_csv_report(report)
+      def generate_csv_report(_report)
         # Generate CSV format report
         # This would be implemented based on specific requirements
         "CSV report generation not yet implemented"
       end
 
-      def generate_pdf_report(report)
+      def generate_pdf_report(_report)
         # Generate PDF format report
         # This would be implemented based on specific requirements
         "PDF report generation not yet implemented"
@@ -530,6 +627,7 @@ module RAAF
 
       # Optimization Engine
       class OptimizationEngine
+
         def initialize(config)
           @config = config
         end
@@ -554,7 +652,7 @@ module RAAF
 
         private
 
-        def analyze_token_usage(timeframe, tenant_id, project_id)
+        def analyze_token_usage(_timeframe, _tenant_id, _project_id)
           recommendations = []
 
           # This would analyze actual token usage patterns and suggest optimizations
@@ -575,7 +673,7 @@ module RAAF
           recommendations
         end
 
-        def analyze_model_usage(timeframe, tenant_id, project_id)
+        def analyze_model_usage(_timeframe, _tenant_id, _project_id)
           recommendations = []
 
           # Analyze if cheaper models could be used for certain tasks
@@ -591,7 +689,7 @@ module RAAF
           recommendations
         end
 
-        def analyze_workflow_efficiency(timeframe, tenant_id, project_id)
+        def analyze_workflow_efficiency(_timeframe, _tenant_id, _project_id)
           recommendations = []
 
           # Analyze workflow patterns for optimization opportunities
@@ -606,7 +704,11 @@ module RAAF
 
           recommendations
         end
+
       end
+
     end
+
   end
+
 end

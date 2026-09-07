@@ -12,9 +12,12 @@ require "digest"
 require "set"
 require "raaf/logging"
 require_relative "tracing/base_processor"
+require_relative "tracing/span_usage"
 
 module RAAF
+
   module Tracing
+
     # Processor that saves spans and traces to a Rails database using ActiveRecord
     #
     # ActiveRecordProcessor integrates with the RAAF tracing system to
@@ -60,6 +63,7 @@ module RAAF
     # - Optimized for high-throughput applications
     # - Background processing for non-blocking operation
     class ActiveRecordProcessor < BaseProcessor
+
       # Default sampling rate (capture all traces)
       DEFAULT_SAMPLING_RATE = 1.0
 
@@ -80,7 +84,6 @@ module RAAF
       # @param cleanup_older_than [ActiveSupport::Duration] Age threshold for cleanup
       def initialize(sampling_rate: DEFAULT_SAMPLING_RATE, batch_size: DEFAULT_BATCH_SIZE,
                      auto_cleanup: false, cleanup_older_than: 30.days)
-
         # Initialize base processor with ActiveRecord-specific options
         super(batch_size: batch_size,
               sampling_rate: sampling_rate,
@@ -104,9 +107,8 @@ module RAAF
         @database_validated = false
 
         log_info("ActiveRecord processor initialized (v2-workflow-fix)",
-          sampling_rate_percent: (@sampling_rate * 100).round(1),
-          batch_size: @batch_size
-        )
+                 sampling_rate_percent: (@sampling_rate * 100).round(1),
+                 batch_size: @batch_size)
       end
 
       # Called when a span starts
@@ -132,7 +134,7 @@ module RAAF
       # @return [void]
       def on_span_end(span)
         # Call parent class to handle buffering and batching
-        super(span)
+        super
 
         # Periodic cleanup if enabled
         perform_cleanup_if_needed
@@ -157,6 +159,7 @@ module RAAF
       # @return [Boolean] true if span should be processed
       def should_process?(span)
         return false unless ensure_database_validated
+
         # Extract trace_id in a way that works for both Span objects and sanitized hashes
         trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
         should_sample?(trace_id)
@@ -264,16 +267,16 @@ module RAAF
 
           # CRITICAL FIX: Verify trace actually exists in database, not just buffer
           # In nested job/agent execution with transactions, trace may be buffered but not committed yet
-          unless ::RAAF::Tracing::TraceRecord.exists?(trace_id: actual_trace_id)
+          if ::RAAF::Tracing::TraceRecord.exists?(trace_id: actual_trace_id)
+            log_debug_tracing("ActiveRecord trace confirmed persisted in DB", trace_id: actual_trace_id)
+            update_workflow_name_if_better(actual_trace_id, span)
+            return
+          else
             log_error("ActiveRecord trace in buffer but NOT in DB - transaction not committed yet",
                       trace_id: actual_trace_id)
             # Remove from buffer to force recreation/waiting for DB commit
             @trace_buffer.delete(actual_trace_id)
             # Fall through to DB check below to wait for or create trace
-          else
-            log_debug_tracing("ActiveRecord trace confirmed persisted in DB", trace_id: actual_trace_id)
-            update_workflow_name_if_better(actual_trace_id, span)
-            return
           end
         end
 
@@ -340,8 +343,6 @@ module RAAF
         }
       end
 
-
-
       # Process a batch of spans
       #
       # @param spans [Array<Span>] Spans to process
@@ -354,21 +355,19 @@ module RAAF
 
         # Process each span in its own transaction to isolate failures
         spans.each do |span|
-          begin
-            ::RAAF::Tracing::SpanRecord.transaction do
-              save_span_to_database(span)
+          ::RAAF::Tracing::SpanRecord.transaction do
+            save_span_to_database(span)
 
-              # Track which traces were affected for status updates
-              trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
-              affected_traces.add(trace_id) if trace_id
-            end
-          rescue StandardError => e
-            # Log error but continue with next span
-            span_id = span.is_a?(Hash) ? span[:span_id] : span.span_id
-            log_error("Failed to save span", span_id: span_id, error: e.message, error_class: e.class.name)
-            failed_spans << { span_id: span_id, error: e.message }
-            # Continue processing other spans
+            # Track which traces were affected for status updates
+            trace_id = span.is_a?(Hash) ? span[:trace_id] : span.trace_id
+            affected_traces.add(trace_id) if trace_id
           end
+        rescue StandardError => e
+          # Log error but continue with next span
+          span_id = span.is_a?(Hash) ? span[:span_id] : span.span_id
+          log_error("Failed to save span", span_id: span_id, error: e.message, error_class: e.class.name)
+          failed_spans << { span_id: span_id, error: e.message }
+          # Continue processing other spans
         end
 
         # Update trace statuses for all affected traces (only successful spans)
@@ -385,9 +384,9 @@ module RAAF
                           affected_traces: affected_traces.size)
 
         # Log failed spans if any
-        if failed_spans.any?
-          log_error("Some spans failed to save", failed_count: failed_spans.size)
-        end
+        return unless failed_spans.any?
+
+        log_error("Some spans failed to save", failed_count: failed_spans.size)
       end
 
       # Save individual span to database
@@ -408,7 +407,8 @@ module RAAF
           span_id = span.span_id
         end
 
-        log_debug_tracing("ActiveRecord save_span_to_database", span_kind: span_kind, span_name: span_name, span_id: span_id)
+        log_debug_tracing("ActiveRecord save_span_to_database", span_kind: span_kind, span_name: span_name,
+                                                                span_id: span_id)
 
         # Ensure the trace record exists before saving the span
         ensure_trace_exists(span)
@@ -424,9 +424,7 @@ module RAAF
           # Use already sanitized data from process_span (prevents double sanitization)
           # Determine status - use agent.status if available, otherwise use span status
           display_status = span[:status].to_s
-          if span[:attributes] && span[:attributes]["agent.status"]
-            display_status = span[:attributes]["agent.status"]
-          end
+          display_status = span[:attributes]["agent.status"] if span[:attributes] && span[:attributes]["agent.status"]
 
           span_attributes = {
             span_id: span[:span_id],
@@ -445,9 +443,7 @@ module RAAF
           # Process original Span object with sanitization
           # Determine status - use agent.status if available, otherwise use span status
           display_status = span.status.to_s
-          if span.attributes && span.attributes["agent.status"]
-            display_status = span.attributes["agent.status"]
-          end
+          display_status = span.attributes["agent.status"] if span.attributes && span.attributes["agent.status"]
 
           span_attributes = {
             span_id: span.span_id,
@@ -471,14 +467,19 @@ module RAAF
         # lose the whole span to UnknownAttributeError.
         span_attributes.merge!(self.class.persistable_token_columns(span_attributes[:span_attributes]))
 
-        log_debug_tracing("ActiveRecord creating span record", span_kind: span_attributes[:kind], span_name: span_attributes[:name], span_id: span_attributes[:span_id])
+        log_debug_tracing("ActiveRecord creating span record", span_kind: span_attributes[:kind],
+                                                               span_name: span_attributes[:name], span_id: span_attributes[:span_id])
 
         ::RAAF::Tracing::SpanRecord.create!(span_attributes)
       rescue ActiveRecord::RecordInvalid => e
         span_id_value = span.is_a?(Hash) ? span[:span_id] : span.span_id
         log_warn("Failed to save span", span_id: span_id_value, error: e.message, error_class: e.class.name)
       rescue StandardError => e
-        span_id_value = span.is_a?(Hash) ? span[:span_id] : (span.respond_to?(:span_id) ? span.span_id : "unknown")
+        span_id_value = if span.is_a?(Hash)
+                          span[:span_id]
+                        else
+                          (span.respond_to?(:span_id) ? span.span_id : "unknown")
+                        end
         log_error("Unexpected error saving span", span_id: span_id_value, error: e.message, error_class: e.class.name)
       end
 
@@ -520,19 +521,24 @@ module RAAF
         when Time
           time_value
         when String
-          Time.parse(time_value) rescue nil
-        else
-          nil
+          begin
+            Time.parse(time_value)
+          rescue StandardError
+            nil
+          end
         end
       end
 
       # Extract token usage and model into the native indexed columns.
       #
       # Token usage and model are emitted inside the span attributes payload,
-      # never as dedicated fields. Agent spans carry top-level +input_tokens+/
-      # +output_tokens+/+agent.model+; LLM spans use the +llm.usage.*+ /
-      # +llm.request.model+ keys. Copying them into columns lets cost queries
-      # aggregate with plain SUM/GROUP BY instead of scanning the JSON blob.
+      # never as dedicated fields, and each emitter picks its own key shape.
+      # {RAAF::Tracing::SpanUsage} owns that knowledge; this method only maps
+      # what it resolves onto column names, so a reader and this writer can
+      # never drift into disagreeing about where the tokens live.
+      #
+      # Copying the counts into columns lets cost queries aggregate with plain
+      # SUM/GROUP BY instead of scanning the JSON blob.
       #
       # Returns a hash of only the columns that could be resolved, so callers
       # can merge it without clobbering existing values with nils.
@@ -547,34 +553,12 @@ module RAAF
       # @return [Hash] Subset of
       #   { input_tokens:, output_tokens:, total_tokens:, agent_model: }
       def self.token_columns_from(attributes)
-        cols = {}
-        input = attr_lookup(attributes, "input_tokens") ||
-                attr_lookup(attributes, "llm.usage.input_tokens") ||
-                attr_lookup(attributes, "llm.usage.prompt_tokens") ||
-                usage_lookup(attributes, "input_tokens") ||
-                usage_lookup(attributes, "prompt_tokens")
-        output = attr_lookup(attributes, "output_tokens") ||
-                 attr_lookup(attributes, "llm.usage.output_tokens") ||
-                 attr_lookup(attributes, "llm.usage.completion_tokens") ||
-                 usage_lookup(attributes, "output_tokens") ||
-                 usage_lookup(attributes, "completion_tokens")
-        total = attr_lookup(attributes, "total_tokens") ||
-                attr_lookup(attributes, "llm.usage.total_tokens") ||
-                usage_lookup(attributes, "total_tokens")
-        model = attr_lookup(attributes, "agent.model") ||
-                attr_lookup(attributes, "llm.request.model") ||
-                attr_lookup(attributes, "llm.model") ||
-                attr_lookup(attributes, "model")
+        usage = ::RAAF::Tracing::SpanUsage.from_attributes(attributes)
 
-        input_i  = token_to_i(input)
-        output_i = token_to_i(output)
-        total_i  = token_to_i(total)
-        model_s  = clean_model(model)
-        cols[:input_tokens]  = input_i  unless input_i.nil?
-        cols[:output_tokens] = output_i unless output_i.nil?
-        cols[:total_tokens]  = total_i  unless total_i.nil?
-        cols[:agent_model]   = model_s  unless model_s.nil?
-        cols
+        { input_tokens: usage[:input],
+          output_tokens: usage[:output],
+          total_tokens: usage[:total],
+          agent_model: usage[:model] }.compact
       end
 
       # +token_columns_from+ narrowed to the columns the span table actually
@@ -587,38 +571,6 @@ module RAAF
         columns = token_columns_from(attributes)
         known = ::RAAF::Tracing::SpanRecord.column_names
         columns.select { |column, _value| known.include?(column.to_s) }
-      end
-
-      # Read a key from an attributes hash, tolerating string or symbol keys.
-      def self.attr_lookup(attrs, key)
-        return nil unless attrs.is_a?(Hash)
-
-        attrs[key].nil? ? attrs[key.to_sym] : attrs[key]
-      end
-
-      # Read a token key nested under a "usage" hash (alert-engine style payloads).
-      def self.usage_lookup(attrs, key)
-        usage = attr_lookup(attrs, "usage")
-        attr_lookup(usage, key)
-      end
-
-      # Coerce a token value to a non-negative integer, or nil if not numeric.
-      def self.token_to_i(value)
-        return nil if value.nil?
-        return value if value.is_a?(Integer)
-
-        str = value.to_s.strip
-        str.match?(/\A\d+\z/) ? str.to_i : nil
-      end
-
-      # Clean a model value, rejecting placeholders like "N/A".
-      def self.clean_model(value)
-        return nil if value.nil?
-
-        str = value.to_s.strip
-        return nil if str.empty? || %w[N/A n/a unknown].include?(str)
-
-        str.slice(0, 100)
       end
 
       # Sanitize span attributes for database storage
@@ -645,24 +597,24 @@ module RAAF
           key_str = key.to_s
           # Special handling for LLM request messages - preserve full content without truncation
           # These are critical for debugging and should never be truncated
-          if key_str.include?("llm.request.messages") && value.is_a?(Array)
-            # Preserve all messages without truncation (do not limit to 100 items)
-            # Sanitize each message's content to handle circular references
-            sanitized[key_str] = value.map { |msg| sanitize_message_for_storage(msg, visited.dup) }
-          # Special handling for conversation messages - don't truncate JSON structure
-          elsif key_str.include?("conversation_messages") && value.is_a?(String)
-            sanitized[key_str] = value  # Keep conversation messages intact
-          # Special handling for prompt content - preserve full text without truncation
-          # Prompt content is critical for debugging and RAAF Eval analysis
-          elsif prompt_attribute?(key_str) && value.is_a?(String)
-            sanitized[key_str] = value  # Keep prompt content intact
-          # Special handling for response content - preserve full text without truncation
-          # Response content is critical for debugging, RAAF Eval comparison, and replay features
-          elsif response_attribute?(key_str) && value.is_a?(String)
-            sanitized[key_str] = value  # Keep response content intact
-          else
-            sanitized[key_str] = sanitize_value(value, visited)
-          end
+          sanitized[key_str] = if key_str.include?("llm.request.messages") && value.is_a?(Array)
+                                 # Preserve all messages without truncation (do not limit to 100 items)
+                                 # Sanitize each message's content to handle circular references
+                                 value.map { |msg| sanitize_message_for_storage(msg, visited.dup) }
+                               # Special handling for conversation messages - don't truncate JSON structure
+                               elsif key_str.include?("conversation_messages") && value.is_a?(String)
+                                 value # Keep conversation messages intact
+                               # Special handling for prompt content - preserve full text without truncation
+                               # Prompt content is critical for debugging and RAAF Eval analysis
+                               elsif prompt_attribute?(key_str) && value.is_a?(String)
+                                 value # Keep prompt content intact
+                               # Special handling for response content - preserve full text without truncation
+                               # Response content is critical for debugging, RAAF Eval comparison, and replay features
+                               elsif response_attribute?(key_str) && value.is_a?(String)
+                                 value # Keep response content intact
+                               else
+                                 sanitize_value(value, visited)
+                               end
         end
         sanitized
       end
@@ -681,17 +633,17 @@ module RAAF
 
         sanitized = {}
         message.each do |key, value|
-          case value
-          when String
-            # CRITICAL: Do NOT truncate message content - preserve full text
-            # Message content is essential for debugging AI interactions
-            sanitized[key.to_s] = value
-          when Hash, Array
-            # Recursively sanitize but don't apply string length limits to message fields
-            sanitized[key.to_s] = sanitize_value_without_string_limit(value, visited)
-          else
-            sanitized[key.to_s] = value
-          end
+          sanitized[key.to_s] = case value
+                                when String
+                                  # CRITICAL: Do NOT truncate message content - preserve full text
+                                  # Message content is essential for debugging AI interactions
+                                  value
+                                when Hash, Array
+                                  # Recursively sanitize but don't apply string length limits to message fields
+                                  sanitize_value_without_string_limit(value, visited)
+                                else
+                                  value
+                                end
         end
         sanitized
       end
@@ -708,9 +660,7 @@ module RAAF
         object_id = value.object_id
         return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
 
-        if value.is_a?(Hash) || value.is_a?(Array)
-          visited = visited.dup.add(object_id)
-        end
+        visited = visited.dup.add(object_id) if value.is_a?(Hash) || value.is_a?(Array)
 
         case value
         when String
@@ -817,9 +767,7 @@ module RAAF
         return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
 
         # For complex objects, always track them to prevent infinite recursion
-        if value.is_a?(Hash) || value.is_a?(Array) || value.respond_to?(:as_json)
-          visited = visited.dup.add(object_id)
-        end
+        visited = visited.dup.add(object_id) if value.is_a?(Hash) || value.is_a?(Array) || value.respond_to?(:as_json)
 
         case value
         when defined?(ActiveRecord::Base) && ActiveRecord::Base
@@ -868,7 +816,6 @@ module RAAF
         end
       end
 
-
       # Perform cleanup if needed
       #
       # @return [void]
@@ -904,11 +851,11 @@ module RAAF
         if span.is_a?(Hash)
           trace_id = span[:trace_id]
           end_time = span[:end_time]
-          start_time = span[:start_time]
+          span[:start_time]
         else
           trace_id = span.trace_id
           end_time = span.end_time
-          start_time = span.start_time
+          span.start_time
         end
 
         return unless trace_id && end_time
@@ -1014,6 +961,9 @@ module RAAF
         raise "RAAF tracing tables not found. " \
               "Run: rails generate raaf:tracing:install && rails db:migrate"
       end
+
     end
+
   end
+
 end

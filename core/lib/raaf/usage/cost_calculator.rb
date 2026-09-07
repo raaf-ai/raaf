@@ -3,12 +3,15 @@
 require_relative "pricing_data_manager"
 
 module RAAF
+
   module Usage
+
     # Calculates costs for LLM usage across different providers and models
     #
     # Pricing is per 1M tokens and updated as of January 2025.
     # Pass normalized usage hash with model identifier to calculate costs.
     class CostCalculator
+
       # Pricing per 1M tokens (USD) - Updated January 2025
       PRICING = {
         # OpenAI
@@ -177,9 +180,7 @@ module RAAF
       #   get_pricing("gpt-4o") # If Helicone data is stale/unavailable
       #   # => { input: 2.50, output: 10.00 }
       def self.get_pricing(model)
-        # Try dynamic pricing from PricingDataManager first
-        pricing_manager = PricingDataManager.instance
-        dynamic_pricing = pricing_manager.get_pricing(model)
+        dynamic_pricing = dynamic_pricing_for(model)
 
         if dynamic_pricing
           RAAF.logger.debug "Using dynamic pricing for #{model} from Helicone"
@@ -196,6 +197,26 @@ module RAAF
         RAAF.logger.warn "No pricing available for model: #{model}"
         nil
       end
+
+      # Dynamic pricing from Helicone, or nil if that route cannot answer.
+      #
+      # +PricingDataManager+ reaches for +RAAF::Configuration+ and the network,
+      # neither of which a host is obliged to have. Letting either raise here
+      # would take the hardcoded table down with it and turn every cost in the
+      # application into an exception, so the whole dynamic route degrades to
+      # "no answer" and the caller falls back.
+      def self.dynamic_pricing_for(model)
+        PricingDataManager.instance.get_pricing(model)
+      rescue StandardError, ScriptError => e
+        # Deliberately not RAAF.logger: that is defined by the raaf-core entry
+        # point, and one of the things this rescue exists to survive is being
+        # reached before it has loaded.
+        RAAF.logger.debug("Dynamic pricing unavailable for #{model}: #{e.class}: #{e.message}") if RAAF.respond_to?(:logger)
+        nil
+      end
+
     end
+
   end
+
 end
