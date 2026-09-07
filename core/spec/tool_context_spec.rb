@@ -40,7 +40,7 @@ RSpec.describe RAAF::ToolContext do
         context.set("key2", { nested: "data" })
 
         expect(context.get("key1")).to eq("value1")
-        expect(context.get("key2")).to eq({ nested: "data" })
+        expect(context.get("key2")).to eq({ nested: "data" }.with_indifferent_access)
       end
 
       it "returns nil for non-existent keys" do
@@ -61,7 +61,7 @@ RSpec.describe RAAF::ToolContext do
         }
 
         context.set("complex", complex_data)
-        expect(context.get("complex")).to eq(complex_data)
+        expect(context.get("complex")).to eq(complex_data.with_indifferent_access)
       end
     end
 
@@ -359,7 +359,8 @@ RSpec.describe RAAF::ToolContext do
 
         expect(exported["string_key"]).to eq("string_value")
         expect(exported["number_key"]).to eq(42)
-        expect(exported["hash_key"]).to eq({ nested: "data" })
+        # ToolContext stores values with indifferent access, so compare that way.
+        expect(exported["hash_key"]).to eq({ nested: "data" }.with_indifferent_access)
         expect(exported["array_key"]).to eq([1, 2, 3])
       end
     end
@@ -481,8 +482,10 @@ RSpec.describe RAAF::ToolContext do
 
       context.set("circular", hash1)
 
-      # Ruby's JSON doesn't handle circular references, this is expected to raise
-      expect { context.to_json }.to raise_error(JSON::NestingError)
+      # Values are normalised on the way in, and that conversion replaces the
+      # cycle with a marker, so exporting stays possible.
+      expect(context.get("circular").dig("ref", "ref")).to eq("[CIRCULAR_REFERENCE]")
+      expect { context.to_json }.not_to raise_error
     end
 
     it "handles invalid JSON during import" do

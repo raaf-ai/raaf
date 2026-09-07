@@ -233,9 +233,12 @@ module RAAF
 
         visited = visited.dup.add(obj.object_id)
 
-        # Convert to HashWithIndifferentAccess and transform values safely
-        # Use transform_values (not transform_values!) to avoid mutating the original hash
-        obj.with_indifferent_access.transform_values { |value| indifferent_access(value, visited) }
+        # Build the result key by key rather than calling #with_indifferent_access
+        # on the whole hash: that helper deep-converts on its own and would
+        # recurse through a cycle before the guard above ever runs.
+        obj.each_with_object(ActiveSupport::HashWithIndifferentAccess.new) do |(key, value), result|
+          result[key] = indifferent_access(value, visited)
+        end
       when Array
         # Prevent infinite recursion on circular array references
         return "[CIRCULAR_REFERENCE]" if visited.include?(obj.object_id)

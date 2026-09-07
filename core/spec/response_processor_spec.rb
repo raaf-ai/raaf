@@ -360,10 +360,12 @@ RSpec.describe RAAF::ResponseProcessor do
           }]
         }
 
+        # Items are normalised to indifferent access before processing, so the
+        # keys reported in the warning are strings.
         expect(processor).to receive(:log_warn).with(
           "Unknown response item type",
           type: "unknown_type",
-          item_keys: %i[type data]
+          item_keys: %w[type data]
         )
 
         result = processor.process_model_response(

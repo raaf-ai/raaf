@@ -194,7 +194,8 @@ RSpec.describe RAAF::RunContext do
         data = { preference: "dark_mode", language: "en" }
         context.store(:user_prefs, data)
 
-        expect(context.fetch(:user_prefs)).to eq(data)
+        # RunContext stores values with indifferent access.
+        expect(context.fetch(:user_prefs)).to eq(data.with_indifferent_access)
       end
 
       it "returns default value for missing key" do
@@ -461,7 +462,7 @@ RSpec.describe RAAF::RunContextWrapper do
 
         call = tool_calls.first
         expect(call[:tool_name]).to eq("get_weather")
-        expect(call[:arguments]).to eq({ location: "NYC" })
+        expect(call[:arguments]).to eq({ location: "NYC" }.with_indifferent_access)
         expect(call[:result]).to eq("Sunny, 72°F")
         expect(call[:timestamp]).to eq(freeze_time)
       end

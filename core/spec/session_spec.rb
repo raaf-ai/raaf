@@ -459,8 +459,9 @@ RSpec.describe "RAAF Session Components" do
         session = described_class.from_json(json_data)
 
         expect(session.id).to eq("json-test-123")
-        expect(session.messages).to eq([{ role: "assistant", content: "From JSON" }])
-        expect(session.metadata).to eq({ format: "json" })
+        # Deserialised session data carries indifferent access.
+        expect(session.messages).to eq([{ role: "assistant", content: "From JSON" }.with_indifferent_access])
+        expect(session.metadata).to eq({ format: "json" }.with_indifferent_access)
       end
 
       it "handles invalid JSON gracefully" do

@@ -540,9 +540,9 @@ module RAAF
 
       case File.extname(file_path).downcase
       when ".yml", ".yaml"
-        Utils.indifferent_access(YAML.safe_load(content) || {})
+        Utils.symbolize_keys(YAML.safe_load(content) || {})
       when ".json"
-        Utils.parse_json(content)
+        Utils.symbolize_keys(JSON.parse(content))
       else
         {}
       end

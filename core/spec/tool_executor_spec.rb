@@ -17,6 +17,9 @@ RSpec.describe RAAF::Execution::ToolExecutor do
     end
 
     agent.add_tool(method(:test_tool))
+
+    # The executor flushes tool spans once execution finishes.
+    allow(runner).to receive(:tracer).and_return(nil)
   end
 
   describe "#initialize" do
@@ -225,7 +228,8 @@ RSpec.describe RAAF::Execution::ToolExecutor do
         wrapper_block = proc do |name, args, &inner_block|
           wrapper_called = true
           expect(name).to eq("test_tool")
-          expect(args).to eq({ name: "Alice" })
+          # Tool arguments are parsed with indifferent access.
+          expect(args).to eq({ name: "Alice" }.with_indifferent_access)
           inner_block.call
         end
 

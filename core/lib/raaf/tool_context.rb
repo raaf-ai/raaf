@@ -2,6 +2,7 @@
 
 require "securerandom"
 require "json"
+require_relative "utils"
 
 module RAAF
 
@@ -167,8 +168,12 @@ module RAAF
     end
 
     # Set a value in context
+    #
+    # Values are normalised to indifferent access up front. Utils does that
+    # conversion with circular-reference tracking, so a self-referencing hash is
+    # stored with a marker instead of overflowing the stack.
     def set(key, value)
-      @data[key] = value
+      @data[key] = Utils.indifferent_access(value)
     end
 
     # Delete a value from context
