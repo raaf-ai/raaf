@@ -51,6 +51,91 @@ module RAAF
         scope :for_agent, ->(name) { where(agent_name: name) }
         scope :for_model, ->(model) { where(model: model) }
 
+        # ── What the edit screen writes ──────────────────────────────────
+        #
+        # The screen edits four run settings, a list of scorers and a
+        # schedule, none of which `raaf_experiments` has columns for. They
+        # live in `configuration`, which this model has always documented as
+        # the experiment's agent configuration, and tags live in `metadata`.
+        # Both are jsonb that already ships, so an install already running
+        # gains the screen without a migration.
+        #
+        # The readers below are the only place that shape is known. Anything
+        # reading a setting goes through `setting`, so the defaults are
+        # stated once rather than repeated at each call site.
+
+        SETTINGS = {
+          "temperature" => 0.7,
+          "max_turns" => 5,
+          "concurrency" => 1,
+          "timeout_seconds" => 60
+        }.freeze
+
+        # `cron` is the only trigger that reads the cron expression; the other
+        # three are fixed schedules or no schedule at all.
+        SCHEDULE_TRIGGERS = %w[manual nightly weekly cron].freeze
+
+        SCHEDULE_DEFAULTS = {
+          "trigger" => "manual",
+          "cron" => "",
+          "notify" => "",
+          "alert_below" => nil
+        }.freeze
+
+        # @param key [String, Symbol] one of SETTINGS
+        # @return [Object] the stored value, or the default when unset
+        def setting(key)
+          stored = config_hash[key.to_s]
+          stored.nil? || stored == "" ? SETTINGS[key.to_s] : stored
+        end
+
+        # The scorers this experiment weights, in the order they were saved.
+        # Each entry names a check from the same evaluator registry the
+        # continuous policies pick from, so the two screens cannot drift onto
+        # different scorer vocabularies.
+        #
+        # @return [Array<Hash>] :key, :evaluator, :check, :enabled, :weight, :threshold
+        def scorers
+          Array(config_hash["scorers"]).filter_map do |entry|
+            next unless entry.is_a?(Hash)
+
+            key = entry["key"] || entry[:key]
+            next if key.blank?
+
+            { key: key.to_s,
+              evaluator: (entry["evaluator"] || entry[:evaluator]).to_s,
+              check: (entry["check"] || entry[:check]).to_s,
+              enabled: [true, "true", "1", 1].include?(entry["enabled"] || entry[:enabled]),
+              weight: (entry["weight"] || entry[:weight]).to_f,
+              threshold: (entry["threshold"] || entry[:threshold])&.to_f }
+          end
+        end
+
+        # Only enabled scorers count — a scorer switched off should not drag
+        # the total away from 1.0 and make a valid setup look wrong.
+        # @return [Float]
+        def weight_total
+          scorers.select { |scorer| scorer[:enabled] }.sum { |scorer| scorer[:weight] }.round(2)
+        end
+
+        # @return [Hash] :trigger, :cron, :notify, :alert_below
+        def schedule
+          stored = config_hash["schedule"]
+          stored = {} unless stored.is_a?(Hash)
+          merged = SCHEDULE_DEFAULTS.merge(stored.transform_keys(&:to_s))
+
+          { trigger: SCHEDULE_TRIGGERS.include?(merged["trigger"]) ? merged["trigger"] : "manual",
+            cron: merged["cron"].to_s,
+            notify: merged["notify"].to_s,
+            alert_below: merged["alert_below"].presence&.to_f }
+        end
+
+        # @return [Array<String>]
+        def tags
+          meta = metadata.is_a?(Hash) ? metadata : {}
+          Array(meta["tags"] || meta[:tags]).map { |tag| tag.to_s.strip }.reject(&:empty?)
+        end
+
         ##
         # Mark experiment as started
         def start!
@@ -129,6 +214,7 @@ module RAAF
         # @return [Float, nil]
         def duration
           return nil unless started_at && completed_at
+
           completed_at - started_at
         end
 
@@ -137,6 +223,7 @@ module RAAF
         # @return [Float]
         def progress_percentage
           return 0.0 if total_items.zero?
+
           ((completed_items + failed_items).to_f / total_items * 100).round(1)
         end
 
@@ -151,10 +238,12 @@ module RAAF
           if score_name
             scores = results.filter_map { |r| r.scores[score_name.to_s] }
             return nil if scores.empty?
+
             scores.sum / scores.size.to_f
           else
             scores = results.filter_map { |r| r.overall_score }
             return nil if scores.empty?
+
             scores.sum / scores.size.to_f
           end
         end
@@ -181,6 +270,12 @@ module RAAF
         end
 
         private
+
+        # `configuration` is jsonb with a `{}` default, but a record built in
+        # memory or restored from an older row can still hand back nil.
+        def config_hash
+          configuration.is_a?(Hash) ? configuration : {}
+        end
 
         ##
         # Compute and store aggregate metrics from all results

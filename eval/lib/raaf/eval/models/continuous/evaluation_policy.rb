@@ -55,6 +55,17 @@ module RAAF
         scope :for_agent, ->(name) { where(agent_name: name) }
         scope :by_priority, -> { order(priority: :desc) }
 
+        # Policies that name this evaluator in their configuration.
+        #
+        # Containment rather than a Ruby scan because the answer decides what an
+        # evaluator page shows: an evaluator no policy names is graded by
+        # nothing, and that is the state worth being able to see. An entry
+        # carries a type and its own options alongside the name, so the match is
+        # on a subset of one array element.
+        scope :using_evaluator, lambda { |name|
+          where("evaluators @> ?", [{ name: name.to_s }].to_json)
+        }
+
         ##
         # Check if this policy has only manual trigger mode checks.
         # @return [Boolean] true if all checks are manual trigger mode
@@ -144,6 +155,7 @@ module RAAF
           return false unless matches_environment?(span_data[:environment])
           return false unless matches_model?(span_data[:model])
           return false unless matches_version?(span_data[:version])
+
           true
         end
 
@@ -190,6 +202,7 @@ module RAAF
         # @return [Boolean]
         def at_daily_limit?
           return false if max_daily_evaluations.nil?
+
           reset_daily_counter_if_needed
           today_evaluation_count >= max_daily_evaluations
         end
@@ -261,18 +274,21 @@ module RAAF
 
         def matches_environment?(env)
           return true if environment.blank? || environment == "all"
+
           environment == env
         end
 
         def matches_model?(model)
           return true if model_pattern.blank? || model_pattern == "all"
           return false if model.nil?
+
           pattern_matches?(model_pattern, model)
         end
 
         def matches_version?(version)
           return true if version_pattern.blank? || version_pattern == "all"
           return true if version.nil? # Allow nil versions
+
           pattern_matches?(version_pattern, version)
         end
 
@@ -285,7 +301,7 @@ module RAAF
           return true if pattern == "all"
 
           # Convert wildcard pattern to regex
-          regex_pattern = "^" + Regexp.escape(pattern).gsub('\*', '.*') + "$"
+          regex_pattern = "^" + Regexp.escape(pattern).gsub('\*', ".*") + "$"
           Regexp.new(regex_pattern, Regexp::IGNORECASE).match?(value)
         end
 
@@ -294,8 +310,8 @@ module RAAF
         # @return [Boolean] true if this span should be sampled
         def check_and_increment_counter
           # Atomically increment and check
-          new_count = self.class.where(id: id)
-                          .update_all("sample_counter = sample_counter + 1")
+          self.class.where(id: id)
+              .update_all("sample_counter = sample_counter + 1")
 
           reload
           (sample_counter % sample_every_n) == 0
@@ -321,13 +337,9 @@ module RAAF
               next
             end
 
-            unless evaluator["type"].present?
-              errors.add(:evaluators, "item at index #{index} must have a 'type' field")
-            end
+            errors.add(:evaluators, "item at index #{index} must have a 'type' field") unless evaluator["type"].present?
 
-            unless evaluator["name"].present?
-              errors.add(:evaluators, "item at index #{index} must have a 'name' field")
-            end
+            errors.add(:evaluators, "item at index #{index} must have a 'name' field") unless evaluator["name"].present?
           end
         end
       end

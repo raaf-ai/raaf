@@ -111,10 +111,15 @@ module RAAF
           end
         end
 
-        private
-
         ##
-        # Extract relevant attributes from span for policy matching
+        # Extract relevant attributes from span for policy matching.
+        #
+        # Public because the question is also asked in the other direction:
+        # given a policy, which recent spans would it match. Reading the
+        # attributes from here means that answer is computed from the same
+        # extraction as the pipeline's, rather than from a second guess at
+        # where an agent name is stored on a span.
+        #
         # @return [Hash] Span attributes for matching
         def extract_span_attributes
           return @span_attributes if @span_attributes
@@ -130,6 +135,8 @@ module RAAF
         end
 
         alias span_attributes extract_span_attributes
+
+        private
 
         ##
         # Extract a single attribute from the span
@@ -147,8 +154,8 @@ module RAAF
             attrs = span.span_attributes
             # Try different key formats: agent_name, agent.name, etc.
             value = attrs[attr.to_s] || attrs[attr] ||
-                    attrs["#{attr.to_s.gsub('_', '.')}"] ||
-                    attrs.dig(attr.to_s.split('_').first, attr.to_s.split('_').last)
+                    attrs["#{attr.to_s.gsub("_", ".")}"] ||
+                    attrs.dig(attr.to_s.split("_").first, attr.to_s.split("_").last)
             return value if value.present?
           end
 
@@ -159,9 +166,7 @@ module RAAF
           end
 
           # Try as hash
-          if span.is_a?(Hash)
-            return span[attr] || span[attr.to_s]
-          end
+          return span[attr] || span[attr.to_s] if span.is_a?(Hash)
 
           nil
         end
@@ -182,6 +187,7 @@ module RAAF
         # @return [Boolean]
         def daily_limit_reached?(policy)
           return false if policy.max_daily_evaluations.nil?
+
           policy.at_daily_limit?
         end
 
