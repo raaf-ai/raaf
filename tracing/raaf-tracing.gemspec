@@ -36,6 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "opentelemetry-exporter-otlp", "~> 0.20"
   spec.add_dependency "opentelemetry-instrumentation-net_http", "~> 0.20"
   spec.add_dependency "opentelemetry-sdk", "~> 1.0"
+  spec.add_dependency "ostruct", "~> 0.6"
   spec.add_dependency "raaf-core", "0.1.0"
 
   # Template processing for visualization

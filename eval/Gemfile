@@ -9,6 +9,7 @@ gem "raaf-core", path: "../core"
 gem "raaf-tracing", path: "../tracing"
 
 group :development, :test do
+  gem "benchmark" # No longer a default gem as of Ruby 3.5
   gem "pry"
   gem "pry-byebug"
 end

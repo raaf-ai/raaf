@@ -16,6 +16,7 @@ group :development do
 end
 
 group :test do
+  gem "benchmark" # No longer a default gem as of Ruby 3.5
   gem "rspec", "~> 3.0"
   gem "simplecov", "~> 0.22"
   gem "vcr", "~> 6.1"

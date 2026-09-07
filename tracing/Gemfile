@@ -14,7 +14,9 @@ group :development do
 end
 
 group :test do
+  gem "benchmark" # No longer a default gem as of Ruby 3.5
   gem "rspec", "~> 3.0"
+  gem "rspec-collection_matchers", "~> 1.2" # specs use expect(x).to have(n).items
   gem "simplecov", "~> 0.22"
   gem "vcr", "~> 6.1"
   gem "webmock", "~> 3.18"

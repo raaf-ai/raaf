@@ -44,6 +44,8 @@ Gem::Specification.new do |spec|
   # NLP and statistical analysis
   spec.add_dependency "matrix", "~> 0.4"
   spec.add_dependency "rouge", "~> 4.0"
+  spec.add_dependency "distribution", "~> 0.8" # Distribution::Normal, used by the statistical judge
+  spec.add_dependency "prime", "~> 0.1" # distribution requires it; no longer a default gem
   spec.add_dependency "ruby-statistics", "~> 3.0"
 
   # JSON handling

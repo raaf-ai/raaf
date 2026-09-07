@@ -7,11 +7,14 @@ gemspec
 
 # Local mono-repo dependencies
 gem "raaf-core", path: "../core"
+gem "raaf-testing", path: "../testing" # specs use RAAF::Testing::MockProvider
 
 group :development do
   gem "rake", "~> 13.0"
   gem "yard", "~> 0.9"
 end
+
+gem "ostruct", "~> 0.6" # No longer a default gem as of Ruby 3.5; pulled in via raaf-dsl
 
 group :test do
   gem "rspec", "~> 3.0"

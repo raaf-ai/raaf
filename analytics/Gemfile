@@ -4,6 +4,8 @@ source "https://rubygems.org"
 
 # No gemspec: this directory ships source, not a packaged gem.
 
+gem "csv", "~> 3.0" # No longer a default gem as of Ruby 3.4
+
 group :development do
   gem "rake", "~> 13.0"
   gem "yard", "~> 0.9"
