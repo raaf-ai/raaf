@@ -348,7 +348,8 @@ module RAAF
         if defined?(Rails) && Rails.logger
           Rails.logger
         else
-          Logger.new($stdout)
+          # ::Logger, not RAAF::Logger, which lexical scope would otherwise find here.
+          ::Logger.new($stdout)
         end
       end
     end

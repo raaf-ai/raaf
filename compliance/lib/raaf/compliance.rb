@@ -475,7 +475,8 @@ module RAAF
       end
 
       def setup_logger
-        logger = Logger.new(
+        # ::Logger, not RAAF::Logger, which lexical scope would otherwise find here.
+        logger = ::Logger.new(
           @config[:log_file],
           @config[:log_rotation],
           progname: "AuditLogger"

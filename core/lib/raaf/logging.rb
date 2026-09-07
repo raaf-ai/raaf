@@ -724,8 +724,9 @@ module RAAF
         log_dir = File.dirname(@config.log_file)
         FileUtils.mkdir_p(log_dir)
 
-        logger = Logger.new(@config.log_file, 5, 10 * 1024 * 1024) # 10MB
-        logger.level = Logger.const_get(@config.log_level.to_s.upcase)
+        # ::Logger, not the enclosing RAAF::Logger.
+        logger = ::Logger.new(@config.log_file, 5, 10 * 1024 * 1024) # 10MB
+        logger.level = ::Logger.const_get(@config.log_level.to_s.upcase)
         logger.formatter = proc do |severity, datetime, _progname, msg|
           "[#{datetime.strftime("%Y-%m-%d %H:%M:%S")}] #{severity}: #{msg}\n"
         end

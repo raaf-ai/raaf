@@ -146,7 +146,8 @@ module RAAF
 
       def default_logger
         require "logger"
-        Logger.new($stdout)
+        # ::Logger, not RAAF::Logger, which lexical scope would otherwise find here.
+        ::Logger.new($stdout)
       end
     end
   end

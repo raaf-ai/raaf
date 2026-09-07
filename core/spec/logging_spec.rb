@@ -527,6 +527,10 @@ RSpec.describe RAAF::Logger do
 
   before do
     stub_const("RAAF::Logging", mock_logging)
+    # RAAF.logger memoizes `@logger ||= Logging` while raaf-core loads, so it still
+    # holds the original module after stub_const swaps the constant. Stub the reader
+    # too, or none of these delegations reach the double.
+    allow(RAAF).to receive(:logger).and_return(mock_logging)
     allow(mock_logging).to receive(:debug)
     allow(mock_logging).to receive(:info)
     allow(mock_logging).to receive(:warn)

@@ -120,7 +120,8 @@ module RAAF
           Rails.logger
         else
           require "logger"
-          Logger.new($stdout)
+          # ::Logger, not RAAF::Logger, which lexical scope would otherwise find here.
+          ::Logger.new($stdout)
         end
       end
 
