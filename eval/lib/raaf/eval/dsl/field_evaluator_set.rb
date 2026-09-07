@@ -86,6 +86,7 @@ module RAAF
 
           individual_results = execute_evaluators(field_context)
           combined_result = combine_results(individual_results)
+          flag_evaluator_errors(combined_result, individual_results)
 
           # Return both combined result and individual results
           # Individual results are keyed by alias for easy lookup
@@ -108,17 +109,43 @@ module RAAF
             results[eval_config[:alias]] = result
           rescue StandardError => e
             # Mark evaluator as failed but continue with others
-            results[eval_config[:alias]] = {
-              passed: false,
-              score: 0.0,
-              details: {
-                error: e.message,
-                error_class: e.class.name,
-                backtrace: e.backtrace&.first(3) || []
-              },
-              message: "Evaluator failed: #{e.message}"
-            }
+            results[eval_config[:alias]] = failure_result(e)
           end
+        end
+
+        # The stand-in for an evaluator that raised. It scores zero so the
+        # combination arithmetic still has a number to work with, and carries
+        # :error so a caller can tell the crash apart from a verdict. Without
+        # that flag the two are indistinguishable at score 0.0 while meaning
+        # opposite things: one says the agent produced a bad answer, the other
+        # says the check never reached one.
+        # @param error [StandardError] The exception the evaluator raised
+        # @return [Hash] A failed result carrying the error
+        def failure_result(error)
+          {
+            passed: false,
+            score: 0.0,
+            error: true,
+            details: {
+              error: error.message,
+              error_class: error.class.name,
+              backtrace: error.backtrace&.first(3) || []
+            },
+            message: "Evaluator failed: #{error.message}"
+          }
+        end
+
+        # Carry the error flag onto the combined result. A combination strategy
+        # is free to build its own hash — a lambda one always does — so the
+        # flag is stamped on the way out rather than inside each strategy.
+        # @param combined [Hash] The combined result
+        # @param individual [Hash] Individual results keyed by alias
+        def flag_evaluator_errors(combined, individual)
+          errored = individual.select { |_alias, result| result[:error] }.keys
+          return if errored.empty?
+
+          combined[:error] = true
+          combined[:errored_evaluators] = errored
         end
 
         # Combine evaluator results using configured strategy

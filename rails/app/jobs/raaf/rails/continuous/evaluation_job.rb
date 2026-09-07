@@ -1140,8 +1140,8 @@ module RAAF
               provider: extract_provider(span),
               environment: ::Rails.env,
               status: determine_field_status(field_result),
-              score: field_result[:score],
-              scores: { field_name.to_s => field_result[:score] },
+              score: field_score(field_result),
+              scores: { field_name.to_s => field_score(field_result) },
               metrics: extract_metrics(span).merge(spend),
               reasoning: reasoning,
               details: {
@@ -1238,8 +1238,15 @@ module RAAF
         ##
         # Determine status for a single field result
         # @param field_result [Hash] Result hash with :score key
-        # @return [String] Status: "good", "average", or "bad"
+        # @return [String] Status: "good", "average", "bad", or "error"
         def determine_field_status(field_result)
+          # A check whose evaluator raised reached no verdict. The combination
+          # arithmetic still handed back a zero, and filing that as "bad" says
+          # the agent answered badly when what happened is that the scorer
+          # broke — which is the one reading that sends somebody to look at the
+          # agent instead of at the check.
+          return "error" if field_result[:error]
+
           score = field_result[:score]
           return "bad" if score.nil?
 
@@ -1250,6 +1257,16 @@ module RAAF
           else
             "bad"
           end
+        end
+
+        ##
+        # The score to store for a field. An errored check has none: the zero
+        # it carries is combination arithmetic, not a measurement, and stored
+        # as one it drags every average and trend line down with it.
+        # @param field_result [Hash] Result hash with :score key
+        # @return [Float, nil] The score, or nil when the check errored
+        def field_score(field_result)
+          field_result[:error] ? nil : field_result[:score]
         end
 
         # Keep legacy method for backwards compatibility

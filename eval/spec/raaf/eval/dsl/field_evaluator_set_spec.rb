@@ -143,10 +143,10 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       end
 
       it "combines results with AND logic" do
-        result = field_set.evaluate(field_context)
+        combined = field_set.evaluate(field_context)[:combined]
 
-        expect(result[:label]).to eq("good")
-        expect(result[:score]).to eq(0.85) # minimum
+        expect(combined[:score]).to eq(0.85) # minimum
+        expect(combined[:message]).to start_with("AND:")
       end
     end
 
@@ -157,11 +157,11 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         field_set.set_combination(:or)
       end
 
-      it "returns label 'good' when at least one evaluator passes" do
-        result = field_set.evaluate(field_context)
+      it "takes the best score when at least one evaluator scores well" do
+        combined = field_set.evaluate(field_context)[:combined]
 
-        expect(result[:label]).to eq("good")
-        expect(result[:score]).to eq(0.9) # maximum
+        expect(combined[:score]).to eq(0.9) # maximum
+        expect(combined[:message]).to start_with("OR:")
       end
     end
 
@@ -178,6 +178,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
                    else
                      (avg_score >= 0.6 ? "average" : "bad")
                    end,
+            passed: avg_score >= 0.6,
             score: avg_score,
             details: { average: avg_score },
             message: "Average: #{avg_score}"
@@ -186,11 +187,11 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       end
 
       it "applies custom lambda logic" do
-        result = field_set.evaluate(field_context)
+        combined = field_set.evaluate(field_context)[:combined]
 
         expected_avg = (0.9 + 0.85) / 2.0
-        expect(result[:score]).to eq(expected_avg)
-        expect(result[:label]).to eq("good")
+        expect(combined[:score]).to eq(expected_avg)
+        expect(combined[:label]).to eq("good")
       end
     end
 
@@ -210,17 +211,33 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       end
 
       it "marks failed evaluator but continues" do
-        result = field_set.evaluate(field_context)
+        combined = field_set.evaluate(field_context)[:combined]
 
-        # Should fail because one evaluator failed (AND logic)
-        expect(result[:label]).to eq("bad")
+        # The crash scores zero, and AND takes the minimum
+        expect(combined[:passed]).to be false
+        expect(combined[:score]).to eq(0.0)
       end
 
       it "includes error details" do
-        result = field_set.evaluate(field_context)
+        combined = field_set.evaluate(field_context)[:combined]
 
         # Error details should be captured
-        expect(result[:message]).to include("Evaluator crashed")
+        expect(combined[:message]).to include("Evaluator crashed")
+      end
+
+      it "flags the combined result as errored and names the evaluator" do
+        combined = field_set.evaluate(field_context)[:combined]
+
+        expect(combined[:error]).to be true
+        expect(combined[:errored_evaluators]).to eq([:error_evaluator])
+      end
+
+      it "flags only the evaluator that raised" do
+        individual = field_set.evaluate(field_context)[:individual]
+
+        expect(individual[:error_evaluator][:error]).to be true
+        expect(individual[:error_evaluator][:details][:error_class]).to eq("StandardError")
+        expect(individual[:semantic_similarity][:error]).to be_nil
       end
     end
 
@@ -231,18 +248,25 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         field_set.add_evaluator(:coherence, { min_score: 0.8 })
       end
 
-      it "fails with AND when one fails" do
+      it "takes the worst score with AND" do
         field_set.set_combination(:and)
-        result = field_set.evaluate(field_context)
+        combined = field_set.evaluate(field_context)[:combined]
 
-        expect(result[:label]).to eq("bad")
+        expect(combined[:score]).to eq(0.5)
       end
 
-      it "passes with OR when one passes" do
+      it "takes the best score with OR" do
         field_set.set_combination(:or)
-        result = field_set.evaluate(field_context)
+        combined = field_set.evaluate(field_context)[:combined]
 
-        expect(result[:label]).to eq("good")
+        expect(combined[:score]).to eq(0.9)
+      end
+
+      it "does not flag an error when every evaluator returned a verdict" do
+        field_set.set_combination(:and)
+        combined = field_set.evaluate(field_context)[:combined]
+
+        expect(combined[:error]).to be_nil
       end
     end
 
