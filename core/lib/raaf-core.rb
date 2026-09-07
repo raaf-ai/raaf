@@ -3,6 +3,7 @@
 require "active_support/core_ext/hash/indifferent_access"
 require "active_support/core_ext/object/blank"
 require "active_support/core_ext/module/delegation"
+require "active_support/core_ext/enumerable"
 require_relative "raaf/version"
 require_relative "raaf/utils"
 require_relative "raaf/logging"

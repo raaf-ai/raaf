@@ -852,26 +852,29 @@ module RAAF
   end
 
   ##
-  # Convenience method for creating handoffs at module level
+  # Build a handoff specification for an agent
   #
-  # This is a convenience method that delegates to Handoffs.handoff, allowing
-  # you to create handoffs using the shorter RAAF.handoff syntax instead of
-  # RAAF::Handoffs.handoff.
+  # Returns a {Handoff} configuration object, which is what {Agent#add_handoff}
+  # accepts. {Handoffs.handoff} is a different thing: it builds the internal
+  # CallbackHandoffTool the runner invokes, and is not usable as an argument to
+  # +add_handoff+.
   #
   # @param agent [Agent] target agent to handoff to
-  # @param options [Hash] all options supported by Handoffs.handoff
+  # @param options [Hash] all options supported by Handoff.new -- overrides,
+  #   input_filter, description, tool_name_override, tool_description_override,
+  #   on_handoff, input_type
   # @return [Handoff] configured handoff object
   #
-  # @example Use convenience method
-  #   # Instead of:
-  #   handoff = RAAF::Handoffs.handoff(support_agent)
+  # @example Handoff with a clearer tool description
+  #   handoff = RAAF.handoff(
+  #     support_agent,
+  #     tool_description_override: "Transfer to support for technical issues"
+  #   )
+  #   sales_agent.add_handoff(handoff)
   #
-  #   # You can use:
-  #   handoff = RAAF.handoff(support_agent)
-  #
-  # @see Handoffs.handoff
+  # @see Handoff
   def self.handoff(agent, **)
-    Handoffs.handoff(agent, **)
+    Handoff.new(agent, **)
   end
 
   ##

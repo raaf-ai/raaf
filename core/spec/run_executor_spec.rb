@@ -208,46 +208,33 @@ RSpec.describe "RAAF Run Executors" do
         end
       end
 
+      # Spans are opened by Traceable#with_tracing on the agent, not by the
+      # executor itself; the tracer it is handed is state for subclasses and
+      # hooks, and must not change how a run completes.
       context "with tracer support" do
         let(:tracer) { double("Tracer") }
         let(:traced_executor) { described_class.new(runner: runner, provider: mock_provider, agent: agent, config: config, tracer: tracer) }
 
         before do
-          # Mock services
+          error_handler = double("ErrorHandler")
+          allow(error_handler).to receive(:with_error_handling) { |**, &block| block.call }
+
           services_double = {
-            error_handler: double("ErrorHandler", with_error_handling: nil),
+            error_handler: error_handler,
             api_strategy: double("ApiStrategy", execute: { final_result: true, conversation: [], usage: {}, last_agent: agent })
           }
           allow(traced_executor).to receive(:services).and_return(services_double)
         end
 
-        it "handles trace creation when tracer is provided" do
-          allow(traced_executor).to receive(:require).with("raaf-tracing")
-          allow(RAAF::Tracing::Context).to receive(:current_trace).and_return(nil)
-
-          expect(RAAF::Tracing).to receive(:trace)
-            .with("Agent workflow", hash_including(:trace_id, :group_id, :metadata))
-            .and_yield
-
-          traced_executor.execute(messages)
+        it "exposes the tracer it was given" do
+          expect(traced_executor.tracer).to eq(tracer)
         end
 
-        it "uses existing trace when available" do
-          active_trace = double("trace", active?: true)
-          allow(RAAF::Tracing::Context).to receive(:current_trace).and_return(active_trace)
-
-          expect(RAAF::Tracing).not_to receive(:trace)
-
-          traced_executor.execute(messages)
-        end
-
-        it "falls back to normal execution if tracing gem not available" do
-          allow(traced_executor).to receive(:require).with("raaf-tracing").and_raise(LoadError)
-
-          expect(RAAF::Tracing).not_to receive(:trace)
-
+        it "executes normally with a tracer present" do
           result = traced_executor.execute(messages)
+
           expect(result).to be_a(RAAF::RunResult)
+          expect(result.last_agent).to eq(agent)
         end
       end
 

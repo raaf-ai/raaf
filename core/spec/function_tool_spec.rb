@@ -96,7 +96,7 @@ RSpec.describe RAAF::FunctionTool do
     it "raises ToolError for invalid callable" do
       tool = described_class.new("not_callable")
 
-      expect { tool.call }.to raise_error(RAAF::ToolError, /Callable must be a Method or Proc/)
+      expect { tool.call }.to raise_error(RAAF::ToolError, /Callable must be a Method, Proc, or object that responds to :call/)
     end
 
     it "wraps execution errors in ToolError" do
@@ -261,6 +261,7 @@ RSpec.describe RAAF::FunctionTool do
         allow(callable).to receive(:respond_to?).with(:parameters).and_return(false)
         allow(callable).to receive(:respond_to?).with(:name).and_return(false)
         allow(callable).to receive(:is_a?).with(Method).and_return(false)
+        allow(callable).to receive(:is_a?).with(Proc).and_return(false)
 
         tool = described_class.new(callable)
         params = tool.parameters

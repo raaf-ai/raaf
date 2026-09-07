@@ -74,12 +74,12 @@ module RAAF
             when Method, Proc
               # Raw callable - wrap in FunctionTool
               add_tool_original(FunctionTool.new(tool))
-            else
-              # Try to convert to FunctionTool
-              raise ArgumentError, "Invalid tool type: #{tool.class}" unless tool.respond_to?(:to_function_tool)
-
+            when ->(candidate) { candidate.respond_to?(:to_function_tool) }
               add_tool_original(tool.to_function_tool)
-
+            else
+              # Hand anything else to the original method: it accepts duck-typed
+              # callables and raises ToolError for what it cannot use.
+              add_tool_original(tool)
             end
           end
         end

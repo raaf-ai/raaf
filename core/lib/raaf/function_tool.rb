@@ -342,8 +342,12 @@ module RAAF
     def extract_name(callable)
       if callable.respond_to?(:name) && callable.name
         callable.name.to_s
-      elsif callable.class.respond_to?(:name)
-        # Use class name for instances without their own name
+      elsif callable.is_a?(Proc) || callable.is_a?(Method)
+        # A bare block carries no name of its own, and its class name ("proc")
+        # would make a useless tool name.
+        "anonymous_function"
+      elsif callable.class.respond_to?(:name) && callable.class.name
+        # Use class name for callable objects without their own name
         callable.class.name.split("::").last.downcase
       else
         "anonymous_function"

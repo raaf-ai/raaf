@@ -55,12 +55,16 @@ module RAAF
     # @param provider [Models::Interface] The AI provider for API calls
     # @param agent [Agent] The agent to execute
     # @param config [RunConfig] Configuration for the execution
+    # @param tracer [Object, nil] Tracer to expose to subclasses and hooks
+    # @param parent_span [Object, nil] Span to nest this execution under
     #
-    def initialize(runner:, provider:, agent:, config:)
+    def initialize(runner:, provider:, agent:, config:, tracer: nil, parent_span: nil)
       @runner = runner
       @provider = provider
       @agent = agent
       @config = config
+      @tracer = tracer
+      @parent_span = parent_span
 
       # Create service bundle directly
       @services = create_service_bundle

@@ -55,6 +55,12 @@ module RAAF
       ]
     }.freeze
 
+    # Error classifications that are worth retrying. Anything else --
+    # authentication failures and unclassified errors -- is raised immediately.
+    RETRYABLE_ERROR_TYPES = %i[
+      rate_limit timeout context_too_large model_overloaded network_error
+    ].freeze
+
     # Retry configuration constants
     DEFAULT_MAX_ATTEMPTS = 5
     DEFAULT_BASE_DELAY = 1.0 # seconds
@@ -268,30 +274,16 @@ module RAAF
     ##
     # Check if error should be retried
     #
-    # @param error [Exception] The error to check
+    # Retryability follows the classification from {#classify_error}: every
+    # recognised transient failure mode is retried. Authentication failures and
+    # errors we could not classify are not.
+    #
+    # @param _error [Exception] The error to check
     # @param error_type [Symbol] Classified error type
     # @return [Boolean] Whether error should be retried
     #
-    def retryable_error?(error, error_type)
-      # Don't retry authentication errors
-      return false if error_type == :authentication_error
-
-      # Check if error message matches retryable patterns
-      error_message = error.message.to_s.downcase
-
-      retryable_patterns = [
-        /rate limit/i,
-        /too many requests/i,
-        /service unavailable/i,
-        /gateway timeout/i,
-        /connection reset/i,
-        /timeout/i,
-        /temporarily unavailable/i,
-        /context.*too large/i,
-        /token limit/i
-      ]
-
-      retryable_patterns.any? { |pattern| error_message.match?(pattern) }
+    def retryable_error?(_error, error_type)
+      RETRYABLE_ERROR_TYPES.include?(error_type)
     end
 
     ##

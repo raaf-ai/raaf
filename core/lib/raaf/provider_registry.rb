@@ -116,8 +116,8 @@ module RAAF
       def create(provider_name, **)
         provider_name = provider_name.to_sym
 
-        class_path = PROVIDER_CLASSES[provider_name]
-        raise ArgumentError, "Unknown provider: #{provider_name}. Available: #{PROVIDER_CLASSES.keys.join(", ")}" unless class_path
+        class_path = PROVIDER_CLASSES[provider_name] || custom_provider_path(provider_name)
+        raise ArgumentError, "Unknown provider: #{provider_name}. Available: #{providers.join(", ")}" unless class_path
 
         # Get the provider class
         provider_class = resolve_class(class_path)
@@ -173,13 +173,25 @@ module RAAF
         is_built_in = PROVIDER_CLASSES.key?(name)
 
         is_custom = @providers_mutex.synchronize do
-          @custom_providers && @custom_providers.key?(name)
+          @custom_providers ? @custom_providers.key?(name) : false
         end
 
         is_built_in || is_custom
       end
 
       private
+
+      ##
+      # Look up a custom provider's class path
+      #
+      # @param name [Symbol] Provider short name
+      # @return [String, nil] Registered class path, or nil if not registered
+      #
+      def custom_provider_path(name)
+        @providers_mutex.synchronize do
+          @custom_providers && @custom_providers[name]
+        end
+      end
 
       ##
       # Resolve a class from a string path
