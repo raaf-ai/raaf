@@ -61,7 +61,7 @@ module RAAF
       def pipeline_schema(&block)
         if block_given?
           # Use the same SchemaBuilder class that agents use to ensure consistency
-          builder = RAAF::DSL::Agent::SchemaBuilder.new(&block)
+          builder = RAAF::DSL::SchemaBuilder.new(&block)
           built_schema = builder.build
 
           # Store as a proc that returns the complete built schema (schema + config)
@@ -289,7 +289,7 @@ module RAAF
     def flow_structure_description(flow)
       case flow
       when DSL::PipelineDSL::ChainedAgent
-        "#{agent_name(flow.first)} >> #{flow_structure_description(flow.second)}"
+        "#{flow_structure_description(flow.first)} >> #{flow_structure_description(flow.second)}"
       when DSL::PipelineDSL::ParallelAgents
         agents = flow.agents.map { |a| agent_name(a) }
         "(#{agents.join(' | ')})"
@@ -358,7 +358,9 @@ module RAAF
     def agent_name(agent)
       case agent
       when Class
-        agent.name || agent.to_s
+        # Prefer the DSL name: pipelines are routinely built from anonymous
+        # classes, whose #name is nil.
+        (agent.respond_to?(:agent_name) && agent.agent_name) || agent.name || agent.to_s
       when DSL::PipelineDSL::ConfiguredAgent, DSL::PipelineDSL::RemappedAgent
         agent.agent_class.name || agent.agent_class.to_s
       else
@@ -520,7 +522,7 @@ module RAAF
       raise ArgumentError, <<~MSG
         Pipeline initialization error!
 
-        First agent #{first_agent.name} requires: #{all_required.inspect}
+        First agent #{agent_name(first_agent)} requires: #{all_required.inspect}
         You provided: #{@context.keys.inspect} (as symbols: #{provided.inspect})
         Missing: #{missing_agent_fields.inspect}
 
@@ -688,6 +690,11 @@ module RAAF
 
       when Class
         validate_single_stage(flow, tracker, errors)
+
+      when Symbol
+        # Method handler on the pipeline instance - nothing to validate ahead of
+        # time, it is resolved against the pipeline when the flow runs.
+        nil
 
       else
         # Unknown flow type - add warning but continue

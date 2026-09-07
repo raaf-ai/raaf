@@ -86,7 +86,7 @@ module RAAF
         end
 
         # Execute iteration over the specified field
-        def execute(context)
+        def execute(context, agent_results = nil)
           # Wrap execution with before_execute/after_execute hooks
           agent_name = @agent_class.respond_to?(:agent_name) ? @agent_class.agent_name : @agent_class.name
 
@@ -112,6 +112,7 @@ module RAAF
             # Add results to context using generated output field name
             output_field = generate_output_field_name(@field)
             context[output_field] = results
+            agent_results << { output_field => results } if agent_results
 
             context
           end

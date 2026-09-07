@@ -7,6 +7,10 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
   # Mock agent classes for testing
   let(:mock_agent_class) do
     Class.new do
+      # each_over and the other pipeline combinators live in Pipelineable, which
+      # real agents pick up through RAAF::DSL::Agent.
+      include RAAF::DSL::Pipelineable
+
       def self.name
         "MockAgent"
       end

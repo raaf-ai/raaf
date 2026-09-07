@@ -56,7 +56,12 @@ module RAAF
 
             # Merge all results into context - field conflicts resolved by last writer wins
             results.each do |result|
-              context.merge!(result) if result.is_a?(Hash)
+              next unless result.is_a?(Hash)
+
+              context.merge!(result)
+              # Contribute to the pipeline's auto-merge the same way a sequential
+              # agent does, so parallel output reaches the final result.
+              agent_results << result if agent_results && result.any?
             end
 
             context

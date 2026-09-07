@@ -43,7 +43,7 @@ module RAAF
         # - Timeout errors are properly retried with exponential backoff
         # - Circuit breaker and other smart features work correctly
         # - Consistent behavior across all execution paths
-        def execute(context)
+        def execute(context, agent_results = nil)
           # Wrap execution with before_execute/after_execute hooks
           agent_name = @agent_class.respond_to?(:agent_name) ? @agent_class.agent_name : @agent_class.name
 
@@ -72,6 +72,10 @@ module RAAF
                      else
                        agent.run
                      end
+
+            # Collect the result for the pipeline's auto-merge, exactly as a bare
+            # agent in the chain would.
+            agent_results << result if agent_results && result.is_a?(Hash)
 
             # Merge results back into original context
             if @agent_class.respond_to?(:provided_fields)

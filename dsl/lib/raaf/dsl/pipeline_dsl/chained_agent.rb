@@ -199,10 +199,10 @@ module RAAF
           when Class
             execute_single_agent(part, context, agent_results)
           when Symbol
-            # Method handler - look for method in pipeline instance
-            if context.respond_to?(:pipeline_instance) && context.pipeline_instance && context.pipeline_instance.respond_to?(part, true)
-              context.pipeline_instance.send(part, context)
-            end
+            # Method handler - look for the method on the pipeline instance, which
+            # travels through the context under :pipeline_instance.
+            pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
+            pipeline_instance.send(part, context) if pipeline_instance.respond_to?(part, true)
             context
           else
             raise "RAAF Framework Error: Unrecognized pipeline part type: #{part.class.name}. This indicates a bug in the RAAF framework - all pipeline parts must be handled explicitly."
@@ -317,11 +317,6 @@ module RAAF
           # Merge provided fields into context (for backward compatibility)
           # If the agent has AutoMerge enabled, the result already contains properly merged data
           # and we should use the complete results rather than extracting individual fields
-          if agent_class.respond_to?(:provided_fields)
-          end
-          if agent_class.respond_to?(:auto_merge_enabled?)
-          end
-
           if agent_class.respond_to?(:auto_merge_enabled?) && agent_class.auto_merge_enabled? &&
              result.is_a?(Hash) && result[:results]
             # Use the complete merged results from AutoMerge
