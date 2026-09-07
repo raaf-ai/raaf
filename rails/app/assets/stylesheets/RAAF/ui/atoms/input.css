@@ -1,0 +1,112 @@
+/* ============================================================================
+   Atom — Input
+   Shared shape for input, textarea and select. The design's default is the
+   light form surface; `--glass` is the dark-surface variant the tracing
+   dashboard uses, since its forms sit directly on glass cards.
+   ========================================================================= */
+
+.raaf-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--raaf-gray-200);
+  border-radius: var(--raaf-radius-md);
+  background: rgb(51 97 111 / 7%);
+  color: var(--raaf-gray-900);
+  font-family: var(--raaf-font-sans);
+  font-size: var(--raaf-text-body-lg);
+  transition: all 0.2s ease;
+}
+
+.raaf-input:focus {
+  outline: none;
+  border-color: var(--raaf-teal-200);
+  background: var(--raaf-white);
+}
+
+.raaf-input::placeholder {
+  color: var(--raaf-gray-500);
+}
+
+/* Dark surface variant */
+.raaf-input--glass {
+  background: rgb(0 0 0 / 22%);
+  border-color: var(--raaf-border);
+  color: var(--raaf-text-primary);
+}
+
+.raaf-input--glass:focus {
+  background: rgb(0 0 0 / 30%);
+  border-color: var(--raaf-cyan-500);
+  box-shadow: 0 0 0 3px rgb(0 154 204 / 20%);
+}
+
+.raaf-input--glass::placeholder {
+  color: var(--raaf-text-muted);
+}
+
+.raaf-input--sm {
+  padding: 7px 12px;
+  font-size: var(--raaf-text-body-sm);
+  border-radius: var(--raaf-radius-sm);
+}
+
+.raaf-input--mono {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-body-sm);
+}
+
+.raaf-input--invalid {
+  border-color: var(--raaf-danger);
+}
+
+.raaf-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Textarea */
+.raaf-textarea {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+/* Select — chevron drawn in, native arrow suppressed */
+.raaf-select {
+  padding-right: 40px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='%236b7280'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px;
+  cursor: pointer;
+}
+
+.raaf-select.raaf-input--glass {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='%239ca3af'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+.raaf-select.raaf-input--glass option {
+  background: var(--raaf-teal-800);
+  color: var(--raaf-text-primary);
+}
+
+/* Search input with a leading glyph */
+.raaf-input-search {
+  position: relative;
+  display: block;
+}
+
+.raaf-input-search .raaf-input {
+  padding-left: 38px;
+}
+
+.raaf-input-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  color: var(--raaf-text-muted);
+  pointer-events: none;
+  line-height: 1;
+}

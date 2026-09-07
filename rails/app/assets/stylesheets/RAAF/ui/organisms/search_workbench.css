@@ -1,0 +1,184 @@
+/* ============================================================================
+   SearchWorkbench — the query bar, its facets and the hits.
+   ========================================================================= */
+
+.raaf-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+}
+
+.raaf-wb-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-4);
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+}
+
+.raaf-wb-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--raaf-border-strong);
+  border-radius: 11px;
+  background: var(--raaf-glass-white-8);
+}
+
+/* The field is the bar — its own chrome would double the one it sits in. */
+.raaf-wb-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: var(--raaf-text-body-sm);
+}
+
+.raaf-wb-input:focus { outline: none; }
+
+.raaf-wb-examples {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex-wrap: wrap;
+}
+
+.raaf-wb-example {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: rgb(0 154 204 / 10%);
+  color: var(--raaf-cyan-500);
+  text-decoration: none;
+}
+
+a.raaf-wb-example:hover { background: rgb(0 154 204 / 18%); }
+
+/* Facets against results. Both minimums are zero so a long agent name
+   truncates inside its facet instead of widening the page. */
+.raaf-wb-split {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: var(--raaf-space-4);
+  align-items: start;
+}
+
+/* No facets to stand beside: the results take the whole width. */
+.raaf-wb-split--bare { grid-template-columns: minmax(0, 1fr); }
+
+@media (width <= 860px) {
+  .raaf-wb-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+.raaf-wb-facets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+  padding: var(--raaf-space-4);
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+}
+
+.raaf-facet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-2);
+}
+
+.raaf-facet-value {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.raaf-facet-box {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 1px solid var(--raaf-border-strong);
+  border-radius: 3px;
+}
+
+.raaf-facet-value.is-active .raaf-facet-box {
+  border-color: var(--raaf-cyan-500);
+  background: var(--raaf-cyan-500);
+}
+
+.raaf-facet-label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+a.raaf-facet-value:hover .raaf-facet-label { color: var(--raaf-white); }
+
+.raaf-wb-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.raaf-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px var(--raaf-space-4);
+  border: 1px solid var(--raaf-border);
+  border-radius: 14px;
+  background: var(--raaf-surface-glass);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.raaf-hit:hover {
+  border-color: var(--raaf-border-strong);
+  background: var(--raaf-glass-white-8);
+}
+
+.raaf-hit-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.raaf-hit-name {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-body-sm);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Pushes the meta to the right without a spacer element. */
+.raaf-hit-head > .raaf-mono:last-child { margin-left: auto; }
+
+.raaf-hit-snippet {
+  font-family: var(--raaf-font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--raaf-text-secondary);
+  text-align: left;
+  padding: 9px 11px;
+  border-left: 2px solid var(--raaf-border-strong);
+  border-radius: 9px;
+  background: var(--raaf-glass-white-5);
+  overflow-wrap: anywhere;
+}
+
+/* The accent on a hit is why it matched — a failure, not a kind. */
+.raaf-hit--ok .raaf-hit-snippet { border-left-color: var(--raaf-tone-ok); }
+.raaf-hit--warn .raaf-hit-snippet { border-left-color: var(--raaf-tone-warn); }
+.raaf-hit--bad .raaf-hit-snippet { border-left-color: var(--raaf-tone-bad); }

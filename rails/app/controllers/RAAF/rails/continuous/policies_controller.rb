@@ -13,14 +13,24 @@ module RAAF
         # GET /raaf/rails/continuous/policies
         def index
           @policies = EvaluationPolicy.order(created_at: :desc)
-          @policies = @policies.where(active: params[:active] == 'true') if params[:active].present?
-          @policies = @policies.where('agent_name ILIKE ?', "%#{params[:agent]}%") if params[:agent].present?
+          @policies = @policies.where(active: params[:active] == "true") if params[:active].present?
+          @policies = @policies.where("agent_name ILIKE ?", "%#{params[:agent]}%") if params[:agent].present?
           @policies = @policies.page(params[:page]).per(50)
 
           respond_to do |format|
             format.html do
-              policy_list = RAAF::Rails::Continuous::PolicyList.new(policies: @policies)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Continuous Evaluation Policies") do
+              policy_list = RAAF::Rails::Continuous::PolicyList.new(
+                policies: @policies,
+                stats: policy_stats,
+                last_runs: last_run_times(@policies),
+                params: params.permit(:active, :agent, :page)
+              )
+              # No range passed: this list is not filtered by time, and a pill
+              # that navigates without changing the rows is worse than an
+              # inert one.
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: "Policies", crumb: "Continuous"
+              ) do
                 render policy_list
               end
               render layout
@@ -33,15 +43,24 @@ module RAAF
         def show
           @recent_results = @policy.continuous_evaluation_results.order(created_at: :desc).limit(10)
           @today_stats = calculate_today_stats
+          @matching_spans = RAAF::Rails::Continuous::PolicySpanLookup.recent_for(@policy)
 
           respond_to do |format|
             format.html do
               policy_show = RAAF::Rails::Continuous::PolicyShow.new(
                 policy: @policy,
                 today_stats: @today_stats,
-                recent_results: @recent_results
+                recent_results: @recent_results,
+                matching_spans: @matching_spans,
+                check_scores: check_scores(@policy),
+                trend: trend_series(@policy, current_range),
+                trend_window: TREND_WINDOWS.fetch(current_range),
+                trend_unit: TREND_BUCKETS.fetch(current_range)[:unit]
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: @policy.name) do
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: @policy.name, crumb: "Policy",
+                range: current_range, range_href: range_href
+              ) do
                 render policy_show
               end
               render layout
@@ -69,24 +88,6 @@ module RAAF
           end
         end
 
-        # POST /raaf/rails/continuous/policies
-        def create
-          @policy = EvaluationPolicy.new(policy_params)
-          if @policy.save
-            redirect_to continuous_policy_path(@policy), notice: 'Policy created successfully.'
-          else
-            @available_evaluators = fetch_available_evaluators
-            policy_form = RAAF::Rails::Continuous::PolicyForm.new(
-              policy: @policy,
-              evaluators: @available_evaluators
-            )
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Evaluation Policy") do
-              render policy_form
-            end
-            render layout, status: :unprocessable_entity
-          end
-        end
-
         # GET /raaf/rails/continuous/policies/:id/edit
         def edit
           @available_evaluators = fetch_available_evaluators
@@ -105,10 +106,33 @@ module RAAF
           end
         end
 
+        # POST /raaf/rails/continuous/policies
+        def create
+          @policy = EvaluationPolicy.new(policy_params)
+          reject_cross_agent_checks(@policy)
+
+          if @policy.errors.empty? && @policy.save
+            redirect_to continuous_policy_path(@policy), notice: "Policy created successfully."
+          else
+            @available_evaluators = fetch_available_evaluators
+            policy_form = RAAF::Rails::Continuous::PolicyForm.new(
+              policy: @policy,
+              evaluators: @available_evaluators
+            )
+            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Evaluation Policy") do
+              render policy_form
+            end
+            render layout, status: :unprocessable_content
+          end
+        end
+
         # PATCH /raaf/rails/continuous/policies/:id
         def update
-          if @policy.update(policy_params)
-            redirect_to continuous_policy_path(@policy), notice: 'Policy updated successfully.'
+          @policy.assign_attributes(policy_params)
+          reject_cross_agent_checks(@policy)
+
+          if @policy.errors.empty? && @policy.save
+            redirect_to continuous_policy_path(@policy), notice: "Policy updated successfully."
           else
             @available_evaluators = fetch_available_evaluators
             policy_form = RAAF::Rails::Continuous::PolicyForm.new(
@@ -118,26 +142,30 @@ module RAAF
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@policy.name}") do
               render policy_form
             end
-            render layout, status: :unprocessable_entity
+            render layout, status: :unprocessable_content
           end
         end
 
         # DELETE /raaf/rails/continuous/policies/:id
         def destroy
           @policy.destroy
-          redirect_to continuous_policies_path, notice: 'Policy deleted.'
+          redirect_to continuous_policies_path, notice: "Policy deleted."
         end
 
         # POST /raaf/rails/continuous/policies/:id/activate
+        #
+        # Both toggles return to the page the button was pressed on: the list
+        # and the policy screen each carry one, and being thrown back to the
+        # list after pausing from the policy screen loses your place.
         def activate
           @policy.update!(active: true)
-          redirect_to continuous_policies_path, notice: 'Policy activated.'
+          redirect_back_or_to(continuous_policies_path, notice: "Policy resumed.")
         end
 
         # POST /raaf/rails/continuous/policies/:id/deactivate
         def deactivate
           @policy.update!(active: false)
-          redirect_to continuous_policies_path, notice: 'Policy deactivated.'
+          redirect_back_or_to(continuous_policies_path, notice: "Policy paused.")
         end
 
         # POST /raaf/rails/continuous/policies/:id/duplicate
@@ -146,10 +174,36 @@ module RAAF
           new_policy.name = "#{@policy.name} (Copy)"
           new_policy.active = false
           new_policy.save!
-          redirect_to edit_continuous_policy_path(new_policy), notice: 'Policy duplicated.'
+          redirect_to edit_continuous_policy_path(new_policy), notice: "Policy duplicated."
         end
 
         private
+
+        # Counted over every policy, not the filtered page: the headline says
+        # what the system is doing, and a filter should not change that.
+        def policy_stats
+          all = EvaluationPolicy.all
+
+          { total: all.count,
+            active: all.where(active: true).count,
+            evaluated_today: all.sum(:today_evaluation_count),
+            daily_cap: all.sum(:max_daily_evaluations) }
+        rescue StandardError
+          {}
+        end
+
+        # One grouped query rather than a result lookup per row.
+        def last_run_times(policies)
+          ids = policies.map(&:id)
+          return {} if ids.empty?
+
+          RAAF::Eval::Models::ContinuousEvaluationResult
+            .where(evaluation_policy_id: ids)
+            .group(:evaluation_policy_id)
+            .maximum(:created_at)
+        rescue StandardError
+          {}
+        end
 
         def set_policy
           @policy = EvaluationPolicy.find(params[:id])
@@ -168,7 +222,7 @@ module RAAF
             :sampling_mode, :sample_rate, :sample_every_n, :max_daily_evaluations,
             :priority, :queue_name, :max_concurrent_evaluations, :max_retries,
             :retention_days, :retention_count, :active,
-            evaluators: [:type, :name, :sample_rate, :agent_name, checks: [], config: {}],
+            evaluators: [:type, :name, :sample_rate, :agent_name, { checks: [], config: {} }],
             evaluator_names: [],
             metadata: {}
           )
@@ -180,7 +234,7 @@ module RAAF
             evaluators_hash = {}
             agent_names = []
 
-            check_configs.each do |check_id, config|
+            check_configs.each do |_check_id, config|
               # Use string keys for ActionController::Parameters (doesn't provide indifferent access for unpermitted nested params)
               next unless config["enabled"] == "1"
 
@@ -245,11 +299,13 @@ module RAAF
             permitted[:evaluators] = evaluators_hash.values
 
             # Set agent_name from selected checks
-            if agent_names.uniq.size == 1
-              permitted[:agent_name] = agent_names.first
-            elsif agent_names.any?
-              permitted[:agent_name] = agent_names.uniq.join(", ")
-            end
+            # A policy matches spans by one agent name. Checks from two agents
+            # used to be joined into "A, B", which matches nothing — the policy
+            # saved, looked configured, and silently evaluated forever nothing.
+            # The form only offers one agent's checks; this is the guard for
+            # anything that gets past it.
+            @cross_agent_checks = agent_names.uniq
+            permitted[:agent_name] = agent_names.first if agent_names.uniq.size == 1
 
             # Default sampling_mode to every_n
             permitted[:sampling_mode] ||= "every_n"
@@ -258,9 +314,11 @@ module RAAF
             # Use the minimum from check configs or default to 10
             # Use string keys for ActionController::Parameters
             all_sample_every_n_values = check_configs.values
-                                                      .filter { |c| c["enabled"] == "1" }
-                                                      .filter_map { |c| c["sample_every_n"].to_i if c["sample_every_n"].present? }
-                                                      .select { |n| n > 0 }
+                                                     .filter { |c| c["enabled"] == "1" }
+                                                     .filter_map do |c|
+              c["sample_every_n"].presence&.to_i
+            end
+                                                     .select { |n| n > 0 }
             permitted[:sample_every_n] = all_sample_every_n_values.min || 10
           end
 
@@ -276,9 +334,9 @@ module RAAF
         end
 
         def fetch_evaluator_details(name)
-          if defined?(RAAF::Eval::Continuous::EvaluatorDiscovery)
-            RAAF::Eval::Continuous::EvaluatorDiscovery.get_details(name)
-          end
+          return unless defined?(RAAF::Eval::Continuous::EvaluatorDiscovery)
+
+          RAAF::Eval::Continuous::EvaluatorDiscovery.get_details(name)
         end
 
         def infer_evaluator_type(name)
@@ -292,23 +350,132 @@ module RAAF
 
         def default_policy_attributes
           {
-            sampling_mode: 'every_n',
+            sampling_mode: "every_n",
             sample_every_n: 10,
             priority: 50,
             retention_days: 90,
             evaluators: [],
-            agent_name: nil  # Will be auto-derived from selected evaluators
+            agent_name: nil # Will be auto-derived from selected evaluators
           }
         end
 
+        # Each scorer's average, taken from the per-check `scores` hash the
+        # results carry. Weights and thresholds are not stored anywhere, so
+        # the design's weight column and threshold marker have nothing to draw
+        # from and are left out rather than invented.
+        def check_scores(policy)
+          totals = Hash.new { |h, k| h[k] = { sum: 0.0, count: 0 } }
+
+          policy.continuous_evaluation_results.where.not(scores: nil).find_each do |result|
+            next unless result.scores.is_a?(Hash)
+
+            result.scores.each do |check, value|
+              next unless value.is_a?(Numeric)
+
+              totals[check.to_s][:sum] += value.to_f
+              totals[check.to_s][:count] += 1
+            end
+          end
+
+          totals.transform_values { |t| { average: t[:sum] / t[:count], count: t[:count] } }
+        rescue StandardError
+          {}
+        end
+
+        # The trend answers the window the topbar is set to, so it has to
+        # bucket four windows that are three orders of magnitude apart. A day
+        # per bar says nothing over an hour, and a minute per bar is 43,200
+        # bars over a month, so each range names its own bucket.
+        TREND_BUCKETS = {
+          "1h" => { size: 1.minute, unit: "minute", format: "%H:%M" },
+          "24h" => { size: 1.hour, unit: "hour", format: "%H:%M" },
+          "7d" => { size: 1.day, unit: "day", format: "%b %d" },
+          "30d" => { size: 1.day, unit: "day", format: "%b %d" }
+        }.freeze
+
+        # How the window is said out loud, in the card title and its empty
+        # state.
+        TREND_WINDOWS = { "1h" => "1 hour", "24h" => "24 hours",
+                          "7d" => "7 days", "30d" => "30 days" }.freeze
+
+        # One point per bucket, oldest first, with the buckets nothing ran in
+        # left scoreless so the trend draws them as gaps rather than zeroes.
+        #
+        # Bucketed in Ruby rather than by `date_trunc`, which has no spelling
+        # for "the minute this row falls in, counted back from now" and would
+        # need a dialect per database besides.
+        def trend_series(policy, range)
+          bucket = TREND_BUCKETS.fetch(range)
+          size = bucket[:size]
+          count = (RAAF::Rails::TimeRange::RANGES.fetch(range) / size).round
+          last = bucket_start(Time.current, size)
+          # Stepped by duration rather than by seconds, so the day the clocks
+          # go back stays one day instead of drifting an hour through the rest.
+          starts = (0...count).map { |index| last - ((count - 1 - index) * size) }
+
+          totals = trend_totals(policy, starts)
+
+          starts.each_with_index.map do |at, index|
+            scored = totals[index]
+            { at: at, label: at.strftime(bucket[:format]),
+              score: scored && (scored[:sum] / scored[:count]) }
+          end
+        rescue StandardError
+          []
+        end
+
+        # Sum and count per bucket index, from a single pass over the window.
+        def trend_totals(policy, starts)
+          totals = {}
+
+          policy.continuous_evaluation_results
+                .where(created_at: starts.first..)
+                .where.not(score: nil)
+                .pluck(:created_at, :score)
+                .each do |created_at, score|
+                  index = (starts.bsearch_index { |start| start > created_at } || starts.size) - 1
+                  next if index.negative?
+
+                  entry = (totals[index] ||= { sum: 0.0, count: 0 })
+                  entry[:sum] += score.to_f
+                  entry[:count] += 1
+                end
+
+          totals
+        end
+
+        # The newest bucket starts at the top of the one the clock is in, so
+        # the last bar is a whole bucket's worth rather than however many
+        # seconds have passed since it opened.
+        def bucket_start(time, size)
+          case size
+          when 1.day then time.beginning_of_day
+          when 1.hour then time.beginning_of_hour
+          else time.beginning_of_minute
+          end
+        end
+
+        # `policy_params` records which agents the chosen checks belong to. More
+        # than one is not a policy this system can run, so it is refused with a
+        # message rather than saved as a name that matches nothing.
+        def reject_cross_agent_checks(policy)
+          agents = Array(@cross_agent_checks)
+          return if agents.size <= 1
+
+          policy.errors.add(
+            :agent_name,
+            "must belong to one agent — these checks span #{agents.to_sentence}"
+          )
+        end
+
         def calculate_today_stats
-          results = @policy.continuous_evaluation_results.where('created_at >= ?', Time.current.beginning_of_day)
+          results = @policy.continuous_evaluation_results.where("created_at >= ?", Time.current.beginning_of_day)
           {
             total: results.count,
-            good: results.where(status: 'good').count,
-            average: results.where(status: 'average').count,
-            bad: results.where(status: 'bad').count,
-            error: results.where(status: 'error').count,
+            good: results.where(status: "good").count,
+            average: results.where(status: "average").count,
+            bad: results.where(status: "bad").count,
+            error: results.where(status: "error").count,
             avg_score: results.average(:score)
           }
         end

@@ -3,7 +3,35 @@
 module RAAF
   module Rails
     module Tracing
+      ##
+      # The Tools screen: the registry of callable tools, then the calls.
+      #
+      # The design's Tools screen is a registry — one card per tool, not one
+      # row per call — because the question it answers is "which tool is
+      # costing us" rather than "what happened at 09:41". The call list stays
+      # underneath for the follow-up.
+      #
+      # A "tool" here is whatever the agents called out to, which is wider
+      # than the tools an LLM invoked by name: see +SpanRecord::TOOL_KINDS+.
+      # Cards are grouped by the name a reader would use for the thing —
+      # the function name for an LLM tool call, the class for everything
+      # else.
+      #
       class ToolSpans < BaseComponent
+        # Tools whose name gives away what they do to the world. Read-only
+        # tools are neutral; the ones that write are worth marking.
+        WRITE_HINTS = %w[upsert create write insert update delete send post put].freeze
+        GUARD_HINTS = %w[guard scrub redact pii compliance].freeze
+
+        # Columns and fr weights taken from RAAF Tracing.dc.html.
+        COLUMNS = [
+          { label: "Tool", span: 1.6 },
+          { label: "Trace", span: 1.0 },
+          { label: "Status", span: 0.8 },
+          { label: "Duration", span: 0.6, align: :right },
+          { label: "Started", span: 0.8, align: :right }
+        ].freeze
+
         def initialize(tool_spans:, total_tool_spans:, params: {})
           @tool_spans = tool_spans
           @total_tool_spans = total_tool_spans
@@ -11,597 +39,208 @@ module RAAF
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_tool_stats
-            render_filters
-            render_tool_spans_table
-          end
-
-          content_for :javascript do
-            render_toggle_script
+          # The design's Tools screen is the card grid and nothing else. The
+          # "Recent calls" table that used to follow it answered a question
+          # Spans?kind=tool already answers, on a screen built for listing.
+          div(class: "raaf-page") do
+            registry
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
-            div(class: "min-w-0 flex-1") do
-              h1(class: "text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate") { "Tool Spans" }
-              p(class: "mt-1 text-sm text-gray-500") { "Monitor tool and custom function call executions" }
-            end
+        def registry
+          render Organisms::ToolRegistry.new(
+            tools: aggregates.map { |name, agg| card_for(name, agg) },
+            empty: { icon: "tools", title: "No tool calls recorded",
+                     text: "No tool, custom or component spans in the selected range " \
+                           "match the filters." }
+          )
+        end
 
-            div(class: "mt-4 flex sm:mt-0 sm:ml-4") do
-              render_preline_button(
-                text: "Export Tool Data",
-                href: tools_tracing_spans_path(format: :json),
-                variant: "secondary",
-                icon: "bi-download"
-              )
+        def calls
+          render(Molecules::Panel.new(title: "Recent calls", icon: "clock-history",
+                                      action: "Export JSON",
+                                      action_href: tools_tracing_spans_path(format: :json))) do
+            render(Organisms::DataGrid.new(
+                     columns: COLUMNS,
+                     empty: { icon: "clock-history", title: "No calls",
+                              text: "No tool calls match the current filters." }
+                   )) do |grid|
+              @tool_spans.each { |span| call_row(grid, span) }
             end
           end
         end
 
-        def render_tool_stats
-          stats = calculate_tool_stats
+        def call_row(grid, span)
+          grid.row(href: trace_span_path(span.span_id, span.trace_id), cells: [
+                     { value: tool_name(span), primary: true },
+                     { value: Atoms::Mono.new(short_id(span.trace_id), tone: :muted) },
+                     { value: Atoms::StatusBadge.new(span.status) },
+                     { value: Atoms::Mono.new(duration(span.duration_ms)), align: :right },
+                     { value: Atoms::Mono.new(started(span), tone: :muted), align: :right }
+                   ])
+        end
 
-          div(class: "grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6") do
-            render_metric_card(
-              title: "Total Tool Calls",
-              value: stats[:total_calls],
-              color: "blue",
-              icon: "bi-wrench"
+        # ── Aggregation ───────────────────────────────────────────────────
+        #
+        # The registry is built from the whole filtered set rather than the
+        # current page: a p95 taken from fifty rows of a thousand would be a
+        # different number every time the page turned.
+
+        def aggregates
+          @aggregates ||= (grouped_in_sql || grouped_in_ruby).sort_by { |_name, agg| -agg[:calls] }
+        end
+
+        # Counting in the database rather than over loaded rows. The screen
+        # asks one question per tool — how many, how many failed, how slow at
+        # p95 — and a relation can answer all three without the page holding a
+        # month of calls in memory. It used to load the rows and cap them at a
+        # few thousand, which quietly turned every card into a sample: the
+        # count on a card and the list it linked to disagreed.
+        def grouped_in_sql
+          return nil unless @total_tool_spans.respond_to?(:group)
+
+          name = Arel.sql(name_sql)
+          @total_tool_spans.except(:includes).reorder(nil).group(name).pluck(
+            name,
+            Arel.sql("COUNT(*)"),
+            Arel.sql("COUNT(*) FILTER (WHERE status = 'error')"),
+            Arel.sql("PERCENTILE_DISC(0.95) WITHIN GROUP (ORDER BY duration_ms)")
+          ).to_h do |tool, calls, errors, p95|
+            [tool, { calls: calls, errors: errors,
+                     error_rate: (errors.to_f / calls) * 100, p95: p95 }]
+          end
+        end
+
+        # The name a reader would use for the thing that was called, in SQL.
+        # Each kind keeps it somewhere else, and the last branch unwraps the
+        # tracer's `run.workflow.<kind>.<Class>.<method>` framing — the same
+        # order {#tool_name} applies in Ruby, so a card and the calls behind
+        # it are named alike.
+        def name_sql
+          <<~SQL.squish
+            COALESCE(
+              span_attributes::jsonb->'function'->>'name',
+              span_attributes::jsonb->>'tool_name',
+              span_attributes::jsonb->'tool'->>'name',
+              span_attributes::jsonb->'custom'->>'name',
+              #{SpanRecord::READABLE_NAME_SQL}
             )
-
-            render_metric_card(
-              title: "Unique Tools",
-              value: stats[:unique_tools],
-              color: "green",
-              icon: "bi-collection"
-            )
-
-            render_metric_card(
-              title: "Avg Duration",
-              value: format_duration(stats[:avg_duration]),
-              color: "yellow",
-              icon: "bi-stopwatch"
-            )
-
-            render_metric_card(
-              title: "Error Rate",
-              value: "#{stats[:error_rate].round(1)}%",
-              color: stats[:error_rate] > 5 ? "red" : "green",
-              icon: "bi-exclamation-triangle"
-            )
-          end
+          SQL
         end
 
-        def render_filters
-          div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: tools_tracing_spans_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-6") do |form|
-              div(class: "sm:col-span-2") do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Search" }
-                form.text_field(
-                  :search,
-                  placeholder: "Search tool names, span IDs...",
-                  value: @params[:search],
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div(class: "sm:col-span-1") do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Function Name" }
-                form.text_field(
-                  :function_name,
-                  placeholder: "Function name",
-                  value: @params[:function_name],
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div(class: "sm:col-span-1") do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Status" }
-                form.select(
-                  :status,
-                  [
-                    ["All Statuses", ""],
-                    ["Completed", "completed"],
-                    ["Failed", "failed"],
-                    ["Error", "error"]
-                  ],
-                  { selected: @params[:status] },
-                  { class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" }
-                )
-              end
-
-              div(class: "sm:col-span-1") do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Trace ID" }
-                form.text_field(
-                  :trace_id,
-                  placeholder: "Trace ID",
-                  value: @params[:trace_id],
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div(class: "sm:col-span-1 flex items-end") do
-                form.submit("Filter", class: "w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700")
-              end
-            end
-          end
+        # The same summary for a plain array of spans, which is what a spec
+        # and a caller holding records rather than a relation pass.
+        def grouped_in_ruby
+          Array(@total_tool_spans).group_by { |span| tool_name(span) }
+                                  .transform_values { |spans| summarise(spans) }
         end
 
-        def render_tool_spans_table
-          if @tool_spans.any?
-            render_preline_table do
-              table(class: "min-w-full divide-y divide-gray-200") do
-                render_table_header
-                render_table_body
-              end
-            end
-            render_pagination if @tool_spans.total_pages > 1
-          else
-            render_empty_state
-          end
+        def summarise(spans)
+          durations = spans.filter_map(&:duration_ms).sort
+          errors = spans.count(&:error?)
+
+          { calls: spans.size,
+            errors: errors,
+            error_rate: (errors.to_f / spans.size) * 100,
+            p95: percentile(durations, 0.95) }
         end
 
-        def render_table_header
-          thead(class: "bg-gray-50") do
-            tr do
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Tool / Function"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Parameters"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Kind"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Status"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Duration"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Input/Output"
-              end
-              th(scope: "col", class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
-                "Trace"
-              end
-            end
-          end
+        def percentile(sorted, fraction)
+          return nil if sorted.empty?
+
+          sorted[[(sorted.length * fraction).ceil - 1, 0].max]
         end
 
-        def render_table_body
-          tbody(class: "bg-white divide-y divide-gray-200") do
-            @tool_spans.each do |span|
-              render_tool_span_row(span)
-            end
-          end
+        def card_for(name, agg)
+          rate = agg[:error_rate]
+
+          { name: name,
+            icon: icon_for(name),
+            tag: tag_for(name),
+            tone: tone_for_tag(tag_for(name)),
+            description: description_for(agg),
+            calls: humanise(agg[:calls]),
+            error_rate: "#{'%.1f' % rate}%",
+            error_tone: if rate >= 5
+                          :bad
+                        else
+                          (rate >= 1 ? :warn : :ok)
+                        end,
+            p95: duration(agg[:p95]),
+            href: calls_path(name) }
         end
 
-        def render_tool_span_row(span)
-          tool_data = extract_tool_data(span)
-
-          tr(class: "hover:bg-gray-50") do
-            td(class: "px-6 py-4") do
-              div(class: "flex flex-col") do
-                div(class: "text-sm font-medium text-gray-900") do
-                  link_to(
-                    tool_data[:function_name] || span.name,
-                    tracing_span_path(span.span_id),
-                    class: "text-blue-600 hover:text-blue-900"
-                  )
-                end
-                div(class: "text-sm text-gray-500 font-mono") { span.span_id }
-                if tool_data[:function_name] != span.name
-                  div(class: "text-xs text-gray-400") { "Span: #{span.name}" }
-                end
-              end
-            end
-
-            td(class: "px-6 py-4") do
-              render_parameter_preview(tool_data)
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap") do
-              render_kind_badge(span.kind)
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap") do
-              render_status_badge(span.status)
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap text-sm text-gray-900") do
-              format_duration(span.duration_ms)
-            end
-
-            td(class: "px-6 py-4 max-w-md") do
-              render_input_output_summary(tool_data)
-            end
-
-            td(class: "px-6 py-4 whitespace-nowrap text-sm") do
-              if span.trace
-                link_to(
-                  span.trace.workflow_name || span.trace_id,
-                  tracing_trace_path(span.trace_id),
-                  class: "text-blue-600 hover:text-blue-500"
-                )
-              else
-                span(class: "text-gray-500") { span.trace_id }
-              end
-            end
-
-          end
+        # A card leads to its own calls, on the Spans screen. It used to lead
+        # back to this one filtered to the tool, which — since the calls table
+        # moved off this screen — showed the reader the same card again.
+        #
+        # The topbar's range is carried, so the calls you land on are the ones
+        # the card counted.
+        def calls_path(name)
+          tracing_spans_path({ search: name, range: @params[:range] }
+                               .compact.reject { |_, value| value.to_s.empty? })
         end
 
-        def render_input_output_summary(tool_data)
-          div(class: "text-sm space-y-2") do
-            # Input parameters section
-            if tool_data[:input]
-              div(class: "border border-gray-200 rounded-md") do
-                div(class: "bg-blue-50 px-3 py-2 border-b border-gray-200") do
-                  div(class: "flex items-center justify-between") do
-                    strong(class: "text-blue-900") { "Input Parameters" }
-                    button(
-                      type: "button",
-                      class: "text-blue-600 hover:text-blue-800 text-xs toggle-details-btn",
-                      data: { target: "input" }
-                    ) { "Show Details" }
-                  end
-                end
-                div(class: "p-3 bg-white hidden", data: { section: "input" }) do
-                  pre(class: "text-xs text-gray-700 whitespace-pre-wrap bg-gray-50 p-2 rounded border overflow-x-auto") do
-                    format_json_display(tool_data[:input])
-                  end
-                end
-                # Preview line
-                div(class: "px-3 py-2 text-xs text-gray-600 bg-gray-50", data: { section: "input-preview" }) do
-                  truncate_json(tool_data[:input])
-                end
-              end
-            end
+        def description_for(agg)
+          return "#{agg[:errors]} of #{agg[:calls]} calls failed." if agg[:errors].positive?
 
-            # Output results section
-            if tool_data[:output]
-              div(class: "border border-gray-200 rounded-md") do
-                div(class: "bg-green-50 px-3 py-2 border-b border-gray-200") do
-                  div(class: "flex items-center justify-between") do
-                    strong(class: "text-green-900") { "Output Results" }
-                    button(
-                      type: "button",
-                      class: "text-green-600 hover:text-green-800 text-xs toggle-details-btn",
-                      data: { target: "output" }
-                    ) { "Show Details" }
-                  end
-                end
-                div(class: "p-3 bg-white hidden", data: { section: "output" }) do
-                  pre(class: "text-xs text-gray-700 whitespace-pre-wrap bg-gray-50 p-2 rounded border overflow-x-auto") do
-                    format_json_display(tool_data[:output])
-                  end
-                end
-                # Preview line
-                div(class: "px-3 py-2 text-xs text-gray-600 bg-gray-50", data: { section: "output-preview" }) do
-                  truncate_json(tool_data[:output])
-                end
-              end
-            end
-
-            if !tool_data[:input] && !tool_data[:output]
-              div(class: "text-center py-4 text-gray-400 border border-gray-200 rounded-md bg-gray-50") do
-                "No input/output data available"
-              end
-            end
-          end
+          "#{humanise(agg[:calls])} calls, none failed."
         end
 
-        def render_pagination
-          nav(class: "bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6") do
-            div(class: "hidden sm:block") do
-              p(class: "text-sm text-gray-700") do
-                start_item = (@tool_spans.current_page - 1) * @tool_spans.limit_value + 1
-                end_item = [@tool_spans.current_page * @tool_spans.limit_value, @tool_spans.total_count].min
-                plain "Showing "
-                span(class: "font-medium") { start_item.to_s }
-                plain " to "
-                span(class: "font-medium") { end_item.to_s }
-                plain " of "
-                span(class: "font-medium") { @tool_spans.total_count.to_s }
-                plain " tool spans"
-              end
-            end
+        def tag_for(name)
+          key = name.to_s.downcase
+          return "guard" if GUARD_HINTS.any? { |hint| key.include?(hint) }
+          return "write" if WRITE_HINTS.any? { |hint| key.include?(hint) }
 
-            div(class: "flex-1 flex justify-between sm:justify-end") do
-              unless @tool_spans.first_page?
-                link_to(
-                  "Previous",
-                  tools_tracing_spans_path(@params.merge(page: @tool_spans.prev_page)),
-                  class: "relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                )
-              end
-
-              unless @tool_spans.last_page?
-                link_to(
-                  "Next",
-                  tools_tracing_spans_path(@params.merge(page: @tool_spans.next_page)),
-                  class: "ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                )
-              end
-            end
-          end
+          "read"
         end
 
-        def render_empty_state
-          div(class: "text-center py-12") do
-            i(class: "bi bi-wrench text-6xl text-gray-400 mb-4")
-            h3(class: "text-lg font-medium text-gray-900 mb-2") { "No tool spans found" }
-            p(class: "text-gray-500 mb-6") { "No tool or custom function calls match your current filters." }
-            render_preline_button(
-              text: "Clear Filters",
-              href: tools_tracing_spans_path,
-              variant: "secondary"
-            )
-          end
+        def tone_for_tag(tag)
+          { "write" => :warn, "guard" => :info }.fetch(tag, :neutral)
         end
 
-        private
+        def icon_for(name)
+          key = name.to_s.downcase
+          return "shield-check" if tag_for(name) == "guard"
+          return "database-add" if key.include?("upsert") || key.include?("crm")
+          return "globe2" if key.include?("search") || key.include?("http")
+          return "envelope-paper" if key.include?("mail") || key.include?("email")
 
-        def calculate_tool_stats
-          return { total_calls: 0, unique_tools: 0, avg_duration: 0, error_rate: 0 } unless @tool_spans.respond_to?(:count)
-
-          total_calls = @total_tool_spans.count
-          return { total_calls: 0, unique_tools: 0, avg_duration: 0, error_rate: 0 } if total_calls.zero?
-
-          error_count = @total_tool_spans.where(status: "error").count
-          durations = @tool_spans.filter_map(&:duration_ms)
-          avg_duration = durations.any? ? durations.sum.to_f / durations.size : 0
-
-          # Calculate unique tools
-          unique_tools = Set.new
-          @tool_spans.each do |span|
-            tool_data = extract_tool_data(span)
-            unique_tools.add(tool_data[:function_name]) if tool_data[:function_name]
-          end
-
-          {
-            total_calls: total_calls,
-            unique_tools: unique_tools.size,
-            avg_duration: avg_duration,
-            error_rate: (error_count.to_f / total_calls) * 100
-          }
+          "wrench-adjustable"
         end
 
-        def extract_tool_data(span)
-          if span.kind == "tool"
-            # Try multiple possible locations for input/output data
-            function_data = span.span_attributes&.dig("function") || {}
-            input_data = span.span_attributes&.dig("tool_arguments") ||
-                        function_data["input"] ||
-                        span.span_attributes&.dig("input") ||
-                        span.span_attributes&.dig("arguments")
+        # ── Formatting ────────────────────────────────────────────────────
 
-            output_data = span.span_attributes&.dig("result", "tool_result") ||
-                         span.span_attributes&.dig("result.tool_result") ||
-                         function_data["output"] ||
-                         span.span_attributes&.dig("output") ||
-                         span.span_attributes&.dig("result")
+        # `display_name` already knows where each kind hides its real name and
+        # strips the `run.workflow.custom.` prefixes off the ones that don't,
+        # so the registry groups on what a person would call the tool.
+        def tool_name(span)
+          attrs = span.span_attributes || {}
 
-            {
-              function_name: function_data["name"] ||
-                           span.span_attributes&.dig("tool_name") ||
-                           span.span_attributes&.dig("tool", "name"),
-              input: input_data,
-              output: output_data
-            }
-          else # custom
-            {
-              function_name: span.span_attributes&.dig("custom", "name") || span.name,
-              input: span.span_attributes&.dig("custom", "data") || {},
-              output: span.span_attributes&.dig("output") || span.span_attributes&.dig("result")
-            }
-          end
+          attrs.dig("function", "name") || attrs["tool_name"] || attrs.dig("tool", "name") ||
+            attrs.dig("custom", "name") || span.display_name
         end
 
-        def extract_key_parameters(input_data)
-          return [] if input_data.nil? || input_data.empty?
+        def duration(milliseconds)
+          return "—" unless milliseconds
 
-          # Define priority parameter names (most relevant first)
-          priority_params = %w[
-            query search_terms search_query q
-            company_name company customer_company
-            market_id target_market market
-            product_id product
-            url endpoint api_url
-            location country_code region
-            prospect_id stakeholder_id
-            name title
-            max_results limit count
-          ]
-
-          # Skip metadata/internal parameters
-          skip_params = %w[_execution_metadata metadata trace_id span_id timestamp]
-
-          params = []
-
-          # Convert input_data to hash if it's a string
-          data = case input_data
-                 when String
-                   begin
-                     JSON.parse(input_data)
-                   rescue JSON::ParserError
-                     { value: input_data }
-                   end
-                 when Hash
-                   input_data
-                 else
-                   { value: input_data.to_s }
-                 end
-
-          # First pass: collect priority parameters
-          priority_params.each do |key|
-            next unless data.key?(key) || data.key?(key.to_sym)
-
-            value = data[key] || data[key.to_sym]
-            next if skip_params.include?(key)
-            next if value.nil? || (value.respond_to?(:empty?) && value.empty?)
-
-            params << { name: key, value: format_param_value(value) }
-            break if params.size >= 3 # Limit to 3 key parameters
-          end
-
-          # Second pass: if we don't have enough params, add first available non-priority params
-          if params.size < 2
-            data.each do |key, value|
-              key_str = key.to_s
-              next if skip_params.include?(key_str)
-              next if priority_params.include?(key_str)
-              next if value.nil? || (value.respond_to?(:empty?) && value.empty?)
-              next if params.any? { |p| p[:name] == key_str }
-
-              params << { name: key_str, value: format_param_value(value) }
-              break if params.size >= 3
-            end
-          end
-
-          params
+          milliseconds < 1000 ? "#{milliseconds.round}ms" : "#{'%.1f' % (milliseconds / 1000.0)}s"
         end
 
-        def format_param_value(value)
-          case value
-          when String
-            truncate(value, length: 30)
-          when Array
-            if value.empty?
-              "[]"
-            elsif value.size == 1
-              truncate(value.first.to_s, length: 30)
-            else
-              "[#{value.size} items]"
-            end
-          when Hash
-            if value.empty?
-              "{}"
-            else
-              "{#{value.keys.size} keys}"
-            end
-          when Integer, Float
-            value.to_s
-          when TrueClass, FalseClass
-            value.to_s
-          else
-            truncate(value.to_s, length: 30)
-          end
+        def humanise(count)
+          count >= 1000 ? "#{(count / 1000.0).round(1)}k" : count.to_s
         end
 
-        def render_parameter_preview(tool_data)
-          key_params = extract_key_parameters(tool_data[:input])
-
-          if key_params.any?
-            div(class: "flex flex-wrap gap-2") do
-              key_params.each do |param|
-                div(class: "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200") do
-                  span(class: "font-semibold") { "#{param[:name]}:" }
-                  plain " "
-                  span(class: "font-mono") { param[:value] }
-                end
-              end
-            end
-          else
-            div(class: "text-xs text-gray-400 italic") { "No parameters" }
-          end
+        def short_id(id)
+          id.to_s.delete_prefix("trace_").first(8)
         end
 
-        def format_json_display(data)
-          return "N/A" if data.nil?
+        def started(span)
+          return "—" unless span.start_time
 
-          case data
-          when String
-            # Try to parse as JSON for pretty formatting, fallback to string
-            begin
-              parsed = JSON.parse(data)
-              format_json_with_depth_limit(parsed)
-            rescue JSON::ParserError
-              data
-            end
-          when Hash, Array
-            format_json_with_depth_limit(data)
-          else
-            data.to_s
-          end
-        end
-
-        def format_json_with_depth_limit(data, compact = false, max_depth = 100)
-          begin
-            compact ? JSON.generate(data, max_nesting: max_depth) : JSON.pretty_generate(data, max_nesting: max_depth)
-          rescue JSON::NestingError
-            # Truncate deeply nested structures and try again
-            truncated_data = truncate_deep_nesting(data, max_depth - 1)
-            result = compact ? JSON.generate(truncated_data) : JSON.pretty_generate(truncated_data)
-            "#{result}\n\n... (some deeply nested content truncated at depth #{max_depth})"
-          end
-        end
-
-        def truncate_deep_nesting(obj, max_depth, current_depth = 0)
-          return "[TRUNCATED: max depth reached]" if current_depth >= max_depth
-
-          case obj
-          when Hash
-            obj.transform_values { |v| truncate_deep_nesting(v, max_depth, current_depth + 1) }
-          when Array
-            obj.map { |item| truncate_deep_nesting(item, max_depth, current_depth + 1) }
-          else
-            obj
-          end
-        end
-
-        def truncate_json(data)
-          return "N/A" if data.nil?
-
-          json_str = case data
-                     when String
-                       data
-                     when Hash, Array
-                       data.to_json
-                     else
-                       data.to_s
-                     end
-
-          truncate(json_str, length: 100)
-        end
-
-        def render_toggle_script
-          script do
-            plain <<~JAVASCRIPT
-              document.addEventListener('DOMContentLoaded', function() {
-                // Use event delegation for dynamically loaded content
-                document.addEventListener('click', function(event) {
-                  const button = event.target.closest('.toggle-details-btn');
-                  if (!button) return;
-
-                  const target = button.getAttribute('data-target');
-                  const row = button.closest('tr');
-                  const detailsSection = row.querySelector(`[data-section="${target}"]`);
-                  const previewSection = row.querySelector(`[data-section="${target}-preview"]`);
-
-                  if (detailsSection && previewSection) {
-                    if (detailsSection.classList.contains('hidden')) {
-                      // Show details, hide preview
-                      detailsSection.classList.remove('hidden');
-                      previewSection.classList.add('hidden');
-                      button.textContent = 'Hide Details';
-                    } else {
-                      // Hide details, show preview
-                      detailsSection.classList.add('hidden');
-                      previewSection.classList.remove('hidden');
-                      button.textContent = 'Show Details';
-                    }
-                  }
-                });
-              });
-            JAVASCRIPT
-          end
+          time_ago(span.start_time)
         end
       end
     end

@@ -4,29 +4,38 @@ module RAAF
   module Rails
     module Continuous
       ##
-      # HealthController provides health check and system status endpoints
-      # for the continuous evaluation system.
+      # Two different questions share this controller, and they are answered
+      # from two different places.
+      #
+      # `show` in HTML is the console's **Scorer health** screen: whether the
+      # evaluators can still be trusted, read from the evaluations they have
+      # produced. `show` in JSON, and the `dashboard` action, answer the
+      # operational question — is the pipeline running, is the queue backed
+      # up — from RAAF's own bookkeeping tables. A monitoring check may well be
+      # pointed at the JSON, so its payload is left exactly as it was.
       #
       # Endpoints:
-      # - GET /raaf/continuous/health - JSON health check
-      # - GET /raaf/continuous/health/dashboard - HTML dashboard
+      # - GET /raaf/continuous/health - Scorer health (HTML), health check (JSON)
+      # - GET /raaf/continuous/health/dashboard - system status
       class HealthController < BaseController
-        # JSON health check endpoint
-        # Returns system health status and metrics
-        #
         # GET /raaf/continuous/health
         def show
-          health_data = gather_health_data
-
-          status_code = determine_status_code(health_data)
-
           respond_to do |format|
-            format.json { render json: health_data, status: status_code }
-            format.html { redirect_to dashboard_continuous_health_path }
+            format.html { render_scorer_health }
+            format.json do
+              health_data = gather_health_data
+              render json: health_data, status: determine_status_code(health_data)
+            end
           end
         end
 
-        # HTML dashboard showing system health
+        # The operational panel: queue depth, backpressure and the configuration
+        # in force. It is the HTML face of the JSON above rather than a second
+        # health screen.
+        #
+        # It had been calling `render_phlex`, which exists nowhere in this
+        # engine, so every request to it raised `NoMethodError`. Nothing linked
+        # to it, which is why that went unnoticed.
         #
         # GET /raaf/continuous/health/dashboard
         def dashboard
@@ -34,32 +43,45 @@ module RAAF
           @alerts = gather_recent_alerts
           @config = gather_configuration
 
-          render_phlex RAAF::Rails::Continuous::SystemHealthPanel.new(
-            health_data: @health_data,
-            alerts: @alerts,
-            config: @config
+          panel = RAAF::Rails::Continuous::SystemHealthPanel.new(
+            health_data: @health_data, alerts: @alerts, config: @config
           )
+
+          render(RAAF::Rails::Tracing::BaseLayout.new(title: "System status", crumb: "Continuous",
+                                                      current: :health, live: false) { render panel })
         end
 
         private
+
+        # The window is the topbar's range, so the reader can widen it when a
+        # policy samples too thinly to say anything over a day.
+        def render_scorer_health
+          health = RAAF::Rails::Continuous::ScorerHealth.new(window: range_duration)
+          dashboard = RAAF::Rails::Continuous::HealthDashboard.new(health: health,
+                                                                   range: current_range)
+
+          render(RAAF::Rails::Tracing::BaseLayout.new(title: "Scorer health", crumb: "Continuous",
+                                                      current: :health, range: current_range,
+                                                      range_href: range_href) { render dashboard })
+        end
 
         def gather_health_data
           queue_pending = RAAF::Eval::Models::EvaluationQueueItem.pending.count
           queue_running = RAAF::Eval::Models::EvaluationQueueItem.running.count
           queue_completed_1h = RAAF::Eval::Models::EvaluationQueueItem
-            .completed
-            .where("completed_at > ?", 1.hour.ago)
-            .count
+                               .completed
+                               .where("completed_at > ?", 1.hour.ago)
+                               .count
           queue_failed_1h = RAAF::Eval::Models::EvaluationQueueItem
-            .failed
-            .where("completed_at > ?", 1.hour.ago)
-            .count
+                            .failed
+                            .where("completed_at > ?", 1.hour.ago)
+                            .count
 
           # Calculate processing rate (per minute, last 5 minutes)
           completed_5m = RAAF::Eval::Models::EvaluationQueueItem
-            .completed
-            .where("completed_at > ?", 5.minutes.ago)
-            .count
+                         .completed
+                         .where("completed_at > ?", 5.minutes.ago)
+                         .count
           processing_rate = completed_5m / 5.0
 
           config = RAAF::Eval::Continuous.configuration
@@ -110,6 +132,7 @@ module RAAF
           return "backpressure" if config.backpressure_active
           return "degraded" if count_critical_alerts > 0
           return "warning" if pending + running > config.backpressure_threshold * 0.7
+
           "healthy"
         end
 

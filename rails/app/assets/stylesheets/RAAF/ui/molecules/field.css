@@ -1,0 +1,31 @@
+/* ============================================================================
+   Molecule — Field
+   Label, control, hint and error as one unit; also the grids that lay fields
+   out beside each other.
+   ========================================================================= */
+
+.raaf-field + .raaf-field { margin-top: var(--raaf-space-5); }
+
+.raaf-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--raaf-space-5);
+}
+
+.raaf-field-grid .raaf-field + .raaf-field { margin-top: 0; }
+
+.raaf-fieldset {
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.raaf-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  flex-wrap: wrap;
+  padding-top: var(--raaf-space-5);
+  margin-top: var(--raaf-space-6);
+  border-top: 1px solid var(--raaf-border);
+}

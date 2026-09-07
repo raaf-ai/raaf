@@ -3,163 +3,69 @@
 module RAAF
   module Rails
     module Tracing
-      class SpansList < Phlex::HTML
-      include Phlex::Rails::Helpers::LinkTo
-      include Phlex::Rails::Helpers::TimeAgoInWords
-      include Phlex::Rails::Helpers::Truncate
+      ##
+      # A flat listing of spans, on the shared DataGrid.
+      #
+      class SpansList < BaseComponent
+        # Columns from RAAF Tracing.dc.html.
+        COLUMNS = [
+          { label: "Span", span: 1.7 },
+          { label: "Kind", span: 1.1 },
+          { label: "Trace", span: 0.85 },
+          { label: "Duration", span: 0.55, align: :right },
+          { label: "Tokens", span: 0.75, align: :right },
+          { label: "Status", span: 0.75 },
+          { label: "Start", span: 0.7, align: :right }
+        ].freeze
 
-      def initialize(spans:, page: 1, per_page: 50)
-        @spans = spans
-        @page = page
-        @per_page = per_page
-      end
-
-      def view_template
-        div(class: "container-fluid") do
-          render_header
-          render_spans_table
+        def initialize(spans:, page: 1, per_page: 50)
+          @spans = spans
+          @page = page
+          @per_page = per_page
         end
-      end
 
-      private
-
-      def render_header
-        div(class: "d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom") do
-          div do
-            h1(class: "h2") { "Spans" }
-            p(class: "text-muted") { "Detailed view of all execution spans" }
-          end
-
-          div(class: "btn-toolbar mb-2 mb-md-0") do
-            div(class: "btn-group me-2") do
-              a(
-                href: "javascript:window.location.reload();",
-                class: "btn btn-sm btn-outline-secondary"
-              ) do
-                i(class: "bi bi-arrow-clockwise me-1")
-                plain "Refresh"
-              end
+        def view_template
+          render(Molecules::Panel.new(title: "Spans", icon: "layers")) do
+            render(Organisms::DataGrid.new(
+                     columns: COLUMNS,
+                     empty: { icon: "clock-history", title: "No spans found",
+                              text: "No execution spans are available yet." }
+                   )) do |grid|
+              @spans.each { |record| row(grid, record) }
             end
           end
         end
-      end
 
-      def render_spans_table
-        div(class: "card") do
-          div(class: "card-body") do
-            if @spans.any?
-              div(class: "table-responsive") do
-                table(class: "table table-sm") do
-                  thead do
-                    tr do
-                      th { "Name" }
-                      th { "Kind" }
-                      th { "Status" }
-                      th { "Duration" }
-                      th { "Trace" }
-                      th { "Started" }
-                      th(class: "text-end") { "Actions" }
-                    end
-                  end
-                  tbody do
-                    @spans.each do |span|
-                      render_span_row(span)
-                    end
-                  end
-                end
-              end
-            else
-              div(class: "text-center py-5") do
-                i(class: "bi bi-clock display-4 text-muted")
-                h3(class: "mt-3") { "No spans found" }
-                p(class: "text-muted") { "No execution spans are available." }
-              end
-            end
-          end
+        private
+
+        def row(grid, record)
+          grid.row(href: trace_span_path(record.span_id, record.trace_id), cells: [
+                     { value: display_name(record), primary: true },
+                     { value: Atoms::KindBadge.new(record.kind) },
+                     { value: record.trace&.workflow_name || record.trace_id, muted: true },
+                     { value: Atoms::Mono.new(format_duration(record.duration_ms)), align: :right },
+                     { value: Atoms::Mono.new(tokens_for(record), tone: :muted), align: :right },
+                     { value: Atoms::StatusBadge.new(record.status) },
+                     { value: Atoms::Mono.new(started(record), tone: :muted), align: :right }
+                   ])
+        end
+
+        # Reads whichever shape the span recorded its tokens in — native
+        # column or attributes payload — rather than one column that most
+        # spans predate. See RAAF::Tracing::SpanUsage.
+        def tokens_for(record)
+          value = record.respond_to?(:total_token_count) ? record.total_token_count : nil
+          value ? value.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse : "—"
+        end
+
+        def display_name(record)
+          record.respond_to?(:display_name) ? record.display_name : record.name
+        end
+
+        def started(record)
+          time_ago(record.start_time)
         end
       end
-
-      def render_span_row(span)
-        tr do
-          td do
-            div do
-              display_name = span.respond_to?(:display_name) ? span.display_name : span.name
-              strong { display_name }
-              if span.span_attributes.present? && span.span_attributes["description"]
-                br
-                small(class: "text-muted") { truncate(span.span_attributes["description"], length: 60) }
-              end
-            end
-          end
-
-          td do
-            render_kind_badge(span.kind)
-          end
-
-          td do
-            skip_reason = if %w[cancelled skipped].include?(span.status) && span.respond_to?(:skip_reason)
-                            begin
-                              span.skip_reason
-                            rescue StandardError => e
-                              Rails.logger.warn "Failed to get skip_reason for span #{span.span_id}: #{e.message}"
-                              nil
-                            end
-                          end
-            render_status_badge(span.status, skip_reason: skip_reason)
-          end
-
-          td do
-            plain format_duration(span.duration_ms)
-          end
-
-          td do
-            if span.trace
-              link_to(span.trace.workflow_name, "/raaf/tracing/traces/#{span.trace_id}", class: "text-decoration-none")
-            else
-              small(class: "text-muted") { span.trace_id }
-            end
-          end
-
-          td do
-            plain "#{time_ago_in_words(span.start_time)} ago"
-          end
-
-          td(class: "text-end") do
-            link_to("View", "/raaf/tracing/spans/#{span.span_id}", class: "btn btn-sm btn-outline-primary")
-          end
-        end
-      end
-
-      def render_status_badge(status, skip_reason: nil)
-        render RAAF::Rails::Tracing::SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason)
-      end
-
-      def render_kind_badge(kind)
-        badge_class = case kind
-                      when "agent" then "bg-primary"
-                      when "llm" then "bg-info"
-                      when "tool" then "bg-success"
-                      when "handoff" then "bg-warning text-dark"
-                      else "bg-secondary"
-                      end
-
-        span(class: "badge #{badge_class}") { kind.to_s.capitalize }
-      end
-
-      def format_duration(ms)
-        return "N/A" unless ms
-
-        if ms < 1000
-          "#{ms.round}ms"
-        elsif ms < 60_000
-          "#{(ms / 1000.0).round(1)}s"
-        else
-          minutes = (ms / 60_000).floor
-          seconds = ((ms % 60_000) / 1000.0).round(1)
-          "#{minutes}m #{seconds}s"
-        end
-      end
-    end
     end
   end
 end

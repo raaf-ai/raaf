@@ -3,7 +3,18 @@
 module RAAF
   module Rails
     module Tracing
+      ##
+      # Performance: latency by span kind, and the slowest individual spans.
+      #
       class PerformanceDashboard < BaseComponent
+        SLOW_COLUMNS = [
+          { label: "Span", span: 3 },
+          { label: "Kind", span: 1 },
+          { label: "Workflow", span: 2 },
+          { label: "Duration", span: 1, align: :right },
+          { label: "Started", span: 1, align: :right }
+        ].freeze
+
         def initialize(performance_by_kind: {}, slowest_spans: [], performance_over_time: [], params: {})
           @performance_by_kind = performance_by_kind
           @slowest_spans = slowest_spans
@@ -12,273 +23,136 @@ module RAAF
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_time_filter
-            render_performance_overview
-            render_performance_by_kind
-            render_slowest_operations
-            render_performance_trends
+          kpis
+          div(class: "raaf-split-main") do
+            slowest_panel
+            div(class: "raaf-split-side") { by_kind_panel }
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
-            div(class: "min-w-0 flex-1") do
-              h1(class: "text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate") { "Performance Dashboard" }
-              p(class: "mt-1 text-sm text-gray-500") { "Monitor agent execution performance and identify bottlenecks" }
-            end
-
-            div(class: "mt-4 flex sm:mt-0 sm:ml-4") do
-              render_preline_button(
-                text: "Export Performance Report",
-                href: "/raaf/tracing/dashboard/performance.json",
-                variant: "secondary",
-                icon: "bi-download"
-              )
-            end
-          end
+        def stats
+          @performance_by_kind.values
         end
 
-        def render_time_filter
-          div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/dashboard/performance", method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-4") do |form|
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Start Time" }
-                form.datetime_local_field(
-                  :start_time,
-                  value: @params[:start_time] || 24.hours.ago.strftime("%Y-%m-%dT%H:%M"),
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "End Time" }
-                form.datetime_local_field(
-                  :end_time,
-                  value: @params[:end_time] || Time.current.strftime("%Y-%m-%dT%H:%M"),
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Span Kind" }
-                form.select(
-                  :kind,
-                  [
-                    ["All Kinds", ""],
-                    ["Agent", "agent"],
-                    ["LLM", "llm"],
-                    ["Tool", "tool"],
-                    ["Handoff", "handoff"]
-                  ],
-                  { selected: @params[:kind] },
-                  { class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" }
-                )
-              end
-
-              div(class: "flex items-end") do
-                form.submit(
-                  "Apply Filters",
-                  class: "w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                )
-              end
-            end
-          end
+        def total_spans
+          @total_spans ||= stats.sum { |s| s[:total_spans].to_i }
         end
 
-        def render_performance_overview
-          div(class: "grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6") do
-            total_spans = @performance_by_kind.values.sum { |stats| stats[:total_spans] || 0 }
-            avg_duration = if total_spans > 0
-                             @performance_by_kind.values.sum { |stats| (stats[:avg_duration] || 0) * (stats[:total_spans] || 0) } / total_spans
-                           else
-                             0
-                           end
-
-            render_metric_card(
-              title: "Total Spans",
-              value: total_spans,
-              color: "blue",
-              icon: "bi-diagram-3"
-            )
-
-            render_metric_card(
-              title: "Avg Duration",
-              value: format_duration(avg_duration),
-              color: "green",
-              icon: "bi-stopwatch"
-            )
-
-            render_metric_card(
-              title: "P95 Duration",
-              value: format_duration(@performance_by_kind.values.map { |stats| stats[:p95_duration] || 0 }.max || 0),
-              color: "yellow",
-              icon: "bi-speedometer2"
-            )
-
-            render_metric_card(
-              title: "Error Rate",
-              value: "#{calculate_error_rate.round(1)}%",
-              color: "red",
-              icon: "bi-exclamation-triangle"
-            )
-          end
-        end
-
-        def render_performance_by_kind
-          div(class: "bg-white rounded-lg shadow mb-6") do
-            div(class: "px-6 py-4 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Performance by Span Kind" }
-            end
-
-            div(class: "p-6") do
-              if @performance_by_kind.any?
-                div(class: "space-y-4") do
-                  @performance_by_kind.each do |kind, stats|
-                    render_kind_performance_row(kind, stats)
-                  end
-                end
-              else
-                div(class: "text-center py-8 text-gray-500") do
-                  i(class: "bi bi-bar-chart text-4xl mb-2")
-                  p { "No performance data available for the selected time range" }
-                end
-              end
-            end
-          end
-        end
-
-        def render_kind_performance_row(kind, stats)
-          div(class: "flex items-center justify-between p-4 bg-gray-50 rounded-lg") do
-            div(class: "flex items-center space-x-4") do
-              render_kind_badge(kind)
-              div do
-                h4(class: "text-sm font-medium text-gray-900") { kind.to_s.capitalize }
-                p(class: "text-sm text-gray-500") { "#{stats[:total_spans]} spans" }
-              end
-            end
-
-            div(class: "grid grid-cols-4 gap-6 text-sm") do
-              div(class: "text-center") do
-                p(class: "font-medium text-gray-900") { format_duration(stats[:avg_duration]) }
-                p(class: "text-gray-500") { "Avg Duration" }
-              end
-
-              div(class: "text-center") do
-                p(class: "font-medium text-gray-900") { format_duration(stats[:median_duration]) }
-                p(class: "text-gray-500") { "Median" }
-              end
-
-              div(class: "text-center") do
-                p(class: "font-medium text-gray-900") { format_duration(stats[:p95_duration]) }
-                p(class: "text-gray-500") { "P95" }
-              end
-
-              div(class: "text-center") do
-                error_rate = stats[:total_spans] > 0 ? ((stats[:error_spans] || 0).to_f / stats[:total_spans] * 100) : 0
-                p(class: "font-medium #{'text-red-600' if error_rate > 5} #{'text-gray-900' if error_rate <= 5}") do
-                  "#{error_rate.round(1)}%"
-                end
-                p(class: "text-gray-500") { "Error Rate" }
-              end
-            end
-          end
-        end
-
-        def render_slowest_operations
-          div(class: "bg-white rounded-lg shadow mb-6") do
-            div(class: "px-6 py-4 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Slowest Operations" }
-            end
-
-            if @slowest_spans.any?
-              div(class: "divide-y divide-gray-200") do
-                @slowest_spans.each do |span|
-                  render_slow_span_row(span)
-                end
-              end
-            else
-              div(class: "p-6 text-center text-gray-500") do
-                i(class: "bi bi-hourglass-split text-4xl mb-2")
-                p { "No slow operations detected" }
-              end
-            end
-          end
-        end
-
-        def render_slow_span_row(span)
-          div(class: "px-6 py-4 hover:bg-gray-50") do
-            div(class: "flex items-center justify-between") do
-              div(class: "flex-1 min-w-0") do
-                div(class: "flex items-center space-x-3") do
-                  render_kind_badge(span.kind)
-
-                  div do
-                    div(class: "text-sm font-medium text-gray-900") do
-                      link_to(
-                        span.name,
-                        "/raaf/tracing/spans/#{span.span_id}",
-                        class: "text-blue-600 hover:text-blue-500"
-                      )
-                    end
-                    div(class: "text-sm text-gray-500 font-mono") { span.span_id }
-                  end
-                end
-              end
-
-              div(class: "flex items-center space-x-4 text-sm") do
-                span(class: "font-medium text-gray-900") { format_duration(span.duration_ms) }
-                span(class: "text-gray-500") { span.start_time&.strftime("%H:%M:%S") }
-
-                if span.trace
-                  link_to(
-                    "View Trace",
-                    "/raaf/tracing/traces/#{span.trace_id}",
-                    class: "text-blue-600 hover:text-blue-500"
-                  )
-                end
-              end
-            end
-          end
-        end
-
-        def render_performance_trends
-          div(class: "bg-white rounded-lg shadow") do
-            div(class: "px-6 py-4 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Performance Trends" }
-            end
-
-            div(class: "p-6") do
-              if @performance_over_time.any?
-                div(id: "performance-chart", class: "h-64") do
-                  # Chart will be rendered by JavaScript
-                  div(class: "flex items-center justify-center h-full text-gray-500") do
-                    i(class: "bi bi-graph-up text-4xl mb-2")
-                    p { "Loading performance trends..." }
-                  end
-                end
-              else
-                div(class: "text-center py-8 text-gray-500") do
-                  i(class: "bi bi-graph-up text-4xl mb-2")
-                  p { "No trend data available" }
-                end
-              end
-            end
-          end
-        end
-
-        def calculate_error_rate
-          return 0 if @performance_by_kind.empty?
-
-          total_spans = @performance_by_kind.values.sum { |stats| stats[:total_spans] || 0 }
-          error_spans = @performance_by_kind.values.sum { |stats| stats[:error_spans] || 0 }
-
+        # Weighted by span count — a plain mean across kinds would let a rare
+        # slow kind dominate the headline figure.
+        def weighted_avg
           return 0 if total_spans.zero?
 
-          (error_spans.to_f / total_spans) * 100
+          stats.sum { |s| s[:avg_duration_ms].to_f * s[:total_spans].to_i } / total_spans
+        end
+
+        def worst_p95
+          stats.map { |s| s[:p95_duration_ms].to_f }.max || 0
+        end
+
+        # The buckets behind the two headline figures, so a tile says whether
+        # the number has been that all window or is one bad hour.
+        def series_for(key)
+          values = @performance_over_time.to_a.map { |bucket| bucket[key].to_f }
+          values if values.length > 1
+        end
+
+        # Which hour a bar stands for, and what it was — the two things the
+        # bars alone cannot say. Without them a spike is visible but not
+        # locatable, which is the whole reason for looking at the tile.
+        def series_tips_for(key)
+          return [] unless series_for(key)
+
+          @performance_over_time.to_a.map do |bucket|
+            "#{bucket_at(bucket)} · #{reading(key, bucket)}"
+          end
+        end
+
+        def bucket_at(bucket)
+          at = bucket[:timestamp]
+          at.respond_to?(:strftime) ? at.strftime("%b %-d %H:%M") : at.to_s
+        end
+
+        def reading(key, bucket)
+          case key
+          when :span_count
+            errors = bucket[:error_count].to_i
+            spans = "#{number(bucket[:span_count])} spans"
+            errors.positive? ? "#{spans} · #{number(errors)} errored" : spans
+          else
+            "#{format_duration(bucket[key])} average"
+          end
+        end
+
+        def kpis
+          render Organisms::StatGrid.new(stats: [
+                                           { label: "Spans", value: number(total_spans), tone: :info,
+                                             note: "in the selected range", icon: "layers",
+                                             series: series_for(:span_count), series_tips: series_tips_for(:span_count) },
+                                           { label: "Avg duration", value: format_duration(weighted_avg), tone: :warn,
+                                             note: "weighted by span count", icon: "speedometer2",
+                                             series: series_for(:avg_duration), series_tips: series_tips_for(:avg_duration) },
+                                           { label: "Worst p95", value: format_duration(worst_p95), tone: :bad,
+                                             note: "slowest kind at the 95th percentile", icon: "graph-up-arrow" },
+                                           { label: "Kinds", value: @performance_by_kind.size, tone: :ok,
+                                             note: "span kinds observed", icon: "diagram-2" }
+                                         ])
+        end
+
+        def by_kind_panel
+          render(Molecules::Panel.new(title: "By kind", icon: "bar-chart")) do
+            if @performance_by_kind.blank?
+              render Molecules::EmptyState.new(icon: "bar-chart", title: "No timings")
+            else
+              slowest = worst_p95
+              @performance_by_kind.each do |kind, stat|
+                p95 = stat[:p95_duration_ms].to_f
+                share = slowest.positive? ? (p95 / slowest * 100) : 0
+
+                render Molecules::MeterRow.new(
+                  name: kind.to_s,
+                  value: format_duration(p95),
+                  pct: share,
+                  tone: (p95 >= slowest && slowest.positive? ? :bad : nil),
+                  sub: "#{number(stat[:total_spans])} spans · median #{format_duration(stat[:median_duration_ms])}",
+                  tip: "p95 #{format_duration(p95)} · #{share.round}% of the slowest kind " \
+                       "(#{format_duration(slowest)})"
+                )
+              end
+            end
+          end
+        end
+
+        def slowest_panel
+          render(Molecules::Panel.new(title: "Slowest spans", icon: "hourglass-split")) do
+            render(Organisms::DataGrid.new(
+                     columns: SLOW_COLUMNS,
+                     empty: { icon: "speedometer2", title: "No spans",
+                              text: "Nothing recorded in this range." }
+                   )) do |grid|
+              @slowest_spans.each { |span| row(grid, span) }
+            end
+          end
+        end
+
+        def row(grid, span)
+          grid.row(href: trace_span_path(span.span_id, span.trace_id), cells: [
+                     { value: span.name, primary: true },
+                     { value: Atoms::KindBadge.new(span.kind) },
+                     { value: span.trace&.workflow_name || span.trace_id, muted: true },
+                     { value: Atoms::Mono.new(format_duration(span.duration_ms), tone: :warn), align: :right },
+                     { value: Atoms::Mono.new(started(span), tone: :muted), align: :right }
+                   ])
+        end
+
+        def started(span)
+          time_ago(span.start_time)
+        end
+
+        def number(value)
+          value.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse
         end
       end
     end

@@ -1,0 +1,26 @@
+/* ============================================================================
+   Utilities — Status and kind colours
+   Semantic ink for span statuses and kinds, retained as utilities for markup
+   that colours text rather than rendering a Badge.
+   ========================================================================= */
+
+.raaf-status-ok,
+.raaf-status-completed,
+.raaf-status-success { color: var(--raaf-success); }
+
+.raaf-status-error,
+.raaf-status-failed { color: var(--raaf-danger); }
+
+.raaf-status-running,
+.raaf-status-timeout { color: var(--raaf-warning); }
+
+.raaf-status-pending,
+.raaf-status-skipped,
+.raaf-status-cancelled { color: var(--raaf-text-muted); }
+
+.raaf-kind-agent { color: var(--raaf-cyan-500); }
+.raaf-kind-llm { color: var(--raaf-info); }
+.raaf-kind-tool { color: var(--raaf-success); }
+.raaf-kind-handoff { color: var(--raaf-warning); }
+.raaf-kind-guardrail { color: var(--raaf-danger); }
+.raaf-kind-pipeline { color: var(--raaf-slate-500); }

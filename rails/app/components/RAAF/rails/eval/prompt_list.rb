@@ -3,81 +3,90 @@
 module RAAF
   module Rails
     module Eval
+      ##
+      # The prompt listing, from the Prompts screen in RAAF Eval.dc.html: one
+      # table where a row is a prompt, the version it is on, what model that
+      # version targets, which agent uses it and when it last moved.
+      #
+      # The canvas draws the table alone. The filter rail above it is this
+      # screen's own: the controller already filters by agent, and creating a
+      # prompt needs a button somewhere.
+      #
       class PromptList < RAAF::Rails::Tracing::BaseComponent
-        def initialize(prompts:)
+        # Columns and fr weights taken from RAAF Eval.dc.html.
+        COLUMNS = [
+          { label: "Prompt", span: 2.2 },
+          { label: "Version", span: 0.7, align: :right },
+          { label: "Model", span: 1.1 },
+          { label: "Used by", span: 1.5 },
+          { label: "Updated", span: 0.85, align: :right }
+        ].freeze
+
+        # @param prompts [Enumerable<Prompt>] the rows to draw
+        # @param agents [Array<String>] every agent a prompt names
+        # @param filters [Hash] :agent, as the controller read it
+        def initialize(prompts:, agents: [], filters: {})
           @prompts = prompts
+          @agents = agents || []
+          @filters = filters || {}
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_prompts_table
+          div(class: "raaf-page") do
+            filters
+            table
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              h1(class: "text-2xl font-bold text-gray-900") { "Prompts" }
-              p(class: "mt-1 text-sm text-gray-500") { "Version-controlled prompts with history and rollback" }
-            end
-            div(class: "mt-4 sm:mt-0") do
-              render_preline_button(text: "New Prompt", href: eval_prompts_path + "/new", variant: "primary", icon: "bi-plus-lg")
+        def filters
+          render(Molecules::FilterBar.new(panel: true, lead: agent_filter)) do
+            render Atoms::Mono.new(pluralize(@prompts.size, "prompt"), tone: :muted)
+            render Atoms::Button.new(label: "New prompt", icon: "plus-lg", size: :sm,
+                                     href: "#{eval_prompts_path}/new")
+          end
+        end
+
+        def agent_filter
+          Molecules::ScopeFilter.new(
+            name: "agent", value: @filters[:agent], options: @agents,
+            action: eval_prompts_path, prefix: "agent"
+          )
+        end
+
+        def table
+          render(Organisms::Card.new(flush: true)) do
+            render(Organisms::DataGrid.new(
+                     columns: COLUMNS,
+                     empty: { icon: "file-text", title: "No prompts",
+                              text: "Nothing is under version control here yet." }
+                   )) do |grid|
+              @prompts.each { |prompt| row(grid, prompt) }
             end
           end
         end
 
-        def render_prompts_table
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            if @prompts.any?
-              div(class: "overflow-x-auto") do
-                table(class: "min-w-full divide-y divide-gray-200") do
-                  thead(class: "bg-gray-50") do
-                    tr do
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Name" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Agent" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Latest Version" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Updated" }
-                      th(class: "px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase") { "Actions" }
-                    end
-                  end
-                  tbody(class: "bg-white divide-y divide-gray-200") do
-                    @prompts.each { |prompt| render_prompt_row(prompt) }
-                  end
-                end
-              end
-            else
-              render_empty_state
-            end
-          end
+        def row(grid, prompt)
+          grid.row(href: eval_prompt_path(prompt), cells: [
+                     { value: Molecules::TitleMeta.new(prompt.name, prompt.description.presence,
+                                                       mono: true) },
+                     { value: Atoms::Mono.new("v#{prompt.latest_version}"), align: :right },
+                     { value: Atoms::Mono.new(model_for(prompt), tone: :muted) },
+                     { value: Atoms::Mono.new(prompt.agent_name.presence || "no agent",
+                                              tone: :muted) },
+                     { value: Atoms::Mono.new(time_ago(prompt.updated_at), tone: :muted),
+                       align: :right }
+                   ])
         end
 
-        def render_prompt_row(prompt)
-          tr(class: "hover:bg-gray-50") do
-            td(class: "px-4 py-3") do
-              a(href: eval_prompt_path(prompt), class: "text-blue-600 hover:text-blue-800 font-medium") { prompt.name }
-              p(class: "text-xs text-gray-500 mt-1") { prompt.description.truncate(60) } if prompt.description.present?
-            end
-            td(class: "px-4 py-3 text-sm text-gray-600") { prompt.agent_name || "-" }
-            td(class: "px-4 py-3 text-sm text-gray-600") { "v#{prompt.latest_version}" }
-            td(class: "px-4 py-3 text-sm text-gray-500") { prompt.updated_at&.strftime("%Y-%m-%d") }
-            td(class: "px-4 py-3 text-right") do
-              render_preline_button(text: "View", href: eval_prompt_path(prompt), variant: "secondary", size: "xs")
-            end
-          end
-        end
+        # The model the newest version targets. Picked out of the preloaded
+        # association rather than ordered in SQL, which would be a query per
+        # row and undo the controller's `includes`.
+        def model_for(prompt)
+          latest = prompt.prompt_versions.max_by(&:version_number)
 
-        def render_empty_state
-          div(class: "flex flex-col items-center justify-center py-12") do
-            i(class: "bi bi-file-text text-5xl text-gray-400")
-            h3(class: "mt-4 text-lg font-medium text-gray-900") { "No prompts yet" }
-            p(class: "mt-1 text-sm text-gray-500") { "Create versioned prompts to track changes over time." }
-            div(class: "mt-4") do
-              render_preline_button(text: "Create Prompt", href: eval_prompts_path + "/new", variant: "primary")
-            end
-          end
+          latest&.model.presence || "—"
         end
       end
     end

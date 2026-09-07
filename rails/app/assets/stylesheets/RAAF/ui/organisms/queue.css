@@ -1,0 +1,75 @@
+/* ============================================================================
+   Organism — Evaluation queue
+   The `isQueue` screen from RAAF Continuous.dc.html: In flight beside
+   Throughput · 24h, above the waiting table.
+   ========================================================================= */
+
+.raaf-queue-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  gap: var(--raaf-space-4);
+  align-items: start;
+}
+
+@media (width <= 1024px) {
+  .raaf-queue-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── One running job ────────────────────────────────────────────────────── */
+
+.raaf-queue-job {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-queue-job:last-child { border-bottom: 0; }
+
+/* Fixed so the worker column lines up down the list rather than shifting with
+   the length of each pid. */
+.raaf-queue-worker {
+  width: 62px;
+  flex: none;
+}
+
+.raaf-queue-policy {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--raaf-text-body-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.raaf-queue-elapsed {
+  width: 60px;
+  flex: none;
+  text-align: right;
+}
+
+/* ── Throughput ─────────────────────────────────────────────────────────── */
+
+.raaf-queue-throughput {
+  height: 88px;
+  margin-bottom: var(--raaf-space-4);
+}
+
+.raaf-queue-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+}
+
+.raaf-queue-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--raaf-space-3);
+}
+
+.raaf-queue-meta-label {
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+}

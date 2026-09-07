@@ -1,0 +1,28 @@
+/* ============================================================================
+   Utilities — Style guide
+   Layout for the component library page. Nothing here is used by the product
+   pages; it exists so specimens sit on a readable grid.
+   ========================================================================= */
+
+.raaf-style-guide-row {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--raaf-space-6);
+}
+
+.raaf-style-guide-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+  width: 100%;
+}
+
+/* The tracing components are full-bleed by nature — a waterfall or a tool
+   registry sat in the flex row would shrink to its content and stop being
+   the thing it is on the screen it belongs to. */
+.raaf-style-guide-wide {
+  flex: 1 1 100%;
+  min-width: 0;
+}

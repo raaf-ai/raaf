@@ -1,0 +1,22 @@
+/* ============================================================================
+   Atom — Avatar
+   Initials disc. Used for agents, users and any entity with a short label.
+   ========================================================================= */
+
+.raaf-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--raaf-teal-400), var(--raaf-cyan-500));
+  color: var(--raaf-white);
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.raaf-avatar--md { width: 40px; height: 40px; font-size: var(--raaf-text-body); }
+.raaf-avatar--lg { width: 56px; height: 56px; font-size: 18px; }

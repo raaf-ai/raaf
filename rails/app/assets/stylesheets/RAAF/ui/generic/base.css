@@ -1,0 +1,95 @@
+/* ============================================================================
+   RAAF Dashboard — Base
+   Reset and page ground. Everything is scoped under `.raaf-root` so mounting
+   the engine inside a host application never restyles the host.
+   ========================================================================= */
+
+.raaf-root,
+.raaf-root *,
+.raaf-root *::before,
+.raaf-root *::after {
+  box-sizing: border-box;
+}
+
+.raaf-root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: var(--raaf-font-sans);
+  font-size: var(--raaf-text-body);
+  line-height: 1.5;
+  color: var(--raaf-text-primary);
+  background-color: var(--raaf-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizelegibility;
+}
+
+/* Element defaults are wrapped in `:where()`, which contributes nothing to
+   specificity. A bare `.raaf-root a` scores a class plus an element and so
+   outranks every single-class component rule — `.raaf-nav-item`,
+   `.raaf-tbl-row`, `.raaf-search` — which is how the whole sidebar, and every
+   clickable row, ended up painted link-cyan. At zero specificity these stay
+   what they are meant to be: the ground a component overrides by saying so. */
+:where(.raaf-root :is(h1, h2, h3, h4, h5, h6)) {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--raaf-text-primary);
+}
+
+:where(.raaf-root p) {
+  margin: 0;
+}
+
+/* Shell.dc.html: `a { color:#009acc }`, `a:hover { color:#4fc3e8 }`. The design
+   never underlines a link, on hover or otherwise. */
+:where(.raaf-root a) {
+  color: var(--raaf-text-link);
+  text-decoration: none;
+}
+
+:where(.raaf-root a:hover) {
+  color: var(--raaf-text-link-hover);
+}
+
+:where(.raaf-root :is(ul, ol)) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:where(.raaf-root table) {
+  border-collapse: collapse;
+}
+
+/* Scrollbars — dark, unobtrusive */
+.raaf-root ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.raaf-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.raaf-root ::-webkit-scrollbar-thumb {
+  background: var(--raaf-glass-white-10);
+  border-radius: var(--raaf-radius-pill);
+}
+
+.raaf-root ::-webkit-scrollbar-thumb:hover {
+  background: var(--raaf-glass-white-20);
+}
+
+/* Screen-reader only */
+.raaf-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

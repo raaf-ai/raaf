@@ -1,0 +1,41 @@
+/* ============================================================================
+   Atom — Label
+   Field label plus its hint and error siblings.
+   ========================================================================= */
+
+.raaf-label {
+  display: block;
+  margin-bottom: var(--raaf-space-2);
+  font-size: var(--raaf-text-body);
+  font-weight: 600;
+  color: var(--raaf-text-secondary);
+}
+
+.raaf-label--light {
+  color: var(--raaf-gray-700);
+  font-size: var(--raaf-text-h6);
+}
+
+.raaf-label-optional {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: var(--raaf-glass-white-10);
+  color: var(--raaf-text-muted);
+  font-size: var(--raaf-text-xs);
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.raaf-input-hint {
+  margin-top: var(--raaf-space-1);
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-input-error {
+  margin-top: var(--raaf-space-1);
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-danger);
+}

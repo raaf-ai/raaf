@@ -11,13 +11,18 @@ module RAAF
 
         # GET /raaf/eval/datasets
         def index
-          @datasets = Dataset.active.latest_versions.recent
-          @datasets = @datasets.where("name ILIKE ?", "%#{params[:search]}%") if params[:search].present?
+          @datasets = listed_datasets
 
           respond_to do |format|
             format.html do
-              component = RAAF::Rails::Eval::DatasetList.new(datasets: @datasets)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Datasets") { render component }
+              component = RAAF::Rails::Eval::DatasetList.new(
+                datasets: @datasets,
+                experiment_counts: experiment_counts(@datasets),
+                params: params
+              )
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: "Datasets", crumb: "Evaluate", current: :datasets
+              ) { render component }
               render layout
             end
             format.json { render json: @datasets }
@@ -32,9 +37,13 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::DatasetShow.new(
-                dataset: @dataset, items: @items, experiments: @experiments
+                dataset: @dataset, items: @items, experiments: @experiments,
+                imported_count: @dataset.dataset_items.where.not(source_span_id: nil).count,
+                experiments_count: @dataset.experiments.count
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: @dataset.name) { render component }
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: @dataset.name, crumb: "Evaluate", current: :datasets
+              ) { render component }
               render layout
             end
             format.json { render json: @dataset.as_json(include: :dataset_items) }
@@ -72,7 +81,7 @@ module RAAF
           else
             component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Dataset") { render component }
-            render layout, status: :unprocessable_entity
+            render layout, status: :unprocessable_content
           end
         end
 
@@ -83,7 +92,7 @@ module RAAF
           else
             component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@dataset.name}") { render component }
-            render layout, status: :unprocessable_entity
+            render layout, status: :unprocessable_content
           end
         end
 
@@ -106,6 +115,27 @@ module RAAF
         end
 
         private
+
+        # The screen opens on the active sets, which is what it has always
+        # listed; Archived and All are the design's other two filters, and an
+        # unrecognised value falls back to Active rather than listing nothing.
+        def listed_datasets
+          scope = Dataset.latest_versions.recent
+          scope = scope.where(status: status_filter) unless status_filter == "all"
+          scope = scope.where("name ILIKE ?", "%#{params[:search]}%") if params[:search].present?
+          scope
+        end
+
+        def status_filter
+          value = params[:status].to_s
+          %w[active archived all].include?(value) ? value : "active"
+        end
+
+        # One query for the whole page rather than one per row.
+        def experiment_counts(datasets)
+          RAAF::Eval::Models::Experiment.where(dataset_id: datasets.map(&:id))
+                                        .group(:dataset_id).count
+        end
 
         def set_dataset
           @dataset = Dataset.find(params[:id])

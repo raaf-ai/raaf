@@ -6,6 +6,7 @@ module RAAF
       module SpanDetail
         class DialogueDisplay < BaseComponent
           include MarkdownRenderer
+
           def initialize(messages:, title: "Conversation", collapsible: true)
             @messages = messages || []
             @title = title
@@ -16,7 +17,8 @@ module RAAF
           def view_template
             return render_empty_state if @messages.empty?
 
-            div(id: "dialogue", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 mb-6 scroll-mt-6") do
+            div(id: "dialogue",
+                class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 mb-6 scroll-mt-6") do
               render_header
               render_content
             end
@@ -37,7 +39,9 @@ module RAAF
                 div(class: "flex items-center gap-3") do
                   i(class: "bi bi-chat-dots text-blue-600 text-lg")
                   h3(class: "text-lg font-semibold text-blue-900") { @title }
-                  span(class: "px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full") { "#{@messages.length} messages" }
+                  span(class: "px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full") do
+                    "#{@messages.length} messages"
+                  end
                 end
 
                 if @collapsible
@@ -89,7 +93,9 @@ module RAAF
                   span(class: "text-sm font-semibold #{role_color_class(role)}") { role.capitalize }
                   span(class: "text-xs text-gray-500") { "##{index + 1}" }
                   if tool_calls&.any?
-                    span(class: "px-1.5 py-0.5 text-xs bg-purple-100 text-purple-800 rounded") { "#{tool_calls.length} tools" }
+                    span(class: "px-1.5 py-0.5 text-xs bg-purple-100 text-purple-800 rounded") do
+                      "#{tool_calls.length} tools"
+                    end
                   end
                 end
 
@@ -97,26 +103,24 @@ module RAAF
                 render_message_content(content, role)
 
                 # Tool calls if present
-                if tool_calls&.any?
-                  render_tool_calls(tool_calls)
-                end
+                render_tool_calls(tool_calls) if tool_calls&.any?
               end
             end
           end
 
           def render_role_avatar(role)
             icon_class, bg_class = case role.downcase
-                                  when "user"
-                                    ["bi-person", "bg-blue-100 text-blue-600"]
-                                  when "assistant"
-                                    ["bi-robot", "bg-green-100 text-green-600"]
-                                  when "system"
-                                    ["bi-gear", "bg-gray-100 text-gray-600"]
-                                  when "tool"
-                                    ["bi-wrench", "bg-purple-100 text-purple-600"]
-                                  else
-                                    ["bi-question-circle", "bg-orange-100 text-orange-600"]
-                                  end
+                                   when "user"
+                                     ["bi-person", "bg-blue-100 text-blue-600"]
+                                   when "assistant"
+                                     ["bi-robot", "bg-green-100 text-green-600"]
+                                   when "system"
+                                     ["bi-gear", "bg-gray-100 text-gray-600"]
+                                   when "tool"
+                                     ["bi-wrench", "bg-purple-100 text-purple-600"]
+                                   else
+                                     ["bi-question-circle", "bg-orange-100 text-orange-600"]
+                                   end
 
             div(class: "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 #{bg_class}") do
               i(class: "#{icon_class} text-sm")
@@ -127,12 +131,12 @@ module RAAF
             return if content.blank?
 
             content_class = case role.downcase
-                           when "user" then "bg-blue-50 border-blue-200"
-                           when "assistant" then "bg-green-50 border-green-200"
-                           when "system" then "bg-gray-50 border-gray-200"
-                           when "tool" then "bg-purple-50 border-purple-200"
-                           else "bg-orange-50 border-orange-200"
-                           end
+                            when "user" then "bg-blue-50 border-blue-200"
+                            when "assistant" then "bg-green-50 border-green-200"
+                            when "system" then "bg-gray-50 border-gray-200"
+                            when "tool" then "bg-purple-50 border-purple-200"
+                            else "bg-orange-50 border-orange-200"
+                            end
 
             div(class: "#{content_class} border rounded-lg p-3 mb-2") do
               # RAAF EVAL: Display full prompts without truncation by default
@@ -148,7 +152,7 @@ module RAAF
 
           def render_collapsible_content(content)
             content_id = "content-#{SecureRandom.hex(4)}"
-            preview_content = content[0..1000] + "..."  # Increased preview from 500 to 1000 chars
+            preview_content = content[0..1000] + "..." # Increased preview from 500 to 1000 chars
 
             div(data: { controller: "span-detail" }) do
               # Full content section - visible by default for RAAF Eval prompt visibility
@@ -251,6 +255,7 @@ module RAAF
 
           def looks_like_json?(content)
             return false unless content.is_a?(String)
+
             content.strip.start_with?("{", "[") && content.strip.end_with?("}", "]")
           end
 

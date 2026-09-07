@@ -3,233 +3,284 @@
 module RAAF
   module Rails
     module Tracing
+      ##
+      # Monitor › Cost & usage: what the window cost, then where it went.
+      #
+      # Four figures over two equal breakdowns, as RAAF Console.dc.html draws
+      # it. The dashboard splits the second one by agent rather than by
+      # workflow: an agent is the thing somebody can change the model or the
+      # prompt of, and it is the same unit the Agents screen bills, so the two
+      # cannot disagree.
+      #
+      # The breakdowns arrive titled rather than as fixed keys, because the
+      # older /tracing/costs route reaches this screen with a workflow split
+      # and a panel headed "By agent" over workflow rows would be a lie.
+      #
+      # Every breakdown is MeterRow, which is also what pipeline heat and eval
+      # scores use — the inventory is explicit that it should not be forked.
+      #
+      # Two of the four figures carry a delta, as the design draws them: a
+      # bill is only readable against the one before it, and $2.57 over a week
+      # says nothing about whether the week was expensive. The comparison is
+      # the window immediately preceding this one, of the same length, which
+      # is the same basis the Errors screen trends its signatures on.
+      #
+      # Projected month deliberately carries none. The design compares it to a
+      # budget, and there is no budget on this route to compare it to; a
+      # percentage against the preceding window would repeat Spend's exactly,
+      # since both divide the same two totals by the same number of hours.
+      #
       class CostsIndex < BaseComponent
+        # @param cost_data [Hash] :total_cost, :total_tokens, :input_tokens,
+        #   :output_tokens, :runs, :window_hours, :breakdowns — an array of
+        #   +{ title:, rows: [{ name:, cost:, tokens: }] }+ — and :preceding,
+        #   +{ total_cost:, runs: }+ for the window before this one or nil
         def initialize(cost_data:, params: {})
           @cost_data = cost_data
           @params = params
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_time_filter
-            render_cost_overview
-            render_cost_breakdown
+          div(class: "raaf-page") do
+            kpis
+            render(Organisms::CardGrid.new) do
+              @cost_data[:breakdowns].to_a.each { |panel| breakdown(panel) }
+            end
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
-            div(class: "min-w-0 flex-1") do
-              h1(class: "text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate") { "Cost Tracking" }
-              p(class: "mt-1 text-sm text-gray-500") { "Monitor AI model usage costs and token consumption" }
-            end
+        def kpis
+          render Organisms::StatGrid.new(stats: kpi_stats)
+        end
 
-            div(class: "mt-4 flex sm:mt-0 sm:ml-4") do
-              render_preline_button(
-                text: "Export Report",
-                href: "/raaf/tracing/costs.json",
-                variant: "secondary",
-                icon: "bi-download"
-              )
+        def kpi_stats
+          [
+            { label: "Spend", value: money(@cost_data[:total_cost]), tone: spend_tone,
+              delta: spend_delta, note: spend_note, icon: "cash-stack" },
+            { label: "Tokens", value: compact(@cost_data[:total_tokens]), tone: :info,
+              note: token_split, icon: "hash" },
+            { label: "Cost / run", value: money(cost_per_run, places: 3), tone: cost_per_run_tone,
+              delta: cost_per_run_delta, note: cost_per_run_note, icon: "receipt" },
+            { label: "Projected month", value: money(projected_month), tone: :ok,
+              note: projection_note, icon: "graph-up" }
+          ]
+        end
+
+        # What the same length of time immediately before this window cost, or
+        # nil where the controller did not carry one — the older /tracing/costs
+        # route bills from CostManager and has no preceding window to hand.
+        def preceding
+          @cost_data[:preceding].presence
+        end
+
+        # Percent change in spend, as the design writes a KPI delta: signed, no
+        # arrow, and "flat" rather than "+0.0%" for a window that did not move.
+        def spend_delta
+          return nil unless preceding
+
+          percent_delta(@cost_data[:total_cost].to_f, preceding[:total_cost].to_f)
+        end
+
+        # Spending less is the good direction, so the tone is inverted against
+        # what a rising figure means on Runs or Success rate. Tone colours the
+        # icon with the delta, which is why it moves with the comparison rather
+        # than staying the fixed :info this card carried before.
+        def spend_tone
+          direction_tone(spend_change)
+        end
+
+        def spend_note
+          return "in the selected range" unless preceding
+
+          "vs #{money(preceding[:total_cost])} in the preceding #{window_phrase}"
+        end
+
+        def spend_change
+          return nil unless preceding
+
+          @cost_data[:total_cost].to_f - preceding[:total_cost].to_f
+        end
+
+        # In dollars rather than percent: the figure it sits beside is already
+        # a fraction of a cent, and "+9%" of $0.064 is not a number anybody can
+        # act on without doing the arithmetic back.
+        def cost_per_run_delta
+          change = cost_per_run_change
+          return nil if change.nil?
+          return "flat" if change.round(3).zero?
+
+          "#{change.negative? ? '-' : '+'}#{money(change.abs, places: 3)}"
+        end
+
+        # Falls back to the fixed :warn this card carried before there was
+        # anything to compare it with, so a window with no predecessor looks
+        # exactly as it did.
+        def cost_per_run_tone
+          preceding ? direction_tone(cost_per_run_change) : :warn
+        end
+
+        def cost_per_run_note
+          billed = "#{number(runs)} #{'run'.pluralize(runs)} billed"
+          return billed unless preceding
+
+          "#{billed} · #{money(preceding_cost_per_run, places: 3)} before"
+        end
+
+        def cost_per_run_change
+          return nil unless preceding
+
+          cost_per_run - preceding_cost_per_run
+        end
+
+        def preceding_cost_per_run
+          runs_before = preceding[:runs].to_i
+          runs_before.zero? ? 0.0 : preceding[:total_cost].to_f / runs_before
+        end
+
+        def percent_delta(current, previous)
+          return nil unless previous.positive?
+
+          pct = ((current - previous) / previous) * 100
+          return "flat" if pct.round(1).zero?
+
+          "#{pct.positive? ? '+' : '-'}#{pct.abs.round(1)}%"
+        end
+
+        # A bill that grew is worth a second look; one that shrank is not. No
+        # comparison means no claim, so the card falls back to :info.
+        def direction_tone(change)
+          return :info if change.nil? || change.round(6).zero?
+
+          change.positive? ? :warn : :ok
+        end
+
+        # The preceding window is as long as this one, so it is named by this
+        # one's length rather than by the range chip — an explicit
+        # start_time/end_time overrides the chip, and "the preceding 24h" over
+        # a three-day window would be wrong about what it compared.
+        def window_phrase
+          hours = @cost_data[:window_hours].to_f
+          return "window" unless hours.positive?
+          return "#{(hours / 24).round}d" if hours >= 24
+
+          "#{hours.round}h"
+        end
+
+        def token_split
+          input = @cost_data[:input_tokens].to_i
+          output = @cost_data[:output_tokens].to_i
+          return "input and output combined" if (input + output).zero?
+
+          "#{compact(input)} in · #{compact(output)} out"
+        end
+
+        def runs
+          @cost_data[:runs].to_i
+        end
+
+        def cost_per_run
+          runs.zero? ? 0.0 : @cost_data[:total_cost].to_f / runs
+        end
+
+        # The window's burn rate over thirty days. Deliberately a rate rather
+        # than a forecast: nobody has told this screen what the month's traffic
+        # will look like, so it says what a month at this pace costs and labels
+        # it as exactly that.
+        #
+        # The window length comes from the controller rather than from the
+        # range chip, because an explicit start_time/end_time overrides the
+        # chip and the projection would otherwise be scaled from the wrong span
+        # of time.
+        def projected_month
+          hours = @cost_data[:window_hours].to_f
+          return 0.0 unless hours.positive?
+
+          (@cost_data[:total_cost].to_f / hours) * 24 * 30
+        end
+
+        def projection_note
+          "at the pace of the selected range"
+        end
+
+        def breakdown(panel)
+          rows = panel[:rows].to_a
+
+          render(Molecules::Panel.new(title: panel[:title], icon: "bar-chart", pad: rows.empty?)) do
+            if rows.empty?
+              render Molecules::EmptyState.new(icon: "cash-stack", title: "Nothing billed",
+                                               text: nothing_billed_text)
+            else
+              base = share_base(rows)
+              rows.each { |row| meter(row, base) }
             end
           end
         end
 
-        def render_time_filter
-          div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/costs", method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-4") do |form|
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Start Date" }
-                form.date_field(
-                  :start_date,
-                  value: @params[:start_date] || 30.days.ago.to_date,
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
+        # Why the panel is empty, which "No spend recorded in this range" on
+        # its own cannot say. A window that ends before the last run is the
+        # common case on a dev database and on any quiet account, and a bare
+        # $0.00 over it reads as a broken page rather than as a correct answer
+        # about a window where nothing happened.
+        def nothing_billed_text
+          last = @cost_data[:last_billed_at]
+          return "No spend has been recorded yet." unless last
 
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "End Date" }
-                form.date_field(
-                  :end_date,
-                  value: @params[:end_date] || Date.current,
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Model" }
-                form.select(
-                  :model,
-                  [
-                    ["All Models", ""],
-                    ["GPT-4", "gpt-4"],
-                    ["GPT-4 Turbo", "gpt-4-turbo"],
-                    ["GPT-3.5 Turbo", "gpt-3.5-turbo"],
-                    ["Claude 3", "claude-3"]
-                  ],
-                  { selected: @params[:model] },
-                  { class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" }
-                )
-              end
-
-              div(class: "flex items-end space-x-3") do
-                form.submit(
-                  "Apply Filter",
-                  class: "flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                )
-                link_to(
-                  "Reset",
-                  "/raaf/tracing/costs",
-                  class: "flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                )
-              end
-            end
-          end
+          "No spend in this range. The most recent billed run was #{time_ago(last)}."
         end
 
-        def render_cost_overview
-          div(class: "grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8") do
-            render_cost_metric_card(
-              title: "Total Cost",
-              value: format_currency(@cost_data[:total_cost] || 0),
-              color: "blue",
-              icon: "bi-currency-dollar"
-            )
-
-            render_cost_metric_card(
-              title: "Total Tokens",
-              value: format_number(@cost_data[:total_tokens] || 0),
-              color: "green",
-              icon: "bi-hash"
-            )
-
-            render_cost_metric_card(
-              title: "Avg Cost per Trace",
-              value: format_currency(@cost_data[:avg_cost_per_trace] || 0),
-              color: "purple",
-              icon: "bi-graph-up"
-            )
-
-            render_cost_metric_card(
-              title: "Most Expensive Model",
-              value: @cost_data[:most_expensive_model] || "N/A",
-              color: "yellow",
-              icon: "bi-cpu"
-            )
-          end
+        # The design scales each bar against the largest row rather than
+        # against the total, so the smallest entries stay visible instead of
+        # collapsing into the same hairline.
+        def share_base(rows)
+          rows.map { |row| row[:cost].to_f }.max.to_f
         end
 
-        def render_cost_breakdown
-          div(class: "grid grid-cols-1 gap-6 lg:grid-cols-2") do
-            render_cost_by_model
-            render_cost_by_workflow
-          end
+        def meter(row, base)
+          cost = row[:cost].to_f
+          pct = base.positive? ? (cost / base) * 100 : 0
+
+          render Molecules::MeterRow.new(
+            name: row[:name].to_s.presence || "—",
+            value: money(cost),
+            pct: pct,
+            meta: compact(row[:tokens]),
+            tone: (pct > 66 ? :warn : nil),
+            tip: meter_tip(row, cost)
+          )
         end
 
-        def render_cost_by_model
-          div(class: "bg-white overflow-hidden shadow rounded-lg") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg leading-6 font-medium text-gray-900") { "Cost by Model" }
-            end
+        # The bar is scaled against the largest row so the small entries stay
+        # visible, which means its fill is *not* the share of the bill — the
+        # figure a reader actually wants off a cost breakdown. The readout is
+        # where that share is stated, against the window's total.
+        def meter_tip(row, cost)
+          total = @cost_data[:total_cost].to_f
+          share = total.positive? ? (cost / total * 100).round(1) : nil
 
-            div(class: "px-4 py-5 sm:p-6") do
-              if @cost_data[:by_model]&.any?
-                div(class: "space-y-4") do
-                  @cost_data[:by_model].each do |model_data|
-                    render_cost_breakdown_item(
-                      name: model_data[:model],
-                      cost: model_data[:cost],
-                      tokens: model_data[:tokens],
-                      percentage: model_data[:percentage]
-                    )
-                  end
-                end
-              else
-                p(class: "text-gray-500") { "No cost data available for the selected period." }
-              end
-            end
-          end
+          [row[:name].to_s.presence || "unattributed",
+           "#{money(cost)}#{" · #{share}% of the bill" if share}",
+           "#{number(row[:tokens])} tokens"].join(" · ")
         end
 
-        def render_cost_by_workflow
-          div(class: "bg-white overflow-hidden shadow rounded-lg") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg leading-6 font-medium text-gray-900") { "Cost by Workflow" }
-            end
-
-            div(class: "px-4 py-5 sm:p-6") do
-              if @cost_data[:by_workflow]&.any?
-                div(class: "space-y-4") do
-                  @cost_data[:by_workflow].each do |workflow_data|
-                    render_cost_breakdown_item(
-                      name: workflow_data[:workflow],
-                      cost: workflow_data[:cost],
-                      tokens: workflow_data[:tokens],
-                      percentage: workflow_data[:percentage]
-                    )
-                  end
-                end
-              else
-                p(class: "text-gray-500") { "No workflow cost data available." }
-              end
-            end
-          end
+        # Kernel#format is shadowed in the view context; use String#% directly.
+        def money(value, places: 2)
+          "$#{"%.#{places}f" % value.to_f}"
         end
 
-        def render_cost_breakdown_item(name:, cost:, tokens:, percentage:)
-          div(class: "border border-gray-200 rounded-lg p-4") do
-            div(class: "flex justify-between items-start mb-2") do
-              div(class: "font-medium text-gray-900") { name }
-              div(class: "text-right") do
-                div(class: "font-medium text-gray-900") { format_currency(cost) }
-                div(class: "text-sm text-gray-500") { format_number(tokens) + " tokens" }
-              end
-            end
+        # Token counts run to millions, where every digit past the first two is
+        # noise beside the figure it explains.
+        def compact(value)
+          count = value.to_i
+          return "#{(count / 1_000_000.0).round(1)}M" if count >= 1_000_000
+          return "#{(count / 1000.0).round(1)}k" if count >= 1000
 
-            div(class: "w-full bg-gray-200 rounded-full h-2") do
-              div(
-                class: "bg-blue-600 h-2 rounded-full",
-                style: "width: #{[percentage || 0, 100].min}%"
-              )
-            end
-
-            div(class: "mt-1 text-sm text-gray-500") do
-              "#{percentage || 0}% of total cost"
-            end
-          end
+          count.to_s
         end
 
-        def render_cost_metric_card(title:, value:, color:, icon:)
-          div(class: "bg-white overflow-hidden shadow rounded-lg") do
-            div(class: "p-5") do
-              div(class: "flex items-center") do
-                div(class: "flex-shrink-0") do
-                  div(class: "w-8 h-8 bg-#{color}-500 rounded-md flex items-center justify-center") do
-                    i(class: "bi #{icon} text-white")
-                  end
-                end
-                div(class: "ml-5 w-0 flex-1") do
-                  dt(class: "text-sm font-medium text-gray-500 truncate") { title }
-                  dd do
-                    div(class: "text-lg font-medium text-gray-900") { value }
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        def format_currency(amount)
-          return "$0.00" unless amount
-          "$#{'%.2f' % amount}"
-        end
-
-        def format_number(number)
-          return "0" unless number
-          number.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+        def number(value)
+          value.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse
         end
       end
     end

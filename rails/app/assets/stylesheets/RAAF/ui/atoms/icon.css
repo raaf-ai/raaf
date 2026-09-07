@@ -1,0 +1,64 @@
+/* ============================================================================
+   Atom — Icon
+   Wraps a Bootstrap Icons glyph so size and tone are set by class, not style.
+   ========================================================================= */
+
+.raaf-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  font-size: var(--raaf-text-h6);
+}
+
+.raaf-icon--sm { font-size: var(--raaf-text-body); }
+.raaf-icon--lg { font-size: var(--raaf-text-h5); }
+.raaf-icon--xl { font-size: var(--raaf-text-h4); }
+
+.raaf-icon--muted { color: var(--raaf-text-muted); }
+.raaf-icon--accent { color: var(--raaf-cyan-500); }
+.raaf-icon--success { color: var(--raaf-success); }
+.raaf-icon--warning { color: var(--raaf-warning); }
+.raaf-icon--danger { color: var(--raaf-danger); }
+.raaf-icon--info { color: var(--raaf-info); }
+
+/* Tinted square behind an icon — card headers, empty states */
+.raaf-icon-box {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--raaf-radius-md);
+  background: var(--raaf-glass-white-8);
+  border: 1px solid var(--raaf-border);
+  color: var(--raaf-text-secondary);
+  font-size: var(--raaf-text-h5);
+}
+
+.raaf-icon-box--accent {
+  background: rgb(0 154 204 / 15%);
+  border-color: rgb(0 154 204 / 30%);
+  color: var(--raaf-cyan-500);
+}
+
+.raaf-icon-box--success {
+  background: var(--raaf-success-bg);
+  border-color: rgb(17 170 100 / 30%);
+  color: var(--raaf-success);
+}
+
+.raaf-icon-box--warning {
+  background: var(--raaf-warning-bg);
+  border-color: rgb(245 158 11 / 30%);
+  color: var(--raaf-warning);
+}
+
+.raaf-icon-box--danger {
+  background: var(--raaf-danger-bg);
+  border-color: rgb(239 68 68 / 30%);
+  color: var(--raaf-danger);
+}
+
+.raaf-icon-box--lg { width: 56px; height: 56px; font-size: var(--raaf-text-h4); }

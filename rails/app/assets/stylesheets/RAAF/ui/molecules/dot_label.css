@@ -1,0 +1,21 @@
+/* ============================================================================
+   Molecule — DotLabel
+   A status dot in front of a name. The dot must not shrink and the label must
+   truncate, or a long agent name pushes the dot out of its own table cell.
+   ========================================================================= */
+
+.raaf-dot-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.raaf-dot-label > .raaf-dot { flex: none; }
+
+.raaf-dot-label-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

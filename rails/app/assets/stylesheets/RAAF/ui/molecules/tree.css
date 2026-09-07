@@ -1,0 +1,105 @@
+/* ============================================================================
+   Molecule — Tree
+   The span hierarchy: indent guides, node marks, and the expander the
+   span-hierarchy script drives.
+   ========================================================================= */
+
+.raaf-tree-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--raaf-space-2);
+  padding-left: calc(var(--raaf-tree-level, 0) * 24px);
+}
+
+/* Elbow connector for a child node */
+.raaf-tree-elbow {
+  width: 16px;
+  height: 12px;
+  flex-shrink: 0;
+  margin-top: 6px;
+  border-left: 2px solid var(--raaf-border-strong);
+  border-bottom: 2px solid var(--raaf-border-strong);
+}
+
+.raaf-tree-spacer {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+/* Expander — `expand-button` and `data-span-id` are the hooks the layout's
+   span-hierarchy script binds to; do not rename them. */
+.expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--raaf-border);
+  border-radius: 50%;
+  background: var(--raaf-glass-white-8);
+  color: var(--raaf-text-secondary);
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.expand-button:hover {
+  background: var(--raaf-glass-white-15);
+  color: var(--raaf-white);
+}
+
+.expand-button.expanded { transform: rotate(90deg); }
+
+/* Node marks distinguishing root / parent / leaf */
+.raaf-tree-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: var(--raaf-text-xs);
+}
+
+.raaf-tree-mark--root {
+  background: rgb(0 154 204 / 18%);
+  color: var(--raaf-cyan-500);
+}
+
+.raaf-tree-mark--parent {
+  background: var(--raaf-success-bg);
+  color: var(--raaf-success);
+}
+
+.raaf-tree-mark--leaf {
+  background: var(--raaf-glass-white-8);
+  color: var(--raaf-text-muted);
+}
+
+/* Child rows get a faint tint so the nesting reads at a glance */
+.raaf-root tr.span-children { background: rgb(0 154 204 / 4%); }
+
+.raaf-tree-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.raaf-tree-name {
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 500;
+  color: var(--raaf-white);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raaf-tree-relation {
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}

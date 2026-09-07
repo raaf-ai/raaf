@@ -1,0 +1,32 @@
+/* ============================================================================
+   Molecule — Breadcrumb
+   ========================================================================= */
+
+.raaf-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--raaf-space-2);
+  font-size: var(--raaf-text-body);
+}
+
+.raaf-breadcrumb-item {
+  color: var(--raaf-text-muted);
+  text-decoration: none;
+}
+
+.raaf-breadcrumb-item:hover {
+  color: var(--raaf-cyan-500);
+  text-decoration: none;
+}
+
+.raaf-breadcrumb-item.is-active {
+  color: var(--raaf-white);
+  font-weight: 500;
+}
+
+.raaf-breadcrumb-sep {
+  color: var(--raaf-text-muted);
+  font-size: var(--raaf-text-body);
+  user-select: none;
+}

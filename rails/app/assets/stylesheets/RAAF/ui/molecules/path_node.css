@@ -1,0 +1,90 @@
+/* ============================================================================
+   PathNode — one hop on a trace path, on a connector rail.
+   ========================================================================= */
+
+.raaf-path {
+  display: flex;
+  align-items: stretch;
+
+  --raaf-tree-level: 0;
+}
+
+/* The indent is a spacer track rather than padding, so the rail stays a
+   straight line down the list whatever the depth is. */
+.raaf-path::before {
+  content: "";
+  flex-shrink: 0;
+  width: calc(var(--raaf-tree-level) * 22px);
+}
+
+.raaf-path-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 26px;
+}
+
+.raaf-path-stub {
+  flex: 1;
+  width: 1px;
+  background: var(--raaf-border);
+}
+
+.raaf-path--first > .raaf-path-rail > .raaf-path-stub:first-child,
+.raaf-path--last > .raaf-path-rail > .raaf-path-stub:last-child {
+  background: transparent;
+}
+
+.raaf-path-rail .raaf-dot { box-shadow: 0 0 0 3px var(--raaf-bg-ambient); }
+
+.raaf-path-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  margin: 3px 0;
+  padding: 9px 13px;
+  border: 1px solid var(--raaf-border);
+  border-radius: 11px;
+  background: var(--raaf-glass-white-5);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.raaf-path-body:hover { border-color: var(--raaf-border-strong); }
+
+.raaf-path-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--raaf-font-mono);
+  font-size: 12.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raaf-path-note {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+  white-space: nowrap;
+}
+
+.raaf-path-dur { font-size: var(--raaf-text-sm); }
+
+.raaf-path--bad > .raaf-path-body {
+  border-color: rgb(239 68 68 / 32%);
+  background: rgb(239 68 68 / 8%);
+}
+
+.raaf-path--bad .raaf-path-dur { color: var(--raaf-tone-bad-text); }
+
+.raaf-path--warn > .raaf-path-body {
+  border-color: rgb(245 158 11 / 32%);
+  background: rgb(245 158 11 / 8%);
+}
+
+.raaf-path--idle .raaf-path-name,
+.raaf-path--idle .raaf-path-dur { color: var(--raaf-text-muted); }

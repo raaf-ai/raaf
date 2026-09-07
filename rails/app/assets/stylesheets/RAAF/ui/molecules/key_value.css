@@ -1,0 +1,70 @@
+/* ============================================================================
+   Molecule — KeyValue
+   The detail-pane workhorse: a label above or beside its value.
+   ========================================================================= */
+
+.raaf-kv-list {
+  display: grid;
+  gap: var(--raaf-space-4);
+}
+
+.raaf-kv-list--cols {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.raaf-kv-list--rows .raaf-kv {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: var(--raaf-space-4);
+  align-items: baseline;
+  padding-bottom: var(--raaf-space-3);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-kv-list--rows .raaf-kv:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Rows are where a span's own attribute names land, and those are dotted
+   paths with no space to break at. */
+.raaf-kv-list--rows .raaf-kv-key { overflow-wrap: anywhere; }
+
+/* A value that is a block rather than a line — a pretty-printed schema, a
+   handoff's context — sits alongside the top of its label, not the baseline
+   of its first line. */
+.raaf-kv-list--rows .raaf-kv--block { align-items: start; }
+
+.raaf-kv-key {
+  font-size: var(--raaf-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-kv-list--cols .raaf-kv-key {
+  margin-bottom: var(--raaf-space-1);
+  display: block;
+}
+
+.raaf-kv-value {
+  font-size: var(--raaf-text-body);
+  color: var(--raaf-text-primary);
+  word-break: break-word;
+}
+
+.raaf-kv-value--mono {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-body-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.raaf-kv-value--muted { color: var(--raaf-text-muted); }
+
+@media (width <= 768px) {
+  .raaf-kv-list--rows .raaf-kv {
+    grid-template-columns: 1fr;
+    gap: var(--raaf-space-1);
+  }
+}

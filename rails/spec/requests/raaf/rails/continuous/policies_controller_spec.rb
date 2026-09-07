@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
   let(:valid_attributes) do
     {
-      name: 'Test Policy',
-      agent_name: 'TestAgent',
-      sampling_mode: 'percentage',
+      name: "Test Policy",
+      agent_name: "TestAgent",
+      sampling_mode: "percentage",
       sample_rate: 10,
       evaluators: []
     }
@@ -27,11 +27,22 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
     end
 
     it "filters by active status" do
-      active_policy = EvaluationPolicy.create!(valid_attributes.merge(active: true))
-      inactive_policy = EvaluationPolicy.create!(valid_attributes.merge(name: 'Inactive', active: false))
+      EvaluationPolicy.create!(valid_attributes.merge(active: true))
+      EvaluationPolicy.create!(valid_attributes.merge(name: "Inactive", active: false))
 
-      get raaf_rails_continuous_policies_path(active: 'true')
+      get raaf_rails_continuous_policies_path(active: "true")
       expect(response).to have_http_status(:success)
+    end
+
+    it "offers each row the toggle for the state it is in" do
+      active_policy = EvaluationPolicy.create!(valid_attributes.merge(active: true))
+      paused_policy = EvaluationPolicy.create!(valid_attributes.merge(name: "Paused", active: false))
+
+      get raaf_rails_continuous_policies_path
+
+      expect(response.body).to include(deactivate_raaf_rails_continuous_policy_path(active_policy))
+      expect(response.body).to include(activate_raaf_rails_continuous_policy_path(paused_policy))
+      expect(response.body).to include("Pause", "Resume")
     end
   end
 
@@ -41,6 +52,13 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
     it "returns a successful response" do
       get raaf_rails_continuous_policy_path(policy)
       expect(response).to have_http_status(:success)
+    end
+
+    it "carries the pause control in its header" do
+      get raaf_rails_continuous_policy_path(policy)
+
+      expect(response.body).to include(deactivate_raaf_rails_continuous_policy_path(policy))
+      expect(response.body).to include("Pause")
     end
   end
 
@@ -56,9 +74,9 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
   describe "POST /raaf/rails/continuous/policies" do
     context "with valid parameters" do
       it "creates a new policy" do
-        expect {
+        expect do
           post raaf_rails_continuous_policies_path, params: { evaluation_policy: valid_attributes }
-        }.to change(EvaluationPolicy, :count).by(1)
+        end.to change(EvaluationPolicy, :count).by(1)
       end
 
       it "redirects to the created policy" do
@@ -71,9 +89,9 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
       it "does not create a new policy" do
         allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:evaluator_details).and_return([])
 
-        expect {
+        expect do
           post raaf_rails_continuous_policies_path, params: { evaluation_policy: invalid_attributes }
-        }.to change(EvaluationPolicy, :count).by(0)
+        end.not_to change(EvaluationPolicy, :count)
       end
 
       it "renders the new template with unprocessable entity status" do
@@ -87,13 +105,13 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
 
   describe "PATCH /raaf/rails/continuous/policies/:id" do
     let(:policy) { EvaluationPolicy.create!(valid_attributes) }
-    let(:new_attributes) { { name: 'Updated Policy' } }
+    let(:new_attributes) { { name: "Updated Policy" } }
 
     context "with valid parameters" do
       it "updates the policy" do
         patch raaf_rails_continuous_policy_path(policy), params: { evaluation_policy: new_attributes }
         policy.reload
-        expect(policy.name).to eq('Updated Policy')
+        expect(policy.name).to eq("Updated Policy")
       end
 
       it "redirects to the policy" do
@@ -107,9 +125,9 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
     let!(:policy) { EvaluationPolicy.create!(valid_attributes) }
 
     it "destroys the policy" do
-      expect {
+      expect do
         delete raaf_rails_continuous_policy_path(policy)
-      }.to change(EvaluationPolicy, :count).by(-1)
+      end.to change(EvaluationPolicy, :count).by(-1)
     end
 
     it "redirects to the policies list" do
@@ -131,6 +149,13 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
       post activate_raaf_rails_continuous_policy_path(policy)
       expect(response).to redirect_to(raaf_rails_continuous_policies_path)
     end
+
+    it "returns to the page the button was pressed on" do
+      post activate_raaf_rails_continuous_policy_path(policy),
+           headers: { "HTTP_REFERER" => raaf_rails_continuous_policy_path(policy) }
+
+      expect(response).to redirect_to(raaf_rails_continuous_policy_path(policy))
+    end
   end
 
   describe "POST /raaf/rails/continuous/policies/:id/deactivate" do
@@ -147,9 +172,9 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
     let(:policy) { EvaluationPolicy.create!(valid_attributes) }
 
     it "creates a duplicate policy" do
-      expect {
+      expect do
         post duplicate_raaf_rails_continuous_policy_path(policy)
-      }.to change(EvaluationPolicy, :count).by(1)
+      end.to change(EvaluationPolicy, :count).by(1)
     end
 
     it "duplicates with (Copy) suffix and inactive status" do

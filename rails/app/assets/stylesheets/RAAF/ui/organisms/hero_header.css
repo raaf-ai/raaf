@@ -1,0 +1,48 @@
+/* ============================================================================
+   Organism — HeroHeader
+   The page banner: eyebrow, title, subtitle, and a right-hand action slot on
+   the teal gradient.
+   ========================================================================= */
+
+.raaf-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--raaf-space-6);
+  flex-wrap: wrap;
+  padding: var(--raaf-space-6) 28px;
+  border-radius: var(--raaf-radius-lg);
+  background: linear-gradient(135deg, var(--raaf-teal-300), var(--raaf-teal-100));
+}
+
+.raaf-hero-body { min-width: 0; }
+
+.raaf-hero-eyebrow {
+  margin-bottom: 6px;
+  font-size: var(--raaf-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--raaf-glass-white-70);
+}
+
+.raaf-hero-title {
+  margin: 0;
+  font-size: var(--raaf-text-h4);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--raaf-white);
+}
+
+.raaf-hero-subtitle {
+  margin: var(--raaf-space-1) 0 0;
+  font-size: var(--raaf-text-body);
+  color: var(--raaf-glass-white-80);
+}
+
+.raaf-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex-shrink: 0;
+}

@@ -1,0 +1,85 @@
+/* ============================================================================
+   WaterfallRow — one span against the trace clock.
+   Indent, bar offset and bar width all arrive as custom properties, so this
+   file owns the arithmetic and the markup carries none of it.
+   ========================================================================= */
+
+.raaf-wfrow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px var(--raaf-row-px);
+  border-bottom: 1px solid var(--raaf-border);
+  color: inherit;
+  text-decoration: none;
+
+  /* Set by the component; the fallbacks keep a bare row renderable. */
+  --raaf-tree-level: 0;
+  --raaf-bar-off: 0%;
+  --raaf-bar-w: 100%;
+  --raaf-wfrow-indent: calc(var(--raaf-tree-level) * 18px);
+}
+
+.raaf-wfrow:last-child { border-bottom: 0; }
+a.raaf-wfrow:hover { background: var(--raaf-glass-white-5); }
+
+a.raaf-wfrow:focus-visible {
+  outline: 2px solid var(--raaf-cyan-500);
+  outline-offset: -2px;
+}
+
+.raaf-wfrow.is-selected {
+  background: var(--raaf-glass-white-10);
+  box-shadow: inset 2px 0 0 var(--raaf-cyan-500);
+}
+
+.raaf-wfrow-head {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  padding-left: var(--raaf-wfrow-indent);
+}
+
+.raaf-wfrow-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-sm);
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raaf-wfrow-dur {
+  width: 52px;
+  text-align: right;
+  font-size: var(--raaf-text-xs);
+}
+
+.raaf-wfrow-track {
+  position: relative;
+  height: 5px;
+  margin-left: var(--raaf-wfrow-indent);
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-wfrow-bar {
+  position: absolute;
+  inset-block: 0;
+  left: var(--raaf-bar-off);
+  width: var(--raaf-bar-w);
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-cyan-500);
+}
+
+/* Tone is the span's outcome, not its kind — a failed tool and a failed agent
+   read the same on the track. A healthy span keeps the accent: green here
+   would compete with the failures for attention, and most spans are healthy. */
+.raaf-wfrow--warn .raaf-wfrow-bar { background: var(--raaf-tone-warn); }
+.raaf-wfrow--bad .raaf-wfrow-bar { background: var(--raaf-tone-bad); }
+.raaf-wfrow--idle .raaf-wfrow-bar { background: var(--raaf-gray-500); }
+
+.raaf-wfrow--bad .raaf-wfrow-dur { color: var(--raaf-tone-bad-text); }
+.raaf-wfrow--idle .raaf-wfrow-name { color: var(--raaf-text-muted); }

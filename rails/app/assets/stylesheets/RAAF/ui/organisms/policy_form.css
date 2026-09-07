@@ -1,0 +1,124 @@
+/* ============================================================================
+   Organism — Policy form
+   No form screen exists in any canvas, so this is the library's own field
+   vocabulary: the check picker is the only shape the designed screens do not
+   already have.
+   ========================================================================= */
+
+.raaf-checkbox {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  accent-color: var(--raaf-cyan-500);
+  cursor: pointer;
+}
+
+.raaf-check-label {
+  font-size: var(--raaf-text-body-sm);
+  color: var(--raaf-text-secondary);
+  cursor: pointer;
+}
+
+/* ── The per-agent group ────────────────────────────────────────────────── */
+
+.raaf-checkgroup {
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  overflow: hidden;
+}
+
+.raaf-checkgroup-head {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-checkgroup-agent {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── One check ─────────────────────────────────────────────────────────── */
+
+.raaf-checkrow {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-checkrow:last-child { border-bottom: 0; }
+.raaf-checkrow:hover { background: var(--raaf-glass-white-5); }
+
+/* A selected check is the one that will run, so it is marked on the row and
+   not only in the box. */
+.raaf-checkrow.is-selected { background: rgb(0 154 204 / 8%); }
+
+.raaf-checkrow-main {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-4);
+}
+
+.raaf-checkrow-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.raaf-checkrow-name {
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 500;
+  color: var(--raaf-white);
+}
+
+.raaf-checkrow-sep {
+  margin: 0 4px;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-checkrow-evaluator {
+  font-weight: 500;
+  color: var(--raaf-text-link);
+}
+
+.raaf-checkrow-desc {
+  margin: 2px 0 0;
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-checkrow-hint {
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+/* The settings for a check, revealed when it is selected. `hidden` is the
+   class the evaluator-toggle controller flips. */
+.raaf-checkrow-config {
+  margin-top: var(--raaf-space-2);
+  margin-left: 28px;
+  padding-left: var(--raaf-space-3);
+  border-left: 2px solid var(--raaf-border);
+}
+
+.raaf-input--narrow { width: 72px; }
+
+.raaf-steps {
+  margin: 0;
+  padding-left: var(--raaf-space-5);
+  font-size: var(--raaf-text-body-sm);
+  color: var(--raaf-text-secondary);
+  line-height: 1.7;
+}
+
+.raaf-alert-list {
+  margin: var(--raaf-space-2) 0 0;
+  padding-left: var(--raaf-space-5);
+  line-height: 1.6;
+}

@@ -1,0 +1,68 @@
+/* ============================================================================
+   Organism — Scorer health
+   The `isHealth` screen from RAAF Continuous.dc.html: the scorer table beside
+   a rail carrying Coverage by agent and Recent events.
+   ========================================================================= */
+
+.raaf-health-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--raaf-space-4);
+  align-items: start;
+}
+
+@media (width <= 1024px) {
+  .raaf-health-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+.raaf-health-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+  min-width: 0;
+}
+
+/* The banner's link sits under the message rather than beside it: the design
+   pins it right, which collapses onto the message the moment the alert text
+   runs to two lines — and an alert message usually does. */
+.raaf-health-banner-link {
+  display: inline-block;
+  margin-top: var(--raaf-space-2);
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-sm);
+}
+
+/* ── One event ──────────────────────────────────────────────────────────── */
+
+.raaf-health-event {
+  display: flex;
+  gap: var(--raaf-space-3);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-health-event:last-child { border-bottom: 0; }
+
+.raaf-health-event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.raaf-health-event-text {
+  font-size: var(--raaf-text-body-sm);
+  text-wrap: pretty;
+}
+
+/* ── The sparkline inside a headline card ───────────────────────────────── */
+
+/* An untoned card's bars take the console accent, which is what the design
+   draws. StatCard's tone already colours its icon and delta, so where there is
+   one the bars follow it and the card reads as one thing rather than as a
+   coloured figure standing over grey bars. */
+.raaf-stat-card-spark .raaf-sparkbar { background: rgb(0 154 204 / 50%); }
+.raaf-stat-card--ok .raaf-stat-card-spark .raaf-sparkbar { background: rgb(17 170 100 / 50%); }
+.raaf-stat-card--warn .raaf-stat-card-spark .raaf-sparkbar { background: rgb(232 168 44 / 55%); }
+.raaf-stat-card--bad .raaf-stat-card-spark .raaf-sparkbar { background: rgb(239 68 68 / 55%); }

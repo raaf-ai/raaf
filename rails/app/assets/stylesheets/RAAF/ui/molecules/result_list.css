@@ -1,0 +1,79 @@
+/* ============================================================================
+   Molecule — ResultList
+   The hits a search span brought back, in the order the provider ranked them.
+   ========================================================================= */
+
+.raaf-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Twenty hits is a long list, and it sits in a tab beside Tokens and Raw.
+     Capped with its own scroll for the same reason a payload body is. */
+  max-height: 520px;
+  overflow: auto;
+}
+
+.raaf-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--raaf-space-3);
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-sm);
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-result-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--raaf-space-2);
+}
+
+/* The rank is the whole point of showing the list as a list — position one is
+   what the run acted on. */
+.raaf-result-rank {
+  flex: none;
+  min-width: 18px;
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--raaf-text-muted);
+  text-align: right;
+}
+
+.raaf-result-title {
+  flex: 1;
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+/* Not a link, but the same size and weight, so a hit that arrived without a
+   usable URL still lines up with the ones that did. */
+span.raaf-result-title { color: var(--raaf-text-secondary); }
+
+.raaf-result-score {
+  flex: none;
+  font-size: 10px;
+}
+
+.raaf-result-url {
+  padding-left: 26px;
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+  color: var(--raaf-text-muted);
+  word-break: break-all;
+}
+
+.raaf-result-snippet {
+  margin: 2px 0 0;
+  padding-left: 26px;
+  font-size: var(--raaf-text-xs);
+  line-height: 1.6;
+  color: var(--raaf-text-secondary);
+  text-wrap: pretty;
+}

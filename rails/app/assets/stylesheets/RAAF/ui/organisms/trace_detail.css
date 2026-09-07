@@ -1,0 +1,165 @@
+/* ============================================================================
+   SpanWaterfall, SpanInspector and the pipeline/path lists they sit beside.
+   ========================================================================= */
+
+/* Waterfall against inspector. The waterfall gets the wider track because a
+   span name plus a bar needs the room; the inspector wraps. */
+.raaf-trace-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--raaf-space-4);
+  align-items: start;
+}
+
+@media (width <= 1024px) {
+  .raaf-trace-split { grid-template-columns: minmax(0, 1fr); }
+  .raaf-inspector { position: static; }
+}
+
+.raaf-waterfall { display: flex; flex-direction: column; }
+
+/* ── Trace header strip ─────────────────────────────────────────────────── */
+.raaf-trace-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border: 1px solid var(--raaf-border);
+  border-radius: 14px;
+  background: var(--raaf-surface-glass);
+}
+
+.raaf-trace-bar-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-4);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.raaf-trace-stat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-trace-stat .raaf-mono { color: var(--raaf-white); }
+
+/* ── SpanInspector ──────────────────────────────────────────────────────── */
+.raaf-inspector {
+  position: sticky;
+  top: 96px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+  backdrop-filter: var(--raaf-blur);
+  overflow: hidden;
+}
+
+.raaf-inspector-head {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 15px var(--raaf-row-px);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-inspector-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.raaf-inspector-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-body-sm);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* What can be done to the span, on the title row rather than under a tab.
+   `flex: none` so the controls keep their width and the name truncates
+   instead. */
+.raaf-inspector-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex: none;
+}
+
+.raaf-inspector-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-4);
+  flex-wrap: wrap;
+  font-size: var(--raaf-text-xs);
+}
+
+.raaf-inspector-tabs {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-inspector-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-4);
+}
+
+/* The token and cost tab is a list of rows, so it runs to the panel's edge. */
+.raaf-inspector-rows {
+  display: flex;
+  flex-direction: column;
+  margin: calc(var(--raaf-space-4) * -1);
+}
+
+.raaf-inspector-row {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  padding: 11px var(--raaf-row-px);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-inspector-row:last-child { border-bottom: 0; }
+
+.raaf-inspector-row-label {
+  flex: 1;
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-secondary);
+}
+
+.raaf-inspector-row .raaf-mono { color: var(--raaf-white); }
+
+.raaf-inspector-raw { max-height: 420px; }
+
+/* ── PipelineSteps and TracePath ────────────────────────────────────────── */
+.raaf-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.raaf-pipeline-index { width: 20px; }
+
+.raaf-pipeline-step--bad {
+  border-color: rgb(239 68 68 / 32%);
+  background: rgb(239 68 68 / 8%);
+}
+
+.raaf-pipeline-step--warn {
+  border-color: rgb(245 158 11 / 32%);
+  background: rgb(245 158 11 / 8%);
+}
+
+.raaf-tracepath { display: flex; flex-direction: column; }

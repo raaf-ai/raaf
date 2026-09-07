@@ -1,0 +1,76 @@
+/* ============================================================================
+   Organism — GlassCard
+   The system's defining container: translucent white over the teal ground,
+   blurred, with a hairline border.
+   ========================================================================= */
+
+.raaf-card {
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+  backdrop-filter: var(--raaf-blur);
+  padding: var(--raaf-space-8);
+}
+
+.raaf-card--tight { padding: var(--raaf-space-5); }
+.raaf-card--flush { padding: 0; }
+
+/* Only a genuinely flush body needs clipping — a row list paints its hover
+   fill to the card's edge and would square off the corners. A titled card is
+   `--flush` for its header strip alone and keeps its body padding, so nothing
+   reaches a corner there and clipping it would just cut the tooltips off the
+   charts and meters inside. */
+.raaf-card--clip { overflow: hidden; }
+
+.raaf-card--raised {
+  box-shadow: var(--raaf-shadow-md);
+}
+
+/* Header strip inside a flush card */
+.raaf-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--raaf-space-4);
+  padding: var(--raaf-space-5) var(--raaf-space-6);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-card-title {
+  margin: 0;
+  font-size: var(--raaf-text-h6);
+  font-weight: 600;
+  color: var(--raaf-white);
+}
+
+.raaf-card-subtitle {
+  margin: var(--raaf-space-1) 0 0;
+  font-size: var(--raaf-text-body-sm);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex-shrink: 0;
+}
+
+.raaf-card-body { padding: var(--raaf-space-6); }
+.raaf-card-body--flush { padding: 0; }
+
+.raaf-card-footer {
+  padding: var(--raaf-space-4) var(--raaf-space-6);
+  border-top: 1px solid var(--raaf-border);
+}
+
+/* Grid of cards */
+.raaf-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--raaf-space-5);
+}
+
+.raaf-card-grid--wide {
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+}

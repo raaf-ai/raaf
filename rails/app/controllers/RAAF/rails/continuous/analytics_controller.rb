@@ -25,9 +25,11 @@ module RAAF
                 stats: @overview_stats,
                 agents: @agents,
                 environments: @environments,
-                filters: params.permit(:agent, :environment, :from, :to).to_h
+                filters: params.permit(:agent, :environment, :from, :to).to_h.symbolize_keys
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Continuous Evaluation Analytics") do
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: "Analytics", crumb: "Continuous"
+              ) do
                 render analytics_dashboard
               end
               render layout
@@ -42,20 +44,23 @@ module RAAF
           period_type = determine_period_type(@date_range)
 
           data = EvaluationMetric
-            .where(agent_name: @agent)
-            .where(period_type: period_type)
-            .where(period_start: @date_range)
-            .order(:period_start)
-            .map do |metric|
-              {
-                date: metric.period_start.iso8601,
-                pass_rate: metric.total_evaluations > 0 ?
-                  (metric.passed_count.to_f / metric.total_evaluations * 100).round(2) : 0,
-                total: metric.total_evaluations,
-                passed: metric.passed_count,
-                failed: metric.failed_count
-              }
-            end
+                 .where(agent_name: @agent)
+                 .where(period_type: period_type)
+                 .where(period_start: @date_range)
+                 .order(:period_start)
+                 .map do |metric|
+                   {
+                     date: metric.period_start.iso8601,
+                     pass_rate: if metric.total_evaluations > 0
+                                  (metric.passed_count.to_f / metric.total_evaluations * 100).round(2)
+                                else
+                                  0
+                                end,
+                     total: metric.total_evaluations,
+                     passed: metric.passed_count,
+                     failed: metric.failed_count
+                   }
+                 end
 
           render json: data
         end
@@ -65,11 +70,11 @@ module RAAF
         def score_distribution_data
           # Get most recent daily metric with score distribution
           metric = EvaluationMetric
-            .where(agent_name: @agent)
-            .where(period_type: 'daily')
-            .where(period_start: @date_range)
-            .order(period_start: :desc)
-            .first
+                   .where(agent_name: @agent)
+                   .where(period_type: "daily")
+                   .where(period_start: @date_range)
+                   .order(period_start: :desc)
+                   .first
 
           distribution = metric&.score_distribution || {}
 
@@ -81,7 +86,7 @@ module RAAF
             {
               range: key,
               count: distribution[key] || 0,
-              percentage: 0  # Will be calculated client-side
+              percentage: 0 # Will be calculated client-side
             }
           end
 
@@ -91,39 +96,46 @@ module RAAF
         # GET /raaf/rails/continuous/analytics/model_comparison_data
         # Returns JSON for comparison table
         def model_comparison_data
-          data = EvaluationResult
+          render json: model_comparison_rows
+        end
+
+        # `status` is one of good / average / bad / error — there has never
+        # been a "passed", so every rate computed from it read 0%.
+        def model_comparison_rows
+          EvaluationResult
             .where(agent_name: @agent)
             .where(created_at: @date_range)
             .group(:model)
             .select(
-              'model',
-              'COUNT(*) as total_evaluations',
-              'SUM(CASE WHEN status = \'passed\' THEN 1 ELSE 0 END) as passed_count',
-              'AVG(score) as avg_score',
-              'AVG((metrics->>\'latency_ms\')::numeric) as avg_latency_ms',
-              'SUM((metrics->>\'cost\')::numeric) as total_cost'
+              "model",
+              "COUNT(*) as total_evaluations",
+              "SUM(CASE WHEN status = 'good' THEN 1 ELSE 0 END) as good_count",
+              "AVG(score) as avg_score",
+              "AVG((metrics->>'latency_ms')::numeric) as avg_latency_ms",
+              "SUM((metrics->>'cost')::numeric) as total_cost"
             )
             .map do |row|
+              count = row.total_evaluations.to_i
               {
-                model: row.model || 'Unknown',
-                total_evaluations: row.total_evaluations,
-                pass_rate: (row.passed_count.to_f / row.total_evaluations * 100).round(2),
+                model_name: row.model.presence || "unknown",
+                count: count,
+                good_rate: count.positive? ? (row.good_count.to_f / count * 100).round(1) : 0,
                 avg_score: row.avg_score&.round(4),
-                avg_latency_ms: row.avg_latency_ms&.round(0),
-                total_cost: row.total_cost&.round(4)
+                avg_duration_ms: row.avg_latency_ms&.round(0),
+                avg_cost: count.positive? ? row.total_cost.to_f / count : nil
               }
             end
-
-          render json: data
+        rescue StandardError
+          []
         end
 
         # GET /raaf/rails/continuous/analytics/failure_analysis_data
         # Returns JSON for failure breakdown
         def failure_analysis_data
           failed_results = EvaluationResult
-            .where(agent_name: @agent)
-            .where(status: 'failed')
-            .where(created_at: @date_range)
+                           .where(agent_name: @agent)
+                           .where(status: "failed")
+                           .where(created_at: @date_range)
 
           # Group by evaluator and extract common failure reasons
           by_evaluator = failed_results.group(:evaluator_name).count
@@ -155,25 +167,34 @@ module RAAF
         def determine_period_type(date_range)
           days = (date_range.end - date_range.begin) / 1.day
           if days <= 2
-            'hourly'
+            "hourly"
           elsif days <= 90
-            'daily'
+            "daily"
           else
-            'weekly'
+            "weekly"
           end
         end
 
         def calculate_overview_stats
           results = EvaluationResult.where(agent_name: @agent).where(created_at: @date_range)
           total = results.count
-          passed = results.where(status: 'passed').count
+          good = results.where(status: "good").count
 
           {
             total_evaluations: total,
-            pass_rate: total > 0 ? (passed.to_f / total * 100).round(1) : 0,
+            good_rate: total.positive? ? (good.to_f / total * 100).round(1) : 0,
             avg_score: results.average(:score)&.round(4) || 0,
+            total_cost: total_cost_for(results),
+            model_comparison: model_comparison_rows,
             total_agents: EvaluationResult.where(created_at: @date_range).distinct.count(:agent_name)
           }
+        end
+
+        # Cost lives inside the metrics payload rather than in a column.
+        def total_cost_for(results)
+          results.sum("COALESCE((metrics->>'cost')::numeric, 0)")
+        rescue StandardError
+          nil
         end
       end
     end

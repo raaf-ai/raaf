@@ -1,0 +1,67 @@
+/* ============================================================================
+   Molecule — Pagination
+   ========================================================================= */
+
+.raaf-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--raaf-space-1);
+}
+
+.raaf-pagination-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-sm);
+  background: transparent;
+  color: var(--raaf-text-secondary);
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.raaf-pagination-item:hover {
+  background: var(--raaf-glass-white-8);
+  color: var(--raaf-white);
+  text-decoration: none;
+}
+
+.raaf-pagination-item.is-active {
+  background: var(--raaf-cyan-500);
+  border-color: var(--raaf-cyan-500);
+  color: var(--raaf-white);
+}
+
+.raaf-pagination-item.is-disabled,
+.raaf-pagination-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.raaf-pagination-gap {
+  padding: 0 var(--raaf-space-1);
+  color: var(--raaf-text-muted);
+}
+
+/* Bar wrapping a summary line and the control */
+.raaf-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--raaf-space-4);
+  flex-wrap: wrap;
+  padding-top: var(--raaf-space-4);
+  border-top: 1px solid var(--raaf-border);
+}
+
+.raaf-pagination-summary {
+  font-size: var(--raaf-text-body-sm);
+  color: var(--raaf-text-muted);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,119 @@
+/* ============================================================================
+   Atom — Badge
+   Pill label. Solid variants for dark surfaces, soft variants for light ones,
+   score variants bound to the fixed cross-theme score palette.
+   ========================================================================= */
+
+.raaf-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--raaf-space-1);
+  padding: 4px 14px;
+  border-radius: var(--raaf-radius-lg);
+  font-size: var(--raaf-text-sm);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--raaf-white);
+  white-space: nowrap;
+}
+
+.raaf-badge--sm {
+  padding: 2px 7px;
+  font-size: var(--raaf-text-xs);
+}
+
+/* Solid */
+.raaf-badge--slate { background: var(--raaf-slate-500); }
+.raaf-badge--teal { background: var(--raaf-cyan-500); }
+.raaf-badge--green { background: var(--raaf-green-500); }
+.raaf-badge--amber { background: var(--raaf-warning); }
+.raaf-badge--red { background: var(--raaf-danger); }
+.raaf-badge--blue { background: var(--raaf-info); }
+
+/* Soft — tinted background, coloured ink; for light surfaces */
+.raaf-badge--soft-slate { background: var(--raaf-gray-100); color: var(--raaf-gray-600); }
+.raaf-badge--soft-teal { background: rgb(0 154 204 / 8%); color: #1e6a82; }
+.raaf-badge--soft-green { background: rgb(16 185 129 / 8%); color: #16a34a; }
+.raaf-badge--soft-amber { background: rgb(245 158 11 / 8%); color: #d97706; }
+.raaf-badge--soft-red { background: rgb(239 68 68 / 8%); color: #dc2626; }
+.raaf-badge--soft-blue { background: #dbeafe; color: #1e40af; }
+
+/* Tinted — a label on the dark surface: a tinted ground with ink to match.
+   The design reaches for this pill wherever a value is neither a run status
+   nor a span kind — where a dataset item came from, what a score definition
+   holds, whether a prompt version is the live one. The kind palette is
+   deliberately not reused here: a kind means one thing, and borrowing its
+   colours for anything else is how that stops being true. */
+.raaf-badge--tint-cyan,
+.raaf-badge--tint-violet,
+.raaf-badge--tint-green,
+.raaf-badge--tint-slate {
+  border-radius: var(--raaf-radius-pill);
+  font-weight: 600;
+}
+
+.raaf-badge--tint-cyan { background: rgb(0 154 204 / 16%); color: #6fd2f0; }
+.raaf-badge--tint-violet { background: rgb(139 92 246 / 16%); color: #c4b1fb; }
+.raaf-badge--tint-green { background: var(--raaf-success-bg); color: var(--raaf-tone-ok-text); }
+.raaf-badge--tint-slate { background: var(--raaf-glass-white-8); color: var(--raaf-text-secondary); }
+
+/* Glass — sits on top of the dark surface without a colour claim */
+.raaf-badge--glass {
+  background: var(--raaf-glass-white-15);
+  color: var(--raaf-white);
+}
+
+/* Score */
+.raaf-badge--score-excellent { background: var(--raaf-score-excellent); }
+.raaf-badge--score-good { background: var(--raaf-score-good); }
+.raaf-badge--score-fair { background: var(--raaf-score-fair); }
+.raaf-badge--score-poor { background: var(--raaf-score-poor); }
+.raaf-badge--score-low { background: var(--raaf-score-low); }
+
+/* Monospace payload — ids, durations, token counts */
+.raaf-badge--mono {
+  font-family: var(--raaf-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Circular step / count badge */
+.raaf-badge-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+  color: var(--raaf-white);
+}
+
+.raaf-badge-step--md { width: 32px; height: 32px; }
+.raaf-badge-step--lg { width: 40px; height: 40px; font-size: var(--raaf-text-body); }
+.raaf-badge-step--default { background: var(--raaf-gray-500); }
+.raaf-badge-step--active { background: var(--raaf-cyan-500); }
+.raaf-badge-step--completed { background: var(--raaf-green-500); }
+
+/* Glass pill with an icon slot — filter chips, meta pills */
+.raaf-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  padding: 8px 16px;
+  border-radius: 24px;
+  background: var(--raaf-glass-white-15);
+  backdrop-filter: blur(10px);
+  color: var(--raaf-white);
+  font-size: var(--raaf-text-body);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+a.raaf-badge-pill:hover {
+  background: var(--raaf-glass-white-30);
+  color: var(--raaf-white);
+  text-decoration: none;
+}

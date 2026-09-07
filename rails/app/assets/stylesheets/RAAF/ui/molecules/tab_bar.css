@@ -1,0 +1,107 @@
+/* ============================================================================
+   Molecule — TabBar
+   Underline tabs inside a panel; pill tabs for switching a whole view.
+   ========================================================================= */
+
+.raaf-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--raaf-border);
+  overflow-x: auto;
+}
+
+.raaf-tabbar-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--raaf-text-muted);
+  font-family: inherit;
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.raaf-tabbar-tab:hover { color: var(--raaf-white); text-decoration: none; }
+
+.raaf-tabbar-tab.is-active {
+  border-bottom-color: var(--raaf-cyan-500);
+  color: var(--raaf-white);
+}
+
+.raaf-tabbar-count {
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-glass-white-8);
+}
+
+/* Pill variant */
+.raaf-tabbar--pill {
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid var(--raaf-border);
+  border-bottom: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-tabbar--pill .raaf-tabbar-tab {
+  padding: 5px 13px;
+  border-bottom: 0;
+  border-radius: var(--raaf-radius-pill);
+}
+
+.raaf-tabbar--pill .raaf-tabbar-tab.is-active {
+  background: var(--raaf-glass-white-12);
+}
+
+/* ── FilterBar ───────────────────────────────────────────────────────────── */
+.raaf-filterbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Traces sets its filter row on a glass strip; the Spans kind rail is bare.
+   Both are the design's, which is why this is a modifier and not the base. */
+.raaf-filterbar--panel {
+  padding: 12px 14px;
+  border: 1px solid var(--raaf-border);
+  border-radius: 14px;
+  background: var(--raaf-surface-glass);
+}
+
+.raaf-filterbar-spacer { flex: 1; }
+
+.raaf-filterbar-query {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  padding: 6px 12px;
+  border: 1px solid var(--raaf-border);
+  border-radius: 10px;
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-filterbar-query input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--raaf-white);
+  font-family: inherit;
+  font-size: var(--raaf-text-sm);
+}
+
+.raaf-filterbar-query input:focus { outline: none; }
+.raaf-filterbar-query input::placeholder { color: var(--raaf-text-muted); }

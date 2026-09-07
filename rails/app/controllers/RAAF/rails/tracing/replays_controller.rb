@@ -7,16 +7,60 @@ module RAAF
       #
       # Allows users to replay stored spans with modified configurations
       # for debugging and experimentation purposes.
+      #
+      # `index` answers two routes. Nested under a span it lists that span's
+      # replays; mounted at the top of the tracing namespace it lists every
+      # replay there is, which is what the console's Replays screen opens.
+      # Same screen, same component -- only the filter differs.
       class ReplaysController < ApplicationController
-        before_action :set_span
+        # How many replays the console lists. A replay is a deliberate act, so
+        # the table stays short in practice; the cap is there so a busy install
+        # cannot render an unbounded page.
+        CONSOLE_LIMIT = 200
+
+        before_action :set_span, if: :span_scoped?
         before_action :set_replay, only: %i[show]
+
+        # GET /tracing/replays              — every replay
+        # GET /tracing/spans/:span_id/replays — one span's replays
+        def index
+          @replays = scoped_replays
+
+          respond_to do |format|
+            format.html do
+              render_in_layout(
+                RAAF::Rails::Tracing::Replay::IndexComponent.new(span: @span, replays: @replays),
+                title: @span ? "Replays of #{@span.display_name}" : "Replays"
+              )
+            end
+            format.json { render json: serialize_replays(@replays) }
+          end
+        end
+
+        # GET /tracing/spans/:span_id/replays/:id
+        # Shows replay results and comparison view
+        def show
+          respond_to do |format|
+            format.html do
+              render_in_layout(
+                RAAF::Rails::Tracing::Replay::ShowComponent.new(
+                  replay: @replay,
+                  original_span: @span,
+                  view: params[:view]
+                ),
+                title: "Replay ##{@replay.id}"
+              )
+            end
+            format.json { render json: build_replay_result_data(@replay) }
+          end
+        end
 
         # GET /tracing/spans/:span_id/replays/new
         # Shows the replay form with original span data
         def new
           # Check if span is replayable
-          unless replayable?(@span)
-            redirect_to tracing_span_path(@span.span_id),
+          unless SpanReplay.replayable?(@span)
+            redirect_to span_location(@span),
                         alert: "This span cannot be replayed. It may not contain the required LLM request data."
             return
           end
@@ -25,16 +69,10 @@ module RAAF
 
           respond_to do |format|
             format.html do
-              component = RAAF::Rails::Tracing::Replay::NewComponent.new(
-                span: @span,
-                replay: @replay
+              render_in_layout(
+                RAAF::Rails::Tracing::Replay::NewComponent.new(span: @span, replay: @replay),
+                title: "Replay #{@span.display_name}"
               )
-
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Replay Span - #{@span.display_name}") do
-                render component
-              end
-
-              render layout
             end
             format.json { render json: build_replay_form_data(@span) }
           end
@@ -73,66 +111,43 @@ module RAAF
             respond_to do |format|
               format.turbo_stream do
                 render turbo_stream: turbo_stream.replace(
-                  "replay-form",
-                  RAAF::Rails::Tracing::Replay::FormComponent.new(
-                    span: @span,
-                    replay: @replay,
-                    errors: @replay.errors
-                  )
+                  "replay-status",
+                  RAAF::Rails::Tracing::Replay::StatusComponent.new(replay: @replay)
                 )
               end
               format.html do
-                @span = @replay.original_span
-                render :new
+                render_in_layout(
+                  RAAF::Rails::Tracing::Replay::NewComponent.new(span: @span, replay: @replay),
+                  title: "Replay #{@span.display_name}"
+                )
               end
-              format.json { render json: { errors: @replay.errors.full_messages }, status: :unprocessable_entity }
+              format.json { render json: { errors: @replay.errors.full_messages }, status: :unprocessable_content }
             end
-          end
-        end
-
-        # GET /tracing/spans/:span_id/replays/:id
-        # Shows replay results and comparison view
-        def show
-          respond_to do |format|
-            format.html do
-              component = RAAF::Rails::Tracing::Replay::ShowComponent.new(
-                replay: @replay,
-                original_span: @span
-              )
-
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Replay Results - #{@span.display_name}") do
-                render component
-              end
-
-              render layout
-            end
-            format.json { render json: build_replay_result_data(@replay) }
-          end
-        end
-
-        # GET /tracing/spans/:span_id/replays
-        # Lists all replays for a span
-        def index
-          @replays = SpanReplay.for_span(@span.span_id).recent
-
-          respond_to do |format|
-            format.html do
-              component = RAAF::Rails::Tracing::Replay::IndexComponent.new(
-                span: @span,
-                replays: @replays
-              )
-
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Replays - #{@span.display_name}") do
-                render component
-              end
-
-              render layout
-            end
-            format.json { render json: serialize_replays(@replays) }
           end
         end
 
         private
+
+        # A replay list nested under a span, or the console's list of all of
+        # them. `includes` is what keeps the all-replays table off N+1 -- every
+        # row prints its original span's name and duration.
+        def scoped_replays
+          return SpanReplay.for_span(@span.span_id).recent.includes(:replayed_span) if @span
+
+          SpanReplay.recent.includes(:original_span, :replayed_span).limit(CONSOLE_LIMIT)
+        end
+
+        def span_scoped?
+          params[:span_id].present?
+        end
+
+        def render_in_layout(component, title:)
+          layout = RAAF::Rails::Tracing::BaseLayout.new(title: title, current: :replays) do
+            render component
+          end
+
+          render layout
+        end
 
         def set_span
           @span = SpanRecord.find_by!(span_id: params[:span_id])
@@ -143,7 +158,7 @@ module RAAF
         def set_replay
           @replay = SpanReplay.find(params[:id])
         rescue ActiveRecord::RecordNotFound
-          redirect_to tracing_span_path(@span.span_id), alert: "Replay not found."
+          redirect_to span_location(@span), alert: "Replay not found."
         end
 
         def replay_params
@@ -157,48 +172,10 @@ module RAAF
             if permitted[:configuration_changes].is_a?(String)
               permitted[:configuration_changes] = JSON.parse(permitted[:configuration_changes])
             end
-            if permitted[:user_messages].is_a?(String)
-              permitted[:user_messages] = JSON.parse(permitted[:user_messages])
-            end
+            permitted[:user_messages] = JSON.parse(permitted[:user_messages]) if permitted[:user_messages].is_a?(String)
           rescue JSON::ParserError => e
             ::Rails.logger.warn "[RAAF Replay] JSON parse error: #{e.message}"
           end
-        end
-
-        def replayable?(span)
-          attrs = span.span_attributes || {}
-
-          # Check for messages in various storage formats
-          # - Nested hash: attrs.dig("llm", "request", "messages")
-          # - Dot-notation key: attrs["agent.conversation_messages"]
-          messages = attrs.dig("llm", "request", "messages") ||
-                     attrs["llm.request.messages"] ||
-                     attrs["agent.conversation_messages"] ||
-                     attrs["conversation_messages"]
-
-          # Try to parse JSON if it's a string
-          if messages.is_a?(String) && messages.present?
-            begin
-              messages = JSON.parse(messages)
-            rescue JSON::ParserError
-              messages = nil
-            end
-          end
-
-          # If no messages found, check if we can reconstruct from system/user prompts
-          if messages.blank? || (messages.is_a?(Array) && messages.empty?)
-            has_prompts = attrs["agent.system_instructions"].present? ||
-                          attrs["agent.initial_user_prompt"].present?
-            messages = has_prompts ? [{ "role" => "user", "content" => "placeholder" }] : nil
-          end
-
-          # Check for model in various storage formats
-          model = attrs.dig("llm", "request", "model") ||
-                  attrs["llm.request.model"] ||
-                  attrs["agent.model"] ||
-                  attrs["model"]
-
-          messages.present? && model.present?
         end
 
         def build_replay_form_data(span)
@@ -231,7 +208,7 @@ module RAAF
 
           {
             span_id: span.span_id,
-            replayable: replayable?(span),
+            replayable: SpanReplay.replayable?(span),
             original_config: {
               model: model,
               temperature: llm_config["temperature"] || attrs["agent.temperature"],
@@ -243,8 +220,8 @@ module RAAF
             system_prompt: system_message&.dig("content") || attrs["agent.system_instructions"],
             user_messages: user_messages,
             original_output: attrs.dig("llm", "response", "content") ||
-                            attrs.dig("llm", "response", "choices", 0, "message", "content") ||
-                            attrs["agent.final_agent_response"]
+              attrs.dig("llm", "response", "choices", 0, "message", "content") ||
+              attrs["agent.final_agent_response"]
           }
         end
 
@@ -279,6 +256,7 @@ module RAAF
               {
                 id: replay.id,
                 status: replay.status,
+                original_span_id: replay.original_span_id,
                 configuration_changes: replay.configuration_changes,
                 replayed_span_id: replay.replayed_span_id,
                 created_at: replay.created_at

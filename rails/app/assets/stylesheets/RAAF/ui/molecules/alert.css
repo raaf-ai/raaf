@@ -1,0 +1,63 @@
+/* ============================================================================
+   Molecule — Alert
+   Icon, title and body on a tinted, hairline-bordered block.
+   ========================================================================= */
+
+.raaf-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--raaf-radius-md);
+  color: var(--raaf-white);
+}
+
+.raaf-alert .raaf-icon {
+  font-size: var(--raaf-text-h5);
+  flex-shrink: 0;
+}
+
+.raaf-alert-body { flex: 1; min-width: 0; }
+
+.raaf-alert-title {
+  margin: 0 0 var(--raaf-space-1);
+  font-size: var(--raaf-text-body);
+  font-weight: 600;
+}
+
+.raaf-alert-text {
+  margin: 0;
+  font-size: var(--raaf-text-body-sm);
+  opacity: 0.85;
+}
+
+.raaf-alert--success {
+  background: linear-gradient(135deg, rgb(16 185 129 / 20%), rgb(5 150 105 / 20%));
+  border-color: rgb(16 185 129 / 30%);
+}
+
+.raaf-alert--info {
+  background: rgb(59 130 246 / 15%);
+  border-color: rgb(59 130 246 / 30%);
+}
+
+.raaf-alert--warning {
+  background: rgb(251 191 36 / 15%);
+  border-color: rgb(251 191 36 / 30%);
+}
+
+.raaf-alert--error {
+  background: rgb(239 68 68 / 12%);
+  border-color: rgb(239 68 68 / 30%);
+}
+
+/* An alert that offers a way out of what it reports — retry a failed replay,
+   open the result of a finished one. */
+.raaf-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex-wrap: wrap;
+  margin-top: var(--raaf-space-3);
+}

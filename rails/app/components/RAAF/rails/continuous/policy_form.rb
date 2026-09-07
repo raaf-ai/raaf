@@ -4,7 +4,6 @@ module RAAF
   module Rails
     module Continuous
       class PolicyForm < RAAF::Rails::Tracing::BaseComponent
-
         def initialize(policy:, evaluators: [], agents: [], environments: [])
           @policy = policy
           @evaluators = evaluators
@@ -12,23 +11,18 @@ module RAAF
           @environments = environments
         end
 
+        # No form screen exists in any canvas, so this follows the library the
+        # designed screens are built from: cards for the sections, `Field` for
+        # every label and hint, and the shared input classes. The field names,
+        # Stimulus targets and actions are untouched — only the presentation
+        # moved.
         def view_template
-          div(class: "p-6") do
-            render_header
+          div(class: "raaf-page") do
             render_form
           end
         end
 
         private
-
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              h1(class: "text-2xl font-bold text-gray-900") { @policy.persisted? ? "Edit Policy" : "New Policy" }
-              p(class: "mt-1 text-sm text-gray-500") { "Configure continuous evaluation policy" }
-            end
-          end
-        end
 
         def render_form
           if @evaluators.empty?
@@ -36,144 +30,105 @@ module RAAF
           else
             render_errors if @policy.errors.any?
 
-            div(class: "bg-white shadow rounded-lg overflow-hidden") do
-              div(class: "px-4 py-5 sm:p-6") do
-                form_with(model: @policy, url: form_url, class: "space-y-8") do |f|
-                  render_basic_fields(f)
-                  render_check_selection(f)
-                  render_limits_fields(f)
-                  render_advanced_fields(f)
-                  render_actions(f)
-                end
-              end
+            form_with(model: @policy, url: form_url, class: "raaf-page") do |f|
+              render_basic_fields(f)
+              render_check_selection(f)
+              render_limits_fields(f)
+              render_advanced_fields(f)
+              render_actions(f)
             end
           end
         end
 
         def render_errors
-          div(class: "bg-red-50 border border-red-200 rounded-lg p-4 mb-6") do
-            div(class: "flex items-start") do
-              div(class: "flex-shrink-0") do
-                i(class: "bi bi-exclamation-circle text-red-500 text-xl")
-              end
-              div(class: "ml-3") do
-                h3(class: "text-sm font-medium text-red-800") do
-                  "#{@policy.errors.count} error(s) prevented this policy from being saved:"
-                end
-                ul(class: "mt-2 text-sm text-red-700 list-disc list-inside space-y-1") do
-                  @policy.errors.full_messages.each do |message|
-                    li { message }
-                  end
-                end
-              end
+          render(Molecules::Alert.new(:danger, title: error_title)) do
+            ul(class: "raaf-alert-list") do
+              @policy.errors.full_messages.each { |message| li { message } }
             end
           end
         end
 
+        def error_title
+          "#{pluralize(@policy.errors.count, 'problem')} stopped this policy being saved"
+        end
+
         def render_no_evaluators_message
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-12 sm:p-12") do
-              div(class: "text-center") do
-                div(class: "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4") do
-                  i(class: "bi bi-exclamation-triangle text-yellow-600 text-2xl")
-                end
-                h3(class: "text-lg font-medium text-gray-900 mb-2") { "No Evaluators Available" }
-                p(class: "text-sm text-gray-500 mb-6 max-w-md mx-auto") do
-                  "Policies require at least one evaluator to function. Please register evaluators before creating a policy."
-                end
-                div(class: "bg-gray-50 rounded-lg p-4 text-left max-w-lg mx-auto mb-6") do
-                  p(class: "text-sm font-medium text-gray-700 mb-2") { "To register evaluators:" }
-                  ol(class: "text-sm text-gray-600 list-decimal list-inside space-y-1") do
-                    li { "Create evaluator classes that include RAAF::Eval::DSL::Evaluator" }
-                    li { "Register them with RAAF::Eval::DSL::EvaluatorRegistry" }
-                    li { "Or ensure built-in evaluators are loaded in your application" }
-                  end
-                end
-                link_to(
-                  "Back to Policies",
-                  continuous_policies_path,
-                  class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                )
+          render(Organisms::Card.new(title: "No evaluators available")) do
+            render Atoms::Text.new(
+              "A policy needs at least one evaluator. Register evaluators before creating one.",
+              tone: :secondary
+            )
+
+            render(Molecules::Panel.new(title: "To register evaluators", icon: "list-ol", pad: true)) do
+              ol(class: "raaf-steps") do
+                li { "Create evaluator classes that include RAAF::Eval::DSL::Evaluator" }
+                li { "Register them with RAAF::Eval::DSL::EvaluatorRegistry" }
+                li { "Or ensure the built-in evaluators are loaded in your application" }
               end
+            end
+
+            div(class: "raaf-form-actions") do
+              render Atoms::Button.new(label: "Back to policies", href: continuous_policies_path,
+                                       variant: :secondary, icon: "arrow-left")
             end
           end
         end
 
         def render_basic_fields(form)
-          div(class: "space-y-6") do
-            h3(class: "text-lg font-medium text-gray-900 border-b border-gray-200 pb-2") { "Basic Information" }
-
-            div do
-              label(for: "policy_name", class: "block text-sm font-medium text-gray-700") { "Policy Name *" }
-              form.text_field(
-                :name,
-                class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                required: true,
-                placeholder: "e.g., Production Quality Check"
-              )
+          render(Organisms::Card.new(title: "Basics")) do
+            render(Molecules::Field.new(label: "Policy name", for_id: "policy_name")) do
+              form.text_field(:name, class: "raaf-input raaf-input--glass", required: true,
+                                     placeholder: "e.g. Production quality check")
             end
 
-            div do
-              label(for: "policy_description", class: "block text-sm font-medium text-gray-700") { "Description (optional)" }
-              form.text_area(
-                :description,
-                class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                rows: 3,
-                placeholder: "Describe what this policy monitors..."
-              )
+            render(Molecules::Field.new(label: "Description", for_id: "policy_description",
+                                        optional: true,
+                                        hint: "What this policy watches, in one line.")) do
+              form.text_area(:description, class: "raaf-input raaf-input--glass raaf-textarea", rows: 3,
+                                           placeholder: "Describe what this policy monitors…")
             end
 
-            div(class: "flex items-center") do
-              form.check_box(:active, class: "h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500")
-              label(for: "policy_active", class: "ml-2 block text-sm text-gray-700") { "Active (evaluations will run)" }
+            div(class: "raaf-cluster") do
+              form.check_box(:active, class: "raaf-checkbox")
+              label(for: "policy_active", class: "raaf-check-label") { "Active — evaluations will run" }
             end
           end
         end
 
         def render_limits_fields(form)
-          div(class: "space-y-6 pt-6") do
-            h3(class: "text-lg font-medium text-gray-900 border-b border-gray-200 pb-2") { "Limits & Retention" }
+          render(Organisms::Card.new(title: "Limits and retention")) do
+            div(class: "raaf-field-grid") do
+              render(Molecules::Field.new(label: "Max daily evaluations", optional: true,
+                                          for_id: "policy_max_daily_evaluations",
+                                          hint: "Blank for unlimited.")) do
+                form.number_field(:max_daily_evaluations, class: "raaf-input raaf-input--glass", min: 0,
+                                                          placeholder: "1000")
+              end
 
-            div do
-              label(for: "policy_max_daily_evaluations", class: "block text-sm font-medium text-gray-700") { "Max Daily Evaluations (optional)" }
-              form.number_field(
-                :max_daily_evaluations,
-                class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                min: 0,
-                placeholder: "1000"
-              )
-              p(class: "mt-1 text-sm text-gray-500") { "Maximum evaluations per day. Leave blank for unlimited." }
-            end
-
-            div do
-              label(for: "policy_retention_days", class: "block text-sm font-medium text-gray-700") { "Result Retention (days)" }
-              form.number_field(
-                :retention_days,
-                class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                min: 1,
-                value: @policy.retention_days || 30
-              )
-              p(class: "mt-1 text-sm text-gray-500") { "How long to keep evaluation results (default: 30 days)" }
+              render(Molecules::Field.new(label: "Result retention (days)",
+                                          for_id: "policy_retention_days",
+                                          hint: "How long results are kept.")) do
+                form.number_field(:retention_days, class: "raaf-input raaf-input--glass", min: 1,
+                                                   value: @policy.retention_days || 30)
+              end
             end
           end
         end
 
         def render_check_selection(form)
-          div(class: "space-y-6 pt-6") do
-            div(class: "flex items-center justify-between border-b border-gray-200 pb-2") do
-              h3(class: "text-lg font-medium text-gray-900") { "Select Checks *" }
-              span(class: "text-sm text-gray-500") { "Choose which checks to run and their sample rates" }
-            end
+          render(Organisms::Card.new(title: "Checks",
+                                     subtitle: "Which checks run, and how often",
+                                     data: { controller: "policy-agent" })) do
+            agent_scope
 
             # Group checks by agent
             checks_by_agent = build_checks_by_agent
 
             if checks_by_agent.empty?
-              div(class: "py-8 text-center text-gray-500") do
-                "No checks available. Evaluators must define evaluated fields."
-              end
+              render Molecules::EmptyState.new(icon: "sliders", title: "No checks available",
+                                               text: "Evaluators must declare evaluated fields.")
             else
-              div(class: "space-y-6 mt-4") do
+              div(class: "raaf-stack") do
                 checks_by_agent.each do |agent_name, checks|
                   render_agent_checks_group(form, agent_name, checks)
                 end
@@ -231,19 +186,66 @@ module RAAF
           checks_by_agent
         end
 
-        def render_agent_checks_group(form, agent_name, checks)
-          div(class: "border border-gray-200 rounded-lg overflow-hidden") do
-            # Agent header
-            div(class: "bg-gray-50 px-4 py-3 border-b border-gray-200") do
-              div(class: "flex items-center gap-2") do
-                i(class: "bi bi-robot text-gray-400")
-                span(class: "font-medium text-gray-900") { agent_name }
-                span(class: "text-sm text-gray-500") { "(#{checks.size} checks)" }
+        # A policy matches spans by one agent name, so only one agent's checks
+        # can be chosen. Rather than let the wrong pairing be made and refused
+        # on save, the picker shows one agent at a time — and switching agent
+        # clears what the previous one had ticked, because a half-kept
+        # selection is what produced "AgentA, AgentB" policies that matched
+        # nothing.
+        def agent_scope
+          agents = build_checks_by_agent.keys
+
+          render(Molecules::Field.new(
+                   label: "Agent", for_id: "policy-agent-scope",
+                   hint: "The agent this policy watches. Its checks are the ones below."
+                 )) do
+            select(id: "policy-agent-scope",
+                   class: "raaf-input raaf-input--glass raaf-select",
+                   data: { policy_agent_target: "select", action: "change->policy-agent#select" }) do
+              agents.each do |agent|
+                option(value: agent, selected: agent == selected_agent) { agent }
               end
             end
+          end
+        end
 
-            # Checks list
-            div(class: "divide-y divide-gray-100") do
+        # The agent whose checks are shown.
+        #
+        # Found from the checks the policy already has ticked, not from
+        # `agent_name`: the registry groups checks by class path
+        # (`Ai::Agents::Dmu::Classification`) while a policy stores the RAAF
+        # agent name (`StakeholderClassificationAgent`), so comparing the two
+        # never matches and every policy would open on the wrong agent.
+        def selected_agent
+          @selected_agent ||= agent_with_selection || matching_agent_name || first_agent
+        end
+
+        def agent_with_selection
+          build_checks_by_agent.find do |_agent, checks|
+            checks.any? { |check| check_selected?(check[:evaluator_name], check[:check_name]) }
+          end&.first
+        end
+
+        def matching_agent_name
+          @policy.agent_name if build_checks_by_agent.key?(@policy.agent_name)
+        end
+
+        def first_agent
+          build_checks_by_agent.keys.first
+        end
+
+        def render_agent_checks_group(form, agent_name, checks)
+          hidden = agent_name == selected_agent ? "" : "hidden"
+
+          div(class: "raaf-checkgroup #{hidden}",
+              data: { policy_agent_target: "group", agent: agent_name }) do
+            div(class: "raaf-checkgroup-head") do
+              render Atoms::Icon.new("robot", size: :sm, tone: :muted)
+              span(class: "raaf-checkgroup-agent") { agent_name }
+              render Atoms::Mono.new("#{checks.size} checks", tone: :muted)
+            end
+
+            div do
               checks.each do |check|
                 render_check_row(form, agent_name, check)
               end
@@ -255,60 +257,52 @@ module RAAF
           check_id = "#{check[:evaluator_name]}_#{check[:check_name]}"
           is_selected = check_selected?(check[:evaluator_name], check[:check_name])
 
-          div(class: "px-4 py-3 hover:bg-gray-50 #{is_selected ? 'bg-blue-50' : ''}",
+          div(class: "raaf-checkrow #{'is-selected' if is_selected}",
               data: { controller: "evaluator-toggle" }) do
-            # Main row with checkbox, name, and badges
-            div(class: "flex items-center gap-4") do
-              # Checkbox
-              div(class: "flex items-center") do
+            div(class: "raaf-checkrow-main") do
+              div(class: "raaf-cluster") do
                 checkbox_tag(
                   "evaluation_policy[check_configs][#{check_id}][enabled]",
                   "1",
                   is_selected,
-                  class: "h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500",
+                  class: "raaf-checkbox",
                   id: "check_#{check_id}",
                   data: { action: "change->evaluator-toggle#toggle", evaluator_toggle_target: "checkbox" }
                 )
               end
 
               # Check name with specific evaluator type and description
-              div(class: "flex-1") do
-                label(for: "check_#{check_id}", class: "cursor-pointer") do
+              div(class: "raaf-checkrow-body") do
+                label(for: "check_#{check_id}", class: "raaf-check-label") do
                   # Use display_name if available, otherwise field_name / specific_evaluator
                   if check[:display_name].present?
-                    span(class: "font-medium text-gray-900") { check[:display_name] }
+                    span(class: "raaf-checkrow-name") { check[:display_name] }
                   else
-                    span(class: "font-medium text-gray-900") { check[:field_name] || check[:check_name] }
+                    span(class: "raaf-checkrow-name") { check[:field_name] || check[:check_name] }
                     # Show specific evaluator type if available
                     if check[:specific_evaluator].present?
-                      span(class: "text-gray-400 mx-1") { "/" }
-                      span(class: "text-blue-600 font-medium") { format_specific_evaluator(check[:specific_evaluator]) }
+                      span(class: "raaf-checkrow-sep") { "/" }
+                      span(class: "raaf-checkrow-evaluator") { format_specific_evaluator(check[:specific_evaluator]) }
                     end
                   end
                 end
                 # Show description if available
-                if check[:description].present?
-                  p(class: "text-xs text-gray-500 mt-0.5") { check[:description] }
-                end
+                p(class: "raaf-checkrow-desc") { check[:description] } if check[:description].present?
               end
 
               # Type badge (category: llm_judge, statistical, rule_based)
-              div(class: "flex items-center gap-2") do
-                span(class: "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium #{evaluator_type_badge_class(check[:evaluator_type])}") do
-                  format_evaluator_type(check[:evaluator_type])
-                end
-                if check[:uses_llm]
-                  span(class: "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800") do
-                    "LLM"
-                  end
-                end
+              div(class: "raaf-cluster") do
+                render Atoms::Badge.new(format_evaluator_type(check[:evaluator_type]),
+                                        variant: evaluator_type_variant(check[:evaluator_type]),
+                                        size: :sm)
+                render Atoms::KindBadge.new("llm") if check[:uses_llm]
               end
             end
 
             # Configuration row (below the main row) - trigger mode, sample every_n, and trials for statistical
-            div(class: "mt-2 ml-8 pl-4 border-l-2 border-gray-200 #{is_selected ? '' : 'hidden'}",
+            div(class: "raaf-checkrow-config #{'hidden' unless is_selected}",
                 data: { evaluator_toggle_target: "config" }) do
-              div(class: "flex items-center gap-4 py-2 flex-wrap") do
+              div(class: "raaf-cluster") do
                 # Hidden sampling mode (always every_n)
                 input(
                   type: "hidden",
@@ -319,13 +313,14 @@ module RAAF
                 # Trigger mode selector
                 trigger_mode = get_check_trigger_mode(check[:evaluator_name], check[:check_name])
                 div(class: "flex items-center gap-2") do
-                  span(class: "text-sm text-gray-600") { "Trigger:" }
+                  span(class: "raaf-checkrow-hint") { "Trigger" }
                   select(
                     name: "evaluation_policy[check_configs][#{check_id}][trigger_mode]",
                     id: "check_#{check_id}_trigger_mode",
-                    class: "block w-28 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm",
+                    class: "raaf-input raaf-input--glass raaf-select raaf-input--sm",
                     title: "Automatic: runs when spans are created. Manual: only runs via UI button.",
-                    data: { evaluator_toggle_target: "triggerMode", action: "change->evaluator-toggle#triggerModeChanged" }
+                    data: { evaluator_toggle_target: "triggerMode",
+                            action: "change->evaluator-toggle#triggerModeChanged" }
                   ) do
                     option(value: "automatic", selected: trigger_mode == "automatic") { "Automatic" }
                     option(value: "manual", selected: trigger_mode == "manual") { "Manual" }
@@ -336,7 +331,7 @@ module RAAF
                 sampling_hidden = trigger_mode == "manual" ? "hidden" : ""
                 div(class: "flex items-center gap-2 #{sampling_hidden}",
                     data: { evaluator_toggle_target: "samplingConfig" }) do
-                  span(class: "text-sm text-gray-600") { "Evaluate every" }
+                  span(class: "raaf-checkrow-hint") { "Evaluate every" }
                   input(
                     type: "number",
                     name: "evaluation_policy[check_configs][#{check_id}][sample_every_n]",
@@ -344,9 +339,9 @@ module RAAF
                     value: get_check_sample_every_n(check[:evaluator_name], check[:check_name]),
                     min: 1,
                     step: 1,
-                    class: "block w-16 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                    class: "raaf-input raaf-input--glass raaf-input--sm raaf-input--narrow"
                   )
-                  span(class: "text-sm text-gray-500") { "spans" }
+                  span(class: "raaf-checkrow-hint") { "spans" }
                 end
 
                 # Consistency mode and trials (only for statistical evaluators)
@@ -356,11 +351,11 @@ module RAAF
 
                   # Consistency mode selector
                   div(class: "flex items-center gap-2") do
-                    span(class: "text-sm text-gray-500") { "Mode:" }
+                    span(class: "raaf-checkrow-hint") { "Mode" }
                     select(
                       name: "evaluation_policy[check_configs][#{check_id}][consistency_mode]",
                       id: "check_#{check_id}_consistency_mode",
-                      class: "block w-28 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm",
+                      class: "raaf-input raaf-input--glass raaf-select raaf-input--sm",
                       title: "Historical: use past spans (cheap). Re-run: execute agent multiple times (accurate, higher cost)"
                     ) do
                       option(value: "historical", selected: consistency_mode == "historical") { "Historical" }
@@ -370,7 +365,7 @@ module RAAF
 
                   # Trials
                   div(class: "flex items-center gap-2") do
-                    span(class: "text-sm text-gray-500") { "Runs:" }
+                    span(class: "raaf-checkrow-hint") { "Runs" }
                     input(
                       type: "number",
                       name: "evaluation_policy[check_configs][#{check_id}][trials]",
@@ -379,7 +374,7 @@ module RAAF
                       min: 2,
                       max: 10,
                       step: 1,
-                      class: "block w-16 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm",
+                      class: "raaf-input raaf-input--glass raaf-input--sm raaf-input--narrow",
                       title: "Number of runs to compare for consistency check"
                     )
                   end
@@ -388,81 +383,87 @@ module RAAF
             end
 
             # Hidden fields
-            input(type: "hidden", name: "evaluation_policy[check_configs][#{check_id}][evaluator_name]", value: check[:evaluator_name])
-            input(type: "hidden", name: "evaluation_policy[check_configs][#{check_id}][check_name]", value: check[:check_name])
+            input(type: "hidden", name: "evaluation_policy[check_configs][#{check_id}][evaluator_name]",
+                  value: check[:evaluator_name])
+            input(type: "hidden", name: "evaluation_policy[check_configs][#{check_id}][check_name]",
+                  value: check[:check_name])
             input(type: "hidden", name: "evaluation_policy[check_configs][#{check_id}][agent_name]", value: agent_name)
-            input(type: "hidden", name: "evaluation_policy[check_configs][#{check_id}][specific_evaluator]", value: check[:specific_evaluator]) if check[:specific_evaluator].present?
+            if check[:specific_evaluator].present?
+              input(type: "hidden", name: "evaluation_policy[check_configs][#{check_id}][specific_evaluator]",
+                    value: check[:specific_evaluator])
+            end
           end
         end
 
+        # Does this policy already have this check?
+        #
+        # The picker names a check `field:specific_evaluator`
+        # (`confidence_scores:consistency`) because one field can be graded
+        # several ways. A policy stores only the field, with the chosen
+        # evaluator recorded alongside in `check_specific_evaluators`.
+        #
+        # These were compared directly, so nothing ever matched: opening any
+        # policy showed every box unticked, and saving it dropped every check
+        # it had. All five lookups shared the flaw, which is why they now share
+        # one finder.
         def check_selected?(evaluator_name, check_name)
-          evaluators = @policy.evaluators || []
-          evaluators.any? do |e|
-            eval_name = e[:name] || e["name"]
-            eval_checks = e[:checks] || e["checks"] || []
-            eval_name.to_s == evaluator_name.to_s && eval_checks.map(&:to_s).include?(check_name.to_s)
+          !stored_check(evaluator_name, check_name).nil?
+        end
+
+        # @return [Array(Hash, String), nil] the policy's evaluator entry and
+        #   the key its per-check settings are stored under
+        def stored_check(evaluator_name, check_name)
+          field, specific = check_name.to_s.split(":", 2)
+
+          Array(@policy.evaluators).each do |entry|
+            next unless value(entry, :name).to_s == evaluator_name.to_s
+
+            checks = Array(value(entry, :checks)).map(&:to_s)
+            key = [check_name.to_s, field].find { |candidate| checks.include?(candidate) }
+            next unless key
+
+            recorded = value(entry, :check_specific_evaluators).to_h[field]
+            next if specific.present? && recorded.present? && recorded.to_s != specific.to_s
+
+            return [entry, key]
           end
+
+          nil
+        end
+
+        def value(entry, key)
+          entry[key] || entry[key.to_s]
+        end
+
+        # Per-check setting, falling back to the evaluator's own, then a
+        # default — the shape every one of these settings has.
+        def check_setting(evaluator_name, check_name, map_key, fallback_key, default)
+          entry, key = stored_check(evaluator_name, check_name)
+          return default unless entry
+
+          per_check = value(entry, map_key).to_h
+          per_check[key] || per_check[key.to_sym] ||
+            value(entry, fallback_key) ||
+            entry.dig(:config, fallback_key) || entry.dig("config", fallback_key.to_s) ||
+            default
         end
 
         def get_check_trials(evaluator_name, check_name)
-          evaluators = @policy.evaluators || []
-          evaluator = evaluators.find do |e|
-            eval_name = e[:name] || e["name"]
-            eval_checks = e[:checks] || e["checks"] || []
-            eval_name.to_s == evaluator_name.to_s && eval_checks.map(&:to_s).include?(check_name.to_s)
-          end
-          return 3 unless evaluator  # Default to 3 trials
-
-          # Check for per-check trials first, then evaluator-level, then default
-          check_trials = evaluator[:check_trials] || evaluator["check_trials"] || {}
-          check_trials[check_name.to_s] || check_trials[check_name.to_sym] ||
-            evaluator.dig(:config, :trials) || evaluator.dig("config", "trials") ||
-            evaluator[:trials] || evaluator["trials"] || 3
+          check_setting(evaluator_name, check_name, :check_trials, :trials, 3)
         end
 
         def get_check_sample_every_n(evaluator_name, check_name)
-          evaluators = @policy.evaluators || []
-          evaluator = evaluators.find do |e|
-            eval_name = e[:name] || e["name"]
-            eval_checks = e[:checks] || e["checks"] || []
-            eval_name.to_s == evaluator_name.to_s && eval_checks.map(&:to_s).include?(check_name.to_s)
-          end
-          return 10 unless evaluator  # Default to every 10
-
-          # Check for per-check sample_every_n
-          check_sample_every_n = evaluator[:check_sample_every_n] || evaluator["check_sample_every_n"] || {}
-          check_sample_every_n[check_name.to_s] || check_sample_every_n[check_name.to_sym] ||
-            evaluator[:sample_every_n] || evaluator["sample_every_n"] || 10
+          check_setting(evaluator_name, check_name, :check_sample_every_n, :sample_every_n, 10)
         end
 
         def get_check_consistency_mode(evaluator_name, check_name)
-          evaluators = @policy.evaluators || []
-          evaluator = evaluators.find do |e|
-            eval_name = e[:name] || e["name"]
-            eval_checks = e[:checks] || e["checks"] || []
-            eval_name.to_s == evaluator_name.to_s && eval_checks.map(&:to_s).include?(check_name.to_s)
-          end
-          return "historical" unless evaluator  # Default to historical (cheaper)
-
-          # Check for per-check consistency mode
-          check_consistency_modes = evaluator[:check_consistency_modes] || evaluator["check_consistency_modes"] || {}
-          check_consistency_modes[check_name.to_s] || check_consistency_modes[check_name.to_sym] ||
-            evaluator[:consistency_mode] || evaluator["consistency_mode"] || "historical"
+          check_setting(evaluator_name, check_name, :check_consistency_modes,
+                        :consistency_mode, "historical")
         end
 
         def get_check_trigger_mode(evaluator_name, check_name)
-          evaluators = @policy.evaluators || []
-          evaluator = evaluators.find do |e|
-            eval_name = e[:name] || e["name"]
-            eval_checks = e[:checks] || e["checks"] || []
-            eval_name.to_s == evaluator_name.to_s && eval_checks.map(&:to_s).include?(check_name.to_s)
-          end
-          return "automatic" unless evaluator  # Default to automatic
-
-          # Check for per-check trigger mode
-          check_trigger_modes = evaluator[:check_trigger_modes] || evaluator["check_trigger_modes"] || {}
-          check_trigger_modes[check_name.to_s] || check_trigger_modes[check_name.to_sym] ||
-            evaluator[:trigger_mode] || evaluator["trigger_mode"] || "automatic"
+          check_setting(evaluator_name, check_name, :check_trigger_modes,
+                        :trigger_mode, "automatic")
         end
 
         def selected_evaluator_names
@@ -480,10 +481,10 @@ module RAAF
           span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{evaluator_type_badge_class(evaluator[:type])}") do
             format_evaluator_type(evaluator[:type])
           end
-          if evaluator[:uses_llm]
-            span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800") do
-              "Uses LLM"
-            end
+          return unless evaluator[:uses_llm]
+
+          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800") do
+            "Uses LLM"
           end
         end
 
@@ -513,88 +514,53 @@ module RAAF
         end
 
         def render_advanced_fields(form)
-          div(class: "space-y-6 pt-6") do
-            div(class: "flex items-center gap-2 border-b border-gray-200 pb-2") do
-              h3(class: "text-lg font-medium text-gray-900") { "Advanced Settings" }
-              span(class: "text-sm text-gray-500") { "(optional)" }
-            end
-
-            # Two-column grid for compact layout
-            div(class: "grid grid-cols-1 md:grid-cols-2 gap-6") do
-              div do
-                label(for: "policy_max_concurrent_evaluations", class: "block text-sm font-medium text-gray-700") { "Max Concurrent Evaluations" }
-                form.number_field(
-                  :max_concurrent_evaluations,
-                  class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                  min: 1,
-                  max: 50,
-                  value: @policy.max_concurrent_evaluations || 5
-                )
-                p(class: "mt-1 text-sm text-gray-500") { "Maximum parallel evaluations (default: 5)" }
+          render(Organisms::Card.new(title: "Advanced", subtitle: "Optional")) do
+            div(class: "raaf-field-grid") do
+              render(Molecules::Field.new(label: "Max concurrent evaluations",
+                                          for_id: "policy_max_concurrent_evaluations",
+                                          hint: "Parallel evaluations. Default 5.")) do
+                form.number_field(:max_concurrent_evaluations, class: "raaf-input raaf-input--glass", min: 1, max: 50,
+                                                               value: @policy.max_concurrent_evaluations || 5)
               end
 
-              div do
-                label(for: "policy_max_retries", class: "block text-sm font-medium text-gray-700") { "Max Retries" }
-                form.number_field(
-                  :max_retries,
-                  class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                  min: 0,
-                  max: 10,
-                  value: @policy.max_retries || 3
-                )
-                p(class: "mt-1 text-sm text-gray-500") { "Retry attempts for failed evaluations (default: 3)" }
+              render(Molecules::Field.new(label: "Max retries", for_id: "policy_max_retries",
+                                          hint: "Retries for a failed evaluation. Default 3.")) do
+                form.number_field(:max_retries, class: "raaf-input raaf-input--glass", min: 0, max: 10,
+                                                value: @policy.max_retries || 3)
               end
 
-              div do
-                label(for: "policy_priority", class: "block text-sm font-medium text-gray-700") { "Queue Priority" }
-                form.number_field(
-                  :priority,
-                  class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                  min: 0,
-                  max: 100,
-                  value: @policy.priority || 50
-                )
-                p(class: "mt-1 text-sm text-gray-500") { "Higher priority runs first (0-100, default: 50)" }
+              render(Molecules::Field.new(label: "Queue priority", for_id: "policy_priority",
+                                          hint: "Higher runs first. 0–100, default 50.")) do
+                form.number_field(:priority, class: "raaf-input raaf-input--glass", min: 0, max: 100,
+                                             value: @policy.priority || 50)
               end
 
-              div do
-                label(for: "policy_queue_name", class: "block text-sm font-medium text-gray-700") { "Queue Name" }
-                form.text_field(
-                  :queue_name,
-                  class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                  placeholder: "default"
-                )
-                p(class: "mt-1 text-sm text-gray-500") { "Solid Queue queue name (leave blank for default)" }
+              render(Molecules::Field.new(label: "Queue name", for_id: "policy_queue_name",
+                                          optional: true,
+                                          hint: "Leave blank for the default queue.")) do
+                form.text_field(:queue_name, class: "raaf-input raaf-input--glass", placeholder: "default")
               end
             end
           end
         end
 
         def render_actions(form)
-          div(class: "flex items-center justify-between pt-8 border-t border-gray-200") do
-            div(class: "flex items-center gap-3") do
-              form.submit(
-                "Save Policy",
-                class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              )
-              link_to(
-                "Cancel",
-                continuous_policies_path,
-                class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              )
+          div(class: "raaf-form-actions raaf-split") do
+            div(class: "raaf-cluster") do
+              form.submit(@policy.persisted? ? "Save policy" : "Create policy", class: "raaf-button")
+              render Atoms::Button.new(label: "Cancel", href: continuous_policies_path,
+                                       variant: :secondary)
             end
 
+            # link_to rather than button_to: button_to emits its own <form>,
+            # and a form nested inside this one does not submit.
             if @policy.persisted?
-              # Use link_to with turbo_method instead of button_to to avoid nested form issue
-              # button_to creates its own <form>, which when nested inside form_with causes submission problems
               link_to(
                 continuous_policy_path(@policy),
-                class: "inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50",
-                data: { turbo_method: :delete, turbo_confirm: "Are you sure? This will delete all associated data." }
-              ) do
-                i(class: "bi bi-trash mr-2")
-                plain "Delete Policy"
-              end
+                class: "raaf-button raaf-button--danger",
+                data: { turbo_method: :delete,
+                        turbo_confirm: "Delete this policy and everything it has recorded?" }
+              ) { "Delete policy" }
             end
           end
         end
@@ -607,12 +573,13 @@ module RAAF
           end
         end
 
-        def evaluator_type_badge_class(type)
+        # Badge variants, from the library's palette.
+        def evaluator_type_variant(type)
           case type.to_s
-          when "rule_based", "rule" then "bg-green-100 text-green-800"
-          when "statistical" then "bg-cyan-100 text-cyan-800"
-          when "llm_judge" then "bg-yellow-100 text-yellow-800"
-          else "bg-gray-100 text-gray-800"
+          when "rule_based", "rule" then :green
+          when "statistical" then :teal
+          when "llm_judge" then :amber
+          else :slate
           end
         end
 

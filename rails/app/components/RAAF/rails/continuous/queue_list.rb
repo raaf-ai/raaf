@@ -3,282 +3,330 @@
 module RAAF
   module Rails
     module Continuous
+      ##
+      # The evaluation queue, from the `isQueue` screen in
+      # RAAF Continuous.dc.html: four headline figures, then In flight beside
+      # Throughput · 24h, then Waiting.
+      #
+      # It reads SolidQueue rather than `EvaluationQueueItem`. The RAAF table
+      # records what RAAF decided to run; SolidQueue decides what a worker will
+      # actually pick up, and the two part company the moment a worker dies
+      # mid-run. A queue screen is for the second question.
+      #
+      # Three places the design assumes a shape RAAF does not have, each one
+      # decided rather than faked:
+      #
+      # - **Batches.** The design queues batches of spans and gives every row a
+      #   span count. RAAF enqueues one job per span per policy, so that count
+      #   is always one. The column carries the number that does vary — how
+      #   many checks the job will run.
+      # - **Progress bars on in-flight jobs.** A SolidQueue job reports no
+      #   progress; there is nothing between claimed and finished. A bar drawn
+      #   from elapsed time would read as progress and be a guess, so the row
+      #   carries elapsed alone.
+      # - **Estimated cost per row.** Nothing prices an evaluation before it
+      #   runs — the same call the experiment editor's "Next run" makes.
+      #
+      # And one section the design does not have. It draws a healthy queue, so
+      # it has nowhere for failures; on a real one they are the rows that
+      # matter most, and the Failed card counts them whether or not they are
+      # listed.
       class QueueList < RAAF::Rails::Tracing::BaseComponent
+        WAITING_COLUMNS = [
+          { label: "Span", span: 1.9 },
+          { label: "Policy", span: 1.4 },
+          { label: "Checks", span: 0.7, align: :right },
+          { label: "Priority", span: 0.7, align: :right },
+          { label: "Waiting", span: 0.75, align: :right }
+        ].freeze
 
-        def initialize(queue_items:, page: 1, per_page: 50, filters: {})
-          @queue_items = queue_items
-          @page = page
-          @per_page = per_page
-          @filters = filters
+        FAILED_COLUMNS = [
+          { label: "Span", span: 1.4 },
+          { label: "Policy", span: 1.1 },
+          { label: "Error", span: 2.4 },
+          { label: "Failed", span: 0.75, align: :right }
+        ].freeze
+
+        # @param queue [JobQueue]
+        def initialize(queue:)
+          @queue = queue
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_filters
-            render_queue_table
-            render_pagination if @queue_items.respond_to?(:total_pages)
+          div(class: "raaf-page") do
+            if JobQueue.available?
+              stats
+              div(class: "raaf-queue-split") do
+                in_flight
+                throughput
+              end
+              waiting
+              failed
+            else
+              no_backend
+            end
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              h1(class: "text-2xl font-bold text-gray-900") { "Evaluation Queue" }
-              p(class: "mt-1 text-sm text-gray-500") { "Monitor pending and running evaluation jobs" }
-            end
-
-            div(class: "mt-4 sm:mt-0 flex gap-2") do
-              render_preline_button(
-                text: "Refresh",
-                href: "javascript:window.location.reload();",
-                variant: "secondary",
-                icon: "bi-arrow-clockwise"
-              )
-            end
-          end
-        end
-
-        def render_filters
-          div(class: "bg-white shadow rounded-lg overflow-hidden mb-6") do
-            div(class: "px-4 py-5 sm:p-6") do
-              form(method: "get", class: "grid grid-cols-1 gap-4 sm:grid-cols-4") do
-                div do
-                  label(for: "status-filter", class: "block text-sm font-medium text-gray-700 mb-1") { "Status" }
-                  select(
-                    name: "status",
-                    id: "status-filter",
-                    class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  ) do
-                    option(value: "", selected: @filters[:status].blank?) { "All statuses" }
-                    option(value: "pending", selected: @filters[:status] == "pending") { "Pending" }
-                    option(value: "running", selected: @filters[:status] == "running") { "Running" }
-                    option(value: "completed", selected: @filters[:status] == "completed") { "Completed" }
-                    option(value: "failed", selected: @filters[:status] == "failed") { "Failed" }
-                  end
-                end
-
-                div do
-                  label(for: "policy-filter", class: "block text-sm font-medium text-gray-700 mb-1") { "Policy" }
-                  select(
-                    name: "policy_id",
-                    id: "policy-filter",
-                    class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  ) do
-                    option(value: "", selected: @filters[:policy_id].blank?) { "All policies" }
-                    # Would populate with actual policies
-                  end
-                end
-
-                div do
-                  label(for: "date-filter", class: "block text-sm font-medium text-gray-700 mb-1") { "Date From" }
-                  input(
-                    type: "date",
-                    name: "date_from",
-                    id: "date-filter",
-                    class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                    value: @filters[:date_from]
-                  )
-                end
-
-                div(class: "flex items-end") do
-                  button(
-                    type: "submit",
-                    class: "w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                  ) { "Apply Filters" }
-                end
-              end
-            end
-          end
-        end
-
-        def render_queue_table
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            if @queue_items.any?
-              div(class: "overflow-x-auto") do
-                table(class: "min-w-full divide-y divide-gray-200") do
-                  thead(class: "bg-gray-50") do
-                    tr do
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Span ID" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Policy" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Status" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Attempts" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Queued" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Started" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Completed" }
-                      th(class: "px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider") { "Actions" }
-                    end
-                  end
-                  tbody(class: "bg-white divide-y divide-gray-200") do
-                    @queue_items.each do |item|
-                      render_queue_row(item)
-                    end
-                  end
-                end
-              end
-            else
-              render_empty_state
-            end
-          end
-        end
-
-        def render_empty_state
-          div(class: "flex flex-col items-center justify-center py-12") do
-            i(class: "bi bi-inbox text-5xl text-gray-400")
-            h3(class: "mt-4 text-lg font-medium text-gray-900") { "No queue items found" }
-            p(class: "mt-1 text-sm text-gray-500") { "No evaluation jobs match the current filters." }
-          end
-        end
-
-        def render_queue_row(item)
-          tr(class: "hover:bg-gray-50") do
-            td(class: "px-4 py-4 text-sm") do
-              link_to(
-                truncate_id(item.span_id),
-                "/raaf/tracing/spans/#{item.span_id}",
-                class: "font-mono text-blue-600 hover:text-blue-500"
-              )
-            end
-
-            td(class: "px-4 py-4 text-sm") do
-              if item.evaluation_policy
-                link_to(
-                  item.evaluation_policy.name,
-                  continuous_policy_path(item.evaluation_policy),
-                  class: "text-blue-600 hover:text-blue-500"
-                )
-              else
-                span(class: "text-gray-400") { "Unknown" }
-              end
-            end
-
-            td(class: "px-4 py-4 text-sm") do
-              render_status_badge(item.status)
-            end
-
-            td(class: "px-4 py-4 text-sm") do
-              if item.attempts > 1
-                render_badge(item.attempts.to_s, "yellow")
-              else
-                span(class: "text-gray-500") { item.attempts.to_s }
-              end
-            end
-
-            td(class: "px-4 py-4 text-sm text-gray-500") do
-              plain "#{time_ago_in_words(item.created_at)} ago"
-            end
-
-            td(class: "px-4 py-4 text-sm text-gray-500") do
-              if item.started_at
-                plain "#{time_ago_in_words(item.started_at)} ago"
-              else
-                span(class: "text-gray-400") { "-" }
-              end
-            end
-
-            td(class: "px-4 py-4 text-sm text-gray-500") do
-              if item.completed_at
-                plain "#{time_ago_in_words(item.completed_at)} ago"
-              else
-                span(class: "text-gray-400") { "-" }
-              end
-            end
-
-            td(class: "px-4 py-4 text-sm text-right") do
-              render_row_actions(item)
-            end
-          end
-        end
-
-        def render_row_actions(item)
-          div(class: "flex items-center justify-end gap-2") do
-            link_to(
-              "View",
-              continuous_queue_item_path(item),
-              class: "text-blue-600 hover:text-blue-800 text-sm font-medium"
+        # SolidQueue is the host application's choice, so its absence is a
+        # configuration fact rather than an error.
+        def no_backend
+          render(Organisms::Card.new(title: "No job backend")) do
+            render Atoms::Text.new(
+              "This screen reads the SolidQueue tables directly. The application is running " \
+              "a different Active Job adapter, so there is nothing here to read — evaluations " \
+              "still run, and their results are on the policy screens.",
+              tone: :secondary
             )
+          end
+        end
 
-            if item.status == "failed"
-              button_to(
-                "Retry",
-                retry_continuous_queue_item_path(item),
-                method: :post,
-                class: "text-green-600 hover:text-green-800 text-sm font-medium"
+        # ── Headline ──────────────────────────────────────────────────────
+
+        def stats
+          render Organisms::MetricGrid.new(metrics: [
+                                             waiting_stat, in_flight_stat,
+                                             throughput_stat, oldest_stat
+                                           ])
+        end
+
+        def waiting_stat
+          { label: "Queued", value: @queue.waiting_count.to_s, icon: "hourglass-split",
+            tone: :accent, hint: queued_hint }
+        end
+
+        # Scheduled rows are retries waiting out their backoff. They are not
+        # queued yet and would flatter the figure if counted, but a reader who
+        # cannot see them cannot tell a quiet queue from a stalled one.
+        def queued_hint
+          scheduled = @queue.scheduled_count
+          return "jobs awaiting a worker" if scheduled.zero?
+
+          "jobs awaiting a worker · #{pluralize(scheduled, 'retry')} scheduled"
+        end
+
+        def in_flight_stat
+          { label: "In flight", value: @queue.in_flight_count.to_s, icon: "cpu",
+            tone: :success,
+            hint: "#{pluralize(@queue.workers_alive, 'worker')} alive" }
+        end
+
+        def throughput_stat
+          { label: "Throughput", value: "#{@queue.throughput_per_hour}/h", icon: "speedometer2",
+            tone: :accent, hint: "jobs finished, 24h average" }
+        end
+
+        # The design's fourth card pairs the oldest wait with an SLO. RAAF
+        # stores no target to be within, so the card reports the wait and what
+        # it is the age of.
+        def oldest_stat
+          seconds = @queue.oldest_wait_seconds
+
+          { label: "Oldest wait", value: seconds ? duration(seconds) : "—",
+            icon: "clock-history", tone: seconds && seconds > 300 ? :warning : nil,
+            hint: seconds ? "the job at the front of the queue" : "nothing is waiting" }
+        end
+
+        # ── In flight ─────────────────────────────────────────────────────
+
+        def in_flight
+          rows = @queue.in_flight
+
+          render(Organisms::Card.new(title: "In flight", flush: true)) do |card|
+            card.actions { workers_pip }
+
+            if rows.empty?
+              render Molecules::EmptyState.new(
+                icon: "cpu", title: "Nothing running",
+                text: "No evaluation job is claimed by a worker right now."
               )
+            else
+              rows.each { |row| in_flight_row(row) }
             end
+          end
+        end
 
-            if %w[pending running].include?(item.status)
-              button_to(
-                "Cancel",
-                cancel_continuous_queue_item_path(item),
-                method: :post,
-                class: "text-yellow-600 hover:text-yellow-800 text-sm font-medium",
-                data: { confirm: "Cancel this evaluation?" }
+        # The design puts a pulsing dot and a worker count opposite this
+        # heading. `StatusPip` is that, and its `:live` state is the pulse.
+        def workers_pip
+          alive = @queue.workers_alive
+
+          render Organisms::StatusPip.new(label: pluralize(alive, "worker"),
+                                          state: alive.positive? ? :live : :error)
+        end
+
+        def in_flight_row(row)
+          div(class: "raaf-queue-job") do
+            render Atoms::Mono.new(row[:worker], tone: :muted, class: "raaf-queue-worker")
+            span(class: "raaf-queue-policy") { row[:policy] || "unknown policy" }
+            render Atoms::Mono.new(short_span(row[:span_id]), tone: :muted)
+            render Atoms::Mono.new(duration(row[:elapsed]), align: :right,
+                                                            class: "raaf-queue-elapsed")
+          end
+        end
+
+        # ── Throughput ────────────────────────────────────────────────────
+
+        def throughput
+          series = @queue.throughput_series
+
+          render(Organisms::Card.new(title: "Throughput · 24h")) do
+            if series.sum { |bucket| bucket[:count] }.zero?
+              render Molecules::EmptyState.new(
+                icon: "bar-chart", title: "Nothing finished",
+                text: "No evaluation job completed in the last 24 hours."
               )
+            else
+              render Molecules::Sparkbars.new(values: series.map { |b| b[:count] },
+                                              tips: series.map { |b| throughput_tip(b) },
+                                              label: "Jobs finished per hour",
+                                              class: "raaf-queue-throughput")
             end
+
+            div(class: "raaf-queue-meta") { meta_rows.each { |label, value| meta_row(label, value) } }
           end
         end
 
-        def render_status_badge(status)
-          badge_config = case status.to_s
-                        when "pending"
-                          { color: "yellow", icon: "bi-clock", text: "Pending" }
-                        when "running"
-                          { color: "blue", icon: "bi-play-circle", text: "Running" }
-                        when "completed"
-                          { color: "green", icon: "bi-check-circle", text: "Completed" }
-                        when "failed"
-                          { color: "red", icon: "bi-x-circle", text: "Failed" }
-                        else
-                          { color: "gray", icon: "bi-question-circle", text: status }
-                        end
+        # An hour with no jobs still gets a readout. A gap in the bars is the
+        # thing somebody wants named — a worker that stopped reads as an empty
+        # stretch, and hovering it should say which hours were empty rather
+        # than nothing at all.
+        def throughput_tip(bucket)
+          at = bucket[:at]
+          hour = at.respond_to?(:strftime) ? at.strftime("%a %H:%M") : at.to_s
 
-          color_classes = case badge_config[:color]
-                         when "yellow" then "bg-yellow-100 text-yellow-800"
-                         when "blue" then "bg-blue-100 text-blue-800"
-                         when "green" then "bg-green-100 text-green-800"
-                         when "red" then "bg-red-100 text-red-800"
-                         else "bg-gray-100 text-gray-800"
-                         end
+          "#{hour} · #{pluralize(bucket[:count].to_i, 'job')} finished"
+        end
 
-          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
-            i(class: "#{badge_config[:icon]} mr-1")
-            plain badge_config[:text]
+        def meta_rows
+          latency = @queue.latency
+
+          [["Median latency", latency[:median] && duration(latency[:median])],
+           ["p95 latency", latency[:p95] && duration(latency[:p95])],
+           ["Finished · 24h", @queue.finished_in_window.to_s],
+           ["Failed", @queue.failed_count.to_s]]
+        end
+
+        def meta_row(label, value)
+          div(class: "raaf-queue-meta-row") do
+            span(class: "raaf-queue-meta-label") { label }
+            render Atoms::Mono.new(value || "—", tone: value ? nil : :muted)
           end
         end
 
-        def render_badge(text, color)
-          color_classes = case color
-                         when "yellow" then "bg-yellow-100 text-yellow-800"
-                         when "green" then "bg-green-100 text-green-800"
-                         when "red" then "bg-red-100 text-red-800"
-                         else "bg-gray-100 text-gray-800"
-                         end
+        # ── Waiting ───────────────────────────────────────────────────────
 
-          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
-            text
+        def waiting
+          rows = @queue.waiting
+
+          render(Organisms::Card.new(title: "Waiting", subtitle: waiting_subtitle,
+                                     flush: true)) do
+            grid = Organisms::DataGrid.new(
+              columns: WAITING_COLUMNS,
+              empty: { icon: "check2-circle", title: "Queue is clear",
+                       text: "Every evaluation job has been picked up." }
+            )
+            render(grid) { rows.each { |row| waiting_row(grid, row) } }
           end
         end
 
-        def render_pagination
-          div(class: "flex items-center justify-between px-4 py-3 border-t border-gray-200") do
-            div do
-              span(class: "text-sm text-gray-500") do
-                "Showing #{(@page - 1) * @per_page + 1}-#{[@page * @per_page, @queue_items.total_count].min} of #{@queue_items.total_count}"
-              end
-            end
-            div do
-              # Pagination links would go here
-            end
+        # Where a queue row's span is read.
+        #
+        # A span opens its trace with itself selected, and these rows come from
+        # SolidQueue payloads that carry a span id and nothing else -- so the
+        # trace has to be looked up. Once for the page, not once per row. A
+        # span the tracer has since dropped gets no link rather than a link to
+        # a page that would 404.
+        def span_href(span_id)
+          return nil if span_id.blank?
+
+          trace_id = row_traces[span_id]
+          trace_id.present? ? trace_span_path(span_id, trace_id) : nil
+        end
+
+        def row_traces
+          @row_traces ||= begin
+            ids = (@queue.waiting + @queue.failed).filter_map { |row| row[:span_id] }.uniq
+            ids.empty? ? {} : RAAF::Rails::Tracing::SpanRecord.where(span_id: ids)
+                                                             .pluck(:span_id, :trace_id).to_h
           end
         end
 
-        def truncate_id(id)
-          return id unless id.is_a?(String)
-          return id if id.length <= 12
-          "#{id[0..5]}...#{id[-6..-1]}"
+        def waiting_subtitle
+          count = @queue.waiting_count
+          return nil if count.zero?
+
+          oldest = @queue.oldest_wait_seconds
+          [pluralize(count, "job"), oldest && "oldest #{duration(oldest)}"].compact.join(" · ")
+        end
+
+        def waiting_row(grid, row)
+          grid.row(href: span_href(row[:span_id]), cells: [
+                     { value: span_cell(row) },
+                     { value: row[:policy] || "—" },
+                     { value: Atoms::Mono.new(row[:checks]&.to_s || "—"), align: :right },
+                     { value: Atoms::Mono.new(row[:priority].to_s), align: :right },
+                     { value: Atoms::Mono.new(duration(row[:waited]), tone: :muted),
+                       align: :right }
+                   ])
+        end
+
+        # A manual run was started by a person who is waiting for it, so the
+        # row says which ones those are.
+        def span_cell(row)
+          return Atoms::Mono.new("—", tone: :muted) if row[:span_id].blank?
+          return Atoms::Mono.new(short_span(row[:span_id])) unless row[:manual]
+
+          Atoms::Mono.new("#{short_span(row[:span_id])} · manual", tone: :accent)
+        end
+
+        # ── Failed ────────────────────────────────────────────────────────
+
+        def failed
+          rows = @queue.failed
+          return if rows.empty?
+
+          render(Organisms::Card.new(title: "Failed", subtitle: failed_subtitle,
+                                     flush: true)) do
+            grid = Organisms::DataGrid.new(columns: FAILED_COLUMNS)
+            render(grid) { rows.each { |row| failed_row(grid, row) } }
+          end
+        end
+
+        def failed_subtitle
+          "#{pluralize(@queue.failed_count, 'job')} a worker gave up on. " \
+            "They stay here until they are retried or discarded."
+        end
+
+        def failed_row(grid, row)
+          grid.row(href: span_href(row[:span_id]), cells: [
+                     { value: span_cell(row) },
+                     { value: row[:policy] || "—" },
+                     { value: Atoms::Mono.new(row[:error] || "—", tone: :bad) },
+                     { value: Atoms::Mono.new(time_ago(row[:failed_at]), tone: :muted),
+                       align: :right }
+                   ])
+        end
+
+        # ── Shared ────────────────────────────────────────────────────────
+
+        # A queue is read in seconds and minutes; `format_duration` is built
+        # for span timings and starts in milliseconds.
+        def duration(seconds)
+          seconds = seconds.to_f
+          return "#{seconds.round}s" if seconds < 60
+          return "#{(seconds / 60).floor}m #{(seconds % 60).round.to_s.rjust(2, '0')}s" if seconds < 3600
+
+          "#{(seconds / 3600).floor}h #{((seconds % 3600) / 60).round}m"
+        end
+
+        def short_span(span_id)
+          return "—" if span_id.blank?
+          return span_id if span_id.length <= 16
+
+          "#{span_id[0..7]}…#{span_id[-6..]}"
         end
       end
     end

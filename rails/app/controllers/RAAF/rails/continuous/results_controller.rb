@@ -17,8 +17,8 @@ module RAAF
           @results = @results.where(environment: params[:environment]) if params[:environment].present?
           @results = @results.where(status: params[:status]) if params[:status].present?
           @results = @results.where(evaluator_name: params[:evaluator]) if params[:evaluator].present?
-          @results = @results.where('created_at >= ?', params[:from].to_date) if params[:from].present?
-          @results = @results.where('created_at <= ?', params[:to].to_date.end_of_day) if params[:to].present?
+          @results = @results.where("created_at >= ?", params[:from].to_date) if params[:from].present?
+          @results = @results.where("created_at <= ?", params[:to].to_date.end_of_day) if params[:to].present?
 
           @results = @results.page(params[:page]).per(50)
 
@@ -26,10 +26,10 @@ module RAAF
           all_results = EvaluationResult.all
           @summary = {
             total: @results.total_count,
-            good: all_results.where(status: 'good').count,
-            average: all_results.where(status: 'average').count,
-            bad: all_results.where(status: 'bad').count,
-            error: all_results.where(status: 'error').count
+            good: all_results.where(status: "good").count,
+            average: all_results.where(status: "average").count,
+            bad: all_results.where(status: "bad").count,
+            error: all_results.where(status: "error").count
           }
 
           # Filter options
@@ -41,9 +41,14 @@ module RAAF
             format.html do
               results_list = RAAF::Rails::Continuous::ResultsList.new(
                 results: @results,
+                agents: @agents,
+                summary: @summary,
                 filters: params.permit(:agent, :environment, :status, :evaluator, :from, :to).to_h
+                               .symbolize_keys
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Evaluation Results") do
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: "Results", crumb: "Continuous"
+              ) do
                 render results_list
               end
               render layout

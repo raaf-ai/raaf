@@ -1,0 +1,51 @@
+/* ============================================================================
+   Molecule — Stat
+   A single value with its uppercase caption. Used inside the hero stats row
+   and, standalone, inside metric cards.
+   ========================================================================= */
+
+.raaf-stat {
+  padding: 0 var(--raaf-space-5);
+  border-right: 1px solid var(--raaf-glass-white-12);
+}
+
+.raaf-stat:first-child { padding-left: 0; }
+.raaf-stat:last-child { border-right: 0; }
+
+.raaf-stat-value {
+  margin-bottom: 6px;
+  font-size: var(--raaf-text-h3);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--raaf-white);
+  font-variant-numeric: tabular-nums;
+}
+
+.raaf-stat-value--accent { color: #b7ecff; }
+.raaf-stat-value--success { color: var(--raaf-success); }
+.raaf-stat-value--warning { color: var(--raaf-warning); }
+.raaf-stat-value--danger { color: var(--raaf-danger); }
+
+.raaf-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--raaf-glass-white-70);
+}
+
+/* Delta chip beside a value */
+.raaf-stat-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: var(--raaf-space-2);
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.raaf-stat-delta--up { color: var(--raaf-success); }
+.raaf-stat-delta--down { color: var(--raaf-danger); }
+.raaf-stat-delta--flat { color: var(--raaf-text-muted); }

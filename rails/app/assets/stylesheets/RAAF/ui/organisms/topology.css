@@ -1,0 +1,148 @@
+/* ============================================================================
+   TopologyGraph — source agents, the hubs they flow through, and the sinks.
+   ========================================================================= */
+
+.raaf-topo {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) 40px minmax(0, 1.15fr) 40px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+/* No hub: the two ranks stand either side of one connector. */
+.raaf-topo--flat { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); }
+
+/* No edges at all: the tiles are a plain grid, since there is no flow. */
+.raaf-topo--loose {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--raaf-space-3);
+}
+
+@media (width <= 860px) {
+  .raaf-topo,
+  .raaf-topo--flat {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--raaf-space-3);
+  }
+
+  /* The connectors are decoration; below the fold they would be a stack of
+     empty boxes, so they go rather than rotate. */
+  .raaf-topo-link { display: none; }
+}
+
+.raaf-topo-rank {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.raaf-topo-node {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 13px;
+  border: 1px solid var(--raaf-border-strong);
+  border-radius: 13px;
+  background: rgb(0 154 204 / 12%);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+a.raaf-topo-node:hover { border-color: var(--raaf-cyan-500); }
+
+.raaf-topo-node-head {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  min-width: 0;
+}
+
+.raaf-topo-node-name {
+  font-family: var(--raaf-font-mono);
+  font-size: 12.5px;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.raaf-topo-node-stats {
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-topo-node-note {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-topo-node--warn {
+  border-color: rgb(245 158 11 / 40%);
+  background: rgb(245 158 11 / 10%);
+}
+
+.raaf-topo-node--warn .raaf-topo-node-stats { color: var(--raaf-tone-warn-text); }
+
+.raaf-topo-node--bad {
+  border-color: rgb(239 68 68 / 45%);
+  background: rgb(239 68 68 / 12%);
+  box-shadow: 0 12px 28px rgb(239 68 68 / 8%);
+}
+
+.raaf-topo-node--bad .raaf-topo-node-stats { color: var(--raaf-tone-bad-text); }
+
+/* ── Connectors ─────────────────────────────────────────────────────────── */
+.raaf-topo-link {
+  position: relative;
+  min-height: 100px;
+
+  --raaf-topo-stroke: var(--raaf-teal-400);
+}
+
+.raaf-topo-link--warn { --raaf-topo-stroke: var(--raaf-tone-warn); }
+.raaf-topo-link--bad { --raaf-topo-stroke: var(--raaf-tone-bad); }
+
+.raaf-topo-link-line {
+  position: absolute;
+  inset-inline: 0 8px;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: var(--raaf-topo-stroke);
+}
+
+.raaf-topo-link-head {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid var(--raaf-topo-stroke);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+.raaf-topo-link-count {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 22px);
+  transform: translateX(-50%);
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+  white-space: nowrap;
+}
+
+.raaf-topo-link--bad .raaf-topo-link-count { color: var(--raaf-tone-bad-text); }
+.raaf-topo-link--warn .raaf-topo-link-count { color: var(--raaf-tone-warn-text); }
+
+/* What the rank cut. Silent truncation would read as "this is everything". */
+.raaf-topo-more {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+  padding-left: 13px;
+}

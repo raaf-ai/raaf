@@ -3,63 +3,41 @@
 module RAAF
   module Rails
     module Tracing
-      class MetricCard < Phlex::HTML
-      include Components::Preline
+      ##
+      # A single metric tile.
+      #
+      # Kept as a thin adapter over the library's MetricCard so the existing
+      # `color:`/`link:` call sites keep working; new code should render
+      # Ui::Molecules::MetricCard directly.
+      #
+      class MetricCard < BaseComponent
+        TONES = { green: :success, red: :danger, yellow: :warning, gray: nil, blue: :accent }.freeze
 
-      def initialize(value:, label:, color: :blue, link: nil)
-        @value = value
-        @label = label
-        @color = color
-        @link = link
-      end
+        ICONS = {
+          green: "check-circle",
+          red: "x-circle",
+          yellow: "exclamation-circle",
+          gray: "clock",
+          blue: "bar-chart"
+        }.freeze
 
-      def view_template
-        if @link
-          link_to(@link, class: "metric-card hover:scale-105 transition-transform") do
-            render_card_content
-          end
-        else
-          render_card_content
+        def initialize(value:, label:, color: :blue, link: nil)
+          @value = value
+          @label = label
+          @color = color.to_sym
+          @link = link
+        end
+
+        def view_template
+          render Ui::Molecules::MetricCard.new(
+            label: @label,
+            value: @value,
+            icon: ICONS.fetch(@color, ICONS[:blue]),
+            tone: TONES[@color],
+            href: @link
+          )
         end
       end
-
-      private
-
-      def render_card_content
-        Card(class: "metric-card") do |card|
-          card.body(class: "flex items-center") do
-            Avatar(
-              size: :lg,
-              variant: @color,
-              class: "inline-flex items-center justify-center flex-shrink-0"
-            ) do
-              # Icon content would go here
-              plain icon_name
-            end
-
-            Container(class: "ms-3") do
-              Typography(tag: :span, size: :xl, class: "font-semibold") { @value }
-              Typography(tag: :span, color: :muted, size: :sm) { @label }
-            end
-          end
-        end
-      end
-
-      def icon_name
-        case @color
-        when :green
-          "check-circle"
-        when :red
-          "x-circle"
-        when :yellow
-          "exclamation-circle"
-        when :gray
-          "clock"
-        else # blue
-          "chart-bar"
-        end
-      end
-    end
     end
   end
 end

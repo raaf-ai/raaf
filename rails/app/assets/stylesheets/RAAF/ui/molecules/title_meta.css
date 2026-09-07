@@ -1,0 +1,51 @@
+/* ============================================================================
+   Molecule — TitleMeta / TagList
+   The two shapes a table cell takes when one line is not enough: a name over
+   its context, and a row of short labels.
+   ========================================================================= */
+
+.raaf-titlemeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.raaf-titlemeta-title,
+.raaf-titlemeta-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.raaf-titlemeta-title { font-size: var(--raaf-text-body-sm); }
+
+.raaf-titlemeta-title--ok { color: var(--raaf-tone-ok-text); }
+.raaf-titlemeta-title--warn { color: var(--raaf-tone-warn-text); }
+.raaf-titlemeta-title--bad { color: var(--raaf-tone-bad-text); }
+.raaf-titlemeta-title--accent { color: var(--raaf-text-link); }
+
+.raaf-titlemeta-meta {
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-taglist {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.raaf-tag {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--raaf-glass-white-8);
+  color: var(--raaf-text-secondary);
+  font-family: var(--raaf-font-mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.raaf-tag--more { color: var(--raaf-text-muted); }

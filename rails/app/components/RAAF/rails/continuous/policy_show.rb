@@ -3,447 +3,302 @@
 module RAAF
   module Rails
     module Continuous
+      ##
+      # One policy, from RAAF Continuous.dc.html: a header panel carrying the
+      # name, what it does and its headline numbers; the scorers beside the
+      # configuration; and the score trend underneath.
+      #
+      # Two of the design's sections are not here, and both are data rather
+      # than layout:
+      #
+      # - **Weights and thresholds.** The design gives each scorer a weight and
+      #   draws a threshold marker on its bar. Neither is stored — every
+      #   evaluator's `config` is empty — so the bar shows the score alone.
+      # - **Alert routing.** The design lists where a breach is sent. There is
+      #   no alerting configuration on the model at all, so the section would
+      #   be a picture of something that does not exist.
+      #
       class PolicyShow < RAAF::Rails::Tracing::BaseComponent
+        # Above this a score is healthy, below the lower bound it is failing.
+        GOOD = 0.8
+        POOR = 0.5
 
-        def initialize(policy:, today_stats: {}, recent_results: [])
+        # @param check_scores [Hash] check name => { average:, count: }
+        # @param trend [Array<Hash>] one bucket per bar, oldest first, each
+        #   carrying :at, its axis :label and a :score that is nil where
+        #   nothing ran
+        # @param trend_window [String] the window the topbar is set to, said
+        #   out loud — "24 hours"
+        # @param trend_unit [String] what one bar covers — "hour"
+        def initialize(policy:, today_stats: {}, recent_results: [], matching_spans: [],
+                       check_scores: {}, trend: [], trend_window: "30 days",
+                       trend_unit: "day")
           @policy = policy
-          @today_stats = today_stats
+          @today_stats = today_stats || {}
           @recent_results = recent_results
-          @evaluator_checks_cache = {}
-          load_evaluator_checks
+          @matching_spans = matching_spans
+          @check_scores = check_scores || {}
+          @trend = trend || []
+          @trend_window = trend_window
+          @trend_unit = trend_unit
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            div(class: "grid grid-cols-1 lg:grid-cols-3 gap-6") do
-              div(class: "lg:col-span-2 space-y-6") do
-                render_policy_details
-                render_evaluators_section
-                render_recent_results
-              end
-              div(class: "space-y-6") do
-                render_stats_sidebar
-                render_actions_sidebar
-              end
+          div(class: "raaf-page") do
+            header_panel
+            div(class: "raaf-policy-split") do
+              scorers
+              configuration
             end
+            trend
+            matching_spans
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              div(class: "flex items-center gap-3") do
-                h1(class: "text-2xl font-bold text-gray-900") { @policy.name }
-                render_status_badge(@policy)
-              end
-              if @policy.description.present?
-                p(class: "mt-1 text-sm text-gray-500") { @policy.description }
-              end
-            end
-
-            div(class: "mt-4 sm:mt-0 flex gap-2") do
-              render_preline_button(
-                text: "Edit",
-                href: edit_continuous_policy_path(@policy),
-                variant: "secondary",
-                icon: "bi-pencil"
-              )
-              if @policy.active?
-                button_to(
-                  deactivate_continuous_policy_path(@policy),
-                  method: :post,
-                  class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-yellow-600 bg-yellow-600 text-white hover:bg-yellow-700 px-3 py-2"
-                ) do
-                  i(class: "bi bi-pause-circle")
-                  plain "Deactivate"
-                end
-              else
-                button_to(
-                  activate_continuous_policy_path(@policy),
-                  method: :post,
-                  class: "inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700 px-3 py-2"
-                ) do
-                  i(class: "bi bi-play-circle")
-                  plain "Activate"
-                end
-              end
-            end
-          end
+        # The one thing on this page that does something rather than reports.
+        # The canvas has no such panel — a policy there is four readings — so
+        # it goes last, leaving the designed order intact. Without it a check
+        # whose trigger mode is Manual has no button anywhere except on a span
+        # somebody already went looking for.
+        #
+        # Rendered even with nothing to show: its empty state says why the
+        # policy matches no span, and an absent panel reads as an absent
+        # feature, which is exactly how this went missing before.
+        def matching_spans
+          render MatchingSpansPanel.new(policy: @policy, spans: @matching_spans)
         end
 
-        def render_policy_details
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Policy Configuration" }
-            end
-            div(class: "px-4 py-5 sm:p-6") do
-              dl(class: "grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2") do
-                render_detail_row("Agent", @policy.agent_name.presence || "All agents")
-                render_detail_row("Environment", @policy.environment.presence || "All environments")
-                render_detail_row("Model Pattern", @policy.model_pattern.presence || "All models")
-                render_detail_row("Sampling Mode", format_sampling_mode)
-                if (to_go = @policy.spans_until_next_sample)
-                  render_detail_row("Next Sample", "In #{to_go} more matching span#{'s' unless to_go == 1}")
-                end
-                render_detail_row("Daily Limit", @policy.max_daily_evaluations&.to_s || "Unlimited")
-                render_detail_row("Retention", "#{@policy.retention_days} days")
-                render_detail_row("Priority", @policy.priority.to_s)
-                render_detail_row("Queue", @policy.queue_name.presence || "default")
-              end
-            end
-          end
+        # ── Header ────────────────────────────────────────────────────────
+
+        def header_panel
+          render(Organisms::RecordHead.new(
+                   title: @policy.name,
+                   description: @policy.description,
+                   status: @policy.active? ? "active" : "paused",
+                   meta: head_meta,
+                   action: { label: "Edit policy", icon: "sliders2",
+                             href: edit_continuous_policy_path(@policy) },
+                   stats: head_stats
+                 )) { pause_control }
         end
 
-        def render_evaluators_section
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Configured Evaluators" }
-            end
-            div(class: "px-4 py-5 sm:p-6") do
-              if @policy.evaluators.any?
-                div(class: "divide-y divide-gray-200") do
-                  @policy.evaluators.each do |evaluator|
-                    render_evaluator_item(evaluator)
-                  end
-                end
-              else
-                p(class: "text-gray-500") { "No evaluators configured" }
-              end
-            end
-          end
-        end
-
-        def render_evaluator_item(evaluator)
-          # Evaluator is a hash with string keys
-          name = evaluator["name"] || evaluator[:name]
-          type = evaluator["type"] || evaluator[:type]
-          checks = evaluator["checks"] || evaluator[:checks] || []
-          check_sample_rates = evaluator["check_sample_rates"] || evaluator[:check_sample_rates] || {}
-          agent_name = evaluator["agent_name"] || evaluator[:agent_name]
-
-          # Get fancy names
-          display_name = evaluator_display_name(name)
-          description = evaluator_description(name)
-
-          div(class: "py-4 first:pt-0 last:pb-0") do
-            # Header: Agent name with check count (like edit page)
-            div(class: "flex items-center gap-2 mb-4") do
-              span(class: "font-semibold text-gray-900") { agent_name || display_name }
-              span(class: "text-gray-500") { "(#{checks.size} checks)" }
-            end
-
-            # Show checks with their sample rates and fancy names
-            if checks.any?
-              div(class: "space-y-3") do
-                checks.each do |check|
-                  sample_rate = check_sample_rates[check.to_s] || check_sample_rates[check.to_sym] || 100
-                  check_name = check_display_name(check, name)
-                  check_desc = check_description(check, name)
-
-                  div(class: "flex items-start justify-between py-2") do
-                    # Check details
-                    div(class: "flex-1 min-w-0") do
-                      span(class: "font-medium text-gray-900") { check_name }
-                      if check_desc.present?
-                        p(class: "text-sm text-gray-500 mt-0.5") { check_desc }
-                      end
-                    end
-
-                    # Sample rate badge
-                    span(class: "flex-shrink-0 text-sm text-gray-500") { "#{sample_rate}%" }
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        def format_evaluator_type(type)
-          case type.to_s
-          when "llm_judge" then "LLM Judge"
-          when "rule_based" then "Rule-based"
-          when "statistical" then "Statistical"
-          else type.to_s.split("_").map(&:capitalize).join(" ")
-          end
-        end
-
-        def render_stats_sidebar
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Today's Statistics" }
-            end
-            div(class: "px-4 py-5 sm:p-6 space-y-4") do
-              render_stat_item("Evaluations", @today_stats[:total] || 0)
-              render_stat_item("Good", @today_stats[:good] || 0, "green")
-              render_stat_item("Average", @today_stats[:average] || 0, "yellow")
-              render_stat_item("Bad", @today_stats[:bad] || 0, "red")
-              render_stat_item("Error", @today_stats[:error] || 0, "orange") if (@today_stats[:error] || 0) > 0
-              render_stat_item("Avg Score", format_score(@today_stats[:avg_score]))
-
-              if @policy.max_daily_evaluations
-                div(class: "pt-4 border-t border-gray-200") do
-                  span(class: "text-sm text-gray-500") { "Daily Usage" }
-                  div(class: "mt-2") do
-                    percentage = (@today_stats[:total].to_f / @policy.max_daily_evaluations * 100).round
-                    progress_color = if percentage >= 90
-                                       "bg-red-600"
-                                     elsif percentage >= 70
-                                       "bg-yellow-500"
-                                     else
-                                       "bg-green-600"
-                                     end
-                    div(class: "w-full bg-gray-200 rounded-full h-4") do
-                      div(
-                        class: "#{progress_color} h-4 rounded-full transition-all duration-300",
-                        style: "width: #{[percentage, 100].min}%"
-                      ) do
-                        span(class: "px-2 text-xs text-white font-medium") { "#{percentage}%" }
-                      end
-                    end
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        def render_actions_sidebar
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Actions" }
-            end
-            div(class: "divide-y divide-gray-200") do
-              link_to(
-                continuous_queue_items_path(policy_id: @policy.id),
-                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-              ) do
-                i(class: "bi bi-list-task mr-3 text-gray-400")
-                plain "View Queue Items"
-              end
-
-              link_to(
-                continuous_results_path(policy_id: @policy.id),
-                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-              ) do
-                i(class: "bi bi-graph-up mr-3 text-gray-400")
-                plain "View Results"
-              end
-
-              link_to(
-                continuous_analytics_path,
-                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-gray-700"
-              ) do
-                i(class: "bi bi-bar-chart mr-3 text-gray-400")
-                plain "Analytics Dashboard"
-              end
-
-              link_to(
-                edit_continuous_policy_path(@policy),
-                class: "flex items-center px-4 py-3 hover:bg-gray-50 text-blue-600"
-              ) do
-                i(class: "bi bi-pencil mr-3")
-                plain "Edit Policy"
-              end
-
-              button_to(
-                duplicate_continuous_policy_path(@policy),
-                method: :post,
-                class: "flex items-center w-full px-4 py-3 hover:bg-gray-50 text-cyan-600"
-              ) do
-                i(class: "bi bi-copy mr-3")
-                plain "Duplicate Policy"
-              end
-
-              button_to(
-                continuous_policy_path(@policy),
-                method: :delete,
-                class: "flex items-center w-full px-4 py-3 hover:bg-gray-50 text-red-600",
-                data: { confirm: "Are you sure? This will delete all associated data." }
-              ) do
-                i(class: "bi bi-trash mr-3")
-                plain "Delete Policy"
-              end
-            end
-          end
-        end
-
-        def render_recent_results
-          render RecentResultsPanel.new(
-            results: @recent_results,
-            title: "Recent Results",
-            view_all_path: continuous_results_path(policy_id: @policy.id),
-            limit: 5,
-            show_evaluator: true
-          )
-        end
-
-        def render_detail_row(label, value)
-          div do
-            dt(class: "text-sm font-medium text-gray-500") { label }
-            dd(class: "mt-1 text-sm text-gray-900") { value }
-          end
-        end
-
-        def render_stat_item(label, value, color = nil)
-          div(class: "flex justify-between items-center") do
-            span(class: "text-sm text-gray-500") { label }
-            value_class = case color
-                         when "green" then "text-green-600"
-                         when "yellow" then "text-yellow-600"
-                         when "orange" then "text-orange-600"
-                         when "red" then "text-red-600"
-                         else "text-gray-900"
-                         end
-            span(class: "text-lg font-semibold #{value_class}") { value }
-          end
-        end
-
-        def render_status_badge(policy)
-          if policy.active?
-            span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800") do
-              "Active"
-            end
+        # Whether the policy is running was until now only changeable through
+        # the edit form's checkbox, three screens from the badge that reports
+        # it. Pausing is a POST, so it is a form rather than a link — as a link
+        # it would be a GET that no route answers.
+        def pause_control
+          if @policy.active?
+            post_button("Pause", "pause-fill", deactivate_continuous_policy_path(@policy))
           else
-            span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800") do
-              "Inactive"
-            end
+            post_button("Resume", "play-fill", activate_continuous_policy_path(@policy))
           end
         end
 
-        def render_badge(text, color)
-          color_classes = case color
-                         when "blue" then "bg-blue-100 text-blue-800"
-                         when "green" then "bg-green-100 text-green-800"
-                         when "red" then "bg-red-100 text-red-800"
-                         when "yellow" then "bg-yellow-100 text-yellow-800"
-                         when "gray" then "bg-gray-100 text-gray-800"
-                         when "info" then "bg-cyan-100 text-cyan-800"
-                         when "success" then "bg-green-100 text-green-800"
-                         when "warning" then "bg-yellow-100 text-yellow-800"
-                         else "bg-gray-100 text-gray-800"
-                         end
-
-          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
-            text
+        def post_button(label, icon, action)
+          form(action: action, method: "post", class: "raaf-inline-form") do
+            input(type: "hidden", name: "authenticity_token", value: form_authenticity_token)
+            render Atoms::Button.new(label: label, icon: icon, size: :sm,
+                                     variant: :secondary, type: "submit")
           end
         end
 
-        def format_sampling_mode
-          case @policy.sampling_mode
-          when "every_n"
-            "Every #{@policy.sample_every_n}th span"
-          when "all"
-            "All spans"
-          else
-            @policy.sampling_mode
-          end
+        def head_meta
+          [@policy.agent_name.presence || "any agent",
+           environment_label,
+           sample_label].compact.join(" · ")
         end
 
-        def format_score(score)
-          return "N/A" unless score
-          score.is_a?(Numeric) ? score.round(2).to_s : score.to_s
+        def head_stats
+          [{ label: "Today", value: @today_stats[:total].to_i.to_s },
+           { label: "Avg score", value: score_text(@today_stats[:avg_score]),
+             tone: score_tone(@today_stats[:avg_score]) },
+           { label: "Good", value: good_share }]
         end
 
-        def evaluator_type_color(type)
-          case type.to_s
-          when "rule", "rule_based" then "green"
-          when "statistical" then "info"
-          when "llm_judge" then "yellow"
-          else "gray"
-          end
+        # The share of today's evaluations that came back good — the number a
+        # policy exists to move.
+        def good_share
+          total = @today_stats[:total].to_i
+          return "—" if total.zero?
+
+          "#{((@today_stats[:good].to_i / total.to_f) * 100).round}%"
         end
 
-        # Load evaluator metadata and checks from all configured evaluators
-        # @return [void]
-        def load_evaluator_checks
-          @evaluator_metadata_cache = {}
+        # ── Scorers ───────────────────────────────────────────────────────
 
-          @policy.evaluators.each do |evaluator|
-            name = evaluator["name"] || evaluator[:name]
-            next unless name
-
-            begin
-              evaluator_class = RAAF::Eval::Continuous::EvaluatorDiscovery.build(evaluator)
-
-              # Store evaluator metadata (display_name, description)
-              @evaluator_metadata_cache[name.to_s] = {
-                display_name: evaluator_class.respond_to?(:display_name) ? evaluator_class.display_name : nil,
-                description: evaluator_class.respond_to?(:description) ? evaluator_class.description : nil
-              }
-
-              # Store check details
-              if evaluator_class.respond_to?(:evaluated_checks)
-                checks = evaluator_class.evaluated_checks
-                @evaluator_checks_cache[name.to_s] = checks
-              end
-            rescue StandardError
-              # Skip if evaluator cannot be loaded
-            end
-          end
-        end
-
-        # Get display name for an evaluator
-        # @param name [String] The evaluator name
-        # @return [String] The display name or humanized name as fallback
-        def evaluator_display_name(name)
-          metadata = @evaluator_metadata_cache&.dig(name.to_s)
-          metadata&.dig(:display_name).presence || name.to_s.humanize.titleize
-        end
-
-        # Get description for an evaluator
-        # @param name [String] The evaluator name
-        # @return [String, nil] The description
-        def evaluator_description(name)
-          metadata = @evaluator_metadata_cache&.dig(name.to_s)
-          metadata&.dig(:description)
-        end
-
-        # Find check details by field name and evaluator type
-        # @param evaluator_name [String] The evaluator name (e.g., "eval_prospect_scoring")
-        # @param field_name [String] The field name (e.g., "individual_scores")
-        # @param evaluator_type [String] The evaluator type (e.g., "consistency")
-        # @return [Hash, nil] Check details with :display_name and :description
-        def find_check_details(evaluator_name, field_name, evaluator_type = nil)
-          checks = @evaluator_checks_cache[evaluator_name.to_s]
-          return nil unless checks
-
-          checks.find do |check|
-            field_match = check[:field_name].to_s == field_name.to_s
-            if evaluator_type
-              field_match && check[:evaluator_type].to_s == evaluator_type.to_s
+        def scorers
+          render(Organisms::Card.new(title: "Scorers", flush: true)) do
+            if checks.empty?
+              render Molecules::EmptyState.new(icon: "sliders", title: "No scorers",
+                                               text: "This policy declares no checks.")
             else
-              field_match
+              checks.each { |check| scorer_row(check) }
             end
           end
         end
 
-        # Get display name for a check, falling back to humanized field name
-        # @param check [String] The check in "field:evaluator" format
-        # @param evaluator_name [String] The evaluator name
-        # @return [String] The display name
-        def check_display_name(check, evaluator_name)
-          field_name, evaluator_type = check.to_s.split(":", 2)
-          details = find_check_details(evaluator_name, field_name, evaluator_type)
+        def scorer_row(check)
+          measured = @check_scores[check]
 
-          if details && details[:display_name].present?
-            details[:display_name]
-          else
-            # Fallback to humanized name
-            field_name.to_s.humanize
+          div(class: "raaf-scorer") do
+            div(class: "raaf-scorer-head") do
+              render Atoms::Mono.new(check.to_s.tr("_", " "), class: "raaf-scorer-name")
+              render Atoms::Mono.new(score_text(measured&.dig(:average)),
+                                     tone: score_tone(measured&.dig(:average)))
+            end
+
+            render Atoms::ProgressBar.new(value: (measured&.dig(:average).to_f * 100).round,
+                                          tone: bar_tone(measured&.dig(:average)))
+
+            render Atoms::Text.new(scorer_note(measured), size: :sm, tone: :muted)
           end
         end
 
-        # Get description for a check
-        # @param check [String] The check in "field:evaluator" format
-        # @param evaluator_name [String] The evaluator name
-        # @return [String, nil] The description
-        def check_description(check, evaluator_name)
-          field_name, evaluator_type = check.to_s.split(":", 2)
-          details = find_check_details(evaluator_name, field_name, evaluator_type)
-          details&.dig(:description)
+        def scorer_note(measured)
+          return "No results yet" if measured.nil?
+
+          "#{pluralize(measured[:count], 'evaluation')} scored"
+        end
+
+        # The checks every evaluator on the policy declares, in order.
+        def checks
+          @checks ||= Array(@policy.evaluators).flat_map do |evaluator|
+            evaluator.is_a?(Hash) ? Array(evaluator["checks"] || evaluator[:checks]) : []
+          end.map(&:to_s).uniq
+        end
+
+        # ── Configuration ─────────────────────────────────────────────────
+
+        def configuration
+          render(Organisms::Card.new(title: "Configuration", flush: true)) do
+            config_rows.each { |label, value| config_row(label, value) }
+          end
+        end
+
+        def config_row(label, value)
+          div(class: "raaf-config-row") do
+            span(class: "raaf-config-label") { label }
+            render Atoms::Mono.new(value, class: "raaf-config-value")
+          end
+        end
+
+        def config_rows
+          [["Agent", @policy.agent_name.presence || "any agent"],
+           ["Environment", environment_label],
+           ["Sampling", sample_label],
+           ["Daily cap", @policy.max_daily_evaluations.to_i.positive? ? @policy.max_daily_evaluations.to_s : "none"],
+           ["Concurrency", @policy.max_concurrent_evaluations.to_s],
+           ["Retries", @policy.max_retries.to_s],
+           ["Priority", @policy.priority.to_s],
+           ["Queue", @policy.queue_name.presence || "default"],
+           ["Retention", retention_label]]
+        end
+
+        def environment_label
+          @policy.environment.presence == "all" ? "every environment" : @policy.environment.to_s
+        end
+
+        def sample_label
+          case @policy.sampling_mode
+          when "every_n" then "every #{@policy.sample_every_n}th span"
+          when "percentage" then "#{@policy.sample_rate}% of spans"
+          else "every span"
+          end
+        end
+
+        def retention_label
+          days = @policy.retention_days.to_i
+          count = @policy.retention_count.to_i
+
+          [days.positive? && "#{days} days", count.positive? && "#{count} results"]
+            .select { |part| part }.join(" · ").presence || "unlimited"
+        end
+
+        # ── Trend ─────────────────────────────────────────────────────────
+
+        def trend
+          render(Organisms::Card.new(title: "Composite score · #{@trend_window}",
+                                     subtitle: trend_summary)) do
+            if @trend.none? { |point| point[:score] }
+              render Molecules::EmptyState.new(icon: "bar-chart", title: "No history",
+                                               text: "This policy has not scored anything in the last #{@trend_window}.")
+            else
+              div(class: "raaf-trend") { @trend.each { |point| trend_bar(point) } }
+              div(class: "raaf-trend-axis") { trend_axis.each { |label| span { label } } }
+            end
+          end
+        end
+
+        # A bucket with no evaluations is a gap, not a zero — it draws as a
+        # stub so the eye does not read it as a failure.
+        #
+        # The bar hangs in a full-height cell, which is both the hover target
+        # and what the readout is anchored to. A 2% stub is not something a
+        # mouse can land on, and it is exactly the bucket worth asking about.
+        # The readout was a `title` attribute, which waits a second, cannot be
+        # styled and does not survive a touch — the console's tooltip molecule
+        # is the same thing done once, everywhere.
+        def trend_bar(point)
+          score = point[:score]
+          # `tokens` is a Ui::Base helper; this component descends from the
+          # tracing BaseComponent, so the class list is built plainly.
+          css = ["raaf-trend-bar",
+                 score ? "raaf-trend-bar--#{score_tone(score)}" : "raaf-trend-bar--empty"].join(" ")
+
+          div(class: "raaf-trend-cell raaf-tooltip") do
+            div(class: css, style: "--raaf-bar-pct: #{score ? (score * 100).round : 2}%")
+            span(class: "raaf-tooltip-content", role: "tooltip") { trend_tip(point) }
+          end
+        end
+
+        def trend_tip(point)
+          score = point[:score]
+          return "#{point[:label]} · no evaluations" unless score
+
+          "#{point[:label]} · #{score_text(score)}"
+        end
+
+        def trend_summary
+          scored = @trend.filter_map { |point| point[:score] }
+          return "no evaluations in the window" if scored.empty?
+
+          poor = scored.count { |score| score < GOOD }
+          "#{pluralize(scored.size, @trend_unit)} scored · " \
+            "#{pluralize(poor, @trend_unit)} below #{GOOD}"
+        end
+
+        def trend_axis
+          labels = @trend.filter_map { |point| point[:label] }
+          return [] if labels.empty?
+
+          [labels.first, labels[labels.size / 2], labels.last]
+        end
+
+        # ── Scores ────────────────────────────────────────────────────────
+
+        def score_text(score)
+          return "—" if score.nil?
+
+          # `format` is not Kernel's here — Phlex's element methods take the
+          # name, so the operator form is the one that survives.
+          "%.2f" % score.to_f
+        end
+
+        # ProgressBar names its tones for the bar, not for the reading.
+        def bar_tone(score)
+          { warn: :warning, bad: :danger }[score_tone(score)]
+        end
+
+        def score_tone(score)
+          return nil if score.nil?
+
+          case score.to_f
+          when GOOD.. then :ok
+          when POOR...GOOD then :warn
+          else :bad
+          end
         end
       end
     end

@@ -1,0 +1,84 @@
+/* ============================================================================
+   Organism — DataRow
+   The signature list row: leading avatar or icon, a title/meta stack, then
+   trailing slots. Used where a table would be too rigid.
+   ========================================================================= */
+
+.raaf-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.raaf-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--raaf-space-5);
+  padding: var(--raaf-row-py) var(--raaf-row-px);
+  border-bottom: 1px solid var(--raaf-glass-white-8);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.raaf-row:last-child { border-bottom: none; }
+
+a.raaf-row:hover,
+.raaf-row--interactive:hover {
+  background: var(--raaf-glass-white-5);
+  text-decoration: none;
+}
+
+.raaf-row-lead { display: flex; align-items: center; }
+
+.raaf-row-body { min-width: 0; }
+
+.raaf-row-title {
+  margin: 0 0 2px;
+  font-size: var(--raaf-text-body-lg);
+  font-weight: 600;
+  color: var(--raaf-white);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raaf-row-meta {
+  margin: 0;
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-row-trail {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-4);
+  flex-shrink: 0;
+}
+
+/* Score chip on the trailing edge */
+.raaf-row-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px var(--raaf-glass-black-15);
+  color: var(--raaf-white);
+  font-size: var(--raaf-text-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (width <= 768px) {
+  .raaf-row {
+    grid-template-columns: auto 1fr;
+    gap: var(--raaf-space-3);
+  }
+
+  .raaf-row-trail {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+}

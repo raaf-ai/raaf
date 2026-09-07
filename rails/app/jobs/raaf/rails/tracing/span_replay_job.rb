@@ -165,7 +165,7 @@ module RAAF
 
           attrs["llm"]["usage"] = result[:usage] || {}
 
-          # Update flat model keys for AgentSpanComponent display
+          # The flat model keys the inspector's Configuration tab reads
           attrs["agent.model"] = result[:model]
           attrs["model"] = result[:model]
           attrs["llm.model"] = result[:model]
@@ -232,7 +232,7 @@ module RAAF
           else
             obj.duplicable? ? obj.dup : obj
           end
-        rescue
+        rescue StandardError
           obj
         end
 

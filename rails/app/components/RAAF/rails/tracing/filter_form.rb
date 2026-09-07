@@ -3,121 +3,84 @@
 module RAAF
   module Rails
     module Tracing
-      class FilterForm < Phlex::HTML
-      include Phlex::Rails::Helpers::FormWith
-      include Phlex::Rails::Helpers::OptionsForSelect
-      include Components::Preline
+      ##
+      # The shared filter bar above the trace and span listings.
+      #
+      # Every control is a library atom wrapped in a Field, so the form spaces
+      # and labels itself the same way as every other form in the dashboard.
+      #
+      class FilterForm < BaseComponent
+        STATUSES = [
+          %w[Completed completed],
+          %w[Failed failed],
+          %w[Running running],
+          %w[Pending pending]
+        ].freeze
 
-      def initialize(url:, search: nil, workflow: nil, status: nil, start_time: nil, end_time: nil)
-        @url = url
-        @search = search
-        @workflow = workflow
-        @status = status
-        @start_time = start_time
-        @end_time = end_time
-      end
+        def initialize(url:, search: nil, workflow: nil, status: nil, start_time: nil, end_time: nil)
+          @url = url
+          @search = search
+          @workflow = workflow
+          @status = status
+          @start_time = start_time
+          @end_time = end_time
+        end
 
-      def view_template
-        Card(class: "mb-6") do |card|
-          card.body do
-            Form(url: @url, method: :get, local: true, class: "grid grid-cols-1 md:grid-cols-6 gap-4") do
-              # Search field
-              div(class: "md:col-span-2") do
-                Input(
-                  field: "search",
-                  name: "search",
-                  value: @search,
-                  placeholder: "Search traces...",
-                  label: "Search"
-                )
+        def view_template
+          render(Organisms::Card.new(tight: true)) do
+            form_with(url: @url, method: :get, local: true) do
+              div(class: "raaf-field-grid") do
+                search_field
+                workflow_field
+                status_field
+                time_field("Start time", :start_time, @start_time)
+                time_field("End time", :end_time, @end_time)
               end
 
-              # Workflow select
-              div do
-                Select(
-                  field: "workflow",
-                  name: "workflow",
-                  label: "Workflow",
-                  value: @workflow,
-                  options: workflow_select_options
-                )
-              end
-
-              # Status select
-              div do
-                Select(
-                  field: "status",
-                  name: "status",
-                  label: "Status",
-                  value: @status,
-                  options: status_select_options
-                )
-              end
-
-              # Start time
-              div do
-                Input(
-                  field: "start_time",
-                  name: "start_time",
-                  type: "datetime",
-                  value: @start_time,
-                  label: "Start Time"
-                )
-              end
-
-              # End time
-              div do
-                Input(
-                  field: "end_time",
-                  name: "end_time",
-                  type: "datetime",
-                  value: @end_time,
-                  label: "End Time"
-                )
-              end
-
-              # Submit button
-              Flex(align: :end) do
-                Button(
-                  type: "submit",
-                  variant: :primary,
-                  class: "w-full"
-                ) do
-                  "Apply Filter"
-                end
+              div(class: "raaf-form-actions") do
+                render Atoms::Button.new(label: "Apply filter", type: "submit")
+                render Atoms::Button.new(label: "Reset", href: @url, variant: :secondary)
               end
             end
           end
         end
-      end
 
-      private
+        private
 
-      def workflow_select_options
-        options = [["All Workflows", ""]]
-        workflow_options.each do |workflow|
-          options << [workflow, workflow]
+        def search_field
+          render(Molecules::Field.new(label: "Search")) do
+            render Atoms::Input.new(name: "search", value: @search, type: "search",
+                                    placeholder: "Search traces…")
+          end
         end
-        options
-      end
 
-      def status_select_options
-        [
-          ["All Statuses", ""],
-          ["Completed", "completed"],
-          ["Failed", "failed"],
-          ["Running", "running"],
-          ["Pending", "pending"]
-        ]
-      end
+        def workflow_field
+          render(Molecules::Field.new(label: "Workflow")) do
+            render Atoms::Select.new(name: "workflow", selected: @workflow,
+                                     include_blank: "All workflows", options: workflow_options)
+          end
+        end
 
-      def workflow_options
-        # This would typically come from the controller
-        RAAF::Tracing::TraceRecord.distinct.pluck(:workflow_name).compact
-      rescue StandardError
-        []
+        def status_field
+          render(Molecules::Field.new(label: "Status")) do
+            render Atoms::Select.new(name: "status", selected: @status,
+                                     include_blank: "All statuses", options: STATUSES)
+          end
+        end
+
+        def time_field(label, name, value)
+          render(Molecules::Field.new(label: label)) do
+            render Atoms::Input.new(name: name, type: "datetime-local", value: value)
+          end
+        end
+
+        # Distinct workflow names, or nothing if the table is unavailable.
+        def workflow_options
+          RAAF::Rails::Tracing::TraceRecord.distinct.pluck(:workflow_name).compact.sort
+        rescue StandardError
+          []
+        end
       end
-    end
     end
   end
 end

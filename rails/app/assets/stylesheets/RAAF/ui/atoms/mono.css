@@ -1,0 +1,132 @@
+/* ============================================================================
+   Atoms — Mono, Bar, Chip, Divider, Caret
+   The small primitives the console screens are assembled from.
+   ========================================================================= */
+
+.raaf-mono {
+  font-family: var(--raaf-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--raaf-text-body-sm);
+}
+
+.raaf-mono--right { display: block; text-align: right; }
+.raaf-mono--lg { font-size: var(--raaf-text-h6); font-weight: 600; }
+.raaf-mono--muted { color: var(--raaf-text-muted); }
+/* An identifier that leads a row — a trace or span id — which the design
+   prints in the accent so the eye finds the key column first. */
+.raaf-mono--accent { color: var(--raaf-text-link); }
+.raaf-mono--ok { color: var(--raaf-tone-ok-text); }
+.raaf-mono--warn { color: var(--raaf-tone-warn-text); }
+.raaf-mono--bad { color: var(--raaf-tone-bad-text); }
+
+/* ── Bar: a single track with a fill ─────────────────────────────────────── */
+.raaf-bar {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-glass-white-8);
+}
+
+.raaf-bar-fill {
+  height: 100%;
+  width: var(--raaf-bar-pct, 0%);
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-cyan-500);
+  transition: width 0.3s ease;
+}
+
+.raaf-bar--ok .raaf-bar-fill { background: var(--raaf-tone-ok); }
+.raaf-bar--warn .raaf-bar-fill { background: var(--raaf-tone-warn); }
+.raaf-bar--bad .raaf-bar-fill { background: var(--raaf-tone-bad); }
+
+/* ── Chip: a filter pill ─────────────────────────────────────────────────── */
+.raaf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--raaf-radius-pill);
+  background: transparent;
+  color: var(--raaf-text-muted);
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.raaf-chip:hover { color: var(--raaf-white); text-decoration: none; }
+
+.raaf-chip.is-active {
+  background: var(--raaf-glass-white-12);
+  color: var(--raaf-white);
+}
+
+.raaf-chip-count {
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+/* The rail chips sit in. */
+.raaf-chip-rail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-glass-white-5);
+}
+
+/* Loose rail: no shared container, each chip carrying its own outline. The
+   design groups the Traces status filter and leaves the Spans kind filters as
+   separate badges, so this is a variant rather than the base. */
+.raaf-chip-rail--loose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* Outlined: each chip is a badge in its own right, as the Spans kind filters
+   are. The Continuous policy filters are loose but *not* outlined — plain
+   pills on the page — so the two are separate axes. */
+.raaf-chip-rail--outlined .raaf-chip {
+  padding: 6px 13px;
+  border-color: var(--raaf-border);
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-chip-rail--outlined .raaf-chip.is-active {
+  border-color: var(--raaf-border-strong);
+  background: var(--raaf-glass-white-12);
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+.raaf-divider { border: 0; border-top: 1px solid var(--raaf-border); margin: 0; }
+.raaf-divider--y { border-top: 0; border-left: 1px solid var(--raaf-border); align-self: stretch; }
+
+/* ── Caret ───────────────────────────────────────────────────────────────── */
+.raaf-caret { font-size: 10px; transition: transform 0.15s ease; }
+.raaf-caret.is-open { transform: rotate(90deg); }
+
+/* ── Link: an inline link inside a row that is not itself one ───────────── */
+.raaf-link {
+  color: var(--raaf-text-link);
+  text-decoration: none;
+}
+
+.raaf-link:hover { color: var(--raaf-text-link-hover); }
+.raaf-link--muted { color: var(--raaf-text-muted); }
+
+.raaf-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--raaf-space-2);
+  flex-wrap: wrap;
+}

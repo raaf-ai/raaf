@@ -1,0 +1,165 @@
+/* ============================================================================
+   Atom — Button
+   Pill-shaped primary action with the signature gradient hairline border.
+   ========================================================================= */
+
+.raaf-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--raaf-space-2);
+  position: relative;
+  min-width: 180px;
+  height: 38px;
+  padding: 4px 20px;
+  border: none;
+  border-radius: 30px;
+  background: linear-gradient(135deg, var(--raaf-green-600) 0%, var(--raaf-green-500) 100%);
+  color: var(--raaf-white);
+  font-family: var(--raaf-font-sans);
+  font-size: var(--raaf-text-body-lg);
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.raaf-button:hover {
+  filter: brightness(1.05);
+  text-decoration: none;
+  color: var(--raaf-white);
+}
+
+/* Gradient hairline — the detail that makes the pill read as glass */
+.raaf-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: 30px;
+  background: linear-gradient(178deg, rgb(255 255 255 / 50%) 0%, rgb(3 162 102 / 50%) 100%);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.raaf-button--secondary {
+  background: var(--raaf-glass-white-15);
+  border: 2px solid var(--raaf-glass-white-60);
+}
+
+.raaf-button--secondary::before {
+  display: none;
+}
+
+.raaf-button--secondary:hover {
+  background: var(--raaf-glass-white-20);
+  border-color: var(--raaf-glass-white-80);
+  filter: none;
+}
+
+/* Compact inline action — table rows, card headers, toolbars */
+.raaf-button--sm {
+  min-width: 0;
+  height: auto;
+  padding: 5px 12px;
+  border-radius: var(--raaf-radius-sm);
+  background: var(--raaf-glass-white-8);
+  border: 1px solid var(--raaf-glass-white-20);
+  color: var(--raaf-gray-200);
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 600;
+}
+
+.raaf-button--sm::before {
+  display: none;
+}
+
+.raaf-button--sm:hover {
+  background: var(--raaf-glass-white-15);
+  border-color: var(--raaf-glass-white-30);
+  color: var(--raaf-white);
+  filter: none;
+}
+
+.raaf-button--lg {
+  height: 48px;
+  padding: 8px 28px;
+  font-size: 17px;
+}
+
+.raaf-button--danger {
+  background: #dc2626;
+  color: var(--raaf-white);
+}
+
+.raaf-button--danger::before {
+  display: none;
+}
+
+.raaf-button--danger:hover {
+  background: #b91c1c;
+  filter: none;
+}
+
+.raaf-button--light {
+  min-width: 0;
+  height: auto;
+  padding: 8px 16px;
+  background: var(--raaf-white);
+  border: 1px solid var(--raaf-gray-200);
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.raaf-button--light::before {
+  display: none;
+}
+
+.raaf-button--light:hover {
+  background: #f8fafc;
+  color: #1e293b;
+  filter: none;
+}
+
+/* Bare icon button — circular, no chrome until hovered */
+.raaf-button--icon {
+  min-width: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  gap: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--raaf-glass-white-10);
+  color: var(--raaf-text-secondary);
+  font-size: var(--raaf-text-h6);
+}
+
+.raaf-button--icon::before {
+  display: none;
+}
+
+.raaf-button--icon:hover {
+  background: var(--raaf-glass-white-8);
+  border-color: var(--raaf-glass-white-20);
+  color: var(--raaf-white);
+  filter: none;
+}
+
+.raaf-button:disabled,
+.raaf-button--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Group of buttons with consistent gutter */
+.raaf-button-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+}

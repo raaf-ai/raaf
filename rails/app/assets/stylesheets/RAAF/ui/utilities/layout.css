@@ -1,0 +1,65 @@
+/* ============================================================================
+   Utilities — Layout
+   The small set of layout helpers pages genuinely need. Deliberately narrow:
+   anything used more than a few times should become a component instead.
+   ========================================================================= */
+
+.raaf-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-6);
+}
+
+.raaf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+}
+
+.raaf-cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex-wrap: wrap;
+}
+
+.raaf-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--raaf-space-4);
+  flex-wrap: wrap;
+}
+
+/* A page's own actions. The design gives the Tracing screens no banner — the
+   shell's topbar already carries the crumb and title — so a screen that needs
+   Export or Clear puts those buttons here instead of inside a hero that would
+   repeat the title to justify itself. */
+.raaf-page-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--raaf-space-2);
+  flex-wrap: wrap;
+}
+
+.raaf-text-right { text-align: right; }
+
+/* The design indents the wide free-text column that follows a right-aligned
+   figure — Output on the Experiment screen, Reason on Feedback — so the number
+   and the sentence after it do not read as one string. */
+.raaf-cell-indent { padding-left: var(--raaf-space-4); }
+
+
+.raaf-hidden { display: none; }
+
+/* The span-hierarchy script toggles a bare `.hidden` class, which used to come
+   from Tailwind. Defined here, scoped to the dashboard, so the behaviour
+   survives removing the Tailwind migration scaffolding. */
+.raaf-root .hidden { display: none !important; }
+
+/* `button_to` emits a wrapping form; keep it from breaking a button row. */
+.raaf-inline-form {
+  display: inline-block;
+  margin: 0;
+}

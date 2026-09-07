@@ -4,509 +4,436 @@ module RAAF
   module Rails
     module Tracing
       module Replay
-        # Component for the new replay form page
+        ##
+        # The replay form -- one recorded call, its settings and its prompt,
+        # opened for editing so it can be run again.
         #
-        # Displays a form to configure and execute a span replay with
-        # editable prompts and model settings.
+        # No canvas draws it, so the shape is the experiment editor's: the
+        # editable sections in a column beside a sticky rail carrying what the
+        # original call was and the button that starts the run. Every control
+        # comes from the library rather than being styled here.
+        #
+        # **What the ids are for.** The form is not posted by the browser --
+        # `replay-form#submit` collects the fields and sends them as JSON, so
+        # the queued replay can be reported without a page load. That reader
+        # finds the prompt by `#system_prompt`, the messages by
+        # `#messages-container`, the note by `#notes`, and everything else by
+        # Stimulus target. Those names are the contract between this file and
+        # the controller in BaseLayout; renaming one here silently drops that
+        # field from the replay.
+        #
         class NewComponent < BaseComponent
+          # The models offered per provider. Kept beside the same list in the
+          # `replay-form` Stimulus controller, which rebuilds the dropdown when
+          # the provider changes -- this one is what the page is first drawn
+          # with.
+          MODELS = {
+            "openai" => [
+              ["gpt-5", "GPT-5"],
+              ["gpt-4.1", "GPT-4.1"],
+              ["gpt-4.1-mini", "GPT-4.1 Mini"],
+              ["gpt-4.1-nano", "GPT-4.1 Nano"],
+              ["gpt-4o", "GPT-4o"],
+              ["gpt-4o-mini", "GPT-4o Mini"],
+              ["gpt-4-turbo", "GPT-4 Turbo"],
+              ["o3-pro", "O3 Pro"],
+              ["o3", "O3"],
+              ["o4-mini", "O4 Mini"],
+              ["o1-preview", "O1 Preview"],
+              ["o1-mini", "O1 Mini"],
+              ["o3-mini", "O3 Mini"]
+            ],
+            "anthropic" => [
+              ["claude-sonnet-4-20250514", "Claude 4 Sonnet"],
+              ["claude-3-5-sonnet-20241022", "Claude 3.5 Sonnet"],
+              ["claude-3-opus-20240229", "Claude 3 Opus"],
+              ["claude-3-5-haiku-20241022", "Claude 3.5 Haiku"]
+            ],
+            "google" => [
+              ["gemini-3-pro-preview", "Gemini 3 Pro Preview"],
+              ["gemini-3-flash-preview", "Gemini 3 Flash Preview"],
+              ["gemini-2.5-pro", "Gemini 2.5 Pro"],
+              ["gemini-2.5-flash", "Gemini 2.5 Flash"],
+              ["gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"],
+              ["gemini-2.0-flash", "Gemini 2.0 Flash"],
+              ["gemini-2.0-flash-lite", "Gemini 2.0 Flash Lite"]
+            ],
+            "perplexity" => [
+              ["sonar-pro", "Sonar Pro"],
+              ["sonar", "Sonar"],
+              ["sonar-reasoning-pro", "Sonar Reasoning Pro"],
+              ["sonar-reasoning", "Sonar Reasoning"]
+            ],
+            "groq" => [
+              ["llama-3.3-70b-versatile", "Llama 3.3 70B"],
+              ["llama-3.1-70b-versatile", "Llama 3.1 70B"],
+              ["llama-3.1-8b-instant", "Llama 3.1 8B"],
+              ["mixtral-8x7b-32768", "Mixtral 8x7B"]
+            ],
+            "xai" => [
+              ["grok-2-1212", "Grok 2"],
+              ["grok-2-vision-1212", "Grok 2 Vision"],
+              ["grok-beta", "Grok Beta"]
+            ]
+          }.freeze
+
+          PROVIDERS = [
+            ["openai", "OpenAI"],
+            ["anthropic", "Anthropic"],
+            ["google", "Google Gemini"],
+            ["perplexity", "Perplexity"],
+            ["groq", "Groq"],
+            ["xai", "xAI (Grok)"]
+          ].freeze
+
+          # Model name to provider. Ordered, because `o1-` and `o3-` would
+          # otherwise be caught by nothing and `grok` by the llama rule.
+          PROVIDER_PATTERNS = [
+            [/\Agpt-|\Ao\d-/, "openai"],
+            [/\Aclaude/, "anthropic"],
+            [/\Agemini/, "google"],
+            [/\Asonar/, "perplexity"],
+            [/\Agrok/, "xai"],
+            [/\A(llama|mixtral|gemma)/, "groq"]
+          ].freeze
+
           def initialize(span:, replay:)
             @span = span
             @replay = replay
-            @original_settings = extract_original_settings
-            @original_messages = extract_original_messages
+            @settings = original_settings
+            @messages = original_messages
           end
 
           def view_template
-            div(class: "space-y-6", data: { controller: "replay-form" }) do
-              # Header with breadcrumb
-              render_header
+            div(class: "raaf-page") do
+              errors if @replay.errors.any?
 
-              # Form wrapped with action URL
-              form(
-                action: tracing_span_replays_path(@span.span_id),
-                method: :post,
-                data: { turbo: "false" }
-              ) do
-                # Main form content
-                div(class: "grid grid-cols-1 lg:grid-cols-2 gap-6") do
-                  # Left column: Configuration
-                  div(class: "space-y-6") do
-                    render_configuration_form
+              form(action: tracing_span_replays_path(@span.span_id), method: "post",
+                   data: { controller: "replay-form", turbo: "false",
+                           replay_form_debug_value: ::Rails.env.development? }) do
+                input(type: "hidden", name: "authenticity_token", value: form_authenticity_token)
+
+                div(class: "raaf-editor") do
+                  div(class: "raaf-editor-main") do
+                    model_card
+                    sampling_card
+                    prompt_card
                   end
 
-                  # Right column: Prompts
-                  div(class: "space-y-6") do
-                    render_prompt_editor
+                  aside(class: "raaf-editor-side") do
+                    original_card
+                    run_card
                   end
                 end
-
-                # Submit section
-                render_submit_section
               end
+
+              # Where the create action's Turbo Stream lands, and where the
+              # submit script writes while the request is in flight.
+              div(id: "replay-status")
             end
           end
 
           private
 
-          def render_header
-            div(class: "flex items-center justify-between") do
-              div do
-                # Breadcrumb
-                nav(class: "flex text-sm text-gray-500 mb-2") do
-                  a(href: tracing_spans_path, class: "hover:text-gray-700") { "Spans" }
-                  span(class: "mx-2") { "/" }
-                  a(href: tracing_span_path(@span.span_id), class: "hover:text-gray-700") { @span.display_name }
-                  span(class: "mx-2") { "/" }
-                  span(class: "text-gray-900") { "New Replay" }
-                end
-
-                h1(class: "text-2xl font-bold text-gray-900") do
-                  "Replay & Debug"
-                end
-                p(class: "mt-1 text-sm text-gray-500") do
-                  "Modify configuration and prompts, then replay the LLM call to see how changes affect the output."
-                end
-              end
-
-              # Original span info
-              div(class: "text-right text-sm text-gray-500") do
-                div { "Original Model: #{@original_settings[:model] || 'Unknown'}" }
-                div { "Duration: #{format_duration(@span.duration_ms)}" }
+          def errors
+            render(Molecules::Alert.new(:error, title: error_title)) do
+              ul(class: "raaf-alert-list") do
+                @replay.errors.full_messages.each { |message| li { message } }
               end
             end
           end
 
-          def render_configuration_form
-            div(class: "bg-white rounded-xl border border-gray-200 shadow-sm p-6") do
-              h2(class: "text-lg font-semibold text-gray-900 mb-4") { "Model Configuration" }
-
-              div(class: "space-y-4", id: "configuration-form") do
-                # Model selection
-                render_model_field
-
-                # Temperature
-                render_slider_field(
-                  label: "Temperature",
-                  name: "temperature",
-                  value: @original_settings[:temperature] || 0.7,
-                  min: 0,
-                  max: 2,
-                  step: 0.1,
-                  description: "Controls randomness. Lower values are more focused, higher more creative."
-                )
-
-                # Max tokens
-                render_number_field(
-                  label: "Max Tokens",
-                  name: "max_tokens",
-                  value: @original_settings[:max_tokens] || 1024,
-                  min: 1,
-                  max: 128_000,
-                  description: "Maximum number of tokens to generate."
-                )
-
-                # Top P
-                render_slider_field(
-                  label: "Top P",
-                  name: "top_p",
-                  value: @original_settings[:top_p] || 1.0,
-                  min: 0,
-                  max: 1,
-                  step: 0.05,
-                  description: "Nucleus sampling threshold."
-                )
-
-                # Frequency penalty
-                render_slider_field(
-                  label: "Frequency Penalty",
-                  name: "frequency_penalty",
-                  value: @original_settings[:frequency_penalty] || 0,
-                  min: 0,
-                  max: 2,
-                  step: 0.1,
-                  description: "Reduces repetition of frequent tokens."
-                )
-
-                # Presence penalty
-                render_slider_field(
-                  label: "Presence Penalty",
-                  name: "presence_penalty",
-                  value: @original_settings[:presence_penalty] || 0,
-                  min: 0,
-                  max: 2,
-                  step: 0.1,
-                  description: "Encourages discussing new topics."
-                )
-              end
-            end
+          def error_title
+            "#{pluralize(@replay.errors.count, 'problem')} stopped this replay starting"
           end
 
-          def render_model_field
-            # Provider selection
-            div(class: "space-y-2") do
-              label(for: "provider", class: "block text-sm font-medium text-gray-700") { "Provider" }
-              select(
-                id: "provider",
-                name: "provider",
-                class: "block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                data: {
-                  replay_form_target: "provider",
-                  action: "change->replay-form#updateModelOptions"
-                }
-              ) do
-                detected_provider = detect_provider(@original_settings[:model])
-                option(value: "openai", selected: detected_provider == "openai") { "OpenAI" }
-                option(value: "anthropic", selected: detected_provider == "anthropic") { "Anthropic" }
-                option(value: "google", selected: detected_provider == "google") { "Google Gemini" }
-                option(value: "perplexity", selected: detected_provider == "perplexity") { "Perplexity" }
-                option(value: "groq", selected: detected_provider == "groq") { "Groq" }
-                option(value: "xai", selected: detected_provider == "xai") { "xAI (Grok)" }
-              end
-            end
+          # ── Model ─────────────────────────────────────────────────────────
 
-            # Model selection (filtered by provider)
-            div(class: "space-y-2 mt-4") do
-              label(for: "model", class: "block text-sm font-medium text-gray-700") { "Model" }
-              select(
-                id: "model",
-                name: "model",
-                class: "block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                data: { replay_form_target: "model" }
-              ) do
-                render_model_options
-              end
-            end
-          end
-
-          def render_model_options
-            # Render initial models for the detected provider
-            # JavaScript will dynamically update this when provider changes
-            provider = detect_provider(@original_settings[:model])
-            models = models_for_provider(provider)
-
-            models.each do |model|
-              option(
-                value: model[:value],
-                selected: @original_settings[:model] == model[:value]
-              ) { model[:label] }
-            end
-          end
-
-          def models_for_provider(provider)
-            case provider
-            when "openai"
-              [
-                # GPT-5 Series (Latest)
-                { value: "gpt-5", label: "GPT-5" },
-                # GPT-4.1 Series (April 2025)
-                { value: "gpt-4.1", label: "GPT-4.1" },
-                { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-                { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
-                # GPT-4o Series
-                { value: "gpt-4o", label: "GPT-4o" },
-                { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-                { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-                # O-Series Reasoning Models
-                { value: "o3-pro", label: "O3 Pro" },
-                { value: "o3", label: "O3" },
-                { value: "o4-mini", label: "O4 Mini" },
-                { value: "o1-preview", label: "O1 Preview" },
-                { value: "o1-mini", label: "O1 Mini" },
-                { value: "o3-mini", label: "O3 Mini" }
-              ]
-            when "anthropic"
-              [
-                { value: "claude-sonnet-4-20250514", label: "Claude 4 Sonnet" },
-                { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
-                { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
-                { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" }
-              ]
-            when "google"
-              [
-                { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
-                { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
-                { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-                { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-                { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-                { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-                { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" }
-              ]
-            when "perplexity"
-              [
-                { value: "sonar-pro", label: "Sonar Pro" },
-                { value: "sonar", label: "Sonar" },
-                { value: "sonar-reasoning-pro", label: "Sonar Reasoning Pro" },
-                { value: "sonar-reasoning", label: "Sonar Reasoning" }
-              ]
-            when "groq"
-              [
-                { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
-                { value: "llama-3.1-70b-versatile", label: "Llama 3.1 70B" },
-                { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B" },
-                { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B" }
-              ]
-            when "xai"
-              [
-                { value: "grok-2-1212", label: "Grok 2" },
-                { value: "grok-2-vision-1212", label: "Grok 2 Vision" },
-                { value: "grok-beta", label: "Grok Beta" }
-              ]
-            else
-              [{ value: "gpt-4o", label: "GPT-4o" }]
-            end
-          end
-
-          def detect_provider(model)
-            return "openai" if model.nil?
-
-            case model
-            when /^(gpt-|o1-|o3-|o4-)/
-              "openai"
-            when /^claude/
-              "anthropic"
-            when /^gemini/
-              "google"
-            when /^sonar/
-              "perplexity"
-            when /^(llama|mixtral|gemma)/
-              "groq"
-            when /^grok/
-              "xai"
-            else
-              "openai"
-            end
-          end
-
-          def render_slider_field(label:, name:, value:, min:, max:, step:, description:)
-            div(class: "space-y-2") do
-              div(class: "flex items-center justify-between") do
-                label(for: name, class: "block text-sm font-medium text-gray-700") { label }
-                span(
-                  class: "text-sm text-gray-500",
-                  id: "#{name}-value",
-                  data: { replay_form_target: "#{name}Value" }
-                ) { value.to_s }
-              end
-              input(
-                type: "range",
-                id: name,
-                name: name,
-                value: value,
-                min: min,
-                max: max,
-                step: step,
-                class: "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600",
-                data: {
-                  replay_form_target: name,
-                  action: "input->replay-form#updateSliderValue"
-                }
-              )
-              p(class: "text-xs text-gray-500") { description }
-            end
-          end
-
-          def render_number_field(label:, name:, value:, min:, max:, description:)
-            div(class: "space-y-2") do
-              label(for: name, class: "block text-sm font-medium text-gray-700") { label }
-              input(
-                type: "number",
-                id: name,
-                name: name,
-                value: value,
-                min: min,
-                max: max,
-                class: "block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-                data: { replay_form_target: name }
-              )
-              p(class: "text-xs text-gray-500") { description }
-            end
-          end
-
-          def render_prompt_editor
-            div(class: "bg-white rounded-xl border border-gray-200 shadow-sm p-6") do
-              h2(class: "text-lg font-semibold text-gray-900 mb-4") { "Prompts" }
-
-              div(class: "space-y-4", data: { controller: "prompt-editor" }) do
-                # System prompt
-                render_prompt_section(
-                  label: "System Prompt",
-                  name: "system_prompt",
-                  content: extract_system_prompt,
-                  rows: 8
-                )
-
-                # User messages
-                render_messages_section
-              end
-            end
-          end
-
-          def render_prompt_section(label:, name:, content:, rows:)
-            div(class: "space-y-2") do
-              label(for: name, class: "block text-sm font-medium text-gray-700") { label }
-              textarea(
-                id: name,
-                name: name,
-                rows: rows,
-                class: "block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono",
-                data: { prompt_editor_target: name }
-              ) { content || "" }
-            end
-          end
-
-          def render_messages_section
-            div(class: "space-y-4") do
-              div(class: "flex items-center justify-between") do
-                label(class: "block text-sm font-medium text-gray-700") { "User Messages" }
-                button(
-                  type: "button",
-                  class: "text-sm text-blue-600 hover:text-blue-800",
-                  data: { action: "click->prompt-editor#addMessage" }
-                ) { "+ Add Message" }
-              end
-
-              div(id: "messages-container", class: "space-y-3", data: { prompt_editor_target: "messagesContainer" }) do
-                user_messages = extract_user_messages
-                if user_messages.any?
-                  user_messages.each_with_index do |msg, index|
-                    render_message_field(msg, index)
+          def model_card
+            render(Organisms::Card.new(
+                     title: "Model",
+                     subtitle: "Where the same conversation is sent this time"
+                   )) do
+              div(class: "raaf-field-grid") do
+                render(Molecules::Field.new(
+                         label: "Provider", for_id: "provider",
+                         hint: "Changing this reloads the models below."
+                       )) do
+                  select(id: "provider", name: "provider", class: select_class,
+                         data: { replay_form_target: "provider",
+                                 action: "change->replay-form#updateModelOptions" }) do
+                    PROVIDERS.each do |value, label|
+                      option(value: value, selected: value == detected_provider) { label }
+                    end
                   end
-                else
-                  p(class: "text-sm text-gray-500 italic") { "No user messages in original span" }
+                end
+
+                render(Molecules::Field.new(
+                         label: "Model", for_id: "model",
+                         hint: model_hint
+                       )) do
+                  select(id: "model", name: "model", class: select_class,
+                         data: { replay_form_target: "model" }) do
+                    MODELS.fetch(detected_provider, []).each do |value, label|
+                      option(value: value, selected: value == @settings[:model]) { label }
+                    end
+                  end
                 end
               end
             end
           end
 
-          def render_message_field(message, index)
-            div(class: "border border-gray-200 rounded-lg p-3", data: { message_index: index }) do
-              div(class: "flex items-center justify-between mb-2") do
-                span(class: "text-xs font-medium text-gray-500 uppercase") { message["role"] || "user" }
-                button(
-                  type: "button",
-                  class: "text-gray-400 hover:text-red-500",
-                  data: { action: "click->prompt-editor#removeMessage" }
-                ) do
+          def model_hint
+            return "The original call recorded no model." if @settings[:model].blank?
+
+            "The call ran on #{@settings[:model]}."
+          end
+
+          # ── Sampling ──────────────────────────────────────────────────────
+
+          def sampling_card
+            render(Organisms::Card.new(
+                     title: "Sampling",
+                     subtitle: "How the model is allowed to answer"
+                   )) do
+              slider("Temperature", name: "temperature", target: "temperature",
+                                    value: @settings[:temperature] || 0.7, min: 0, max: 2, step: 0.1,
+                                    hint: "Low is near-deterministic; high wanders. A single high-temperature " \
+                                          "replay says little on its own.")
+
+              render(Molecules::Field.new(
+                       label: "Max tokens", for_id: "max_tokens",
+                       hint: "The ceiling on the answer, not a target."
+                     )) do
+                input(type: "number", id: "max_tokens", name: "max_tokens",
+                      value: @settings[:max_tokens] || 1024, min: 1, max: 128_000,
+                      class: input_class(mono: true),
+                      data: { replay_form_target: "maxTokens" })
+              end
+
+              slider("Top P", name: "top_p", target: "topP",
+                              value: @settings[:top_p] || 1.0, min: 0, max: 1, step: 0.05,
+                              hint: "Nucleus sampling. Leave at 1 when you are varying temperature.")
+
+              slider("Frequency penalty", name: "frequency_penalty", target: "frequencyPenalty",
+                                          value: @settings[:frequency_penalty] || 0, min: 0, max: 2, step: 0.1,
+                                          hint: "Pushes down tokens the answer has already used.")
+
+              slider("Presence penalty", name: "presence_penalty", target: "presencePenalty",
+                                         value: @settings[:presence_penalty] || 0, min: 0, max: 2, step: 0.1,
+                                         hint: "Pushes the answer towards subjects it has not raised yet.")
+            end
+          end
+
+          # The value beside the label is what the slider reports, updated by
+          # `replay-form#updateSliderValue` -- which finds it by id, so the id
+          # is derived from the field name and not from the target.
+          def slider(label, name:, target:, value:, min:, max:, step:, hint:)
+            div(class: "raaf-field raaf-field--wide") do
+              div(class: "raaf-slider-head") do
+                render Atoms::Label.new(label, for_id: name)
+                render Atoms::Mono.new(value.to_s, tone: :accent, id: "#{name}-value",
+                                                   data: { replay_form_target: "#{target}Value" })
+              end
+
+              input(type: "range", id: name, name: name, class: "raaf-slider",
+                    min: min, max: max, step: step, value: value,
+                    data: { replay_form_target: target,
+                            action: "input->replay-form#updateSliderValue" })
+
+              p(class: "raaf-input-hint") { hint }
+            end
+          end
+
+          # ── Prompt ────────────────────────────────────────────────────────
+
+          def prompt_card
+            render(Organisms::Card.new(
+                     title: "Prompt",
+                     subtitle: "What the model is asked, as it was recorded",
+                     data: { controller: "prompt-editor" }
+                   )) do |card|
+              card.actions do
+                render Atoms::Button.new(label: "Add message", icon: "plus-lg", size: :sm,
+                                         variant: :secondary, type: "button",
+                                         data: { action: "click->prompt-editor#addMessage" })
+              end
+
+              render(Molecules::Field.new(
+                       label: "System prompt", for_id: "system_prompt", optional: true,
+                       hint: "Blank keeps whatever the agent's instructions produce."
+                     )) do
+                textarea(id: "system_prompt", name: "system_prompt", rows: 8,
+                         class: "#{input_class(mono: true)} raaf-textarea") { system_prompt.to_s }
+              end
+
+              messages_field
+            end
+          end
+
+          def messages_field
+            div(class: "raaf-field") do
+              render Atoms::Label.new("Messages")
+
+              div(id: "messages-container", class: "raaf-msgs",
+                  data: { prompt_editor_target: "messages" }) do
+                user_messages.each_with_index { |message, index| message_row(message, index) }
+              end
+
+              p(class: "raaf-input-hint#{' hidden' if user_messages.any?}",
+                data: { prompt_editor_target: "empty" }) do
+                "The original span recorded no user messages. Add one to give the model something " \
+                  "to answer."
+              end
+            end
+          end
+
+          # The row's shape is duplicated in `prompt-editor#addMessage`, which
+          # builds the same markup for a message added in the browser. Change
+          # one and the other has to follow.
+          def message_row(message, index)
+            div(class: "raaf-msg", data: { message_index: index }) do
+              div(class: "raaf-msg-head") do
+                span(class: "raaf-msg-role") { message["role"].presence || "user" }
+
+                button(type: "button", class: "raaf-msg-remove", "aria-label": "Remove message",
+                       data: { action: "click->prompt-editor#removeMessage" }) do
                   i(class: "bi bi-x-lg")
                 end
               end
-              textarea(
-                name: "user_messages[#{index}][content]",
-                rows: 4,
-                class: "block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono"
-              ) { message["content"] || "" }
-              input(type: "hidden", name: "user_messages[#{index}][role]", value: message["role"] || "user")
+
+              textarea(name: "user_messages[#{index}][content]", rows: 4,
+                       class: "#{input_class(mono: true)} raaf-textarea") { message["content"].to_s }
+
+              input(type: "hidden", name: "user_messages[#{index}][role]",
+                    value: message["role"].presence || "user")
             end
           end
 
-          def render_submit_section
-            div(class: "bg-white rounded-xl border border-gray-200 shadow-sm p-6") do
-              div(class: "flex items-center justify-between") do
-                # Notes field
-                div(class: "flex-1 mr-4") do
-                  label(for: "notes", class: "block text-sm font-medium text-gray-700 mb-1") { "Notes (optional)" }
-                  input(
-                    type: "text",
-                    id: "notes",
-                    name: "notes",
-                    placeholder: "Add notes about this replay experiment...",
-                    class: "block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  )
-                end
+          # ── The rail ──────────────────────────────────────────────────────
 
-                # Buttons
-                div(class: "flex items-center gap-3") do
-                  a(
-                    href: tracing_span_path(@span.span_id),
-                    class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  ) { "Cancel" }
+          def original_card
+            render(Organisms::Card.new(title: "The original call", flush: true)) do
+              fact("Span", @span.display_name)
+              fact("Model", @settings[:model].presence || "—")
+              fact("Duration", format_duration(@span.duration_ms))
+              fact("Status", @span.status.to_s)
+              fact("Messages", user_messages.size.to_s)
+            end
+          end
 
-                  button(
-                    type: "submit",
-                    class: "inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
-                    data: { action: "click->replay-form#submit" }
-                  ) do
-                    i(class: "bi bi-play-fill mr-2")
-                    plain "Run Replay"
-                  end
-                end
+          def fact(label, value)
+            div(class: "raaf-editor-fact") do
+              span(class: "raaf-editor-fact-label") { label }
+              render Atoms::Mono.new(value)
+            end
+          end
+
+          def run_card
+            div(class: "raaf-editor-actions") do
+              render(Molecules::Field.new(
+                       label: "Note", for_id: "notes", optional: true,
+                       hint: "What you are testing. It is how this attempt is told from the next."
+                     )) do
+                input(type: "text", id: "notes", name: "notes", class: input_class,
+                      placeholder: "e.g. does Sonnet keep the JSON shape?")
               end
-            end
 
-            # Status container for Turbo Stream updates
-            div(id: "replay-status")
+              button(type: "submit", class: "raaf-button",
+                     data: { action: "click->replay-form#submit" }) do
+                render Atoms::Icon.new("play-fill", size: :sm)
+                plain "Run replay"
+              end
+
+              link_to("Back to the trace", trace_span_path(@span.span_id, @span.trace_id),
+                      class: "raaf-editor-back")
+            end
           end
 
-          def extract_original_settings
+          # ── What the span recorded ────────────────────────────────────────
+
+          def original_settings
             attrs = @span.span_attributes || {}
-            llm_config = attrs.dig("llm", "request") || {}
+            llm = attrs.dig("llm", "request") || {}
 
             {
-              model: llm_config["model"] || attrs["model"] || attrs["agent.model"],
-              temperature: safe_numeric(llm_config["temperature"] || attrs["agent.temperature"]),
-              max_tokens: safe_integer(llm_config["max_tokens"] || llm_config["max_output_tokens"] || attrs["agent.max_tokens"]),
-              top_p: safe_numeric(llm_config["top_p"] || attrs["agent.top_p"]),
-              frequency_penalty: safe_numeric(llm_config["frequency_penalty"] || attrs["agent.frequency_penalty"]),
-              presence_penalty: safe_numeric(llm_config["presence_penalty"] || attrs["agent.presence_penalty"])
+              model: llm["model"] || attrs["llm.request.model"] || attrs["agent.model"] || attrs["model"],
+              temperature: numeric(llm["temperature"] || attrs["agent.temperature"]),
+              max_tokens: integer(llm["max_tokens"] || llm["max_output_tokens"] || attrs["agent.max_tokens"]),
+              top_p: numeric(llm["top_p"] || attrs["agent.top_p"]),
+              frequency_penalty: numeric(llm["frequency_penalty"] || attrs["agent.frequency_penalty"]),
+              presence_penalty: numeric(llm["presence_penalty"] || attrs["agent.presence_penalty"])
             }.compact
           end
 
-          # Convert value to numeric, return nil for non-numeric values like "N/A"
-          def safe_numeric(value)
+          # A span that recorded "N/A" for a setting it never sent would
+          # otherwise put that string in a number field, which browsers drop
+          # silently -- so anything that is not a number becomes nothing, and
+          # the field falls back to its default.
+          def numeric(value)
             return nil if value.nil?
             return value if value.is_a?(Numeric)
-            return nil if value.to_s.strip.downcase == "n/a"
 
             Float(value)
           rescue ArgumentError, TypeError
             nil
           end
 
-          # Convert value to integer, return nil for non-numeric values
-          def safe_integer(value)
+          def integer(value)
             return nil if value.nil?
             return value.to_i if value.is_a?(Numeric)
-            return nil if value.to_s.strip.downcase == "n/a"
 
             Integer(value)
           rescue ArgumentError, TypeError
             nil
           end
 
-          def extract_original_messages
+          def original_messages
             attrs = @span.span_attributes || {}
-            llm_config = attrs.dig("llm", "request") || {}
-
-            # Check various storage formats
-            messages = llm_config["messages"] ||
+            messages = attrs.dig("llm", "request", "messages") ||
                        attrs["llm.request.messages"] ||
                        attrs["agent.conversation_messages"] ||
                        []
 
-            # Parse JSON if it's a string
-            if messages.is_a?(String) && messages.present?
-              begin
-                messages = JSON.parse(messages)
-              rescue JSON::ParserError
-                messages = []
-              end
+            messages = parse_messages(messages) if messages.is_a?(String)
+
+            Array(messages).select { |message| message.is_a?(Hash) }
+          end
+
+          def parse_messages(value)
+            JSON.parse(value)
+          rescue JSON::ParserError
+            []
+          end
+
+          def system_prompt
+            from_messages = @messages.find { |message| message["role"] == "system" }&.dig("content")
+            return from_messages if from_messages.present?
+
+            (@span.span_attributes || {})["agent.system_instructions"]
+          end
+
+          def user_messages
+            @user_messages ||= @messages.reject { |message| message["role"] == "system" }
+          end
+
+          def detected_provider
+            @detected_provider ||= begin
+              model = @settings[:model].to_s
+              PROVIDER_PATTERNS.find { |pattern, _| model.match?(pattern) }&.last || "openai"
             end
-
-            messages
           end
 
-          def extract_system_prompt
-            # First check messages for system role
-            system_from_messages = @original_messages.find { |m| m["role"] == "system" }&.dig("content")
-            return system_from_messages if system_from_messages.present?
+          # ── Control classes ───────────────────────────────────────────────
 
-            # Fallback to direct system instructions attribute
-            attrs = @span.span_attributes || {}
-            attrs["agent.system_instructions"]
+          # The bare input classes are the light-theme ones; this console is
+          # dark throughout, so every control carries the glass modifier.
+          def input_class(mono: false)
+            ["raaf-input", "raaf-input--glass", ("raaf-input--mono" if mono)].compact.join(" ")
           end
 
-          def extract_user_messages
-            @original_messages.reject { |m| m["role"] == "system" }
+          def select_class
+            "#{input_class(mono: true)} raaf-select"
           end
         end
       end

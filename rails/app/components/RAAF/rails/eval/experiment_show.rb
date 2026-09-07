@@ -3,109 +3,248 @@
 module RAAF
   module Rails
     module Eval
+      ##
+      # One experiment, from the Experiment screen in RAAF Eval.dc.html: a
+      # header carrying the name, what it ran against and its state; the four
+      # run metrics; the aggregate scores; and the per-item results.
+      #
+      # Two departures from the canvas, both because of what is stored rather
+      # than how it looks:
+      #
+      # - **No score deltas.** The design prints each aggregate score against
+      #   the previous run. Nothing links an experiment to the run before it,
+      #   so a delta here would be invented.
+      # - **No result filters.** The design offers All / Failed / Low score.
+      #   A result's score is averaged in Ruby out of a jsonb hash, so "low
+      #   score" cannot be a query, and filtering the page already loaded
+      #   would silently mean "low among the last hundred".
+      #
       class ExperimentShow < RAAF::Rails::Tracing::BaseComponent
-        def initialize(experiment:, results:)
+        # Columns and fr weights taken from RAAF Eval.dc.html.
+        COLUMNS = [
+          { label: "Item", span: 0.55 },
+          { label: "Status", span: 0.9 },
+          { label: "Score", span: 0.6, align: :right },
+          { label: "Output", span: 2.6 }
+        ].freeze
+
+        # @param results [Enumerable<ExperimentResult>] the page being shown
+        # @param total_results [Integer, nil] how many exist, when more were
+        #   recorded than are drawn
+        def initialize(experiment:, results:, total_results: nil)
           @experiment = experiment
           @results = results
+          @total_results = total_results
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_metrics
-            render_aggregate_scores
-            render_results_table
+          div(class: "raaf-page") do
+            header
+            metrics
+            aggregate_scores
+            results
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              h1(class: "text-2xl font-bold text-gray-900") { @experiment.name }
-              div(class: "mt-2 flex items-center gap-4 text-sm text-gray-500") do
-                span { "Agent: #{@experiment.agent_name}" } if @experiment.agent_name
-                span { "Model: #{@experiment.model}" } if @experiment.model
-                span { "Provider: #{@experiment.provider}" } if @experiment.provider
-              end
-            end
-            div(class: "mt-4 sm:mt-0 flex gap-2") do
-              if @experiment.status == "pending"
-                render_preline_button(text: "Run", href: eval_experiment_path(@experiment) + "/run", variant: "success", icon: "bi-play-fill")
-              end
-              if @experiment.in_progress?
-                render_preline_button(text: "Cancel", href: eval_experiment_path(@experiment) + "/cancel", variant: "danger", icon: "bi-stop-fill")
-              end
-              render_status_badge(@experiment.status)
+        # ── Header ────────────────────────────────────────────────────────
+
+        def header
+          render(Organisms::RecordHead.new(
+                   title: @experiment.name,
+                   description: @experiment.description,
+                   status: @experiment.status,
+                   meta: head_meta,
+                   action: { label: "Edit experiment", icon: "sliders2",
+                             href: edit_eval_experiment_path(@experiment) }
+                 )) { run_control }
+        end
+
+        def head_meta
+          [@experiment.agent_name.presence,
+           @experiment.model.presence,
+           @experiment.provider.presence,
+           @experiment.dataset&.name].compact.join(" · ")
+        end
+
+        # Running and cancelling are POSTs, so they are forms rather than
+        # links — as links they were GETs that no route answers.
+        def run_control
+          case @experiment.status
+          when "pending" then post_button("Run", "play-fill", run_path)
+          when "running" then post_button("Cancel", "stop-fill", cancel_path, variant: :danger)
+          end
+        end
+
+        def post_button(label, icon, action, variant: nil)
+          form(action: action, method: "post", class: "raaf-inline-form") do
+            input(type: "hidden", name: "authenticity_token", value: form_authenticity_token)
+            render Atoms::Button.new(label: label, icon: icon, size: :sm, variant: variant,
+                                     type: "submit")
+          end
+        end
+
+        def run_path
+          "#{eval_experiment_path(@experiment)}/run"
+        end
+
+        def cancel_path
+          "#{eval_experiment_path(@experiment)}/cancel"
+        end
+
+        # ── Run metrics ───────────────────────────────────────────────────
+
+        def metrics
+          render Organisms::MetricGrid.new(metrics: [
+                                             { label: "Progress", value: "#{@experiment.progress_percentage.round}%",
+                                               icon: "bar-chart", hint: items_hint },
+                                             { label: "Completed", value: @experiment.completed_items.to_s,
+                                               icon: "check-circle", tone: :success, hint: "items scored" },
+                                             { label: "Failed", value: @experiment.failed_items.to_s,
+                                               icon: "x-circle", tone: failed? ? :danger : nil,
+                                               hint: failed? ? "items that errored" : "nothing errored" },
+                                             { label: "Duration", value: duration_text, icon: "clock", tone: :warning,
+                                               hint: started_hint }
+                                           ])
+        end
+
+        def items_hint
+          total = @experiment.total_items.to_i
+          return "not started" if total.zero?
+
+          "#{@experiment.completed_items.to_i + @experiment.failed_items.to_i} of #{total} items"
+        end
+
+        def failed?
+          @experiment.failed_items.to_i.positive?
+        end
+
+        def duration_text
+          duration = @experiment.duration
+          return "—" unless duration
+
+          format_duration(duration * 1000)
+        end
+
+        def started_hint
+          return "still running" if @experiment.in_progress?
+          return "never run" unless @experiment.started_at
+
+          "started #{time_ago(@experiment.started_at)}"
+        end
+
+        # ── Aggregate scores ──────────────────────────────────────────────
+
+        # Written once when the run completes, so an experiment that has not
+        # finished has nothing to draw here rather than a row of zeroes.
+        def aggregate_scores
+          scores = stored_scores
+          return if scores.empty?
+
+          render(Organisms::Card.new(title: "Aggregate scores")) do
+            scores.each { |name, stats| score_row(name, stats) }
+          end
+        end
+
+        def stored_scores
+          metrics = @experiment.aggregate_metrics
+          stored = metrics.is_a?(Hash) ? metrics["scores"] : nil
+          return {} unless stored.is_a?(Hash)
+
+          stored.select { |_, stats| stats.is_a?(Hash) && stats["avg"] }
+        end
+
+        def score_row(name, stats)
+          average = stats["avg"].to_f
+
+          render Molecules::MeterRow.new(
+            name: name.to_s.tr("_", " "),
+            value: "%.2f" % average,
+            pct: (average * 100).round,
+            tone: score_tone(average),
+            sub: spread(stats),
+            tip: score_tip(average, stats)
+          )
+        end
+
+        # The bar's fill is the mean on a nought-to-one scale, which the row
+        # never says — 0.62 beside a bar filled to two thirds is only obvious
+        # once you already know what the scale is.
+        def score_tip(average, stats)
+          ["mean #{'%.2f' % average} of a possible 1.00", spread(stats).presence]
+            .compact.join(" · ")
+        end
+
+        def spread(stats)
+          range = [stats["min"], stats["max"]].compact.map { |value| "%.2f" % value.to_f }
+          count = stats["count"].to_i
+
+          [range.any? ? range.join(" – ") : nil,
+           count.positive? ? pluralize(count, "result") : nil].compact.join(" · ")
+        end
+
+        # ── Results ───────────────────────────────────────────────────────
+
+        def results
+          render(Organisms::Card.new(title: "Results", subtitle: results_subtitle,
+                                     flush: true)) do
+            render(Organisms::DataGrid.new(
+                     columns: COLUMNS,
+                     empty: { icon: "list-check", title: "No results",
+                              text: "Run the experiment to score the dataset." }
+                   )) do |grid|
+              @results.each { |result| result_row(grid, result) }
             end
           end
         end
 
-        def render_metrics
-          div(class: "grid grid-cols-1 md:grid-cols-4 gap-4 mb-6") do
-            render_metric_card(title: "Progress", value: "#{@experiment.progress_percentage}%", color: "blue", icon: "bi-bar-chart")
-            render_metric_card(title: "Completed", value: @experiment.completed_items, color: "green", icon: "bi-check-circle")
-            render_metric_card(title: "Failed", value: @experiment.failed_items, color: "red", icon: "bi-x-circle")
-            duration_text = @experiment.duration ? format_duration(@experiment.duration * 1000) : "N/A"
-            render_metric_card(title: "Duration", value: duration_text, color: "purple", icon: "bi-clock")
-          end
+        # Says so when the table is a window onto a longer run, rather than
+        # letting a hundred rows read as the whole thing.
+        def results_subtitle
+          shown = @results.size
+          return nil if shown.zero?
+          return pluralize(shown, "result") if @total_results.nil? || @total_results <= shown
+
+          "#{shown} of #{@total_results} results"
         end
 
-        def render_aggregate_scores
-          agg = @experiment.aggregate_metrics
-          return unless agg.is_a?(Hash) && agg["scores"].present?
+        def result_row(grid, result)
+          score = result.overall_score
 
-          div(class: "mb-6") do
-            h2(class: "text-lg font-semibold text-gray-900 mb-3") { "Aggregate Scores" }
-            div(class: "grid grid-cols-2 md:grid-cols-4 gap-4") do
-              agg["scores"].each do |name, stats|
-                next unless stats.is_a?(Hash)
-                render_metric_card(title: name.to_s.titleize, value: stats["avg"]&.round(3).to_s, color: "blue")
-              end
-            end
-          end
+          grid.row(cells: [
+                     { value: Atoms::Mono.new("##{result.dataset_item_id}", tone: :muted) },
+                     { value: Atoms::StatusBadge.new(result.status) },
+                     { value: Atoms::Mono.new(format_score(score), tone: score_tone(score)),
+                       align: :right },
+                     { value: Atoms::Mono.new(output_preview(result), tone: :muted,
+                                                                      class: "raaf-cell-indent") }
+                   ])
         end
 
-        def render_results_table
-          h2(class: "text-lg font-semibold text-gray-900 mb-3") { "Results" }
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            if @results.any?
-              table(class: "min-w-full divide-y divide-gray-200") do
-                thead(class: "bg-gray-50") do
-                  tr do
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Item" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Status" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Score" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Output (preview)" }
-                  end
-                end
-                tbody(class: "bg-white divide-y divide-gray-200") do
-                  @results.each { |result| render_result_row(result) }
-                end
-              end
-            else
-              div(class: "p-8 text-center text-gray-500") { "No results yet. Run the experiment to see results." }
-            end
-          end
+        # A failed result has no output worth printing; what went wrong is the
+        # only thing the row can say.
+        def output_preview(result)
+          return result.error_message.to_s.truncate(160) if result.error_message.present?
+
+          output = result.output
+          text = output.is_a?(Hash) || output.is_a?(Array) ? output.to_json : output.to_s
+          text.presence&.truncate(160) || "—"
         end
 
-        def render_result_row(result)
-          tr(class: "hover:bg-gray-50") do
-            td(class: "px-4 py-3 text-sm text-gray-600") { "##{result.dataset_item_id}" }
-            td(class: "px-4 py-3") { render_status_badge(result.status) }
-            td(class: "px-4 py-3 text-sm font-medium") do
-              score = result.overall_score
-              if score
-                color = score >= 0.7 ? "text-green-600" : score >= 0.4 ? "text-yellow-600" : "text-red-600"
-                span(class: color) { score.round(3).to_s }
-              else
-                span(class: "text-gray-400") { "-" }
-              end
-            end
-            td(class: "px-4 py-3 text-sm text-gray-600 font-mono") do
-              result.output.is_a?(Hash) ? result.output.to_json.truncate(80) : result.output.to_s.truncate(80)
-            end
+        def format_score(score)
+          score.nil? ? "—" : "%.2f" % score
+        end
+
+        # The tiers the experiment list and the continuous results table use,
+        # so one score does not change colour between screens.
+        def score_tone(score)
+          return :muted if score.nil?
+
+          case score.to_f
+          when 0.8.. then :ok
+          when 0.5...0.8 then :warn
+          else :bad
           end
         end
       end

@@ -7,6 +7,8 @@ module RAAF
     # Main dashboard controller for RAAF Rails Engine
     # Provides comprehensive analytics, monitoring, and cost tracking
     class DashboardController < ApplicationController
+      include RAAF::Rails::TimeRange
+
       # GET /dashboard
       # Main dashboard with overview metrics
       def index
@@ -24,18 +26,31 @@ module RAAF
 
         # Performance trends (simplified for now)
         @performance_trends = calculate_performance_trends(@time_range)
+        @agent_series = agent_series(@top_workflows, @time_range)
 
         respond_to do |format|
           format.html do
+            # Failures grouped the way the Errors screen groups them, over the
+            # window the topbar selected. The screen used to group the ten most
+            # recent error spans itself, regardless of range, which put failures
+            # from outside the window beside a KPI row reporting none.
+            @error_signatures = RAAF::Rails::Tracing::SpanRecord
+                                .error_signatures(timeframe: @time_range, limit: 6)
+            @workflow_spend = RAAF::Rails::Tracing::SpanRecord
+                              .spend_by_workflow(timeframe: @time_range)
+
             dashboard_component = RAAF::Rails::Tracing::DashboardIndex.new(
               overview_stats: @overview_stats,
               top_workflows: @top_workflows,
               recent_traces: @recent_traces,
-              recent_errors: @recent_errors,
-              params: params.permit(:start_time, :end_time)
+              error_signatures: @error_signatures,
+              workflow_spend: @workflow_spend,
+              agent_series: @agent_series
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Dashboard") do
+            layout = RAAF::Rails::Tracing::BaseLayout.new(
+              title: "Dashboard", range: current_range, range_href: range_href
+            ) do
               render dashboard_component
             end
 
@@ -65,10 +80,11 @@ module RAAF
         end
 
         # Slowest operations
-        @slowest_spans = RAAF::Rails::Tracing::SpanRecord.slow(1000).within_timeframe(@time_range.begin, @time_range.end)
-                                   .includes(:trace)
-                                   .order(duration_ms: :desc)
-                                   .limit(20)
+        @slowest_spans = RAAF::Rails::Tracing::SpanRecord.slow(1000).within_timeframe(@time_range.begin,
+                                                                                      @time_range.end)
+                                                         .includes(:trace)
+                                                         .order(duration_ms: :desc)
+                                                         .limit(20)
 
         # Performance trends over time
         @performance_over_time = calculate_performance_over_time(@time_range)
@@ -82,7 +98,9 @@ module RAAF
               params: params.permit(:start_time, :end_time, :kind)
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Performance Dashboard") do
+            layout = RAAF::Rails::Tracing::BaseLayout.new(
+              title: "Performance Dashboard", range: current_range, range_href: range_href
+            ) do
               render performance_component
             end
 
@@ -99,144 +117,70 @@ module RAAF
       end
 
       # GET /dashboard/costs
-      # Cost and usage analytics dashboard
+      # What the window cost and where it went.
       def costs
         @time_range = parse_time_range(params)
 
-        # Initialize cost manager
-        cost_manager = RAAF::Tracing::CostManager.new
-
-        # Overall cost analysis
-        @cost_analysis = RAAF::Rails::Tracing::SpanRecord.cost_analysis(timeframe: @time_range)
-
-        # Calculate actual costs using CostManager
-        traces = RAAF::Rails::Tracing::TraceRecord.within_timeframe(@time_range.begin, @time_range.end)
-        total_cost = 0.0
-        total_input_tokens = 0
-        total_output_tokens = 0
-        total_llm_calls = 0
-        model_costs = {}
-
-        traces.includes(:spans).find_each do |trace|
-          trace_cost = cost_manager.calculate_trace_cost(trace)
-          total_cost += trace_cost[:total_cost]
-
-          # Aggregate costs by model
-          trace_cost[:models_used]&.each do |model, data|
-            model_costs[model] ||= { cost: 0.0, calls: 0, input_tokens: 0, output_tokens: 0 }
-            model_costs[model][:cost] += data[:cost]
-            model_costs[model][:calls] += data[:spans]
-            model_costs[model][:input_tokens] += data[:input_tokens]
-            model_costs[model][:output_tokens] += data[:output_tokens]
-
-            # Aggregate totals
-            total_input_tokens += data[:input_tokens]
-            total_output_tokens += data[:output_tokens]
-            total_llm_calls += data[:spans]
-          end
-        end
-
-        @total_cost = total_cost
-        @model_costs = model_costs
-
-        # Override cost_analysis with actual calculated values if we have data
-        if total_llm_calls.positive?
-          @cost_analysis[:total_input_tokens] = total_input_tokens
-          @cost_analysis[:total_output_tokens] = total_output_tokens
-          @cost_analysis[:total_tokens] = total_input_tokens + total_output_tokens
-          @cost_analysis[:total_llm_calls] = total_llm_calls
-          @cost_analysis[:avg_tokens_per_call] =
-            ((total_input_tokens + total_output_tokens).to_f / total_llm_calls).round(2)
-        end
-
-        # Cost breakdown by model (with token counts)
-        @cost_by_model = calculate_cost_by_model(@time_range)
-
-        # Usage trends over time
-        @usage_over_time = calculate_usage_over_time(@time_range)
-
-        # Top consuming workflows
-        @top_consuming_workflows = calculate_top_consuming_workflows(@time_range)
-
         respond_to do |format|
           format.html do
+            @cost_rollup = RAAF::Rails::Tracing::SpanRecord.cost_rollup(timeframe: @time_range)
+
             costs_component = RAAF::Rails::Tracing::CostsIndex.new(
-              cost_data: {
-                total_cost: @total_cost,
-                total_tokens: @cost_analysis[:total_tokens] || 0,
-                avg_cost_per_trace: @total_cost / (@cost_analysis[:total_llm_calls] || 1),
-                most_expensive_model: @model_costs.max_by { |_, data| data[:cost] }&.first || "N/A",
-                by_model: @model_costs.map do |model, data|
-                  {
-                    model: model,
-                    cost: data[:cost],
-                    tokens: data[:input_tokens] + data[:output_tokens],
-                    percentage: @total_cost > 0 ? ((data[:cost] / @total_cost) * 100).round(2) : 0
-                  }
-                end.sort_by { |m| -m[:cost] },
-                by_workflow: @top_consuming_workflows.map do |workflow, data|
-                  {
-                    workflow: workflow,
-                    cost: data[:total_cost],
-                    tokens: data[:total_tokens],
-                    percentage: @total_cost > 0 ? ((data[:total_cost] / @total_cost) * 100).round(2) : 0
-                  }
-                end
-              },
-              params: params.permit(:start_date, :end_date, :model)
+              cost_data: @cost_rollup.merge(
+                window_hours: (@time_range.end - @time_range.begin) / 3600.0,
+                breakdowns: [{ title: "By model", rows: @cost_rollup[:by_model] },
+                             { title: "By agent", rows: @cost_rollup[:by_agent] }]
+              ),
+              params: params.permit(:range)
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Cost Dashboard") do
+            layout = RAAF::Rails::Tracing::BaseLayout.new(
+              title: "Cost & usage", range: current_range, range_href: range_href
+            ) do
               render costs_component
             end
 
             render layout
           end
-          format.json do
-            render json: {
-              cost_analysis: @cost_analysis,
-              cost_by_model: @cost_by_model,
-              usage_over_time: @usage_over_time,
-              top_workflows: @top_consuming_workflows
-            }
-          end
+          # The JSON payload predates the screen and keeps its own shape, built
+          # by CostManager over whole traces. It is left alone so a caller
+          # polling this endpoint is not broken by the screen changing.
+          format.json { render json: legacy_cost_payload(@time_range) }
         end
       end
 
       # GET /dashboard/errors
-      # Error analysis dashboard
+      # What broke, grouped by exception rather than listed span by span.
       def errors
         @time_range = parse_time_range(params)
 
-        # Error analysis
-        @error_analysis = RAAF::Rails::Tracing::SpanRecord.error_analysis(timeframe: @time_range)
-
-        # Error trends over time
-        @error_trends = calculate_error_trends(@time_range)
-
-        # Recent errors with details - paginated with Kaminari
-        @per_page = [params[:per_page]&.to_i || 25, 100].min
-        @recent_errors = RAAF::Rails::Tracing::SpanRecord.errors.within_timeframe(@time_range.begin, @time_range.end)
-                                   .includes(:trace)
-                                   .recent
-                                   .page(params[:page]).per(@per_page)
-
         respond_to do |format|
           format.html do
+            @signatures = RAAF::Rails::Tracing::SpanRecord.error_signatures(timeframe: @time_range)
+
             errors_component = RAAF::Rails::Tracing::ErrorsDashboard.new(
-              error_analysis: @error_analysis,
-              error_trends: @error_trends,
-              recent_errors: @recent_errors,
-              params: params.permit(:start_time, :end_time, :severity, :page, :per_page)
+              signatures: @signatures,
+              params: params.permit(:range)
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Error Dashboard") do
+            layout = RAAF::Rails::Tracing::BaseLayout.new(
+              title: "Errors", range: current_range, range_href: range_href
+            ) do
               render errors_component
             end
 
             render layout
           end
+          # The JSON payload predates the screen and is left as it was: the
+          # ungrouped list is what a caller polling this endpoint asked for.
           format.json do
+            @error_analysis = RAAF::Rails::Tracing::SpanRecord.error_analysis(timeframe: @time_range)
+            @error_trends = calculate_error_trends(@time_range)
+            @per_page = [params[:per_page]&.to_i || 25, 100].min
+            @recent_errors = RAAF::Rails::Tracing::SpanRecord
+                             .errors.within_timeframe(@time_range.begin, @time_range.end)
+                             .includes(:trace).recent.page(params[:page]).per(@per_page)
+
             render json: {
               error_analysis: @error_analysis,
               error_trends: @error_trends,
@@ -246,9 +190,29 @@ module RAAF
         end
       end
 
-      # Keep the simple agent-related actions for now
+      # GET /dashboard/agents
+      # The fleet: one row per agent over the selected range.
       def agents
-        render RAAF::Rails::SimpleDashboard.new(title: "Agents")
+        @time_range = parse_time_range(params)
+        @agents = RAAF::Rails::Tracing::SpanRecord.agent_rollup(timeframe: @time_range)
+
+        respond_to do |format|
+          format.html do
+            agents_component = RAAF::Rails::Tracing::AgentsIndex.new(
+              agents: @agents,
+              params: params.permit(:health, :range)
+            )
+
+            layout = RAAF::Rails::Tracing::BaseLayout.new(
+              title: "Agents", range: current_range, range_href: range_href
+            ) do
+              render agents_component
+            end
+
+            render layout
+          end
+          format.json { render json: { agents: @agents } }
+        end
       end
 
       def conversations
@@ -261,14 +225,107 @@ module RAAF
 
       private
 
-      # Time range helper for filtering
-      def parse_time_range(params)
-        start_time = params[:start_time].present? ? Time.zone.parse(params[:start_time]) : 24.hours.ago
-        end_time = params[:end_time].present? ? Time.zone.parse(params[:end_time]) : Time.current
+      # The cost JSON this endpoint has always returned, built by CostManager
+      # over whole traces. Kept verbatim so the payload does not change under a
+      # caller; the HTML screen reads SpanRecord.cost_rollup instead, which
+      # bills the same spans the Agents screen does.
+      def legacy_cost_payload(time_range)
+        cost_manager = RAAF::Tracing::CostManager.new
+        cost_analysis = RAAF::Rails::Tracing::SpanRecord.cost_analysis(timeframe: time_range)
 
-        start_time..end_time
-      rescue ArgumentError
-        24.hours.ago..Time.current
+        total_cost = 0.0
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_llm_calls = 0
+        model_costs = {}
+
+        RAAF::Rails::Tracing::TraceRecord
+          .within_timeframe(time_range.begin, time_range.end)
+          .includes(:spans).find_each do |trace|
+          trace_cost = cost_manager.calculate_trace_cost(trace)
+          total_cost += trace_cost[:total_cost]
+
+          trace_cost[:models_used]&.each do |model, data|
+            model_costs[model] ||= { cost: 0.0, calls: 0, input_tokens: 0, output_tokens: 0 }
+            model_costs[model][:cost] += data[:cost]
+            model_costs[model][:calls] += data[:spans]
+            model_costs[model][:input_tokens] += data[:input_tokens]
+            model_costs[model][:output_tokens] += data[:output_tokens]
+
+            total_input_tokens += data[:input_tokens]
+            total_output_tokens += data[:output_tokens]
+            total_llm_calls += data[:spans]
+          end
+        end
+
+        if total_llm_calls.positive?
+          cost_analysis[:total_input_tokens] = total_input_tokens
+          cost_analysis[:total_output_tokens] = total_output_tokens
+          cost_analysis[:total_tokens] = total_input_tokens + total_output_tokens
+          cost_analysis[:total_llm_calls] = total_llm_calls
+          cost_analysis[:avg_tokens_per_call] =
+            ((total_input_tokens + total_output_tokens).to_f / total_llm_calls).round(2)
+        end
+
+        {
+          cost_analysis: cost_analysis,
+          cost_by_model: calculate_cost_by_model(time_range),
+          usage_over_time: calculate_usage_over_time(time_range),
+          top_workflows: calculate_top_consuming_workflows(time_range)
+        }
+      end
+
+      # The design gives every agent card a sparkline of its recent activity.
+      # One query for the whole grid, bucketed in Ruby: `date_trunc` cannot
+      # divide an arbitrary window into a fixed number of columns, and the
+      # window here is whatever the topbar says.
+      AGENT_SERIES_BUCKETS = 18
+
+      # Per workflow: the run count per bucket, and the buckets that contain a
+      # failed run. The design colours those bars red — a sparkline that is one
+      # flat colour says only "it ran", which the run count beside it already
+      # says. Status travels with the timestamp so this stays one query.
+      #
+      # Each bucket also carries when it began and how many of its runs failed,
+      # which is what the tile's hover readout is built from. A red bar tells a
+      # reader that something failed but not when, and "when" is the only
+      # question a spike on a sparkline actually raises.
+      def agent_series(workflows, range)
+        names = Array(workflows).filter_map { |w| w[:workflow_name] }
+        span = range.end - range.begin
+        return {} if names.empty? || span <= 0
+
+        rows = RAAF::Rails::Tracing::TraceRecord
+               .where(workflow_name: names, started_at: range)
+               .pluck(:workflow_name, :started_at, :status)
+
+        starts = bucket_starts(range, span)
+
+        rows.each_with_object({}) do |(name, started_at, status), series|
+          bucket = (((started_at - range.begin) / span) * AGENT_SERIES_BUCKETS).floor
+          bucket = bucket.clamp(0, AGENT_SERIES_BUCKETS - 1)
+
+          entry = series[name] ||= {
+            counts: Array.new(AGENT_SERIES_BUCKETS, 0),
+            fails: Array.new(AGENT_SERIES_BUCKETS, 0),
+            starts: starts, tones: {}
+          }
+          entry[:counts][bucket] += 1
+          next unless status == "failed"
+
+          entry[:fails][bucket] += 1
+          entry[:tones][bucket] = :bad
+        end
+      rescue StandardError
+        {}
+      end
+
+      # One frozen array shared by every workflow — the buckets are cut from
+      # the same window, so they begin at the same instants.
+      def bucket_starts(range, span)
+        Array.new(AGENT_SERIES_BUCKETS) do |index|
+          range.begin + (span * index / AGENT_SERIES_BUCKETS)
+        end.freeze
       end
 
       def calculate_overview_stats(time_range)
@@ -343,7 +400,7 @@ module RAAF
             timestamp: current_time,
             span_count: spans_in_bucket.count,
             avg_duration: spans_in_bucket.average(:duration_ms)&.round(2),
-            p95_duration: spans_in_bucket.percentile(:duration_ms, 0.95)&.round(2),
+            p95_duration: spans_in_bucket.percentile_for(:duration_ms, 0.95)&.round(2),
             error_count: spans_in_bucket.errors.count
           }
 
@@ -353,17 +410,24 @@ module RAAF
         buckets
       end
 
+      # Token usage per model over a window.
+      #
+      # Every span that recorded a model and tokens counts, whichever key shape
+      # it used. Filtering on kind: "llm" and digging llm.usage.* matched almost
+      # nothing — the DSL agent records both on the agent span — so this table
+      # was empty on a dashboard reporting real spend.
       def calculate_cost_by_model(time_range)
-        llm_spans = RAAF::Rails::Tracing::SpanRecord.by_kind("llm").within_timeframe(time_range.begin, time_range.end)
+        spans = RAAF::Rails::Tracing::SpanRecord
+                .within_timeframe(time_range.begin, time_range.end)
+                .with_token_usage
 
         model_stats = {}
 
-        llm_spans.find_each do |span|
-          model = span.span_attributes.dig("llm", "request", "model")
-          next unless model
-
-          input_tokens = span.span_attributes.dig("llm", "usage", "input_tokens").to_i
-          output_tokens = span.span_attributes.dig("llm", "usage", "output_tokens").to_i
+        spans.find_each do |span|
+          usage = span.token_usage
+          model = usage[:model]
+          total = RAAF::Tracing::SpanUsage.total_tokens(usage)
+          next unless model && total
 
           model_stats[model] ||= {
             call_count: 0,
@@ -373,9 +437,9 @@ module RAAF
           }
 
           model_stats[model][:call_count] += 1
-          model_stats[model][:input_tokens] += input_tokens
-          model_stats[model][:output_tokens] += output_tokens
-          model_stats[model][:total_tokens] += input_tokens + output_tokens
+          model_stats[model][:input_tokens] += usage[:input].to_i
+          model_stats[model][:output_tokens] += usage[:output].to_i
+          model_stats[model][:total_tokens] += total
         end
 
         model_stats
@@ -392,22 +456,21 @@ module RAAF
         while current_time < time_range.end
           bucket_end = [current_time + bucket_size.hours, time_range.end].min
 
-          llm_spans = RAAF::Rails::Tracing::SpanRecord.by_kind("llm").within_timeframe(current_time, bucket_end)
+          usages = RAAF::Rails::Tracing::SpanRecord
+                   .within_timeframe(current_time, bucket_end)
+                   .with_token_usage
+                   .map(&:token_usage)
+                   .select { |usage| RAAF::Tracing::SpanUsage.total_tokens(usage) }
 
-          total_input_tokens = 0
-          total_output_tokens = 0
-
-          llm_spans.find_each do |span|
-            total_input_tokens += span.span_attributes.dig("llm", "usage", "input_tokens").to_i
-            total_output_tokens += span.span_attributes.dig("llm", "usage", "output_tokens").to_i
-          end
+          total_input_tokens = usages.sum { |usage| usage[:input].to_i }
+          total_output_tokens = usages.sum { |usage| usage[:output].to_i }
 
           buckets << {
             timestamp: current_time,
-            llm_calls: llm_spans.count,
+            llm_calls: usages.count,
             input_tokens: total_input_tokens,
             output_tokens: total_output_tokens,
-            total_tokens: total_input_tokens + total_output_tokens
+            total_tokens: usages.sum { |usage| RAAF::Tracing::SpanUsage.total_tokens(usage).to_i }
           }
 
           current_time = bucket_end
@@ -423,13 +486,8 @@ module RAAF
         workflow_usage = {}
 
         traces.includes(:spans).find_each do |trace|
-          llm_spans = trace.spans.select { |s| s.kind == "llm" }
-
-          total_tokens = llm_spans.sum do |span|
-            input_tokens = span.span_attributes.dig("llm", "usage", "input_tokens").to_i
-            output_tokens = span.span_attributes.dig("llm", "usage", "output_tokens").to_i
-            input_tokens + output_tokens
-          end
+          usages = trace.span_usages
+          total_tokens = trace.total_tokens.to_i
 
           # Calculate cost for this trace
           trace_cost = cost_manager.calculate_trace_cost(trace)
@@ -443,7 +501,7 @@ module RAAF
 
           workflow_usage[trace.workflow_name][:trace_count] += 1
           workflow_usage[trace.workflow_name][:total_tokens] += total_tokens
-          workflow_usage[trace.workflow_name][:llm_calls] += llm_spans.count
+          workflow_usage[trace.workflow_name][:llm_calls] += usages.count
           workflow_usage[trace.workflow_name][:total_cost] += trace_cost[:total_cost]
         end
 

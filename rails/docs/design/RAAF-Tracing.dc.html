@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/tokens.css">
+<script src="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</helmet>
+<dc-import name="Shell" active="{{ screen }}" title="{{ title }}" crumb="Tracing" hint-size="100%,100%">
+
+  <sc-if value="{{ isTraces }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 14px; border-radius:14px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)">
+        <div style="display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:9px; background:var(--pr-glass-white-5); border:1px solid var(--pr-border); min-width:200px; flex:1">
+          <i class="bi bi-funnel" style="font-size:12px; color:var(--pr-text-muted)"></i>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-secondary)">workflow:Discovery::Pipeline</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; padding:3px; border-radius:999px; background:var(--pr-glass-white-5); border:1px solid var(--pr-border)">
+          <sc-for list="{{ statusFilters }}" as="f" hint-placeholder-count="4">
+            <button onClick="{{ f.go }}" style="all:unset; cursor:pointer; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ tracesCount }}</span>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.7fr) minmax(0,0.85fr) minmax(0,0.55fr) minmax(0,0.75fr) minmax(0,0.75fr) minmax(0,0.7fr) minmax(0,0.8fr); padding:11px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Trace</span><span>Workflow</span><span>Status</span><span style="text-align:right">Spans</span><span style="text-align:right">Duration</span><span style="text-align:right">Tokens</span><span style="text-align:right">Cost</span><span style="text-align:right">Started</span>
+        </div>
+        <sc-for list="{{ traces }}" as="t" hint-placeholder-count="12">
+          <button onClick="{{ t.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.7fr) minmax(0,0.85fr) minmax(0,0.55fr) minmax(0,0.75fr) minmax(0,0.75fr) minmax(0,0.7fr) minmax(0,0.8fr); align-items:center; padding:12px 16px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+            <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-cyan-500); text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ t.id }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:left; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ t.workflow }}</span>
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ t.bg }}; color:{{ t.fg }}; justify-self:start">{{ t.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ t.spans }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:{{ t.durColor }}">{{ t.dur }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:var(--pr-text-secondary)">{{ t.tokens }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ t.cost }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ t.started }}</span>
+          </button>
+        </sc-for>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px">
+          <span style="font-size:12px; color:var(--pr-text-muted)">Showing 12 of 12,480</span>
+          <div style="display:flex; align-items:center; gap:6px">
+            <span style="font-family:var(--pr-font-mono); font-size:12px; padding:5px 11px; border-radius:8px; background:var(--pr-glass-white-8); color:var(--pr-text-muted)">prev</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; padding:5px 11px; border-radius:8px; background:var(--pr-glass-white-12); color:#fff">next</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isSpans }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+        <sc-for list="{{ kindFilters }}" as="f" hint-placeholder-count="7">
+          <button onClick="{{ f.go }}" style="all:unset; cursor:pointer; display:flex; align-items:center; gap:7px; padding:6px 13px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid {{ f.border }}; background:{{ f.bg }}; color:{{ f.fg }}">
+            <span style="width:6px; height:6px; border-radius:50%; background:{{ f.dot }}"></span>{{ f.label }}
+            <span style="font-family:var(--pr-font-mono); font-size:10px; opacity:.7">{{ f.count }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,0.8fr) minmax(0,1.1fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.75fr) minmax(0,0.7fr); padding:11px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Span</span><span>Kind</span><span>Trace</span><span style="text-align:right">Duration</span><span style="text-align:right">Tokens</span><span style="text-align:right">Status</span><span style="text-align:right">Start</span>
+        </div>
+        <sc-for list="{{ spanRows }}" as="s" hint-placeholder-count="14">
+          <button onClick="{{ s.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,0.8fr) minmax(0,1.1fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.75fr) minmax(0,0.7fr); align-items:center; padding:11px 16px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:left; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ s.name }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:10px; font-weight:500; padding:2px 7px; border-radius:5px; background:{{ s.kindBg }}; color:{{ s.kindFg }}; justify-self:start">{{ s.kind }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-cyan-500); text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ s.trace }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:{{ s.durColor }}">{{ s.dur }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:var(--pr-text-secondary)">{{ s.tokens }}</span>
+            <span style="font-size:11px; font-weight:600; text-align:right; color:{{ s.stFg }}">{{ s.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ s.start }}</span>
+          </button>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; flex-direction:column; gap:12px; padding:16px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)">
+        <div style="display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:11px; background:var(--pr-glass-white-8); border:1px solid var(--pr-border-strong)">
+          <i class="bi bi-search" style="font-size:14px; color:var(--pr-cyan-500)"></i>
+          <span style="font-family:var(--pr-font-mono); font-size:13px; flex:1">kind:tool status:error "execution expired"</span>
+          <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">148 hits · 240ms</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+          <span style="font-size:11px; color:var(--pr-text-muted); font-weight:600">Try</span>
+          <sc-for list="{{ searchExamples }}" as="e" hint-placeholder-count="4">
+            <span style="font-family:var(--pr-font-mono); font-size:11px; padding:4px 9px; border-radius:7px; background:rgb(0 154 204 / 10%); color:var(--pr-cyan-500)">{{ e.q }}</span>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:minmax(0,220px) minmax(0,1fr); gap:16px; align-items:start">
+        <aside style="display:flex; flex-direction:column; gap:14px; padding:16px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)">
+          <sc-for list="{{ facets }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">{{ f.label }}</span>
+              <sc-for list="{{ f.values }}" as="v" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:8px">
+                  <span style="width:12px; height:12px; border-radius:3px; border:1px solid {{ v.boxBorder }}; background:{{ v.boxBg }}"></span>
+                  <span style="font-size:12px; color:var(--pr-text-secondary); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ v.label }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ v.count }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </aside>
+
+        <section style="display:flex; flex-direction:column; gap:10px; min-width:0">
+          <sc-for list="{{ searchResults }}" as="r" hint-placeholder-count="5">
+            <button onClick="{{ r.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:flex; flex-direction:column; gap:9px; padding:14px 16px; border-radius:14px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)" style-hover="border-color:var(--pr-border-strong); background:var(--pr-glass-white-8)">
+              <div style="display:flex; align-items:center; gap:9px; flex-wrap:wrap">
+                <span style="font-family:var(--pr-font-mono); font-size:10px; font-weight:500; padding:2px 7px; border-radius:5px; background:{{ r.kindBg }}; color:{{ r.kindFg }}">{{ r.kind }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:13px">{{ r.name }}</span>
+                <span style="flex:1"></span>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ r.meta }}</span>
+              </div>
+              <div style="font-family:var(--pr-font-mono); font-size:11.5px; line-height:1.6; color:var(--pr-text-secondary); text-align:left; padding:9px 11px; border-radius:9px; background:var(--pr-glass-white-5); border-left:2px solid {{ r.accent }}">{{ r.snippet }}</div>
+            </button>
+          </sc-for>
+        </section>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isFlows }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; align-items:center; gap:4px; border-bottom:1px solid var(--pr-border)">
+        <sc-for list="{{ flowTabs }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.go }}" style="all:unset; cursor:pointer; padding:10px 15px; font-size:13px; font-weight:600; color:{{ t.fg }}; border-bottom:2px solid {{ t.line }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ flowTopology }}" hint-placeholder-val="{{ true }}">
+        <section style="padding:20px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border); display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <h2 style="margin:0; font-size:14px; font-weight:700">Handoff topology · last 24h</h2>
+            <span style="font-size:12px; color:var(--pr-text-muted)">edge width = handoff volume · red = failing path</span>
+          </div>
+          <div style="display:grid; grid-template-columns:minmax(0,1fr) 40px minmax(0,1.15fr) 40px minmax(0,1fr); align-items:stretch; gap:0">
+          <div style="display:flex; flex-direction:column; justify-content:center; gap:18px">
+            <div style="display:flex; flex-direction:column; gap:4px; padding:12px 13px; border-radius:13px; background:rgb(0 154 204 / 12%); border:1px solid var(--pr-border-strong)">
+              <span style="font-family:var(--pr-font-mono); font-size:12.5px; letter-spacing:-0.02em; overflow-wrap:anywhere; line-height:1.35">Search::TermBuilder</span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">2,780 runs · 0.1% err</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; padding:12px 13px; border-radius:13px; background:rgb(0 154 204 / 12%); border:1px solid var(--pr-border-strong)">
+              <span style="font-family:var(--pr-font-mono); font-size:12.5px; letter-spacing:-0.02em; overflow-wrap:anywhere; line-height:1.35">Market::ScoutAgent</span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">3,214 runs · 0.4% err</span>
+            </div>
+          </div>
+
+          <div style="position:relative; min-height:158px">
+            <div style="position:absolute; left:0; right:42%; top:25%; height:2px; background:#3d8fa8"></div>
+            <div style="position:absolute; left:0; right:42%; top:75%; height:2px; background:#3d8fa8"></div>
+            <div style="position:absolute; right:42%; top:25%; bottom:25%; width:2px; background:#3d8fa8"></div>
+            <div style="position:absolute; right:8px; left:58%; top:50%; height:3px; background:#3d8fa8"></div>
+            <div style="position:absolute; right:0; top:50%; transform:translateY(-50%); width:0; height:0; border-left:8px solid #3d8fa8; border-top:5px solid transparent; border-bottom:5px solid transparent"></div>
+            <span style="position:absolute; left:50%; top:calc(50% - 22px); transform:translateX(-50%); font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted); white-space:nowrap">5,994</span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; justify-content:center; gap:5px; padding:15px 16px; border-radius:14px; background:rgb(239 68 68 / 12%); border:1px solid rgb(239 68 68 / 45%); box-shadow:0 12px 28px rgb(239 68 68 / 8%)">
+            <div style="display:flex; align-items:center; gap:8px">
+              <span style="width:8px; height:8px; border-radius:50%; background:#ef4444; box-shadow:0 0 10px #ef4444; animation:pulse 1.6s ease-in-out infinite"></span>
+              <span style="font-family:var(--pr-font-mono); font-size:13px; letter-spacing:-0.02em; min-width:0; overflow-wrap:anywhere; line-height:1.35">Company::EnrichAgent</span>
+            </div>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:#ff8f8f">8,902 runs · 7.2% err</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">p95 5.8s · crm_upsert timing out</span>
+          </div>
+
+          <div style="position:relative; min-height:158px">
+            <div style="position:absolute; left:8px; right:58%; top:50%; height:3px; background:#ef4444"></div>
+            <div style="position:absolute; left:42%; top:25%; bottom:25%; width:2px; background:#3d8fa8"></div>
+            <div style="position:absolute; left:42%; top:25%; bottom:25%; width:3px; background:linear-gradient(180deg,#ef4444,#3d8fa8)"></div>
+            <div style="position:absolute; left:42%; right:8px; top:25%; height:4px; background:#ef4444"></div>
+            <div style="position:absolute; left:42%; right:8px; top:75%; height:2px; background:#3d8fa8"></div>
+            <div style="position:absolute; right:0; top:25%; transform:translateY(-50%); width:0; height:0; border-left:8px solid #ef4444; border-top:5px solid transparent; border-bottom:5px solid transparent"></div>
+            <div style="position:absolute; right:0; top:75%; transform:translateY(-50%); width:0; height:0; border-left:8px solid #3d8fa8; border-top:5px solid transparent; border-bottom:5px solid transparent"></div>
+            <span style="position:absolute; left:50%; top:calc(25% - 22px); transform:translateX(-50%); font-family:var(--pr-font-mono); font-size:11px; color:#ff8f8f; white-space:nowrap">6,412</span>
+            <span style="position:absolute; left:50%; top:calc(75% + 8px); transform:translateX(-50%); font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted); white-space:nowrap">1,102</span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; justify-content:center; gap:18px">
+            <div style="display:flex; flex-direction:column; gap:4px; padding:12px 13px; border-radius:13px; background:rgb(245 158 11 / 10%); border:1px solid rgb(245 158 11 / 40%)">
+              <span style="font-family:var(--pr-font-mono); font-size:12.5px; letter-spacing:-0.02em; overflow-wrap:anywhere; line-height:1.35">Prospect::ScoringAgent</span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:#f3c37b">1,946 runs · 2.6% err</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; padding:12px 13px; border-radius:13px; background:rgb(0 154 204 / 12%); border:1px solid var(--pr-border-strong)">
+              <span style="font-family:var(--pr-font-mono); font-size:12.5px; letter-spacing:-0.02em; overflow-wrap:anywhere; line-height:1.35">Outreach::DraftAgent</span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">1,102 runs · 0.9% err</span>
+            </div>
+          </div>
+        </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ flowPipeline }}" hint-placeholder-val="{{ true }}">
+        <section style="padding:20px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border); display:flex; flex-direction:column; gap:16px">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <h2 style="margin:0; font-size:14px; font-weight:700">Discovery::Pipeline · declared steps</h2>
+            <span style="font-size:12px; color:var(--pr-text-muted)">612 runs · 3.1% failed · p95 18.2s</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px">
+            <sc-for list="{{ pipelineSteps }}" as="p" hint-placeholder-count="6">
+              <div style="display:flex; align-items:center; gap:14px; padding:13px 15px; border-radius:13px; background:{{ p.bg }}; border:1px solid {{ p.border }}">
+                <span style="font-family:var(--pr-font-mono); font-size:11px; width:20px; color:var(--pr-text-muted)">{{ p.n }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:10px; font-weight:500; padding:2px 7px; border-radius:5px; background:{{ p.kindBg }}; color:{{ p.kindFg }}">{{ p.kind }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.name }}</span>
+                <span style="width:110px; height:6px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden; flex-shrink:0">
+                  <span style="display:block; height:100%; border-radius:999px; width:{{ p.pct }}; background:{{ p.bar }}"></span>
+                </span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; width:56px; text-align:right; color:{{ p.durColor }}">{{ p.dur }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; width:52px; text-align:right; color:{{ p.errColor }}">{{ p.err }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ flowTrace }}" hint-placeholder-val="{{ true }}">
+        <section style="padding:20px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border); display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <h2 style="margin:0; font-size:14px; font-weight:700">Path of <span style="font-family:var(--pr-font-mono); font-weight:500">trace_8f2c9b41a91d</span></h2>
+            <button onClick="{{ goTrace }}" style="all:unset; cursor:pointer; font-size:12px; font-weight:600; color:var(--pr-cyan-500)">Open waterfall</button>
+          </div>
+          <div style="display:flex; flex-direction:column">
+            <sc-for list="{{ tracePath }}" as="p" hint-placeholder-count="7">
+              <div style="display:flex; align-items:stretch; gap:0">
+                <div style="width:{{ p.indent }}; flex-shrink:0"></div>
+                <div style="width:26px; display:flex; flex-direction:column; align-items:center; flex-shrink:0">
+                  <span style="width:1px; flex:1; background:var(--pr-border)"></span>
+                  <span style="width:9px; height:9px; border-radius:50%; background:{{ p.dot }}; box-shadow:0 0 0 3px rgb(10 31 42 / 90%)"></span>
+                  <span style="width:1px; flex:1; background:var(--pr-border)"></span>
+                </div>
+                <div style="flex:1; min-width:0; display:flex; align-items:center; gap:10px; padding:9px 13px; margin:3px 0; border-radius:11px; background:{{ p.bg }}; border:1px solid {{ p.border }}">
+                  <span style="font-family:var(--pr-font-mono); font-size:10px; font-weight:500; padding:2px 7px; border-radius:5px; background:{{ p.kindBg }}; color:{{ p.kindFg }}">{{ p.kind }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.name }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ p.note }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; color:{{ p.durColor }}">{{ p.dur }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isTools }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(268px,1fr)); gap:14px">
+      <sc-for list="{{ tools }}" as="t" hint-placeholder-count="8">
+        <div style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:13px">
+          <div style="display:flex; align-items:center; gap:10px">
+            <i class="bi {{ t.icon }}" style="font-size:15px; color:var(--pr-cyan-500)"></i>
+            <span style="font-family:var(--pr-font-mono); font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ t.name }}</span>
+            <span style="font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; background:{{ t.tagBg }}; color:{{ t.tagFg }}">{{ t.tag }}</span>
+          </div>
+          <p style="margin:0; font-size:12px; line-height:1.5; color:var(--pr-text-muted); text-wrap:pretty">{{ t.desc }}</p>
+          <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding-top:12px; border-top:1px solid var(--pr-border)">
+            <div style="display:flex; flex-direction:column; gap:2px">
+              <span style="font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted); font-weight:600">Calls</span>
+              <span style="font-family:var(--pr-font-mono); font-size:13px">{{ t.calls }}</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px">
+              <span style="font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted); font-weight:600">Errors</span>
+              <span style="font-family:var(--pr-font-mono); font-size:13px; color:{{ t.errColor }}">{{ t.err }}</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px">
+              <span style="font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted); font-weight:600">p95</span>
+              <span style="font-family:var(--pr-font-mono); font-size:13px">{{ t.p95 }}</span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isTrace }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 18px; border-radius:14px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)">
+        <span style="font-family:var(--pr-font-mono); font-size:13px">{{ trace.id }}</span>
+        <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--pr-danger-bg); color:#ff8f8f">failed</span>
+        <span style="flex:1"></span>
+        <sc-for list="{{ trace.stats }}" as="s" hint-placeholder-count="4">
+          <span style="display:flex; align-items:center; gap:7px; font-size:12px; color:var(--pr-text-muted)">
+            <i class="bi {{ s.icon }}" style="font-size:12px"></i>{{ s.label }}
+            <span style="font-family:var(--pr-font-mono); color:#fff">{{ s.value }}</span>
+          </span>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:16px; align-items:start">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 16px; border-bottom:1px solid var(--pr-border)">
+            <h2 style="margin:0; font-size:14px; font-weight:700">Span waterfall</h2>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">0 → 11.4s</span>
+          </div>
+          <sc-for list="{{ spans }}" as="s" hint-placeholder-count="10">
+            <button onClick="{{ s.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:flex; flex-direction:column; gap:6px; padding:10px 16px; border-bottom:1px solid var(--pr-border); background:{{ s.rowBg }}; box-shadow:{{ s.rowRing }}" style-hover="background:var(--pr-glass-white-5)">
+              <div style="display:flex; align-items:center; gap:8px; padding-left:{{ s.indent }}">
+                <span style="font-family:var(--pr-font-mono); font-size:10px; font-weight:500; padding:2px 6px; border-radius:5px; background:{{ s.kindBg }}; color:{{ s.kindFg }}">{{ s.kind }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; color:{{ s.nameColor }}">{{ s.name }}</span>
+                <sc-if value="{{ s.tokens }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ s.tokens }}</span>
+                </sc-if>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; width:52px; text-align:right; color:{{ s.durColor }}">{{ s.dur }}</span>
+              </div>
+              <div style="height:5px; border-radius:999px; background:var(--pr-glass-white-5); position:relative; margin-left:{{ s.indent }}">
+                <div style="position:absolute; top:0; bottom:0; border-radius:999px; left:{{ s.offset }}; width:{{ s.width }}; background:{{ s.barColor }}"></div>
+              </div>
+            </button>
+          </sc-for>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden; position:sticky; top:96px">
+          <div style="display:flex; flex-direction:column; gap:9px; padding:15px 16px; border-bottom:1px solid var(--pr-border)">
+            <div style="display:flex; align-items:center; gap:9px">
+              <span style="font-family:var(--pr-font-mono); font-size:10px; font-weight:500; padding:2px 7px; border-radius:5px; background:{{ span.kindBg }}; color:{{ span.kindFg }}">{{ span.kind }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ span.name }}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">
+              <span>{{ span.dur }}</span><span>{{ span.model }}</span><span>{{ span.tokensFull }}</span><span style="color:#7ee0ae">{{ span.cost }}</span>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:2px; padding:8px 10px; border-bottom:1px solid var(--pr-border)">
+            <sc-for list="{{ spanTabs }}" as="t" hint-placeholder-count="4">
+              <button onClick="{{ t.go }}" style="all:unset; cursor:pointer; padding:6px 11px; border-radius:8px; font-size:12px; font-weight:600; background:{{ t.bg }}; color:{{ t.fg }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ spanTabPayload }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; flex-direction:column; gap:12px; padding:16px">
+              <sc-for list="{{ messages }}" as="m" hint-placeholder-count="3">
+                <div style="display:flex; flex-direction:column; gap:7px">
+                  <div style="display:flex; align-items:center; gap:8px">
+                    <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:{{ m.roleColor }}">{{ m.role }}</span>
+                    <span style="flex:1; height:1px; background:var(--pr-border)"></span>
+                    <span style="font-family:var(--pr-font-mono); font-size:10px; color:var(--pr-text-muted)">{{ m.tokens }}</span>
+                  </div>
+                  <div style="position:relative; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); padding:12px">
+                    <div style="font-family:var(--pr-font-mono); font-size:11.5px; line-height:1.65; color:var(--pr-text-secondary); white-space:pre-wrap; word-break:break-word; filter:{{ m.blur }}">{{ m.body }}</div>
+                    <sc-if value="{{ m.masked }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ reveal }}" style="all:unset; cursor:pointer; position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; border-radius:10px; background:rgb(10 31 42 / 45%)">
+                        <i class="bi bi-eye-slash" style="font-size:15px; color:var(--pr-text-secondary)"></i>
+                        <span style="font-size:11px; font-weight:600; color:#fff">Contains customer data — click to reveal</span>
+                        <span style="font-size:10px; color:var(--pr-text-muted); font-family:var(--pr-font-mono)">access is logged</span>
+                      </button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ spanTabError }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; flex-direction:column; gap:14px; padding:16px">
+              <div style="border-radius:10px; border:1px solid rgb(239 68 68 / 35%); background:var(--pr-danger-bg); padding:13px; display:flex; flex-direction:column; gap:6px">
+                <span style="font-family:var(--pr-font-mono); font-size:12px; font-weight:500; color:#ffb3b3">{{ error.klass }}</span>
+                <span style="font-size:12.5px; line-height:1.5; color:#ffd9d9; text-wrap:pretty">{{ error.message }}</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:5px">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Backtrace</span>
+                <pre style="margin:0; font-family:var(--pr-font-mono); font-size:11px; line-height:1.75; color:var(--pr-text-secondary); white-space:pre-wrap; word-break:break-word">{{ error.backtrace }}</pre>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ spanTabTokens }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; flex-direction:column; padding:6px 0">
+              <sc-for list="{{ tokenRows }}" as="t" hint-placeholder-count="6">
+                <div style="display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+                  <span style="font-size:12px; color:var(--pr-text-secondary); flex:1">{{ t.label }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; color:{{ t.color }}">{{ t.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ spanTabRaw }}" hint-placeholder-val="{{ true }}">
+            <pre style="margin:0; padding:16px; font-family:var(--pr-font-mono); font-size:11px; line-height:1.7; color:var(--pr-text-secondary); white-space:pre-wrap; word-break:break-word; max-height:420px; overflow:auto">{{ rawJson }}</pre>
+          </sc-if>
+        </section>
+      </div>
+    </div>
+  </sc-if>
+
+</dc-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;redactPayloads&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behaviour&quot;}}">
+const C = { cyan: "#009acc", ok: "#11aa64", okText: "#7ee0ae", warn: "#f59e0b", warnText: "#f3c37b", bad: "#ef4444", badText: "#ff8f8f", muted: "var(--pr-text-muted)", sec: "var(--pr-text-secondary)" };
+const KIND = {
+  agent: ["rgb(0 154 204 / 16%)", "#6fd2f0"],
+  llm: ["rgb(139 92 246 / 16%)", "#c4b1fb"],
+  tool: ["rgb(17 170 100 / 16%)", "#7ee0ae"],
+  handoff: ["rgb(245 158 11 / 16%)", "#f3c37b"],
+  guardrail: ["rgb(59 130 246 / 16%)", "#a8c7fb"],
+  pipeline: ["rgb(255 255 255 / 10%)", "#d1d5db"]
+};
+const ST = {
+  completed: ["var(--pr-success-bg)", C.okText],
+  failed: ["var(--pr-danger-bg)", C.badText],
+  running: ["rgb(0 154 204 / 16%)", "#6fd2f0"],
+  skipped: ["var(--pr-glass-white-8)", C.sec]
+};
+
+const TRACES = [
+  ["8f2c·a91d", "Discovery::Pipeline", "failed", "24", "11.4s", "18.2k", "$0.041", "09:41:02"],
+  ["7d1b·55e0", "Company::EnrichAgent", "completed", "9", "3.2s", "6.1k", "$0.012", "09:40:58"],
+  ["6a04·c7f2", "Company::EnrichAgent", "running", "6", "—", "2.4k", "$0.005", "09:40:55"],
+  ["5b93·10aa", "Market::ScoutAgent", "completed", "11", "4.0s", "7.7k", "$0.016", "09:40:51"],
+  ["4c72·8e31", "Discovery::Pipeline", "failed", "8", "4.1s", "5.2k", "$0.011", "09:40:47"],
+  ["3f61·2b77", "Prospect::ScoringAgent", "completed", "10", "2.8s", "6.6k", "$0.014", "09:40:44"],
+  ["2e50·9d14", "Search::TermBuilder", "skipped", "2", "0.2s", "0", "$0.000", "09:40:41"],
+  ["1d4f·7c02", "Outreach::DraftAgent", "completed", "7", "4.2s", "9.1k", "$0.019", "09:40:38"],
+  ["0c3e·6b91", "Content::SummarizeAgent", "completed", "3", "1.6s", "2.2k", "$0.004", "09:40:35"],
+  ["9b2d·5a80", "Company::EnrichAgent", "failed", "12", "9.6s", "14.7k", "$0.031", "09:40:31"],
+  ["8a1c·497f", "Prospect::ScoringAgent", "completed", "10", "7.4s", "11.3k", "$0.041", "09:40:28"],
+  ["790b·386e", "Market::ScoutAgent", "completed", "9", "2.9s", "6.8k", "$0.014", "09:40:24"]
+];
+
+const SPAN_ROWS = [
+  ["crm_upsert", "tool", "8f2c·a91d", "4.0s", "—", "error", "09:41:06"],
+  ["chat.completions gpt-4o-mini", "llm", "8f2c·a91d", "3.1s", "8.4k", "ok", "09:41:03"],
+  ["web_search", "tool", "8f2c·a91d", "2.4s", "—", "ok", "09:41:02"],
+  ["Company::EnrichAgent#run", "agent", "8f2c·a91d", "9.6s", "8.4k", "error", "09:41:02"],
+  ["Compliance::PIIGuard", "guardrail", "7d1b·55e0", "0.1s", "—", "ok", "09:40:59"],
+  ["chat.completions gpt-4o", "llm", "5b93·10aa", "2.2s", "5.4k", "ok", "09:40:52"],
+  ["company_lookup", "tool", "7d1b·55e0", "0.9s", "—", "ok", "09:40:58"],
+  ["handoff → Prospect::ScoringAgent", "handoff", "3f61·2b77", "—", "—", "skipped", "09:40:45"],
+  ["Prospect::ScoringAgent#run", "agent", "3f61·2b77", "2.8s", "6.6k", "ok", "09:40:44"],
+  ["score_calculator", "tool", "3f61·2b77", "0.05s", "—", "ok", "09:40:45"],
+  ["chat.completions claude-sonnet-4", "llm", "8a1c·497f", "7.4s", "11.3k", "ok", "09:40:28"],
+  ["vector_search", "tool", "9b2d·5a80", "0.2s", "—", "ok", "09:40:33"],
+  ["email_draft", "tool", "1d4f·7c02", "1.1s", "—", "ok", "09:40:39"],
+  ["Discovery::Pipeline", "pipeline", "4c72·8e31", "4.1s", "5.2k", "error", "09:40:47"]
+];
+
+const SPANS = [
+  { name: "Discovery::Pipeline", kind: "pipeline", d: 0, dur: "11.4s", off: "0%", w: "100%", st: "error" },
+  { name: "Search::TermBuilder#run", kind: "agent", d: 1, dur: "1.2s", off: "1%", w: "10%", st: "ok" },
+  { name: "chat.completions gpt-4o-mini", kind: "llm", d: 2, dur: "1.1s", off: "2%", w: "9%", st: "ok", tokens: "1.2k" },
+  { name: "Company::EnrichAgent#run", kind: "agent", d: 1, dur: "9.6s", off: "12%", w: "84%", st: "error" },
+  { name: "web_search", kind: "tool", d: 2, dur: "2.4s", off: "13%", w: "21%", st: "ok" },
+  { name: "chat.completions gpt-4o-mini", kind: "llm", d: 2, dur: "3.1s", off: "35%", w: "27%", st: "ok", tokens: "8.4k" },
+  { name: "crm_upsert", kind: "tool", d: 2, dur: "4.0s", off: "63%", w: "33%", st: "error" },
+  { name: "Compliance::PIIGuard", kind: "guardrail", d: 2, dur: "0.1s", off: "96%", w: "2%", st: "ok" },
+  { name: "handoff → Prospect::ScoringAgent", kind: "handoff", d: 1, dur: "—", off: "98%", w: "1%", st: "skipped" }
+];
+
+const TITLES = {
+  traces: ["Traces", "traces"],
+  spans: ["Spans", "spans"],
+  search: ["Search", "search"],
+  flows: ["Flows", "flows"],
+  tools: ["Tool registry", "tools"],
+  trace: ["Trace 8f2c·a91d", "trace"]
+};
+
+class Component extends DCLogic {
+  state = { screen: "traces", flowTab: "topology", spanTab: "error", span: 6, status: "All", kind: "all", revealed: false };
+
+  componentDidMount() {
+    this.sync = () => {
+      const h = (location.hash || "").replace("#", "");
+      if (TITLES[h]) this.setState({ screen: h });
+    };
+    this.sync();
+    window.addEventListener("hashchange", this.sync);
+  }
+  componentWillUnmount() { window.removeEventListener("hashchange", this.sync); }
+
+  chip(on) { return on ? { bg: "var(--pr-glass-white-12)", fg: "#fff" } : { bg: "transparent", fg: C.muted }; }
+  goScreen(id) { return () => { location.hash = id; this.setState({ screen: id }); }; }
+
+  renderVals() {
+    const s = this.state;
+    const masked = this.props.redactPayloads !== false && !s.revealed;
+    const sp = SPANS[s.span];
+    const spk = KIND[sp.kind];
+    const spanTab = (id, label) => Object.assign({ label, go: () => this.setState({ spanTab: id }) }, this.chip(s.spanTab === id));
+
+    const kindCounts = { agent: "18.4k", llm: "31.2k", tool: "44.1k", handoff: "8.9k", guardrail: "12.5k", pipeline: "0.6k" };
+
+    return {
+      screen: s.screen,
+      title: (TITLES[s.screen] || TITLES.traces)[0],
+      isTraces: s.screen === "traces", isSpans: s.screen === "spans", isSearch: s.screen === "search",
+      isFlows: s.screen === "flows", isTools: s.screen === "tools", isTrace: s.screen === "trace",
+      goTrace: this.goScreen("trace"),
+
+      tracesCount: "12,480 traces · 225 failed",
+      statusFilters: ["All", "Failed", "Running", "Completed"].map((label) => Object.assign({ label, go: () => this.setState({ status: label }) }, this.chip(s.status === label))),
+      traces: TRACES.map((t) => {
+        const st = ST[t[2]];
+        return {
+          id: t[0], workflow: t[1], status: t[2], bg: st[0], fg: st[1],
+          spans: t[3], dur: t[4], tokens: t[5], cost: t[6], started: t[7],
+          durColor: t[2] === "failed" ? C.badText : "#fff",
+          go: this.goScreen("trace")
+        };
+      }),
+
+      kindFilters: [{ label: "all kinds", id: "all", count: "115k", dot: C.cyan }].concat(
+        Object.keys(KIND).map((k) => ({ label: k, id: k, count: kindCounts[k], dot: KIND[k][1] }))
+      ).map((f) => ({
+        label: f.label, count: f.count, dot: f.dot,
+        bg: s.kind === f.id ? "var(--pr-glass-white-12)" : "var(--pr-glass-white-5)",
+        fg: s.kind === f.id ? "#fff" : C.sec,
+        border: s.kind === f.id ? "var(--pr-border-strong)" : "var(--pr-border)",
+        go: () => this.setState({ kind: f.id })
+      })),
+      spanRows: SPAN_ROWS.map((r) => {
+        const k = KIND[r[1]];
+        return {
+          name: r[0], kind: r[1], kindBg: k[0], kindFg: k[1], trace: r[2], dur: r[3], tokens: r[4], status: r[5],
+          start: r[6],
+          durColor: r[5] === "error" ? C.badText : "#fff",
+          stFg: r[5] === "error" ? C.badText : r[5] === "skipped" ? C.muted : C.okText,
+          go: this.goScreen("trace")
+        };
+      }),
+
+      searchExamples: [
+        { q: "kind:llm tokens>8000" },
+        { q: "agent:Company::EnrichAgent status:error" },
+        { q: "tool:crm_upsert duration>3s" },
+        { q: "model:claude-sonnet-4 cost>0.05" }
+      ],
+      facets: [
+        { label: "Kind", values: [
+          { label: "tool", count: "148", boxBg: C.cyan, boxBorder: C.cyan },
+          { label: "llm", count: "41", boxBg: "transparent", boxBorder: "var(--pr-border-strong)" },
+          { label: "agent", count: "19", boxBg: "transparent", boxBorder: "var(--pr-border-strong)" },
+          { label: "guardrail", count: "9", boxBg: "transparent", boxBorder: "var(--pr-border-strong)" }
+        ]},
+        { label: "Status", values: [
+          { label: "error", count: "148", boxBg: C.cyan, boxBorder: C.cyan },
+          { label: "ok", count: "0", boxBg: "transparent", boxBorder: "var(--pr-border-strong)" }
+        ]},
+        { label: "Agent", values: [
+          { label: "Company::EnrichAgent", count: "141", boxBg: "transparent", boxBorder: "var(--pr-border-strong)" },
+          { label: "Discovery::Pipeline", count: "5", boxBg: "transparent", boxBorder: "var(--pr-border-strong)" },
+          { label: "Market::ScoutAgent", count: "2", boxBg: "transparent", boxBorder: "var(--pr-border-strong)" }
+        ]}
+      ],
+      searchResults: [
+        { kind: "tool", kindBg: KIND.tool[0], kindFg: KIND.tool[1], name: "crm_upsert", meta: "8f2c·a91d · 12s ago", accent: C.bad, snippet: 'error_details.exception_message: "execution expired" — POST /v2/companies/upsert · 4002ms · retry.count 2', go: this.goScreen("trace") },
+        { kind: "tool", kindBg: KIND.tool[0], kindFg: KIND.tool[1], name: "crm_upsert", meta: "9b2d·5a80 · 1m ago", accent: C.bad, snippet: 'error_details.exception_message: "execution expired" — POST /v2/companies/upsert · 4001ms · retry.count 2', go: this.goScreen("trace") },
+        { kind: "agent", kindBg: KIND.agent[0], kindFg: KIND.agent[1], name: "Company::EnrichAgent#run", meta: "4c72·8e31 · 3m ago", accent: C.bad, snippet: 'child span crm_upsert raised Faraday::TimeoutError — "execution expired" after 2 retries', go: this.goScreen("trace") },
+        { kind: "tool", kindBg: KIND.tool[0], kindFg: KIND.tool[1], name: "crm_upsert", meta: "7712·04ab · 6m ago", accent: C.bad, snippet: 'error_details.exception_message: "execution expired" — POST /v2/companies/upsert · 4003ms · retry.count 2', go: this.goScreen("trace") },
+        { kind: "pipeline", kindBg: KIND.pipeline[0], kindFg: KIND.pipeline[1], name: "Discovery::Pipeline", meta: "6b01·9f3c · 8m ago", accent: C.warn, snippet: 'step 4 aborted — downstream "execution expired"; 2 of 6 steps skipped', go: this.goScreen("trace") }
+      ],
+
+      flowTabs: [
+        { id: "topology", label: "Handoff topology" },
+        { id: "pipeline", label: "Pipeline steps" },
+        { id: "trace", label: "Single trace path" }
+      ].map((t) => ({
+        label: t.label, go: () => this.setState({ flowTab: t.id }),
+        fg: s.flowTab === t.id ? "#fff" : C.muted,
+        line: s.flowTab === t.id ? C.cyan : "transparent"
+      })),
+      flowTopology: s.flowTab === "topology", flowPipeline: s.flowTab === "pipeline", flowTrace: s.flowTab === "trace",
+      pipelineSteps: [
+        { n: "01", kind: "agent", name: "Search::TermBuilder", pct: "11%", dur: "1.2s", err: "0.1%", ok: true },
+        { n: "02", kind: "tool", name: "web_search", pct: "21%", dur: "2.4s", err: "0.3%", ok: true },
+        { n: "03", kind: "agent", name: "Company::EnrichAgent", pct: "84%", dur: "9.6s", err: "7.2%", ok: false },
+        { n: "04", kind: "tool", name: "crm_upsert", pct: "33%", dur: "4.0s", err: "8.1%", ok: false },
+        { n: "05", kind: "guardrail", name: "Compliance::PIIGuard", pct: "2%", dur: "0.1s", err: "0.0%", ok: true },
+        { n: "06", kind: "handoff", name: "→ Prospect::ScoringAgent", pct: "4%", dur: "0.4s", err: "1.2%", ok: true }
+      ].map((p) => {
+        const k = KIND[p.kind];
+        return {
+          n: p.n, kind: p.kind, kindBg: k[0], kindFg: k[1], name: p.name, pct: p.pct, dur: p.dur, err: p.err,
+          bg: p.ok ? "var(--pr-glass-white-5)" : "rgb(239 68 68 / 8%)",
+          border: p.ok ? "var(--pr-border)" : "rgb(239 68 68 / 32%)",
+          bar: p.ok ? C.cyan : C.bad,
+          durColor: p.ok ? "#fff" : C.badText,
+          errColor: p.ok ? C.muted : C.badText
+        };
+      }),
+      tracePath: [
+        { name: "Discovery::Pipeline", kind: "pipeline", d: 0, note: "6 steps", dur: "11.4s", ok: false },
+        { name: "Search::TermBuilder#run", kind: "agent", d: 1, note: "1 llm call", dur: "1.2s", ok: true },
+        { name: "Company::EnrichAgent#run", kind: "agent", d: 1, note: "2 tools · 1 llm", dur: "9.6s", ok: false },
+        { name: "web_search", kind: "tool", d: 2, note: "12 results", dur: "2.4s", ok: true },
+        { name: "crm_upsert", kind: "tool", d: 2, note: "timeout · 2 retries", dur: "4.0s", ok: false },
+        { name: "Compliance::PIIGuard", kind: "guardrail", d: 2, note: "passed", dur: "0.1s", ok: true },
+        { name: "handoff → Prospect::ScoringAgent", kind: "handoff", d: 1, note: "not reached", dur: "—", ok: null }
+      ].map((p) => {
+        const k = KIND[p.kind];
+        return {
+          name: p.name, kind: p.kind, kindBg: k[0], kindFg: k[1], note: p.note, dur: p.dur,
+          indent: p.d * 22 + "px",
+          dot: p.ok === false ? C.bad : p.ok === null ? "var(--pr-gray-500)" : C.ok,
+          bg: p.ok === false ? "rgb(239 68 68 / 8%)" : "var(--pr-glass-white-5)",
+          border: p.ok === false ? "rgb(239 68 68 / 32%)" : "var(--pr-border)",
+          durColor: p.ok === false ? C.badText : p.ok === null ? C.muted : "#fff"
+        };
+      }),
+
+      tools: [
+        { name: "web_search", icon: "bi-globe2", tag: "http", tagBg: "rgb(0 154 204 / 16%)", tagFg: "#6fd2f0", desc: "Tavily-backed search with domain allow-list and 8s budget.", calls: "21.4k", err: "0.3%", errColor: C.okText, p95: "2.4s" },
+        { name: "crm_upsert", icon: "bi-database-add", tag: "write", tagBg: "var(--pr-danger-bg)", tagFg: C.badText, desc: "Upserts enriched company records into the internal CRM.", calls: "8.1k", err: "8.1%", errColor: C.badText, p95: "4.0s" },
+        { name: "company_lookup", icon: "bi-building", tag: "http", tagBg: "rgb(0 154 204 / 16%)", tagFg: "#6fd2f0", desc: "KVK / Companies House registry lookup by domain or name.", calls: "8.9k", err: "0.0%", errColor: C.okText, p95: "0.9s" },
+        { name: "vector_search", icon: "bi-bezier2", tag: "local", tagBg: "var(--pr-glass-white-8)", tagFg: C.sec, desc: "pgvector similarity over the prospect memory store.", calls: "1.2k", err: "0.1%", errColor: C.okText, p95: "0.2s" },
+        { name: "score_calculator", icon: "bi-calculator", tag: "local", tagBg: "var(--pr-glass-white-8)", tagFg: C.sec, desc: "Deterministic fit scoring — no model call, fully replayable.", calls: "1.9k", err: "0.0%", errColor: C.okText, p95: "0.05s" },
+        { name: "email_draft", icon: "bi-envelope-paper", tag: "write", tagBg: "var(--pr-warning-bg)", tagFg: C.warnText, desc: "Creates a draft in the outreach queue; never sends directly.", calls: "1.1k", err: "0.4%", errColor: C.okText, p95: "1.1s" },
+        { name: "pii_scrub", icon: "bi-shield-check", tag: "guard", tagBg: "rgb(59 130 246 / 16%)", tagFg: "#a8c7fb", desc: "Strips emails, phone numbers and IBANs before persistence.", calls: "12.5k", err: "0.0%", errColor: C.okText, p95: "0.01s" },
+        { name: "mcp_filesystem", icon: "bi-folder2-open", tag: "mcp", tagBg: "rgb(139 92 246 / 16%)", tagFg: "#c4b1fb", desc: "MCP server exposing the shared research drive, read-only.", calls: "0.4k", err: "1.2%", errColor: C.warnText, p95: "0.3s" }
+      ],
+
+      trace: {
+        id: "trace_8f2c9b41a91d",
+        stats: [
+          { icon: "bi-layers", label: "spans", value: "24" },
+          { icon: "bi-clock", label: "duration", value: "11.4s" },
+          { icon: "bi-coin", label: "tokens", value: "18.2k" },
+          { icon: "bi-cash", label: "cost", value: "$0.041" }
+        ]
+      },
+      spans: SPANS.map((x, i) => {
+        const k = KIND[x.kind];
+        const sel = i === s.span;
+        return {
+          name: x.name, kind: x.kind, kindBg: k[0], kindFg: k[1], dur: x.dur, tokens: x.tokens,
+          indent: x.d * 18 + "px", offset: x.off, width: x.w,
+          barColor: x.st === "error" ? C.bad : x.st === "skipped" ? "var(--pr-gray-500)" : C.cyan,
+          durColor: x.st === "error" ? C.badText : C.sec,
+          nameColor: x.st === "skipped" ? C.muted : "#fff",
+          rowBg: sel ? "var(--pr-glass-white-10)" : "transparent",
+          rowRing: sel ? "inset 2px 0 0 " + C.cyan : "none",
+          go: () => this.setState({ span: i })
+        };
+      }),
+      span: { name: sp.name, kind: sp.kind, kindBg: spk[0], kindFg: spk[1], dur: sp.dur, model: "tool · faraday", tokensFull: "0 tokens", cost: "$0.000" },
+      spanTabs: [spanTab("payload", "Payload"), spanTab("error", "Error"), spanTab("tokens", "Tokens & cost"), spanTab("raw", "Raw")],
+      spanTabPayload: s.spanTab === "payload", spanTabError: s.spanTab === "error",
+      spanTabTokens: s.spanTab === "tokens", spanTabRaw: s.spanTab === "raw",
+      reveal: () => this.setState({ revealed: true }),
+      messages: [
+        { role: "system", roleColor: C.muted, tokens: "112 tok", masked: false, blur: "none", body: "You enrich a company record with firmographic data. Always call web_search before answering. Return ONLY the JSON schema CompanyEnrichment." },
+        { role: "tool arguments", roleColor: KIND.tool[1], tokens: "86 tok", masked: masked, blur: masked ? "blur(5px)" : "none", body: '{\n  "company": "Vandelay Industries BV",\n  "contact": "j.dekker@vandelay.nl",\n  "domain": "vandelay.nl",\n  "crm_id": "0035g00000ABCDe"\n}' },
+        { role: "tool result", roleColor: C.badText, tokens: "0 tok", masked: false, blur: "none", body: "— no result — request aborted after 4000ms" }
+      ],
+      error: {
+        klass: "Faraday::TimeoutError",
+        message: "execution expired — POST https://crm.internal/v2/companies/upsert exceeded the 4000ms open timeout. Retried 2× with backoff 0.5s, 1.5s.",
+        backtrace: "faraday-2.9.0/lib/faraday/adapter/net_http.rb:112 in `perform_request'\nraaf-tools-0.9.4/lib/raaf/tools/crm_upsert.rb:48 in `call'\nraaf-core-0.9.4/lib/raaf/execution/tool_executor.rb:91 in `execute'\nraaf-core-0.9.4/lib/raaf/runner.rb:214 in `run_turn'"
+      },
+      tokenRows: [
+        { label: "Input tokens", value: "0", color: "#fff" },
+        { label: "Output tokens", value: "0", color: "#fff" },
+        { label: "Span cost", value: "$0.000", color: "#fff" },
+        { label: "Trace tokens", value: "18,204", color: C.sec },
+        { label: "Trace cost", value: "$0.041", color: C.okText },
+        { label: "Retries", value: "2", color: C.warnText }
+      ],
+      rawJson: '{\n  "span_id": "span_c41f9a20",\n  "trace_id": "trace_8f2c9b41a91d",\n  "parent_id": "span_a12bd004",\n  "name": "crm_upsert",\n  "kind": "tool",\n  "status": "error",\n  "start_time": "2026-09-05T09:41:02.118Z",\n  "duration_ms": 4002,\n  "attributes": {\n    "tool.name": "crm_upsert",\n    "tool.arguments": "[redacted]",\n    "http.method": "POST",\n    "http.status_code": null,\n    "retry.count": 2\n  },\n  "error_details": {\n    "exception_class": "Faraday::TimeoutError",\n    "exception_message": "execution expired"\n  }\n}'
+    };
+  }
+}
+</script>
+</body>
+</html>

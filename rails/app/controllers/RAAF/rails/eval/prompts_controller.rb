@@ -7,17 +7,25 @@ module RAAF
       class PromptsController < BaseController
         Prompt = RAAF::Eval::Models::Prompt
 
-        before_action :set_prompt, only: %i[show edit update destroy diff history]
+        before_action :set_prompt, only: %i[show update destroy diff history]
 
         # GET /raaf/eval/prompts
         def index
-          @prompts = Prompt.recent
+          # The list reads each prompt's newest version for its model, which
+          # is one query per row without this.
+          @prompts = Prompt.recent.includes(:prompt_versions)
           @prompts = @prompts.for_agent(params[:agent]) if params[:agent].present?
 
           respond_to do |format|
             format.html do
-              component = RAAF::Rails::Eval::PromptList.new(prompts: @prompts)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Prompts") { render component }
+              component = RAAF::Rails::Eval::PromptList.new(
+                prompts: @prompts,
+                agents: Prompt.distinct.pluck(:agent_name).compact_blank.sort,
+                filters: { agent: params[:agent] }
+              )
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: "Prompts", crumb: "Evaluate", current: :prompts
+              ) { render component }
               render layout
             end
             format.json { render json: @prompts }
@@ -70,7 +78,7 @@ module RAAF
           else
             component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Prompt") { render component }
-            render layout, status: :unprocessable_entity
+            render layout, status: :unprocessable_content
           end
         end
 
@@ -81,7 +89,7 @@ module RAAF
           else
             component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
             layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@prompt.name}") { render component }
-            render layout, status: :unprocessable_entity
+            render layout, status: :unprocessable_content
           end
         end
 

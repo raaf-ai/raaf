@@ -3,88 +3,126 @@
 module RAAF
   module Rails
     module Eval
+      ##
+      # The dataset listing, from the `isDatasets` screen in RAAF Eval.dc.html:
+      # a rail of status filters with the population opposite it, and the
+      # table.
+      #
+      # This screen was still the original Tailwind markup — a white card on a
+      # grey page, in a console that is dark everywhere else — which is what
+      # the whole Evaluate section looked like until now.
+      #
+      # The design has no New dataset button, because the canvas gives no
+      # screen one; the button lives in `.raaf-page-actions`, where the Tracing
+      # screens put the controls their banner used to carry.
+      #
       class DatasetList < RAAF::Rails::Tracing::BaseComponent
-        def initialize(datasets:)
+        # Columns and fr weights taken from RAAF Eval.dc.html.
+        COLUMNS = [
+          { label: "Dataset", span: 2.4 },
+          { label: "Version", span: 0.6, align: :right },
+          { label: "Items", span: 0.7, align: :right },
+          { label: "Experiments", span: 0.9, align: :right },
+          { label: "Status", span: 0.85, align: :right },
+          { label: "Updated", span: 0.85, align: :right }
+        ].freeze
+
+        FILTERS = [
+          { label: "Active", value: "active" },
+          { label: "Archived", value: "archived" },
+          { label: "All", value: "all" }
+        ].freeze
+
+        # @param datasets [Enumerable<Dataset>] the versions being listed
+        # @param experiment_counts [Hash] dataset id => experiments run against it
+        # @param params [Hash] the request's own params, for the filter rail
+        def initialize(datasets:, experiment_counts: {}, params: {})
           @datasets = datasets
+          @experiment_counts = experiment_counts || {}
+          @params = params
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_datasets_table
+          div(class: "raaf-page") do
+            actions
+            filters
+            table
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              h1(class: "text-2xl font-bold text-gray-900") { "Datasets" }
-              p(class: "mt-1 text-sm text-gray-500") { "Manage evaluation datasets for systematic agent testing" }
-            end
-            div(class: "mt-4 sm:mt-0") do
-              render_preline_button(text: "New Dataset", href: eval_datasets_path + "/new", variant: "primary", icon: "bi-plus-lg")
+        def actions
+          div(class: "raaf-page-actions") do
+            render Atoms::Button.new(label: "New dataset", icon: "plus-lg",
+                                     href: new_eval_dataset_path)
+          end
+        end
+
+        # Plain pills on the page — the design gives this rail neither a
+        # container nor an outline, the same treatment the policy filters get.
+        def filters
+          render(Molecules::FilterBar.new(chips: filter_chips, grouped: false)) do
+            render Atoms::Mono.new(population, tone: :muted)
+          end
+        end
+
+        def filter_chips
+          FILTERS.map do |filter|
+            { label: filter[:label],
+              active: selected_status == filter[:value],
+              href: filter[:value] == "active" ? eval_datasets_path : eval_datasets_path(status: filter[:value]) }
+          end
+        end
+
+        # No status is the Active list, which is what this screen has always
+        # opened on.
+        def selected_status
+          value = @params[:status].to_s
+          FILTERS.any? { |filter| filter[:value] == value } ? value : "active"
+        end
+
+        # "6 datasets · 1,842 items" — the design's line, and the only place
+        # the screen says how much material there is to test against.
+        def population
+          rows = @datasets.to_a
+          items = rows.sum { |dataset| dataset.items_count.to_i }
+
+          "#{pluralize(rows.size, 'dataset')} · #{pluralize(items, 'item')}"
+        end
+
+        def table
+          render(Organisms::Card.new(flush: true)) do
+            render(Organisms::DataGrid.new(
+                     columns: COLUMNS,
+                     empty: { icon: "collection", title: "No datasets",
+                              text: "A dataset is the set of cases an experiment runs against. " \
+                                    "Create one, or promote a production span into one from a trace." }
+                   )) do |grid|
+              @datasets.each { |dataset| row(grid, dataset) }
             end
           end
         end
 
-        def render_datasets_table
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            if @datasets.any?
-              div(class: "overflow-x-auto") do
-                table(class: "min-w-full divide-y divide-gray-200") do
-                  thead(class: "bg-gray-50") do
-                    tr do
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Name" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Version" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Items" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Status" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Created" }
-                      th(class: "px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase") { "Actions" }
-                    end
-                  end
-                  tbody(class: "bg-white divide-y divide-gray-200") do
-                    @datasets.each { |dataset| render_dataset_row(dataset) }
-                  end
-                end
-              end
-            else
-              render_empty_state
-            end
-          end
+        def row(grid, dataset)
+          grid.row(href: eval_dataset_path(dataset), cells: [
+                     { value: Molecules::TitleMeta.new(dataset.name, dataset.description.presence,
+                                                       mono: true) },
+                     { value: Atoms::Mono.new("v#{dataset.version}", tone: :muted), align: :right },
+                     { value: Atoms::Mono.new(dataset.items_count.to_i.to_s), align: :right },
+                     { value: Atoms::Mono.new(experiments_for(dataset)), align: :right },
+                     { value: Atoms::StatusBadge.new(dataset.status), align: :right },
+                     { value: Atoms::Mono.new(time_ago(dataset.updated_at), tone: :muted),
+                       align: :right }
+                   ])
         end
 
-        def render_dataset_row(dataset)
-          tr(class: "hover:bg-gray-50") do
-            td(class: "px-4 py-3") do
-              a(href: eval_dataset_path(dataset), class: "text-blue-600 hover:text-blue-800 font-medium") { dataset.name }
-              if dataset.description.present?
-                p(class: "text-xs text-gray-500 mt-1") { dataset.description.truncate(60) }
-              end
-            end
-            td(class: "px-4 py-3 text-sm text-gray-600") { "v#{dataset.version}" }
-            td(class: "px-4 py-3 text-sm text-gray-600") { dataset.items_count.to_s }
-            td(class: "px-4 py-3") do
-              badge_class = dataset.status == "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-              span(class: "px-2 py-1 rounded-full text-xs font-medium #{badge_class}") { dataset.status }
-            end
-            td(class: "px-4 py-3 text-sm text-gray-500") { dataset.created_at&.strftime("%Y-%m-%d") }
-            td(class: "px-4 py-3 text-right") do
-              render_preline_button(text: "View", href: eval_dataset_path(dataset), variant: "secondary", size: "xs")
-            end
-          end
-        end
-
-        def render_empty_state
-          div(class: "flex flex-col items-center justify-center py-12") do
-            i(class: "bi bi-database text-5xl text-gray-400")
-            h3(class: "mt-4 text-lg font-medium text-gray-900") { "No datasets yet" }
-            p(class: "mt-1 text-sm text-gray-500") { "Create your first dataset to start systematic agent evaluation." }
-            div(class: "mt-4") do
-              render_preline_button(text: "Create Dataset", href: eval_datasets_path + "/new", variant: "primary")
-            end
-          end
+        # A dataset nothing has run against reads "—" rather than a zero: the
+        # column is about which sets are in use, and a column of noughts says
+        # that less clearly than a column of gaps.
+        def experiments_for(dataset)
+          count = @experiment_counts[dataset.id].to_i
+          count.zero? ? "—" : count.to_s
         end
       end
     end

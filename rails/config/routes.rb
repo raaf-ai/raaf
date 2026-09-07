@@ -40,6 +40,11 @@ RAAF::Rails::Engine.routes.draw do
     end
   end
 
+  # The living component library — every Glass Morph component as the
+  # dashboard renders it. Useful when changing a component, and as the
+  # reference for which component to reach for.
+  get "/style_guide", to: "style_guide#show", as: :style_guide
+
   # Tracing routes
   namespace :tracing do
     resources :traces do
@@ -52,7 +57,16 @@ RAAF::Rails::Engine.routes.draw do
       end
     end
 
-    resources :spans, only: [:index, :show] do
+    # Every replay, across every span. The span-scoped list below is the same
+    # screen filtered to one span; this is the console's entry to it, since a
+    # replay is worth finding again without first finding the span it came
+    # from.
+    resources :replays, only: [:index]
+
+    # No `show`: a span is read in its trace, with itself selected. The
+    # member and nested routes below still take a span id -- evaluating a span
+    # and replaying one are things done to a span, not a screen showing it.
+    resources :spans, only: %i[index] do
       member do
         post :evaluate
       end
@@ -63,10 +77,9 @@ RAAF::Rails::Engine.routes.draw do
       end
 
       # Span replay routes for debugging and experimentation
-      resources :replays, only: [:index, :new, :create, :show]
+      resources :replays, only: %i[index new create show]
     end
 
-    get "timeline", to: "timeline#show"
     get "search", to: "search#index"
 
     # Cost management routes
@@ -80,7 +93,7 @@ RAAF::Rails::Engine.routes.draw do
   # Continuous evaluation routes
   namespace :continuous do
     # Evaluator discovery (read-only)
-    resources :evaluators, only: [:index, :show]
+    resources :evaluators, only: %i[index show]
 
     # Policy management with custom actions
     resources :policies do
@@ -92,7 +105,7 @@ RAAF::Rails::Engine.routes.draw do
     end
 
     # Queue management
-    resources :queue, only: [:index, :show] do
+    resources :queue, only: %i[index show] do
       member do
         post :retry
         post :cancel
@@ -104,7 +117,7 @@ RAAF::Rails::Engine.routes.draw do
     end
 
     # Results browsing
-    resources :results, only: [:index, :show]
+    resources :results, only: %i[index show]
 
     # Analytics dashboard with data endpoints
     resource :analytics, only: [:show] do
@@ -115,7 +128,7 @@ RAAF::Rails::Engine.routes.draw do
     end
 
     # System health monitoring
-    resource :health, only: [:show], controller: 'health' do
+    resource :health, only: [:show], controller: "health" do
       get :dashboard
     end
   end
@@ -127,7 +140,7 @@ RAAF::Rails::Engine.routes.draw do
         post :new_version
         post :archive
       end
-      resources :items, controller: 'dataset_items', only: %i[index show create destroy] do
+      resources :items, controller: "dataset_items", only: %i[index show create destroy] do
         collection do
           post :import_from_span
         end
@@ -139,7 +152,7 @@ RAAF::Rails::Engine.routes.draw do
         post :run
         post :cancel
       end
-      resources :results, controller: 'experiment_results', only: %i[index show]
+      resources :results, controller: "experiment_results", only: %i[index show]
     end
 
     resources :feedback_scores, only: %i[index show create destroy] do
@@ -153,7 +166,7 @@ RAAF::Rails::Engine.routes.draw do
     resources :feedback_score_definitions, only: %i[index show create update destroy]
 
     resources :prompts do
-      resources :versions, controller: 'prompt_versions', only: %i[index show create] do
+      resources :versions, controller: "prompt_versions", only: %i[index show create] do
         member do
           post :publish
           post :archive

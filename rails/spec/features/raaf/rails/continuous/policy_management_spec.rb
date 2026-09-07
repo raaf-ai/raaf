@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Policy Management", type: :feature, js: true do
+RSpec.describe "Policy Management", :js, type: :feature do
   # These tests verify the complete user workflow for managing continuous evaluation policies
   # through the RAAF Rails dashboard UI.
 
@@ -10,19 +10,19 @@ RSpec.describe "Policy Management", type: :feature, js: true do
     before do
       # Mock evaluator discovery to return available evaluators
       allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:evaluator_details).and_return([
-        {
-          name: "token_limit",
-          type: "rule_based",
-          description: "Validates token usage against limits",
-          config_schema: { max_tokens: { type: "integer", required: true } }
-        },
-        {
-          name: "quality_check",
-          type: "llm_judge",
-          description: "LLM-based quality assessment",
-          config_schema: { model: { type: "string", default: "gpt-4o-mini" } }
-        }
-      ])
+                                                                                                    {
+                                                                                                      name: "token_limit",
+                                                                                                      type: "rule_based",
+                                                                                                      description: "Validates token usage against limits",
+                                                                                                      config_schema: { max_tokens: { type: "integer", required: true } }
+                                                                                                    },
+                                                                                                    {
+                                                                                                      name: "quality_check",
+                                                                                                      type: "llm_judge",
+                                                                                                      description: "LLM-based quality assessment",
+                                                                                                      config_schema: { model: { type: "string", default: "gpt-4o-mini" } }
+                                                                                                    }
+                                                                                                  ])
     end
 
     context "when creating a new policy" do
@@ -156,15 +156,15 @@ RSpec.describe "Policy Management", type: :feature, js: true do
       expect(page).to have_content("TestAgent")
     end
 
-    it "shows active/inactive status badges" do
+    it "shows active/paused status badges" do
       visit raaf_rails_continuous_policies_path
 
       within "[data-policy-id='#{active_policy.id}']" do
-        expect(page).to have_css(".badge-success, .bg-green-100", text: /active/i)
+        expect(page).to have_css(".raaf-status--completed", text: /active/i)
       end
 
       within "[data-policy-id='#{inactive_policy.id}']" do
-        expect(page).to have_css(".badge-secondary, .bg-gray-100", text: /inactive/i)
+        expect(page).to have_css(".raaf-status--skipped", text: /paused/i)
       end
     end
 
@@ -182,14 +182,16 @@ RSpec.describe "Policy Management", type: :feature, js: true do
       expect(page).not_to have_content("Inactive Test Policy")
     end
 
-    it "provides links to view, edit, and manage each policy" do
+    it "opens the policy from the row and offers the pause control" do
       visit raaf_rails_continuous_policies_path
 
       within "[data-policy-id='#{active_policy.id}']" do
-        expect(page).to have_link("View")
-        expect(page).to have_link("Edit")
-        expect(page).to have_button("Deactivate")
-        expect(page).to have_button("Duplicate")
+        expect(page).to have_link(href: raaf_rails_continuous_policy_path(active_policy))
+        expect(page).to have_button("Pause")
+      end
+
+      within "[data-policy-id='#{inactive_policy.id}']" do
+        expect(page).to have_button("Resume")
       end
     end
   end
@@ -342,18 +344,18 @@ RSpec.describe "Policy Management", type: :feature, js: true do
         )
       end
 
-      it "activates the policy and shows success message" do
+      it "resumes the policy from the list" do
         visit raaf_rails_continuous_policies_path
 
         within "[data-policy-id='#{inactive_policy.id}']" do
-          click_button "Activate"
+          click_button "Resume"
         end
 
-        expect(page).to have_content("Policy activated")
+        expect(inactive_policy.reload.active).to be true
 
         within "[data-policy-id='#{inactive_policy.id}']" do
-          expect(page).to have_css(".badge-success, .bg-green-100", text: /active/i)
-          expect(page).to have_button("Deactivate")
+          expect(page).to have_css(".raaf-status--completed", text: /active/i)
+          expect(page).to have_button("Pause")
         end
       end
     end
@@ -368,19 +370,29 @@ RSpec.describe "Policy Management", type: :feature, js: true do
         )
       end
 
-      it "deactivates the policy and shows success message" do
+      it "pauses the policy from the list" do
         visit raaf_rails_continuous_policies_path
 
         within "[data-policy-id='#{active_policy.id}']" do
-          click_button "Deactivate"
+          click_button "Pause"
         end
 
-        expect(page).to have_content("Policy deactivated")
+        expect(active_policy.reload.active).to be false
 
         within "[data-policy-id='#{active_policy.id}']" do
-          expect(page).to have_css(".badge-secondary, .bg-gray-100", text: /inactive/i)
-          expect(page).to have_button("Activate")
+          expect(page).to have_css(".raaf-status--skipped", text: /paused/i)
+          expect(page).to have_button("Resume")
         end
+      end
+
+      it "pauses the policy from its own screen and stays there" do
+        visit raaf_rails_continuous_policy_path(active_policy)
+
+        click_button "Pause"
+
+        expect(active_policy.reload.active).to be false
+        expect(page).to have_current_path(raaf_rails_continuous_policy_path(active_policy))
+        expect(page).to have_button("Resume")
       end
     end
   end

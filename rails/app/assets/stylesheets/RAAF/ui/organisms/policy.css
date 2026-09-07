@@ -1,0 +1,181 @@
+/* ============================================================================
+   Organism — Policy detail
+   The header panel, the scorers-beside-configuration split, and the trend,
+   from RAAF Continuous.dc.html.
+   ========================================================================= */
+
+.raaf-policy-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--raaf-space-4);
+  align-items: start;
+}
+
+@media (width <= 1024px) {
+  .raaf-policy-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Scorers ────────────────────────────────────────────────────────────── */
+
+.raaf-scorer {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-scorer:last-child { border-bottom: 0; }
+
+.raaf-scorer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+}
+
+.raaf-scorer-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Configuration ──────────────────────────────────────────────────────── */
+
+.raaf-config-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--raaf-space-3);
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-config-row:last-child { border-bottom: 0; }
+
+.raaf-config-label {
+  width: 112px;
+  flex: none;
+  font-size: var(--raaf-text-body-sm);
+  color: var(--raaf-text-muted);
+  /* A span attribute is a dotted path with nothing to break on —
+     `ted.notice.0.publication_number` ran straight out of its fixed column and
+     printed over the value beside it. */
+  overflow-wrap: anywhere;
+}
+
+.raaf-config-value {
+  flex: 1;
+  min-width: 0;
+  text-wrap: pretty;
+}
+
+/* ── Trend ──────────────────────────────────────────────────────────────── */
+
+.raaf-trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+}
+
+/* Same shape as a sparkline cell: full height, so the hover target is the
+   column rather than the bar, and so the readout hangs off the top of the
+   chart instead of the top of a two-pixel stub. Scoped past `.raaf-tooltip`,
+   whose inline-flex would collapse the column. */
+.raaf-trend .raaf-trend-cell {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.raaf-trend-cell:first-child > .raaf-tooltip-content {
+  left: 0;
+  transform: none;
+}
+
+.raaf-trend-cell:last-child > .raaf-tooltip-content {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.raaf-trend-bar {
+  width: 100%;
+  height: var(--raaf-bar-pct, 0%);
+  border-radius: 3px 3px 0 0;
+  background: var(--raaf-cyan-500);
+}
+
+.raaf-trend-bar--ok { background: var(--raaf-tone-ok); }
+.raaf-trend-bar--warn { background: var(--raaf-tone-warn); }
+.raaf-trend-bar--bad { background: var(--raaf-tone-bad); }
+
+/* A day nothing ran is a gap, not a zero. */
+.raaf-trend-bar--empty { background: var(--raaf-glass-white-8); }
+
+.raaf-trend-axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--raaf-font-mono);
+  font-size: 10.5px;
+  color: var(--raaf-text-muted);
+}
+
+/* ── Matching spans ─────────────────────────────────────────────────────
+   No canvas draws this panel — a policy is four readings there, and this is
+   the one place on the screen that does something. It follows the row idiom
+   the rest of the console uses rather than inventing one.
+   ===================================================================== */
+
+.raaf-matching-span {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-matching-span:last-child { border-bottom: 0; }
+.raaf-matching-span:hover { background: var(--raaf-glass-white-5); }
+
+.raaf-matching-span-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.raaf-matching-span-name {
+  max-width: 42ch;
+  overflow: hidden;
+  color: var(--raaf-text-link);
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.raaf-matching-span-name:hover { color: var(--raaf-white); }
+
+/* A span this policy has never graded is the one worth pressing. */
+.raaf-matching-span-go {
+  background: rgb(0 154 204 / 20%);
+  border-color: var(--raaf-cyan-500);
+  color: var(--raaf-white);
+}
+
+.raaf-matching-span-go:hover { background: rgb(0 154 204 / 32%); }
+
+.raaf-matching-span-running {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex: none;
+  font-size: var(--raaf-text-body-sm);
+  color: var(--raaf-tone-warn-text);
+}

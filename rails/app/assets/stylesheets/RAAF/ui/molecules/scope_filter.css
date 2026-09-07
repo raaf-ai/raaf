@@ -1,0 +1,59 @@
+/* ============================================================================
+   Molecule — ScopeFilter
+   The chip that opens a filter strip. Dimensions are the design's: a 9px
+   radius sitting inside the strip's 14px, and `flex: 1` so it takes the room
+   left by the pills and the count beside it.
+   ========================================================================= */
+
+.raaf-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  flex: 1;
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--raaf-border);
+  border-radius: 9px;
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-scope-prefix {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+/* The select is the chip's text, not a control drawn on top of it: its own
+   chrome would put a second border inside the one already around it. */
+.raaf-scope-select {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--raaf-text-secondary);
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  cursor: pointer;
+  appearance: none;
+}
+
+.raaf-scope-select:focus-visible {
+  outline: 2px solid var(--raaf-cyan-500);
+  outline-offset: 2px;
+}
+
+/* A filter that is doing something says so. */
+.raaf-scope.is-active {
+  border-color: var(--raaf-border-strong);
+}
+
+.raaf-scope.is-active .raaf-scope-select { color: var(--raaf-white); }
+
+/* The dark surface does not reach the native option list on every platform,
+   so state it rather than leave black-on-black. */
+.raaf-scope-select option {
+  background: var(--raaf-surface-2, #0f2936);
+  color: var(--raaf-white);
+}

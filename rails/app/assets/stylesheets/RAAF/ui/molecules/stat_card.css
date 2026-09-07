@@ -1,0 +1,74 @@
+/* ============================================================================
+   Molecule — StatCard
+   The KPI tile from RAAF Console.dc.html: label + icon, a large tabular value
+   with a coloured delta beside it, and a note underneath.
+   ========================================================================= */
+
+.raaf-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+  gap: 14px;
+}
+
+.raaf-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+  backdrop-filter: var(--raaf-blur);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.raaf-stat-card:hover {
+  border-color: var(--raaf-border-strong);
+  text-decoration: none;
+}
+
+.raaf-stat-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.raaf-stat-card-label {
+  font-size: var(--raaf-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-stat-card-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.raaf-stat-card-value {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.raaf-stat-card-delta {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+}
+
+.raaf-stat-card-note {
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+}
+
+/* Tone applies to the icon and the delta — the two things that carry meaning. */
+.raaf-stat-card--ok .raaf-stat-card-delta { color: var(--raaf-tone-ok-text); }
+.raaf-stat-card--warn .raaf-stat-card-delta { color: var(--raaf-tone-warn-text); }
+.raaf-stat-card--bad .raaf-stat-card-delta { color: var(--raaf-tone-bad-text); }
+.raaf-stat-card--info .raaf-stat-card-delta { color: var(--raaf-text-secondary); }

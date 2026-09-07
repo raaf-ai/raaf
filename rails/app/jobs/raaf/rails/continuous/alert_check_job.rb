@@ -82,7 +82,11 @@ module RAAF
           by_agent.each do |agent_name, results|
             next if results.count < 10 # Need sufficient sample
 
-            failed_count = results.count { |r| %w[failed error].include?(r.status) }
+            # "failed" is the vocabulary this table stopped using: the model
+            # validates status to good / average / bad / error, so a spike of
+            # bad verdicts — the thing this check exists to catch — was never
+            # counted and only an evaluator breaking could raise the alert.
+            failed_count = results.count { |r| %w[bad error].include?(r.status) }
             failure_rate = failed_count / results.count.to_f
 
             if failure_rate > FAILURE_RATE_THRESHOLD
@@ -98,15 +102,15 @@ module RAAF
           running_count = RAAF::Eval::Models::EvaluationQueueItem.running.count
           total_backlog = pending_count + running_count
 
-          if total_backlog > QUEUE_BACKLOG_THRESHOLD
-            trigger_queue_alert(total_backlog, pending_count, running_count)
-          end
+          return unless total_backlog > QUEUE_BACKLOG_THRESHOLD
+
+          trigger_queue_alert(total_backlog, pending_count, running_count)
         end
 
         ##
         # Check for specific evaluators failing consistently
         def check_evaluator_errors
-          recent_results = recent_evaluation_results.where(status: 'error')
+          recent_results = recent_evaluation_results.where(status: "error")
 
           # Group by evaluator
           by_evaluator = recent_results.group(:evaluator_name).count
@@ -129,14 +133,14 @@ module RAAF
         def auto_resolve_stale_alerts
           # Resolve queue backlog alerts if queue is healthy
           current_backlog = RAAF::Eval::Models::EvaluationQueueItem.pending.count
-          if current_backlog < QUEUE_BACKLOG_THRESHOLD * 0.5
-            RAAF::Eval::Models::EvaluationAlert
-              .active
-              .where(alert_type: 'queue_backlog')
-              .find_each do |alert|
-                alert.resolve!(by: 'system', notes: "Queue backlog resolved: #{current_backlog} items")
-              end
-          end
+          return unless current_backlog < QUEUE_BACKLOG_THRESHOLD * 0.5
+
+          RAAF::Eval::Models::EvaluationAlert
+            .active
+            .where(alert_type: "queue_backlog")
+            .find_each do |alert|
+              alert.resolve!(by: "system", notes: "Queue backlog resolved: #{current_backlog} items")
+            end
         end
 
         # Helper methods
@@ -154,15 +158,15 @@ module RAAF
 
         def trigger_quality_alert(agent_name, baseline, current, drop)
           RAAF::Eval::Models::EvaluationAlert.trigger!(
-            alert_type: 'quality_degradation',
-            severity: drop > 0.25 ? 'critical' : 'warning',
+            alert_type: "quality_degradation",
+            severity: drop > 0.25 ? "critical" : "warning",
             agent_name: agent_name,
             title: "Quality degradation detected for #{agent_name}",
             message: "Average score dropped from #{(baseline * 100).round(1)}% to #{(current * 100).round(1)}% " \
                      "(#{(drop * 100).round(1)}% decrease) in the last #{LOOKBACK_PERIOD.inspect}",
             threshold_value: baseline,
             actual_value: current,
-            metric_name: 'avg_score',
+            metric_name: "avg_score",
             details: {
               baseline_score: baseline.round(4),
               current_score: current.round(4),
@@ -175,15 +179,15 @@ module RAAF
 
         def trigger_failure_alert(agent_name, failure_rate, failed_count, total_count)
           RAAF::Eval::Models::EvaluationAlert.trigger!(
-            alert_type: 'failure_spike',
-            severity: failure_rate > 0.5 ? 'critical' : 'warning',
+            alert_type: "failure_spike",
+            severity: failure_rate > 0.5 ? "critical" : "warning",
             agent_name: agent_name,
             title: "Evaluation failure spike for #{agent_name}",
             message: "#{failed_count}/#{total_count} evaluations failed (#{(failure_rate * 100).round(1)}% failure rate) " \
                      "in the last #{LOOKBACK_PERIOD.inspect}",
             threshold_value: FAILURE_RATE_THRESHOLD,
             actual_value: failure_rate,
-            metric_name: 'failure_rate',
+            metric_name: "failure_rate",
             details: {
               failed_count: failed_count,
               total_count: total_count,
@@ -196,14 +200,14 @@ module RAAF
 
         def trigger_queue_alert(total_backlog, pending, running)
           RAAF::Eval::Models::EvaluationAlert.trigger!(
-            alert_type: 'queue_backlog',
-            severity: total_backlog > QUEUE_BACKLOG_THRESHOLD * 2 ? 'critical' : 'warning',
+            alert_type: "queue_backlog",
+            severity: total_backlog > QUEUE_BACKLOG_THRESHOLD * 2 ? "critical" : "warning",
             title: "Evaluation queue backlog detected",
             message: "#{total_backlog} items in queue (#{pending} pending, #{running} running). " \
                      "Threshold: #{QUEUE_BACKLOG_THRESHOLD}",
             threshold_value: QUEUE_BACKLOG_THRESHOLD,
             actual_value: total_backlog,
-            metric_name: 'queue_depth',
+            metric_name: "queue_depth",
             details: {
               pending_count: pending,
               running_count: running,
@@ -216,14 +220,14 @@ module RAAF
 
         def trigger_evaluator_alert(evaluator_name, failure_rate, error_count, total_count)
           RAAF::Eval::Models::EvaluationAlert.trigger!(
-            alert_type: 'evaluator_error',
-            severity: 'warning',
+            alert_type: "evaluator_error",
+            severity: "warning",
             evaluator_name: evaluator_name,
             title: "Evaluator '#{evaluator_name}' failing frequently",
             message: "#{error_count}/#{total_count} executions errored (#{(failure_rate * 100).round(1)}% failure rate)",
             threshold_value: EVALUATOR_FAILURE_THRESHOLD,
             actual_value: failure_rate,
-            metric_name: 'evaluator_failure_rate',
+            metric_name: "evaluator_failure_rate",
             details: {
               error_count: error_count,
               total_count: total_count,

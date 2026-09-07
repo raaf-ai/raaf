@@ -36,19 +36,33 @@ module RAAF
         end
 
         # Convert markdown text to HTML
+        #
+        # Always returns HTML marked safe, including for text that carries no
+        # markdown at all. Returning that text as-is made the promise in this
+        # method's name false twice over: every caller hands the result to
+        # Phlex's `raw`, which under Phlex 2 rejects an unsafe object outright —
+        # an evaluation result whose details were written as one plain sentence
+        # raised `You passed an unsafe object to raw` and took the whole page
+        # with it — and a caller that marked it safe itself would have injected
+        # whatever an agent had written straight into the page.
         def markdown_to_html(text)
-          return "" if text.blank?
-          return text unless looks_like_markdown?(text)
+          return "".html_safe if text.blank?
+          return escape_to_html(text) unless looks_like_markdown?(text)
 
           begin
             rendered = renderer.render(text.to_s)
-            # Add some safety checks
-            rendered&.html_safe || text
-          rescue => e
+            rendered.present? ? rendered.html_safe : escape_to_html(text)
+          rescue StandardError => e
             # Fallback to plain text if markdown rendering fails
             Rails.logger.warn "Markdown rendering failed: #{e.message}"
-            text
+            escape_to_html(text)
           end
+        end
+
+        # Plain text as HTML: escaped, with newlines kept as breaks so it reads
+        # the way the hard_wrap renderer above would have rendered it.
+        def escape_to_html(text)
+          ERB::Util.html_escape(text.to_s).gsub("\n", "<br>").html_safe
         end
 
         # Check if text looks like it might contain markdown
@@ -65,7 +79,7 @@ module RAAF
             /`.*`/,           # Inline code
             /^\* /,           # Lists
             /^\d+\. /,        # Numbered lists
-            /^\> /,           # Quotes
+            /^> /, # Quotes
             /\[.*\]\(.*\)/,   # Links
             /\n\n/            # Multiple line breaks
           ]
@@ -76,9 +90,10 @@ module RAAF
         # Check if content should be treated as JSON
         def looks_like_json?(content)
           return false unless content.is_a?(String)
+
           stripped = content.strip
           (stripped.start_with?("{") && stripped.end_with?("}")) ||
-          (stripped.start_with?("[") && stripped.end_with?("]"))
+            (stripped.start_with?("[") && stripped.end_with?("]"))
         end
 
         # Format content based on detected type
@@ -118,7 +133,10 @@ module RAAF
             rescue JSON::ParserError
               # Try to convert Ruby hash-like syntax to JSON
               converted = convert_ruby_hash_to_json(cleaned)
-              if converted != cleaned
+              if converted == cleaned
+                # If no conversion needed but still failed, format with indentation
+                format_hash_like_content(cleaned)
+              else
                 begin
                   parsed = JSON.parse(converted)
                   JSON.pretty_generate(parsed)
@@ -126,9 +144,6 @@ module RAAF
                   # If conversion also fails, format the cleaned content with indentation
                   format_hash_like_content(cleaned)
                 end
-              else
-                # If no conversion needed but still failed, format with indentation
-                format_hash_like_content(cleaned)
               end
             end
           when Hash, Array
@@ -155,15 +170,11 @@ module RAAF
           end
 
           # Handle single backtick wrapped content: `{...}`
-          if stripped.start_with?("`") && stripped.end_with?("`")
-            return stripped[1..-2].strip
-          end
+          return stripped[1..-2].strip if stripped.start_with?("`") && stripped.end_with?("`")
 
           # Handle content that starts with backtick but doesn't end with one
           # (partial markdown fence)
-          if stripped.start_with?("`")
-            return stripped[1..-1].strip
-          end
+          return stripped[1..-1].strip if stripped.start_with?("`")
 
           content
         end
@@ -178,19 +189,19 @@ module RAAF
           # Add quotes around unquoted keys (word characters followed by colon)
           # This handles: {key:value} -> {"key":value}
           result = result.gsub(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/) do
-            "#{$1}\"#{$2}\"#{$3}"
+            "#{::Regexp.last_match(1)}\"#{::Regexp.last_match(2)}\"#{::Regexp.last_match(3)}"
           end
 
           # Add quotes around unquoted string values
           # This is trickier - we need to identify unquoted values
           # For now, handle common cases like :value after colon that aren't numbers/booleans/null
-          result = result.gsub(/:(\s*)([a-zA-Z_][a-zA-Z0-9_\-\.\/\s@]*)([,}\]])/) do
-            value = $2.strip
+          result = result.gsub(/:(\s*)([a-zA-Z_][a-zA-Z0-9_\-.\/\s@]*)([,}\]])/) do
+            value = ::Regexp.last_match(2).strip
             # Check if it's a boolean, null, or number
             if %w[true false null].include?(value.downcase) || value.match?(/^-?\d+\.?\d*$/)
-              ":#{$1}#{value}#{$3}"
+              ":#{::Regexp.last_match(1)}#{value}#{::Regexp.last_match(3)}"
             else
-              ":#{$1}\"#{value}\"#{$3}"
+              ":#{::Regexp.last_match(1)}\"#{value}\"#{::Regexp.last_match(3)}"
             end
           end
 
@@ -216,7 +227,7 @@ module RAAF
             when "}", "]"
               result += "\n"
               indent_level -= 1
-              result += "  " * indent_level + char
+              result += ("  " * indent_level) + char
             when ","
               result += char + "\n"
               result += "  " * indent_level

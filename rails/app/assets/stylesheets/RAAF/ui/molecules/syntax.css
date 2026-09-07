@@ -1,0 +1,52 @@
+/* ============================================================================
+   Molecule — Syntax
+   highlight.js token colours for the dark surface. Scoped to `.raaf-root` so
+   they never override a host application's own highlighting.
+   ========================================================================= */
+
+.raaf-root .hljs {
+  background: transparent;
+  color: var(--raaf-text-secondary);
+}
+
+.raaf-root .hljs-attr,
+.raaf-root .hljs-attribute,
+.raaf-root .hljs-property { color: #7dd3fc; }
+
+.raaf-root .hljs-string { color: #86efac; }
+
+.raaf-root .hljs-number,
+.raaf-root .hljs-literal { color: #fca5a5; }
+
+.raaf-root .hljs-keyword,
+.raaf-root .hljs-built_in,
+.raaf-root .hljs-type { color: #c4b5fd; }
+
+.raaf-root .hljs-comment,
+.raaf-root .hljs-quote {
+  color: var(--raaf-text-muted);
+  font-style: italic;
+}
+
+.raaf-root .hljs-punctuation { color: var(--raaf-gray-400); }
+
+.raaf-root .hljs-title,
+.raaf-root .hljs-name { color: var(--raaf-cyan-500); }
+
+.raaf-root .hljs-deletion { color: #fca5a5; }
+.raaf-root .hljs-addition { color: #86efac; }
+
+/* diff2html sits on a light ground by default; darken its chrome */
+.raaf-root .d2h-file-wrapper {
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-md);
+  background: rgb(0 0 0 / 20%);
+}
+
+.raaf-root .d2h-file-header {
+  background: var(--raaf-glass-white-5);
+  border-bottom: 1px solid var(--raaf-border);
+  color: var(--raaf-text-secondary);
+}
+
+.raaf-root .d2h-code-line-ctn { color: var(--raaf-text-secondary); }

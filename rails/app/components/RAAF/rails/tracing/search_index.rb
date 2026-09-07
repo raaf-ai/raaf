@@ -3,331 +3,177 @@
 module RAAF
   module Rails
     module Tracing
+      ##
+      # The Search screen: one query bar, faceted counts, and one list of hits.
+      #
+      # Traces and spans arrive as separate result sets but are shown as a
+      # single ranked list, because when you are chasing a string you do not
+      # yet know which of the two holds it. The kind chip on each hit says
+      # which it turned out to be.
+      #
       class SearchIndex < BaseComponent
-        def initialize(query: nil, results: nil, params: {})
+        EXAMPLES = [
+          "crm_upsert",
+          "execution expired",
+          "Company::EnrichAgent",
+          "error"
+        ].freeze
+
+        # @param query [String, nil]
+        # @param results [Hash, nil] :traces, :spans, :total_traces, :total_spans
+        # @param facets [Hash, nil] :kind and :status counts over the whole match
+        # @param elapsed_ms [Integer, nil] how long the search itself took
+        def initialize(query:, results: nil, facets: nil, elapsed_ms: nil, params: {})
           @query = query
-          @results = results
+          @results = results || {}
+          @facets = facets || {}
+          @elapsed_ms = elapsed_ms
           @params = params
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_search_form
-            render_search_results if @results
+          div(class: "raaf-page") do
+            render Organisms::SearchWorkbench.new(
+              query: @query,
+              action: tracing_search_path,
+              meta: meta,
+              examples: EXAMPLES,
+              facets: facets,
+              results: hits,
+              empty: empty_state
+            )
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
-            div(class: "min-w-0 flex-1") do
-              h1(class: "text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate") { "Search" }
-              p(class: "mt-1 text-sm text-gray-500") { "Search across traces, spans, and execution data" }
-            end
+        # "148 hits · 240ms", as the design writes it — the count answers
+        # whether the query was specific enough, the timing whether it is one
+        # you can keep refining.
+        def meta
+          return nil if @query.blank?
+
+          [pluralize(total, "hit"), @elapsed_ms && "#{@elapsed_ms}ms"].compact.join(" · ")
+        end
+
+        def total
+          @results[:total_traces].to_i + @results[:total_spans].to_i
+        end
+
+        def empty_state
+          if @query.blank?
+            { icon: "search", title: "Search the trace store",
+              text: "Enter an id, a workflow, a tool name or any text from a span's attributes." }
+          else
+            { icon: "search", title: "No matches",
+              text: "Nothing in the trace store matches #{@query.inspect}." }
           end
         end
 
-        def render_search_form
-          div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/search", method: :get, local: true, class: "space-y-4") do |form|
-              div(class: "flex space-x-4") do
-                div(class: "flex-1") do
-                  label(class: "block text-sm font-medium text-gray-700 mb-2") { "Search Query" }
-                  form.text_field(
-                    :q,
-                    placeholder: "Search traces, spans, IDs, workflow names...",
-                    value: @query,
-                    class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg py-3"
-                  )
+        # ── Facets ────────────────────────────────────────────────────────
+        #
+        # The counts come from the controller, over the whole match rather
+        # than the page, so a facet is a fact about the result set and not
+        # about how far you have scrolled.
 
-                  div(class: "mt-2 text-sm text-gray-500") do
-                    plain "Search tips: Use trace IDs (trace_...), span IDs (span_...), workflow names, or any text content"
-                  end
-                end
+        def facets
+          return [] if @query.blank?
 
-                div(class: "flex-shrink-0 flex items-end") do
-                  form.submit(
-                    "Search",
-                    class: "inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  )
-                end
-              end
-            end
+          [facet("Kind", :kind), facet("Status", :status), facet("Workflow", :workflow)].compact
+        end
+
+        def facet(label, key)
+          counts = @facets[key]
+          return nil if counts.blank?
+
+          { label: label,
+            values: counts.sort_by { |_value, count| -count }.map do |value, count|
+              active = @params[key.to_s] == value
+              { label: value, count: count, active: active, href: facet_href(key, active ? nil : value) }
+            end }
+        end
+
+        # A facet draws as a checkbox, so the checked one has to come off the
+        # same way it went on: its link clears the filter rather than setting
+        # it again. Paging resets either way, since page three of the old
+        # result set means nothing in the new one.
+        def facet_href(key, value)
+          filters = @params.to_h.except(:traces_page, :spans_page).merge(q: @query)
+          filters = value.nil? ? filters.except(key) : filters.merge(key => value)
+          tracing_search_path(filters)
+        end
+
+        # ── Hits ──────────────────────────────────────────────────────────
+
+        def hits
+          return [] if @query.blank?
+
+          Array(@results[:traces]).map { |trace| trace_hit(trace) } +
+            Array(@results[:spans]).map { |span| span_hit(span) }
+        end
+
+        def trace_hit(trace)
+          { kind: "pipeline",
+            name: trace.workflow_name.presence || "Unnamed workflow",
+            meta: "#{short_id(trace.trace_id)} · #{ago(trace.started_at)}",
+            tone: tone_for(trace.status),
+            snippet: "#{pluralize(trace.spans.size, 'span')} · #{duration(trace.duration_ms)} · #{trace.status}",
+            href: tracing_trace_path(trace.trace_id) }
+        end
+
+        def span_hit(span)
+          { kind: span.kind,
+            name: span.display_name,
+            meta: "#{short_id(span.trace_id)} · #{ago(span.start_time)}",
+            tone: tone_for(span.status),
+            snippet: snippet_for(span),
+            href: trace_span_path(span.span_id, span.trace_id) }
+        end
+
+        # An error is what you were most likely looking for; failing that, the
+        # attribute that actually contains the query.
+        def snippet_for(span)
+          details = span.error_details
+          if details.present?
+            return [details[:exception_type], details[:exception_message]].compact.join(" — ").presence ||
+                   details[:status_description].to_s
+          end
+
+          matching_attribute(span) || "#{span.kind} · #{duration(span.duration_ms)} · #{span.status}"
+        end
+
+        def matching_attribute(span)
+          return nil if @query.blank?
+
+          needle = @query.downcase
+          pair = (span.span_attributes || {}).find do |key, value|
+            "#{key} #{value}".downcase.include?(needle)
+          end
+          return nil unless pair
+
+          "#{pair[0]}: #{truncate(pair[1].to_s, length: 160)}"
+        end
+
+        def tone_for(status)
+          case status.to_s
+          when "error" then :bad
+          when "cancelled", "skipped" then :warn
+          else :ok
           end
         end
 
-        def render_search_results
-          if @query.present?
-            div(class: "space-y-6") do
-              render_results_summary
-
-              if @results[:traces].any?
-                render_trace_results
-              end
-
-              if @results[:spans].any?
-                render_span_results
-              end
-
-              if @results[:traces].empty? && @results[:spans].empty?
-                render_no_results
-              end
-            end
-          end
+        def short_id(id)
+          id.to_s.sub(/\A(trace|span)_/, "").first(8)
         end
 
-        def render_results_summary
-          div(class: "bg-blue-50 border border-blue-200 rounded-lg p-4") do
-            div(class: "flex") do
-              div(class: "flex-shrink-0") do
-                i(class: "bi bi-info-circle text-blue-400")
-              end
-              div(class: "ml-3") do
-                h3(class: "text-sm font-medium text-blue-800") do
-                  "Search Results for \"#{@query}\""
-                end
-                div(class: "mt-2 text-sm text-blue-700") do
-                  plain "Found "
-                  span(class: "font-semibold") { @results[:total_traces].to_s }
-                  plain " traces and "
-                  span(class: "font-semibold") { @results[:total_spans].to_s }
-                  plain " spans"
-                end
-              end
-            end
-          end
+        def duration(milliseconds)
+          return "—" unless milliseconds
+
+          milliseconds < 1000 ? "#{milliseconds.round}ms" : "#{'%.1f' % (milliseconds / 1000.0)}s"
         end
 
-        def render_trace_results
-          traces = @results[:traces]
-
-          div(class: "bg-white rounded-lg shadow") do
-            div(class: "px-6 py-4 border-b border-gray-200") do
-              div(class: "flex items-center justify-between") do
-                h3(class: "text-lg font-medium text-gray-900") do
-                  "Traces ("
-                  span(class: "text-blue-600") { @results[:total_traces].to_s }
-                  plain ")"
-                end
-
-                if traces.total_pages > 1
-                  span(class: "text-sm text-gray-500") do
-                    "Page #{traces.current_page} of #{traces.total_pages}"
-                  end
-                end
-              end
-            end
-
-            div(class: "divide-y divide-gray-200") do
-              traces.each do |trace|
-                render_trace_result(trace)
-              end
-            end
-
-            render_traces_pagination if traces.total_pages > 1
-          end
-        end
-
-        def render_traces_pagination
-          traces = @results[:traces]
-
-          div(class: "px-6 py-4 bg-gray-50 border-t border-gray-200") do
-            div(class: "flex items-center justify-between") do
-              div(class: "text-sm text-gray-700") do
-                plain "Showing "
-                span(class: "font-medium") { ((traces.current_page - 1) * traces.limit_value + 1).to_s }
-                plain " to "
-                span(class: "font-medium") { [traces.current_page * traces.limit_value, traces.total_count].min.to_s }
-                plain " of "
-                span(class: "font-medium") { traces.total_count.to_s }
-                plain " traces"
-              end
-
-              div(class: "flex space-x-2") do
-                unless traces.first_page?
-                  link_to(
-                    "Previous",
-                    "/raaf/tracing/search?q=#{@query}&traces_page=#{traces.prev_page}&spans_page=#{@params[:spans_page]}",
-                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  )
-                end
-
-                unless traces.last_page?
-                  link_to(
-                    "Next",
-                    "/raaf/tracing/search?q=#{@query}&traces_page=#{traces.next_page}&spans_page=#{@params[:spans_page]}",
-                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  )
-                end
-              end
-            end
-          end
-        end
-
-        def render_trace_result(trace)
-          div(class: "px-6 py-4 hover:bg-gray-50") do
-            div(class: "flex items-center justify-between") do
-              div(class: "flex-1 min-w-0") do
-                div(class: "flex items-center space-x-3") do
-                  render_status_badge(trace.status)
-
-                  div do
-                    div(class: "text-sm font-medium text-gray-900") do
-                      link_to(
-                        trace.workflow_name || "Unnamed Workflow",
-                        "/raaf/tracing/traces/#{trace.trace_id}",
-                        class: "text-blue-600 hover:text-blue-500"
-                      )
-                    end
-                    div(class: "text-sm text-gray-500 font-mono") { trace.trace_id }
-                  end
-                end
-
-                div(class: "mt-2 flex items-center text-sm text-gray-500 space-x-4") do
-                  span do
-                    plain "Duration: #{format_duration(trace.duration_ms)}"
-                  end
-                  span do
-                    plain "Spans: #{trace.spans.count}"
-                  end
-                  span do
-                    plain "Started: #{trace.started_at&.strftime('%Y-%m-%d %H:%M:%S')}"
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        def render_span_results
-          spans = @results[:spans]
-
-          div(class: "bg-white rounded-lg shadow") do
-            div(class: "px-6 py-4 border-b border-gray-200") do
-              div(class: "flex items-center justify-between") do
-                h3(class: "text-lg font-medium text-gray-900") do
-                  "Spans ("
-                  span(class: "text-blue-600") { @results[:total_spans].to_s }
-                  plain ")"
-                end
-
-                if spans.total_pages > 1
-                  span(class: "text-sm text-gray-500") do
-                    "Page #{spans.current_page} of #{spans.total_pages}"
-                  end
-                end
-              end
-            end
-
-            div(class: "divide-y divide-gray-200") do
-              spans.each do |span|
-                render_span_result(span)
-              end
-            end
-
-            render_spans_pagination if spans.total_pages > 1
-          end
-        end
-
-        def render_spans_pagination
-          spans = @results[:spans]
-
-          div(class: "px-6 py-4 bg-gray-50 border-t border-gray-200") do
-            div(class: "flex items-center justify-between") do
-              div(class: "text-sm text-gray-700") do
-                plain "Showing "
-                span(class: "font-medium") { ((spans.current_page - 1) * spans.limit_value + 1).to_s }
-                plain " to "
-                span(class: "font-medium") { [spans.current_page * spans.limit_value, spans.total_count].min.to_s }
-                plain " of "
-                span(class: "font-medium") { spans.total_count.to_s }
-                plain " spans"
-              end
-
-              div(class: "flex space-x-2") do
-                unless spans.first_page?
-                  link_to(
-                    "Previous",
-                    "/raaf/tracing/search?q=#{@query}&traces_page=#{@params[:traces_page]}&spans_page=#{spans.prev_page}",
-                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  )
-                end
-
-                unless spans.last_page?
-                  link_to(
-                    "Next",
-                    "/raaf/tracing/search?q=#{@query}&traces_page=#{@params[:traces_page]}&spans_page=#{spans.next_page}",
-                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  )
-                end
-              end
-            end
-          end
-        end
-
-        def render_span_result(span_record)
-          div(class: "px-6 py-4 hover:bg-gray-50") do
-            div(class: "flex items-center justify-between") do
-              div(class: "flex-1 min-w-0") do
-                div(class: "flex items-center space-x-3") do
-                  render_kind_badge(span_record.kind)
-                  render_status_badge(span_record.status)
-
-                  div do
-                    div(class: "text-sm font-medium text-gray-900") do
-                      link_to(
-                        span_record.name,
-                        "/raaf/tracing/spans/#{span_record.span_id}",
-                        class: "text-blue-600 hover:text-blue-500"
-                      )
-                    end
-                    div(class: "text-sm text-gray-500 font-mono") { span_record.span_id }
-                  end
-                end
-
-                div(class: "mt-2 flex items-center text-sm text-gray-500 space-x-4") do
-                  span do
-                    plain "Duration: #{format_duration(span_record.duration_ms)}"
-                  end
-                  if span_record.trace&.workflow_name
-                    span do
-                      plain "Workflow: "
-                      link_to(
-                        span_record.trace.workflow_name,
-                        "/raaf/tracing/traces/#{span_record.trace_id}",
-                        class: "text-blue-600 hover:text-blue-500"
-                      )
-                    end
-                  end
-                  span do
-                    plain "Started: #{span_record.start_time&.strftime('%Y-%m-%d %H:%M:%S')}"
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        def render_no_results
-          div(class: "text-center py-12") do
-            i(class: "bi bi-search text-6xl text-gray-400 mb-4")
-            h3(class: "text-lg font-medium text-gray-900 mb-2") { "No results found" }
-            p(class: "text-gray-500 mb-6") do
-              "No traces or spans match your search for \"#{@query}\""
-            end
-
-            div(class: "text-sm text-gray-500 space-y-2") do
-              p { "Try:" }
-              ul(class: "list-disc list-inside space-y-1") do
-                li { "Checking your spelling" }
-                li { "Using different keywords" }
-                li { "Searching for trace or span IDs" }
-                li { "Using broader terms" }
-              end
-            end
-          end
+        def ago(time)
+          time_ago(time)
         end
       end
     end

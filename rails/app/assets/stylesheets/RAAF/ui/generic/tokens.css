@@ -1,0 +1,182 @@
+/* ============================================================================
+   RAAF Dashboard — Design tokens
+   Glass Morph, the ProspectsRadar design language. Values are taken verbatim
+   from the design system's tokens.css; the prefix is `--raaf-` so the engine
+   never collides with tokens defined by the host application.
+   ========================================================================= */
+
+.raaf-root {
+  /* ── Brand primitives ─────────────────────────────────────────────────── */
+  --raaf-teal-900: #0a1f2a;   /* Deepest — ambient background */
+  --raaf-teal-800: #0f2936;   /* Page background */
+  --raaf-teal-700: #1a2e3a;   /* Elevated surface */
+  --raaf-teal-600: #29556b;   /* Raised nav */
+  --raaf-teal-400: #3d8fa8;   /* Nav active / strokes */
+  --raaf-teal-300: #4a8fa3;   /* Midline */
+  --raaf-teal-200: #346f82;   /* Content pane */
+  --raaf-teal-100: #396f82;   /* Sidebar */
+  --raaf-cyan-300: #4fc3e8;   /* Accent, hovered link */
+  --raaf-cyan-500: #009acc;   /* Radar sweep — primary accent */
+  --raaf-cyan-600: #0077a3;   /* Accent, pressed / gradient end */
+  --raaf-green-600: #03a266;  /* Primary action */
+  --raaf-green-500: #10b981;
+
+  /* Neutrals */
+  --raaf-gray-900: #111827;
+  --raaf-gray-800: #1f2937;
+  --raaf-gray-700: #374151;
+  --raaf-gray-600: #4b5563;
+  --raaf-gray-500: #6b7280;
+  --raaf-gray-400: #9ca3af;
+  --raaf-gray-300: #d1d5db;
+  --raaf-gray-200: #e5e7eb;
+  --raaf-gray-100: #f3f4f6;
+  --raaf-gray-50: #f9fafb;
+  --raaf-slate-500: #64748b;
+  --raaf-white: #fff;
+
+  /* Status */
+  --raaf-success: #11aa64;
+  --raaf-success-bg: rgb(17 170 100 / 15%);
+  --raaf-warning: #f59e0b;
+  --raaf-warning-bg: rgb(245 158 11 / 15%);
+  --raaf-danger: #ef4444;
+  --raaf-danger-bg: rgb(239 68 68 / 15%);
+  --raaf-info: #3b82f6;
+  --raaf-info-bg: rgb(59 130 246 / 15%);
+
+  /* Score palette (fixed, cross-theme) */
+  --raaf-score-excellent: #11aa64;
+  --raaf-score-good: #009acc;
+  --raaf-score-fair: #5a7a84;
+  --raaf-score-poor: #bd8a4e;
+  --raaf-score-low: #b04646;
+
+  /* Health tones from the Console design. `text` variants are the legible
+     ink on dark; the base is the dot/mark colour. KindBadge and the health
+     components are the only things that map a domain value to these. */
+  --raaf-tone-ok: #11aa64;
+  --raaf-tone-ok-text: #7ee0ae;
+  --raaf-tone-warn: #f59e0b;
+  --raaf-tone-warn-text: #f3c37b;
+  --raaf-tone-bad: #ef4444;
+  --raaf-tone-bad-text: #ff8f8f;
+
+  /* Span-kind chips — background / ink pairs. */
+  --raaf-kind-agent-bg: rgb(0 154 204 / 16%);
+  --raaf-kind-agent-fg: #6fd2f0;
+  --raaf-kind-llm-bg: rgb(139 92 246 / 16%);
+  --raaf-kind-llm-fg: #c4b1fb;
+  --raaf-kind-tool-bg: rgb(17 170 100 / 16%);
+  --raaf-kind-tool-fg: #7ee0ae;
+  --raaf-kind-handoff-bg: rgb(245 158 11 / 16%);
+  --raaf-kind-handoff-fg: #f3c37b;
+  --raaf-kind-guardrail-bg: rgb(59 130 246 / 16%);
+  --raaf-kind-guardrail-fg: #a8c7fb;
+  --raaf-kind-pipeline-bg: rgb(255 255 255 / 10%);
+  --raaf-kind-pipeline-fg: #d1d5db;
+
+  /* Glass alphas — the "glass morph" texture */
+  --raaf-glass-white-5: rgb(255 255 255 / 5%);
+  --raaf-glass-white-8: rgb(255 255 255 / 8%);
+  --raaf-glass-white-10: rgb(255 255 255 / 10%);
+  --raaf-glass-white-12: rgb(255 255 255 / 12%);
+  --raaf-glass-white-15: rgb(255 255 255 / 15%);
+  --raaf-glass-white-20: rgb(255 255 255 / 20%);
+  --raaf-glass-white-30: rgb(255 255 255 / 30%);
+  --raaf-glass-white-60: rgb(255 255 255 / 60%);
+  --raaf-glass-white-70: rgb(255 255 255 / 70%);
+  --raaf-glass-white-80: rgb(255 255 255 / 80%);
+  --raaf-glass-black-15: rgb(0 0 0 / 15%);
+  --raaf-glass-black-20: rgb(0 0 0 / 20%);
+  --raaf-glass-black-30: rgb(0 0 0 / 30%);
+
+  /* ── Semantic surfaces ────────────────────────────────────────────────── */
+  --raaf-bg: var(--raaf-teal-800);
+  --raaf-bg-ambient: var(--raaf-teal-900);
+  --raaf-surface-raised: var(--raaf-teal-700);
+  --raaf-surface-glass: var(--raaf-glass-white-8);
+  --raaf-border: var(--raaf-glass-white-12);
+  --raaf-border-strong: var(--raaf-glass-white-20);
+
+  /* ── Shell ────────────────────────────────────────────────────────────
+     Taken from the production Glass Morph layout. The sidebar is transparent
+     and sits on the page; the content is a translucent wrapper card holding a
+     navbar and a teal content pane. */
+  --raaf-content-pane-bg: var(--raaf-teal-200);            /* #346f82 */
+  --raaf-wrapper-bg: rgb(52 111 130 / 41%);
+  --raaf-wrapper-border: rgb(41 85 107 / 50%);
+  --raaf-wrapper-shadow: 0 6px 10px var(--raaf-glass-black-20);
+
+  /* Nav item — these exact values are why the active state reads: a teal fill
+     on the dark page. They collapse if the sidebar is given a teal background. */
+  --raaf-nav-text: var(--raaf-gray-300);
+  --raaf-nav-text-active: var(--raaf-white);
+  --raaf-nav-item-hover-bg: var(--raaf-glass-white-5);
+  --raaf-nav-item-active-bg: rgb(52 111 129 / 56%);
+  --raaf-nav-item-active-border: var(--raaf-teal-200);
+
+  /* Segmented tabs and the tooltip ground. */
+  --raaf-tab-bg: rgb(47 96 110);
+  --raaf-tab-bg-hover: rgb(43 89 102);
+  --raaf-overlay-bg: rgb(10 31 42 / 97%);
+
+  /* Text on dark */
+  --raaf-text-primary: var(--raaf-white);
+  --raaf-text-secondary: var(--raaf-gray-300);
+  --raaf-text-muted: var(--raaf-gray-400);
+  --raaf-text-link: var(--raaf-cyan-500);
+  --raaf-text-link-hover: var(--raaf-cyan-300);
+
+  /* Text on light */
+  --raaf-ink-primary: var(--raaf-gray-900);
+  --raaf-ink-secondary: var(--raaf-gray-700);
+  --raaf-ink-muted: var(--raaf-gray-500);
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  --raaf-font-sans: "Figtree", -apple-system, blinkmacsystemfont, "Segoe UI", helvetica, sans-serif;
+  --raaf-font-mono: "JetBrains Mono", "SF Mono", menlo, monaco, consolas, monospace;
+
+  --raaf-text-xs: 11px;
+  --raaf-text-sm: 12px;
+  --raaf-text-body-sm: 13px;
+  --raaf-text-body: 14px;
+  --raaf-text-body-lg: 15px;
+  --raaf-text-h6: 16px;
+  --raaf-text-h5: 20px;
+  --raaf-text-h4: 24px;
+  --raaf-text-h3: 28px;
+  --raaf-text-h2: 36px;
+  --raaf-text-h1: 48px;
+
+  /* ── Spacing (4px baseline) ───────────────────────────────────────────── */
+  --raaf-space-1: 4px;
+  --raaf-space-2: 8px;
+  --raaf-space-3: 12px;
+  --raaf-space-4: 16px;
+  --raaf-space-5: 20px;
+  --raaf-space-6: 24px;
+  --raaf-space-8: 32px;
+  --raaf-space-10: 40px;
+  --raaf-space-12: 48px;
+  --raaf-space-16: 64px;
+
+  --raaf-row-py: 20px;
+  --raaf-row-px: 16px;
+
+  /* ── Radius ───────────────────────────────────────────────────────────── */
+  --raaf-radius-sm: 8px;
+  --raaf-radius-md: 12px;
+  --raaf-radius-lg: 16px;
+  --raaf-radius-pill: 999px;
+
+  /* ── Shadows ──────────────────────────────────────────────────────────── */
+  --raaf-shadow-sm: 0 1px 2px rgb(0 0 0 / 10%);
+  --raaf-shadow-card: 0 1px 3px rgb(0 0 0 / 8%), 0 1px 2px rgb(0 0 0 / 6%);
+  --raaf-shadow-md: 0 4px 16px rgb(0 0 0 / 20%);
+  --raaf-shadow-lg: 0 12px 28px rgb(0 0 0 / 30%);
+
+  /* ── Motion ───────────────────────────────────────────────────────────── */
+  --raaf-transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  --raaf-blur: blur(20px);
+}

@@ -1,0 +1,110 @@
+/* ============================================================================
+   Molecules — TableHeader / TableRow
+   Every table on every screen is these two on a fluid grid. The column
+   template is supplied per table as --raaf-cols, always in minmax(0,Nfr)
+   tracks: fixed px columns clip the right-hand cells below ~700px.
+   ========================================================================= */
+
+.raaf-tbl {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.raaf-tbl-head,
+.raaf-tbl-row {
+  display: grid;
+  grid-template-columns: var(--raaf-cols, repeat(auto-fit, minmax(0, 1fr)));
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.raaf-tbl-head {
+  padding-top: 11px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--raaf-border);
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-tbl-head-cell {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--raaf-text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raaf-tbl-row {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--raaf-border);
+  color: inherit;
+  text-decoration: none;
+}
+
+.raaf-tbl-row:last-child { border-bottom: 0; }
+
+a.raaf-tbl-row:hover,
+.raaf-tbl-row--interactive:hover {
+  background: var(--raaf-glass-white-5);
+  text-decoration: none;
+}
+
+.raaf-tbl-cell {
+  min-width: 0;
+  font-size: var(--raaf-text-body-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.raaf-tbl-cell--primary {
+  font-weight: 500;
+  color: var(--raaf-white);
+  white-space: nowrap;
+}
+
+/* A row that carries its own controls cannot be an <a>, so its link lives in
+   the first cell and is stretched over the row by this pseudo-element. The
+   first cell drops its clipping for it — TitleMeta truncates its own lines, so
+   nothing overflows — and the controls sit above the link. */
+.raaf-tbl-row--linked { position: relative; }
+
+.raaf-tbl-row--linked .raaf-tbl-cell:first-child { overflow: visible; }
+
+.raaf-tbl-stretch {
+  display: block;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.raaf-tbl-stretch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.raaf-tbl-cell--actions {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+}
+
+.raaf-tbl-cell--right { text-align: right; justify-self: end; }
+.raaf-tbl-cell--muted { color: var(--raaf-text-muted); }
+
+/* Below this the fluid tracks stop helping — stack instead. */
+@media (width <= 720px) {
+  .raaf-tbl-head { display: none; }
+
+  .raaf-tbl-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .raaf-tbl-cell--right { text-align: left; justify-self: start; }
+}

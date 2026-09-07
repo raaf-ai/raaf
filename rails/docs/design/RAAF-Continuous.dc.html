@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/tokens.css">
+<script src="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</helmet>
+<dc-import name="Shell" active="{{ navId }}" title="{{ title }}" crumb="Continuous" hint-size="100%,100%">
+
+  <sc-if value="{{ isPolicies }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px">
+        <sc-for list="{{ policyStats }}" as="s" hint-placeholder-count="4">
+          <div style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:8px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ s.label }}</span>
+              <i class="bi {{ s.icon }}" style="font-size:13px; color:{{ s.iconColor }}"></i>
+            </div>
+            <span style="font-family:var(--pr-font-mono); font-size:24px; font-weight:500; color:{{ s.color }}">{{ s.value }}</span>
+            <span style="font-size:11.5px; color:var(--pr-text-muted)">{{ s.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+        <sc-for list="{{ policyFilters }}" as="f" hint-placeholder-count="3">
+          <button onClick="{{ f.go }}" style="all:unset; cursor:pointer; padding:6px 13px; border-radius:999px; font-size:12px; font-weight:600; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+        </sc-for>
+        <span style="flex:1"></span>
+        <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ policyCount }}</span>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:grid; grid-template-columns:minmax(0,2.2fr) minmax(0,1.4fr) minmax(0,1.5fr) minmax(0,0.6fr) minmax(0,0.8fr) minmax(0,0.85fr); padding:11px 18px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Policy</span><span>Agent</span><span>Scorers</span><span style="text-align:right">Sample</span><span style="text-align:right">Status</span><span style="text-align:right">Last run</span>
+        </div>
+        <sc-for list="{{ policies }}" as="p" hint-placeholder-count="7">
+          <button onClick="{{ p.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:minmax(0,2.2fr) minmax(0,1.4fr) minmax(0,1.5fr) minmax(0,0.6fr) minmax(0,0.8fr) minmax(0,0.85fr); align-items:center; padding:13px 18px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+            <span style="display:flex; flex-direction:column; gap:3px; min-width:0; text-align:left">
+              <span style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.name }}</span>
+              <span style="font-size:11px; color:var(--pr-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.trigger }}</span>
+            </span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.agent }}</span>
+            <span style="display:flex; align-items:center; gap:5px; flex-wrap:wrap; min-width:0">
+              <sc-for list="{{ p.scorers }}" as="sc" hint-placeholder-count="2">
+                <span style="font-family:var(--pr-font-mono); font-size:10.5px; padding:2px 7px; border-radius:6px; background:var(--pr-glass-white-8); color:var(--pr-text-secondary)">{{ sc }}</span>
+              </sc-for>
+            </span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ p.sample }}</span>
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ p.bg }}; color:{{ p.fg }}; justify-self:end">{{ p.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ p.last }}</span>
+          </button>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPolicy }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding:18px 20px; border-radius:16px; background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border)">
+        <div style="display:flex; flex-direction:column; gap:8px; min-width:0; flex:1 1 260px">
+          <span style="font-size:18px; font-weight:700; letter-spacing:-0.01em; overflow-wrap:anywhere">{{ policy.name }}</span>
+          <p style="margin:0; font-size:13px; color:var(--pr-text-secondary); max-width:68ch; text-wrap:pretty">{{ policy.desc }}</p>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ policy.statusBg }}; color:{{ policy.statusFg }}">{{ policy.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ policy.meta }}</span>
+          </div>
+        </div>
+        <button onClick="{{ goEdit }}" style="all:unset; cursor:pointer; flex:none; display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:10px; font-size:12.5px; font-weight:600; color:#fff; background:var(--pr-glass-white-8); border:1px solid var(--pr-border); align-self:flex-start" style-hover="background:var(--pr-glass-white-12)">
+          <i class="bi bi-sliders2" style="font-size:13px; color:var(--pr-cyan-500)"></i>Edit policy
+        </button>
+        <div style="display:grid; grid-template-columns:repeat(3, minmax(78px,auto)); gap:22px">
+          <sc-for list="{{ policy.stats }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">{{ s.label }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:17px; font-weight:500; color:{{ s.color }}">{{ s.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:16px">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Scorers &amp; thresholds</h2></div>
+          <sc-for list="{{ policy.scorers }}" as="sc" hint-placeholder-count="4">
+            <div style="display:flex; flex-direction:column; gap:9px; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+              <div style="display:flex; align-items:center; gap:10px">
+                <i class="bi {{ sc.icon }}" style="font-size:13px; color:{{ sc.iconColor }}"></i>
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px; flex:1; min-width:0">{{ sc.name }}</span>
+                <span style="font-size:11px; color:var(--pr-text-muted)">weight {{ sc.weight }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:13px; color:{{ sc.color }}">{{ sc.score }}</span>
+              </div>
+              <div style="position:relative; height:7px; border-radius:999px; background:var(--pr-glass-white-8)">
+                <div style="position:absolute; inset:0 auto 0 0; width:{{ sc.pct }}; border-radius:999px; background:{{ sc.bar }}"></div>
+                <div style="position:absolute; top:-3px; bottom:-3px; left:{{ sc.thresholdPct }}; width:2px; background:rgb(255 255 255 / 55%)"></div>
+              </div>
+              <span style="font-size:11px; color:var(--pr-text-muted)">{{ sc.note }}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+          <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+            <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Configuration</h2></div>
+            <sc-for list="{{ policy.config }}" as="c" hint-placeholder-count="6">
+              <div style="display:flex; align-items:baseline; gap:12px; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+                <span style="font-size:12px; color:var(--pr-text-muted); width:112px; flex:none">{{ c.label }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1; min-width:0; text-wrap:pretty">{{ c.value }}</span>
+              </div>
+            </sc-for>
+          </section>
+
+          <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+            <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Alert routing</h2></div>
+            <sc-for list="{{ policy.alerts }}" as="a" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:11px; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+                <i class="bi {{ a.icon }}" style="font-size:14px; color:{{ a.color }}"></i>
+                <span style="display:flex; flex-direction:column; gap:2px; flex:1; min-width:0">
+                  <span style="font-size:12.5px">{{ a.target }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ a.when }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; gap:14px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+          <h2 style="margin:0; font-size:14px; font-weight:700">Composite score · 30 days</h2>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">threshold 0.85 · 3 breaches</span>
+        </div>
+        <div style="display:flex; align-items:flex-end; gap:3px; height:120px">
+          <sc-for list="{{ policy.trend }}" as="t" hint-placeholder-count="30">
+            <div style="flex:1; min-width:0; height:{{ t.h }}; border-radius:3px 3px 0 0; background:{{ t.color }}"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-family:var(--pr-font-mono); font-size:10.5px; color:var(--pr-text-muted)">
+          <span>Aug 07</span><span>Aug 22</span><span>Sep 06</span>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,320px); gap:18px; align-items:start">
+      <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--pr-border)">
+            <h2 style="margin:0; font-size:14px; font-weight:700">Policy</h2>
+            <button onClick="{{ toggleStatus }}" style="all:unset; cursor:pointer; display:flex; align-items:center; gap:9px">
+              <span style="font-size:11.5px; color:var(--pr-text-secondary)">{{ statusLabel }}</span>
+              <span style="width:44px; height:24px; border-radius:999px; background:{{ statusTrack }}; position:relative; display:block">
+                <span style="position:absolute; top:3px; left:{{ statusKnob }}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 140ms ease"></span>
+              </span>
+            </button>
+          </div>
+          <div style="padding:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px">
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Policy name</span>
+              <input value="{{ form.name }}" onChange="{{ setName }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Agent</span>
+              <select value="{{ form.agent }}" onChange="{{ setAgent }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none">
+                <option value="Company::EnrichAgent">Company::EnrichAgent</option>
+                <option value="Outreach::DraftAgent">Outreach::DraftAgent</option>
+                <option value="Outreach::ReplyAgent">Outreach::ReplyAgent</option>
+                <option value="Signals::ClassifyAgent">Signals::ClassifyAgent</option>
+                <option value="Router::TriageAgent">Router::TriageAgent</option>
+                <option value="Scoring::FitAgent">Scoring::FitAgent</option>
+              </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Owner</span>
+              <input value="{{ form.owner }}" onChange="{{ setOwner }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0; grid-column:1 / -1">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Description</span>
+              <textarea value="{{ form.desc }}" onChange="{{ setDesc }}" rows="3" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-size:12.5px; line-height:1.6; resize:vertical; outline:none" style-focus="border-color:var(--pr-cyan-500)"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 18px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Trigger &amp; sampling</h2></div>
+          <div style="padding:18px; display:flex; flex-direction:column; gap:16px">
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Trigger expression</span>
+              <input value="{{ form.trigger }}" onChange="{{ setTrigger }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <div style="display:flex; align-items:baseline; gap:10px">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Sampling rate</span>
+                <span style="flex:1"></span>
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px; color:var(--pr-cyan-500)">{{ samplingLabel }}</span>
+              </div>
+              <input type="range" min="1" max="100" step="1" value="{{ form.sampling }}" onChange="{{ setSampling }}" style="width:100%; accent-color:var(--pr-cyan-500)">
+              <span style="font-size:11px; color:var(--pr-text-muted)">{{ samplingNote }}</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:16px">
+              <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Batch size · spans</span>
+                <input type="number" min="1" max="2000" value="{{ form.batch }}" onChange="{{ setBatch }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Window · seconds</span>
+                <input type="number" min="10" max="3600" value="{{ form.window }}" onChange="{{ setWindow }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Judge model</span>
+                <select value="{{ form.judge }}" onChange="{{ setJudge }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none">
+                  <option value="gpt-4o-2024-11">gpt-4o-2024-11</option>
+                  <option value="gpt-4o-2024-08">gpt-4o-2024-08 (pinned)</option>
+                  <option value="gpt-4o-mini">gpt-4o-mini</option>
+                  <option value="claude-sonnet-4">claude-sonnet-4</option>
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Retention · days</span>
+                <input type="number" min="7" max="365" value="{{ form.retention }}" onChange="{{ setRetention }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--pr-border)">
+            <h2 style="margin:0; font-size:14px; font-weight:700">Scorers</h2>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:{{ weightColor }}">weights total {{ weightTotal }}</span>
+          </div>
+          <sc-for list="{{ formScorers }}" as="sc" hint-placeholder-count="3">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid var(--pr-border); opacity:{{ sc.opacity }}">
+              <span style="display:flex; flex-direction:column; gap:3px; flex:1 1 180px; min-width:0">
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px; overflow-wrap:anywhere">{{ sc.name }}</span>
+                <span style="font-size:11px; color:var(--pr-text-muted); text-wrap:pretty">{{ sc.note }}</span>
+              </span>
+              <label style="display:flex; flex-direction:column; gap:5px; flex:0 1 88px; min-width:72px">
+                <span style="font-size:9.5px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Weight</span>
+                <input type="number" min="0" max="1" step="0.1" value="{{ sc.weight }}" onChange="{{ sc.setWeight }}" style="box-sizing:border-box; width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <label style="display:flex; flex-direction:column; gap:5px; flex:0 1 110px; min-width:82px">
+                <span style="font-size:9.5px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Threshold</span>
+                <input type="number" min="0" max="1" step="0.01" value="{{ sc.threshold }}" onChange="{{ sc.setThreshold }}" style="box-sizing:border-box; width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <button onClick="{{ sc.toggle }}" style="all:unset; cursor:pointer; flex:none; margin-left:auto; width:44px; height:24px; border-radius:999px; background:{{ sc.trackBg }}; position:relative">
+                <span style="position:absolute; top:3px; left:{{ sc.knobLeft }}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 140ms ease"></span>
+              </button>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 18px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Breach &amp; alert routing</h2></div>
+          <div style="padding:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:16px">
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Composite threshold</span>
+              <input type="number" min="0" max="1" step="0.01" value="{{ form.threshold }}" onChange="{{ setThreshold }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Rolling window</span>
+              <select value="{{ form.rolling }}" onChange="{{ setRolling }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none">
+                <option value="15m">15m</option>
+                <option value="1h">1h</option>
+                <option value="6h">6h</option>
+                <option value="24h">24h</option>
+              </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Page below</span>
+              <input type="number" min="0" max="1" step="0.01" value="{{ form.pageThreshold }}" onChange="{{ setPageThreshold }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+          </div>
+          <sc-for list="{{ formAlerts }}" as="a" hint-placeholder-count="3">
+            <div style="display:flex; align-items:center; gap:13px; padding:13px 18px; border-top:1px solid var(--pr-border); opacity:{{ a.opacity }}">
+              <i class="bi {{ a.icon }}" style="font-size:14px; color:{{ a.iconColor }}"></i>
+              <span style="display:flex; flex-direction:column; gap:2px; flex:1; min-width:0">
+                <span style="font-size:12.5px">{{ a.target }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ a.when }}</span>
+              </span>
+              <button onClick="{{ a.toggle }}" style="all:unset; cursor:pointer; width:44px; height:24px; border-radius:999px; background:{{ a.trackBg }}; position:relative; flex:none">
+                <span style="position:absolute; top:3px; left:{{ a.knobLeft }}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 140ms ease"></span>
+              </button>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+
+      <aside style="display:flex; flex-direction:column; gap:16px; position:sticky; top:0; min-width:0">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:flex; align-items:center; gap:9px; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+            <h2 style="margin:0; font-size:13px; font-weight:700; flex:1">Pending changes</h2>
+            <span style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:{{ dirtyBg }}; color:{{ dirtyFg }}">{{ dirtyLabel }}</span>
+          </div>
+          <sc-if value="{{ hasChanges }}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{ changes }}" as="c" hint-placeholder-count="2">
+              <div style="display:flex; flex-direction:column; gap:4px; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+                <span style="font-size:11.5px; color:var(--pr-text-muted)">{{ c.label }}</span>
+                <div style="display:flex; align-items:center; gap:8px; min-width:0">
+                  <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:#ff8f8f; text-decoration:line-through; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.from }}</span>
+                  <i class="bi bi-arrow-right-short" style="font-size:14px; color:var(--pr-text-muted); flex:none"></i>
+                  <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:#7ee0ae; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.to }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ noChanges }}" hint-placeholder-val="{{ true }}">
+            <p style="margin:0; padding:16px; font-size:12px; color:var(--pr-text-muted); text-wrap:pretty">Nothing edited yet. Saving bumps the policy revision; running batches finish under the old config.</p>
+          </sc-if>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:13px; font-weight:700">Projected impact</h2></div>
+          <sc-for list="{{ impact }}" as="i" hint-placeholder-count="4">
+            <div style="display:flex; align-items:baseline; gap:12px; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+              <span style="font-size:12px; color:var(--pr-text-muted); flex:1">{{ i.label }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; color:{{ i.color }}">{{ i.value }}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <div style="display:flex; flex-direction:column; gap:10px; padding:16px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)">
+          <button onClick="{{ save }}" style="all:unset; cursor:pointer; text-align:center; padding:11px 16px; border-radius:11px; font-size:13px; font-weight:700; color:#062430; background:linear-gradient(135deg,#4fc3e8,#009acc)">Save policy</button>
+          <button onClick="{{ revert }}" style="all:unset; cursor:pointer; text-align:center; padding:11px 16px; border-radius:11px; font-size:12.5px; font-weight:600; color:var(--pr-text-secondary); background:var(--pr-glass-white-5); border:1px solid var(--pr-border)" style-hover="color:#fff">Revert to saved</button>
+          <button onClick="{{ cancel }}" style="all:unset; cursor:pointer; text-align:center; padding:9px 16px; border-radius:11px; font-size:12.5px; color:var(--pr-text-muted)" style-hover="color:#fff">Back to policy</button>
+          <sc-if value="{{ savedFlash }}" hint-placeholder-val="{{ true }}">
+            <span style="display:flex; align-items:center; gap:7px; font-size:11.5px; color:#7ee0ae"><i class="bi bi-check2-circle" style="font-size:13px"></i>Saved · revision {{ revision }}</span>
+          </sc-if>
+        </div>
+      </aside>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isQueue }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px">
+        <sc-for list="{{ queueStats }}" as="s" hint-placeholder-count="4">
+          <div style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:8px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ s.label }}</span>
+              <i class="bi {{ s.icon }}" style="font-size:13px; color:{{ s.iconColor }}"></i>
+            </div>
+            <span style="font-family:var(--pr-font-mono); font-size:24px; font-weight:500; color:{{ s.color }}">{{ s.value }}</span>
+            <span style="font-size:11.5px; color:var(--pr-text-muted)">{{ s.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,320px); gap:16px">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+            <h2 style="margin:0; font-size:14px; font-weight:700">In flight</h2>
+            <span style="display:flex; align-items:center; gap:6px; font-family:var(--pr-font-mono); font-size:11.5px; color:#7ee0ae"><span style="width:6px; height:6px; border-radius:50%; background:var(--pr-success); animation:pulse 2s ease-in-out infinite"></span>8 workers</span>
+          </div>
+          <sc-for list="{{ inflight }}" as="j" hint-placeholder-count="6">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:13px 16px; border-bottom:1px solid var(--pr-border)">
+              <div style="display:flex; align-items:center; gap:10px">
+                <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted); width:52px; flex:none">{{ j.worker }}</span>
+                <span style="font-size:12.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ j.policy }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-secondary)">{{ j.batch }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted); width:56px; text-align:right; flex:none">{{ j.elapsed }}</span>
+              </div>
+              <div style="height:6px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                <div style="height:100%; width:{{ j.pct }}; border-radius:999px; background:{{ j.bar }}"></div>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden; align-self:start">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Throughput · 24h</h2></div>
+          <div style="padding:16px; display:flex; flex-direction:column; gap:14px">
+            <div style="display:flex; align-items:flex-end; gap:3px; height:88px">
+              <sc-for list="{{ throughput }}" as="t" hint-placeholder-count="24">
+                <div style="flex:1; min-width:0; height:{{ t.h }}; border-radius:2px 2px 0 0; background:{{ t.color }}"></div>
+              </sc-for>
+            </div>
+            <sc-for list="{{ queueMeta }}" as="m" hint-placeholder-count="4">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px">
+                <span style="font-size:12px; color:var(--pr-text-muted)">{{ m.label }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px; color:{{ m.color }}">{{ m.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+          <h2 style="margin:0; font-size:14px; font-weight:700">Waiting</h2>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">412 batches · oldest 4m 12s</span>
+        </div>
+        <div style="display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1.4fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,0.75fr); padding:10px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Batch</span><span>Policy</span><span style="text-align:right">Spans</span><span style="text-align:right">Priority</span><span style="text-align:right">Est. cost</span><span style="text-align:right">Waiting</span>
+        </div>
+        <sc-for list="{{ waiting }}" as="w" hint-placeholder-count="8">
+          <div style="display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1.4fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,0.75fr); align-items:center; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ w.batch }}</span>
+            <span style="font-size:12px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ w.policy }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; text-align:right">{{ w.spans }}</span>
+            <span style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; background:{{ w.prBg }}; color:{{ w.prFg }}; justify-self:end">{{ w.priority }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; text-align:right; color:var(--pr-text-secondary)">{{ w.cost }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ w.age }}</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isResults }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap:16px">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; gap:13px">
+          <h2 style="margin:0; font-size:13px; font-weight:700">Score distribution</h2>
+          <div style="display:flex; align-items:flex-end; gap:5px; height:96px">
+            <sc-for list="{{ distribution }}" as="d" hint-placeholder-count="10">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0">
+                <div style="width:100%; height:{{ d.h }}; border-radius:3px 3px 0 0; background:{{ d.color }}"></div>
+                <span style="font-family:var(--pr-font-mono); font-size:9.5px; color:var(--pr-text-muted)">{{ d.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <span style="font-size:11.5px; color:var(--pr-text-muted)">18,204 scored spans · median 0.91</span>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; gap:11px">
+          <h2 style="margin:0; font-size:13px; font-weight:700">Verdict split</h2>
+          <sc-for list="{{ verdicts }}" as="v" hint-placeholder-count="4">
+            <div style="display:flex; flex-direction:column; gap:6px">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px">
+                <span style="font-size:12px; color:var(--pr-text-secondary)">{{ v.label }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; color:{{ v.color }}">{{ v.value }}</span>
+              </div>
+              <div style="height:6px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                <div style="height:100%; width:{{ v.pct }}; border-radius:999px; background:{{ v.bar }}"></div>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; gap:11px">
+          <h2 style="margin:0; font-size:13px; font-weight:700">Worst scorers · 24h</h2>
+          <sc-for list="{{ worstScorers }}" as="w" hint-placeholder-count="4">
+            <div style="display:flex; align-items:center; gap:10px">
+              <span style="font-family:var(--pr-font-mono); font-size:11.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ w.name }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ w.delta }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:13px; color:{{ w.color }}">{{ w.score }}</span>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+        <sc-for list="{{ resultFilters }}" as="f" hint-placeholder-count="4">
+          <button onClick="{{ f.go }}" style="all:unset; cursor:pointer; padding:6px 13px; border-radius:999px; font-size:12px; font-weight:600; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+        </sc-for>
+        <span style="flex:1"></span>
+        <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ resultCount }}</span>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1.5fr) minmax(0,1.2fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,0.8fr); padding:11px 18px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Span</span><span>Policy</span><span>Scorer</span><span style="text-align:right">Score</span><span style="text-align:right">Verdict</span><span style="text-align:right">When</span>
+        </div>
+        <sc-for list="{{ results }}" as="r" hint-placeholder-count="10">
+          <a href="{{ r.href }}" style="box-sizing:border-box; width:100%; display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1.5fr) minmax(0,1.2fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,0.8fr); align-items:center; padding:12px 18px; border-bottom:1px solid var(--pr-border); color:#fff" style-hover="background:var(--pr-glass-white-5)">
+            <span style="display:flex; flex-direction:column; gap:3px; min-width:0">
+              <span style="font-family:var(--pr-font-mono); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.span }}</span>
+              <span style="font-size:11px; color:var(--pr-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.agent }}</span>
+            </span>
+            <span style="font-size:12px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.policy }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.scorer }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12.5px; text-align:right; color:{{ r.scoreColor }}">{{ r.score }}</span>
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ r.bg }}; color:{{ r.fg }}; justify-self:end">{{ r.verdict }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ r.when }}</span>
+          </a>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isHealth }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; align-items:center; gap:13px; flex-wrap:wrap; padding:15px 18px; border-radius:16px; background:rgb(232 168 44 / 10%); border:1px solid rgb(232 168 44 / 30%)">
+        <i class="bi bi-exclamation-triangle-fill" style="font-size:16px; color:#e8a82c"></i>
+        <span style="display:flex; flex-direction:column; gap:2px; flex:1; min-width:0">
+          <span style="font-size:13px; font-weight:600">groundedness_llm drifted 6.2% below its 30-day baseline</span>
+          <span style="font-size:12px; color:var(--pr-text-secondary)">Judge model rolled from gpt-4o-2024-08 to gpt-4o-2024-11 at 03:14 UTC. 2 policies affected.</span>
+        </span>
+        <a href="RAAF%20Continuous.dc.html#policy" style="font-family:var(--pr-font-mono); font-size:12px">review policy →</a>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr)); gap:14px">
+        <sc-for list="{{ healthCards }}" as="h" hint-placeholder-count="4">
+          <div style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:10px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ h.label }}</span>
+              <span style="width:7px; height:7px; border-radius:50%; background:{{ h.dot }}"></span>
+            </div>
+            <span style="font-family:var(--pr-font-mono); font-size:24px; font-weight:500; color:{{ h.color }}">{{ h.value }}</span>
+            <div style="display:flex; align-items:flex-end; gap:2px; height:34px">
+              <sc-for list="{{ h.spark }}" as="s" hint-placeholder-count="20">
+                <div style="flex:1; min-width:0; height:{{ s.h }}; border-radius:1px; background:{{ s.color }}"></div>
+              </sc-for>
+            </div>
+            <span style="font-size:11.5px; color:var(--pr-text-muted)">{{ h.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:16px">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Scorer health</h2></div>
+          <div style="display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.8fr); padding:10px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+            <span>Scorer</span><span style="text-align:right">Mean</span><span style="text-align:right">Drift</span><span style="text-align:right">p95</span><span style="text-align:right">State</span>
+          </div>
+          <sc-for list="{{ scorerHealth }}" as="sc" hint-placeholder-count="6">
+            <div style="display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.8fr); align-items:center; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+              <span style="display:flex; flex-direction:column; gap:2px; min-width:0">
+                <span style="font-family:var(--pr-font-mono); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ sc.name }}</span>
+                <span style="font-size:11px; color:var(--pr-text-muted)">{{ sc.kind }}</span>
+              </span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ sc.mean }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:{{ sc.driftColor }}">{{ sc.drift }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:var(--pr-text-secondary)">{{ sc.p95 }}</span>
+              <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ sc.bg }}; color:{{ sc.fg }}; justify-self:end">{{ sc.state }}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+          <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+            <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Coverage by agent</h2></div>
+            <sc-for list="{{ coverage }}" as="c" hint-placeholder-count="5">
+              <div style="display:flex; flex-direction:column; gap:7px; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+                <div style="display:flex; align-items:baseline; gap:10px">
+                  <span style="font-family:var(--pr-font-mono); font-size:11.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.agent }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ c.scored }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; color:{{ c.color }}">{{ c.pct }}</span>
+                </div>
+                <div style="height:6px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                  <div style="height:100%; width:{{ c.pct }}; border-radius:999px; background:{{ c.bar }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </section>
+
+          <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+            <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Recent events</h2></div>
+            <sc-for list="{{ events }}" as="e" hint-placeholder-count="5">
+              <div style="display:flex; gap:11px; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+                <i class="bi {{ e.icon }}" style="font-size:13px; color:{{ e.color }}; margin-top:2px"></i>
+                <span style="display:flex; flex-direction:column; gap:3px; flex:1; min-width:0">
+                  <span style="font-size:12.5px; text-wrap:pretty">{{ e.text }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ e.when }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</dc-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:980}}">
+const C = {
+  muted: "var(--pr-text-muted)",
+  green: "#7ee0ae", red: "#ff8f8f", amber: "#e8a82c", cyan: "var(--pr-cyan-500)", white: "#fff"
+};
+const ST = {
+  enabled: ["var(--pr-success-bg)", "#7ee0ae"],
+  paused: ["var(--pr-glass-white-8)", "var(--pr-text-muted)"],
+  degraded: ["rgb(232 168 44 / 16%)", "#e8a82c"],
+  breaching: ["var(--pr-danger-bg)", "#ff8f8f"],
+  healthy: ["var(--pr-success-bg)", "#7ee0ae"],
+  drifting: ["rgb(232 168 44 / 16%)", "#e8a82c"],
+  stale: ["var(--pr-glass-white-8)", "var(--pr-text-muted)"],
+  pass: ["var(--pr-success-bg)", "#7ee0ae"],
+  warn: ["rgb(232 168 44 / 16%)", "#e8a82c"],
+  fail: ["var(--pr-danger-bg)", "#ff8f8f"]
+};
+const TITLES = {
+  policies: ["Eval policies", "policies"],
+  policy: ["enrichment_groundedness", "policies"],
+  edit: ["Edit · enrichment_groundedness", "policies"],
+  queue: ["Evaluation queue", "queue"],
+  results: ["Continuous results", "results"],
+  health: ["Scorer health", "health"]
+};
+
+const POLICIES = [
+  ["enrichment_groundedness", "on every span · 10% sample", "Company::EnrichAgent", ["groundedness_llm", "schema_valid"], "10%", "enabled", "2m ago"],
+  ["outreach_tone_guard", "on completion · 25% sample", "Outreach::DraftAgent", ["tone_match", "no_pii"], "25%", "enabled", "4m ago"],
+  ["signal_precision", "hourly batch", "Signals::ClassifyAgent", ["label_agreement"], "5%", "degraded", "18m ago"],
+  ["router_handoff_sanity", "on handoff span", "Router::TriageAgent", ["handoff_valid", "latency_budget"], "100%", "enabled", "1m ago"],
+  ["reply_safety", "on every span", "Outreach::ReplyAgent", ["no_pii", "toxicity"], "100%", "breaching", "just now"],
+  ["scoring_calibration", "nightly · 02:00 UTC", "Scoring::FitAgent", ["numeric_delta"], "2%", "enabled", "9h ago"],
+  ["legacy_summary_quality", "on completion", "Digest::SummaryAgent", ["rouge_l", "groundedness_llm"], "5%", "paused", "12d ago"]
+];
+
+const RESULTS = [
+  ["span_9f2ac41e", "Company::EnrichAgent", "enrichment_groundedness", "groundedness_llm", 0.94, "pass", "12s ago"],
+  ["span_71bd0c93", "Outreach::ReplyAgent", "reply_safety", "no_pii", 0.41, "fail", "34s ago"],
+  ["span_2ee8a107", "Outreach::DraftAgent", "outreach_tone_guard", "tone_match", 0.88, "pass", "51s ago"],
+  ["span_c4409ab2", "Signals::ClassifyAgent", "signal_precision", "label_agreement", 0.73, "warn", "1m ago"],
+  ["span_5a1f77de", "Router::TriageAgent", "router_handoff_sanity", "handoff_valid", 1.0, "pass", "1m ago"],
+  ["span_0b6c3e58", "Company::EnrichAgent", "enrichment_groundedness", "schema_valid", 1.0, "pass", "2m ago"],
+  ["span_ad83f215", "Outreach::ReplyAgent", "reply_safety", "toxicity", 0.22, "fail", "2m ago"],
+  ["span_6cf1904b", "Scoring::FitAgent", "scoring_calibration", "numeric_delta", 0.79, "warn", "3m ago"],
+  ["span_e50a2d6f", "Signals::ClassifyAgent", "signal_precision", "label_agreement", 0.91, "pass", "3m ago"],
+  ["span_b1c7458a", "Router::TriageAgent", "router_handoff_sanity", "latency_budget", 0.86, "pass", "4m ago"]
+];
+
+const WAITING = [
+  ["batch_20260906_1412_a", "enrichment_groundedness", "240", "normal", "$0.42", "12s"],
+  ["batch_20260906_1412_b", "reply_safety", "180", "high", "$0.31", "18s"],
+  ["batch_20260906_1411_c", "outreach_tone_guard", "96", "normal", "$0.14", "44s"],
+  ["batch_20260906_1410_a", "signal_precision", "512", "low", "$0.88", "1m 20s"],
+  ["batch_20260906_1409_d", "router_handoff_sanity", "64", "high", "$0.06", "2m 03s"],
+  ["batch_20260906_1408_a", "enrichment_groundedness", "240", "normal", "$0.42", "2m 51s"],
+  ["batch_20260906_1407_b", "scoring_calibration", "1,024", "low", "$1.64", "3m 30s"],
+  ["batch_20260906_1406_c", "outreach_tone_guard", "96", "normal", "$0.14", "4m 12s"]
+];
+
+const SCORER_HEALTH = [
+  ["groundedness_llm", "llm judge · gpt-4o", "0.87", "-6.2%", "3.4s", "drifting"],
+  ["no_pii", "regex + ner", "0.98", "+0.1%", "42ms", "healthy"],
+  ["tone_match", "llm judge · gpt-4o-mini", "0.91", "-0.8%", "1.9s", "healthy"],
+  ["label_agreement", "cohen kappa", "0.74", "-3.1%", "88ms", "drifting"],
+  ["toxicity", "classifier", "0.96", "+0.4%", "61ms", "healthy"],
+  ["rouge_l", "lexical overlap", "0.68", "0.0%", "12ms", "stale"]
+];
+
+function seeded(n, seed) {
+  const out = [];
+  let x = seed;
+  for (let i = 0; i < n; i++) { x = (x * 9301 + 49297) % 233280; out.push(x / 233280); }
+  return out;
+}
+
+const SAVED_POLICY = {
+  name: "enrichment_groundedness",
+  desc: "Scores every tenth EnrichAgent span for factual grounding against the source documents it cited, plus a hard schema check on the CompanyEnrichment payload. Breaches page the data quality rotation.",
+  agent: "Company::EnrichAgent",
+  owner: "data-quality",
+  status: "enabled",
+  trigger: "span.finished where name = 'agent.enrich'",
+  sampling: 10,
+  batch: 240,
+  window: 60,
+  judge: "gpt-4o-2024-11",
+  retention: 90,
+  threshold: 0.85,
+  rolling: "1h",
+  pageThreshold: 0.7,
+  scorers: [
+    { name: "groundedness_llm", note: "LLM judge · cites the source spans it grounded against", enabled: true, weight: 0.5, threshold: 0.85, icon: "bi-search", score: 0.87 },
+    { name: "schema_valid", note: "Payload parses against CompanyEnrichment v3", enabled: true, weight: 0.3, threshold: 0.99, icon: "bi-braces", score: 1.0 },
+    { name: "citation_present", note: "At least one retrieval span referenced in the final answer", enabled: true, weight: 0.2, threshold: 0.9, icon: "bi-link-45deg", score: 0.93 }
+  ],
+  alerts: [
+    { target: "#raaf-data-quality", when: "composite below threshold for 30m", icon: "bi-slack", enabled: true },
+    { target: "PagerDuty · data-quality rotation", when: "composite below page threshold for 10m", icon: "bi-telephone", enabled: true },
+    { target: "weekly digest to data-eng@", when: "every Monday 08:00 UTC", icon: "bi-envelope", enabled: false }
+  ]
+};
+const PFIELDS = {
+  name: "Name", desc: "Description", agent: "Agent", owner: "Owner", status: "Status",
+  trigger: "Trigger", sampling: "Sampling", batch: "Batch size", window: "Window",
+  judge: "Judge model", retention: "Retention", threshold: "Threshold", rolling: "Rolling window",
+  pageThreshold: "Page threshold"
+};
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+class Component extends DCLogic {
+  state = {
+    screen: "policies", policyFilter: "Enabled", resultFilter: "All",
+    form: clone(SAVED_POLICY), saved: clone(SAVED_POLICY), savedFlash: false, revision: 14
+  };
+
+  setField(key, cast) {
+    return (e) => {
+      const v = cast ? cast(e.target.value) : e.target.value;
+      this.setState((p) => ({ form: Object.assign({}, p.form, { [key]: v }), savedFlash: false }));
+    };
+  }
+  setRow(list, i, key, cast) {
+    return (e) => {
+      const v = cast ? cast(e.target.value) : e.target.value;
+      this.setState((p) => ({
+        form: Object.assign({}, p.form, { [list]: p.form[list].map((r, n) => (n === i ? Object.assign({}, r, { [key]: v }) : r)) }),
+        savedFlash: false
+      }));
+    };
+  }
+  toggleRow(list, i) {
+    return () => this.setState((p) => ({
+      form: Object.assign({}, p.form, { [list]: p.form[list].map((r, n) => (n === i ? Object.assign({}, r, { enabled: !r.enabled }) : r)) }),
+      savedFlash: false
+    }));
+  }
+
+  componentDidMount() {
+    this.sync = () => {
+      const h = (location.hash || "").replace("#", "");
+      if (TITLES[h]) this.setState({ screen: h });
+    };
+    this.sync();
+    window.addEventListener("hashchange", this.sync);
+  }
+  componentWillUnmount() { window.removeEventListener("hashchange", this.sync); }
+
+  goScreen(id) { return () => { location.hash = id; this.setState({ screen: id }); }; }
+  chip(on) { return on ? { bg: "var(--pr-glass-white-12)", fg: "#fff" } : { bg: "transparent", fg: C.muted }; }
+
+  renderVals() {
+    const s = this.state;
+    const t = TITLES[s.screen] || TITLES.policies;
+    const pill = (label, key, current) => Object.assign({ label, go: () => this.setState({ [key]: label }) }, this.chip(current === label));
+    const scoreColor = (v) => (v >= 0.85 ? C.green : v >= 0.7 ? C.amber : C.red);
+
+    const f = s.form, sv = s.saved;
+    const num = (v) => (v === "" ? 0 : Number(v));
+    const changes = Object.keys(PFIELDS)
+      .filter((k) => String(f[k]) !== String(sv[k]))
+      .map((k) => ({ label: PFIELDS[k], from: String(sv[k]), to: String(f[k]) }));
+    f.scorers.forEach((sc, i) => {
+      const o = sv.scorers[i];
+      if (sc.enabled !== o.enabled) changes.push({ label: sc.name + " · state", from: o.enabled ? "on" : "off", to: sc.enabled ? "on" : "off" });
+      if (Number(sc.weight) !== Number(o.weight)) changes.push({ label: sc.name + " · weight", from: String(o.weight), to: String(sc.weight) });
+      if (Number(sc.threshold) !== Number(o.threshold)) changes.push({ label: sc.name + " · threshold", from: String(o.threshold), to: String(sc.threshold) });
+    });
+    f.alerts.forEach((a, i) => {
+      if (a.enabled !== sv.alerts[i].enabled) changes.push({ label: a.target, from: sv.alerts[i].enabled ? "on" : "off", to: a.enabled ? "on" : "off" });
+    });
+    const activeScorers = f.scorers.filter((sc) => sc.enabled);
+    const weightTotal = activeScorers.reduce((a, sc) => a + Number(sc.weight || 0), 0);
+    const weightOk = Math.abs(weightTotal - 1) < 0.001;
+    const spansPerDay = Math.round(48120 * (Number(f.sampling) / 100));
+    const judgeCost = f.judge === "gpt-4o-mini" ? 0.0004 : f.judge === "claude-sonnet-4" ? 0.0026 : 0.0019;
+    const llmJudges = activeScorers.filter((sc) => sc.name.indexOf("llm") >= 0).length;
+
+    const filteredPolicies = POLICIES.filter((p) => {
+      if (s.policyFilter === "All") return true;
+      if (s.policyFilter === "Paused") return p[5] === "paused";
+      return p[5] !== "paused";
+    });
+
+    const filteredResults = RESULTS.filter((r) => {
+      if (s.resultFilter === "All") return true;
+      if (s.resultFilter === "Failures") return r[5] === "fail";
+      if (s.resultFilter === "Warnings") return r[5] === "warn";
+      return r[5] === "pass";
+    });
+
+    return {
+      navId: t[1],
+      title: s.screen === "edit" ? "Edit · " + sv.name : s.screen === "policy" ? sv.name : t[0],
+      isPolicies: s.screen === "policies", isPolicy: s.screen === "policy",
+      isQueue: s.screen === "queue", isResults: s.screen === "results", isHealth: s.screen === "health",
+      isEdit: s.screen === "edit", goEdit: this.goScreen("edit"),
+
+      form: f,
+      setName: this.setField("name"), setDesc: this.setField("desc"),
+      setAgent: this.setField("agent"), setOwner: this.setField("owner"),
+      setTrigger: this.setField("trigger"), setSampling: this.setField("sampling", num),
+      setBatch: this.setField("batch", num), setWindow: this.setField("window", num),
+      setJudge: this.setField("judge"), setRetention: this.setField("retention", num),
+      setThreshold: this.setField("threshold", num), setRolling: this.setField("rolling"),
+      setPageThreshold: this.setField("pageThreshold", num),
+      statusLabel: f.status === "enabled" ? "Enabled" : "Paused",
+      statusTrack: f.status === "enabled" ? "var(--pr-cyan-500)" : "var(--pr-glass-white-15)",
+      statusKnob: f.status === "enabled" ? "23px" : "3px",
+      toggleStatus: () => this.setState((p) => ({ form: Object.assign({}, p.form, { status: p.form.status === "enabled" ? "paused" : "enabled" }), savedFlash: false })),
+      samplingLabel: Number(f.sampling) + "%",
+      samplingNote: spansPerDay.toLocaleString() + " of ~48,120 daily spans · deterministic by trace_id",
+      formScorers: f.scorers.map((sc, i) => ({
+        name: sc.name, note: sc.note, weight: sc.weight, threshold: sc.threshold,
+        opacity: sc.enabled ? "1" : "0.5",
+        trackBg: sc.enabled ? "var(--pr-cyan-500)" : "var(--pr-glass-white-15)",
+        knobLeft: sc.enabled ? "23px" : "3px",
+        toggle: this.toggleRow("scorers", i),
+        setWeight: this.setRow("scorers", i, "weight", Number),
+        setThreshold: this.setRow("scorers", i, "threshold", Number)
+      })),
+      weightTotal: weightTotal.toFixed(2),
+      weightColor: weightOk ? C.green : C.amber,
+      formAlerts: f.alerts.map((a, i) => ({
+        target: a.target, when: a.when, icon: a.icon,
+        iconColor: a.enabled ? C.cyan : C.muted,
+        opacity: a.enabled ? "1" : "0.5",
+        trackBg: a.enabled ? "var(--pr-cyan-500)" : "var(--pr-glass-white-15)",
+        knobLeft: a.enabled ? "23px" : "3px",
+        toggle: this.toggleRow("alerts", i)
+      })),
+      changes, hasChanges: changes.length > 0, noChanges: changes.length === 0,
+      dirtyLabel: changes.length ? changes.length + " edited" : "in sync",
+      dirtyBg: changes.length ? "rgb(232 168 44 / 16%)" : "var(--pr-glass-white-8)",
+      dirtyFg: changes.length ? C.amber : C.muted,
+      impact: [
+        { label: "Spans scored · day", value: spansPerDay.toLocaleString(), color: C.white },
+        { label: "Batches · day", value: Math.max(1, Math.round(spansPerDay / Math.max(1, Number(f.batch)))).toLocaleString(), color: C.white },
+        { label: "Est. eval spend · day", value: "$" + (spansPerDay * judgeCost).toFixed(2), color: C.white },
+        { label: "Active scorers", value: activeScorers.length + " of " + f.scorers.length, color: weightOk ? C.green : C.amber },
+        { label: "Judge latency risk", value: llmJudges ? "p95 ≈ 3.4s" : "sub-second", color: llmJudges ? C.amber : C.green }
+      ],
+      savedFlash: s.savedFlash, revision: s.revision,
+      save: () => this.setState((p) => ({ saved: clone(p.form), savedFlash: true, revision: p.revision + 1 })),
+      revert: () => this.setState((p) => ({ form: clone(p.saved), savedFlash: false })),
+      cancel: this.goScreen("policy"),
+
+      policyStats: [
+        { label: "Active policies", value: "5", note: "of 7 configured", icon: "bi-clipboard-check", iconColor: C.cyan, color: C.white },
+        { label: "Spans scored · 24h", value: "18.2k", note: "4.2% of production traffic", icon: "bi-check2-circle", iconColor: C.green, color: C.white },
+        { label: "Breaching", value: "1", note: "reply_safety below 0.80", icon: "bi-exclamation-triangle", iconColor: C.red, color: C.red },
+        { label: "Eval spend · 24h", value: "$31.40", note: "$0.0017 per scored span", icon: "bi-cash-stack", iconColor: C.amber, color: C.white }
+      ],
+      policyFilters: ["Enabled", "Paused", "All"].map((l) => pill(l, "policyFilter", s.policyFilter)),
+      policyCount: filteredPolicies.length + " policies · 4.2% of production spans sampled",
+      policies: filteredPolicies.map((p) => {
+        const st = ST[p[5]];
+        return { name: p[0], trigger: p[1], agent: p[2], scorers: p[3], sample: p[4], status: p[5], bg: st[0], fg: st[1], last: p[6], go: this.goScreen("policy") };
+      }),
+
+      policy: {
+        name: sv.name,
+        desc: sv.desc,
+        status: sv.status,
+        statusBg: sv.status === "enabled" ? "var(--pr-success-bg)" : "var(--pr-glass-white-8)",
+        statusFg: sv.status === "enabled" ? C.green : C.muted,
+        meta: "created 2026-04-11 · owner " + sv.owner + " · revision " + s.revision,
+        stats: [
+          { label: "Composite", value: "0.91", color: C.green },
+          { label: "Scored · 24h", value: Math.round(48120 * (Number(sv.sampling) / 100)).toLocaleString(), color: C.white },
+          { label: "Spend · 24h", value: "$9.20", color: C.white }
+        ],
+        scorers: sv.scorers.filter((sc) => sc.enabled).map((sc) => ({
+          name: sc.name, icon: sc.icon,
+          iconColor: sc.name === "schema_valid" ? C.green : C.cyan,
+          weight: String(sc.weight),
+          score: sc.score.toFixed(2),
+          pct: Math.round(sc.score * 100) + "%",
+          thresholdPct: Math.round(Number(sc.threshold) * 100) + "%",
+          bar: sc.score >= Number(sc.threshold) ? "linear-gradient(90deg,#0f8a5a,#11aa64)" : "linear-gradient(90deg,#b8801f,#e8a82c)",
+          color: sc.score >= Number(sc.threshold) ? C.green : C.amber,
+          note: sc.note + " · threshold " + Number(sc.threshold).toFixed(2)
+        })),
+        config: [
+          { label: "Trigger", value: sv.trigger },
+          { label: "Sampling", value: Number(sv.sampling) + "% deterministic by trace_id" },
+          { label: "Batch size", value: sv.batch + " spans / " + sv.window + "s window" },
+          { label: "Judge model", value: sv.judge + " (openai)" },
+          { label: "Threshold", value: "composite ≥ " + Number(sv.threshold).toFixed(2) + " over " + sv.rolling + " rolling" },
+          { label: "Retention", value: sv.retention + " days · raw judge output 14 days" }
+        ],
+        alerts: sv.alerts.filter((a) => a.enabled).map((a) => ({
+          icon: a.icon,
+          color: a.icon === "bi-telephone" ? C.red : a.icon === "bi-slack" ? C.cyan : C.muted,
+          target: a.target,
+          when: a.icon === "bi-telephone" ? "composite < " + Number(sv.pageThreshold).toFixed(2) + " for 10m"
+            : a.icon === "bi-slack" ? "composite < " + Number(sv.threshold).toFixed(2) + " for 30m" : a.when
+        })),
+        trend: seeded(30, 4711).map((r, i) => {
+          const v = 0.82 + r * 0.16 - (i === 11 || i === 12 || i === 23 ? 0.14 : 0);
+          const breach = v < 0.85;
+          return { h: Math.round(((v - 0.6) / 0.42) * 100) + "%", color: breach ? "rgb(214 76 76 / 75%)" : "rgb(0 154 204 / 55%)" };
+        })
+      },
+
+      queueStats: [
+        { label: "Queued", value: "412", note: "batches awaiting a worker", icon: "bi-hourglass-split", iconColor: C.cyan, color: C.white },
+        { label: "In flight", value: "8", note: "8 of 8 workers busy", icon: "bi-cpu", iconColor: C.green, color: C.white },
+        { label: "Throughput", value: "1.9k/h", note: "spans scored, 24h average", icon: "bi-speedometer2", iconColor: C.cyan, color: C.white },
+        { label: "Oldest wait", value: "4m 12s", note: "SLO 5m · within budget", icon: "bi-clock-history", iconColor: C.amber, color: C.amber }
+      ],
+      inflight: [
+        { worker: "w-01", policy: "enrichment_groundedness", batch: "batch_…1412_a", elapsed: "8s", pct: "72%", bar: "linear-gradient(90deg,#009acc,#4fc3e8)" },
+        { worker: "w-02", policy: "reply_safety", batch: "batch_…1412_b", elapsed: "3s", pct: "34%", bar: "linear-gradient(90deg,#009acc,#4fc3e8)" },
+        { worker: "w-03", policy: "signal_precision", batch: "batch_…1410_a", elapsed: "41s", pct: "88%", bar: "linear-gradient(90deg,#0f8a5a,#11aa64)" },
+        { worker: "w-04", policy: "router_handoff_sanity", batch: "batch_…1409_d", elapsed: "1s", pct: "12%", bar: "linear-gradient(90deg,#009acc,#4fc3e8)" },
+        { worker: "w-05", policy: "outreach_tone_guard", batch: "batch_…1411_c", elapsed: "19s", pct: "61%", bar: "linear-gradient(90deg,#009acc,#4fc3e8)" },
+        { worker: "w-06", policy: "scoring_calibration", batch: "batch_…1407_b", elapsed: "2m 04s", pct: "94%", bar: "linear-gradient(90deg,#0f8a5a,#11aa64)" }
+      ],
+      throughput: seeded(24, 991).map((r) => ({ h: Math.round(28 + r * 72) + "%", color: "rgb(0 154 204 / 55%)" })),
+      queueMeta: [
+        { label: "Median wait", value: "38s", color: C.white },
+        { label: "p95 wait", value: "3m 04s", color: C.amber },
+        { label: "Retries · 24h", value: "112", color: C.white },
+        { label: "Dropped · 24h", value: "0", color: C.green }
+      ],
+      waiting: WAITING.map((w) => {
+        const pr = w[3] === "high" ? ST.breaching : w[3] === "low" ? ST.paused : ST.healthy;
+        return { batch: w[0], policy: w[1], spans: w[2], priority: w[3], prBg: pr[0], prFg: pr[1], cost: w[4], age: w[5] };
+      }),
+
+      distribution: [
+        ["0.0", 2], ["0.1", 1], ["0.2", 3], ["0.3", 4], ["0.4", 6], ["0.5", 9], ["0.6", 14], ["0.7", 26], ["0.8", 58], ["0.9", 100]
+      ].map((d) => ({ label: d[0], h: d[1] + "%", color: d[1] >= 50 ? "rgb(17 170 100 / 65%)" : d[1] >= 20 ? "rgb(232 168 44 / 60%)" : "rgb(214 76 76 / 55%)" })),
+      verdicts: [
+        { label: "Pass", value: "16,402 · 90.1%", pct: "90%", color: C.green, bar: "linear-gradient(90deg,#0f8a5a,#11aa64)" },
+        { label: "Warn", value: "1,289 · 7.1%", pct: "7%", color: C.amber, bar: "linear-gradient(90deg,#b8801f,#e8a82c)" },
+        { label: "Fail", value: "421 · 2.3%", pct: "2.3%", color: C.red, bar: "linear-gradient(90deg,#a03a3a,#d64c4c)" },
+        { label: "Errored", value: "92 · 0.5%", pct: "0.5%", color: C.muted, bar: "var(--pr-glass-white-15)" }
+      ],
+      worstScorers: [
+        { name: "toxicity", score: "0.61", delta: "-0.19", color: C.red },
+        { name: "label_agreement", score: "0.74", delta: "-0.03", color: C.amber },
+        { name: "numeric_delta", score: "0.79", delta: "-0.02", color: C.amber },
+        { name: "groundedness_llm", score: "0.87", delta: "-0.06", color: C.green }
+      ],
+      resultFilters: ["All", "Failures", "Warnings", "Passes"].map((l) => pill(l, "resultFilter", s.resultFilter)),
+      resultCount: filteredResults.length + " of 18,204 scored spans",
+      results: filteredResults.map((r) => {
+        const st = ST[r[5]];
+        return {
+          span: r[0], agent: r[1], policy: r[2], scorer: r[3],
+          score: r[4].toFixed(2), scoreColor: scoreColor(r[4]),
+          verdict: r[5], bg: st[0], fg: st[1], when: r[6],
+          href: "RAAF%20Tracing.dc.html#trace"
+        };
+      }),
+
+      healthCards: [
+        { label: "Judge agreement", value: "0.88", note: "vs human labels, 250-span audit", dot: "#11aa64", color: C.white, spark: seeded(20, 77).map((v) => ({ h: Math.round(45 + v * 55) + "%", color: "rgb(0 154 204 / 55%)" })) },
+        { label: "Scorer latency p95", value: "3.4s", note: "llm judges dominate the tail", dot: "#e8a82c", color: C.amber, spark: seeded(20, 313).map((v) => ({ h: Math.round(35 + v * 65) + "%", color: "rgb(232 168 44 / 55%)" })) },
+        { label: "Eval error rate", value: "0.5%", note: "92 judge timeouts in 24h", dot: "#11aa64", color: C.white, spark: seeded(20, 505).map((v) => ({ h: Math.round(20 + v * 60) + "%", color: "rgb(0 154 204 / 45%)" })) },
+        { label: "Cost per 1k spans", value: "$1.72", note: "down $0.21 after judge swap", dot: "#11aa64", color: C.green, spark: seeded(20, 888).map((v) => ({ h: Math.round(30 + v * 60) + "%", color: "rgb(17 170 100 / 50%)" })) }
+      ],
+      scorerHealth: SCORER_HEALTH.map((h) => {
+        const st = ST[h[5]];
+        const down = h[3].charAt(0) === "-";
+        return { name: h[0], kind: h[1], mean: h[2], drift: h[3], driftColor: h[3] === "0.0%" ? C.muted : down ? C.red : C.green, p95: h[4], state: h[5], bg: st[0], fg: st[1] };
+      }),
+      coverage: [
+        { agent: "Company::EnrichAgent", scored: "4,812 / 48,120", pct: "10%", color: C.green, bar: "linear-gradient(90deg,#0f8a5a,#11aa64)" },
+        { agent: "Outreach::ReplyAgent", scored: "9,240 / 9,240", pct: "100%", color: C.green, bar: "linear-gradient(90deg,#0f8a5a,#11aa64)" },
+        { agent: "Signals::ClassifyAgent", scored: "1,904 / 38,080", pct: "5%", color: C.amber, bar: "linear-gradient(90deg,#b8801f,#e8a82c)" },
+        { agent: "Router::TriageAgent", scored: "2,110 / 2,110", pct: "100%", color: C.green, bar: "linear-gradient(90deg,#0f8a5a,#11aa64)" },
+        { agent: "Digest::SummaryAgent", scored: "0 / 1,420", pct: "0%", color: C.muted, bar: "var(--pr-glass-white-15)" }
+      ],
+      events: [
+        { icon: "bi-arrow-repeat", color: C.amber, text: "Judge model for groundedness_llm rolled to gpt-4o-2024-11", when: "today 03:14 UTC" },
+        { icon: "bi-exclamation-triangle-fill", color: C.red, text: "reply_safety breached its 0.80 threshold — PagerDuty notified", when: "today 09:41 UTC" },
+        { icon: "bi-clipboard-check", color: C.cyan, text: "signal_precision sampling raised from 2% to 5%", when: "yesterday 16:02 UTC" },
+        { icon: "bi-pause-circle", color: C.muted, text: "legacy_summary_quality paused by bvdm — superseded by eval suite", when: "12 days ago" },
+        { icon: "bi-check2-circle", color: C.green, text: "250-span human audit completed · agreement 0.88", when: "2 weeks ago" }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

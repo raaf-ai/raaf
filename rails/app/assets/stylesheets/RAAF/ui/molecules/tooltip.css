@@ -1,0 +1,50 @@
+/* ============================================================================
+   Molecule — Tooltip
+   CSS-only hover/focus tooltip. Replaces the Preline `hs-tooltip` behaviour,
+   which went away with the Preline dependency.
+   ========================================================================= */
+
+.raaf-tooltip {
+  position: relative;
+  display: inline-flex;
+}
+
+.raaf-tooltip-trigger {
+  cursor: help;
+}
+
+.raaf-tooltip-content {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 60;
+  width: max-content;
+  max-width: 280px;
+  padding: var(--raaf-space-2) var(--raaf-space-3);
+  transform: translateX(-50%);
+  border: 1px solid var(--raaf-border-strong);
+  border-radius: var(--raaf-radius-sm);
+  background: var(--raaf-overlay-bg);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--raaf-shadow-lg);
+  color: var(--raaf-text-primary);
+  font-size: var(--raaf-text-sm);
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: break-word;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  pointer-events: none;
+}
+
+.raaf-tooltip:hover .raaf-tooltip-content,
+.raaf-tooltip:focus-within .raaf-tooltip-content {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raaf-tooltip-content { transition: none; }
+}

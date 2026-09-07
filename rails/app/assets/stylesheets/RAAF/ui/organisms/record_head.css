@@ -1,0 +1,79 @@
+/* ============================================================================
+   Organism — Record header
+   The panel a detail screen opens on, drawn identically for a policy in
+   RAAF Continuous.dc.html and for a dataset, an experiment and a prompt in
+   RAAF Eval.dc.html: the name block on the left, one control, and a small
+   grid of figures on the right.
+   ========================================================================= */
+
+.raaf-rechead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--raaf-space-4);
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+}
+
+.raaf-rechead-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.raaf-rechead-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+/* A dataset and a prompt are named like files, and the canvas sets both in
+   the mono face at a lighter weight; a policy and an experiment are named in
+   prose and are not. */
+.raaf-rechead-name--mono {
+  font-family: var(--raaf-font-mono);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* A description is prose, so it gets a measure rather than the panel's width. */
+.raaf-rechead-desc {
+  margin: 0;
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+
+.raaf-rechead-action {
+  flex: none;
+  align-self: flex-start;
+}
+
+.raaf-rechead-action .raaf-icon { color: var(--raaf-cyan-500); }
+
+.raaf-rechead > .raaf-inline-form {
+  flex: none;
+  align-self: flex-start;
+}
+
+.raaf-rechead-stats {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(78px, auto);
+  gap: 22px;
+  /* The stats are readings, so they end the row: a header that hangs a second
+     control off its block — the policy screen's pause button — keeps that
+     control beside the first rather than past the figures. */
+  order: 1;
+}
+
+.raaf-rechead-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}

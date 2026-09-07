@@ -1,0 +1,117 @@
+/* ============================================================================
+   Molecule — NavItem / NavGroup
+   Sidebar navigation per Shell.dc.html: collapsible groups of icon+label rows.
+   ========================================================================= */
+
+.raaf-nav-group { display: flex; flex-direction: column; gap: 2px; }
+
+/* Group header — <summary> of a <details>, so collapsing needs no JavaScript. */
+.raaf-nav-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--raaf-radius-sm);
+  color: var(--raaf-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.raaf-nav-group > summary::-webkit-details-marker { display: none; }
+
+.raaf-nav-group > summary:hover {
+  background: var(--raaf-glass-white-5);
+  color: var(--raaf-white);
+}
+
+.raaf-nav-group-caret {
+  font-size: 9px;
+  transition: transform 0.15s ease;
+}
+
+.raaf-nav-group[open] .raaf-nav-group-caret { transform: rotate(90deg); }
+
+.raaf-nav-group-label { flex: 1; text-align: left; }
+
+/* Item count, shown when the group is collapsed. */
+.raaf-nav-group-count {
+  font-family: var(--raaf-font-mono);
+  font-size: 9px;
+  letter-spacing: 0;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-nav-group[open] .raaf-nav-group-count { display: none; }
+
+.raaf-nav-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+}
+
+/* ── Item ────────────────────────────────────────────────────────────────── */
+.raaf-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 14px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--raaf-text-secondary);
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.raaf-nav-item:hover {
+  background: var(--raaf-glass-white-8);
+  color: var(--raaf-white);
+  text-decoration: none;
+}
+
+.raaf-nav-item.is-active {
+  background: var(--raaf-glass-white-10);
+  color: var(--raaf-white);
+  box-shadow: inset 0 0 0 1px var(--raaf-glass-white-15);
+}
+
+.raaf-nav-item .raaf-icon {
+  width: 16px;
+  font-size: var(--raaf-text-body-sm);
+  text-align: center;
+  opacity: 0.9;
+}
+
+.raaf-nav-item-label { flex: 1; }
+
+/* Count badge — the design uses it for the error count, in danger tone. */
+.raaf-nav-item-badge {
+  padding: 2px 6px;
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-danger-bg);
+  color: #ff8f8f;
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+}
+
+/* An item whose screen does not exist yet. */
+.raaf-nav-item--pending {
+  color: var(--raaf-gray-500);
+  cursor: default;
+}
+
+.raaf-nav-item--pending .raaf-icon { opacity: 0.5; }
+
+.raaf-nav-item-soon {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--raaf-gray-600);
+}

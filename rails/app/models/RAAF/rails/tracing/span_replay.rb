@@ -28,18 +28,68 @@ module RAAF
         # Associations
         belongs_to :original_span,
                    class_name: "RAAF::Rails::Tracing::SpanRecord",
-                   primary_key: :span_id,
-                   foreign_key: :original_span_id
+                   primary_key: :span_id
 
         belongs_to :replayed_span,
                    class_name: "RAAF::Rails::Tracing::SpanRecord",
                    primary_key: :span_id,
-                   foreign_key: :replayed_span_id,
                    optional: true
 
         # Validations
         validates :original_span_id, presence: true
         validates :status, inclusion: { in: %w[pending running completed failed] }
+
+        # Can this span be replayed?
+        #
+        # A replay needs the messages that were sent and the model they went
+        # to. Both have been written under several keys over the years --
+        # nested under `llm.request`, as a dot-notation key, or as the agent's
+        # own prompt attributes -- so every shape is looked for before
+        # deciding a span cannot be replayed. The span page asks this to
+        # decide whether to offer the action; the controller asks it again to
+        # refuse a URL typed by hand.
+        #
+        # @param span [SpanRecord, nil]
+        # @return [Boolean]
+        def self.replayable?(span)
+          attrs = span&.span_attributes || {}
+
+          recorded_messages(attrs).present? && recorded_model(attrs).present?
+        end
+
+        # The conversation the span sent, whichever key it was written under.
+        # A span that recorded no messages but did record its prompts can
+        # still be replayed -- the replayer rebuilds the conversation from
+        # them -- so that counts as present.
+        def self.recorded_messages(attrs)
+          messages = attrs.dig("llm", "request", "messages") ||
+                     attrs["llm.request.messages"] ||
+                     attrs["agent.conversation_messages"] ||
+                     attrs["conversation_messages"]
+
+          messages = parse_json(messages) if messages.is_a?(String)
+
+          return messages if messages.present?
+
+          attrs["agent.system_instructions"].presence ||
+            attrs["agent.initial_user_prompt"].presence
+        end
+        private_class_method :recorded_messages
+
+        def self.recorded_model(attrs)
+          attrs.dig("llm", "request", "model") ||
+            attrs["llm.request.model"] ||
+            attrs["agent.model"] ||
+            attrs["model"]
+        end
+        private_class_method :recorded_model
+
+        def self.parse_json(value)
+          JSON.parse(value)
+        rescue JSON::ParserError
+          nil
+        end
+        private_class_method :parse_json
 
         # Scopes
         scope :pending, -> { where(status: "pending") }
@@ -99,13 +149,9 @@ module RAAF
           overrides = (configuration_changes || {}).deep_symbolize_keys
 
           # Add prompt overrides if present
-          if system_prompt.present?
-            overrides[:system_prompt] = system_prompt
-          end
+          overrides[:system_prompt] = system_prompt if system_prompt.present?
 
-          if user_messages.present? && user_messages.any?
-            overrides[:messages] = user_messages
-          end
+          overrides[:messages] = user_messages if user_messages.present? && user_messages.any?
 
           overrides
         end

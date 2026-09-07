@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Dashboard review" subtitle="Annotated review of the home dashboard" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1400" />
+<title>ProspectsRadar — Dashboard Review</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+  body {
+    background:
+      radial-gradient(1100px 700px at 90% -10%, rgb(0 154 204 / 7%), transparent 60%),
+      radial-gradient(800px 600px at -10% 20%, rgb(61 143 168 / 6%), transparent 60%),
+      var(--pr-teal-900);
+    background-attachment: fixed;
+  }
+  .review-shell { max-width: 1360px; margin: 0 auto; padding: 40px 24px 120px; }
+
+  /* ── Review layout: mock on top (full-width), notes grid below ───── */
+  .review-grid { display: block; }
+  .review-mock { min-width: 0; position: relative; margin-bottom: 40px; }
+  .review-notes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .notes-head {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--pr-text-muted);
+    padding: 8px 4px 14px;
+    border-bottom: 1px solid var(--pr-border);
+    margin-bottom: 20px;
+    display: flex; justify-content: space-between;
+  }
+
+  /* Numbered annotation marker */
+  .anno {
+    position: absolute;
+    width: 26px; height: 26px;
+    border-radius: 999px;
+    background: var(--pr-cyan-500);
+    color: white;
+    display: grid; place-items: center;
+    font-family: var(--pr-font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 0 0 4px rgb(0 154 204 / 25%), 0 4px 12px rgb(0 0 0 / 35%);
+    z-index: 20;
+    cursor: pointer;
+  }
+  .anno.tone-warn { background: var(--pr-warning); box-shadow: 0 0 0 4px rgb(245 158 11 / 25%), 0 4px 12px rgb(0 0 0 / 35%); }
+  .anno.tone-good { background: var(--pr-success); box-shadow: 0 0 0 4px rgb(17 170 100 / 25%), 0 4px 12px rgb(0 0 0 / 35%); }
+
+  .note {
+    padding: 16px 18px;
+    background: var(--pr-surface-glass);
+    backdrop-filter: var(--pr-blur);
+    border: 1px solid var(--pr-border);
+    border-radius: var(--pr-radius-md);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--pr-text-secondary);
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .note .n {
+    width: 24px; height: 24px;
+    border-radius: 999px;
+    background: var(--pr-cyan-500);
+    color: white;
+    display: grid; place-items: center;
+    font-family: var(--pr-font-mono);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .note.tone-warn .n { background: var(--pr-warning); }
+  .note.tone-good .n { background: var(--pr-success); }
+  .note .body strong { color: var(--pr-white); font-weight: 600; display: block; margin-bottom: 3px; font-size: 13px; }
+  .note .body em { color: var(--pr-cyan-500); font-style: normal; font-family: var(--pr-font-mono); font-size: 11px; background: rgb(0 154 204 / 10%); padding: 1px 6px; border-radius: 4px; }
+  .note .verdict {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pr-text-muted);
+    margin-top: 6px;
+  }
+
+  /* ── Dashboard mock (reconstruction of production home) ──────────── */
+  .app-chrome {
+    border-radius: var(--pr-radius-lg);
+    border: 1px solid var(--pr-border);
+    background: var(--pr-teal-900);
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgb(0 0 0 / 40%);
+  }
+  .chrome-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgb(10 31 42 / 90%);
+    border-bottom: 1px solid var(--pr-border);
+  }
+  .chrome-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--pr-glass-white-15); }
+  .chrome-url {
+    margin-left: 10px;
+    font-family: var(--pr-font-mono);
+    font-size: 11px;
+    color: var(--pr-text-muted);
+    padding: 4px 10px;
+    background: var(--pr-glass-white-5);
+    border: 1px solid var(--pr-border);
+    border-radius: 6px;
+  }
+
+  .app-shell {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100px;
+  }
+  .app-shell > .side { grid-column: 1; grid-row: 1 / span 2; }
+  /* Sidebar */
+  .side {
+    background: var(--pr-teal-100);
+    border-right: 1px solid var(--pr-border);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .side .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px 16px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--pr-border);
+  }
+  .side .brand-mark {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--pr-cyan-500), #0077a3);
+    display: grid; place-items: center;
+    box-shadow: 0 0 16px rgb(0 154 204 / 40%);
+  }
+  .side .brand-name { font-weight: 700; font-size: 13px; letter-spacing: -0.01em; }
+  .side-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--pr-text-muted);
+    padding: 12px 12px 6px;
+  }
+  .side-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--pr-radius-sm);
+    color: var(--pr-gray-300);
+    font-size: 13px;
+    cursor: default;
+  }
+  .side-item i { font-size: 15px; opacity: 0.75; }
+  .side-item.is-active {
+    background: rgb(52 111 129 / 56%);
+    color: var(--pr-white);
+    box-shadow: inset 3px 0 0 var(--pr-teal-200);
+  }
+  .side-item.is-active i { opacity: 1; color: var(--pr-cyan-500); }
+
+  /* Topbar */
+  .topbar {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--pr-border);
+    background: rgb(10 31 42 / 60%);
+  }
+  .dash-wrap { grid-column: 2; grid-row: 2; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--pr-glass-white-5);
+    border: 1px solid var(--pr-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    width: 320px;
+    font-size: 12px;
+    color: var(--pr-text-muted);
+  }
+  .topbar-actions { display: flex; align-items: center; gap: 12px; }
+  .topbar-icon {
+    width: 32px; height: 32px; border-radius: 999px;
+    display: grid; place-items: center;
+    color: var(--pr-text-secondary);
+  }
+  .topbar-icon.has-dot { position: relative; }
+  .topbar-icon.has-dot::after {
+    content:""; position: absolute; top: 4px; right: 4px;
+    width: 6px; height: 6px; border-radius: 999px;
+    background: var(--pr-cyan-500);
+    box-shadow: 0 0 8px var(--pr-cyan-500);
+  }
+  .topbar-avatar {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: linear-gradient(135deg, #1a4d5f, #3d8fa8);
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 700; color: white;
+  }
+
+  /* Dashboard content area */
+  .dash {
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 28px;
+  }
+
+  /* Hero */
+  .hero {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 8%) 0%, transparent 100%),
+      linear-gradient(135deg, var(--pr-teal-400) 0%, var(--pr-teal-200) 62%, var(--pr-teal-100) 100%);
+    border-radius: var(--pr-radius-lg);
+    padding: 18px 24px 24px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 12%),
+      inset -1px 0 0 rgb(255 255 255 / 10%),
+      0 8px 24px rgb(0 0 0 / 30%);
+  }
+  .hero-title {
+    font-family: Figtree, Helvetica, sans-serif;
+    font-weight: 400;
+    font-size: 26px;
+    color: var(--pr-white);
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+  }
+  .hero-sub {
+    font-size: 13px;
+    color: rgb(255 255 255 / 85%);
+    margin: 0 0 22px;
+  }
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    border-top: 1px solid rgb(255 255 255 / 15%);
+    padding-top: 18px;
+  }
+  .stat {
+    padding: 0 20px;
+    border-right: 1px solid rgb(255 255 255 / 12%);
+  }
+  .stat:last-child { border-right: 0; }
+  .stat:first-child { padding-left: 0; }
+  .stat-val { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; margin-bottom: 6px; color: var(--pr-white); font-variant-numeric: tabular-nums; }
+  .stat-val.accent { color: #b7ecff; }
+  .stat-lbl {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 600; color: rgb(255 255 255 / 70%);
+  }
+
+  /* Section tile */
+  .tile {
+    background: var(--pr-surface-glass);
+    backdrop-filter: var(--pr-blur);
+    border: 1px solid var(--pr-border);
+    border-radius: var(--pr-radius-lg);
+    overflow: hidden;
+  }
+  .tile-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--pr-border);
+    gap: 16px;
+  }
+  .tile-head-l { display: flex; align-items: center; gap: 10px; }
+  .tile-title {
+    font-size: 15px; font-weight: 600; margin: 0;
+  }
+  .tile-count {
+    font-family: var(--pr-font-mono);
+    font-size: 11px;
+    background: var(--pr-glass-white-8);
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: var(--pr-text-secondary);
+    font-weight: 500;
+  }
+  .tile-head-r { display: flex; align-items: center; gap: 14px; }
+  .tile-filter {
+    display: flex; gap: 2px;
+    padding: 3px;
+    background: var(--pr-glass-white-5);
+    border: 1px solid var(--pr-border);
+    border-radius: 999px;
+  }
+  .pill {
+    padding: 5px 12px; font-size: 11px; font-weight: 500;
+    border-radius: 999px;
+    color: var(--pr-text-secondary);
+    cursor: default;
+  }
+  .pill.is-active { background: var(--pr-cyan-500); color: white; box-shadow: 0 2px 6px rgb(0 154 204 / 30%); }
+  .tile-action {
+    font-size: 12px;
+    color: var(--pr-cyan-500);
+    display: inline-flex; align-items: center; gap: 4px;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  /* 2-col dashboard grid */
+  .dashboard-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: stretch;
+  }
+
+  /* Task item */
+  .task-row {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    gap: 14px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--pr-border);
+    align-items: center;
+  }
+  .task-row:last-child { border-bottom: 0; }
+  .task-check {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--pr-text-muted);
+    background: transparent;
+  }
+  .task-check.checked {
+    background: var(--pr-cyan-500);
+    border-color: var(--pr-cyan-500);
+    display: grid; place-items: center;
+    color: white;
+    font-size: 11px;
+  }
+  .task-main { min-width: 0; }
+  .task-title {
+    font-size: 13.5px; font-weight: 500;
+    color: var(--pr-white);
+    margin: 0 0 5px;
+    line-height: 1.35;
+  }
+  .task-meta {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px;
+    color: var(--pr-text-muted);
+  }
+  .task-meta i { font-size: 11px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .tag-high { background: rgb(239 68 68 / 15%); color: var(--pr-danger); }
+  .tag-med  { background: rgb(245 158 11 / 15%); color: var(--pr-warning); }
+  .tag-low  { background: rgb(107 114 128 / 25%); color: var(--pr-gray-300); }
+  .tag-ai   { background: rgb(0 154 204 / 15%); color: var(--pr-cyan-500); }
+  .task-due {
+    font-family: var(--pr-font-mono);
+    font-size: 11px;
+    color: var(--pr-text-muted);
+  }
+  .task-due.overdue { color: var(--pr-danger); }
+
+  /* Activity item */
+  .act-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 14px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--pr-border);
+    align-items: start;
+  }
+  .act-row:last-child { border-bottom: 0; }
+  .act-icon {
+    width: 32px; height: 32px; border-radius: 999px;
+    display: grid; place-items: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .act-icon.hire { background: rgb(17 170 100 / 15%); color: var(--pr-success); }
+  .act-icon.fund { background: rgb(0 154 204 / 15%); color: var(--pr-cyan-500); }
+  .act-icon.news { background: rgb(59 130 246 / 15%); color: var(--pr-info); }
+  .act-icon.tech { background: rgb(107 114 128 / 25%); color: var(--pr-gray-300); }
+  .act-main .co {
+    font-size: 13px; font-weight: 600; color: var(--pr-white);
+    margin: 0 0 2px;
+  }
+  .act-main .desc {
+    font-size: 12px; color: var(--pr-text-secondary);
+    line-height: 1.45;
+  }
+  .act-time {
+    font-family: var(--pr-font-mono);
+    font-size: 10px;
+    color: var(--pr-text-muted);
+    white-space: nowrap;
+  }
+
+  /* Full-width section header outside tile */
+  .section-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 12px;
+  }
+  .section-banner h2 {
+    font-size: 16px; font-weight: 700; margin: 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-banner .count {
+    background: var(--pr-cyan-500);
+    color: white;
+    font-family: var(--pr-font-mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+
+  /* Lead card grid — light-on-dark surface, as shipped */
+  .lead-grid-light {
+    background: #e2eaed;
+    border-radius: var(--pr-radius-lg);
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .lead-card {
+    background: white;
+    border-radius: var(--pr-radius-md);
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+    position: relative;
+  }
+  .lead-card .lc-head {
+    display: flex; align-items: flex-start; gap: 10px; justify-content: space-between;
+  }
+  .lead-card .lc-name {
+    font-size: 14px; font-weight: 700; color: var(--pr-gray-900);
+    margin: 0; line-height: 1.3;
+  }
+  .lead-card .lc-url {
+    font-size: 11px; color: var(--pr-cyan-500);
+    text-decoration: none;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+  }
+  .lead-card .lc-name { word-break: break-word; }
+  .lead-card .lc-score {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 14px; font-weight: 700;
+    color: white;
+    font-variant-numeric: tabular-nums;
+  }
+  .lead-card .lc-meta {
+    font-size: 11px; color: var(--pr-gray-500);
+    line-height: 1.4;
+  }
+  .lead-card .lc-meta strong { color: var(--pr-gray-700); font-weight: 600; }
+  .lead-card .lc-tags {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-top: 2px;
+  }
+  .lc-tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+  .lc-tag.sig { background: rgb(17 170 100 / 15%); color: var(--pr-success); }
+  .lc-tag.pln { background: rgb(243 244 246); color: var(--pr-gray-700); }
+  .lead-card .lc-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 10px;
+    margin-top: 2px;
+    border-top: 1px solid var(--pr-gray-200);
+    font-size: 11px;
+    color: var(--pr-gray-500);
+  }
+  .lc-toggle {
+    display: inline-flex;
+    padding: 2px;
+    background: var(--pr-gray-100);
+    border-radius: 999px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .lc-toggle span {
+    width: 22px; height: 22px; min-width: 22px; border-radius: 999px;
+    display: inline-grid; place-items: center;
+    font-size: 11px;
+    color: var(--pr-gray-500);
+    font-weight: 600;
+  }
+  .lc-toggle span.yes { background: var(--pr-success); color: white; }
+  .lc-toggle span.no  { background: var(--pr-gray-300); color: white; }
+  .lc-toggle span.maybe { background: var(--pr-warning); color: white; }
+
+  /* Priority targets + warmth — placeholder widgets */
+  .widget {
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .widget-headline {
+    font-size: 12px;
+    color: var(--pr-text-muted);
+    line-height: 1.55;
+  }
+  .warmth-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pr-border);
+  }
+  .warmth-bar:last-child { border-bottom: 0; }
+  .wb-name { font-size: 12.5px; font-weight: 500; flex: 0 0 140px; color: var(--pr-white); }
+  .wb-track { flex: 1; height: 6px; background: var(--pr-glass-white-5); border-radius: 999px; overflow: hidden; }
+  .wb-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--pr-cyan-500), #11aa64); }
+  .wb-val { font-family: var(--pr-font-mono); font-size: 11px; color: var(--pr-text-muted); width: 32px; text-align: right; }
+
+  .pt-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto auto;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--pr-border);
+    align-items: center;
+  }
+  .pt-row:last-child { border-bottom: 0; }
+  .pt-rank { font-family: var(--pr-font-mono); font-size: 11px; color: var(--pr-text-muted); }
+  .pt-name { font-size: 13px; font-weight: 500; }
+  .pt-sig { font-size: 11px; color: var(--pr-text-muted); }
+  .pt-score {
+    font-family: var(--pr-font-mono);
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  /* Background summaries strip */
+  .bg-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .bg-item {
+    background: var(--pr-glass-white-5);
+    border: 1px solid var(--pr-border);
+    border-radius: var(--pr-radius-md);
+    padding: 14px 16px;
+    display: flex; gap: 10px;
+  }
+  .bg-item i { color: var(--pr-cyan-500); font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+  .bg-item .title { font-size: 12px; font-weight: 600; margin: 0 0 3px; }
+  .bg-item .sub { font-size: 11px; color: var(--pr-text-muted); line-height: 1.4; }
+
+  /* ── Intro + summary blocks ──────────────────────────────────────── */
+  .intro-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+  .intro-card {
+    padding: 24px;
+    background: var(--pr-surface-glass);
+    border: 1px solid var(--pr-border);
+    border-radius: var(--pr-radius-lg);
+  }
+  .intro-card h3 {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--pr-text-muted); margin: 0 0 14px;
+  }
+  .intro-card ul {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 10px;
+    font-size: 13px; color: var(--pr-text-secondary); line-height: 1.55;
+  }
+  .intro-card li {
+    display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start;
+  }
+  .intro-card li i { margin-top: 3px; font-size: 13px; }
+  .num-bullet {
+    width: 20px; height: 20px;
+    border-radius: 999px;
+    background: rgb(0 154 204 / 15%);
+    color: var(--pr-cyan-500);
+    font-family: var(--pr-font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    margin-top: 2px;
+  }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .badge-tag {
+    font-size: 11px; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--pr-border);
+    color: var(--pr-text-secondary);
+  }
+
+  /* Verdict summary */
+  .verdict-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 40px;
+  }
+  .verdict-card {
+    padding: 24px;
+    background: var(--pr-surface-glass);
+    border: 1px solid var(--pr-border);
+    border-radius: var(--pr-radius-lg);
+    position: relative;
+  }
+  .verdict-card .vh {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--pr-border);
+  }
+  .vh-pill {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .vh-pill.good { background: rgb(17 170 100 / 18%); color: var(--pr-success); }
+  .vh-pill.warn { background: rgb(245 158 11 / 18%); color: var(--pr-warning); }
+  .vh-pill.bad  { background: rgb(239 68 68 / 18%);  color: var(--pr-danger); }
+  .verdict-card ul {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .verdict-card li {
+    font-size: 13px; color: var(--pr-text-secondary);
+    line-height: 1.55;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .verdict-card li::before {
+    content: ""; width: 6px; height: 6px;
+    border-radius: 999px;
+    margin-top: 7px;
+    flex-shrink: 0;
+  }
+  .verdict-card.good li::before { background: var(--pr-success); }
+  .verdict-card.warn li::before { background: var(--pr-warning); }
+  .verdict-card.bad  li::before { background: var(--pr-danger); }
+  .verdict-card li strong { color: var(--pr-white); font-weight: 600; }
+
+  /* Recommendations list */
+  .recs {
+    margin-top: 40px;
+    padding: 32px;
+    background: var(--pr-surface-glass);
+    border: 1px solid var(--pr-border);
+    border-radius: var(--pr-radius-lg);
+  }
+  .recs-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--pr-border);
+  }
+  .recs h2 { font-size: 20px; font-weight: 700; margin: 0; }
+  .recs ol {
+    list-style: none; padding: 0; margin: 0;
+    counter-reset: rec;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .recs li {
+    counter-increment: rec;
+    display: grid;
+    grid-template-columns: 44px 120px 1fr;
+    gap: 20px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--pr-border);
+    align-items: start;
+  }
+  .recs li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .recs li::before {
+    content: counter(rec, decimal-leading-zero);
+    font-family: var(--pr-font-mono);
+    font-size: 11px;
+    color: var(--pr-cyan-500);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding-top: 2px;
+  }
+  .rec-effort {
+    font-family: var(--pr-font-mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding-top: 2px;
+  }
+  .rec-effort::before {
+    content: ""; width: 6px; height: 6px; border-radius: 999px;
+  }
+  .rec-effort.s { color: var(--pr-success); }
+  .rec-effort.s::before { background: var(--pr-success); }
+  .rec-effort.m { color: var(--pr-warning); }
+  .rec-effort.m::before { background: var(--pr-warning); }
+  .rec-effort.l { color: var(--pr-danger); }
+  .rec-effort.l::before { background: var(--pr-danger); }
+  .rec-body { font-size: 14px; line-height: 1.6; color: var(--pr-text-secondary); }
+  .rec-body strong { color: var(--pr-white); font-weight: 600; display: block; margin-bottom: 4px; font-size: 14px; }
+
+  .ds-foot {
+    margin-top: 96px;
+    padding-top: 24px;
+    border-top: 1px solid var(--pr-border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--pr-text-muted);
+    font-family: var(--pr-font-mono);
+  }
+</style>
+</head>
+<body data-screen-label="04 Dashboard review">
+
+<nav class="ds-topnav">
+  <a href="design-system.html" class="ds-topnav-brand">
+    <span class="ds-topnav-mark">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="2" fill="#fff"/>
+        <circle cx="8" cy="8" r="5" stroke="#fff" stroke-width="1" opacity="0.5"/>
+        <path d="M8 1v14M1 8h14" stroke="#fff" stroke-width="0.75" opacity="0.5"/>
+      </svg>
+    </span>
+    ProspectsRadar — Design
+  </a>
+  <div class="ds-topnav-links">
+    <a class="ds-topnav-link" href="design-system.html">Foundations</a>
+    <a class="ds-topnav-link" href="iconography.html">Iconography</a>
+    <a class="ds-topnav-link" href="brand.html">Brand</a>
+    <a class="ds-topnav-link is-active" href="dashboard-review.html">Dashboard review</a>
+  </div>
+  <span class="ds-topnav-meta">Home · /dashboard</span>
+</nav>
+
+<main class="review-shell">
+
+  <!-- ── INTRO ─────────────────────────────────────────────────── -->
+  <section class="ds-hero" style="margin-bottom: 24px;">
+    <div class="ds-eyebrow">Design review · Home dashboard</div>
+    <h1 class="ds-h1">The first 10 seconds<br/>after Lena logs in.</h1>
+    <p class="ds-lede">
+      A walk-through of the production home dashboard — what a seller sees on
+      arrival — with annotated notes against the Glass Morph system. This is a
+      faithful reconstruction of <code class="ds-mono">HomeDashboard</code>, not
+      a redesign; the goal is to surface strengths, inconsistencies, and a
+      short list of concrete improvements.
+    </p>
+  </section>
+
+  <div class="intro-grid">
+    <div class="intro-card">
+      <h3>What the dashboard is trying to do</h3>
+      <ul>
+        <li><span class="num-bullet">1</span><span>Reorient a returning seller in under 10 seconds: <strong style="color: var(--pr-white);">what changed, what needs me, what's hot.</strong></span></li>
+        <li><span class="num-bullet">2</span><span>Surface the top <strong style="color: var(--pr-white);">tasks and activities</strong> side-by-side so action and context live together.</span></li>
+        <li><span class="num-bullet">3</span><span>Highlight <strong style="color: var(--pr-white);">hot prospects ready for outreach</strong> and <strong style="color: var(--pr-white);">newly discovered companies</strong> — the two things that drive the next call.</span></li>
+      </ul>
+    </div>
+    <div class="intro-card">
+      <h3>Components in play</h3>
+      <div class="tag-row">
+        <span class="badge-tag">HomeHeader</span>
+        <span class="badge-tag">StatsRow</span>
+        <span class="badge-tag">TasksSection</span>
+        <span class="badge-tag">ActivitySection</span>
+        <span class="badge-tag">SectionTile</span>
+        <span class="badge-tag">LeadCard</span>
+        <span class="badge-tag">PriorityTargets</span>
+        <span class="badge-tag">WarmthRanking</span>
+        <span class="badge-tag">BackgroundSummaries</span>
+        <span class="badge-tag">Sidebar</span>
+      </div>
+      <p style="font-size:12px; color:var(--pr-text-muted); margin:16px 0 0; line-height:1.55;">
+        Nine organisms composed by <code class="ds-mono">HomeDashboard</code>,
+        fed from <code class="ds-mono">HomeService</code>. All styles flow from
+        the production Glass Morph CSS.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── ANNOTATED RECONSTRUCTION ──────────────────────────────── -->
+  <div class="review-grid">
+    <div class="review-mock">
+
+      <div class="app-chrome">
+        <div class="chrome-bar">
+          <span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-dot"></span>
+          <span class="chrome-url">app.prospectsradar.io/dashboard</span>
+        </div>
+
+        <div class="app-shell">
+          <!-- Sidebar -->
+          <aside class="side">
+            <div class="brand">
+              <span class="brand-mark">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" fill="#fff"/><circle cx="8" cy="8" r="5" stroke="#fff" stroke-width="1" opacity="0.6"/></svg>
+              </span>
+              <span class="brand-name">ProspectsRadar</span>
+            </div>
+            <div class="side-section-label">Core</div>
+            <div class="side-item is-active"><i class="bi bi-speedometer2"></i>Dashboard</div>
+            <div class="side-item"><i class="bi bi-building"></i>Companies</div>
+            <div class="side-item"><i class="bi bi-people-fill"></i>Prospects</div>
+            <div class="side-item"><i class="bi bi-broadcast-pin"></i>Signals</div>
+            <div class="side-item"><i class="bi bi-bullseye"></i>Targets</div>
+            <div class="side-section-label">Work</div>
+            <div class="side-item"><i class="bi bi-check2-square"></i>Tasks</div>
+            <div class="side-item"><i class="bi bi-activity"></i>Activities</div>
+            <div class="side-item"><i class="bi bi-envelope-paper"></i>Outreach</div>
+            <div class="side-section-label">Intelligence</div>
+            <div class="side-item"><i class="bi bi-graph-up"></i>Analytics</div>
+            <div class="side-item"><i class="bi bi-bar-chart-line"></i>Value</div>
+            <div class="side-item" style="margin-top: 20px;"><i class="bi bi-gear-fill"></i>Settings</div>
+          </aside>
+
+          <!-- Topbar -->
+          <div class="topbar">
+            <div class="search"><i class="bi bi-search"></i><span>Search companies, people, signals…</span></div>
+            <div class="topbar-actions">
+              <div class="topbar-icon has-dot"><i class="bi bi-bell-fill"></i></div>
+              <div class="topbar-icon"><i class="bi bi-question-circle"></i></div>
+              <div class="topbar-avatar">LV</div>
+            </div>
+          </div>
+
+          <!-- Dashboard -->
+          <div class="dash-wrap">
+            <div class="dash">
+
+              <!-- HERO -->
+              <div class="hero" style="position: relative;">
+                <span class="anno" style="top:-10px; right:-10px;">1</span>
+                <h1 class="hero-title">Good morning, Lena</h1>
+                <p class="hero-sub">Twelve prospects moved into your watch range overnight — three are hiring VPs, four raised funding. Start with the ones near the top.</p>
+                <div class="stats-row" style="position: relative;">
+                  <span class="anno tone-warn" style="top:-10px; left:calc(80% - 13px);">2</span>
+                  <div class="stat"><div class="stat-val accent">12</div><div class="stat-lbl">Open tasks</div></div>
+                  <div class="stat"><div class="stat-val">38</div><div class="stat-lbl">New prospects</div></div>
+                  <div class="stat"><div class="stat-val accent">7</div><div class="stat-lbl">Ready to reach out</div></div>
+                  <div class="stat"><div class="stat-val">184</div><div class="stat-lbl">Signals · 7 days</div></div>
+                  <div class="stat"><div class="stat-val">72</div><div class="stat-lbl">Avg score</div></div>
+                </div>
+              </div>
+
+              <!-- TASKS + ACTIVITY GRID -->
+              <div class="dashboard-grid-2" style="position: relative;">
+                <span class="anno tone-good" style="top:-10px; left:calc(50% - 13px); z-index: 22;">3</span>
+
+                <!-- Tasks -->
+                <div class="tile" style="position: relative;">
+                  <span class="anno" style="top:10px; right:-10px;">4</span>
+                  <div class="tile-head">
+                    <div class="tile-head-l">
+                      <h3 class="tile-title">Assigned to you</h3>
+                      <span class="tile-count">12</span>
+                    </div>
+                    <div class="tile-head-r">
+                      <div class="tile-filter">
+                        <span class="pill is-active">All</span>
+                        <span class="pill">Mine</span>
+                        <span class="pill">Account</span>
+                      </div>
+                      <a class="tile-action">View all <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="task-row">
+                      <span class="task-check"></span>
+                      <div class="task-main">
+                        <p class="task-title">Send discovery email to Northwind Logistics</p>
+                        <div class="task-meta">
+                          <span class="tag tag-high"><i class="bi bi-arrow-up"></i>High</span>
+                          <span class="tag tag-ai"><i class="bi bi-stars"></i>AI suggested</span>
+                          <span><i class="bi bi-envelope"></i> Email</span>
+                        </div>
+                      </div>
+                      <span class="task-due overdue">Today · 14:00</span>
+                    </div>
+                    <div class="task-row">
+                      <span class="task-check"></span>
+                      <div class="task-main">
+                        <p class="task-title">Follow up on Halcyon Industries funding signal</p>
+                        <div class="task-meta">
+                          <span class="tag tag-med"><i class="bi bi-dash"></i>Medium</span>
+                          <span><i class="bi bi-telephone"></i> Call</span>
+                          <span>· Last activity 2d</span>
+                        </div>
+                      </div>
+                      <span class="task-due">Tomorrow</span>
+                    </div>
+                    <div class="task-row">
+                      <span class="task-check checked"><i class="bi bi-check"></i></span>
+                      <div class="task-main">
+                        <p class="task-title" style="color: var(--pr-text-muted); text-decoration: line-through;">Review Meridian Health scoring profile</p>
+                        <div class="task-meta">
+                          <span class="tag tag-low">Low</span>
+                          <span>Completed · 9:42</span>
+                        </div>
+                      </div>
+                      <span class="task-due" style="color: var(--pr-success);"><i class="bi bi-check2"></i> Done</span>
+                    </div>
+                    <div class="task-row">
+                      <span class="task-check"></span>
+                      <div class="task-main">
+                        <p class="task-title">Add Porter Dynamics to watchlist</p>
+                        <div class="task-meta">
+                          <span class="tag tag-med">Medium</span>
+                          <span class="tag tag-ai"><i class="bi bi-stars"></i>AI suggested</span>
+                        </div>
+                      </div>
+                      <span class="task-due">Thu · 16:00</span>
+                    </div>
+                    <div class="task-row">
+                      <span class="task-check"></span>
+                      <div class="task-main">
+                        <p class="task-title">Prepare pitch kit for Kite & Bell retail expansion</p>
+                        <div class="task-meta">
+                          <span class="tag tag-high">High</span>
+                          <span><i class="bi bi-file-earmark-text"></i> Prep</span>
+                        </div>
+                      </div>
+                      <span class="task-due">Fri</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Activities -->
+                <div class="tile" style="position: relative;">
+                  <span class="anno tone-warn" style="top:10px; left:-10px;">5</span>
+                  <div class="tile-head">
+                    <div class="tile-head-l">
+                      <h3 class="tile-title">Recent activity</h3>
+                      <span class="tile-count">184</span>
+                    </div>
+                    <div class="tile-head-r">
+                      <span style="font-size:11px; color: var(--pr-text-muted); display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="bi bi-funnel"></i> 4 categories
+                      </span>
+                      <a class="tile-action">View all <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="act-row">
+                      <span class="act-icon hire"><i class="bi bi-person-plus-fill"></i></span>
+                      <div class="act-main">
+                        <p class="co">Northwind Logistics</p>
+                        <div class="desc">Posted <strong>VP Sales</strong> role · mentions "CRM transformation"</div>
+                      </div>
+                      <span class="act-time">4h</span>
+                    </div>
+                    <div class="act-row">
+                      <span class="act-icon fund"><i class="bi bi-currency-euro"></i></span>
+                      <div class="act-main">
+                        <p class="co">Halcyon Industries</p>
+                        <div class="desc">Closed €24M Series B from Northzone and Endeit Capital</div>
+                      </div>
+                      <span class="act-time">9h</span>
+                    </div>
+                    <div class="act-row">
+                      <span class="act-icon news"><i class="bi bi-newspaper"></i></span>
+                      <div class="act-main">
+                        <p class="co">Meridian Health</p>
+                        <div class="desc">Named new Chief Commercial Officer — former Philips exec</div>
+                      </div>
+                      <span class="act-time">1d</span>
+                    </div>
+                    <div class="act-row">
+                      <span class="act-icon tech"><i class="bi bi-cpu"></i></span>
+                      <div class="act-main">
+                        <p class="co">Kite & Bell Co.</p>
+                        <div class="desc">Installed Salesforce Commerce Cloud on retail domain</div>
+                      </div>
+                      <span class="act-time">1d</span>
+                    </div>
+                    <div class="act-row">
+                      <span class="act-icon hire"><i class="bi bi-geo-alt-fill"></i></span>
+                      <div class="act-main">
+                        <p class="co">Porter Dynamics</p>
+                        <div class="desc">Expanded to Benelux — new office in Eindhoven announced</div>
+                      </div>
+                      <span class="act-time">2d</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- READY TO REACH OUT -->
+              <div style="position: relative;">
+                <span class="anno" style="top: -4px; left: -13px;">6</span>
+                <div class="section-banner">
+                  <h2><i class="bi bi-fire" style="color: var(--pr-warning);"></i>Ready to reach out <span class="count">7 hot</span></h2>
+                  <a class="tile-action">View all prospects <i class="bi bi-arrow-right"></i></a>
+                </div>
+                <div class="lead-grid-light" style="position: relative;">
+                  <span class="anno tone-warn" style="top:-10px; right:20px;">7</span>
+
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div>
+                        <p class="lc-name">Northwind Logistics</p>
+                        <a class="lc-url">northwind.nl</a>
+                      </div>
+                      <span class="lc-score" style="background: #11aa64;">92</span>
+                    </div>
+                    <div class="lc-meta"><strong>Amsterdam</strong> · Logistics · €50M ARR</div>
+                    <div class="lc-tags">
+                      <span class="lc-tag sig">Hiring VP Sales</span>
+                      <span class="lc-tag pln">Freight Cloud</span>
+                    </div>
+                    <div class="lc-foot">
+                      <span>10 stakeholders</span>
+                      <span class="lc-toggle"><span class="yes">✓</span><span>?</span><span>×</span></span>
+                    </div>
+                  </div>
+
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div>
+                        <p class="lc-name">Halcyon Industries</p>
+                        <a class="lc-url">halcyon.com</a>
+                      </div>
+                      <span class="lc-score" style="background: #009acc;">78</span>
+                    </div>
+                    <div class="lc-meta"><strong>Eindhoven</strong> · Manufacturing · €120M ARR</div>
+                    <div class="lc-tags">
+                      <span class="lc-tag sig">Raised Series B</span>
+                      <span class="lc-tag pln">VITRO BIM</span>
+                    </div>
+                    <div class="lc-foot">
+                      <span>14 stakeholders</span>
+                      <span class="lc-toggle"><span>✓</span><span class="maybe">?</span><span>×</span></span>
+                    </div>
+                  </div>
+
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div>
+                        <p class="lc-name">Meridian Health</p>
+                        <a class="lc-url">meridian-hc.com</a>
+                      </div>
+                      <span class="lc-score" style="background: #11aa64;">94</span>
+                    </div>
+                    <div class="lc-meta"><strong>Utrecht</strong> · Healthcare · 2,400 emp.</div>
+                    <div class="lc-tags">
+                      <span class="lc-tag sig">New CCO</span>
+                      <span class="lc-tag pln">Freight Cloud</span>
+                    </div>
+                    <div class="lc-foot">
+                      <span>22 stakeholders</span>
+                      <span class="lc-toggle"><span class="yes">✓</span><span>?</span><span>×</span></span>
+                    </div>
+                  </div>
+
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div>
+                        <p class="lc-name">Boele & van Eesteren</p>
+                        <a class="lc-url">boele.nl</a>
+                      </div>
+                      <span class="lc-score" style="background: #009acc;">71</span>
+                    </div>
+                    <div class="lc-meta"><strong>Rijswijk</strong> · Construction · 650 emp.</div>
+                    <div class="lc-tags">
+                      <span class="lc-tag sig">Tender win</span>
+                      <span class="lc-tag pln">VITRO BIM</span>
+                    </div>
+                    <div class="lc-foot">
+                      <span>8 stakeholders</span>
+                      <span class="lc-toggle"><span>✓</span><span>?</span><span>×</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- NEW PROSPECTS -->
+              <div style="position: relative;">
+                <span class="anno tone-warn" style="top: -4px; left: -13px;">8</span>
+                <div class="section-banner">
+                  <h2><i class="bi bi-stars" style="color: var(--pr-cyan-500);"></i>New prospects <span class="count" style="background: var(--pr-success);">38 new</span></h2>
+                  <a class="tile-action">View all prospects <i class="bi bi-arrow-right"></i></a>
+                </div>
+                <div class="lead-grid-light">
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div><p class="lc-name">Vaultline</p><a class="lc-url">vaultline.io</a></div>
+                      <span class="lc-score" style="background: #5a7a84;">52</span>
+                    </div>
+                    <div class="lc-meta"><strong>Amsterdam</strong> · Fintech · 180 emp.</div>
+                    <div class="lc-tags"><span class="lc-tag pln">Freight Cloud</span></div>
+                    <div class="lc-foot"><span>5 stakeholders</span><span class="lc-toggle"><span>✓</span><span>?</span><span>×</span></span></div>
+                  </div>
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div><p class="lc-name">Porter Dynamics</p><a class="lc-url">porterdyn.com</a></div>
+                      <span class="lc-score" style="background: #bd8a4e;">34</span>
+                    </div>
+                    <div class="lc-meta"><strong>Eindhoven</strong> · Manufacturing · 3,100 emp.</div>
+                    <div class="lc-tags"><span class="lc-tag pln">VITRO BIM</span></div>
+                    <div class="lc-foot"><span>12 stakeholders</span><span class="lc-toggle"><span>✓</span><span>?</span><span>×</span></span></div>
+                  </div>
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div><p class="lc-name">Kite & Bell Co.</p><a class="lc-url">kiteandbell.co.uk</a></div>
+                      <span class="lc-score" style="background: #009acc;">68</span>
+                    </div>
+                    <div class="lc-meta"><strong>London</strong> · Retail · 420 emp.</div>
+                    <div class="lc-tags"><span class="lc-tag pln">Freight Cloud</span></div>
+                    <div class="lc-foot"><span>9 stakeholders</span><span class="lc-toggle"><span>✓</span><span>?</span><span>×</span></span></div>
+                  </div>
+                  <div class="lead-card">
+                    <div class="lc-head">
+                      <div><p class="lc-name">Atelier Nord</p><a class="lc-url">atelier-nord.se</a></div>
+                      <span class="lc-score" style="background: #5a7a84;">48</span>
+                    </div>
+                    <div class="lc-meta"><strong>Stockholm</strong> · Design · 95 emp.</div>
+                    <div class="lc-tags"><span class="lc-tag pln">VITRO BIM</span></div>
+                    <div class="lc-foot"><span>3 stakeholders</span><span class="lc-toggle"><span>✓</span><span>?</span><span>×</span></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PRIORITY + WARMTH -->
+              <div class="dashboard-grid-2" style="position: relative;">
+                <span class="anno" style="top:-10px; left: -13px;">9</span>
+
+                <div class="tile">
+                  <div class="tile-head">
+                    <div class="tile-head-l">
+                      <h3 class="tile-title">Priority targets</h3>
+                    </div>
+                    <div class="tile-head-r">
+                      <span style="font-size: 11px; color: var(--pr-text-muted);">Weighted by score × signal recency</span>
+                    </div>
+                  </div>
+                  <div class="widget">
+                    <div class="pt-row">
+                      <span class="pt-rank">01</span>
+                      <div><div class="pt-name">Meridian Health</div><div class="pt-sig">New CCO · 1d</div></div>
+                      <span class="pt-score" style="background: rgb(17 170 100 / 18%); color: var(--pr-success);">94</span>
+                      <i class="bi bi-arrow-up-right" style="color: var(--pr-success);"></i>
+                    </div>
+                    <div class="pt-row">
+                      <span class="pt-rank">02</span>
+                      <div><div class="pt-name">Northwind Logistics</div><div class="pt-sig">Hiring VP Sales · 4h</div></div>
+                      <span class="pt-score" style="background: rgb(17 170 100 / 18%); color: var(--pr-success);">92</span>
+                      <i class="bi bi-arrow-up-right" style="color: var(--pr-success);"></i>
+                    </div>
+                    <div class="pt-row">
+                      <span class="pt-rank">03</span>
+                      <div><div class="pt-name">Halcyon Industries</div><div class="pt-sig">Series B · 9h</div></div>
+                      <span class="pt-score" style="background: rgb(0 154 204 / 18%); color: var(--pr-cyan-500);">78</span>
+                      <i class="bi bi-arrow-right" style="color: var(--pr-cyan-500);"></i>
+                    </div>
+                    <div class="pt-row">
+                      <span class="pt-rank">04</span>
+                      <div><div class="pt-name">Kite & Bell Co.</div><div class="pt-sig">Tech install · 1d</div></div>
+                      <span class="pt-score" style="background: rgb(0 154 204 / 18%); color: var(--pr-cyan-500);">68</span>
+                      <i class="bi bi-arrow-right" style="color: var(--pr-cyan-500);"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tile">
+                  <div class="tile-head">
+                    <div class="tile-head-l">
+                      <h3 class="tile-title">Warmth ranking</h3>
+                    </div>
+                    <div class="tile-head-r">
+                      <span style="font-size: 11px; color: var(--pr-text-muted);">Engagement score, last 30 days</span>
+                    </div>
+                  </div>
+                  <div class="widget">
+                    <div class="warmth-bar"><span class="wb-name">Northwind Logistics</span><div class="wb-track"><div class="wb-fill" style="width: 88%;"></div></div><span class="wb-val">88</span></div>
+                    <div class="warmth-bar"><span class="wb-name">Meridian Health</span><div class="wb-track"><div class="wb-fill" style="width: 76%;"></div></div><span class="wb-val">76</span></div>
+                    <div class="warmth-bar"><span class="wb-name">Boele & van Eesteren</span><div class="wb-track"><div class="wb-fill" style="width: 58%;"></div></div><span class="wb-val">58</span></div>
+                    <div class="warmth-bar"><span class="wb-name">Halcyon Industries</span><div class="wb-track"><div class="wb-fill" style="width: 42%;"></div></div><span class="wb-val">42</span></div>
+                    <div class="warmth-bar"><span class="wb-name">Kite & Bell Co.</span><div class="wb-track"><div class="wb-fill" style="width: 31%;"></div></div><span class="wb-val">31</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BACKGROUND SUMMARIES -->
+              <div style="position: relative;">
+                <span class="anno tone-good" style="top:-4px; left: -13px;">10</span>
+                <div class="section-banner">
+                  <h2><i class="bi bi-lightbulb" style="color: var(--pr-warning);"></i>Background signals</h2>
+                  <span style="font-size: 11px; color: var(--pr-text-muted);">Updated 12 min ago · auto-summarized</span>
+                </div>
+                <div class="bg-strip">
+                  <div class="bg-item">
+                    <i class="bi bi-globe2"></i>
+                    <div>
+                      <p class="title">Benelux logistics hiring is up 34%</p>
+                      <p class="sub">12 companies in your watchlist posted VP/Director roles this month.</p>
+                    </div>
+                  </div>
+                  <div class="bg-item">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <div>
+                      <p class="title">Construction ICP scores trending +8</p>
+                      <p class="sub">VITRO BIM's target fit rose across 18 new accounts in DACH.</p>
+                    </div>
+                  </div>
+                  <div class="bg-item">
+                    <i class="bi bi-exclamation-triangle-fill" style="color: var(--pr-warning);"></i>
+                    <div>
+                      <p class="title">3 signals waiting for review</p>
+                      <p class="sub">Low-confidence events from Freshsales sync — quick approve or dismiss.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── ANNOTATION NOTES ─────────────────────────────────────── -->
+    <div class="notes-head">
+      <span>Annotations · 10 notes</span>
+      <span>Numbered against the mock above</span>
+    </div>
+    <aside class="review-notes">
+      <div class="note tone-good">
+        <span class="n">1</span>
+        <div class="body">
+          <strong>Hero tone is on-brand</strong>
+          Voice aligns with the brand guide: "Good morning, Lena" + a specific
+          count of what changed overnight. No cheerleader copy.
+          <div class="verdict">Keep · strength</div>
+        </div>
+      </div>
+
+      <div class="note tone-warn">
+        <span class="n">2</span>
+        <div class="body">
+          <strong>Stats row has five peers, no hierarchy</strong>
+          Five equally-weighted numbers. <em>Open tasks</em> and <em>Ready to
+          reach out</em> are actionable; <em>Avg score</em> and
+          <em>Signals · 7 days</em> are not. Consider lifting the two actionable
+          stats to primary treatment.
+          <div class="verdict">Fix · medium</div>
+        </div>
+      </div>
+
+      <div class="note tone-good">
+        <span class="n">3</span>
+        <div class="body">
+          <strong>Tasks / Activities pairing works</strong>
+          Action on the left, context on the right — a strong pattern for a
+          sales dashboard. <em>align-items: stretch</em> keeps heights matched.
+          <div class="verdict">Keep · strength</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="n">4</span>
+        <div class="body">
+          <strong>Task filter pills need a count</strong>
+          <em>All / Mine / Account</em> is the right axis, but filtering without
+          seeing per-filter counts is guesswork. Add subscripts:
+          <em>Mine · 4</em>.
+          <div class="verdict">Small · quick win</div>
+        </div>
+      </div>
+
+      <div class="note tone-warn">
+        <span class="n">5</span>
+        <div class="body">
+          <strong>Activities filter is hidden behind a glyph</strong>
+          "4 categories" reads like a label, not a control. It's the only
+          significant filter surface and it's the weakest affordance on the
+          page. Promote to the same pill-group pattern as Tasks.
+          <div class="verdict">Fix · medium</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="n">6</span>
+        <div class="body">
+          <strong>Section banner lacks a verb</strong>
+          "Ready to reach out" is excellent copy — but the CTA next to it
+          ("View all prospects") ducks the moment. Try <em>Start outreach →</em>
+          for the hot list specifically.
+          <div class="verdict">Small · copy</div>
+        </div>
+      </div>
+
+      <div class="note tone-warn">
+        <span class="n">7</span>
+        <div class="body">
+          <strong>Light-on-dark surface is a break from the system</strong>
+          The lead-grid's <em>#e2eaed</em> background breaks the glass rhythm
+          that every other tile maintains. If the intention is "this is
+          scannable data, not interface," commit harder — but right now it
+          looks like two designers shipped two different dashboards.
+          <div class="verdict">Decide · design system</div>
+        </div>
+      </div>
+
+      <div class="note tone-warn">
+        <span class="n">8</span>
+        <div class="body">
+          <strong>Two consecutive light grids is a lot</strong>
+          Ready-to-reach-out and New prospects use the <em>same</em> light card
+          grid, back-to-back. On a dark dashboard, that's two big white blocks
+          in a row. Alternate, or differentiate (e.g. a denser row layout for
+          "new prospects").
+          <div class="verdict">Fix · medium</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="n">9</span>
+        <div class="body">
+          <strong>Widgets live below the fold of busy work</strong>
+          Priority Targets and Warmth Ranking are arguably the most valuable
+          intelligence on the dashboard but sit fourth from the top. Consider
+          exposing Priority Targets above the Tasks/Activities grid for power
+          users, behind a preference.
+          <div class="verdict">Explore · layout</div>
+        </div>
+      </div>
+
+      <div class="note tone-good">
+        <span class="n">10</span>
+        <div class="body">
+          <strong>Background signals closes the page well</strong>
+          Three zoomed-out summaries after the tactical work — a natural
+          "anything else I should know?" coda. Good voice ("auto-summarized"
+          sets correct expectations).
+          <div class="verdict">Keep · strength</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ── VERDICT SUMMARY ─────────────────────────────────────────── -->
+  <div class="verdict-grid">
+    <div class="verdict-card good">
+      <div class="vh"><span class="vh-pill good">Strengths</span></div>
+      <ul>
+        <li><strong>Voice</strong>Hero + section copy follows the brand guide. Specific counts, active verbs, no jargon.</li>
+        <li><strong>Tasks ↔ Activities</strong>Pairing action with context is the right spine for a sales dashboard.</li>
+        <li><strong>Glass Morph executed well</strong>Hero gradient, glass tiles, and section tiles read as one system.</li>
+        <li><strong>Score ramp</strong>Applied consistently from stat cards to lead cards to priority list.</li>
+      </ul>
+    </div>
+    <div class="verdict-card warn">
+      <div class="vh"><span class="vh-pill warn">Tensions</span></div>
+      <ul>
+        <li><strong>Flat hierarchy</strong>Stats row, tasks, activities, hot leads, new leads — all equally loud. Nothing says "start here."</li>
+        <li><strong>Light-on-dark inversion</strong>Lead-grid's light surface breaks the system twice in a row. Either commit to a pattern or retreat.</li>
+        <li><strong>Filter affordances are uneven</strong>Tasks use pill filters; Activities use a quiet text trigger. Same job, different UI.</li>
+        <li><strong>Vertical length</strong>Nine stacked sections. On a 1080 screen, most users never see Priority Targets or Warmth Ranking.</li>
+      </ul>
+    </div>
+    <div class="verdict-card bad">
+      <div class="vh"><span class="vh-pill bad">Gaps</span></div>
+      <ul>
+        <li><strong>No "today vs. earlier"</strong>Everything is presented as equally fresh. The dashboard doesn't distinguish overnight signals from week-old ones.</li>
+        <li><strong>No empty/loading states here</strong>Empty states exist as components but the composition assumes populated data. Worth a dedicated review pass.</li>
+        <li><strong>No dismiss / snooze on activities</strong>184 activities with no way to acknowledge and move past. Rows feel read-only.</li>
+        <li><strong>No personalization</strong>Same layout for everyone — no reorder, no section show/hide, no "pin to top."</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── RECOMMENDATIONS ───────────────────────────────────────── -->
+  <div class="recs">
+    <div class="recs-head">
+      <h2>Recommendations</h2>
+      <span class="ds-section-meta">Ranked by impact · estimated effort</span>
+    </div>
+    <ol>
+      <li>
+        <span class="rec-effort s">Small</span>
+        <div class="rec-body">
+          <strong>Promote the two actionable stats</strong>
+          Make <em>Open tasks</em> and <em>Ready to reach out</em> visually
+          primary in the hero stats row — larger value, tinted background, a
+          live "start" link. Demote avg score and signal count to a secondary
+          micro-row underneath.
+        </div>
+      </li>
+      <li>
+        <span class="rec-effort s">Small</span>
+        <div class="rec-body">
+          <strong>Unify filter affordances</strong>
+          Use the same pill-group pattern for task filters and activity
+          category filters. Include per-filter counts in both. It's the same
+          ergonomics, it should look the same.
+        </div>
+      </li>
+      <li>
+        <span class="rec-effort m">Medium</span>
+        <div class="rec-body">
+          <strong>Pick a lane on the lead grid surface</strong>
+          Three options, in order of preference: (a) return lead cards to the
+          dark glass surface for system consistency; (b) reserve the light
+          surface for <em>New prospects only</em> as a visual signal ("cold,
+          inbound"), and keep <em>Ready to reach out</em> on dark to match its
+          urgency; (c) commit to light for all tabular prospect data and restyle
+          the rest of the system around that rule.
+        </div>
+      </li>
+      <li>
+        <span class="rec-effort m">Medium</span>
+        <div class="rec-body">
+          <strong>Add a "since last login" header band</strong>
+          A thin 32px strip above the hero: <em>Since Monday 14:02: 12 new
+          signals · 4 hot leads · 2 tasks became overdue.</em> This is the
+          single most useful first glance for a returning user and costs
+          nothing to compute.
+        </div>
+      </li>
+      <li>
+        <span class="rec-effort m">Medium</span>
+        <div class="rec-body">
+          <strong>Let users dismiss or snooze an activity row</strong>
+          Add a hover-revealed <em>× Dismiss</em> and <em>⏰ Snooze 24h</em> on
+          each activity row. Without this, the list is noise-generating, not
+          noise-reducing.
+        </div>
+      </li>
+      <li>
+        <span class="rec-effort l">Large</span>
+        <div class="rec-body">
+          <strong>Introduce a "Focus mode" layout preference</strong>
+          Add an account setting that collapses the dashboard to just
+          <em>Priority Targets + Tasks</em>. Power users who already trust the
+          scoring want to skip past the briefing and go straight to work.
+          Preserve the current full layout as the default.
+        </div>
+      </li>
+      <li>
+        <span class="rec-effort l">Large</span>
+        <div class="rec-body">
+          <strong>Review the empty and loading compositions</strong>
+          A separate walk-through with real-world variations — new account (no
+          data), long-absent user (stale data), Freshsales sync in progress
+          (partial data). The current reconstruction assumes an ideal
+          populated state; the corner cases deserve the same scrutiny.
+        </div>
+      </li>
+    </ol>
+  </div>
+
+  <div class="ds-foot">
+    <span>ProspectsRadar · Dashboard review</span>
+    <span>Based on HomeDashboard organism · v1.0</span>
+  </div>
+
+</main>
+
+</body>
+</html>

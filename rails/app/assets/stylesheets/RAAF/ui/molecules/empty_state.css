@@ -1,0 +1,30 @@
+/* ============================================================================
+   Molecule — EmptyState
+   ========================================================================= */
+
+.raaf-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-12) var(--raaf-space-6);
+  text-align: center;
+}
+
+.raaf-empty-state-title {
+  margin: 0;
+  font-size: var(--raaf-text-h6);
+  font-weight: 600;
+  color: var(--raaf-text-primary);
+}
+
+.raaf-empty-state-text {
+  max-width: 48ch;
+  margin: 0;
+  font-size: var(--raaf-text-body);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-empty-state-actions {
+  margin-top: var(--raaf-space-2);
+}

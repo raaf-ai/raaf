@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/tokens.css">
+<script src="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</helmet>
+<dc-import name="Shell" active="{{ screen }}" title="{{ title }}" crumb="{{ crumb }}" hint-size="100%,100%">
+
+  <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:20px">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(212px,1fr)); gap:14px">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+          <div style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; padding:18px 18px 16px; display:flex; flex-direction:column; gap:10px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ k.label }}</span>
+              <i class="bi {{ k.icon }}" style="font-size:13px; color:{{ k.iconColor }}"></i>
+            </div>
+            <div style="display:flex; align-items:baseline; gap:8px">
+              <span style="font-size:30px; font-weight:800; letter-spacing:-0.02em; font-variant-numeric:tabular-nums">{{ k.value }}</span>
+              <span style="font-size:12px; font-weight:600; color:{{ k.deltaColor }}; font-family:var(--pr-font-mono)">{{ k.delta }}</span>
+            </div>
+            <div style="font-size:12px; color:var(--pr-text-muted)">{{ k.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:minmax(0,1.72fr) minmax(0,1fr); gap:20px; align-items:start">
+        <section style="display:flex; flex-direction:column; gap:14px; min-width:0">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <h2 style="margin:0; font-size:16px; font-weight:700">Agent health</h2>
+              <p style="margin:0; font-size:12px; color:var(--pr-text-muted)">Error rate, p95 latency and spend per agent · last 24h</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px; font-size:11px; color:var(--pr-text-muted)">
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:7px; height:7px; border-radius:50%; background:var(--pr-success)"></span>healthy</span>
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:7px; height:7px; border-radius:50%; background:var(--pr-warning)"></span>degraded</span>
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:7px; height:7px; border-radius:50%; background:var(--pr-danger)"></span>failing</span>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(272px,1fr)); gap:14px">
+            <sc-for list="{{ agents }}" as="a" hint-placeholder-count="6">
+              <button onClick="{{ a.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; display:flex; flex-direction:column; gap:14px; padding:16px; border-radius:16px; background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid {{ a.cardBorder }}; box-shadow:{{ a.cardGlow }}; transition:var(--pr-transition)" style-hover="transform:translateY(-2px); border-color:var(--pr-border-strong)">
+                <div style="display:flex; align-items:flex-start; gap:10px">
+                  <span style="width:8px; height:8px; border-radius:50%; margin-top:5px; background:{{ a.dot }}; box-shadow:0 0 10px {{ a.dot }}; animation:{{ a.dotAnim }}"></span>
+                  <div style="display:flex; flex-direction:column; gap:3px; min-width:0; flex:1">
+                    <span style="font-family:var(--pr-font-mono); font-size:13px; font-weight:500; letter-spacing:-0.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ a.name }}</span>
+                    <span style="font-size:11px; color:var(--pr-text-muted)">{{ a.model }} · {{ a.runs }} runs</span>
+                  </div>
+                  <i class="bi bi-chevron-right" style="font-size:11px; color:var(--pr-text-muted)"></i>
+                </div>
+
+                <div style="display:flex; align-items:flex-end; gap:3px; height:34px">
+                  <sc-for list="{{ a.bars }}" as="b" hint-placeholder-count="18">
+                    <div style="flex:1; border-radius:2px 2px 0 0; height:{{ b.h }}; background:{{ b.c }}"></div>
+                  </sc-for>
+                </div>
+
+                <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding-top:12px; border-top:1px solid var(--pr-border)">
+                  <div style="display:flex; flex-direction:column; gap:2px">
+                    <span style="font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted); font-weight:600">Errors</span>
+                    <span style="font-family:var(--pr-font-mono); font-size:14px; font-weight:500; color:{{ a.errColor }}">{{ a.errRate }}</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:2px">
+                    <span style="font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted); font-weight:600">p95</span>
+                    <span style="font-family:var(--pr-font-mono); font-size:14px; font-weight:500">{{ a.p95 }}</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:2px">
+                    <span style="font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted); font-weight:600">Spend</span>
+                    <span style="font-family:var(--pr-font-mono); font-size:14px; font-weight:500">{{ a.spend }}</span>
+                  </div>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </section>
+
+        <aside style="display:flex; flex-direction:column; gap:20px; min-width:0">
+          <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 16px; border-bottom:1px solid var(--pr-border)">
+              <h2 style="margin:0; font-size:14px; font-weight:700; display:flex; align-items:center; gap:8px"><i class="bi bi-exclamation-triangle-fill" style="color:var(--pr-danger); font-size:13px"></i>Failing now</h2>
+              <button onClick="{{ goErrors }}" style="all:unset; cursor:pointer; font-size:12px; font-weight:600; color:var(--pr-cyan-500)">All errors</button>
+            </div>
+            <div style="display:flex; flex-direction:column">
+              <sc-for list="{{ failing }}" as="f" hint-placeholder-count="4">
+                <a href="{{ traceHref }}" style="box-sizing:border-box; display:flex; flex-direction:column; gap:7px; padding:14px 16px; border-bottom:1px solid var(--pr-border); width:100%; color:inherit" style-hover="background:var(--pr-glass-white-5)">
+                  <div style="display:flex; align-items:center; gap:8px">
+                    <span style="font-family:var(--pr-font-mono); font-size:10px; font-weight:500; padding:2px 7px; border-radius:999px; background:{{ f.kindBg }}; color:{{ f.kindFg }}">{{ f.kind }}</span>
+                    <span style="font-size:11px; color:var(--pr-text-muted); font-family:var(--pr-font-mono); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ f.agent }}</span>
+                    <span style="font-family:var(--pr-font-mono); font-size:12px; font-weight:500; color:#ff8f8f">{{ f.count }}</span>
+                  </div>
+                  <div style="font-size:12px; line-height:1.45; color:var(--pr-text-secondary); text-align:left; text-wrap:pretty">{{ f.message }}</div>
+                  <div style="font-size:11px; color:var(--pr-text-muted); font-family:var(--pr-font-mono)">{{ f.meta }}</div>
+                </a>
+              </sc-for>
+            </div>
+          </section>
+
+          <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 16px; border-bottom:1px solid var(--pr-border)">
+              <h2 style="margin:0; font-size:14px; font-weight:700">Live runs</h2>
+              <a href="{{ tracesHref }}" style="font-size:11px; font-family:var(--pr-font-mono)">all traces</a>
+            </div>
+            <div style="display:flex; flex-direction:column">
+              <sc-for list="{{ liveRuns }}" as="r" hint-placeholder-count="6">
+                <a href="{{ traceHref }}" style="box-sizing:border-box; display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--pr-border); width:100%; color:inherit" style-hover="background:var(--pr-glass-white-5)">
+                  <span style="width:6px; height:6px; border-radius:50%; background:{{ r.dot }}; animation:{{ r.anim }}"></span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left">{{ r.workflow }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ r.spans }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; width:56px; text-align:right; color:{{ r.durColor }}">{{ r.dur }}</span>
+                </a>
+              </sc-for>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isAgents }}" hint-placeholder-val="{{ true }}">
+    <div style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+      <div style="display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--pr-border); flex-wrap:wrap">
+        <sc-for list="{{ agentFilters }}" as="f" hint-placeholder-count="4">
+          <span style="font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</span>
+        </sc-for>
+        <span style="flex:1"></span>
+        <span style="font-size:12px; color:var(--pr-text-muted); font-family:var(--pr-font-mono)">18 agents · 4 pipelines</span>
+      </div>
+      <div style="display:grid; grid-template-columns:minmax(0,2.3fr) minmax(0,0.9fr) minmax(0,1.05fr) minmax(0,0.65fr) minmax(0,0.7fr) minmax(0,0.65fr) minmax(0,0.95fr); gap:0; font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted); padding:10px 18px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5)">
+        <span>Agent</span><span>Kind</span><span>Model</span><span style="text-align:right">Runs</span><span style="text-align:right">Errors</span><span style="text-align:right">p95</span><span style="text-align:right">Spend 24h</span>
+      </div>
+      <sc-for list="{{ agents }}" as="a" hint-placeholder-count="8">
+        <button onClick="{{ a.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:minmax(0,2.3fr) minmax(0,0.9fr) minmax(0,1.05fr) minmax(0,0.65fr) minmax(0,0.7fr) minmax(0,0.65fr) minmax(0,0.95fr); align-items:center; padding:13px 18px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+          <span style="display:flex; align-items:center; gap:9px; min-width:0">
+            <span style="width:7px; height:7px; border-radius:50%; background:{{ a.dot }}"></span>
+            <span style="font-family:var(--pr-font-mono); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ a.name }}</span>
+          </span>
+          <span style="font-size:11px; font-weight:600; padding:3px 8px; border-radius:999px; background:{{ a.kindBg }}; color:{{ a.kindFg }}; justify-self:start">{{ a.kind }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-secondary)">{{ a.model }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ a.runs }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:{{ a.errColor }}">{{ a.errRate }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ a.p95 }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ a.spend }}</span>
+        </button>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isAgent }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding:18px 20px; border-radius:16px; background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border)">
+        <div style="display:flex; flex-direction:column; gap:7px; min-width:0; flex:1">
+          <span style="font-family:var(--pr-font-mono); font-size:18px; font-weight:500; letter-spacing:-0.02em">{{ agent.name }}</span>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--pr-success-bg); color:#7ee0ae">{{ agent.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ agent.model }} · temp {{ agent.temp }} · max_turns {{ agent.maxTurns }}</span>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(84px,auto)); gap:22px">
+          <sc-for list="{{ agent.stats }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">{{ s.label }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:17px; font-weight:500; color:{{ s.color }}">{{ s.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:4px; border-bottom:1px solid var(--pr-border)">
+        <sc-for list="{{ agentTabs }}" as="t" hint-placeholder-count="4">
+          <button onClick="{{ t.go }}" style="all:unset; cursor:pointer; padding:10px 15px; font-size:13px; font-weight:600; color:{{ t.fg }}; border-bottom:2px solid {{ t.line }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ agentTabConfig }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:18px; align-items:start">
+          <div style="display:flex; flex-direction:column; gap:18px; min-width:0">
+            <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+                <h2 style="margin:0; font-size:14px; font-weight:700">Instructions</h2>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">prompts/market_scout.md · v12</span>
+              </div>
+              <pre style="margin:0; padding:16px; font-family:var(--pr-font-mono); font-size:12px; line-height:1.7; color:var(--pr-text-secondary); white-space:pre-wrap; word-break:break-word">{{ agent.instructions }}</pre>
+            </section>
+
+            <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+              <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Tools</h2></div>
+              <sc-for list="{{ agent.tools }}" as="t" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+                  <i class="bi {{ t.icon }}" style="font-size:14px; color:var(--pr-cyan-500); width:18px; text-align:center"></i>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1; min-width:0">{{ t.name }}</span>
+                  <span style="font-size:11px; color:var(--pr-text-muted); font-family:var(--pr-font-mono)">{{ t.calls }} calls</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:11px; color:{{ t.errColor }}">{{ t.err }}</span>
+                </div>
+              </sc-for>
+            </section>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:18px; min-width:0">
+            <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+              <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Guardrails</h2></div>
+              <sc-for list="{{ agent.guardrails }}" as="g" hint-placeholder-count="3">
+                <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1">{{ g.name }}</span>
+                  <span style="font-size:11px; font-weight:600; padding:3px 8px; border-radius:999px; background:{{ g.bg }}; color:{{ g.fg }}">{{ g.state }}</span>
+                </div>
+              </sc-for>
+            </section>
+
+            <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+              <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Handoffs</h2></div>
+              <div style="padding:16px; display:flex; flex-direction:column; gap:10px">
+                <sc-for list="{{ agent.handoffs }}" as="h" hint-placeholder-count="3">
+                  <div style="display:flex; align-items:center; gap:10px">
+                    <i class="bi bi-arrow-right-short" style="color:var(--pr-cyan-500); font-size:16px"></i>
+                    <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1">{{ h.name }}</span>
+                    <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ h.count }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ agentTabEvals }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; gap:18px">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px">
+            <sc-for list="{{ evalScores }}" as="e" hint-placeholder-count="4">
+              <div style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:10px">
+                <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ e.label }}</span>
+                <div style="display:flex; align-items:baseline; gap:8px">
+                  <span style="font-family:var(--pr-font-mono); font-size:24px; font-weight:500">{{ e.value }}</span>
+                  <span style="font-size:12px; font-family:var(--pr-font-mono); color:{{ e.deltaColor }}">{{ e.delta }}</span>
+                </div>
+                <div style="height:6px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                  <div style="height:100%; border-radius:999px; width:{{ e.pct }}; background:{{ e.bar }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+              <h2 style="margin:0; font-size:14px; font-weight:700">Experiments</h2>
+              <span style="font-size:12px; color:var(--pr-text-muted)">dataset: <span style="font-family:var(--pr-font-mono)">prospect_golden_120</span></span>
+            </div>
+            <div style="display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1.15fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.85fr); padding:10px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+              <span>Experiment</span><span>Prompt</span><span style="text-align:right">Pass</span><span style="text-align:right">Faith.</span><span style="text-align:right">Cost</span><span style="text-align:right">Run</span>
+            </div>
+            <sc-for list="{{ experiments }}" as="x" hint-placeholder-count="4">
+              <div style="display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1.15fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.85fr); align-items:center; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+                <span style="font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ x.name }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ x.prompt }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:{{ x.passColor }}">{{ x.pass }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ x.faith }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ x.cost }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ x.when }}</span>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ agentTabRuns }}" hint-placeholder-val="{{ true }}">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,0.85fr) minmax(0,0.75fr); padding:10px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+            <span>Trace</span><span>Status</span><span style="text-align:right">Spans</span><span style="text-align:right">Duration</span><span style="text-align:right">Tokens</span><span style="text-align:right">Cost</span>
+          </div>
+          <sc-for list="{{ runRows }}" as="r" hint-placeholder-count="8">
+            <a href="{{ traceHref }}" style="box-sizing:border-box; width:100%; display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,0.85fr) minmax(0,0.75fr); align-items:center; padding:12px 16px; border-bottom:1px solid var(--pr-border); color:inherit" style-hover="background:var(--pr-glass-white-5)">
+              <span style="font-family:var(--pr-font-mono); font-size:12px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; color:var(--pr-cyan-500)">{{ r.id }}</span>
+              <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ r.bg }}; color:{{ r.fg }}; justify-self:start">{{ r.status }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ r.spans }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ r.dur }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ r.tokens }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ r.cost }}</span>
+            </a>
+          </sc-for>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ agentTabCosts }}" hint-placeholder-val="{{ true }}">
+        <section style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:16px">
+          <h2 style="margin:0; font-size:14px; font-weight:700">Spend by day · last 14 days</h2>
+          <div style="display:flex; align-items:flex-end; gap:6px; height:180px">
+            <sc-for list="{{ spendDays }}" as="d" hint-placeholder-count="14">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; justify-content:flex-end; height:100%">
+                <span style="font-family:var(--pr-font-mono); font-size:10px; color:var(--pr-text-muted)">{{ d.value }}</span>
+                <div style="width:100%; border-radius:6px 6px 0 0; height:{{ d.h }}; background:linear-gradient(180deg, var(--pr-cyan-500), rgb(0 154 204 / 25%))"></div>
+                <span style="font-size:10px; color:var(--pr-text-muted); font-family:var(--pr-font-mono)">{{ d.day }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isErrors }}" hint-placeholder-val="{{ true }}">
+    <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+      <div style="display:grid; grid-template-columns:minmax(0,2.4fr) minmax(0,1.15fr) minmax(0,0.65fr) minmax(0,0.75fr) minmax(0,0.95fr); padding:11px 18px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+        <span>Error signature</span><span>Agent</span><span style="text-align:right">Count</span><span style="text-align:right">Trend</span><span style="text-align:right">Last seen</span>
+      </div>
+      <sc-for list="{{ errorGroups }}" as="g" hint-placeholder-count="7">
+        <a href="{{ traceHref }}" style="box-sizing:border-box; width:100%; display:grid; grid-template-columns:minmax(0,2.4fr) minmax(0,1.15fr) minmax(0,0.65fr) minmax(0,0.75fr) minmax(0,0.95fr); align-items:center; padding:14px 18px; border-bottom:1px solid var(--pr-border); color:inherit" style-hover="background:var(--pr-glass-white-5)">
+          <span style="display:flex; flex-direction:column; gap:4px; min-width:0; text-align:left">
+            <span style="font-family:var(--pr-font-mono); font-size:12.5px; color:#ffb3b3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ g.klass }}</span>
+            <span style="font-size:12px; color:var(--pr-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ g.message }}</span>
+          </span>
+          <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ g.agent }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:13px; text-align:right">{{ g.count }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:{{ g.trendColor }}">{{ g.trend }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ g.last }}</span>
+        </a>
+      </sc-for>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isCosts }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:14px">
+        <sc-for list="{{ costKpis }}" as="k" hint-placeholder-count="4">
+          <div style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:8px">
+            <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ k.label }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:24px; font-weight:500">{{ k.value }}</span>
+            <span style="font-size:12px; color:{{ k.color }}">{{ k.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:18px">
+        <section style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">By model</h2></div>
+          <div style="padding:16px; display:flex; flex-direction:column; gap:14px">
+            <sc-for list="{{ costByModel }}" as="m" hint-placeholder-count="4">
+              <div style="display:flex; flex-direction:column; gap:7px">
+                <div style="display:flex; align-items:center; gap:10px">
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1">{{ m.name }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ m.tokens }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; width:64px; text-align:right">{{ m.spend }}</span>
+                </div>
+                <div style="height:7px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                  <div style="height:100%; border-radius:999px; width:{{ m.pct }}; background:{{ m.color }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+        <section style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">By agent</h2></div>
+          <div style="padding:16px; display:flex; flex-direction:column; gap:14px">
+            <sc-for list="{{ costByAgent }}" as="m" hint-placeholder-count="5">
+              <div style="display:flex; flex-direction:column; gap:7px">
+                <div style="display:flex; align-items:center; gap:10px">
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ m.name }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ m.tokens }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; width:64px; text-align:right">{{ m.spend }}</span>
+                </div>
+                <div style="height:7px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                  <div style="height:100%; border-radius:999px; width:{{ m.pct }}; background:{{ m.color }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+    </div>
+  </sc-if>
+
+</dc-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSparklines&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behaviour&quot;}}">
+const C = { cyan: "#009acc", ok: "#11aa64", okText: "#7ee0ae", warn: "#f59e0b", warnText: "#f3c37b", bad: "#ef4444", badText: "#ff8f8f", muted: "var(--pr-text-muted)", sec: "var(--pr-text-secondary)" };
+const KIND = {
+  agent: ["rgb(0 154 204 / 16%)", "#6fd2f0"],
+  llm: ["rgb(139 92 246 / 16%)", "#c4b1fb"],
+  tool: ["rgb(17 170 100 / 16%)", "#7ee0ae"],
+  handoff: ["rgb(245 158 11 / 16%)", "#f3c37b"],
+  guardrail: ["rgb(59 130 246 / 16%)", "#a8c7fb"],
+  pipeline: ["rgb(255 255 255 / 10%)", "#d1d5db"]
+};
+const TRACE_HREF = "RAAF%20Tracing.dc.html#trace";
+const TRACES_HREF = "RAAF%20Tracing.dc.html#traces";
+
+function bars(seed, badAt) {
+  const out = [];
+  for (let i = 0; i < 20; i++) {
+    const n = (Math.sin(seed * 3.3 + i * 1.7) + 1) / 2;
+    const isBad = badAt != null && i >= badAt;
+    out.push({ h: Math.round(22 + n * 78) + "%", c: isBad ? C.bad : "rgb(0 154 204 / 55%)" });
+  }
+  return out;
+}
+
+const AGENTS = [
+  { name: "Market::ScoutAgent", kind: "agent", model: "gpt-4o", runs: "3,214", errRate: "0.4%", p95: "2.9s", spend: "$61.40", health: "ok", seed: 1 },
+  { name: "Company::EnrichAgent", kind: "agent", model: "gpt-4o-mini", runs: "8,902", errRate: "7.2%", p95: "5.8s", spend: "$38.10", health: "bad", seed: 2, badAt: 13 },
+  { name: "Search::TermBuilder", kind: "agent", model: "gpt-4o-mini", runs: "2,780", errRate: "0.1%", p95: "1.2s", spend: "$9.80", health: "ok", seed: 3 },
+  { name: "Prospect::ScoringAgent", kind: "agent", model: "claude-sonnet-4", runs: "1,946", errRate: "2.6%", p95: "7.4s", spend: "$74.20", health: "warn", seed: 4, badAt: 17 },
+  { name: "Outreach::DraftAgent", kind: "agent", model: "gpt-4o", runs: "1,102", errRate: "0.9%", p95: "4.1s", spend: "$22.60", health: "ok", seed: 5 },
+  { name: "Discovery::Pipeline", kind: "pipeline", model: "mixed", runs: "612", errRate: "3.1%", p95: "18.2s", spend: "$44.90", health: "warn", seed: 6, badAt: 18 },
+  { name: "Content::SummarizeAgent", kind: "agent", model: "gpt-4o-mini", runs: "5,470", errRate: "0.2%", p95: "1.8s", spend: "$12.30", health: "ok", seed: 7 },
+  { name: "Compliance::PIIGuard", kind: "guardrail", model: "rules", runs: "12,480", errRate: "0.0%", p95: "0.1s", spend: "$0.00", health: "ok", seed: 8 }
+];
+
+const TITLES = {
+  overview: ["Monitor", "Fleet overview"],
+  agents: ["Monitor", "Agents"],
+  agent: ["Agents", "Company::EnrichAgent"],
+  errors: ["Monitor", "Errors"],
+  costs: ["Manage", "Cost & usage"]
+};
+
+class Component extends DCLogic {
+  state = { screen: "overview", agentTab: "config", range: "24h" };
+
+  componentDidMount() {
+    this.sync = () => {
+      const h = (location.hash || "").replace("#", "");
+      if (TITLES[h]) this.setState({ screen: h });
+    };
+    this.sync();
+    window.addEventListener("hashchange", this.sync);
+  }
+  componentWillUnmount() { window.removeEventListener("hashchange", this.sync); }
+
+  goScreen(id) { return () => { location.hash = id; this.setState({ screen: id }); }; }
+  chip(on) { return on ? { bg: "var(--pr-glass-white-12)", fg: "#fff" } : { bg: "transparent", fg: C.muted }; }
+
+  agentRows() {
+    const tone = { ok: [C.ok, C.okText], warn: [C.warn, C.warnText], bad: [C.bad, C.badText] };
+    return AGENTS.map((a) => {
+      const [dot, text] = tone[a.health];
+      const k = KIND[a.kind];
+      return Object.assign({}, a, {
+        dot,
+        dotAnim: a.health === "bad" ? "pulse 1.6s ease-in-out infinite" : "none",
+        errColor: a.health === "ok" ? "#fff" : text,
+        cardBorder: a.health === "bad" ? "rgb(239 68 68 / 40%)" : "var(--pr-border)",
+        cardGlow: a.health === "bad" ? "0 0 0 1px rgb(239 68 68 / 12%), 0 12px 28px rgb(239 68 68 / 8%)" : "none",
+        kindBg: k[0], kindFg: k[1],
+        bars: this.props.showSparklines === false ? [] : bars(a.seed, a.badAt),
+        go: this.goScreen("agent")
+      });
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const t = TITLES[s.screen] || TITLES.overview;
+    const agentTab = (id, label) => ({
+      label, go: () => this.setState({ agentTab: id }),
+      fg: s.agentTab === id ? "#fff" : C.muted,
+      line: s.agentTab === id ? C.cyan : "transparent"
+    });
+
+    return {
+      screen: s.screen, crumb: t[0], title: t[1],
+      isOverview: s.screen === "overview", isAgents: s.screen === "agents", isAgent: s.screen === "agent",
+      isErrors: s.screen === "errors", isCosts: s.screen === "costs",
+      goErrors: this.goScreen("errors"),
+      traceHref: TRACE_HREF, tracesHref: TRACES_HREF,
+
+      kpis: [
+        { label: "Runs", value: "12,480", delta: "+8.2%", deltaColor: C.sec, note: "traces started · last 24h", icon: "bi-diagram-3", iconColor: C.cyan },
+        { label: "Failure rate", value: "1.8%", delta: "+0.6pt", deltaColor: C.badText, note: "225 failed · 23 error signatures", icon: "bi-exclamation-octagon", iconColor: C.bad },
+        { label: "p95 latency", value: "6.4s", delta: "+1.1s", deltaColor: C.warnText, note: "median 2.2s · slowest crm_upsert", icon: "bi-speedometer2", iconColor: C.warn },
+        { label: "Spend", value: "$263.30", delta: "-4.1%", deltaColor: C.okText, note: "18.4M tokens · $0.021 / run", icon: "bi-cash-stack", iconColor: C.ok }
+      ],
+      agents: this.agentRows(),
+      agentFilters: [
+        Object.assign({ label: "All" }, this.chip(true)),
+        Object.assign({ label: "Failing" }, this.chip(false)),
+        Object.assign({ label: "Degraded" }, this.chip(false)),
+        Object.assign({ label: "Pipelines" }, this.chip(false))
+      ],
+      failing: [
+        { kind: "tool", kindBg: KIND.tool[0], kindFg: KIND.tool[1], agent: "Company::EnrichAgent", count: "148", message: "Faraday::TimeoutError — crm_upsert exceeded 4000ms", meta: "first seen 2h ago · 12 traces/min" },
+        { kind: "llm", kindBg: KIND.llm[0], kindFg: KIND.llm[1], agent: "Prospect::ScoringAgent", count: "41", message: "RAAF::Errors::MaxTurnsExceeded — max_turns 6 reached without final output", meta: "first seen 40m ago · 3 traces/min" },
+        { kind: "agent", kindBg: KIND.agent[0], kindFg: KIND.agent[1], agent: "Discovery::Pipeline", count: "19", message: "JSON::ParserError — structured output failed schema validation", meta: "first seen 6h ago · steady" },
+        { kind: "guardrail", kindBg: KIND.guardrail[0], kindFg: KIND.guardrail[1], agent: "Compliance::PIIGuard", count: "9", message: "Guardrail tripwire: email address in tool arguments", meta: "first seen 18m ago · rising" }
+      ],
+      liveRuns: [
+        { workflow: "Discovery::Pipeline", spans: "24 sp", dur: "11.4s", durColor: C.badText, dot: C.bad, anim: "none" },
+        { workflow: "Company::EnrichAgent", spans: "6 sp", dur: "running", durColor: C.cyan, dot: C.cyan, anim: "pulse 1.4s ease-in-out infinite" },
+        { workflow: "Market::ScoutAgent", spans: "9 sp", dur: "2.7s", durColor: "#fff", dot: C.ok, anim: "none" },
+        { workflow: "Content::SummarizeAgent", spans: "3 sp", dur: "1.6s", durColor: "#fff", dot: C.ok, anim: "none" },
+        { workflow: "Outreach::DraftAgent", spans: "7 sp", dur: "4.2s", durColor: "#fff", dot: C.ok, anim: "none" },
+        { workflow: "Prospect::ScoringAgent", spans: "11 sp", dur: "8.9s", durColor: C.warnText, dot: C.warn, anim: "none" }
+      ],
+
+      agent: {
+        name: "Company::EnrichAgent", status: "deployed", model: "gpt-4o-mini", temp: "0.2", maxTurns: "6",
+        instructions: "You enrich a company record with firmographic data.\n\nRules:\n1. Always call web_search before answering.\n2. Return ONLY the JSON schema `CompanyEnrichment`.\n3. Never invent revenue or headcount — use null when unknown.\n4. Stop after one enrichment; hand off scoring to Prospect::ScoringAgent.",
+        stats: [
+          { label: "Runs 24h", value: "8,902", color: "#fff" },
+          { label: "Errors", value: "7.2%", color: C.badText },
+          { label: "p95", value: "5.8s", color: C.warnText },
+          { label: "Spend", value: "$38.10", color: "#fff" }
+        ],
+        tools: [
+          { name: "web_search", icon: "bi-globe2", calls: "8,902", err: "0.3%", errColor: C.okText },
+          { name: "crm_upsert", icon: "bi-database-add", calls: "8,140", err: "8.1%", errColor: C.badText },
+          { name: "company_lookup", icon: "bi-building", calls: "8,902", err: "0.0%", errColor: C.okText },
+          { name: "vector_search", icon: "bi-bezier2", calls: "1,204", err: "0.1%", errColor: C.okText }
+        ],
+        guardrails: [
+          { name: "pii_detector", state: "9 trips", bg: "var(--pr-warning-bg)", fg: C.warnText },
+          { name: "schema_validator", state: "active", bg: "var(--pr-success-bg)", fg: C.okText },
+          { name: "prompt_injection", state: "active", bg: "var(--pr-success-bg)", fg: C.okText }
+        ],
+        handoffs: [
+          { name: "Prospect::ScoringAgent", count: "6,412" },
+          { name: "Outreach::DraftAgent", count: "1,102" },
+          { name: "Content::SummarizeAgent", count: "418" }
+        ]
+      },
+      agentTabs: [agentTab("config", "Configuration"), agentTab("runs", "Runs"), agentTab("evals", "Evals"), agentTab("costs", "Cost")],
+      agentTabConfig: s.agentTab === "config", agentTabRuns: s.agentTab === "runs",
+      agentTabEvals: s.agentTab === "evals", agentTabCosts: s.agentTab === "costs",
+
+      evalScores: [
+        { label: "Pass rate", value: "88%", delta: "-4pt", deltaColor: C.badText, pct: "88%", bar: C.warn },
+        { label: "Faithfulness", value: "0.93", delta: "+0.01", deltaColor: C.okText, pct: "93%", bar: C.ok },
+        { label: "Schema valid", value: "97%", delta: "+2pt", deltaColor: C.okText, pct: "97%", bar: C.ok },
+        { label: "Cost / case", value: "$0.004", delta: "flat", deltaColor: C.muted, pct: "34%", bar: C.cyan }
+      ],
+      experiments: [
+        { name: "enrich-v12 · nightly", prompt: "market_scout v12", pass: "88%", passColor: C.warnText, faith: "0.93", cost: "$0.48", when: "2h ago" },
+        { name: "enrich-v11 · nightly", prompt: "market_scout v11", pass: "92%", passColor: C.okText, faith: "0.92", cost: "$0.47", when: "1d ago" },
+        { name: "enrich-v12 · temp 0.4", prompt: "market_scout v12", pass: "81%", passColor: C.badText, faith: "0.88", cost: "$0.51", when: "1d ago" },
+        { name: "enrich-v10 · baseline", prompt: "market_scout v10", pass: "90%", passColor: C.okText, faith: "0.90", cost: "$0.44", when: "6d ago" }
+      ],
+      runRows: [
+        { id: "8f2c·a91d", status: "failed", bg: "var(--pr-danger-bg)", fg: C.badText, spans: "24", dur: "11.4s", tokens: "18.2k", cost: "$0.041" },
+        { id: "7d1b·55e0", status: "completed", bg: "var(--pr-success-bg)", fg: C.okText, spans: "9", dur: "3.2s", tokens: "6.1k", cost: "$0.012" },
+        { id: "6a04·c7f2", status: "running", bg: "rgb(0 154 204 / 16%)", fg: "#6fd2f0", spans: "6", dur: "—", tokens: "2.4k", cost: "$0.005" },
+        { id: "5b93·10aa", status: "completed", bg: "var(--pr-success-bg)", fg: C.okText, spans: "11", dur: "4.0s", tokens: "7.7k", cost: "$0.016" },
+        { id: "4c72·8e31", status: "failed", bg: "var(--pr-danger-bg)", fg: C.badText, spans: "8", dur: "4.1s", tokens: "5.2k", cost: "$0.011" },
+        { id: "3f61·2b77", status: "completed", bg: "var(--pr-success-bg)", fg: C.okText, spans: "10", dur: "2.8s", tokens: "6.6k", cost: "$0.014" },
+        { id: "2e50·9d14", status: "skipped", bg: "var(--pr-glass-white-8)", fg: C.sec, spans: "2", dur: "0.2s", tokens: "0", cost: "$0.000" }
+      ],
+      spendDays: [3.2, 4.1, 3.8, 5.2, 4.9, 6.1, 5.4, 4.4, 5.9, 6.8, 7.2, 6.4, 5.1, 5.8].map((v, i) => ({
+        value: "$" + v.toFixed(1), h: Math.round((v / 7.6) * 100) + "%", day: i % 2 === 0 ? String(22 + i).slice(-2) : ""
+      })),
+
+      errorGroups: [
+        { klass: "Faraday::TimeoutError", message: "execution expired — crm_upsert exceeded 4000ms", agent: "Company::EnrichAgent", count: "148", trend: "▲ 340%", trendColor: C.badText, last: "12s ago" },
+        { klass: "RAAF::Errors::MaxTurnsExceeded", message: "max_turns 6 reached without final output", agent: "Prospect::ScoringAgent", count: "41", trend: "▲ 62%", trendColor: C.badText, last: "1m ago" },
+        { klass: "JSON::ParserError", message: "structured output failed schema validation", agent: "Discovery::Pipeline", count: "19", trend: "— 0%", trendColor: C.muted, last: "4m ago" },
+        { klass: "RAAF::Guardrails::TripwireTriggered", message: "email address present in tool arguments", agent: "Compliance::PIIGuard", count: "9", trend: "▲ 20%", trendColor: C.warnText, last: "6m ago" },
+        { klass: "OpenAI::RateLimitError", message: "429 — tokens per min exceeded for gpt-4o", agent: "Market::ScoutAgent", count: "6", trend: "▼ 45%", trendColor: C.okText, last: "22m ago" },
+        { klass: "Net::ReadTimeout", message: "web_search upstream did not respond", agent: "Company::EnrichAgent", count: "4", trend: "— 0%", trendColor: C.muted, last: "38m ago" },
+        { klass: "RAAF::Errors::HandoffFailed", message: "target agent Prospect::ScoringAgent not deployed", agent: "Discovery::Pipeline", count: "2", trend: "new", trendColor: C.warnText, last: "1h ago" }
+      ],
+
+      costKpis: [
+        { label: "Spend 24h", value: "$263.30", note: "-4.1% vs yesterday", color: C.okText },
+        { label: "Tokens", value: "18.4M", note: "14.1M in · 4.3M out", color: C.muted },
+        { label: "Cost / run", value: "$0.021", note: "+$0.002 vs 7d avg", color: C.warnText },
+        { label: "Projected month", value: "$7.9k", note: "budget $9.0k · 88%", color: C.warnText }
+      ],
+      costByModel: [
+        { name: "claude-sonnet-4", tokens: "3.1M", spend: "$118.40", pct: "100%", color: C.cyan },
+        { name: "gpt-4o", tokens: "5.8M", spend: "$84.00", pct: "71%", color: C.cyan },
+        { name: "gpt-4o-mini", tokens: "9.2M", spend: "$52.10", pct: "44%", color: "rgb(0 154 204 / 55%)" },
+        { name: "text-embedding-3-large", tokens: "0.3M", spend: "$8.80", pct: "8%", color: "rgb(0 154 204 / 35%)" }
+      ],
+      costByAgent: [
+        { name: "Prospect::ScoringAgent", tokens: "2.6M", spend: "$74.20", pct: "100%", color: C.cyan },
+        { name: "Market::ScoutAgent", tokens: "4.1M", spend: "$61.40", pct: "83%", color: C.cyan },
+        { name: "Discovery::Pipeline", tokens: "3.3M", spend: "$44.90", pct: "60%", color: "rgb(0 154 204 / 55%)" },
+        { name: "Company::EnrichAgent", tokens: "6.2M", spend: "$38.10", pct: "51%", color: "rgb(0 154 204 / 45%)" },
+        { name: "Outreach::DraftAgent", tokens: "1.9M", spend: "$22.60", pct: "30%", color: "rgb(0 154 204 / 35%)" }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

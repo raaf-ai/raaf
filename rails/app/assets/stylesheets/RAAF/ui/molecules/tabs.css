@@ -1,0 +1,83 @@
+/* ============================================================================
+   Molecule — Tabs
+   A row of small pills by default, as the span inspector uses;
+   `--underline` for the in-page section tabs Flows uses.
+   ========================================================================= */
+
+/* The design has two tab treatments and no more: this row of small pills,
+   which the span inspector uses, and the underline below, which Flows uses.
+   What stood here before was a segmented control with a 24px radius and a
+   green active fill — a pre-library leftover that appears in no canvas. */
+.raaf-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.raaf-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--raaf-text-muted);
+  font-family: inherit;
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--raaf-transition, all 0.15s ease);
+}
+
+.raaf-tab:hover {
+  color: var(--raaf-white);
+  text-decoration: none;
+}
+
+.raaf-tab.is-active {
+  background: var(--raaf-glass-white-12);
+  color: var(--raaf-white);
+}
+
+/* Underline variant — for tabs inside a card */
+.raaf-tabs--underline {
+  display: flex;
+  gap: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--raaf-border);
+  overflow-x: auto;
+}
+
+.raaf-tabs--underline .raaf-tab {
+  padding: 12px 4px;
+  margin-right: var(--raaf-space-6);
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--raaf-text-muted);
+  font-size: var(--raaf-text-body);
+  white-space: nowrap;
+}
+
+.raaf-tabs--underline .raaf-tab:hover {
+  background: transparent;
+  color: var(--raaf-white);
+}
+
+.raaf-tabs--underline .raaf-tab.is-active {
+  background: transparent;
+  border-bottom-color: var(--raaf-teal-400);
+  color: var(--raaf-white);
+}
+
+.raaf-tab-count {
+  padding: 1px 7px;
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-glass-white-15);
+  font-size: var(--raaf-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,180 @@
+/* ============================================================================
+   PayloadBlock / RedactionVeil — a span's messages, and the cover over the
+   ones holding customer data.
+   ========================================================================= */
+
+.raaf-payload {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.raaf-payload-head {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+}
+
+.raaf-payload-role {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--raaf-text-muted);
+}
+
+/* Role captions borrow the kind palette, so a tool payload reads as a tool.
+   The pairs stay in tokens.css; nothing here invents a colour. */
+.raaf-payload-role--agent { color: var(--raaf-kind-agent-fg); }
+.raaf-payload-role--llm { color: var(--raaf-kind-llm-fg); }
+.raaf-payload-role--tool { color: var(--raaf-kind-tool-fg); }
+.raaf-payload-role--handoff { color: var(--raaf-kind-handoff-fg); }
+.raaf-payload-role--guardrail { color: var(--raaf-kind-guardrail-fg); }
+.raaf-payload-role--pipeline { color: var(--raaf-kind-pipeline-fg); }
+.raaf-payload-role--ok { color: var(--raaf-tone-ok-text); }
+.raaf-payload-role--warn { color: var(--raaf-tone-warn-text); }
+.raaf-payload-role--bad { color: var(--raaf-tone-bad-text); }
+
+.raaf-payload-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--raaf-border);
+}
+
+.raaf-payload-tokens { font-size: 10px; }
+
+.raaf-payload-body {
+  position: relative;
+  padding: var(--raaf-space-3);
+  border: 1px solid var(--raaf-border);
+  border-radius: 10px;
+  background: var(--raaf-glass-white-5);
+}
+
+/* A system prompt can run to thousands of lines. Capped with its own scroll,
+   so one long payload cannot push every other block off the inspector. */
+.raaf-payload-pre {
+  margin: 0;
+  max-height: 340px;
+  overflow: auto;
+  font-family: var(--raaf-font-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--raaf-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* The blur is the modifier's only job — the text beneath is identical in both
+   states, so revealing is a class change and never a re-render. */
+.raaf-payload-body--masked .raaf-payload-pre { filter: blur(5px); }
+
+/* The reveal is a checkbox and a label, with no script behind it: a payload
+   that stays blurred because JavaScript failed to load is unreadable, and
+   this is exactly the content someone is here to read. Hidden from view but
+   not from the keyboard — the veil takes the focus ring on its behalf. */
+.raaf-veil-toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.raaf-veil-toggle:checked ~ .raaf-payload-pre { filter: none; }
+.raaf-veil-toggle:checked ~ .raaf-veil { display: none; }
+
+.raaf-veil-toggle:focus-visible ~ .raaf-veil {
+  outline: 2px solid var(--raaf-cyan-500);
+  outline-offset: -2px;
+}
+
+.raaf-veil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(10 31 42 / 45%);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+
+.raaf-veil:hover { background: rgb(10 31 42 / 35%); }
+
+.raaf-veil:focus-visible {
+  outline: 2px solid var(--raaf-cyan-500);
+  outline-offset: -2px;
+}
+
+.raaf-error-backtrace,
+.raaf-inspector-raw { max-height: 340px; overflow: auto; }
+
+.raaf-veil .raaf-icon { color: var(--raaf-text-secondary); }
+
+.raaf-veil-reason {
+  font-size: var(--raaf-text-xs);
+  font-weight: 600;
+  color: var(--raaf-white);
+}
+
+.raaf-veil-note {
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+  color: var(--raaf-text-muted);
+}
+
+/* ── ErrorCallout ───────────────────────────────────────────────────────── */
+.raaf-error-callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+}
+
+.raaf-error-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px;
+  border: 1px solid rgb(239 68 68 / 35%);
+  border-radius: 10px;
+  background: var(--raaf-danger-bg);
+}
+
+.raaf-error-class {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-sm);
+  font-weight: 500;
+  color: #ffb3b3;
+  word-break: break-word;
+}
+
+.raaf-error-message {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #ffd9d9;
+  text-wrap: pretty;
+}
+
+.raaf-error-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.raaf-error-backtrace {
+  margin: 0;
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  line-height: 1.75;
+  color: var(--raaf-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -18,6 +18,12 @@ module RAAF
         include Phlex::Rails::Helpers::FormAuthenticityToken
         include RAAF::Logging
 
+        # Short names for the Glass Morph library, resolved through the
+        # ancestry so every page component inherits them.
+        Atoms = Ui::Atoms
+        Molecules = Ui::Molecules
+        Organisms = Ui::Organisms
+
         private
 
         # Route helper methods for the RAAF Rails engine
@@ -26,8 +32,22 @@ module RAAF
           params.empty? ? path : "#{path}?#{params.to_query}"
         end
 
-        def tracing_span_path(id)
-          "/raaf/tracing/spans/#{id}"
+        # Where a span row goes.
+        #
+        # The design has no span screen: on Spans, in Search, in an error
+        # group, every row calls `goScreen("trace")`. A span opens its trace
+        # with itself selected, so it is always read beside the run it belongs
+        # to — the waterfall says what ran before and after it, which a page
+        # showing one span alone cannot.
+        #
+        # Nil for a span whose trace was never recorded, because there is now
+        # nowhere to send it: the span page this used to fall back to is gone.
+        # Every caller passes the result as an `href`, and both the row
+        # components render a plain row rather than a link when it is absent.
+        def trace_span_path(span_id, trace_id, tab: nil)
+          return nil if trace_id.blank?
+
+          "#{tracing_trace_path(trace_id)}?#{{ span: span_id, tab: tab }.compact.to_query}"
         end
 
         def tracing_traces_path(params = {})
@@ -65,6 +85,11 @@ module RAAF
           "/raaf/dashboard/performance"
         end
 
+        def dashboard_agents_path(params = {})
+          path = "/raaf/dashboard/agents"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
         def dashboard_costs_path
           "/raaf/dashboard/costs"
         end
@@ -73,12 +98,9 @@ module RAAF
           "/raaf/dashboard/errors"
         end
 
-        def tracing_timeline_path
-          "/raaf/tracing/timeline"
-        end
-
-        def tracing_search_path
-          "/raaf/tracing/search"
+        def tracing_search_path(params = {})
+          path = "/raaf/tracing/search"
+          params.empty? ? path : "#{path}?#{params.to_query}"
         end
 
         def evaluate_tracing_span_path(span_id, params = {})
@@ -175,6 +197,11 @@ module RAAF
           "/raaf/continuous/analytics"
         end
 
+        def continuous_health_path(params = {})
+          path = "/raaf/continuous/health"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
         # Eval feature routes (Opik-inspired: Datasets, Experiments, Feedback, Prompts)
         def eval_datasets_path(params = {})
           path = "/raaf/eval/datasets"
@@ -186,6 +213,18 @@ module RAAF
           "/raaf/eval/datasets/#{dataset_id}"
         end
 
+        def new_eval_dataset_path
+          "#{eval_datasets_path}/new"
+        end
+
+        def new_version_eval_dataset_path(id)
+          "#{eval_dataset_path(id)}/new_version"
+        end
+
+        def archive_eval_dataset_path(id)
+          "#{eval_dataset_path(id)}/archive"
+        end
+
         def eval_experiments_path(params = {})
           path = "/raaf/eval/experiments"
           params.empty? ? path : "#{path}?#{params.to_query}"
@@ -194,6 +233,10 @@ module RAAF
         def eval_experiment_path(id)
           experiment_id = id.respond_to?(:id) ? id.id : id
           "/raaf/eval/experiments/#{experiment_id}"
+        end
+
+        def edit_eval_experiment_path(id)
+          "#{eval_experiment_path(id)}/edit"
         end
 
         def eval_feedback_scores_path(params = {})
@@ -211,7 +254,46 @@ module RAAF
           "/raaf/eval/prompts/#{prompt_id}"
         end
 
+        # What can be done to a span, as arguments for Atoms::Button.
+        #
+        # A span is read on two screens -- its own page, and the inspector
+        # beside the waterfall on its trace -- and in practice almost always
+        # the second, because every span row links to its trace with itself
+        # selected rather than to the span page. Both therefore carry these
+        # controls, and both get them from here.
+        #
+        # Empty when the replayer could not rebuild the call from what the
+        # span recorded, so the button never leads to a form that immediately
+        # sends you back. Empty too when the replay table has not been
+        # migrated in: a dashboard missing it should lose the button, not the
+        # page.
+        #
+        # @param span [SpanRecord, nil]
+        # @return [Array<Hash>]
+        def span_replay_actions(span)
+          return [] unless span && SpanReplay.table_exists? && SpanReplay.replayable?(span)
+
+          actions = []
+          count = SpanReplay.for_span(span.span_id).count
+
+          if count.positive?
+            actions << { label: pluralize(count, "replay"), icon: "clock-history",
+                         variant: :secondary, href: tracing_span_replays_path(span.span_id) }
+          end
+
+          actions << { label: "Replay & debug", icon: "arrow-repeat",
+                       href: new_tracing_span_replay_path(span.span_id) }
+          actions
+        rescue StandardError
+          []
+        end
+
         # Span replay routes
+        def tracing_replays_path(params = {})
+          path = "/raaf/tracing/replays"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
         def tracing_span_replays_path(span_id, params = {})
           span_id_str = span_id.respond_to?(:span_id) ? span_id.span_id : span_id
           path = "/raaf/tracing/spans/#{span_id_str}/replays"
@@ -233,18 +315,26 @@ module RAAF
           render SkippedBadgeTooltip.new(status: status, skip_reason: skip_reason, style: :modern)
         end
 
+        # Span kind as a coloured pill. The kind-to-colour mapping lives on the
+        # Badge atom so every surface labels a kind identically.
         def render_kind_badge(kind)
-          badge_class = case kind&.to_s&.downcase
-                       when "agent" then "bg-blue-100 text-blue-800"
-                       when "tool" then "bg-purple-100 text-purple-800"
-                       when "response" then "bg-green-100 text-green-800"
-                       when "span" then "bg-gray-100 text-gray-800"
-                       else "bg-gray-100 text-gray-800"
-                       end
+          render Ui::Atoms::Badge.for_kind(kind.presence || "unknown")
+        end
 
-          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{badge_class}") do
-            kind&.to_s&.capitalize || "Unknown"
-          end
+        # `time_ago_in_words` is localised, so on a Dutch host app it returns
+        # "ongeveer 1 maand" and a hardcoded " ago" suffix produces
+        # "ongeveer 1 maand ago". The dashboard's chrome is English throughout,
+        # so the phrase is built in English rather than half-translated.
+        def time_ago(time)
+          return "—" unless time
+
+          phrase = I18n.with_locale(:en) { time_ago_in_words(time) }
+
+          # "less than a minute ago" is the one phrase long enough to wrap the
+          # Started column onto a second line, and it is also the vaguest.
+          return "just now" if phrase.start_with?("less than a minute")
+
+          "#{phrase} ago"
         end
 
         def format_duration(ms)
@@ -261,119 +351,76 @@ module RAAF
           end
         end
 
-        def render_metric_card(title:, value:, color: "blue", icon: nil)
-          # Define complete class strings to ensure Tailwind compilation
-          border_class = case color
-                        when "blue" then "border-blue-200"
-                        when "green" then "border-green-200"
-                        when "red" then "border-red-200"
-                        when "yellow" then "border-yellow-200"
-                        when "purple" then "border-purple-200"
-                        else "border-blue-200"
-                        end
+        # The design's three health tiers, from an error rate in percent.
+        #
+        # Shared because the Overview's tiles and the Agents table draw the
+        # same fleet against the same legend: an agent the Overview colours
+        # red must not read as healthy one screen over.
+        def health_for(error_rate)
+          return :bad if error_rate.to_f > 3
+          return :warn if error_rate.to_f > 1
 
-          icon_bg_class = case color
-                         when "blue" then "bg-blue-50"
-                         when "green" then "bg-green-50"
-                         when "red" then "bg-red-50"
-                         when "yellow" then "bg-yellow-50"
-                         when "purple" then "bg-purple-50"
-                         else "bg-blue-50"
-                         end
-
-          icon_text_class = case color
-                           when "blue" then "text-blue-600"
-                           when "green" then "text-green-600"
-                           when "red" then "text-red-600"
-                           when "yellow" then "text-yellow-600"
-                           when "purple" then "text-purple-600"
-                           else "text-blue-600"
-                           end
-
-          div(class: "bg-white rounded-xl border #{border_class} shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden") do
-            div(class: "p-6") do
-              div(class: "flex items-center justify-between") do
-                div(class: "flex-1") do
-                  div(class: "flex items-center gap-3 mb-3") do
-                    if icon
-                      div(class: "p-2 #{icon_bg_class} rounded-lg") do
-                        i(class: "bi #{icon} #{icon_text_class} text-lg")
-                      end
-                    end
-                    span(class: "text-xs font-semibold text-gray-500 uppercase tracking-wider") { title }
-                  end
-                  div(class: "text-2xl font-bold text-gray-900") { value.to_s }
-                end
-              end
-            end
-          end
+          :ok
         end
 
-        def render_preline_button(text:, href: nil, variant: "primary", size: "sm", icon: nil, onclick: nil, **attrs)
-          base_classes = "inline-flex items-center gap-x-2 text-#{size} font-semibold rounded-lg border transition-all"
+        # Colours the old Tailwind palette names used across the dashboard onto
+        # the design system's semantic tones.
+        METRIC_TONES = {
+          "green" => :success,
+          "red" => :danger,
+          "yellow" => :warning,
+          "purple" => :accent,
+          "indigo" => :accent,
+          "blue" => nil
+        }.freeze
 
-          variant_classes = case variant
-                           when "primary"
-                             "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:border-blue-700"
-                           when "secondary"
-                             "border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50"
-                           when "danger"
-                             "border-red-600 bg-red-600 text-white hover:bg-red-700 hover:border-red-700"
-                           when "success"
-                             "border-green-600 bg-green-600 text-white hover:bg-green-700 hover:border-green-700"
-                           else
-                             "border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50"
-                           end
-
-          size_classes = case size
-                        when "xs" then "px-2 py-1 text-xs"
-                        when "sm" then "px-3 py-2 text-sm"
-                        when "md" then "px-4 py-3 text-sm"
-                        when "lg" then "px-4 py-3 text-base"
-                        else "px-3 py-2 text-sm"
-                        end
-
-          classes = "#{base_classes} #{variant_classes} #{size_classes}"
-
-          # Handle onclick by removing it and setting up proper event handling
-          if onclick
-            # Store the onclick code in a data attribute for later setup
-            attrs[:data_onclick] = onclick
-            # Remove onclick from attrs to avoid Phlex security error
-            attrs.delete(:onclick)
-          end
-
-          if href
-            a(href: href, class: classes, **attrs) do
-              render_button_content(icon: icon, text: text)
-            end
-          else
-            button(class: classes, **attrs) do
-              render_button_content(icon: icon, text: text)
-            end
-          end
+        def render_metric_card(title:, value:, color: "blue", icon: nil, href: nil, hint: nil)
+          render Ui::Molecules::MetricCard.new(
+            label: title,
+            value: value,
+            icon: icon&.to_s&.delete_prefix("bi-"),
+            tone: METRIC_TONES[color.to_s],
+            hint: hint,
+            href: href
+          )
         end
 
-        def render_button_content(icon:, text:)
-          if icon
-            i(class: "bi #{icon}")
-          end
-          plain text
+        # Maps the old Preline variant names onto Button's variants. "primary"
+        # is the library's default, so it maps to nil.
+        BUTTON_VARIANTS = {
+          "primary" => nil,
+          "success" => nil,
+          "secondary" => :secondary,
+          "danger" => :danger
+        }.freeze
+
+        # Retained under its original name because 33 components call it; the
+        # body now renders the Button atom.
+        def render_preline_button(text:, href: nil, variant: "primary", size: "sm", icon: nil,
+                                  onclick: nil, **attrs)
+          # onclick cannot be set directly (Phlex rejects inline handlers); the
+          # layout's script wires up anything carrying data-onclick.
+          attrs[:data_onclick] = onclick if onclick
+          attrs.delete(:onclick)
+
+          render Ui::Atoms::Button.new(
+            label: text,
+            href: href,
+            icon: icon&.to_s&.delete_prefix("bi-"),
+            variant: BUTTON_VARIANTS[variant.to_s],
+            size: (size.to_s == "lg" ? :lg : :sm),
+            **attrs
+          )
         end
 
+        # Wraps a table in a flush glass card. Kept for the components that
+        # still call it; new code should render Organisms::DataGrid inside an
+        # Organisms::Card directly.
         def render_preline_table(&block)
-          div(class: "flex flex-col") do
-            div(class: "-m-1.5 overflow-x-auto") do
-              div(class: "p-1.5 min-w-full inline-block align-middle") do
-                div(class: "bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden") do
-                  yield if block_given?
-                end
-              end
-            end
+          render(Ui::Organisms::Card.new(flush: true)) do
+            div(class: "raaf-table-wrap") { yield if block }
           end
         end
-
-        private
       end
     end
   end

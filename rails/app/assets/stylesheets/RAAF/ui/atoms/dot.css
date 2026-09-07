@@ -1,0 +1,31 @@
+/* ============================================================================
+   Atom — Dot
+   Status dot, optionally pulsing. The only thing that maps a health state to
+   a colour outside of the badges.
+   ========================================================================= */
+
+.raaf-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--raaf-dot-color, var(--raaf-gray-500));
+}
+
+.raaf-dot--ok { --raaf-dot-color: var(--raaf-success); }
+.raaf-dot--warn { --raaf-dot-color: var(--raaf-warning); }
+.raaf-dot--bad { --raaf-dot-color: var(--raaf-danger); }
+.raaf-dot--info { --raaf-dot-color: var(--raaf-info); }
+.raaf-dot--idle { --raaf-dot-color: var(--raaf-gray-500); }
+
+.raaf-dot--lg { width: 8px; height: 8px; }
+
+/* A halo in the dot's own colour, so the state reads before the label does. */
+.raaf-dot--glow { box-shadow: 0 0 10px var(--raaf-dot-color, var(--raaf-gray-500)); }
+
+.raaf-dot--pulse { animation: raaf-pulse 2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .raaf-dot--pulse { animation: none; }
+}

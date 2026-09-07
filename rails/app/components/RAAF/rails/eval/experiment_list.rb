@@ -3,93 +3,174 @@
 module RAAF
   module Rails
     module Eval
+      ##
+      # The experiment listing, from the Experiments screen in
+      # RAAF Eval.dc.html: a status rail with the count opposite it, and one
+      # table where a row is an experiment, its dataset, its model, how it
+      # ended and what it scored.
+      #
+      # This screen was still the original Tailwind markup — a white card on a
+      # grey page inside a console that is dark everywhere else. It now sits on
+      # the same library as the Tracing and Continuous screens.
+      #
+      # The design spends no column on progress; the run's own screen carries
+      # that. A running experiment still needs it here, so it goes on the
+      # second line under the name where the agent already is.
+      #
       class ExperimentList < RAAF::Rails::Tracing::BaseComponent
-        def initialize(experiments:)
+        # Columns and fr weights taken from RAAF Eval.dc.html.
+        COLUMNS = [
+          { label: "Experiment", span: 2 },
+          { label: "Dataset", span: 1.4 },
+          { label: "Model", span: 1.1 },
+          { label: "Status", span: 0.9, align: :right },
+          { label: "Score", span: 0.7, align: :right },
+          { label: "Run", span: 0.8, align: :right }
+        ].freeze
+
+        STATUSES = [
+          { label: "All", value: nil },
+          { label: "Completed", value: "completed" },
+          { label: "Running", value: "running" },
+          { label: "Pending", value: "pending" },
+          { label: "Failed", value: "failed" }
+        ].freeze
+
+        # @param experiments [Enumerable<Experiment>] the rows to draw
+        # @param agents [Array<String>] every agent an experiment names, for
+        #   the strip's scope filter
+        # @param filters [Hash] :status and :agent, as the controller read them
+        def initialize(experiments:, agents: [], filters: {})
           @experiments = experiments
+          @agents = agents || []
+          @filters = filters || {}
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_experiments_table
+          div(class: "raaf-page") do
+            filters
+            table
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              h1(class: "text-2xl font-bold text-gray-900") { "Experiments" }
-              p(class: "mt-1 text-sm text-gray-500") { "Run and compare agent configurations against datasets" }
-            end
-            div(class: "mt-4 sm:mt-0") do
-              render_preline_button(text: "New Experiment", href: eval_experiments_path + "/new", variant: "primary", icon: "bi-plus-lg")
+        def filters
+          render(Molecules::FilterBar.new(chips: status_chips, panel: true,
+                                          lead: agent_filter)) do
+            render Atoms::Mono.new(count_label, tone: :muted)
+            render Atoms::Button.new(label: "New experiment", icon: "plus-lg", size: :sm,
+                                     href: "#{eval_experiments_path}/new")
+          end
+        end
+
+        def agent_filter
+          Molecules::ScopeFilter.new(
+            name: "agent", value: @filters[:agent], options: @agents,
+            action: eval_experiments_path, prefix: "agent",
+            carry: { "status" => @filters[:status] }
+          )
+        end
+
+        def status_chips
+          STATUSES.map do |status|
+            { label: status[:label],
+              active: @filters[:status].presence == status[:value],
+              href: filtered_path(status[:value]) }
+          end
+        end
+
+        def filtered_path(status)
+          carried = { agent: @filters[:agent], status: status }
+          eval_experiments_path(carried.compact.reject { |_, value| value.to_s.empty? })
+        end
+
+        def count_label
+          pluralize(@experiments.size, "experiment")
+        end
+
+        def table
+          render(Organisms::Card.new(flush: true)) do
+            render(Organisms::DataGrid.new(
+                     columns: COLUMNS,
+                     empty: { icon: "eyedropper", title: "No experiments",
+                              text: "Nothing has been run against a dataset yet." }
+                   )) do |grid|
+              @experiments.each { |experiment| row(grid, experiment) }
             end
           end
         end
 
-        def render_experiments_table
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            if @experiments.any?
-              div(class: "overflow-x-auto") do
-                table(class: "min-w-full divide-y divide-gray-200") do
-                  thead(class: "bg-gray-50") do
-                    tr do
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Name" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Agent" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Model" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Progress" }
-                      th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Status" }
-                      th(class: "px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase") { "Actions" }
-                    end
-                  end
-                  tbody(class: "bg-white divide-y divide-gray-200") do
-                    @experiments.each { |exp| render_experiment_row(exp) }
-                  end
-                end
-              end
-            else
-              render_empty_state
-            end
+        def row(grid, experiment)
+          score = score_for(experiment)
+
+          grid.row(href: eval_experiment_path(experiment), cells: [
+                     { value: Molecules::TitleMeta.new(experiment.name, subtitle_for(experiment)) },
+                     { value: Atoms::Mono.new(dataset_for(experiment), tone: :muted) },
+                     # Muted, not the default: the row is an anchor, so an
+                     # untoned value takes the link colour and reads as
+                     # something you can click on its own.
+                     { value: Atoms::Mono.new(experiment.model.presence || "—", tone: :muted) },
+                     { value: Atoms::StatusBadge.new(experiment.status), align: :right },
+                     { value: Atoms::Mono.new(format_score(score), tone: score_tone(score)),
+                       align: :right },
+                     { value: Atoms::Mono.new(time_ago(run_at(experiment)), tone: :muted),
+                       align: :right }
+                   ])
+        end
+
+        # The second line: which agent was run, and — while it is still
+        # running — how far through the dataset it is.
+        def subtitle_for(experiment)
+          [experiment.agent_name.presence || "no agent", progress_for(experiment)]
+            .compact.join(" · ")
+        end
+
+        def progress_for(experiment)
+          return nil unless experiment.in_progress? && experiment.total_items.to_i.positive?
+
+          "#{experiment.progress_percentage.round}% of #{experiment.total_items}"
+        end
+
+        # Reading the dataset through the association is why the controller
+        # preloads it; without that this is one query per row.
+        def dataset_for(experiment)
+          experiment.dataset&.name.presence || "—"
+        end
+
+        # `aggregate_metrics` is written once when the run completes, so the
+        # column costs nothing to draw. Averaging the per-dimension averages
+        # matches how a single result computes its own overall score.
+        def score_for(experiment)
+          scores = experiment.aggregate_metrics.is_a?(Hash) ? experiment.aggregate_metrics["scores"] : nil
+          return nil unless scores.is_a?(Hash)
+
+          values = scores.values.filter_map { |stats| stats["avg"]&.to_f if stats.is_a?(Hash) }
+          return nil if values.empty?
+
+          values.sum / values.size
+        end
+
+        def format_score(score)
+          score.nil? ? "—" : "%.2f" % score
+        end
+
+        # The same three tiers the continuous results table uses, so a score
+        # that reads green on one screen is not amber on the other.
+        def score_tone(score)
+          return :muted if score.nil?
+
+          case score
+          when 0.8.. then :ok
+          when 0.5...0.8 then :warn
+          else :bad
           end
         end
 
-        def render_experiment_row(exp)
-          tr(class: "hover:bg-gray-50") do
-            td(class: "px-4 py-3") do
-              a(href: eval_experiment_path(exp), class: "text-blue-600 hover:text-blue-800 font-medium") { exp.name }
-            end
-            td(class: "px-4 py-3 text-sm text-gray-600") { exp.agent_name || "-" }
-            td(class: "px-4 py-3 text-sm text-gray-600") { exp.model || "-" }
-            td(class: "px-4 py-3 text-sm") do
-              if exp.total_items > 0
-                div(class: "flex items-center gap-2") do
-                  div(class: "w-24 bg-gray-200 rounded-full h-2") do
-                    div(class: "bg-blue-600 h-2 rounded-full", style: "width: #{exp.progress_percentage}%")
-                  end
-                  span(class: "text-xs text-gray-500") { "#{exp.progress_percentage}%" }
-                end
-              else
-                span(class: "text-xs text-gray-400") { "Not started" }
-              end
-            end
-            td(class: "px-4 py-3") { render_status_badge(exp.status) }
-            td(class: "px-4 py-3 text-right") do
-              render_preline_button(text: "View", href: eval_experiment_path(exp), variant: "secondary", size: "xs")
-            end
-          end
-        end
-
-        def render_empty_state
-          div(class: "flex flex-col items-center justify-center py-12") do
-            i(class: "bi bi-flask text-5xl text-gray-400")
-            h3(class: "mt-4 text-lg font-medium text-gray-900") { "No experiments yet" }
-            p(class: "mt-1 text-sm text-gray-500") { "Create an experiment to compare agent configurations." }
-            div(class: "mt-4") do
-              render_preline_button(text: "Create Experiment", href: eval_experiments_path + "/new", variant: "primary")
-            end
-          end
+        # When the run happened — the end of it, or its start while it is
+        # still going, and otherwise when it was created.
+        def run_at(experiment)
+          experiment.completed_at || experiment.started_at || experiment.created_at
         end
       end
     end

@@ -1,0 +1,254 @@
+/* ============================================================================
+   Organism — Experiment editor
+   The `isEdit` screen from RAAF Eval.dc.html: the four editable sections in a
+   column, beside a sticky rail carrying the diff, what the next run will do,
+   and the actions.
+
+   This is the first form in any canvas — the policy form had to invent its
+   look from the library — so the measurements here come from the design and
+   the atoms come from the library, which is why the inputs, the toggle and
+   the buttons are not restyled below.
+   ========================================================================= */
+
+.raaf-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  gap: 18px;
+  align-items: start;
+}
+
+.raaf-editor-main,
+.raaf-editor-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+  min-width: 0;
+}
+
+/* The rail follows a long form down rather than leaving the actions at the
+   bottom of four cards. `top` clears the shell's sticky topbar. */
+.raaf-editor-side {
+  position: sticky;
+  top: var(--raaf-space-4);
+}
+
+@media (width <= 1024px) {
+  .raaf-editor { grid-template-columns: minmax(0, 1fr); }
+  .raaf-editor-side { position: static; }
+}
+
+/* A control that needs the card's full width — the description, and the
+   temperature slider with its live label. */
+.raaf-field--wide { grid-column: 1 / -1; }
+
+/* ── Temperature ────────────────────────────────────────────────────────── */
+
+.raaf-slider-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--raaf-space-3);
+}
+
+.raaf-slider-head > :first-child { flex: 1; }
+
+.raaf-slider {
+  width: 100%;
+  accent-color: var(--raaf-cyan-500);
+  cursor: pointer;
+}
+
+/* ── One scorer ─────────────────────────────────────────────────────────── */
+
+.raaf-scorer-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-scorer-edit:last-child { border-bottom: 0; }
+
+/* A scorer switched off still shows its numbers — they are what it will use
+   again when it is switched back on — but stops competing for attention. */
+.raaf-scorer-edit.is-off { opacity: 0.55; }
+
+.raaf-scorer-edit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.raaf-scorer-edit-name {
+  overflow-wrap: anywhere;
+}
+
+.raaf-scorer-edit-note {
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+  text-wrap: pretty;
+}
+
+.raaf-scorer-edit-num {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 0 1 96px;
+  min-width: 76px;
+}
+
+.raaf-scorer-edit .raaf-toggle {
+  margin-left: auto;
+}
+
+/* The weights total, in the card header. It is a judgement rather than a
+   fact — a total that is not 1.0 still saves — so it is coloured, not
+   blocked. */
+.raaf-weight-total--off { color: var(--raaf-tone-warn-text); }
+
+/* ── Trigger ────────────────────────────────────────────────────────────── */
+
+.raaf-pillset {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  flex-wrap: wrap;
+}
+
+/* Radios rather than buttons: the trigger has to post with the form, and a
+   real input keeps the group keyboard-operable and announced as a group. */
+.raaf-pill-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.raaf-pill {
+  padding: 7px 14px;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-pill);
+  background: var(--raaf-glass-white-5);
+  color: var(--raaf-text-secondary);
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.raaf-pill:hover { color: var(--raaf-white); }
+
+.raaf-pill-radio:checked + .raaf-pill {
+  background: rgb(0 154 204 / 16%);
+  border-color: var(--raaf-cyan-500);
+  color: var(--raaf-white);
+}
+
+.raaf-pill-radio:focus-visible + .raaf-pill {
+  outline: 2px solid var(--raaf-cyan-500);
+  outline-offset: 2px;
+}
+
+/* ── Pending changes ────────────────────────────────────────────────────── */
+
+.raaf-diff-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-1);
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-diff-row:last-child { border-bottom: 0; }
+
+.raaf-diff-label {
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+.raaf-diff-values {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  min-width: 0;
+}
+
+.raaf-diff-from,
+.raaf-diff-to {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--raaf-font-mono);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.raaf-diff-from {
+  color: var(--raaf-tone-bad-text);
+  text-decoration: line-through;
+}
+
+.raaf-diff-to { color: var(--raaf-tone-ok-text); }
+
+.raaf-diff-arrow {
+  flex: none;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-diff-empty {
+  margin: 0;
+  padding: var(--raaf-space-4);
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+  text-wrap: pretty;
+}
+
+/* ── Next run ───────────────────────────────────────────────────────────── */
+
+.raaf-editor-fact {
+  display: flex;
+  align-items: baseline;
+  gap: var(--raaf-space-3);
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-editor-fact:last-child { border-bottom: 0; }
+
+.raaf-editor-fact-label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+}
+
+/* ── Actions ────────────────────────────────────────────────────────────── */
+
+.raaf-editor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-4);
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+}
+
+.raaf-editor-actions .raaf-button { width: 100%; }
+
+.raaf-editor-back {
+  padding: var(--raaf-space-2);
+  border: none;
+  background: none;
+  color: var(--raaf-text-muted);
+  font-family: var(--raaf-font-sans);
+  font-size: var(--raaf-text-body-sm);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.raaf-editor-back:hover { color: var(--raaf-white); }

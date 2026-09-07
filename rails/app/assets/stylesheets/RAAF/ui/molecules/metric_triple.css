@@ -1,0 +1,222 @@
+/* ============================================================================
+   Molecules — MetricTriple, Sparkbars, Panel
+   ========================================================================= */
+
+.raaf-triple {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--raaf-border);
+}
+
+.raaf-triple-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.raaf-triple-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-triple-value {
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-body);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Sparkbars ───────────────────────────────────────────────────────────── */
+.raaf-sparkbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 34px;
+}
+
+/* The bar stands in a full-height cell rather than on the baseline itself.
+   The cell is the hover target — a bucket drawn 2% tall is nothing a mouse can
+   find — and the anchor the readout hangs from. Scoped past `.raaf-tooltip`,
+   whose inline-flex would otherwise collapse the column. */
+.raaf-sparkbars .raaf-sparkbar-cell {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+/* The end columns' readouts would hang off the card, so they align to the
+   chart edge instead of centring on a bar that has no room either side. */
+.raaf-sparkbar-cell:first-child > .raaf-tooltip-content {
+  left: 0;
+  transform: none;
+}
+
+.raaf-sparkbar-cell:last-child > .raaf-tooltip-content {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.raaf-sparkbar {
+  width: 100%;
+  height: var(--raaf-spark-h, 40%);
+  border-radius: 2px 2px 0 0;
+
+  /* Cyan is the console's "something ran here" colour, per RAAF Console.dc.html;
+     a tone below repaints the buckets that ran badly. */
+  background: rgb(0 154 204 / 55%);
+}
+
+.raaf-sparkbar--ok { background: rgb(17 170 100 / 55%); }
+.raaf-sparkbar--warn { background: rgb(245 158 11 / 65%); }
+.raaf-sparkbar--bad { background: rgb(239 68 68 / 75%); }
+
+/* ── Panel: a titled glass box with a list inside ────────────────────────── */
+.raaf-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-lg);
+  background: var(--raaf-surface-glass);
+  backdrop-filter: var(--raaf-blur);
+}
+
+.raaf-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--raaf-text-body);
+  font-weight: 700;
+}
+
+.raaf-panel-action {
+  font-size: var(--raaf-text-sm);
+  font-weight: 600;
+  color: var(--raaf-text-link);
+  text-decoration: none;
+}
+
+.raaf-panel-action:hover { color: var(--raaf-text-link-hover); text-decoration: none; }
+
+.raaf-panel-body { display: flex; flex-direction: column; }
+
+.raaf-panel-body--pad { padding: 16px; gap: 12px; }
+
+/* ── MeterRow: a name, a figure, and a proportional bar ──────────────────── */
+/* Three tracks: the name, an optional middle figure, and the value. The
+   middle track collapses to nothing when the row has no `meta`, so a row
+   without one looks exactly as it did on two tracks — this is what puts the
+   token count beside the spend on Cost & usage rather than on its own line. */
+.raaf-meter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-meter:last-child { border-bottom: 0; }
+
+.raaf-meter-name {
+  grid-row: 1;
+  grid-column: 1;
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raaf-meter > .raaf-mono {
+  grid-row: 1;
+  grid-column: 3;
+}
+
+.raaf-meter > .raaf-meter-meta {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+/* Carries `.raaf-tooltip` when the row has a readout; block display keeps it
+   the full-width grid item it is, rather than the inline-flex box the tooltip
+   molecule assumes. */
+.raaf-meter .raaf-meter-bar {
+  grid-column: 1 / -1;
+  display: block;
+}
+
+/* A `Panel` clips its flush body so a row's hover fill cannot square off the
+   rounded corners, which leaves the top row no room above it. That row's
+   readout drops below its bar instead; every other row's fits above, over the
+   row before it. */
+.raaf-panel-body > .raaf-meter:first-child > .raaf-meter-bar > .raaf-tooltip-content {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
+.raaf-meter-sub {
+  grid-column: 1 / -1;
+  font-size: var(--raaf-text-xs);
+  color: var(--raaf-text-muted);
+}
+
+/* The lead slot holds whatever identifies the row ahead of its name — the
+   step index and kind chip on the pipeline screen. */
+.raaf-meter-lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Inline: name, bar and figures on one line, for a dense list of steps. The
+   bar keeps a fixed width here because it compares steps to each other, not
+   to the row it sits in. */
+.raaf-meter--inline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--raaf-border);
+  border-bottom: 1px solid var(--raaf-border);
+  border-radius: 13px;
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-meter--inline .raaf-meter-name {
+  flex: 1;
+  font-family: var(--raaf-font-mono);
+  font-size: 12.5px;
+}
+
+.raaf-meter--inline .raaf-meter-bar {
+  order: 1;
+  flex-shrink: 0;
+  width: 110px;
+}
+
+.raaf-meter--inline > .raaf-mono {
+  order: 2;
+  width: 56px;
+  text-align: right;
+}
+
+.raaf-meter--inline .raaf-meter-meta {
+  order: 3;
+  width: 52px;
+}

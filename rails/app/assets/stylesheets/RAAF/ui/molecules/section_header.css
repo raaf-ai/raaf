@@ -1,0 +1,53 @@
+/* ============================================================================
+   Molecule — SectionHeader
+   Title on the left, actions on the right, hairline underneath.
+   ========================================================================= */
+
+.raaf-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--raaf-space-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--raaf-space-4);
+  margin-bottom: var(--raaf-space-6);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-section-header--flush {
+  padding-bottom: 0;
+  margin-bottom: var(--raaf-space-4);
+  border-bottom: none;
+}
+
+.raaf-section-header-title {
+  margin: 0;
+  font-size: var(--raaf-text-h4);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--raaf-white);
+}
+
+.raaf-section-header--sm .raaf-section-header-title {
+  font-size: var(--raaf-text-h6);
+}
+
+.raaf-section-header-meta {
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.raaf-section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+}
+
+.raaf-section-intro {
+  max-width: 72ch;
+  margin: 0 0 var(--raaf-space-6);
+  font-size: var(--raaf-text-body-lg);
+  line-height: 1.6;
+  color: var(--raaf-text-secondary);
+}

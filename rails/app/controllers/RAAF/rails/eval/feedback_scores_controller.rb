@@ -16,8 +16,15 @@ module RAAF
 
           respond_to do |format|
             format.html do
-              component = RAAF::Rails::Eval::FeedbackScoreList.new(scores: @scores.limit(100))
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Feedback Scores") { render component }
+              component = RAAF::Rails::Eval::FeedbackScoreList.new(
+                scores: @scores.limit(100),
+                stats: FeedbackScore.score_statistics,
+                distribution: FeedbackScore.category_distribution,
+                definitions: score_definitions
+              )
+              layout = RAAF::Rails::Tracing::BaseLayout.new(
+                title: "Feedback scores", crumb: "Evaluate", current: :feedback
+              ) { render component }
               render layout
             end
             format.json { render json: @scores.limit(100) }
@@ -48,7 +55,7 @@ module RAAF
           else
             respond_to do |format|
               format.html { redirect_to eval_feedback_scores_path, alert: @score.errors.full_messages.join(", ") }
-              format.json { render json: { errors: @score.errors }, status: :unprocessable_entity }
+              format.json { render json: { errors: @score.errors }, status: :unprocessable_content }
             end
           end
         end
@@ -62,7 +69,10 @@ module RAAF
             source: params[:source] || "ui"
           )
           respond_to do |format|
-            format.html { redirect_to eval_feedback_scores_path(span_id: params[:span_id]), notice: "#{scores.size} scores recorded." }
+            format.html do
+              redirect_to eval_feedback_scores_path(span_id: params[:span_id]),
+                          notice: "#{scores.size} scores recorded."
+            end
             format.json { render json: scores, status: :created }
           end
         end
@@ -76,7 +86,10 @@ module RAAF
             source: params[:source] || "ui"
           )
           respond_to do |format|
-            format.html { redirect_to eval_feedback_scores_path(trace_id: params[:trace_id]), notice: "#{scores.size} scores recorded." }
+            format.html do
+              redirect_to eval_feedback_scores_path(trace_id: params[:trace_id]),
+                          notice: "#{scores.size} scores recorded."
+            end
             format.json { render json: scores, status: :created }
           end
         end
@@ -105,8 +118,42 @@ module RAAF
 
         private
 
+        # What each score name is, derived from the scores themselves — the
+        # schema has no definition table. A name is numerical or categorical
+        # by which column its scores fill, and its range is the span those
+        # scores cover, so the list describes what has actually been recorded
+        # rather than what someone once intended.
+        def score_definitions
+          numerical = FeedbackScore.numerical.group(:name)
+          categorical = FeedbackScore.categorical.group(:name)
+
+          rows = numerical_definitions(numerical) + categorical_definitions(categorical)
+          rows.sort_by { |definition| -definition[:count] }
+        end
+
+        def numerical_definitions(scope)
+          counts = scope.count
+          minimums = scope.minimum(:value)
+          maximums = scope.maximum(:value)
+
+          counts.map do |name, count|
+            { name: name, type: "numerical", count: count,
+              range: "#{format('%.2f', minimums[name].to_f)} – #{format('%.2f', maximums[name].to_f)}" }
+          end
+        end
+
+        def categorical_definitions(scope)
+          categories = scope.distinct.count(:category_value)
+
+          scope.count.map do |name, count|
+            { name: name, type: "categorical", count: count,
+              range: "#{categories[name].to_i} cats" }
+          end
+        end
+
         def feedback_score_params
-          params.require(:feedback_score).permit(:name, :source, :span_id, :trace_id, :value, :category_value, :reason, :scored_by, metadata: {})
+          params.require(:feedback_score).permit(:name, :source, :span_id, :trace_id, :value, :category_value, :reason,
+                                                 :scored_by, metadata: {})
         end
       end
     end

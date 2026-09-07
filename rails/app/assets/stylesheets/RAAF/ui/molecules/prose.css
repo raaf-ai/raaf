@@ -1,0 +1,115 @@
+/* ============================================================================
+   Molecule — Prose
+   Rendered markdown: agent instructions, tool descriptions, LLM output.
+   Retuned for the dark surface; the light-theme original lived inline in the
+   layout.
+   ========================================================================= */
+
+.raaf-prose {
+  max-width: 72ch;
+  color: var(--raaf-text-secondary);
+  font-size: var(--raaf-text-body);
+  line-height: 1.65;
+}
+
+.raaf-prose > * + * { margin-top: 0.85em; }
+
+.raaf-prose h1,
+.raaf-prose h2,
+.raaf-prose h3,
+.raaf-prose h4 {
+  margin-top: 1.6em;
+  color: var(--raaf-white);
+  line-height: 1.3;
+}
+
+.raaf-prose h1 { font-size: 1.5em; font-weight: 700; }
+.raaf-prose h2 { font-size: 1.25em; font-weight: 600; }
+.raaf-prose h3 { font-size: 1.1em; font-weight: 600; }
+.raaf-prose h4 { font-size: 1em; font-weight: 600; }
+
+.raaf-prose > :first-child { margin-top: 0; }
+
+.raaf-prose ul,
+.raaf-prose ol {
+  padding-left: 1.4em;
+  list-style: revert;
+}
+
+.raaf-prose li + li { margin-top: 0.3em; }
+
+.raaf-prose a {
+  color: var(--raaf-text-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.raaf-prose strong { color: var(--raaf-white); font-weight: 600; }
+.raaf-prose em { font-style: italic; }
+
+.raaf-prose code {
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: rgb(0 154 204 / 12%);
+  color: var(--raaf-cyan-500);
+  font-family: var(--raaf-font-mono);
+  font-size: 0.875em;
+}
+
+.raaf-prose pre {
+  padding: var(--raaf-space-4);
+  overflow-x: auto;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-md);
+  background: rgb(0 0 0 / 25%);
+  font-family: var(--raaf-font-mono);
+  font-size: 0.875em;
+  line-height: 1.6;
+}
+
+.raaf-prose pre code {
+  padding: 0;
+  background: transparent;
+  color: var(--raaf-text-secondary);
+}
+
+.raaf-prose blockquote {
+  padding-left: var(--raaf-space-4);
+  border-left: 3px solid var(--raaf-border-strong);
+  color: var(--raaf-text-muted);
+  font-style: italic;
+}
+
+.raaf-prose table {
+  width: 100%;
+  font-size: var(--raaf-text-body-sm);
+}
+
+.raaf-prose th,
+.raaf-prose td {
+  padding: var(--raaf-space-2) var(--raaf-space-3);
+  border: 1px solid var(--raaf-border);
+  text-align: left;
+}
+
+.raaf-prose th {
+  background: var(--raaf-glass-white-5);
+  color: var(--raaf-white);
+  font-weight: 600;
+}
+
+.raaf-prose hr {
+  border: none;
+  border-top: 1px solid var(--raaf-border);
+}
+
+/* Compact variant for prose inside table cells and side panels */
+.raaf-prose--sm {
+  font-size: var(--raaf-text-body-sm);
+  line-height: 1.55;
+}
+
+.raaf-prose--sm h1 { font-size: 1.25em; }
+.raaf-prose--sm h2 { font-size: 1.125em; }
+.raaf-prose--sm h3 { font-size: 1em; }
+.raaf-prose--sm pre { padding: var(--raaf-space-3); }

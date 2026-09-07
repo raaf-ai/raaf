@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/tokens.css">
+<script src="_ds/prospectsradar-design-system-6e9f12f2-a2de-496a-9edd-92bd7ca07b18/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</helmet>
+<dc-import name="Shell" active="{{ navId }}" title="{{ title }}" crumb="Evaluate" hint-size="100%,100%">
+
+  <sc-if value="{{ isDatasets }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+        <sc-for list="{{ datasetFilters }}" as="f" hint-placeholder-count="3">
+          <button onClick="{{ f.go }}" style="all:unset; cursor:pointer; padding:6px 13px; border-radius:999px; font-size:12px; font-weight:600; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+        </sc-for>
+        <span style="flex:1"></span>
+        <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">6 datasets · 1,842 items</span>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:grid; grid-template-columns:minmax(0,2.4fr) minmax(0,0.6fr) minmax(0,0.7fr) minmax(0,0.9fr) minmax(0,0.85fr) minmax(0,0.85fr); padding:11px 18px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Dataset</span><span style="text-align:right">Version</span><span style="text-align:right">Items</span><span style="text-align:right">Experiments</span><span style="text-align:right">Status</span><span style="text-align:right">Updated</span>
+        </div>
+        <sc-for list="{{ datasets }}" as="d" hint-placeholder-count="6">
+          <button onClick="{{ d.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:minmax(0,2.4fr) minmax(0,0.6fr) minmax(0,0.7fr) minmax(0,0.9fr) minmax(0,0.85fr) minmax(0,0.85fr); align-items:center; padding:13px 18px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+            <span style="display:flex; flex-direction:column; gap:3px; min-width:0; text-align:left">
+              <span style="font-family:var(--pr-font-mono); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ d.name }}</span>
+              <span style="font-size:11.5px; color:var(--pr-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ d.desc }}</span>
+            </span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:var(--pr-text-secondary)">{{ d.version }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ d.items }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right">{{ d.experiments }}</span>
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ d.bg }}; color:{{ d.fg }}; justify-self:end">{{ d.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ d.updated }}</span>
+          </button>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDataset }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding:18px 20px; border-radius:16px; background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border)">
+        <div style="display:flex; flex-direction:column; gap:8px; min-width:0; flex:1">
+          <span style="font-family:var(--pr-font-mono); font-size:18px; font-weight:500; letter-spacing:-0.02em">{{ dataset.name }}</span>
+          <p style="margin:0; font-size:13px; color:var(--pr-text-secondary); max-width:64ch; text-wrap:pretty">{{ dataset.desc }}</p>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--pr-success-bg); color:#7ee0ae">{{ dataset.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">version {{ dataset.version }} · created {{ dataset.created }}</span>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3, minmax(72px,auto)); gap:22px">
+          <sc-for list="{{ dataset.stats }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">{{ s.label }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:17px; font-weight:500">{{ s.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+          <h2 style="margin:0; font-size:14px; font-weight:700">Items</h2>
+          <span style="font-size:12px; color:var(--pr-text-muted)">120 items · 96 imported from spans</span>
+        </div>
+        <div style="display:grid; grid-template-columns:minmax(0,0.5fr) minmax(0,2.2fr) minmax(0,1.7fr) minmax(0,0.7fr); padding:10px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>ID</span><span>Input</span><span>Expected output</span><span style="text-align:right">Source</span>
+        </div>
+        <sc-for list="{{ items }}" as="i" hint-placeholder-count="7">
+          <div style="display:grid; grid-template-columns:minmax(0,0.5fr) minmax(0,2.2fr) minmax(0,1.7fr) minmax(0,0.7fr); align-items:center; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+            <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ i.id }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ i.input }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ i.expected }}</span>
+            <span style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; background:{{ i.srcBg }}; color:{{ i.srcFg }}; justify-self:end">{{ i.source }}</span>
+          </div>
+        </sc-for>
+      </section>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Experiments against this dataset</h2></div>
+        <sc-for list="{{ datasetExperiments }}" as="x" hint-placeholder-count="4">
+          <button onClick="{{ x.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:flex; align-items:center; gap:12px; padding:13px 16px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+            <span style="font-size:13px; flex:1; min-width:0; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ x.name }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ x.model }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12px; color:{{ x.scoreColor }}">{{ x.score }}</span>
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ x.bg }}; color:{{ x.fg }}">{{ x.status }}</span>
+          </button>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isExperiments }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+        <sc-for list="{{ experimentFilters }}" as="f" hint-placeholder-count="4">
+          <button onClick="{{ f.go }}" style="all:unset; cursor:pointer; padding:6px 13px; border-radius:999px; font-size:12px; font-weight:600; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+        </sc-for>
+        <span style="flex:1"></span>
+        <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">nightly suite · 02:00 UTC</span>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.1fr) minmax(0,0.9fr) minmax(0,0.7fr) minmax(0,0.8fr); padding:11px 18px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Experiment</span><span>Dataset</span><span>Model</span><span style="text-align:right">Status</span><span style="text-align:right">Score</span><span style="text-align:right">Run</span>
+        </div>
+        <sc-for list="{{ experiments }}" as="x" hint-placeholder-count="8">
+          <button onClick="{{ x.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.1fr) minmax(0,0.9fr) minmax(0,0.7fr) minmax(0,0.8fr); align-items:center; padding:13px 18px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+            <span style="display:flex; flex-direction:column; gap:3px; min-width:0; text-align:left">
+              <span style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ x.name }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ x.agent }}</span>
+            </span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ x.dataset }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ x.model }}</span>
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ x.bg }}; color:{{ x.fg }}; justify-self:end">{{ x.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12.5px; text-align:right; color:{{ x.scoreColor }}">{{ x.score }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ x.when }}</span>
+          </button>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isExperiment }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding:18px 20px; border-radius:16px; background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border)">
+        <div style="display:flex; flex-direction:column; gap:7px; min-width:0; flex:1 1 260px">
+          <span style="font-size:18px; font-weight:700; letter-spacing:-0.01em; overflow-wrap:anywhere">{{ experiment.name }}</span>
+          <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">
+            <span>{{ experiment.agent }}</span><span>{{ experiment.model }}</span><span>{{ experiment.provider }}</span><span>{{ experiment.dataset }}</span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex:none; flex-wrap:wrap">
+          <span style="font-size:11px; font-weight:600; padding:4px 11px; border-radius:999px; background:var(--pr-success-bg); color:#7ee0ae">{{ experiment.status }}</span>
+          <button onClick="{{ goEdit }}" style="all:unset; cursor:pointer; display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:10px; font-size:12.5px; font-weight:600; color:#fff; background:var(--pr-glass-white-8); border:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-12)">
+            <i class="bi bi-sliders2" style="font-size:13px; color:var(--pr-cyan-500)"></i>Edit experiment
+          </button>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(168px,1fr)); gap:14px">
+        <sc-for list="{{ experiment.metrics }}" as="m" hint-placeholder-count="4">
+          <div style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:9px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ m.label }}</span>
+              <i class="bi {{ m.icon }}" style="font-size:13px; color:{{ m.iconColor }}"></i>
+            </div>
+            <span style="font-family:var(--pr-font-mono); font-size:24px; font-weight:500; color:{{ m.color }}">{{ m.value }}</span>
+            <sc-if value="{{ m.pct }}" hint-placeholder-val="{{ true }}">
+              <div style="height:6px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                <div style="height:100%; border-radius:999px; width:{{ m.pct }}; background:{{ m.bar }}"></div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <section style="padding:18px 20px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border); display:flex; flex-direction:column; gap:14px">
+        <h2 style="margin:0; font-size:14px; font-weight:700">Aggregate scores</h2>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:14px">
+          <sc-for list="{{ aggregateScores }}" as="a" hint-placeholder-count="4">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:14px; border-radius:13px; background:var(--pr-glass-white-5); border:1px solid var(--pr-border)">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ a.label }}</span>
+              <div style="display:flex; align-items:baseline; gap:8px">
+                <span style="font-family:var(--pr-font-mono); font-size:20px; font-weight:500">{{ a.value }}</span>
+                <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:{{ a.deltaColor }}">{{ a.delta }}</span>
+              </div>
+              <div style="height:5px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                <div style="height:100%; border-radius:999px; width:{{ a.pct }}; background:{{ a.bar }}"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+          <h2 style="margin:0; font-size:14px; font-weight:700">Results</h2>
+          <div style="display:flex; align-items:center; gap:4px">
+            <sc-for list="{{ resultFilters }}" as="f" hint-placeholder-count="3">
+              <button onClick="{{ f.go }}" style="all:unset; cursor:pointer; padding:5px 11px; border-radius:8px; font-size:12px; font-weight:600; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:minmax(0,0.55fr) minmax(0,0.9fr) minmax(0,0.6fr) minmax(0,2.6fr); padding:10px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Item</span><span>Status</span><span style="text-align:right">Score</span><span style="padding-left:16px">Output</span>
+        </div>
+        <sc-for list="{{ results }}" as="r" hint-placeholder-count="8">
+          <div style="display:grid; grid-template-columns:minmax(0,0.55fr) minmax(0,0.9fr) minmax(0,0.6fr) minmax(0,2.6fr); align-items:center; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+            <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ r.item }}</span>
+            <span style="font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; background:{{ r.bg }}; color:{{ r.fg }}; justify-self:start">{{ r.status }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12.5px; text-align:right; color:{{ r.scoreColor }}">{{ r.score }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; padding-left:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.output }}</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,320px); gap:18px; align-items:start">
+      <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 18px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Identity</h2></div>
+          <div style="padding:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px">
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Experiment name</span>
+              <input value="{{ form.name }}" onChange="{{ setName }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Agent under test</span>
+              <select value="{{ form.agent }}" onChange="{{ setAgent }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none">
+                <option value="Company::EnrichAgent">Company::EnrichAgent</option>
+                <option value="Prospect::ScoringAgent">Prospect::ScoringAgent</option>
+                <option value="Outreach::DraftAgent">Outreach::DraftAgent</option>
+                <option value="Compliance::PIIGuard">Compliance::PIIGuard</option>
+                <option value="Search::TermBuilder">Search::TermBuilder</option>
+              </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Dataset</span>
+              <select value="{{ form.dataset }}" onChange="{{ setDataset }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none">
+                <option value="prospect_golden_120">prospect_golden_120 · v4 · 120 items</option>
+                <option value="enrichment_regressions">enrichment_regressions · v9 · 412 items</option>
+                <option value="scoring_calibration">scoring_calibration · v2 · 260 items</option>
+                <option value="outreach_tone_v1">outreach_tone_v1 · v1 · 80 items</option>
+                <option value="pii_adversarial">pii_adversarial · v6 · 340 items</option>
+              </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Tags</span>
+              <input value="{{ form.tags }}" onChange="{{ setTags }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0; grid-column:1 / -1">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Description</span>
+              <textarea value="{{ form.desc }}" onChange="{{ setDesc }}" rows="2" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-size:12.5px; line-height:1.6; resize:vertical; outline:none" style-focus="border-color:var(--pr-cyan-500)"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 18px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Run configuration</h2></div>
+          <div style="padding:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:16px">
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Model</span>
+              <select value="{{ form.model }}" onChange="{{ setModel }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none">
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="claude-sonnet-4">claude-sonnet-4</option>
+                <option value="claude-haiku-4">claude-haiku-4</option>
+                <option value="rules">rules (no model)</option>
+              </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Provider</span>
+              <select value="{{ form.provider }}" onChange="{{ setProvider }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none">
+                <option value="openai">openai</option>
+                <option value="anthropic">anthropic</option>
+                <option value="litellm">litellm proxy</option>
+              </select>
+            </label>
+            <div style="display:flex; flex-direction:column; gap:7px; min-width:0; grid-column:1 / -1">
+              <div style="display:flex; align-items:baseline; gap:10px">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Temperature</span>
+                <span style="flex:1"></span>
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px; color:var(--pr-cyan-500)">{{ tempLabel }}</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.05" value="{{ form.temperature }}" onChange="{{ setTemp }}" style="width:100%; accent-color:var(--pr-cyan-500)">
+              <span style="font-size:11px; color:var(--pr-text-muted)">{{ tempNote }}</span>
+            </div>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Max turns</span>
+              <input type="number" min="1" max="20" value="{{ form.maxTurns }}" onChange="{{ setMaxTurns }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Concurrency</span>
+              <input type="number" min="1" max="32" value="{{ form.concurrency }}" onChange="{{ setConcurrency }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Timeout · seconds</span>
+              <input type="number" min="5" max="300" value="{{ form.timeout }}" onChange="{{ setTimeout }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+            </label>
+          </div>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--pr-border)">
+            <h2 style="margin:0; font-size:14px; font-weight:700">Scorers</h2>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:{{ weightColor }}">weights total {{ weightTotal }}</span>
+          </div>
+          <sc-for list="{{ formScorers }}" as="sc" hint-placeholder-count="4">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid var(--pr-border); opacity:{{ sc.opacity }}">
+              <span style="display:flex; flex-direction:column; gap:3px; flex:1 1 180px; min-width:0">
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px; overflow-wrap:anywhere">{{ sc.name }}</span>
+                <span style="font-size:11px; color:var(--pr-text-muted); text-wrap:pretty">{{ sc.note }}</span>
+              </span>
+              <label style="display:flex; flex-direction:column; gap:5px; flex:0 1 88px; min-width:72px">
+                <span style="font-size:9.5px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Weight</span>
+                <input type="number" min="0" max="1" step="0.1" value="{{ sc.weight }}" onChange="{{ sc.setWeight }}" style="box-sizing:border-box; width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <label style="display:flex; flex-direction:column; gap:5px; flex:0 1 110px; min-width:82px">
+                <span style="font-size:9.5px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Threshold</span>
+                <input type="number" min="0" max="1" step="0.01" value="{{ sc.threshold }}" onChange="{{ sc.setThreshold }}" style="box-sizing:border-box; width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <button onClick="{{ sc.toggle }}" style="all:unset; cursor:pointer; flex:none; margin-left:auto; width:44px; height:24px; border-radius:999px; background:{{ sc.trackBg }}; position:relative; transition:background 140ms ease">
+                <span style="position:absolute; top:3px; left:{{ sc.knobLeft }}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 140ms ease"></span>
+              </button>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 18px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Schedule &amp; alerts</h2></div>
+          <div style="padding:18px; display:flex; flex-direction:column; gap:16px">
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Trigger</span>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+                <sc-for list="{{ scheduleOptions }}" as="o" hint-placeholder-count="4">
+                  <button onClick="{{ o.go }}" style="all:unset; cursor:pointer; padding:7px 14px; border-radius:999px; font-size:12px; font-weight:600; background:{{ o.bg }}; color:{{ o.fg }}; border:1px solid {{ o.border }}">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:16px">
+              <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Cron expression</span>
+                <input value="{{ form.cron }}" onChange="{{ setCron }}" disabled="{{ cronDisabled }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:{{ cronColor }}; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Notify channel</span>
+                <input value="{{ form.notify }}" onChange="{{ setNotify }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+              <label style="display:flex; flex-direction:column; gap:7px; min-width:0">
+                <span style="font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">Alert below composite</span>
+                <input type="number" min="0" max="1" step="0.01" value="{{ form.failThreshold }}" onChange="{{ setFailThreshold }}" style="box-sizing:border-box; width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--pr-border); background:var(--pr-glass-white-5); color:#fff; font-family:var(--pr-font-mono); font-size:12.5px; outline:none" style-focus="border-color:var(--pr-cyan-500)">
+              </label>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside style="display:flex; flex-direction:column; gap:16px; position:sticky; top:0; min-width:0">
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="display:flex; align-items:center; gap:9px; padding:14px 16px; border-bottom:1px solid var(--pr-border)">
+            <h2 style="margin:0; font-size:13px; font-weight:700; flex:1">Pending changes</h2>
+            <span style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:{{ dirtyBg }}; color:{{ dirtyFg }}">{{ dirtyLabel }}</span>
+          </div>
+          <sc-if value="{{ hasChanges }}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{ changes }}" as="c" hint-placeholder-count="2">
+              <div style="display:flex; flex-direction:column; gap:4px; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+                <span style="font-size:11.5px; color:var(--pr-text-muted)">{{ c.label }}</span>
+                <div style="display:flex; align-items:center; gap:8px; min-width:0">
+                  <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:#ff8f8f; text-decoration:line-through; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.from }}</span>
+                  <i class="bi bi-arrow-right-short" style="font-size:14px; color:var(--pr-text-muted); flex:none"></i>
+                  <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:#7ee0ae; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.to }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ noChanges }}" hint-placeholder-val="{{ true }}">
+            <p style="margin:0; padding:16px; font-size:12px; color:var(--pr-text-muted); text-wrap:pretty">Nothing edited yet. Changes appear here as a diff before you save, and the next run picks them up.</p>
+          </sc-if>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:13px; font-weight:700">Next run</h2></div>
+          <sc-for list="{{ nextRun }}" as="n" hint-placeholder-count="4">
+            <div style="display:flex; align-items:baseline; gap:12px; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+              <span style="font-size:12px; color:var(--pr-text-muted); flex:1">{{ n.label }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; color:{{ n.color }}">{{ n.value }}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <div style="display:flex; flex-direction:column; gap:10px; padding:16px; border-radius:16px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)">
+          <button onClick="{{ save }}" style="all:unset; cursor:pointer; text-align:center; padding:11px 16px; border-radius:11px; font-size:13px; font-weight:700; color:#062430; background:linear-gradient(135deg,#4fc3e8,#009acc)">Save changes</button>
+          <button onClick="{{ revert }}" style="all:unset; cursor:pointer; text-align:center; padding:11px 16px; border-radius:11px; font-size:12.5px; font-weight:600; color:var(--pr-text-secondary); background:var(--pr-glass-white-5); border:1px solid var(--pr-border)" style-hover="color:#fff">Revert to saved</button>
+          <button onClick="{{ cancel }}" style="all:unset; cursor:pointer; text-align:center; padding:9px 16px; border-radius:11px; font-size:12.5px; color:var(--pr-text-muted)" style-hover="color:#fff">Back to experiment</button>
+          <sc-if value="{{ savedFlash }}" hint-placeholder-val="{{ true }}">
+            <span style="display:flex; align-items:center; gap:7px; font-size:11.5px; color:#7ee0ae"><i class="bi bi-check2-circle" style="font-size:13px"></i>Saved · revision 15</span>
+          </sc-if>
+        </div>
+      </aside>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPrompts }}" hint-placeholder-val="{{ true }}">
+    <section style="background:var(--pr-surface-glass); backdrop-filter:blur(20px); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+      <div style="display:grid; grid-template-columns:minmax(0,2.2fr) minmax(0,0.7fr) minmax(0,1.1fr) minmax(0,1.5fr) minmax(0,0.85fr); padding:11px 18px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+        <span>Prompt</span><span style="text-align:right">Version</span><span>Model</span><span>Used by</span><span style="text-align:right">Updated</span>
+      </div>
+      <sc-for list="{{ prompts }}" as="p" hint-placeholder-count="6">
+        <button onClick="{{ p.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:minmax(0,2.2fr) minmax(0,0.7fr) minmax(0,1.1fr) minmax(0,1.5fr) minmax(0,0.85fr); align-items:center; padding:13px 18px; border-bottom:1px solid var(--pr-border)" style-hover="background:var(--pr-glass-white-5)">
+          <span style="display:flex; align-items:center; gap:9px; min-width:0">
+            <i class="bi bi-file-text" style="font-size:13px; color:var(--pr-cyan-500)"></i>
+            <span style="font-family:var(--pr-font-mono); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.name }}</span>
+          </span>
+          <span style="font-family:var(--pr-font-mono); font-size:12px; text-align:right; color:var(--pr-text-secondary)">{{ p.version }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.model }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.usedBy }}</span>
+          <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ p.updated }}</span>
+        </button>
+      </sc-for>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isPrompt }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid; grid-template-columns:minmax(0,210px) minmax(0,1fr); gap:18px; align-items:start">
+      <aside style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="padding:13px 15px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:13px; font-weight:700">Versions</h2></div>
+        <sc-for list="{{ versions }}" as="v" hint-placeholder-count="6">
+          <button onClick="{{ v.go }}" style="all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:flex; flex-direction:column; gap:4px; padding:11px 15px; border-bottom:1px solid var(--pr-border); background:{{ v.bg }}; box-shadow:{{ v.ring }}" style-hover="background:var(--pr-glass-white-8)">
+            <div style="display:flex; align-items:center; gap:8px; width:100%">
+              <span style="font-family:var(--pr-font-mono); font-size:12.5px; color:{{ v.fg }}">{{ v.label }}</span>
+              <span style="flex:1"></span>
+              <sc-if value="{{ v.tag }}" hint-placeholder-val="{{ true }}">
+                <span style="font-size:9px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; padding:2px 6px; border-radius:999px; background:{{ v.tagBg }}; color:{{ v.tagFg }}">{{ v.tag }}</span>
+              </sc-if>
+            </div>
+            <span style="font-family:var(--pr-font-mono); font-size:10.5px; color:var(--pr-text-muted); text-align:left">{{ v.meta }}</span>
+          </button>
+        </sc-for>
+      </aside>
+
+      <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 18px; border-radius:14px; background:var(--pr-surface-glass); border:1px solid var(--pr-border)">
+          <span style="font-family:var(--pr-font-mono); font-size:14px">{{ prompt.name }}</span>
+          <span style="flex:1"></span>
+          <sc-for list="{{ diffFlags }}" as="f" hint-placeholder-count="2">
+            <span style="display:flex; align-items:center; gap:7px; font-size:12px; color:var(--pr-text-secondary)">
+              <span style="width:7px; height:7px; border-radius:50%; background:{{ f.dot }}"></span>{{ f.label }}
+            </span>
+          </sc-for>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:14px">
+          <section style="border-radius:14px; border:1px solid rgb(239 68 68 / 28%); background:rgb(239 68 68 / 6%); overflow:hidden">
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid rgb(239 68 68 / 22%)">
+              <span style="font-family:var(--pr-font-mono); font-size:12px; color:#ffb3b3">{{ diff.fromLabel }}</span>
+              <span style="flex:1"></span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ diff.fromModel }}</span>
+            </div>
+            <pre style="margin:0; padding:14px; font-family:var(--pr-font-mono); font-size:11.5px; line-height:1.7; color:var(--pr-text-secondary); white-space:pre-wrap; word-break:break-word">{{ diff.fromBody }}</pre>
+          </section>
+          <section style="border-radius:14px; border:1px solid rgb(17 170 100 / 30%); background:rgb(17 170 100 / 6%); overflow:hidden">
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid rgb(17 170 100 / 24%)">
+              <span style="font-family:var(--pr-font-mono); font-size:12px; color:#7ee0ae">{{ diff.toLabel }}</span>
+              <span style="flex:1"></span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted)">{{ diff.toModel }}</span>
+            </div>
+            <pre style="margin:0; padding:14px; font-family:var(--pr-font-mono); font-size:11.5px; line-height:1.7; color:var(--pr-text-secondary); white-space:pre-wrap; word-break:break-word">{{ diff.toBody }}</pre>
+          </section>
+        </div>
+
+        <section style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:13px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:13px; font-weight:700">Score impact of this change</h2></div>
+          <sc-for list="{{ promptImpact }}" as="p" hint-placeholder-count="3">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--pr-border)">
+              <span style="font-size:12.5px; color:var(--pr-text-secondary); flex:1">{{ p.label }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ p.from }}</span>
+              <i class="bi bi-arrow-right-short" style="font-size:14px; color:var(--pr-text-muted)"></i>
+              <span style="font-family:var(--pr-font-mono); font-size:12.5px; color:{{ p.color }}">{{ p.to }}</span>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isFeedback }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(148px,1fr)); gap:14px">
+        <sc-for list="{{ feedbackStats }}" as="f" hint-placeholder-count="5">
+          <div style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:7px">
+            <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--pr-text-muted)">{{ f.label }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:23px; font-weight:500; color:{{ f.color }}">{{ f.value }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:18px; align-items:start">
+        <section style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Category distribution</h2></div>
+          <div style="padding:16px; display:flex; flex-direction:column; gap:14px">
+            <sc-for list="{{ distribution }}" as="d" hint-placeholder-count="4">
+              <div style="display:flex; flex-direction:column; gap:7px">
+                <div style="display:flex; align-items:center; gap:10px">
+                  <span style="font-size:12.5px; flex:1">{{ d.label }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; color:var(--pr-text-muted)">{{ d.pctLabel }}</span>
+                  <span style="font-family:var(--pr-font-mono); font-size:12px; width:48px; text-align:right">{{ d.count }}</span>
+                </div>
+                <div style="height:7px; border-radius:999px; background:var(--pr-glass-white-8); overflow:hidden">
+                  <div style="height:100%; border-radius:999px; width:{{ d.pct }}; background:{{ d.color }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Score definitions</h2></div>
+          <sc-for list="{{ definitions }}" as="d" hint-placeholder-count="5">
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-bottom:1px solid var(--pr-border)">
+              <div style="display:flex; flex-direction:column; gap:3px; flex:1; min-width:0">
+                <span style="font-family:var(--pr-font-mono); font-size:12.5px">{{ d.name }}</span>
+                <span style="font-size:11.5px; color:var(--pr-text-muted); text-wrap:pretty">{{ d.note }}</span>
+              </div>
+              <span style="font-size:10px; font-weight:600; padding:3px 8px; border-radius:999px; background:{{ d.typeBg }}; color:{{ d.typeFg }}">{{ d.type }}</span>
+              <span style="font-family:var(--pr-font-mono); font-size:11px; color:var(--pr-text-muted); width:58px; text-align:right">{{ d.range }}</span>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+
+      <section style="background:var(--pr-surface-glass); border:1px solid var(--pr-border); border-radius:16px; overflow:hidden">
+        <div style="padding:14px 16px; border-bottom:1px solid var(--pr-border)"><h2 style="margin:0; font-size:14px; font-weight:700">Recent scores</h2></div>
+        <div style="display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1.6fr) minmax(0,0.7fr); padding:10px 16px; border-bottom:1px solid var(--pr-border); background:var(--pr-glass-white-5); font-size:10px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--pr-text-muted)">
+          <span>Target</span><span>Definition</span><span style="text-align:right">Value</span><span style="text-align:right">By</span><span style="padding-left:14px">Reason</span><span style="text-align:right">When</span>
+        </div>
+        <sc-for list="{{ recentScores }}" as="r" hint-placeholder-count="7">
+          <div style="display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1.6fr) minmax(0,0.7fr); align-items:center; padding:11px 16px; border-bottom:1px solid var(--pr-border)">
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-cyan-500); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.target }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11.5px; color:var(--pr-text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.definition }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:12.5px; text-align:right; color:{{ r.color }}">{{ r.value }}</span>
+            <span style="font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ r.by }}</span>
+            <span style="font-size:11.5px; color:var(--pr-text-muted); min-width:0; padding-left:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.reason }}</span>
+            <span style="font-family:var(--pr-font-mono); font-size:11px; text-align:right; color:var(--pr-text-muted)">{{ r.when }}</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+</dc-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+const C = { cyan: "#009acc", ok: "#11aa64", okText: "#7ee0ae", warn: "#f59e0b", warnText: "#f3c37b", bad: "#ef4444", badText: "#ff8f8f", muted: "var(--pr-text-muted)", sec: "var(--pr-text-secondary)" };
+const ST = {
+  completed: ["var(--pr-success-bg)", C.okText],
+  running: ["rgb(0 154 204 / 16%)", "#6fd2f0"],
+  pending: ["var(--pr-glass-white-8)", C.sec],
+  failed: ["var(--pr-danger-bg)", C.badText],
+  active: ["var(--pr-success-bg)", C.okText],
+  archived: ["var(--pr-glass-white-8)", C.sec]
+};
+const scoreTone = (v) => (v >= 0.7 ? C.okText : v >= 0.4 ? C.warnText : C.badText);
+
+const TITLES = {
+  datasets: ["Datasets", "datasets"],
+  dataset: ["prospect_golden_120", "datasets"],
+  experiments: ["Experiments", "experiments"],
+  experiment: ["enrich-v12 · nightly", "experiments"],
+  edit: ["Edit · enrich-v12 · nightly", "experiments"],
+  prompts: ["Prompts", "prompts"],
+  prompt: ["market_scout.md", "prompts"],
+  feedback: ["Feedback scores", "feedback"]
+};
+
+const DATASETS = [
+  ["prospect_golden_120", "Hand-curated enrichment cases with verified firmographics", "v4", "120", "18", "active", "2h ago"],
+  ["enrichment_regressions", "Production failures promoted from spans, kept as regressions", "v9", "412", "26", "active", "40m ago"],
+  ["scoring_calibration", "Fit-score cases with analyst-assigned expected bands", "v2", "260", "11", "active", "1d ago"],
+  ["outreach_tone_v1", "Draft-quality cases scored by the sales team", "v1", "80", "5", "active", "3d ago"],
+  ["pii_adversarial", "Injection and leakage attempts for the guardrail suite", "v6", "340", "14", "active", "6h ago"],
+  ["term_builder_legacy", "Pre-v10 search-term cases, superseded by golden set", "v3", "630", "9", "archived", "22d ago"]
+];
+
+const EXPERIMENTS = [
+  ["enrich-v12 · nightly", "Company::EnrichAgent", "prospect_golden_120", "gpt-4o-mini", "completed", 0.88, "2h ago"],
+  ["enrich-v12 · temp 0.4", "Company::EnrichAgent", "prospect_golden_120", "gpt-4o-mini", "completed", 0.81, "1d ago"],
+  ["enrich-v11 · nightly", "Company::EnrichAgent", "prospect_golden_120", "gpt-4o-mini", "completed", 0.92, "1d ago"],
+  ["scoring-sonnet-4 sweep", "Prospect::ScoringAgent", "scoring_calibration", "claude-sonnet-4", "running", 0.9, "now"],
+  ["scoring-4o baseline", "Prospect::ScoringAgent", "scoring_calibration", "gpt-4o", "completed", 0.86, "5h ago"],
+  ["pii-guard adversarial", "Compliance::PIIGuard", "pii_adversarial", "rules", "completed", 0.99, "6h ago"],
+  ["outreach tone A/B", "Outreach::DraftAgent", "outreach_tone_v1", "gpt-4o", "pending", null, "queued"],
+  ["regression sweep 09-04", "Company::EnrichAgent", "enrichment_regressions", "gpt-4o-mini", "failed", 0.34, "1d ago"]
+];
+
+const SAVED_FORM = {
+  name: "enrich-v12 · nightly",
+  desc: "Nightly regression run of the enrichment agent against the golden set. Failures are promoted into enrichment_regressions automatically.",
+  agent: "Company::EnrichAgent",
+  dataset: "prospect_golden_120",
+  tags: "nightly, enrichment, regression",
+  model: "gpt-4o-mini",
+  provider: "openai",
+  temperature: 0.2,
+  maxTurns: 6,
+  concurrency: 8,
+  timeout: 45,
+  schedule: "Nightly",
+  cron: "0 2 * * *",
+  notify: "#raaf-evals",
+  failThreshold: 0.85,
+  scorers: [
+    { name: "faithfulness", note: "LLM judge · every claim traced to a retrieved page", enabled: true, weight: 0.5, threshold: 0.9 },
+    { name: "schema_valid", note: "Output parses against CompanyEnrichment v3", enabled: true, weight: 0.3, threshold: 0.99 },
+    { name: "segment_match", note: "Predicted segment vs. analyst-assigned segment", enabled: true, weight: 0.2, threshold: 0.8 },
+    { name: "cost_per_case", note: "Budget guard · fails the run above the ceiling", enabled: false, weight: 0, threshold: 0.01 }
+  ]
+};
+const FIELD_LABELS = {
+  name: "Name", desc: "Description", agent: "Agent", dataset: "Dataset", tags: "Tags",
+  model: "Model", provider: "Provider", temperature: "Temperature", maxTurns: "Max turns",
+  concurrency: "Concurrency", timeout: "Timeout", schedule: "Trigger", cron: "Cron",
+  notify: "Notify channel", failThreshold: "Alert threshold"
+};
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+class Component extends DCLogic {
+  state = {
+    screen: "datasets", version: 12, datasetFilter: "Active", experimentFilter: "All", resultFilter: "All",
+    form: clone(SAVED_FORM), saved: clone(SAVED_FORM), savedFlash: false
+  };
+
+  setField(key, cast) {
+    return (e) => {
+      const raw = e.target.value;
+      const value = cast ? cast(raw) : raw;
+      this.setState((p) => ({ form: Object.assign({}, p.form, { [key]: value }), savedFlash: false }));
+    };
+  }
+  setScorer(i, key, cast) {
+    return (e) => {
+      const value = cast ? cast(e.target.value) : e.target.value;
+      this.setState((p) => {
+        const scorers = p.form.scorers.map((sc, n) => (n === i ? Object.assign({}, sc, { [key]: value }) : sc));
+        return { form: Object.assign({}, p.form, { scorers }), savedFlash: false };
+      });
+    };
+  }
+  toggleScorer(i) {
+    return () => this.setState((p) => {
+      const scorers = p.form.scorers.map((sc, n) => (n === i ? Object.assign({}, sc, { enabled: !sc.enabled }) : sc));
+      return { form: Object.assign({}, p.form, { scorers }), savedFlash: false };
+    });
+  }
+
+  componentDidMount() {
+    this.sync = () => {
+      const h = (location.hash || "").replace("#", "");
+      if (TITLES[h]) this.setState({ screen: h });
+    };
+    this.sync();
+    window.addEventListener("hashchange", this.sync);
+  }
+  componentWillUnmount() { window.removeEventListener("hashchange", this.sync); }
+
+  goScreen(id) { return () => { location.hash = id; this.setState({ screen: id }); }; }
+  chip(on) { return on ? { bg: "var(--pr-glass-white-12)", fg: "#fff" } : { bg: "transparent", fg: C.muted }; }
+
+  renderVals() {
+    const s = this.state;
+    const t = TITLES[s.screen] || TITLES.datasets;
+    const pill = (label, key, current, set) => Object.assign({ label, go: () => this.setState({ [key]: label }) }, this.chip(current === label));
+
+    const f = s.form, sv = s.saved;
+    const num = (v) => (v === "" ? 0 : Number(v));
+    const changes = Object.keys(FIELD_LABELS)
+      .filter((k) => String(f[k]) !== String(sv[k]))
+      .map((k) => ({ label: FIELD_LABELS[k], from: String(sv[k]), to: String(f[k]) }));
+    f.scorers.forEach((sc, i) => {
+      const o = sv.scorers[i];
+      if (sc.enabled !== o.enabled) changes.push({ label: sc.name + " · state", from: o.enabled ? "enabled" : "off", to: sc.enabled ? "enabled" : "off" });
+      if (Number(sc.weight) !== Number(o.weight)) changes.push({ label: sc.name + " · weight", from: String(o.weight), to: String(sc.weight) });
+      if (Number(sc.threshold) !== Number(o.threshold)) changes.push({ label: sc.name + " · threshold", from: String(o.threshold), to: String(sc.threshold) });
+    });
+    const weightTotal = f.scorers.filter((sc) => sc.enabled).reduce((a, sc) => a + Number(sc.weight || 0), 0);
+    const weightOk = Math.abs(weightTotal - 1) < 0.001;
+    const items = { prospect_golden_120: 120, enrichment_regressions: 412, scoring_calibration: 260, outreach_tone_v1: 80, pii_adversarial: 340 }[f.dataset] || 120;
+    const temp = Number(f.temperature);
+
+    return {
+      screen: s.screen, navId: t[1],
+      title: s.screen === "edit" ? "Edit · " + sv.name : s.screen === "experiment" ? sv.name : t[0],
+      isDatasets: s.screen === "datasets", isDataset: s.screen === "dataset",
+      isExperiments: s.screen === "experiments", isExperiment: s.screen === "experiment",
+      isPrompts: s.screen === "prompts", isPrompt: s.screen === "prompt",
+      isFeedback: s.screen === "feedback", isEdit: s.screen === "edit",
+      goEdit: this.goScreen("edit"),
+
+      form: f,
+      setName: this.setField("name"), setDesc: this.setField("desc"),
+      setAgent: this.setField("agent"), setDataset: this.setField("dataset"),
+      setTags: this.setField("tags"), setModel: this.setField("model"),
+      setProvider: this.setField("provider"), setTemp: this.setField("temperature", Number),
+      setMaxTurns: this.setField("maxTurns", num), setConcurrency: this.setField("concurrency", num),
+      setTimeout: this.setField("timeout", num), setCron: this.setField("cron"),
+      setNotify: this.setField("notify"), setFailThreshold: this.setField("failThreshold", num),
+      tempLabel: temp.toFixed(2),
+      tempNote: temp <= 0.25 ? "Deterministic — recommended for regression runs." : temp <= 0.6 ? "Some variance; expect score noise between runs." : "High variance — scores will not be comparable run to run.",
+      formScorers: f.scorers.map((sc, i) => ({
+        name: sc.name, note: sc.note, weight: sc.weight, threshold: sc.threshold,
+        opacity: sc.enabled ? "1" : "0.5",
+        trackBg: sc.enabled ? "var(--pr-cyan-500)" : "var(--pr-glass-white-15)",
+        knobLeft: sc.enabled ? "23px" : "3px",
+        toggle: this.toggleScorer(i),
+        setWeight: this.setScorer(i, "weight", Number),
+        setThreshold: this.setScorer(i, "threshold", Number)
+      })),
+      weightTotal: weightTotal.toFixed(2),
+      weightColor: weightOk ? C.okText : C.warnText,
+      scheduleOptions: ["Nightly", "Hourly", "On deploy", "Manual"].map((l) => {
+        const on = f.schedule === l;
+        return {
+          label: l, go: () => this.setState((p) => ({ form: Object.assign({}, p.form, { schedule: l }), savedFlash: false })),
+          bg: on ? "rgb(0 154 204 / 18%)" : "transparent",
+          fg: on ? "#fff" : C.muted,
+          border: on ? "rgb(0 154 204 / 45%)" : "var(--pr-border)"
+        };
+      }),
+      cronDisabled: f.schedule !== "Nightly" && f.schedule !== "Hourly",
+      cronColor: f.schedule !== "Nightly" && f.schedule !== "Hourly" ? C.muted : "#fff",
+      changes, hasChanges: changes.length > 0, noChanges: changes.length === 0,
+      dirtyLabel: changes.length ? changes.length + " edited" : "in sync",
+      dirtyBg: changes.length ? "rgb(245 158 11 / 16%)" : "var(--pr-glass-white-8)",
+      dirtyFg: changes.length ? C.warnText : C.sec,
+      nextRun: [
+        { label: "Trigger", value: f.schedule === "Nightly" ? "tonight 02:00 UTC" : f.schedule === "Hourly" ? "in 24 min" : f.schedule === "On deploy" ? "next deploy" : "manual only", color: "#fff" },
+        { label: "Cases", value: String(items), color: "#fff" },
+        { label: "Est. duration", value: Math.max(1, Math.round((items * 2.1) / Math.max(1, Number(f.concurrency)))) + "s", color: C.sec },
+        { label: "Est. cost", value: "$" + (items * (f.model === "gpt-4o" ? 0.019 : f.model === "claude-sonnet-4" ? 0.022 : f.model === "rules" ? 0 : 0.004)).toFixed(2), color: C.sec },
+        { label: "Active scorers", value: f.scorers.filter((sc) => sc.enabled).length + " of " + f.scorers.length, color: weightOk ? C.okText : C.warnText }
+      ],
+      savedFlash: s.savedFlash,
+      save: () => this.setState((p) => ({ saved: clone(p.form), savedFlash: true })),
+      revert: () => this.setState((p) => ({ form: clone(p.saved), savedFlash: false })),
+      cancel: this.goScreen("experiment"),
+
+      datasetFilters: ["Active", "Archived", "All"].map((l) => pill(l, "datasetFilter", s.datasetFilter)),
+      datasets: DATASETS.map((d) => {
+        const st = ST[d[5]];
+        return { name: d[0], desc: d[1], version: d[2], items: d[3], experiments: d[4], status: d[5], bg: st[0], fg: st[1], updated: d[6], go: this.goScreen("dataset") };
+      }),
+
+      dataset: {
+        name: "prospect_golden_120",
+        desc: "Hand-curated enrichment cases with verified firmographics. Every item carries an expected CompanyEnrichment payload; 96 were promoted from production spans.",
+        status: "active", version: "4", created: "2026-06-18",
+        stats: [
+          { label: "Items", value: "120" },
+          { label: "Experiments", value: "18" },
+          { label: "Version", value: "v4" }
+        ]
+      },
+      items: [
+        { id: "#4181", input: '{"company":"Vandelay Industries BV","domain":"vandelay.nl"}', expected: '{"headcount":180,"segment":"mid-market"}', source: "Span" },
+        { id: "#4180", input: '{"company":"Kirkeby Metaal","domain":"kirkeby.dk"}', expected: '{"headcount":42,"segment":"smb"}', source: "Span" },
+        { id: "#4179", input: '{"company":"Pendant Publishing","domain":"pendant.co.uk"}', expected: '{"headcount":null,"segment":"smb"}', source: "Manual" },
+        { id: "#4178", input: '{"company":"Sanalite Beheer","domain":"sanalite.nl"}', expected: '{"headcount":610,"segment":"enterprise"}', source: "Span" },
+        { id: "#4177", input: '{"company":"Brandt Logistiek","domain":"brandt-log.be"}', expected: '{"headcount":95,"segment":"mid-market"}', source: "Manual" },
+        { id: "#4176", input: '{"company":"Nordica Werke GmbH","domain":"nordica.de"}', expected: '{"headcount":1240,"segment":"enterprise"}', source: "Span" },
+        { id: "#4175", input: '{"company":"Tessel Data","domain":"tessel.io"}', expected: '{"headcount":12,"segment":"smb"}', source: "Span" }
+      ].map((i) => Object.assign(i, i.source === "Span"
+        ? { srcBg: "rgb(0 154 204 / 16%)", srcFg: "#6fd2f0" }
+        : { srcBg: "var(--pr-glass-white-8)", srcFg: C.sec })),
+      datasetExperiments: EXPERIMENTS.slice(0, 4).map((x) => {
+        const st = ST[x[4]];
+        return {
+          name: x[0], model: x[3], status: x[4], bg: st[0], fg: st[1],
+          score: x[5] == null ? "—" : x[5].toFixed(2),
+          scoreColor: x[5] == null ? C.muted : scoreTone(x[5]),
+          go: this.goScreen("experiment")
+        };
+      }),
+
+      experimentFilters: ["All", "Completed", "Running", "Failed"].map((l) => pill(l, "experimentFilter", s.experimentFilter)),
+      experiments: EXPERIMENTS.map((x) => {
+        const st = ST[x[4]];
+        return {
+          name: x[0], agent: x[1], dataset: x[2], model: x[3], status: x[4], bg: st[0], fg: st[1],
+          score: x[5] == null ? "—" : x[5].toFixed(2),
+          scoreColor: x[5] == null ? C.muted : scoreTone(x[5]),
+          when: x[6], go: this.goScreen("experiment")
+        };
+      }),
+
+      experiment: {
+        name: sv.name, agent: sv.agent, model: sv.model,
+        provider: sv.provider, dataset: sv.dataset, status: "completed",
+        metrics: [
+          { label: "Progress", value: "100%", icon: "bi-bar-chart", iconColor: C.cyan, color: "#fff", pct: "100%", bar: C.cyan },
+          { label: "Completed", value: "106", icon: "bi-check-circle", iconColor: C.ok, color: C.okText, pct: "88%", bar: C.ok },
+          { label: "Failed", value: "14", icon: "bi-x-circle", iconColor: C.bad, color: C.badText, pct: "12%", bar: C.bad },
+          { label: "Duration", value: "4m 12s", icon: "bi-clock", iconColor: C.warn, color: "#fff", pct: null, bar: null }
+        ]
+      },
+      aggregateScores: [
+        { label: "Pass rate", value: "0.88", delta: "-0.04", deltaColor: C.badText, pct: "88%", bar: C.warn },
+        { label: "Faithfulness", value: "0.93", delta: "+0.01", deltaColor: C.okText, pct: "93%", bar: C.ok },
+        { label: "Schema valid", value: "0.97", delta: "+0.02", deltaColor: C.okText, pct: "97%", bar: C.ok },
+        { label: "Cost / case", value: "$0.004", delta: "flat", deltaColor: C.muted, pct: "34%", bar: C.cyan }
+      ],
+      resultFilters: ["All", "Failed", "Low score"].map((l) => pill(l, "resultFilter", s.resultFilter)),
+      results: [
+        ["#4181", "completed", 0.94, '{"headcount":180,"segment":"mid-market","revenue":null}'],
+        ["#4180", "completed", 0.88, '{"headcount":42,"segment":"smb","revenue":null}'],
+        ["#4179", "failed", null, "JSON::ParserError — trailing comma in structured output"],
+        ["#4178", "completed", 0.71, '{"headcount":610,"segment":"enterprise","revenue":"est."}'],
+        ["#4177", "completed", 0.38, '{"headcount":null,"segment":"enterprise"} — segment mismatch'],
+        ["#4176", "completed", 0.96, '{"headcount":1240,"segment":"enterprise","revenue":null}'],
+        ["#4175", "failed", null, "RAAF::Errors::MaxTurnsExceeded — 6 turns, no final output"],
+        ["#4174", "completed", 0.62, '{"headcount":88,"segment":"smb"} — headcount off by 12%']
+      ].map((r) => {
+        const st = ST[r[1]];
+        return {
+          item: r[0], status: r[1], bg: st[0], fg: st[1],
+          score: r[2] == null ? "—" : r[2].toFixed(2),
+          scoreColor: r[2] == null ? C.muted : scoreTone(r[2]),
+          output: r[3]
+        };
+      }),
+
+      prompts: [
+        { name: "market_scout.md", version: "v12", model: "gpt-4o-mini", usedBy: "Company::EnrichAgent", updated: "2h ago" },
+        { name: "scoring_rubric.md", version: "v7", model: "claude-sonnet-4", usedBy: "Prospect::ScoringAgent", updated: "1d ago" },
+        { name: "term_builder.md", version: "v4", model: "gpt-4o-mini", usedBy: "Search::TermBuilder", updated: "5d ago" },
+        { name: "outreach_draft.md", version: "v9", model: "gpt-4o", usedBy: "Outreach::DraftAgent", updated: "2d ago" },
+        { name: "summarize_page.md", version: "v3", model: "gpt-4o-mini", usedBy: "Content::SummarizeAgent", updated: "11d ago" },
+        { name: "pii_rules.md", version: "v6", model: "rules", usedBy: "Compliance::PIIGuard", updated: "6h ago" }
+      ].map((p) => Object.assign(p, { go: this.goScreen("prompt") })),
+
+      prompt: { name: "market_scout.md" },
+      versions: [
+        { v: 12, meta: "2h ago · b.vermeer", tag: "live" },
+        { v: 11, meta: "1d ago · b.vermeer", tag: null },
+        { v: 10, meta: "6d ago · j.hendriks", tag: null },
+        { v: 9, meta: "12d ago · j.hendriks", tag: null },
+        { v: 8, meta: "20d ago · b.vermeer", tag: null },
+        { v: 7, meta: "1mo ago · ci-bot", tag: "archived" }
+      ].map((x) => {
+        const on = x.v === s.version;
+        return {
+          label: "v" + x.v, meta: x.meta, tag: x.tag,
+          tagBg: x.tag === "live" ? "var(--pr-success-bg)" : "var(--pr-glass-white-8)",
+          tagFg: x.tag === "live" ? C.okText : C.sec,
+          bg: on ? "var(--pr-glass-white-10)" : "transparent",
+          fg: on ? "#fff" : C.sec,
+          ring: on ? "inset 2px 0 0 " + C.cyan : "none",
+          go: () => this.setState({ version: x.v })
+        };
+      }),
+      diffFlags: [
+        { label: "content changed", dot: C.warn },
+        { label: "model unchanged", dot: C.ok }
+      ],
+      diff: {
+        fromLabel: "v11",
+        fromModel: "gpt-4o-mini",
+        fromBody: "You enrich a company record with firmographic data.\n\nRules:\n1. Call web_search before answering.\n2. Return the JSON schema CompanyEnrichment.\n3. Use null when a field is unknown.",
+        toLabel: "v12 · live",
+        toModel: "gpt-4o-mini",
+        toBody: "You enrich a company record with firmographic data.\n\nRules:\n1. Always call web_search before answering.\n2. Return ONLY the JSON schema CompanyEnrichment.\n3. Never invent revenue or headcount — use null when unknown.\n4. Stop after one enrichment; hand off scoring to Prospect::ScoringAgent."
+      },
+      promptImpact: [
+        { label: "Pass rate", from: "0.92", to: "0.88", color: C.badText },
+        { label: "Faithfulness", from: "0.92", to: "0.93", color: C.okText },
+        { label: "Schema valid", from: "0.95", to: "0.97", color: C.okText }
+      ],
+
+      feedbackStats: [
+        { label: "Count", value: "2,418", color: "#fff" },
+        { label: "Average", value: "0.812", color: C.okText },
+        { label: "Median", value: "0.850", color: "#fff" },
+        { label: "Min", value: "0.120", color: C.badText },
+        { label: "Max", value: "1.000", color: C.okText }
+      ],
+      distribution: [
+        { label: "Correct", count: "1,642", pct: "100%", pctLabel: "68%", color: C.ok },
+        { label: "Partially correct", count: "512", pct: "31%", pctLabel: "21%", color: C.warn },
+        { label: "Incorrect", count: "218", pct: "13%", pctLabel: "9%", color: C.bad },
+        { label: "Unusable", count: "46", pct: "3%", pctLabel: "2%", color: "var(--pr-gray-500)" }
+      ],
+      definitions: [
+        { name: "faithfulness", note: "Is every claim supported by the retrieved page?", type: "numerical", range: "0 – 1" },
+        { name: "schema_valid", note: "Does the output parse against CompanyEnrichment?", type: "boolean", range: "0 / 1" },
+        { name: "segment_match", note: "Analyst-assigned segment vs. predicted segment", type: "categorical", range: "4 cats" },
+        { name: "tone", note: "Sales team rating of outreach drafts", type: "numerical", range: "1 – 5" },
+        { name: "human_review", note: "Free-form reviewer verdict on flagged runs", type: "categorical", range: "3 cats" }
+      ].map((d) => Object.assign(d, d.type === "numerical"
+        ? { typeBg: "rgb(0 154 204 / 16%)", typeFg: "#6fd2f0" }
+        : d.type === "boolean"
+          ? { typeBg: "var(--pr-success-bg)", typeFg: C.okText }
+          : { typeBg: "rgb(139 92 246 / 16%)", typeFg: "#c4b1fb" })),
+      recentScores: [
+        { target: "span_c41f9a20", definition: "schema_valid", value: "0", color: C.badText, by: "ci-bot", reason: "trailing comma in structured output", when: "12s ago" },
+        { target: "trace_8f2c·a91d", definition: "human_review", value: "incorrect", color: C.badText, by: "j.hendriks", reason: "CRM write never landed", when: "4m ago" },
+        { target: "span_9a71c003", definition: "faithfulness", value: "0.93", color: C.okText, by: "ci-bot", reason: "all claims traced to source", when: "9m ago" },
+        { target: "span_5510be7d", definition: "segment_match", value: "partial", color: C.warnText, by: "analyst", reason: "mid-market vs enterprise", when: "22m ago" },
+        { target: "trace_5b93·10aa", definition: "tone", value: "4", color: C.okText, by: "sales", reason: "on-brand, slightly long", when: "38m ago" },
+        { target: "span_2c04ff81", definition: "faithfulness", value: "0.41", color: C.warnText, by: "ci-bot", reason: "revenue not in source", when: "1h ago" },
+        { target: "span_7f30ab12", definition: "schema_valid", value: "1", color: C.okText, by: "ci-bot", reason: "parsed clean", when: "1h ago" }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

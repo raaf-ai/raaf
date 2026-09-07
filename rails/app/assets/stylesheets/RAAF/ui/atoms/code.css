@@ -1,0 +1,35 @@
+/* ============================================================================
+   Atom — Code
+   Inline mono pill and the block variant used for payloads and stack traces.
+   ========================================================================= */
+
+.raaf-code {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgb(0 154 204 / 10%);
+  color: var(--raaf-cyan-500);
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-sm);
+  letter-spacing: -0.01em;
+  word-break: break-all;
+}
+
+.raaf-code-block {
+  display: block;
+  max-height: 420px;
+  padding: var(--raaf-space-4);
+  overflow: auto;
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-md);
+  background: rgb(0 0 0 / 25%);
+  color: var(--raaf-text-secondary);
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-sm);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  tab-size: 2;
+}
+
+.raaf-code-block--tall { max-height: 720px; }
+.raaf-code-block--flush { max-height: none; }

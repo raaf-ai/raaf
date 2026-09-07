@@ -1,0 +1,57 @@
+/* ============================================================================
+   Atom — KindBadge / StatusBadge
+   The only place a span kind or a run status becomes a colour.
+   ========================================================================= */
+
+.raaf-kind {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.raaf-kind--agent { background: var(--raaf-kind-agent-bg); color: var(--raaf-kind-agent-fg); }
+.raaf-kind--llm { background: var(--raaf-kind-llm-bg); color: var(--raaf-kind-llm-fg); }
+.raaf-kind--tool { background: var(--raaf-kind-tool-bg); color: var(--raaf-kind-tool-fg); }
+.raaf-kind--handoff { background: var(--raaf-kind-handoff-bg); color: var(--raaf-kind-handoff-fg); }
+.raaf-kind--guardrail { background: var(--raaf-kind-guardrail-bg); color: var(--raaf-kind-guardrail-fg); }
+.raaf-kind--pipeline { background: var(--raaf-kind-pipeline-bg); color: var(--raaf-kind-pipeline-fg); }
+
+/* The dot a kind filter chip carries. Same tokens as the badge above, so a
+   kind still becomes a colour in exactly one file. */
+.raaf-kind-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.raaf-kind-dot--agent { background: var(--raaf-kind-agent-fg); }
+.raaf-kind-dot--llm { background: var(--raaf-kind-llm-fg); }
+.raaf-kind-dot--tool { background: var(--raaf-kind-tool-fg); }
+.raaf-kind-dot--handoff { background: var(--raaf-kind-handoff-fg); }
+.raaf-kind-dot--guardrail { background: var(--raaf-kind-guardrail-fg); }
+.raaf-kind-dot--pipeline { background: var(--raaf-kind-pipeline-fg); }
+
+.raaf-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--raaf-radius-pill);
+  font-size: var(--raaf-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.raaf-status--completed { background: rgb(17 170 100 / 14%); color: var(--raaf-tone-ok-text); }
+.raaf-status--running { background: rgb(0 154 204 / 14%); color: #6fd2f0; }
+.raaf-status--warned { background: rgb(245 158 11 / 14%); color: var(--raaf-tone-warn-text); }
+
+.raaf-status--failed { background: rgb(239 68 68 / 14%); color: var(--raaf-tone-bad-text); }
+.raaf-status--skipped { background: var(--raaf-glass-white-8); color: var(--raaf-text-muted); }

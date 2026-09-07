@@ -1,0 +1,75 @@
+/* ============================================================================
+   Atom — Text
+   The full typographic range as named roles rather than ad-hoc sizes.
+   ========================================================================= */
+
+.raaf-text {
+  margin: 0;
+  font-family: var(--raaf-font-sans);
+  color: var(--raaf-text-primary);
+}
+
+/* Size */
+.raaf-text--xs { font-size: var(--raaf-text-xs); }
+.raaf-text--sm { font-size: var(--raaf-text-sm); }
+.raaf-text--body-sm { font-size: var(--raaf-text-body-sm); }
+.raaf-text--body { font-size: var(--raaf-text-body); }
+.raaf-text--body-lg { font-size: var(--raaf-text-body-lg); }
+.raaf-text--h6 { font-size: var(--raaf-text-h6); }
+.raaf-text--h5 { font-size: var(--raaf-text-h5); }
+.raaf-text--h4 { font-size: var(--raaf-text-h4); }
+.raaf-text--h3 { font-size: var(--raaf-text-h3); }
+.raaf-text--h2 { font-size: var(--raaf-text-h2); }
+.raaf-text--h1 { font-size: var(--raaf-text-h1); }
+
+/* Weight */
+.raaf-text--regular { font-weight: 400; }
+.raaf-text--medium { font-weight: 500; }
+.raaf-text--semibold { font-weight: 600; }
+.raaf-text--bold { font-weight: 700; }
+
+/* Tone */
+.raaf-text--primary { color: var(--raaf-text-primary); }
+.raaf-text--secondary { color: var(--raaf-text-secondary); }
+.raaf-text--muted { color: var(--raaf-text-muted); }
+.raaf-text--link { color: var(--raaf-text-link); }
+.raaf-text--accent { color: var(--raaf-cyan-500); }
+.raaf-text--success { color: var(--raaf-success); }
+.raaf-text--warning { color: var(--raaf-warning); }
+.raaf-text--danger { color: var(--raaf-danger); }
+.raaf-text--info { color: var(--raaf-info); }
+
+/* Treatment */
+.raaf-text--mono {
+  font-family: var(--raaf-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.raaf-text--numeric { font-variant-numeric: tabular-nums; }
+
+.raaf-text--truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raaf-text--wrap { white-space: pre-wrap; word-break: break-word; }
+
+/* Eyebrow — the small uppercase kicker above a title */
+.raaf-eyebrow {
+  margin: 0 0 var(--raaf-space-2);
+  font-size: var(--raaf-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--raaf-cyan-500);
+}
+
+/* Label — the small uppercase caption under a value */
+.raaf-label-caps {
+  font-size: var(--raaf-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--raaf-text-muted);
+}

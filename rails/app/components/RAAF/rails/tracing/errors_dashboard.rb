@@ -3,398 +3,85 @@
 module RAAF
   module Rails
     module Tracing
+      ##
+      # Monitor › Errors: one row per distinct failure, as RAAF Console.dc.html
+      # draws it.
+      #
+      # The design gives this screen a single table of signatures and nothing
+      # else. What it dropped was a KPI row counting the errors the table
+      # already counts, and a second list of individual failures underneath —
+      # which is the same data ungrouped, so the one noisy signature at the top
+      # of the table filled it and hid everything else.
+      #
+      # A signature is the pair the {SpanRecord.error_signatures} rollup groups
+      # on: exception class and message. The trend beside each is that
+      # signature's count against the same length of time immediately before
+      # the window, which is what says whether the fix is working.
+      #
       class ErrorsDashboard < BaseComponent
-        def initialize(error_analysis: {}, error_trends: [], recent_errors: [], params: {})
-          @error_analysis = error_analysis
-          @error_trends = error_trends
-          @recent_errors = recent_errors
+        # Columns and fr weights taken from RAAF Console.dc.html.
+        COLUMNS = [
+          { label: "Error signature", span: 2.4 },
+          { label: "Agent", span: 1.15 },
+          { label: "Count", span: 0.65, align: :right },
+          { label: "Trend", span: 0.75, align: :right },
+          { label: "Last seen", span: 0.95, align: :right }
+        ].freeze
+
+        # @param signatures [Array<Hash>] rows from SpanRecord.error_signatures
+        def initialize(signatures: [], params: {})
+          @signatures = signatures.to_a
           @params = params
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_time_filter
-            render_error_overview
-            render_error_trends
-            render_recent_errors
-            render_error_breakdown
+          div(class: "raaf-page") do
+            render(Organisms::Card.new(flush: true)) do
+              render(Organisms::DataGrid.new(columns: COLUMNS, empty: empty_state)) do |grid|
+                @signatures.each { |signature| row(grid, signature) }
+              end
+            end
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6") do
-            div(class: "min-w-0 flex-1") do
-              h1(class: "text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate") { "Error Dashboard" }
-              p(class: "mt-1 text-sm text-gray-500") { "Monitor and analyze error patterns across agent executions" }
-            end
-
-            div(class: "mt-4 flex sm:mt-0 sm:ml-4") do
-              render_preline_button(
-                text: "Export Error Report",
-                href: "/raaf/tracing/dashboard/errors.json",
-                variant: "secondary",
-                icon: "bi-download"
-              )
-            end
-          end
+        def empty_state
+          { icon: "check-circle", title: "Nothing failed",
+            text: "Failures in the selected range are grouped here by exception." }
         end
 
-        def render_time_filter
-          div(class: "bg-white p-6 rounded-lg shadow mb-6") do
-            form_with(url: "/raaf/tracing/dashboard/errors", method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-4") do |form|
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Start Time" }
-                form.datetime_local_field(
-                  :start_time,
-                  value: @params[:start_time] || 24.hours.ago.strftime("%Y-%m-%dT%H:%M"),
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "End Time" }
-                form.datetime_local_field(
-                  :end_time,
-                  value: @params[:end_time] || Time.current.strftime("%Y-%m-%dT%H:%M"),
-                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                )
-              end
-
-              div do
-                label(class: "block text-sm font-medium text-gray-700 mb-1") { "Error Severity" }
-                form.select(
-                  :severity,
-                  [
-                    ["All Severities", ""],
-                    ["Critical", "critical"],
-                    ["High", "high"],
-                    ["Medium", "medium"],
-                    ["Low", "low"]
-                  ],
-                  { selected: @params[:severity] },
-                  { class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" }
-                )
-              end
-
-              div(class: "flex items-end") do
-                form.submit(
-                  "Apply Filters",
-                  class: "w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                )
-              end
-            end
-          end
+        # To the newest span carrying the signature rather than to its trace:
+        # the span detail is where the backtrace and the arguments that
+        # produced it are, and the trace is one click on from there.
+        def row(grid, signature)
+          grid.row(href: trace_span_path(signature[:span_id], signature[:trace_id]), cells: [
+                     { value: signature_cell(signature), primary: true },
+                     { value: Atoms::Mono.new(signature[:agent], tone: :muted) },
+                     { value: Atoms::Mono.new(number(signature[:count])), align: :right },
+                     { value: trend_cell(signature[:trend]), align: :right },
+                     { value: Atoms::Mono.new(time_ago(signature[:last_seen]), tone: :muted),
+                       align: :right }
+                   ])
         end
 
-        def render_error_overview
-          div(class: "grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6") do
-            render_metric_card(
-              title: "Total Errors",
-              value: @error_analysis[:total_errors] || 0,
-              color: "red",
-              icon: "bi-exclamation-triangle"
-            )
-
-            render_metric_card(
-              title: "Error Rate",
-              value: "#{(@error_analysis[:error_rate] || 0).round(1)}%",
-              color: "orange",
-              icon: "bi-percent"
-            )
-
-            render_metric_card(
-              title: "Unique Errors",
-              value: @error_analysis[:unique_error_types] || 0,
-              color: "purple",
-              icon: "bi-collection"
-            )
-
-            render_metric_card(
-              title: "Critical Errors",
-              value: @error_analysis[:critical_errors] || 0,
-              color: "red",
-              icon: "bi-exclamation-circle"
-            )
-          end
+        def signature_cell(signature)
+          Molecules::TitleMeta.new(signature[:exception], signature[:message],
+                                   mono: true, tone: :bad)
         end
 
-        def render_error_trends
-          div(class: "bg-white rounded-lg shadow mb-6") do
-            div(class: "px-6 py-4 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Error Trends" }
-            end
+        # Rising is the only direction worth alarming about, so a fall is read
+        # as good and a signature that has not moved stays quiet.
+        def trend_cell(trend)
+          return Atoms::Mono.new("new", tone: :warn) if trend.nil?
+          return Atoms::Mono.new("— 0%", tone: :muted) if trend.zero?
 
-            div(class: "p-6") do
-              if @error_trends.any?
-                div(id: "error-trends-chart", class: "h-64") do
-                  render_simple_error_chart
-                end
-              else
-                div(class: "text-center py-8 text-gray-500") do
-                  i(class: "bi bi-graph-down text-4xl mb-2")
-                  p { "No error trend data available" }
-                end
-              end
-            end
-          end
+          arrow = trend.positive? ? "▲" : "▼"
+          Atoms::Mono.new("#{arrow} #{trend.abs}%", tone: trend.positive? ? :bad : :ok)
         end
 
-        def render_simple_error_chart
-          # Simple HTML-based chart for error trends
-          max_errors = @error_trends.map { |t| t[:error_spans] || 0 }.max || 1
-
-          div(class: "space-y-2") do
-            @error_trends.each do |trend|
-              error_count = trend[:error_spans] || 0
-              total_count = trend[:total_spans] || 1
-              error_rate = (error_count.to_f / total_count * 100).round(1)
-              bar_width = max_errors > 0 ? (error_count.to_f / max_errors * 100).round(1) : 0
-
-              div(class: "flex items-center space-x-4") do
-                div(class: "w-24 text-xs text-gray-600") do
-                  Time.at(trend[:timestamp]).strftime("%H:%M")
-                end
-
-                div(class: "flex-1 relative") do
-                  div(class: "h-6 bg-gray-100 rounded") do
-                    div(
-                      class: "h-full bg-red-500 rounded",
-                      style: "width: #{bar_width}%"
-                    )
-                  end
-                end
-
-                div(class: "w-20 text-xs text-gray-600 text-right") do
-                  "#{error_count} (#{error_rate}%)"
-                end
-              end
-            end
-          end
-        end
-
-        def render_recent_errors
-          div(class: "bg-white rounded-lg shadow mb-6") do
-            div(class: "px-6 py-4 border-b border-gray-200") do
-              div(class: "flex items-center justify-between") do
-                h3(class: "text-lg font-medium text-gray-900") { "Recent Errors" }
-                if @recent_errors.total_count > 0
-                  span(class: "text-sm text-gray-500") do
-                    if @recent_errors.total_pages > 1
-                      "Page #{@recent_errors.current_page} of #{@recent_errors.total_pages} (#{@recent_errors.total_count} total)"
-                    else
-                      "#{@recent_errors.total_count} error#{'s' if @recent_errors.total_count != 1}"
-                    end
-                  end
-                end
-              end
-            end
-
-            if @recent_errors.any?
-              div(class: "divide-y divide-gray-200") do
-                @recent_errors.each do |error_span|
-                  render_error_row(error_span)
-                end
-              end
-
-              render_errors_pagination if @recent_errors.total_pages > 1
-            else
-              div(class: "p-6 text-center text-gray-500") do
-                i(class: "bi bi-check-circle text-4xl text-green-500 mb-2")
-                p { "No errors found in the selected time range" }
-                p(class: "text-sm") { "All systems are operating normally" }
-              end
-            end
-          end
-        end
-
-        def render_errors_pagination
-          div(class: "px-6 py-4 bg-gray-50 border-t border-gray-200") do
-            div(class: "flex items-center justify-between") do
-              div(class: "text-sm text-gray-700") do
-                plain "Showing "
-                span(class: "font-medium") { ((@recent_errors.current_page - 1) * @recent_errors.limit_value + 1).to_s }
-                plain " to "
-                span(class: "font-medium") { [@recent_errors.current_page * @recent_errors.limit_value, @recent_errors.total_count].min.to_s }
-                plain " of "
-                span(class: "font-medium") { @recent_errors.total_count.to_s }
-                plain " errors"
-              end
-
-              div(class: "flex space-x-2") do
-                unless @recent_errors.first_page?
-                  link_to(
-                    "Previous",
-                    build_errors_url(@recent_errors.prev_page),
-                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  )
-                end
-
-                unless @recent_errors.last_page?
-                  link_to(
-                    "Next",
-                    build_errors_url(@recent_errors.next_page),
-                    class: "px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  )
-                end
-              end
-            end
-          end
-        end
-
-        def build_errors_url(page)
-          params = []
-          params << "page=#{page}"
-          params << "start_time=#{@params[:start_time]}" if @params[:start_time].present?
-          params << "end_time=#{@params[:end_time]}" if @params[:end_time].present?
-          params << "severity=#{@params[:severity]}" if @params[:severity].present?
-          params << "per_page=#{@params[:per_page]}" if @params[:per_page].present?
-          "/raaf/tracing/dashboard/errors?#{params.join('&')}"
-        end
-
-        def render_error_row(error_span)
-          error_details = error_span.error_details || {}
-
-          div(class: "px-6 py-4 hover:bg-gray-50") do
-            div(class: "flex items-start justify-between") do
-              div(class: "flex-1 min-w-0") do
-                div(class: "flex items-center space-x-3") do
-                  render_kind_badge(error_span.kind)
-
-                  div do
-                    div(class: "text-sm font-medium text-gray-900") do
-                      link_to(
-                        error_span.name,
-                        "/raaf/tracing/spans/#{error_span.span_id}",
-                        class: "text-blue-600 hover:text-blue-500"
-                      )
-                    end
-                    div(class: "text-sm text-gray-500 font-mono") { error_span.span_id }
-                  end
-                end
-
-                div(class: "mt-2") do
-                  if error_details.any?
-                    div(class: "text-sm text-red-600") do
-                      strong { error_details["error_type"] || "Unknown Error" }
-                    end
-                    if error_details["error_message"]
-                      div(class: "text-sm text-gray-600 mt-1") do
-                        truncate(error_details["error_message"], length: 100)
-                      end
-                    end
-                  else
-                    div(class: "text-sm text-red-600") { "Error details not available" }
-                  end
-                end
-
-                div(class: "mt-2 flex items-center text-sm text-gray-500 space-x-4") do
-                  span { "Duration: #{format_duration(error_span.duration_ms)}" }
-                  span { "Time: #{error_span.start_time&.strftime('%Y-%m-%d %H:%M:%S')}" }
-                  if error_span.trace
-                    span do
-                      plain "Workflow: "
-                      link_to(
-                        error_span.trace.workflow_name || "Unknown",
-                        "/raaf/tracing/traces/#{error_span.trace_id}",
-                        class: "text-blue-600 hover:text-blue-500"
-                      )
-                    end
-                  end
-                end
-              end
-
-              div(class: "flex-shrink-0") do
-                severity = determine_error_severity(error_details)
-                render_severity_badge(severity)
-              end
-            end
-          end
-        end
-
-        def render_error_breakdown
-          if @error_analysis[:errors_by_kind]
-            div(class: "bg-white rounded-lg shadow") do
-              div(class: "px-6 py-4 border-b border-gray-200") do
-                h3(class: "text-lg font-medium text-gray-900") { "Errors by Type" }
-              end
-
-              div(class: "p-6") do
-                div(class: "space-y-4") do
-                  @error_analysis[:errors_by_kind].each do |kind, count|
-                    render_error_kind_row(kind, count)
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        def render_error_kind_row(kind, count)
-          percentage = if @error_analysis[:total_errors] && @error_analysis[:total_errors] > 0
-                         (count.to_f / @error_analysis[:total_errors] * 100).round(1)
-                       else
-                         0
-                       end
-
-          div(class: "flex items-center justify-between p-3 bg-gray-50 rounded-lg") do
-            div(class: "flex items-center space-x-3") do
-              render_kind_badge(kind)
-              span(class: "text-sm font-medium text-gray-900") { kind.to_s.capitalize }
-            end
-
-            div(class: "flex items-center space-x-4") do
-              div(class: "flex-1 bg-gray-200 rounded-full h-2 w-24") do
-                div(
-                  class: "bg-red-500 h-2 rounded-full",
-                  style: "width: #{percentage}%"
-                )
-              end
-
-              span(class: "text-sm font-medium text-gray-900") { count.to_s }
-              span(class: "text-sm text-gray-500") { "(#{percentage}%)" }
-            end
-          end
-        end
-
-        def render_severity_badge(severity)
-          badge_class = case severity
-                       when "critical" then "bg-red-100 text-red-800"
-                       when "high" then "bg-orange-100 text-orange-800"
-                       when "medium" then "bg-yellow-100 text-yellow-800"
-                       when "low" then "bg-blue-100 text-blue-800"
-                       else "bg-gray-100 text-gray-800"
-                       end
-
-          span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{badge_class}") do
-            severity.to_s.capitalize
-          end
-        end
-
-        def determine_error_severity(error_details)
-          return "low" unless error_details.is_a?(Hash)
-
-          error_type = error_details["error_type"]&.downcase || ""
-          error_message = error_details["error_message"]&.downcase || ""
-
-          # Critical errors
-          return "critical" if error_type.include?("critical") || error_message.include?("critical")
-          return "critical" if error_type.include?("fatal") || error_message.include?("fatal")
-          return "critical" if error_type.include?("system") && error_message.include?("failure")
-
-          # High severity errors
-          return "high" if error_type.include?("timeout") || error_message.include?("timeout")
-          return "high" if error_type.include?("connection") || error_message.include?("connection")
-          return "high" if error_type.include?("authentication") || error_message.include?("authentication")
-
-          # Medium severity errors
-          return "medium" if error_type.include?("validation") || error_message.include?("validation")
-          return "medium" if error_type.include?("parsing") || error_message.include?("parsing")
-
-          # Default to low
-          "low"
+        def number(value)
+          value.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse
         end
       end
     end

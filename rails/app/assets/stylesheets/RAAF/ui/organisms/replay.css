@@ -1,0 +1,85 @@
+/* ============================================================================
+   Organism — Replay
+   The replay form's message editor and the comparison screen's diff surface.
+
+   The form itself is the experiment editor's layout — `raaf-editor` and its
+   rail — and every control is the library's, so only the two shapes that
+   exist nowhere else are described here.
+   ========================================================================= */
+
+/* ── The messages being replayed ────────────────────────────────────────── */
+
+.raaf-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+}
+
+.raaf-msg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-2);
+  padding: var(--raaf-space-3);
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-md);
+  background: var(--raaf-glass-white-5);
+}
+
+.raaf-msg-head {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+}
+
+.raaf-msg-role {
+  flex: 1;
+  font-family: var(--raaf-font-mono);
+  font-size: var(--raaf-text-xs);
+  font-weight: 500;
+  color: var(--raaf-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.raaf-msg-remove {
+  padding: var(--raaf-space-1);
+  border: 0;
+  border-radius: var(--raaf-radius-sm);
+  background: none;
+  color: var(--raaf-text-muted);
+  font-size: var(--raaf-text-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.raaf-msg-remove:hover {
+  background: var(--raaf-glass-white-10);
+  color: var(--raaf-tone-bad-text);
+}
+
+.raaf-msg-remove:focus-visible {
+  outline: 2px solid var(--raaf-cyan-500);
+  outline-offset: 2px;
+}
+
+/* ── The diff ───────────────────────────────────────────────────────────── */
+
+.raaf-diff-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--raaf-space-3);
+}
+
+/* diff2html ships a light theme and renders its own colours inside, so the
+   surface it draws on is light on purpose. Anything else would leave the
+   added and removed lines unreadable. */
+.raaf-diff-surface {
+  padding: var(--raaf-space-3);
+  border: 1px solid var(--raaf-border);
+  border-radius: var(--raaf-radius-md);
+  background: var(--raaf-white);
+  color: var(--raaf-ink-primary);
+  overflow-x: auto;
+}
+
+.raaf-diff-surface .raaf-text { color: var(--raaf-ink-muted); }
