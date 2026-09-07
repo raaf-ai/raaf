@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRaafPromptVersions < ActiveRecord::Migration[7.0]
+class CreateRAAFPromptVersions < ActiveRecord::Migration[7.0]
   def change
     # Prompt registries (groups of versioned prompts)
     create_table :raaf_prompts do |t|

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRaafFeedbackScores < ActiveRecord::Migration[7.0]
+class CreateRAAFFeedbackScores < ActiveRecord::Migration[7.0]
   def change
     # Feedback scores for human-in-the-loop annotation (inspired by Opik)
     create_table :raaf_feedback_scores do |t|

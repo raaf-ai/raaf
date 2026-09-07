@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRaafDatasets < ActiveRecord::Migration[7.0]
+class CreateRAAFDatasets < ActiveRecord::Migration[7.0]
   def change
     # Datasets for systematic evaluation (inspired by Opik)
     create_table :raaf_datasets do |t|
