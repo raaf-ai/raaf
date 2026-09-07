@@ -227,7 +227,9 @@ module RAAF
           content = group_memories.map { |m| m[:content] }.join("\n")
           summary = summarizer.call(content)
 
-          Memory::Memory.new(
+          # Fully qualified: bare Memory here resolves to RAAF::Memory::Memory,
+          # so Memory::Memory would look for a Memory inside the Memory class.
+          RAAF::Memory::Memory.new(
             content: "Summary: #{summary}",
             agent_name: group_memories.first[:agent_name],
             conversation_id: group_key,

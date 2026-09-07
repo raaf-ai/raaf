@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "../../../core/lib/raaf/utils"
-require_relative "../../../core/lib/raaf/function_tool"
+require "raaf-core"
 begin
   # Suppress matrix deprecation warning
   original_verbose = $VERBOSE

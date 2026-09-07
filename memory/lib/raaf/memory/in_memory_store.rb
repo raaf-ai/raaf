@@ -150,7 +150,7 @@ module RAAF
       def get_recent(limit = 10)
         @mutex.synchronize do
           @memories.values
-                   .sort_by { |m| -m.updated_at.to_i }
+                   .sort_by { |m| -m.updated_at.to_f }
                    .take(limit)
                    .map(&:to_h)
         end

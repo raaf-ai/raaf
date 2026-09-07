@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "openai_agents/vector_store"
 
 RSpec.describe RAAF::VectorStore do
   let(:store) { described_class.new(name: "test_store", dimensions: 10) }

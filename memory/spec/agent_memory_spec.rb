@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "openai_agents/agent"
-require "openai_agents/memory/in_memory_store"
 
 RSpec.describe "Agent Memory Integration" do
   let(:memory_store) { RAAF::Memory::InMemoryStore.new }
@@ -25,8 +23,9 @@ RSpec.describe "Agent Memory Integration" do
         instructions: "No memory needed"
       )
 
-      expect(agent_without_memory.memory_store).to be_nil
-      expect(agent_without_memory.remember("test")).to be_nil
+      # With raaf-memory loaded, Agent falls back to a default in-memory store
+      # rather than leaving memory unconfigured.
+      expect(agent_without_memory.memory_store).to be_a(RAAF::Memory::InMemoryStore)
       expect(agent_without_memory.recall("test")).to eq([])
     end
   end
@@ -106,7 +105,7 @@ RSpec.describe "Agent Memory Integration" do
     end
 
     it "returns agent's recent memories" do
-      recent = agent.recent_memories(2)
+      recent = agent.recent_memories(limit: 2)
 
       expect(recent.size).to eq(2)
       expect(recent.first[:content]).to eq("Recent memory")
@@ -157,15 +156,15 @@ RSpec.describe "Agent Memory Integration" do
     end
 
     it "formats memories as context" do
-      context = agent.memory_context
+      context = agent.memory_context("Context")
 
-      expect(context).to include("## Previous Context")
+      expect(context).to include("Relevant memories:")
       expect(context).to include("Ruby programming")
       expect(context).to include("Python")
     end
 
     it "filters by query" do
-      context = agent.memory_context("Ruby", 2)
+      context = agent.memory_context("Ruby", limit: 2)
 
       expect(context).to include("Ruby programming")
       expect(context).to include("Ruby details")
@@ -175,19 +174,19 @@ RSpec.describe "Agent Memory Integration" do
     it "returns empty string without memories" do
       agent.clear_memories
 
-      expect(agent.memory_context).to eq("")
+      expect(agent.memory_context("anything")).to eq("")
     end
   end
 
-  describe "#has_memories?" do
-    it "returns false initially" do
-      expect(agent.has_memories?).to be false
+  describe "#memory_count as a has-memories check" do
+    it "is zero initially" do
+      expect(agent.memory_count).to eq(0)
     end
 
-    it "returns true after remembering" do
+    it "is positive after remembering" do
       agent.remember("Something")
 
-      expect(agent.has_memories?).to be true
+      expect(agent.memory_count).to be_positive
     end
   end
 

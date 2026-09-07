@@ -4,7 +4,7 @@ require_relative "base_store"
 require_relative "memory"
 require "json"
 require "fileutils"
-require_relative "../../../core/lib/raaf/utils"
+require "raaf-core"
 
 module RAAF
 

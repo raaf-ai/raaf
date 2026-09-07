@@ -2,7 +2,7 @@
 
 require "json"
 require "digest"
-require_relative "../../../core/lib/raaf/utils"
+require "raaf-core"
 begin
   # Suppress matrix deprecation warning
   original_verbose = $VERBOSE

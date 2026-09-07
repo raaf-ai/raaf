@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "openai_agents/memory/memory"
 
 RSpec.describe RAAF::Memory::Memory do
   describe "#initialize" do

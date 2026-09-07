@@ -4,7 +4,7 @@ require_relative "base_store"
 require_relative "memory"
 require "json"
 require "fileutils"
-require_relative "../../../../core/lib/raaf/utils"
+require "raaf-core"
 
 module RAAF
 
@@ -87,16 +87,19 @@ module RAAF
       end
 
       def retrieve(key)
-        @mutex.synchronize do
-          return nil unless @index.key?(key)
+        @mutex.synchronize { read_memory(key) }
+      end
 
-          memory_file = @index[key][:file] || memory_path(key)
-          return nil unless File.exist?(memory_file)
+      # Reads one memory file. Callers must already hold @mutex.
+      def read_memory(key)
+        return nil unless @index.key?(key)
 
-          RAAF::Utils.parse_json(File.read(memory_file))
-        rescue JSON::ParserError, Errno::ENOENT
-          nil
-        end
+        memory_file = @index[key][:file] || memory_path(key)
+        return nil unless File.exist?(memory_file)
+
+        RAAF::Utils.parse_json(File.read(memory_file))
+      rescue JSON::ParserError, Errno::ENOENT
+        nil
       end
 
       def search(query, options = {})
@@ -118,8 +121,9 @@ module RAAF
               next unless tags.all? { |tag| entry_tags.include?(tag) }
             end
 
-            # Load and check memory content
-            memory_data = retrieve(key)
+            # Load and check memory content. read_memory, not retrieve: we already
+            # hold @mutex here and it is not reentrant.
+            memory_data = read_memory(key)
             next unless memory_data
 
             memory = Memory.from_h(memory_data)

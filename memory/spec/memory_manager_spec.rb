@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "openai_agents/memory/memory_manager"
-require "openai_agents/memory/memory"
 
 RSpec.describe RAAF::Memory::MemoryManager do
   let(:manager) { described_class.new(max_tokens: 100) }
@@ -128,7 +126,8 @@ RSpec.describe RAAF::Memory::MemoryManager do
   describe "#prune_memories" do
     context "with :oldest strategy" do
       it "keeps most recent memories" do
-        pruned = manager.prune_memories(memories, :oldest)
+        tight_manager = described_class.new(max_tokens: 15)
+        pruned = tight_manager.prune_memories(memories, :oldest)
 
         # Should keep the most recent memories that fit
         expect(pruned.map { |m| m[:id] }).to include("3")

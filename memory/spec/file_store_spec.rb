@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "openai_agents/memory/file_store"
-require "openai_agents/memory/memory"
 require "tmpdir"
 require "fileutils"
 
@@ -26,6 +24,7 @@ RSpec.describe RAAF::Memory::FileStore do
     end
 
     it "creates index file" do
+      store # `store` is lazy; the index is written when the store is constructed
       index_file = File.join(temp_dir, "index.json")
 
       expect(File.exist?(index_file)).to be true
