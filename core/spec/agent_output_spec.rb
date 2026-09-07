@@ -146,10 +146,11 @@ RSpec.describe "RAAF Agent Output Schemas" do
 
       it "returns array schema for Array output type" do
         schema = described_class.new(Array)
+        # json_schema is returned with indifferent access.
         expect(schema.json_schema).to eq({
-                                           type: "array",
-                                           items: {}
-                                         })
+          type: "array",
+          items: {}
+        }.with_indifferent_access)
       end
 
       it "returns custom schema for class with json_schema method" do
@@ -161,9 +162,9 @@ RSpec.describe "RAAF Agent Output Schemas" do
 
         schema = described_class.new(custom_class)
         expect(schema.json_schema).to eq({
-                                           type: "custom",
-                                           properties: { name: { type: "string" } }
-                                         })
+          type: "custom",
+          properties: { name: { type: "string" } }
+        }.with_indifferent_access)
       end
 
       it "returns wrapped object schema for unknown custom types" do

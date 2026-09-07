@@ -316,7 +316,9 @@ module RAAF
                          {
                            type: "object",
                            properties: {
-                             WRAPPER_DICT_KEY => generate_schema_for_type(@output_type)
+                             # Symbol key to match the rest of the schema hash;
+                             # "required" stays a string, as JSON Schema wants.
+                             WRAPPER_DICT_KEY.to_sym => generate_schema_for_type(@output_type)
                            },
                            required: [WRAPPER_DICT_KEY],
                            additionalProperties: false

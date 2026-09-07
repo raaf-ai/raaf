@@ -32,9 +32,9 @@ RSpec.describe RAAF::SchemaValidator do
   end
 
   describe "#initialize" do
-    it "sets default mode to tolerant" do
+    it "defaults to strict mode" do
       validator = described_class.new(basic_schema)
-      expect(validator.mode).to eq(:tolerant)
+      expect(validator.mode).to eq(:strict)
     end
 
     it "accepts custom mode and repair attempts" do
@@ -171,7 +171,8 @@ RSpec.describe RAAF::SchemaValidator do
       expect(result[:partial]).to be true
       expect(result[:data][:company_name]).to eq("ACME Corp")
       expect(result[:data][:market_sector]).to eq("technology")
-      expect(result[:warnings]).to include(/Field Employee Count/)
+      # Keys are normalised before validation, so warnings name the schema field.
+      expect(result[:warnings]).to include(/Field employee_count/)
     end
   end
 
