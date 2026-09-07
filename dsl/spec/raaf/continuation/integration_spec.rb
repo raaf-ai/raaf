@@ -56,7 +56,8 @@ RSpec.describe "RAAF::Continuation Integration Tests" do
       header = "id,name,status\n"
       rows = (1..1000).map { |i| "#{i},Item#{i},Active" }.join("\n")
 
-      chunk1 = { content: header + rows[0...rows.length / 2] + "\n", truncated: true, finish_reason: "length" }
+      # A truncated response stops mid-row, without a closing newline.
+      chunk1 = { content: header + rows[0...rows.length / 2], truncated: true, finish_reason: "length" }
       chunk2 = { content: rows[rows.length / 2..-1] + "\n", truncated: false, finish_reason: "stop" }
 
       csv_merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
@@ -69,7 +70,7 @@ RSpec.describe "RAAF::Continuation Integration Tests" do
       expect(duration_ms).to be < 500
 
       # Verify all data present
-      row_count = result[:content].lines.drop(1).reject(&:empty?).count
+      row_count = result[:content].lines.drop(1).map(&:chomp).reject(&:empty?).count
       expect(row_count).to eq(1000)
     end
   end
@@ -259,7 +260,8 @@ All systems operational.
         }
       end
 
-      json_chunk1 = "[\n" + items_chunk1.map { |item| "  " + JSON.generate(item) }.join(",\n") + "\n"
+      # Truncation lands after the separating comma of the last item written.
+      json_chunk1 = "[\n" + items_chunk1.map { |item| "  " + JSON.generate(item) }.join(",\n") + ",\n"
       json_chunk2 = items_chunk2.map { |item| "  " + JSON.generate(item) }.join(",\n") + "\n]"
 
       chunk1 = { content: json_chunk1, truncated: true, finish_reason: "length" }

@@ -54,7 +54,7 @@ module RAAF
         # Only return if confidence is reasonable (> 0.3)
         confidence > 0.3 ? [format_symbol, confidence] : [:unknown, confidence]
       rescue StandardError => e
-        Rails.logger.debug { "FormatDetector error: #{e.message}" }
+        RAAF.logger.debug { "FormatDetector error: #{e.message}" }
         [:unknown, 0.0]
       end
 
@@ -76,6 +76,10 @@ module RAAF
         lines = content.split("\n").reject { |l| l.strip.empty? }
         return score if lines.empty?
 
+        # Without a single delimiter anywhere, this is not a CSV whatever else it
+        # looks like.
+        return score unless lines.any? { |line| line.include?(",") }
+
         # Check first line as potential header
         first_line = lines[0]
         if first_line.include?(",")
@@ -83,8 +87,9 @@ module RAAF
           score += 0.15
         end
 
-        # Check for consistent column counts
-        if lines.length > 2
+        # Check for consistent column counts. Two rows agreeing on their column
+        # count is already evidence; more rows agreeing is stronger.
+        if lines.length >= 2
           column_counts = lines.map { |line| count_csv_columns(line) }
           consistent = column_counts.uniq.length <= 2 # Allow 1-2 different counts for headers
           score += 0.4 if consistent
@@ -133,8 +138,8 @@ module RAAF
         # Check for code blocks
         score += 0.35 if content.include?("```") || content.include?("~~~")
 
-        # Check for headings
-        score += 0.30 if content.include?("# ") || content.include?("## ") || content.include?("### ")
+        # Check for headings - an ATX heading is a strong markdown signal
+        score += 0.35 if content.include?("# ") || content.include?("## ") || content.include?("### ")
 
         # Check for tables (pipes with consistent structure)
         if content.include?("|")
@@ -151,7 +156,10 @@ module RAAF
         end
 
         # Check for emphasis markers
-        if content.include?("**") || content.include?("_")
+        if content.include?("**")
+          # Paired asterisks are markdown bold and little else
+          score += 0.35
+        elsif content.include?("_")
           score += 0.15
         elsif content.include?("*")
           # Single asterisks are more common in regular text
@@ -159,7 +167,8 @@ module RAAF
         end
 
         # Check for list items
-        score += 0.15 if content.include?("\n- ") || content.include?("\n* ") || content.include?("\n+ ")
+        score += 0.35 if content.include?("\n- ") || content.include?("\n* ") || content.include?("\n+ ")
+        score += 0.15 if content.start_with?("- ") || content.start_with?("* ") || content.start_with?("+ ")
 
         # Penalize if it looks like JSON
         score -= 0.3 if content.lstrip.start_with?("{") || content.lstrip.start_with?("[")

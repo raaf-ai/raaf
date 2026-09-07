@@ -73,9 +73,7 @@ module RAAF
             metadata: build_metadata(chunks, true)
           }
         rescue StandardError => e
-          Rails.logger.error "❌ JSON Merger ERROR: #{e.message}"
-          Rails.logger.error "📋 Error class: #{e.class.name}"
-          Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+          RAAF.logger.error "JSON merge failed: #{e.class.name}: #{e.message}"
 
           {
             content: nil,

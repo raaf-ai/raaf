@@ -41,7 +41,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
       items = (1..50).map { |i| %({"id": #{i}, "name": "Item#{i}"}) }
       items2 = (51..100).map { |i| %({"id": #{i}, "name": "Item#{i}"}) }
 
-      chunk1 = { content: %({"items": [#{items.join(', ')}]) }
+      chunk1 = { content: %({"items": [#{items.join(', ')}) }
       chunk2 = { content: %(, #{items2.join(', ')}]}) }
 
       result = json_merger.merge([chunk1, chunk2])
@@ -53,7 +53,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "preserves array order across chunks" do
       items = (1..10).map { |i| %({"id": #{i}, "value": "val#{i}"}) }
-      chunk1 = { content: %({"data": [#{items[0..4].join(', ')}]) }
+      chunk1 = { content: %({"data": [#{items[0..4].join(', ')}) }
       chunk2 = { content: %(, #{items[5..9].join(', ')}]}) }
 
       result = json_merger.merge([chunk1, chunk2])
@@ -304,7 +304,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
       result = json_merger.merge([chunk1, chunk2, chunk3])
 
       expect(result[:metadata][:merge_success]).to be true
-      expect(result[:content]).to include('"data": "value"')
+      expect(JSON.parse(result[:content])["data"]).to eq("value")
     end
 
     it "repairs missing closing brackets" do
@@ -467,7 +467,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
       items = (1..500).map { |i| %({"id": #{i}}) }
       items2 = (501..1000).map { |i| %({"id": #{i}}) }
 
-      chunk1 = { content: %([#{items.join(', ')}]) }
+      chunk1 = { content: %([#{items.join(', ')}) }
       chunk2 = { content: %(, #{items2.join(', ')}]) }
 
       result = json_merger.merge([chunk1, chunk2])

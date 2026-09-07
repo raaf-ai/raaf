@@ -68,9 +68,7 @@ module RAAF
             metadata: build_metadata(chunks, true)
           }
         rescue StandardError => e
-          Rails.logger.error "❌ CSV Merger ERROR: #{e.message}"
-          Rails.logger.error "📋 Error class: #{e.class.name}"
-          Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+          RAAF.logger.error "CSV merge failed: #{e.class.name}: #{e.message}"
 
           {
             content: nil,
@@ -203,14 +201,16 @@ module RAAF
           # Find the first complete line in continuation
           continuation_lines = continuation.lines
 
+          preceding = partial_lines[0...-1].join
+
           # If there's only one line in continuation, it's a continuation of the incomplete line
           if continuation_lines.length <= 1
-            incomplete_line + continuation_lines.first.to_s
+            preceding + incomplete_line + continuation_lines.first.to_s
           else
             # First line continues the incomplete line, rest are new lines
             completed_line = incomplete_line + continuation_lines.first
             rest = continuation_lines.drop(1).join
-            partial_lines[0...-1].join + completed_line + rest
+            preceding + completed_line + rest
           end
         end
 

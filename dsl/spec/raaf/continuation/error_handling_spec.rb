@@ -37,112 +37,87 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
 
   describe "Category 1: Merge Failure Handling (8 tests)" do
     describe "#merge with exceptions" do
+      # The mergers repair malformed input rather than failing on it, so a real
+      # failure has to come from the merge step itself blowing up.
+      def merger_that_raises(merger_class, error)
+        merger_class.new(config_return_partial).tap do |merger|
+          allow(merger).to receive(:simple_merge).and_raise(error)
+        end
+      end
+
       it "catches merger exceptions and handles gracefully" do
-        merger = RAAF::Continuation::Mergers::CSVMerger.new(config_return_partial)
+        merger = merger_that_raises(RAAF::Continuation::Mergers::CSVMerger, ArgumentError.new("bad row"))
 
-        bad_chunks = [
-          { content: "id,name\n1,\"John" },
-          { content: ",,broken,structure" }
-        ]
+        result = nil
+        expect { result = merger.merge(base_chunks) }.not_to raise_error
 
-        expect do
-          merger.merge(bad_chunks)
-        end.not_to raise_error
-
-        result = merger.merge(bad_chunks)
         expect(result[:metadata][:merge_success]).to be false
         expect(result[:metadata][:merge_error]).to be_present
       end
 
       it "captures exception class name in merge_error" do
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config_return_partial)
+        merger = merger_that_raises(RAAF::Continuation::Mergers::JSONMerger, JSON::ParserError.new("unexpected token"))
 
-        bad_chunks = [
-          { content: '{"invalid": [1, 2' },
-          { content: "BROKEN JSON" }
-        ]
+        result = merger.merge(malformed_json_chunks)
 
-        result = merger.merge(bad_chunks)
-        expect(result[:metadata][:merge_error]).to be_present
-        expect(result[:metadata][:merge_error][:error_class]).to be_a(String)
-        expect(result[:metadata][:merge_error][:error_class]).to include("Error")
+        expect(result[:metadata][:merge_error][:error_class]).to eq("JSON::ParserError")
       end
 
       it "logs error details when merge fails" do
         merger = RAAF::Continuation::Mergers::BaseMerger.new(config_return_partial)
 
-        chunks = [{ content: "test" }]
-
-        expect do
-          merger.merge(chunks)
-        end.to raise_error(NotImplementedError)
+        expect { merger.merge([{ content: "test" }]) }.to raise_error(NotImplementedError)
       end
 
       it "includes error message in metadata" do
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config_return_partial)
+        merger = merger_that_raises(RAAF::Continuation::Mergers::JSONMerger, StandardError.new("merge blew up"))
 
-        bad_chunks = [
-          { content: "{" },
-          { content: "INVALID" }
-        ]
+        result = merger.merge(malformed_json_chunks)
 
-        result = merger.merge(bad_chunks)
-        expect(result[:metadata][:merge_error]).to be_present
-        expect(result[:metadata][:merge_error][:error_message]).to be_a(String)
-        expect(result[:metadata][:merge_error][:error_message]).not_to be_empty
+        expect(result[:metadata][:merge_error][:error_message]).to eq("merge blew up")
       end
 
       it "preserves chunk metadata on merge error" do
-        merger = RAAF::Continuation::Mergers::MarkdownMerger.new(config_return_partial)
+        merger = merger_that_raises(RAAF::Continuation::Mergers::MarkdownMerger, StandardError.new("nope"))
 
-        bad_chunks = [
-          { content: "| Header" },
-          { content: "BROKEN" }
-        ]
+        result = merger.merge(incomplete_markdown_chunks)
 
-        result = merger.merge(bad_chunks)
         expect(result[:metadata][:chunk_count]).to eq(2)
         expect(result[:metadata][:timestamp]).to be_present
       end
 
       it "returns nil content when merge fails" do
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config_return_partial)
+        merger = merger_that_raises(RAAF::Continuation::Mergers::JSONMerger, StandardError.new("nope"))
 
-        bad_chunks = [{ content: "[" }]
-
-        result = merger.merge(bad_chunks)
-        expect(result[:content]).to be_nil
+        expect(merger.merge(malformed_json_chunks)[:content]).to be_nil
       end
 
       it "marks merge_success as false on exception" do
-        merger = RAAF::Continuation::Mergers::CSVMerger.new(config_return_partial)
+        merger = merger_that_raises(RAAF::Continuation::Mergers::CSVMerger, StandardError.new("nope"))
 
-        bad_chunks = [{ content: '"unclosed' }]
-
-        result = merger.merge(bad_chunks)
-        expect(result[:metadata][:merge_success]).to be false
+        expect(merger.merge(base_chunks)[:metadata][:merge_success]).to be false
       end
 
       it "handles multiple sequential merge failures gracefully" do
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config_return_partial)
+        merger = merger_that_raises(RAAF::Continuation::Mergers::JSONMerger, StandardError.new("nope"))
 
-        bad_chunks1 = [{ content: "{" }]
-        bad_chunks2 = [{ content: "[" }]
-        bad_chunks3 = [{ content: "INVALID" }]
-
+        results = nil
         expect do
-          merger.merge(bad_chunks1)
-          merger.merge(bad_chunks2)
-          merger.merge(bad_chunks3)
+          results = 3.times.map { merger.merge(malformed_json_chunks) }
         end.not_to raise_error
 
-        result1 = merger.merge(bad_chunks1)
-        result2 = merger.merge(bad_chunks2)
-        result3 = merger.merge(bad_chunks3)
+        expect(results.map { |r| r[:metadata][:merge_success] }).to eq([false, false, false])
+      end
+    end
 
-        expect(result1[:metadata][:merge_success]).to be false
-        expect(result2[:metadata][:merge_success]).to be false
-        expect(result3[:metadata][:merge_success]).to be false
+    describe "repairing rather than failing" do
+      it "repairs truncated JSON instead of erroring" do
+        merger = RAAF::Continuation::Mergers::JSONMerger.new(config_return_partial)
+
+        result = merger.merge(malformed_json_chunks)
+
+        expect(result[:metadata][:merge_success]).to be true
+        expect(result[:metadata]).not_to have_key(:merge_error)
       end
     end
   end
@@ -247,10 +222,12 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
       end
 
       it "includes error metadata when returning partial" do
-        chunks = [{ content: '"unclosed' }]
+        allow(merger).to receive(:simple_merge).and_raise("row is unterminated")
 
-        result = merger.merge(chunks)
+        result = merger.merge([{ content: '"unclosed' }])
+
         expect(result[:metadata][:merge_error]).to be_present
+        expect(result[:metadata][:merge_error][:error_message]).to eq("row is unterminated")
       end
 
       it "does not raise exception with :return_partial" do
@@ -263,22 +240,30 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
     end
 
     describe "on_failure: :raise_error" do
-      let(:config) { RAAF::Continuation::Config.new(on_failure: :raise_error) }
-      let(:merger) { RAAF::Continuation::Mergers::JSONMerger.new(config) }
+      # on_failure is consulted by the ErrorHandler after all three fallback
+      # levels have come up empty; a merger on its own always returns a result.
+      let(:original_error) { JSON::ParserError.new("unexpected token") }
+      let(:handler) do
+        RAAF::Continuation::ErrorHandler.new.tap do |h|
+          allow(h).to receive(:simple_concatenate).and_raise("concatenation failed")
+        end
+      end
+      let(:merger) do
+        RAAF::Continuation::Mergers::JSONMerger.new(config_raise_error).tap do |m|
+          allow(m).to receive(:merge).and_raise(original_error)
+        end
+      end
+      let(:empty_chunks) { [{ content: nil }] }
 
       it "raises error with :raise_error configuration" do
-        chunks = [{ content: "{" }]
-
         expect do
-          merger.merge(chunks)
+          handler.handle_merge_failure(merger, empty_chunks, config_raise_error, original_error)
         end.to raise_error(RAAF::Continuation::MergeError)
       end
 
       it "includes helpful error message" do
-        chunks = [{ content: "[" }]
-
         expect do
-          merger.merge(chunks)
+          handler.handle_merge_failure(merger, empty_chunks, config_raise_error, original_error)
         end.to(raise_error do |error|
           expect(error.message).to be_a(String)
           expect(error.message).not_to be_empty
@@ -286,43 +271,59 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
       end
 
       it "provides error context in raised exception" do
-        chunks = [{ content: "INVALID JSON" }]
-
         expect do
-          merger.merge(chunks)
+          handler.handle_merge_failure(merger, empty_chunks, config_raise_error, original_error)
         end.to(raise_error do |error|
-          expect(error).to respond_to(:merge_error_metadata)
+          expect(error.merge_error_metadata[:error_class]).to eq("JSON::ParserError")
         end)
+      end
+
+      it "returns a partial result instead when configured to" do
+        result = handler.handle_merge_failure(merger, empty_chunks, config_return_partial, original_error)
+
+        expect(result[:metadata][:merge_success]).to be false
+      end
+
+      it "keeps whatever a lower fallback level could salvage" do
+        result = handler.handle_merge_failure(merger, [{ content: "salvageable" }], config_raise_error, original_error)
+
+        expect(result[:content]).to eq("salvageable")
+        expect(result[:metadata][:fallback_used]).to be true
       end
     end
 
     describe "custom error classes" do
-      it "uses RAAF::Continuation::MergeError for merge failures" do
-        config = RAAF::Continuation::Config.new(on_failure: :raise_error)
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
+      let(:original_error) { JSON::ParserError.new("boom") }
+      let(:handler) do
+        RAAF::Continuation::ErrorHandler.new.tap do |h|
+          allow(h).to receive(:simple_concatenate).and_raise("concatenation failed")
+        end
+      end
+      let(:merger) do
+        RAAF::Continuation::Mergers::JSONMerger.new(config_raise_error).tap do |m|
+          allow(m).to receive(:merge).and_raise(original_error)
+        end
+      end
 
+      it "uses RAAF::Continuation::MergeError for merge failures" do
         expect do
-          merger.merge([{ content: "{" }])
+          handler.handle_merge_failure(merger, [{ content: nil }], config_raise_error, original_error)
         end.to raise_error(RAAF::Continuation::MergeError)
       end
 
       it "error includes error_class field" do
-        config = RAAF::Continuation::Config.new(on_failure: :return_partial)
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
-
-        result = merger.merge([{ content: "{" }])
-        expect(result[:metadata][:merge_error][:error_class]).to be_present
+        expect do
+          handler.handle_merge_failure(merger, [{ content: nil }], config_raise_error, original_error)
+        end.to(raise_error do |error|
+          expect(error.merge_error_metadata).to have_key(:error_class)
+        end)
       end
 
       it "provides helpful error messages with context" do
-        config = RAAF::Continuation::Config.new(on_failure: :raise_error)
-        merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
-
         expect do
-          merger.merge([{ content: '"unclosed' }])
+          handler.handle_merge_failure(merger, [{ content: nil }], config_raise_error, original_error)
         end.to(raise_error do |error|
-          message = error.message
-          expect(message).to match(/merge|csv|parse|error/i)
+          expect(error.message).to match(/merge|fallback|error/i)
         end)
       end
     end
@@ -535,38 +536,31 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
   end
 
   describe "Category 6: Error Metadata (6 tests)" do
+    # Metadata for a failed merge, produced by making the merge step itself fail.
+    def failed_merge(merger_class, error, chunks)
+      merger = merger_class.new(RAAF::Continuation::Config.new(on_failure: :return_partial))
+      allow(merger).to receive(:simple_merge).and_raise(error)
+      merger.merge(chunks)
+    end
+
     describe "error_class field" do
       it "populates error_class with exception class name" do
-        config = RAAF::Continuation::Config.new(on_failure: :return_partial)
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
-
-        chunks = [{ content: "{" }]
-        result = merger.merge(chunks)
+        result = failed_merge(RAAF::Continuation::Mergers::JSONMerger, JSON::ParserError.new("boom"), malformed_json_chunks)
 
         expect(result[:metadata]).to have_key(:merge_error)
-        expect(result[:metadata][:merge_error]).to have_key(:error_class)
         expect(result[:metadata][:merge_error][:error_class]).to include("Error")
       end
 
       it "captures specific exception types" do
-        config = RAAF::Continuation::Config.new(on_failure: :return_partial)
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
+        result = failed_merge(RAAF::Continuation::Mergers::JSONMerger, JSON::ParserError.new("boom"), malformed_json_chunks)
 
-        chunks = [{ content: "invalid" }]
-        result = merger.merge(chunks)
-
-        error_class = result[:metadata][:merge_error][:error_class]
-        expect(["JSON::ParserError", "StandardError"]).to include(error_class)
+        expect(result[:metadata][:merge_error][:error_class]).to eq("JSON::ParserError")
       end
     end
 
     describe "merge_error field" do
       it "includes complete merge_error hash on failure" do
-        config = RAAF::Continuation::Config.new(on_failure: :return_partial)
-        merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
-
-        chunks = [{ content: '"unclosed' }]
-        result = merger.merge(chunks)
+        result = failed_merge(RAAF::Continuation::Mergers::CSVMerger, StandardError.new("boom"), base_chunks)
 
         expect(result[:metadata][:merge_error]).to be_a(Hash)
         expect(result[:metadata][:merge_error]).to have_key(:error_class)
@@ -589,26 +583,15 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
 
     describe "error_message field" do
       it "captures error message from exception" do
-        config = RAAF::Continuation::Config.new(on_failure: :return_partial)
-        merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
+        result = failed_merge(RAAF::Continuation::Mergers::JSONMerger, StandardError.new("boom"), malformed_json_chunks)
 
-        chunks = [{ content: "{" }]
-        result = merger.merge(chunks)
-
-        expect(result[:metadata][:merge_error]).to have_key(:error_message)
-        expect(result[:metadata][:merge_error][:error_message]).to be_a(String)
-        expect(result[:metadata][:merge_error][:error_message].length).to be > 0
+        expect(result[:metadata][:merge_error][:error_message]).to eq("boom")
       end
 
       it "provides actionable error messages" do
-        config = RAAF::Continuation::Config.new(on_failure: :return_partial)
-        merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
+        result = failed_merge(RAAF::Continuation::Mergers::CSVMerger, StandardError.new("row 3 is unterminated"), base_chunks)
 
-        chunks = [{ content: '"unclosed' }]
-        result = merger.merge(chunks)
-
-        message = result[:metadata][:merge_error][:error_message]
-        expect(message).not_to be_empty
+        expect(result[:metadata][:merge_error][:error_message]).to eq("row 3 is unterminated")
       end
     end
 

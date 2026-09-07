@@ -37,7 +37,7 @@ RSpec.describe "RAAF::Continuation::Mergers::CSVMerger" do
 
       expect(headers).to eq("id,name,email\n")
       # Verify header appears only once
-      header_count = result[:content].count("id,name,email")
+      header_count = result[:content].scan("id,name,email").count
       expect(header_count).to eq(1)
     end
 

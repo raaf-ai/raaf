@@ -69,9 +69,7 @@ module RAAF
             metadata: build_metadata(chunks, true)
           }
         rescue StandardError => e
-          Rails.logger.error "❌ Markdown Merger ERROR: #{e.message}"
-          Rails.logger.error "📋 Error class: #{e.class.name}"
-          Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+          RAAF.logger.error "Markdown merge failed: #{e.class.name}: #{e.message}"
 
           {
             content: nil,
@@ -153,8 +151,12 @@ module RAAF
         def merge_next_chunk(accumulated, new_chunk)
           return accumulated if new_chunk.nil? || new_chunk.empty?
 
-          # Check if accumulated ends with incomplete structures
-          if has_incomplete_table_row?(accumulated) || has_incomplete_code_block?(accumulated)
+          # Check if accumulated ends with incomplete structures. A new chunk that
+          # opens with a line break proves the previous line was finished, so the
+          # missing trailing newline is not a split row.
+          split_line = has_incomplete_table_row?(accumulated) && !new_chunk.start_with?("\n")
+
+          if split_line || has_incomplete_code_block?(accumulated)
             # Complete the incomplete structure by appending new chunk
             accumulated + new_chunk
           else
