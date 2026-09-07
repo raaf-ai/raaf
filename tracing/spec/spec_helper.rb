@@ -15,6 +15,7 @@ ENV["RAAF_LOG_LEVEL"] = "fatal"
 ENV["OPENAI_API_KEY"] = "test-api-key" if ENV["OPENAI_API_KEY"].to_s.empty?
 
 require "raaf-tracing"
+require "rspec/collection_matchers"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

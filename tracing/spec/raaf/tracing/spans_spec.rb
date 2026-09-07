@@ -3,7 +3,7 @@
 require "spec_helper"
 require "raaf/tracing/spans"
 
-RSpec.describe RAAF::Tracing::Spans do
+RSpec.describe "RAAF::Tracing spans" do
   describe RAAF::Tracing::Span do
     let(:span_name) { "test.operation" }
     let(:trace_id) { "trace_abc123" }
