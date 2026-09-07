@@ -63,6 +63,9 @@ module RAAF
     # - Optimized for high-throughput applications
     # - Background processing for non-blocking operation
     class ActiveRecordProcessor < BaseProcessor
+      # The NUL character itself, spelled rather than typed: a literal one in a
+      # source file is invisible to every reader of it.
+      NUL_CHARACTER = 0.chr(Encoding::UTF_8)
 
       # Default sampling rate (capture all traces)
       DEFAULT_SAMPLING_RATE = 1.0
@@ -467,6 +470,17 @@ module RAAF
         # lose the whole span to UnknownAttributeError.
         span_attributes.merge!(self.class.persistable_token_columns(span_attributes[:span_attributes]))
 
+        # Both JSON columns are `json`, not `jsonb`. jsonb refuses a NUL on the
+        # way in; json takes it and only fails later, on every attempt to read
+        # text back out of the row — and the partial indexes on this table test
+        # `span_attributes ->> ...` in their predicate, so one such row aborts an
+        # index build, and once an index exists the row cannot be inserted at
+        # all. Scraped bytes from search results are how they arrive, and the
+        # branches above deliberately pass prompt and response strings through
+        # untouched, so this is the one place that sees all of them.
+        span_attributes[:span_attributes] = without_nul_characters(span_attributes[:span_attributes])
+        span_attributes[:events] = without_nul_characters(span_attributes[:events])
+
         log_debug_tracing("ActiveRecord creating span record", span_kind: span_attributes[:kind],
                                                                span_name: span_attributes[:name], span_id: span_attributes[:span_id])
 
@@ -571,6 +585,22 @@ module RAAF
         columns = token_columns_from(attributes)
         known = ::RAAF::Tracing::SpanRecord.column_names
         columns.select { |column, _value| known.include?(column.to_s) }
+      end
+
+      # Remove NUL characters from every string in a sanitized payload
+      #
+      # Walks the parsed structure rather than its JSON text, so a backslash in
+      # scraped content that merely resembles an escape is never touched.
+      #
+      # @param value [Object] Any part of a sanitized attribute or event payload
+      # @return [Object] The same structure with NUL characters removed
+      def without_nul_characters(value)
+        case value
+        when String then value.delete(NUL_CHARACTER)
+        when Array then value.map { |element| without_nul_characters(element) }
+        when Hash then value.to_h { |key, nested| [without_nul_characters(key), without_nul_characters(nested)] }
+        else value
+        end
       end
 
       # Sanitize span attributes for database storage
