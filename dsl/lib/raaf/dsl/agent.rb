@@ -2347,22 +2347,24 @@ module RAAF
         # Return nil if class name is not available (e.g., anonymous classes in tests)
         return nil if agent_class_name.nil?
 
-        # Extract the final class name (e.g., "Analysis" from "Ai::Agents::Market::Analysis")
-        agent_class_name.split("::").last
+        namespace_segments = agent_class_name.split("::")
 
         alternative_patterns = [
           # Pattern: Same namespace as agent but under Prompts
           # Ai::Agents::Market::Analysis -> Ai::Prompts::Market::Analysis
           agent_class_name.gsub("::Agents::", "::Prompts::"),
 
-          # Pattern: Directly under Ai::Prompts with category
-          # Ai::Agents::Market::Analysis -> Ai::Prompts::MarketAnalysis
-          "Ai::Prompts::#{agent_class_name.split('::')[2..-1].join}",
-
           # Pattern: Under parent module's prompts
           # Ai::Agents::Market::Analysis -> Ai::Agents::Market::Prompts::Analysis
           agent_class_name.gsub(/::([^:]+)$/, "::Prompts::\\1")
         ]
+
+        # Pattern: Directly under Ai::Prompts with category
+        # Ai::Agents::Market::Analysis -> Ai::Prompts::MarketAnalysis
+        # Only meaningful for a class nested at least three levels deep.
+        if namespace_segments.length > 2
+          alternative_patterns << "Ai::Prompts::#{namespace_segments[2..].join}"
+        end
 
         alternative_patterns.each do |pattern|
           log_debug "Trying alternative prompt pattern", pattern: pattern
