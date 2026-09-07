@@ -245,6 +245,16 @@ module RAAF
           "#{eval_experiment_path(id)}/edit"
         end
 
+        def eval_experiment_results_path(experiment_id, params = {})
+          path = "#{eval_experiment_path(experiment_id)}/results"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        def eval_experiment_result_path(experiment_id, id)
+          result_id = id.respond_to?(:id) ? id.id : id
+          "#{eval_experiment_results_path(experiment_id)}/#{result_id}"
+        end
+
         def eval_feedback_scores_path(params = {})
           path = "/raaf/eval/feedback_scores"
           params.empty? ? path : "#{path}?#{params.to_query}"

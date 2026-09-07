@@ -17,7 +17,9 @@ module RAAF
       # - **No result filters.** The design offers All / Failed / Low score.
       #   A result's score is averaged in Ruby out of a jsonb hash, so "low
       #   score" cannot be a query, and filtering the page already loaded
-      #   would silently mean "low among the last hundred".
+      #   would silently mean "low among the last hundred". Filtering by
+      #   status, which the database can answer for the whole run, lives on
+      #   the results screen this card links to.
       #
       class ExperimentShow < RAAF::Rails::Tracing::BaseComponent
         # Columns and fr weights taken from RAAF Eval.dc.html.
@@ -188,7 +190,9 @@ module RAAF
 
         def results
           render(Organisms::Card.new(title: "Results", subtitle: results_subtitle,
-                                     flush: true)) do
+                                     flush: true)) do |card|
+            card.actions { all_results_link }
+
             render(Organisms::DataGrid.new(
                      columns: COLUMNS,
                      empty: { icon: "list-check", title: "No results",
@@ -197,6 +201,11 @@ module RAAF
               @results.each { |result| result_row(grid, result) }
             end
           end
+        end
+
+        def all_results_link
+          render Atoms::Button.new(label: "All results", size: :sm, icon: "list-ul",
+                                   href: eval_experiment_results_path(@experiment))
         end
 
         # Says so when the table is a window onto a longer run, rather than
@@ -212,7 +221,7 @@ module RAAF
         def result_row(grid, result)
           score = result.overall_score
 
-          grid.row(cells: [
+          grid.row(href: eval_experiment_result_path(@experiment, result), cells: [
                      { value: Atoms::Mono.new("##{result.dataset_item_id}", tone: :muted) },
                      { value: Atoms::StatusBadge.new(result.status) },
                      { value: Atoms::Mono.new(format_score(score), tone: score_tone(score)),
