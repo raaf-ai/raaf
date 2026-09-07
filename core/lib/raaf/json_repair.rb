@@ -28,23 +28,19 @@ module RAAF
         return input if input.is_a?(Hash)
         return nil unless input.is_a?(String)
 
-        # Try direct parse first - fastest path for valid JSON
-        parsed = try_parse(input)
-        return parsed if parsed
+        # Each candidate is a progressively more aggressive attempt at isolating
+        # the JSON: the input itself, then the contents of a markdown code
+        # block, then any JSON-shaped run of text. Every candidate gets the
+        # syntax fixes applied, so a code block holding a trailing comma is
+        # still repairable.
+        candidates = [input, extract_from_markdown(input), extract_json_structure(input)]
 
-        # Fix common JSON syntax issues
-        fixed = fix_common_issues(input)
-        parsed = try_parse(fixed) if fixed
-        return parsed if parsed
+        candidates.compact.each do |candidate|
+          parsed = try_parse(candidate) || try_parse(fix_common_issues(candidate))
+          return parsed if parsed
+        end
 
-        # Extract JSON from markdown code blocks
-        extracted = extract_from_markdown(input)
-        parsed = try_parse(extracted) if extracted
-        return parsed if parsed
-
-        # Extract any JSON-like structure from text
-        json_like = extract_json_structure(input)
-        try_parse(json_like) if json_like
+        nil
       end
 
       # Extract valid JSON structure from mixed content (text + JSON)
@@ -99,8 +95,10 @@ module RAAF
         # Fix single quotes to double quotes in keys
         fixed = fixed.gsub(/(['"])([^'"]*)\1\s*:/, '"\2":')
 
-        # Fix single quotes in string values
-        fixed = fixed.gsub(/:\s*'([^']*)'/, ': "\1"')
+        # Fix single quotes in string values. The closing quote is the last one
+        # before a delimiter, so an apostrophe inside the value ("John O'Brien")
+        # does not cut the string short.
+        fixed = fixed.gsub(/:\s*'(.*?)'(?=\s*[,}\]]|\s*$)/, ': "\1"')
 
         # Remove newlines within JSON (but preserve them in string values)
         # This is a simple approach - could be enhanced for edge cases
@@ -108,10 +106,6 @@ module RAAF
 
         # Fix missing quotes around unquoted keys
         fixed = fixed.gsub(/(\w+)\s*:/, '"\1":')
-
-        # Fix double-quoted values that should be numbers or booleans
-        fixed = fixed.gsub(/:\s*"(\d+\.?\d*)"/, ': \1') # Numbers
-        fixed = fixed.gsub(/:\s*"(true|false|null)"/, ': \1') # Booleans/null
 
         fixed
       end

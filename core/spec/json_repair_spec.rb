@@ -10,7 +10,7 @@ RSpec.describe RAAF::JsonRepair do
         valid_json = '{"name": "John", "age": 30}'
         result = described_class.repair(valid_json)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
       it "returns hash as-is when passed a hash" do
@@ -26,28 +26,28 @@ RSpec.describe RAAF::JsonRepair do
         malformed = '{"name": "John", "age": 30,}'
         result = described_class.repair(malformed)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
       it "fixes trailing commas in arrays" do
         malformed = '{"items": ["a", "b", "c",]}'
         result = described_class.repair(malformed)
 
-        expect(result).to eq(items: %w[a b c])
+        expect(result).to eq({ items: %w[a b c] }.with_indifferent_access)
       end
 
       it "fixes single quotes in keys" do
         malformed = "{'name': \"John\", 'age': 30}"
         result = described_class.repair(malformed)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
       it "fixes single quotes in values" do
         malformed = '{"name": \'John\', "age": 30}'
         result = described_class.repair(malformed)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
       it "removes newlines from JSON" do
@@ -59,28 +59,30 @@ RSpec.describe RAAF::JsonRepair do
         JSON
         result = described_class.repair(malformed)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
       it "fixes unquoted keys" do
         malformed = '{name: "John", age: 30}'
         result = described_class.repair(malformed)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
-      it "fixes quoted numbers that should be numeric" do
-        malformed = '{"name": "John", "age": "30", "score": "123.45"}'
+      # Repair fixes syntax; it never retypes a value. Turning "30" into 30 is
+      # the schema layer's job, which knows whether the field wants a string.
+      it "leaves quoted numbers as strings" do
+        malformed = '{"name": "John", "age": "30", "score": "123.45",}'
         result = described_class.repair(malformed)
 
-        expect(result).to eq(name: "John", age: 30, score: 123.45)
+        expect(result).to eq({ name: "John", age: "30", score: "123.45" }.with_indifferent_access)
       end
 
-      it "fixes quoted booleans and null" do
-        malformed = '{"active": "true", "verified": "false", "data": "null"}'
+      it "leaves quoted booleans and null as strings" do
+        malformed = '{"active": "true", "verified": "false", "data": "null",}'
         result = described_class.repair(malformed)
 
-        expect(result).to eq(active: true, verified: false, data: nil)
+        expect(result).to eq({ active: "true", verified: "false", data: "null" }.with_indifferent_access)
       end
     end
 
@@ -95,7 +97,7 @@ RSpec.describe RAAF::JsonRepair do
         MD
         result = described_class.repair(markdown)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
       it "extracts JSON from generic ``` blocks" do
@@ -106,7 +108,7 @@ RSpec.describe RAAF::JsonRepair do
         MD
         result = described_class.repair(markdown)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
 
       it "extracts malformed JSON from markdown and repairs it" do
@@ -117,7 +119,7 @@ RSpec.describe RAAF::JsonRepair do
         MD
         result = described_class.repair(markdown)
 
-        expect(result).to eq(name: "John", age: 30)
+        expect(result).to eq({ name: "John", age: 30 }.with_indifferent_access)
       end
     end
 
@@ -126,7 +128,7 @@ RSpec.describe RAAF::JsonRepair do
         text = 'The result is {"status": "success", "count": 5} and that\'s it.'
         result = described_class.repair(text)
 
-        expect(result).to eq(status: "success", count: 5)
+        expect(result).to eq({ status: "success", count: 5 }.with_indifferent_access)
       end
 
       it "extracts simple JSON arrays from mixed content" do
@@ -145,7 +147,7 @@ RSpec.describe RAAF::JsonRepair do
         result = described_class.repair(text)
 
         # Should pick the largest/most complex structure
-        expect(result).to eq(name: "John", details: { age: 30, city: "NYC" })
+        expect(result).to eq({ name: "John", details: { age: 30, city: "NYC" } }.with_indifferent_access)
       end
     end
 
@@ -187,7 +189,7 @@ RSpec.describe RAAF::JsonRepair do
         JSON
         result = described_class.repair(malformed)
 
-        expect(result).to eq(
+        expect(result).to eq({
           user: {
             name: "John",
             details: {
@@ -196,7 +198,7 @@ RSpec.describe RAAF::JsonRepair do
             }
           },
           active: true
-        )
+        }.with_indifferent_access)
       end
 
       it "handles mixed quote types in nested structures" do
@@ -231,7 +233,7 @@ RSpec.describe RAAF::JsonRepair do
       TEXT
 
       result = described_class.extract_json_from_content(content)
-      expect(result).to eq(first: "object", valid: true)
+      expect(result).to eq({ first: "object", valid: true }.with_indifferent_access)
     end
 
     it "handles nested JSON structures" do
@@ -243,10 +245,10 @@ RSpec.describe RAAF::JsonRepair do
       TEXT
 
       result = described_class.extract_json_from_content(content)
-      expect(result).to eq(
+      expect(result).to eq({
         database: { host: "localhost", port: 5432 },
         cache: { enabled: true, ttl: 300 }
-      )
+      }.with_indifferent_access)
     end
 
     it "returns nil when no valid JSON found" do
@@ -258,7 +260,7 @@ RSpec.describe RAAF::JsonRepair do
     it "prefers objects over arrays when both are present" do
       content = '["array", "first"] {"object": "second"}'
       result = described_class.extract_json_from_content(content)
-      expect(result).to eq(object: "second")
+      expect(result).to eq({ object: "second" }.with_indifferent_access)
     end
   end
 end
