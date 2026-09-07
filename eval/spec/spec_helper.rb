@@ -2,6 +2,12 @@
 
 require "bundler/setup"
 require "rspec"
+require "active_record"
+require "factory_bot"
+
+# The engines register this acronym so that raaf_* table and file names map back to
+# RAAF-cased constants; standalone specs have no engine, so register it here too.
+ActiveSupport::Inflector.inflections(:en) { |inflect| inflect.acronym "RAAF" }
 
 # Load the gem
 require_relative "../lib/raaf/eval"
@@ -22,7 +28,29 @@ RAAF::Eval::RSpec.configure do |config|
   config.enable_parallel_execution = false
 end
 
+# The model specs exercise real ActiveRecord classes, so they need a database with the
+# gem's schema. Point RAAF_EVAL_TEST_DATABASE_URL elsewhere to use a different one.
+EVAL_TEST_DATABASE_URL = ENV.fetch("RAAF_EVAL_TEST_DATABASE_URL", "postgresql://localhost/raaf_eval_test")
+
+begin
+  ActiveRecord::Base.establish_connection(EVAL_TEST_DATABASE_URL)
+  ActiveRecord::Base.connection.verify!
+  ActiveRecord::Migration.verbose = false
+  ActiveRecord::MigrationContext.new(File.expand_path("../db/migrate", __dir__)).migrate
+  EVAL_DATABASE_AVAILABLE = true
+rescue StandardError => e
+  # Without a database the model specs cannot run; say so once rather than failing
+  # every example with a connection error.
+  warn "[raaf-eval specs] no test database (#{e.class}: #{e.message}); model specs will be skipped"
+  EVAL_DATABASE_AVAILABLE = false
+end
+
+FactoryBot.definition_file_paths = [File.expand_path("factories", __dir__)]
+FactoryBot.find_definitions
+
 RSpec.configure do |config|
+  config.include FactoryBot::Syntax::Methods
+
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = ".rspec_status"
 
@@ -39,6 +67,18 @@ RSpec.configure do |config|
   # Auto-tag evaluation specs
   config.define_derived_metadata(file_path: %r{/spec/evaluations/}) do |metadata|
     metadata[:type] = :evaluation
+  end
+
+  # Roll every example back so the model specs do not leak rows into each other.
+  config.around do |example|
+    if EVAL_DATABASE_AVAILABLE
+      ActiveRecord::Base.transaction do
+        example.run
+        raise ActiveRecord::Rollback
+      end
+    else
+      example.run
+    end
   end
 
   # Clear span repository before each test
