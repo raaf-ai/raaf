@@ -314,7 +314,7 @@ RSpec.describe "Tool Execution Integration Tests" do
 
   describe "6.2: Backward Compatibility" do
     # Mock DSL-wrapped tool (old pattern)
-    class MockDslWrappedTool
+    class IntegrationDslWrappedTool
       def initialize(name: "wrapped_tool")
         @name = name
       end
@@ -356,7 +356,7 @@ RSpec.describe "Tool Execution Integration Tests" do
           end
 
           def tools
-            [MockDslWrappedTool.new]
+            [IntegrationDslWrappedTool.new]
           end
         end
       end
@@ -386,7 +386,7 @@ RSpec.describe "Tool Execution Integration Tests" do
       end
 
       it "respects dsl_wrapped? marker" do
-        tool = MockDslWrappedTool.new
+        tool = IntegrationDslWrappedTool.new
         expect(tool).to respond_to(:dsl_wrapped?)
         expect(tool.dsl_wrapped?).to be true
       end
@@ -416,7 +416,7 @@ RSpec.describe "Tool Execution Integration Tests" do
           end
 
           def tools
-            [MockDslWrappedTool.new, MockPerplexityTool.new]
+            [IntegrationDslWrappedTool.new, MockPerplexityTool.new]
           end
         end
       end

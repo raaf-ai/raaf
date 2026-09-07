@@ -19,6 +19,7 @@ require_relative "hooks/agent_hooks"
 require_relative "auto_merge"
 require_relative "incremental_processing"
 require_relative "incremental_processor"
+require_relative "tool_execution_config"
 require_relative "agent_tool_integration"
 require_relative "agent_streaming_methods"
 
@@ -130,14 +131,13 @@ module RAAF
         end
 
         # Tool execution configuration for interceptor conveniences
-        # Temporarily disabled - ToolExecutionConfig removed
-        # def tool_execution_config
-        #   Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] ||= ToolExecutionConfig::DEFAULTS.dup.freeze
-        # end
-        #
-        # def tool_execution_config=(value)
-        #   Thread.current["raaf_dsl_tool_execution_config_#{object_id}"] = value.freeze
-        # end
+        def tool_execution_config
+          @tool_execution_config ||= ToolExecutionConfig::DEFAULTS.dup.freeze
+        end
+
+        def tool_execution_config=(value)
+          @tool_execution_config = value.freeze
+        end
 
         # Ensure each subclass gets its own configuration
         def inherited(subclass)
@@ -179,8 +179,7 @@ module RAAF
           subclass._agent_hooks = hooks
 
           # Copy tool execution configuration from parent class
-          # Temporarily disabled - ToolExecutionConfig removed
-          # subclass.tool_execution_config = tool_execution_config.dup
+          subclass.tool_execution_config = tool_execution_config.dup
         end
 
         # Core DSL methods from AgentDsl
@@ -697,12 +696,11 @@ module RAAF
         #     end
         #   end
         #
-        # Temporarily disabled - ToolExecutionConfig removed
-        # def tool_execution(&block)
-        #   config = ToolExecutionConfig.new(tool_execution_config.dup)
-        #   config.instance_eval(&block) if block
-        #   self.tool_execution_config = config.to_h
-        # end
+        def tool_execution(&block)
+          config = ToolExecutionConfig.new(tool_execution_config.dup)
+          config.instance_eval(&block) if block
+          self.tool_execution_config = config.to_h
+        end
 
         # Set or get retry count for this agent (used by pipeline wrappers)
         #
@@ -3060,46 +3058,36 @@ module RAAF
       # Check if parameter validation is enabled
       #
       # @return [Boolean] true if validation is enabled
-      # Temporarily disabled - ToolExecutionConfig removed
       def validation_enabled?
-        true # Default to enabled
-        # self.class.tool_execution_config[:enable_validation]
+        self.class.tool_execution_config[:enable_validation]
       end
 
       # Check if execution logging is enabled
       #
       # @return [Boolean] true if logging is enabled
-      # Temporarily disabled - ToolExecutionConfig removed
       def logging_enabled?
-        true # Default to enabled
-        # self.class.tool_execution_config[:enable_logging]
+        self.class.tool_execution_config[:enable_logging]
       end
 
       # Check if metadata injection is enabled
       #
       # @return [Boolean] true if metadata is enabled
-      # Temporarily disabled - ToolExecutionConfig removed
       def metadata_enabled?
-        true # Default to enabled
-        # self.class.tool_execution_config[:enable_metadata]
+        self.class.tool_execution_config[:enable_metadata]
       end
 
       # Check if argument logging is enabled
       #
       # @return [Boolean] true if argument logging is enabled
-      # Temporarily disabled - ToolExecutionConfig removed
       def log_arguments?
-        true # Default to enabled
-        # self.class.tool_execution_config[:log_arguments]
+        self.class.tool_execution_config[:log_arguments]
       end
 
       # Get the truncation length for log values
       #
       # @return [Integer] Truncation length for logs
-      # Temporarily disabled - ToolExecutionConfig removed
       def truncate_logs_at
-        100 # Default value
-        # self.class.tool_execution_config[:truncate_logs]
+        self.class.tool_execution_config[:truncate_logs]
       end
 
       private
@@ -3153,6 +3141,111 @@ module RAAF
         return unless metadata_enabled? && result.is_a?(Hash)
 
         inject_metadata!(result, tool, duration_ms)
+      end
+
+      # Validate arguments against the tool's own definition
+      #
+      # Only tools that publish a tool_definition can be validated; anything
+      # else is passed through untouched.
+      #
+      # @param tool [Object] The tool about to run
+      # @param arguments [Hash] Arguments passed to the tool
+      # @raise [ArgumentError] If a required parameter is missing or mistyped
+      def validate_tool_arguments(tool, arguments)
+        return unless tool.respond_to?(:tool_definition)
+
+        definition = tool.tool_definition
+        parameters = definition&.dig(:function, :parameters)
+        return unless parameters.is_a?(Hash)
+
+        properties = parameters[:properties] || {}
+        required = parameters[:required] || []
+
+        required.each do |name|
+          key = name.to_sym
+          raise ArgumentError, "Missing required parameter: #{name}" unless arguments.key?(key)
+        end
+
+        arguments.each do |name, value|
+          expected = properties.dig(name.to_sym, :type)
+          next if expected.nil? || value.nil?
+          next if parameter_type_matches?(expected, value)
+
+          raise ArgumentError, "Parameter #{name} must be a #{expected}, got #{value.class}"
+        end
+      end
+
+      # @param expected [String] JSON Schema type name
+      # @param value [Object] The value supplied
+      # @return [Boolean] Whether the value matches the declared type
+      def parameter_type_matches?(expected, value)
+        case expected.to_s
+        when "string" then value.is_a?(String)
+        when "integer" then value.is_a?(Integer)
+        when "number" then value.is_a?(Numeric)
+        when "boolean" then [true, false].include?(value)
+        when "array" then value.is_a?(Array)
+        when "object" then value.is_a?(Hash)
+        else true
+        end
+      end
+
+      # Log the start of a tool execution
+      #
+      # @param tool [Object] The tool being executed
+      # @param arguments [Hash] Arguments passed to the tool
+      def log_tool_start(tool, arguments)
+        message = "Tool #{extract_tool_name(tool)} starting"
+        message += " with #{truncate_for_log(arguments)}" if log_arguments?
+
+        RAAF.logger.info(message)
+      end
+
+      # Log the completion of a tool execution
+      #
+      # @param tool [Object] The tool that ran
+      # @param result [Object] Whatever the tool returned
+      # @param duration_ms [Float] How long it took
+      def log_tool_end(tool, result, duration_ms)
+        message = "Tool #{extract_tool_name(tool)} finished in #{duration_ms}ms"
+        message += " -> #{truncate_for_log(result)}" if log_arguments?
+
+        RAAF.logger.info(message)
+      end
+
+      # Log a failed tool execution
+      #
+      # @param tool [Object] The tool that raised
+      # @param error [StandardError] The error it raised
+      def log_tool_error(tool, error)
+        RAAF.logger.error("Tool #{extract_tool_name(tool)} failed: #{error.class.name}: #{error.message}")
+      end
+
+      # Truncate a value for logging at the configured length
+      #
+      # @param value [Object] Value to render
+      # @return [String] Truncated inspection of the value
+      def truncate_for_log(value)
+        rendered = value.inspect
+        limit = truncate_logs_at
+
+        return rendered if limit.nil? || rendered.length <= limit
+
+        "#{rendered[0, limit]}..."
+      end
+
+      # Add execution metadata to a Hash result, in place
+      #
+      # @param result [Hash] The tool's result
+      # @param tool [Object] The tool that produced it
+      # @param duration_ms [Float] How long it took
+      def inject_metadata!(result, tool, duration_ms)
+        result[:_execution_metadata] = {
+          duration_ms: duration_ms,
+          tool_name: extract_tool_name(tool),
+          agent_name: self.class.agent_name,
+          timestamp: Time.now.iso8601
+        }
       end
 
       # Handle tool execution errors
