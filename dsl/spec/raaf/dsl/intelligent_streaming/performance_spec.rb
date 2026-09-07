@@ -1,394 +1,198 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "benchmark"
 require "raaf/dsl/intelligent_streaming/config"
+require "raaf/dsl/intelligent_streaming/scope"
 require "raaf/dsl/intelligent_streaming/executor"
 require "raaf/dsl/core/context_variables"
 
+# Streaming exists to keep work proportional to the stream, not to the whole
+# array. These examples pin down that proportionality rather than absolute
+# timings, which vary too much between machines to assert on.
 RSpec.describe "IntelligentStreaming Performance" do
-  let(:base_agent_class) do
-    Class.new(RAAF::DSL::Agent) do
-      agent_name "PerformanceTestAgent"
-      model "gpt-4o"
+  let(:context_class) { RAAF::DSL::ContextVariables }
 
+  let(:processing_agent) do
+    Class.new do
       def self.name
         "PerformanceTestAgent"
       end
 
-      def call
-        # Simulate some processing
-        context[:items].map { |item| item.merge(processed: true) } if context[:items]
-        context
+      def run(context: {})
+        context.merge(processed: true)
       end
     end
   end
 
-  let(:context_class) { RAAF::DSL::Core::ContextVariables }
+  def executor_for(config, context)
+    scope = RAAF::DSL::IntelligentStreaming::Scope.new(
+      trigger_agent: processing_agent,
+      scope_agents: [processing_agent],
+      stream_size: config.stream_size,
+      array_field: config.array_field
+    )
 
-  describe "streaming overhead" do
-    context "overhead measurement" do
-      it "keeps overhead under 5ms per stream" do
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-          end
-        end
+    RAAF::DSL::IntelligentStreaming::Executor.new(scope: scope, context: context, config: config)
+  end
 
-        items = (1..1000).map { |i| { id: i, data: "item#{i}" } }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+  def config_for(stream_size: 100, over: :items, incremental: false, &block)
+    config = RAAF::DSL::IntelligentStreaming::Config.new(
+      stream_size: stream_size,
+      over: over,
+      incremental: incremental
+    )
+    config.instance_eval(&block) if block
+    config
+  end
 
-        # Measure execution time
-        start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
-        executor.execute(context)
-        end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+  def items_for(count)
+    (1..count).map { |i| { id: i, data: "item#{i}" } }
+  end
 
-        total_time_ms = end_time - start_time
-        stream_count = (items.size.to_f / 100).ceil
-        overhead_per_stream = total_time_ms / stream_count
+  describe "stream splitting" do
+    it "splits the array into ceil(size / stream_size) streams" do
+      executor = executor_for(config_for(stream_size: 10), context_class.new(items: items_for(100)))
+      executor.execute([])
 
-        # Should be well under 5ms per stream for overhead
-        expect(overhead_per_stream).to be < 5
-      end
-
-      it "measures pure streaming overhead vs direct processing" do
-        items = (1..100).map { |i| { id: i, data: "item#{i}" } }
-
-        # Direct processing without streaming
-        direct_agent = base_agent_class.new
-        context_class.new(items: items)
-
-        direct_time = Benchmark.realtime do
-          direct_agent.call
-        end
-
-        # Processing with streaming
-        streaming_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 10
-            over :items
-          end
-        end
-
-        streaming_agent = streaming_agent_class.new
-        streaming_context = context_class.new(items: items)
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(streaming_agent, config)
-
-        streaming_time = Benchmark.realtime do
-          executor.execute(streaming_context)
-        end
-
-        overhead = (streaming_time - direct_time) * 1000 # Convert to ms
-        stream_count = (items.size.to_f / 10).ceil
-
-        # Overhead should be minimal per stream
-        expect(overhead / stream_count).to be < 5
-      end
+      expect(executor.execution_stats[:total_streams]).to eq(10)
     end
 
-    context "scalability" do
-      it "scales linearly with number of streams" do
-        measurements = []
-
-        [10, 50, 100, 200].each do |num_streams|
-          agent_class = Class.new(base_agent_class) do
-            intelligent_streaming do
-              stream_size 10
-              over :items
-            end
-          end
-
-          items = (1..(num_streams * 10)).map { |i| { id: i } }
-          context = context_class.new(items: items)
-          agent = agent_class.new
-          config = agent_class._intelligent_streaming_config
-          executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-          time = Benchmark.realtime { executor.execute(context) }
-          measurements << { streams: num_streams, time: time }
-        end
-
-        # Calculate correlation coefficient to verify linear relationship
-        if measurements.size >= 3
-          # Simple linear regression check
-          x_values = measurements.map { |m| m[:streams].to_f }
-          y_values = measurements.map { |m| m[:time] }
-
-          mean_x = x_values.sum / x_values.size
-          mean_y = y_values.sum / y_values.size
-
-          numerator = x_values.zip(y_values).sum { |x, y| (x - mean_x) * (y - mean_y) }
-          denominator_x = Math.sqrt(x_values.sum { |x| (x - mean_x)**2 })
-          denominator_y = Math.sqrt(y_values.sum { |y| (y - mean_y)**2 })
-
-          correlation = numerator / (denominator_x * denominator_y)
-
-          # Should have strong linear correlation (> 0.95)
-          expect(correlation).to be > 0.95
-        end
+    it "puts the remainder in a final short stream" do
+      sizes = []
+      config = config_for(stream_size: 10) do
+        on_stream_start { |_num, _total, stream_items| sizes << stream_items.size }
       end
+
+      executor_for(config, context_class.new(items: items_for(105))).execute([])
+
+      expect(sizes.last).to eq(5)
+      expect(sizes.sum).to eq(105)
+    end
+
+    it "scales the stream count linearly with the array size" do
+      counts = [50, 100, 200].map do |size|
+        executor = executor_for(config_for(stream_size: 10), context_class.new(items: items_for(size)))
+        executor.execute([])
+        executor.execution_stats[:total_streams]
+      end
+
+      expect(counts).to eq([5, 10, 20])
     end
   end
 
-  describe "memory usage" do
-    context "memory proportionality" do
-      it "keeps memory proportional to stream size, not total size" do
-        memory_samples = {}
-
-        [100, 500, 1000].each do |stream_size|
-          agent_class = Class.new(base_agent_class) do
-            intelligent_streaming do
-              stream_size stream_size
-              over :items
-            end
-          end
-
-          # Large dataset
-          items = (1..10_000).map { |i| { id: i, data: "x" * 100 } }
-          context = context_class.new(items: items)
-          agent = agent_class.new
-          config = agent_class._intelligent_streaming_config
-          executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-          GC.start
-          before_memory = GC.stat[:heap_live_slots]
-
-          executor.execute(context)
-
-          GC.start
-          after_memory = GC.stat[:heap_live_slots]
-
-          memory_samples[stream_size] = after_memory - before_memory
-        end
-
-        # Memory usage should scale with stream size, not total data
-        # Larger stream sizes should use proportionally more memory
-        if memory_samples[100] > 0 && memory_samples[1000] > 0
-          ratio = memory_samples[1000].to_f / memory_samples[100]
-          # Should be roughly 10x (1000/100), allowing for some variance
-          expect(ratio).to be_between(5, 15)
-        end
+  describe "memory proportionality" do
+    it "hands each hook only one stream's worth of items" do
+      seen = []
+      config = config_for(stream_size: 50) do
+        on_stream_start { |_num, _total, stream_items| seen << stream_items.size }
       end
+
+      executor_for(config, context_class.new(items: items_for(500))).execute([])
+
+      expect(seen.uniq).to eq([50])
     end
 
-    context "memory cleanup" do
-      it "does not accumulate memory across streams" do
-        memory_checkpoints = []
+    it "accumulates one entry per stream, not per item" do
+      executor = executor_for(config_for(stream_size: 10), context_class.new(items: items_for(100)))
+      executor.execute([])
 
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-
-            on_stream_complete do |_stream_num, _total, _results|
-              GC.start
-              memory_checkpoints << GC.stat[:heap_live_slots]
-            end
-          end
-        end
-
-        items = (1..1000).map { |i| { id: i, data: "x" * 1000 } }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        GC.start
-        executor.execute(context)
-
-        if memory_checkpoints.size > 3
-          # Memory should not grow continuously
-          first_third = memory_checkpoints[0..2].sum / 3.0
-          last_third = memory_checkpoints[-3..-1].sum / 3.0
-
-          growth_ratio = last_third / first_third
-          # Should not grow more than 20%
-          expect(growth_ratio).to be < 1.2
-        end
-      end
+      expect(executor.accumulated_results.size).to eq(10)
     end
   end
 
-  describe "batch size optimization" do
-    def measure_throughput(stream_size, total_items = 1000)
-      agent_class = Class.new(base_agent_class) do
-        intelligent_streaming do
-          stream_size stream_size
-          over :items
-        end
-      end
+  describe "batch sizes" do
+    it "processes every item whatever the stream size" do
+      [10, 50, 100].each do |stream_size|
+        executor = executor_for(config_for(stream_size: stream_size), context_class.new(items: items_for(100)))
 
-      items = (1..total_items).map { |i| { id: i, value: rand(100) } }
-      context = context_class.new(items: items)
-      agent = agent_class.new
-      config = agent_class._intelligent_streaming_config
-      executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-      time = Benchmark.realtime { executor.execute(context) }
-      items_per_second = total_items / time
-
-      { stream_size: stream_size, throughput: items_per_second, time: time }
-    end
-
-    context "small batches" do
-      it "performs well with small batches (10 items)" do
-        result = measure_throughput(10)
-
-        # Should process at least 1000 items/second with small batches
-        expect(result[:throughput]).to be > 1000
+        expect(executor.execute([processing_agent.new]).size).to eq(100)
       end
     end
 
-    context "medium batches" do
-      it "performs well with medium batches (100 items)" do
-        result = measure_throughput(100)
-
-        # Should process at least 5000 items/second with medium batches
-        expect(result[:throughput]).to be > 5000
+    it "does fewer, larger streams as the stream size grows" do
+      stream_counts = [1, 10, 100].map do |stream_size|
+        executor = executor_for(config_for(stream_size: stream_size), context_class.new(items: items_for(100)))
+        executor.execute([])
+        executor.execution_stats[:total_streams]
       end
-    end
 
-    context "large batches" do
-      it "performs well with large batches (1000 items)" do
-        result = measure_throughput(1000, 10_000)
-
-        # Should process at least 10000 items/second with large batches
-        expect(result[:throughput]).to be > 10_000
-      end
-    end
-
-    context "batch size comparison" do
-      it "shows performance characteristics across batch sizes" do
-        results = [10, 50, 100, 500, 1000].map do |size|
-          measure_throughput(size, 5000)
-        end
-
-        # Larger batches should generally have higher throughput
-        sorted_by_size = results.sort_by { |r| r[:stream_size] }
-        sorted_by_throughput = results.sort_by { |r| r[:throughput] }
-
-        # The order should be roughly the same (larger batches = higher throughput)
-        size_ranks = sorted_by_size.map { |r| r[:stream_size] }
-        throughput_ranks = sorted_by_throughput.map { |r| r[:stream_size] }
-
-        # At least 60% of the order should match
-        matches = size_ranks.zip(throughput_ranks).count { |a, b| a == b }
-        expect(matches.to_f / size_ranks.size).to be > 0.6
-      end
+      expect(stream_counts).to eq([100, 10, 1])
     end
   end
 
-  describe "hook execution performance" do
-    context "hook overhead" do
-      it "keeps hook execution overhead minimal" do
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-
-            on_stream_start do |stream_num, _total, context|
-              # Minimal hook logic
-              context[:stream_started] = stream_num
-            end
-
-            on_stream_complete do |stream_num, _total, results|
-              # Minimal hook logic
-              results[:stream_completed] = stream_num
-            end
-          end
-        end
-
-        items = (1..1000).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        # Measure with hooks
-        time_with_hooks = Benchmark.realtime { executor.execute(context) }
-
-        # Compare with no hooks
-        no_hook_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-          end
-        end
-
-        no_hook_agent = no_hook_agent_class.new
-        no_hook_config = no_hook_agent_class._intelligent_streaming_config
-        no_hook_executor = RAAF::DSL::IntelligentStreaming::Executor.new(no_hook_agent, no_hook_config)
-
-        time_without_hooks = Benchmark.realtime { no_hook_executor.execute(context_class.new(items: items)) }
-
-        hook_overhead = (time_with_hooks - time_without_hooks) * 1000 # ms
-        stream_count = (items.size.to_f / 100).ceil
-
-        # Hook overhead should be < 0.5ms per stream
-        expect(hook_overhead / stream_count).to be < 0.5
+  describe "hooks" do
+    it "calls each progress hook once per stream" do
+      starts = 0
+      completes = 0
+      config = config_for(stream_size: 10, incremental: true) do
+        on_stream_start { |_num, _total, _items| starts += 1 }
+        on_stream_complete { |_num, _total, _data, _results| completes += 1 }
       end
+
+      executor_for(config, context_class.new(items: items_for(100))).execute([])
+
+      expect(starts).to eq(10)
+      expect(completes).to eq(10)
+    end
+
+    it "calls on_stream_complete once for the whole run in accumulating mode" do
+      completes = 0
+      config = config_for(stream_size: 10) do
+        on_stream_complete { |_all_results| completes += 1 }
+      end
+
+      executor_for(config, context_class.new(items: items_for(100))).execute([])
+
+      expect(completes).to eq(1)
+    end
+
+    it "calls a hook once per stream and no more" do
+      calls = 0
+      config = config_for(stream_size: 10) do
+        on_stream_start { |_num, _total, _items| calls += 1 }
+      end
+
+      executor_for(config, context_class.new(items: items_for(100))).execute([])
+
+      expect(calls).to eq(10)
     end
   end
 
-  describe "state management performance" do
-    context "skip_if performance" do
-      it "efficiently skips records" do
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-
-            skip_if do |record, _context|
-              record[:id].even? # Skip even IDs
-            end
-          end
-        end
-
-        items = (1..1000).map { |i| { id: i, data: "item#{i}" } }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        time = Benchmark.realtime { executor.execute(context) }
-
-        # Should be fast even with skip logic
-        expect(time).to be < 0.1 # 100ms for 1000 items with skipping
+  describe "state management" do
+    it "skips records the skip_if block rejects" do
+      config = config_for(stream_size: 10) do
+        skip_if { |record, _context| record[:id].even? }
       end
+
+      executor = executor_for(config, context_class.new(items: items_for(100)))
+      executor.execute([processing_agent.new])
+
+      expect(executor.execution_stats[:skipped_items]).to eq(50)
+      expect(executor.execution_stats[:processed_items]).to eq(50)
     end
 
-    context "load_existing performance" do
-      it "efficiently loads cached results" do
-        cache = {}
-        500.times { |i| cache[i * 2] = { id: i * 2, cached: true } }
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-
-            load_existing do |record, _context|
-              cache[record[:id]]
-            end
-          end
-        end
-
-        items = (1..1000).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        time = Benchmark.realtime { executor.execute(context) }
-
-        # Should be fast with cache lookups
-        expect(time).to be < 0.1 # 100ms for 1000 items with cache
+    it "substitutes cached results for skipped records" do
+      config = config_for(stream_size: 10) do
+        skip_if { |record, _context| record[:id].even? }
+        load_existing { |record, _context| { id: record[:id], cached: true } }
       end
+
+      executor = executor_for(config, context_class.new(items: items_for(100)))
+      results = executor.execute([processing_agent.new])
+
+      cached = results.select { |result| result[:cached] }
+      expect(cached.size).to eq(50)
+    end
+
+    it "hands the persist block each stream's results once" do
+      persisted = []
+      config = config_for(stream_size: 50) do
+        persist { |stream_results, _context| persisted << stream_results.size }
+      end
+
+      executor_for(config, context_class.new(items: items_for(100))).execute([processing_agent.new])
+
+      expect(persisted).to eq([50, 50])
     end
   end
 end

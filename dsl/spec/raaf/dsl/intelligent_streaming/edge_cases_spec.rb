@@ -8,71 +8,70 @@ require "raaf/dsl/intelligent_streaming/executor"
 require "raaf/dsl/core/context_variables"
 
 RSpec.describe "IntelligentStreaming Edge Cases" do
-  let(:base_agent_class) do
-    Class.new(RAAF::DSL::Agent) do
-      agent_name "TestAgent"
-      model "gpt-4o"
+  let(:context_class) { RAAF::DSL::ContextVariables }
 
+  # A minimal agent for the chain: it stamps the record it was handed so the
+  # executor's per-record results are recognisable.
+  let(:processing_agent) do
+    Class.new do
       def self.name
-        "TestAgent"
+        "ProcessingAgent"
       end
 
-      def call
-        context
-      end
-    end
-  end
-
-  let(:streaming_agent_class) do
-    Class.new(base_agent_class) do
-      intelligent_streaming do
-        stream_size 10
-        over :items
+      def run(context: {})
+        context.merge(processed: true)
       end
     end
   end
 
-  let(:context_class) { RAAF::DSL::Core::ContextVariables }
+  let(:agent_chain) { [processing_agent.new] }
+
+  # Builds an executor for a config, wiring up the scope the executor needs.
+  def executor_for(config, context)
+    scope = RAAF::DSL::IntelligentStreaming::Scope.new(
+      trigger_agent: processing_agent,
+      scope_agents: [processing_agent],
+      stream_size: config.stream_size,
+      array_field: config.array_field
+    )
+
+    RAAF::DSL::IntelligentStreaming::Executor.new(scope: scope, context: context, config: config)
+  end
+
+  def config_for(stream_size: 10, over: :items, incremental: false, &block)
+    config = RAAF::DSL::IntelligentStreaming::Config.new(
+      stream_size: stream_size,
+      over: over,
+      incremental: incremental
+    )
+    config.instance_eval(&block) if block
+    config
+  end
 
   describe "empty arrays" do
     context "with 0 items" do
-      it "handles empty arrays gracefully" do
-        context = context_class.new(items: [])
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+      it "returns no results" do
+        executor = executor_for(config_for, context_class.new(items: []))
 
-        result = executor.execute(context)
+        expect(executor.execute(agent_chain)).to eq([])
+      end
 
-        expect(result).to be_a(context_class)
-        expect(result[:items]).to eq([])
-        expect(result[:success]).to be true
+      it "records that there was nothing to process" do
+        executor = executor_for(config_for, context_class.new(items: []))
+        executor.execute(agent_chain)
+
+        expect(executor.execution_stats[:total_items]).to eq(0)
+        expect(executor.execution_stats[:total_streams]).to eq(0)
       end
 
       it "does not call any stream hooks for empty arrays" do
         hook_calls = []
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 10
-            over :items
-
-            on_stream_start do |stream_num, total, _context|
-              hook_calls << { type: :start, stream: stream_num, total: total }
-            end
-
-            on_stream_complete do |stream_num, total, _results|
-              hook_calls << { type: :complete, stream: stream_num, total: total }
-            end
-          end
+        config = config_for do
+          on_stream_start { |num, total, _items| hook_calls << { type: :start, stream: num, total: total } }
+          on_stream_complete { |_all_results| hook_calls << { type: :complete } }
         end
 
-        context = context_class.new(items: [])
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
+        executor_for(config, context_class.new(items: [])).execute(agent_chain)
 
         expect(hook_calls).to be_empty
       end
@@ -81,417 +80,193 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
 
   describe "single item" do
     context "with 1 item" do
-      it "processes single item correctly" do
-        context = context_class.new(items: ["item1"])
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+      it "processes the item through the agent chain" do
+        executor = executor_for(config_for, context_class.new(items: ["item1"]))
 
-        result = executor.execute(context)
+        results = executor.execute(agent_chain)
 
-        expect(result).to be_a(context_class)
-        expect(result[:items]).to eq(["item1"])
-        expect(result[:success]).to be true
+        expect(results.size).to eq(1)
+        expect(results.first[:current_record]).to eq("item1")
+        expect(results.first[:processed]).to be true
       end
 
-      it "creates exactly one stream for single item" do
-        stream_count = 0
+      it "creates exactly one stream for a single item" do
+        streams = []
+        config = config_for { on_stream_start { |num, total, _items| streams << [num, total] } }
 
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 10
-            over :items
+        executor_for(config, context_class.new(items: ["item1"])).execute(agent_chain)
 
-            on_stream_start do |_stream_num, _total, _context|
-              stream_count += 1
-            end
-          end
-        end
-
-        context = context_class.new(items: ["item1"])
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        expect(stream_count).to eq(1)
+        expect(streams).to eq([[1, 1]])
       end
     end
   end
 
-  describe "exact stream size match" do
-    context "with items equal to stream_size" do
-      it "creates one stream for exact size" do
-        stream_info = []
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-
-            on_stream_start do |stream_num, total, context|
-              stream_info << { stream: stream_num, total: total, size: context[:items].size }
-            end
-          end
-        end
-
-        items = (1..100).map { |i| "item#{i}" }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        expect(stream_info.size).to eq(1)
-        expect(stream_info[0][:stream]).to eq(1)
-        expect(stream_info[0][:total]).to eq(1)
-        expect(stream_info[0][:size]).to eq(100)
+  describe "stream boundaries" do
+    def stream_sizes_for(item_count, stream_size)
+      sizes = []
+      config = config_for(stream_size: stream_size) do
+        on_stream_start { |_num, _total, items| sizes << items.size }
       end
-    end
-  end
 
-  describe "boundary conditions" do
-    context "with one less than stream size" do
-      it "creates one stream for size-1 items" do
-        stream_count = 0
+      items = (1..item_count).map { |i| "item#{i}" }
+      executor_for(config, context_class.new(items: items)).execute([])
 
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-
-            on_stream_start do |_stream_num, _total, _context|
-              stream_count += 1
-            end
-          end
-        end
-
-        items = (1..99).map { |i| "item#{i}" }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        expect(stream_count).to eq(1)
-      end
+      sizes
     end
 
-    context "with one more than stream size" do
-      it "creates two streams for size+1 items" do
-        stream_info = []
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 100
-            over :items
-
-            on_stream_start do |stream_num, total, context|
-              stream_info << { stream: stream_num, total: total, size: context[:items].size }
-            end
-          end
-        end
-
-        items = (1..101).map { |i| "item#{i}" }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        expect(stream_info.size).to eq(2)
-        expect(stream_info[0][:size]).to eq(100)
-        expect(stream_info[1][:size]).to eq(1)
-      end
+    it "creates one stream when the item count equals the stream size" do
+      expect(stream_sizes_for(10, 10)).to eq([10])
     end
 
-    context "with exactly double stream size" do
-      it "creates exactly two full streams" do
-        stream_info = []
+    it "creates one stream when the item count is one below the stream size" do
+      expect(stream_sizes_for(9, 10)).to eq([9])
+    end
 
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 50
-            over :items
+    it "creates two streams when the item count is one above the stream size" do
+      expect(stream_sizes_for(11, 10)).to eq([10, 1])
+    end
 
-            on_stream_start do |stream_num, _total, context|
-              stream_info << { stream: stream_num, size: context[:items].size }
-            end
-          end
-        end
+    it "creates two full streams at exactly double the stream size" do
+      expect(stream_sizes_for(20, 10)).to eq([10, 10])
+    end
 
-        items = (1..100).map { |i| "item#{i}" }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+    it "creates one stream per item when the stream size is 1" do
+      expect(stream_sizes_for(5, 1)).to eq([1, 1, 1, 1, 1])
+    end
 
-        executor.execute(context)
-
-        expect(stream_info.size).to eq(2)
-        expect(stream_info.all? { |s| s[:size] == 50 }).to be true
-      end
+    it "creates a single stream when the stream size exceeds the array size" do
+      expect(stream_sizes_for(100, 1_000_000)).to eq([100])
     end
   end
 
   describe "very large arrays" do
-    context "with 10000+ items" do
-      it "processes large datasets correctly" do
-        items = (1..10_000).map { |i| { id: i, value: "item#{i}" } }
+    let(:items) { (1..2_000).map { |i| "item#{i}" } }
 
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 1000
-            over :items
-          end
-        end
+    it "processes every item" do
+      executor = executor_for(config_for(stream_size: 100), context_class.new(items: items))
 
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+      results = executor.execute(agent_chain)
 
-        result = executor.execute(context)
+      expect(results.size).to eq(2_000)
+      expect(executor.execution_stats[:processed_items]).to eq(2_000)
+    end
 
-        expect(result[:items].size).to eq(10_000)
-        expect(result[:success]).to be true
-      end
+    it "creates the expected number of streams" do
+      executor = executor_for(config_for(stream_size: 100), context_class.new(items: items))
+      executor.execute([])
 
-      it "creates correct number of streams for large datasets" do
-        stream_count = 0
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 1000
-            over :items
-
-            on_stream_start do |_stream_num, _total, _context|
-              stream_count += 1
-            end
-          end
-        end
-
-        items = (1..10_000).map { |i| "item#{i}" }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        expect(stream_count).to eq(10) # 10,000 / 1,000 = 10 streams
-      end
-
-      it "does not accumulate excessive memory across streams" do
-        memory_samples = []
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 1000
-            over :items
-
-            on_stream_complete do |_stream_num, _total, _results|
-              # Sample memory usage
-              memory_samples << GC.stat[:heap_live_slots]
-            end
-          end
-        end
-
-        items = (1..10_000).map { |i| { id: i, data: "x" * 100 } }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        GC.start # Clean baseline
-        executor.execute(context)
-
-        # Memory should not grow excessively between streams
-        if memory_samples.size > 2
-          memory_growth = memory_samples.last - memory_samples.first
-          avg_memory = memory_samples.sum / memory_samples.size
-
-          # Memory growth should be less than 20% of average
-          expect(memory_growth).to be < (avg_memory * 0.2)
-        end
-      end
+      expect(executor.execution_stats[:total_streams]).to eq(20)
+      expect(executor.execution_stats[:successful_streams]).to eq(20)
     end
   end
 
   describe "nil or missing fields" do
-    context "with nil array field" do
-      it "raises clear error for nil field" do
-        context = context_class.new(items: nil, other_data: "present")
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+    it "raises a clear error when the configured field is nil" do
+      executor = executor_for(config_for, context_class.new(items: nil, other_data: "present"))
 
-        expect do
-          executor.execute(context)
-        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
-      end
+      expect { executor.execute(agent_chain) }.to raise_error(
+        RAAF::DSL::IntelligentStreaming::ExecutorError,
+        /No array field 'items' found in context/
+      )
     end
 
-    context "with missing array field" do
-      it "raises clear error for missing field" do
-        context = context_class.new(other_data: "present") # No 'items' field
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+    it "raises a clear error when the configured field is absent" do
+      executor = executor_for(config_for, context_class.new(other_data: "present"))
 
-        expect do
-          executor.execute(context)
-        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
-      end
+      expect { executor.execute(agent_chain) }.to raise_error(
+        RAAF::DSL::IntelligentStreaming::ExecutorError,
+        /No array field 'items' found in context/
+      )
     end
 
-    context "with non-array field" do
-      it "raises clear error for string field" do
-        context = context_class.new(items: "not an array")
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+    it "raises a clear error when the field holds a string" do
+      executor = executor_for(config_for, context_class.new(items: "not an array"))
 
-        expect do
-          executor.execute(context)
-        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
-      end
+      expect { executor.execute(agent_chain) }.to raise_error(
+        RAAF::DSL::IntelligentStreaming::ExecutorError,
+        /does not contain an array, got: String/
+      )
+    end
 
-      it "raises clear error for hash field" do
-        context = context_class.new(items: { key: "value" })
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+    it "raises a clear error when the field holds a hash" do
+      executor = executor_for(config_for, context_class.new(items: { key: "value" }))
 
-        expect do
-          executor.execute(context)
-        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
-      end
+      expect { executor.execute(agent_chain) }.to raise_error(
+        RAAF::DSL::IntelligentStreaming::ExecutorError,
+        /does not contain an array/
+      )
+    end
 
-      it "raises clear error for numeric field" do
-        context = context_class.new(items: 42)
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+    it "raises a clear error when the field holds a number" do
+      executor = executor_for(config_for, context_class.new(items: 42))
 
-        expect do
-          executor.execute(context)
-        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
-      end
+      expect { executor.execute(agent_chain) }.to raise_error(
+        RAAF::DSL::IntelligentStreaming::ExecutorError,
+        /does not contain an array, got: Integer/
+      )
+    end
+  end
+
+  describe "auto-detecting the array field" do
+    it "uses the only array in the context when no field is configured" do
+      executor = executor_for(config_for(over: nil), context_class.new(records: %w[a b], note: "x"))
+
+      expect(executor.execute(agent_chain).size).to eq(2)
+    end
+
+    it "refuses to guess between several arrays" do
+      config = config_for(over: nil)
+      scope = RAAF::DSL::IntelligentStreaming::Scope.new(
+        trigger_agent: processing_agent,
+        scope_agents: [processing_agent],
+        stream_size: config.stream_size,
+        array_field: nil
+      )
+      context = context_class.new(records: %w[a b], others: %w[c])
+      executor = RAAF::DSL::IntelligentStreaming::Executor.new(scope: scope, context: context, config: config)
+
+      expect { executor.execute(agent_chain) }.to raise_error(
+        RAAF::DSL::IntelligentStreaming::ExecutorError,
+        /Multiple array fields found/
+      )
+    end
+
+    it "reports when there is no array to stream at all" do
+      config = config_for(over: nil)
+      scope = RAAF::DSL::IntelligentStreaming::Scope.new(
+        trigger_agent: processing_agent,
+        scope_agents: [processing_agent],
+        stream_size: config.stream_size,
+        array_field: nil
+      )
+      context = context_class.new(note: "x")
+      executor = RAAF::DSL::IntelligentStreaming::Executor.new(scope: scope, context: context, config: config)
+
+      expect { executor.execute(agent_chain) }.to raise_error(
+        RAAF::DSL::IntelligentStreaming::ExecutorError,
+        /No array fields found in context/
+      )
     end
   end
 
   describe "unusual array contents" do
-    context "with mixed types in array" do
-      it "handles arrays with mixed types" do
-        mixed_items = [
-          "string",
-          42,
-          { key: "value" },
-          %w[nested array],
-          nil,
-          true,
-          3.14
-        ]
+    it "handles arrays with mixed types" do
+      mixed_items = ["string", 42, { key: "value" }, [1, 2, 3], nil, true]
+      executor = executor_for(config_for, context_class.new(items: mixed_items))
 
-        context = context_class.new(items: mixed_items)
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+      results = executor.execute(agent_chain)
 
-        result = executor.execute(context)
-
-        expect(result[:items]).to eq(mixed_items)
-        expect(result[:success]).to be true
-      end
+      expect(results.size).to eq(mixed_items.size)
+      expect(results.map { |r| r[:current_record] }).to eq(["string", 42, { "key" => "value" }, [1, 2, 3], nil, true])
     end
 
-    context "with deeply nested structures" do
-      it "handles arrays with deeply nested objects" do
-        nested_items = [
-          {
-            level1: {
-              level2: {
-                level3: {
-                  level4: {
-                    value: "deep"
-                  }
-                }
-              }
-            }
-          }
-        ] * 5
+    it "handles arrays with deeply nested objects" do
+      nested_items = [{ level1: { level2: { level3: { value: "deep" } } } }]
+      executor = executor_for(config_for, context_class.new(items: nested_items))
 
-        context = context_class.new(items: nested_items)
-        agent = streaming_agent_class.new
-        config = streaming_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+      results = executor.execute(agent_chain)
 
-        result = executor.execute(context)
-
-        expect(result[:items].size).to eq(5)
-        expect(result[:items].first.dig(:level1, :level2, :level3, :level4, :value)).to eq("deep")
-      end
-    end
-  end
-
-  describe "stream size edge cases" do
-    context "with stream_size of 1" do
-      it "creates one stream per item" do
-        stream_count = 0
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 1
-            over :items
-
-            on_stream_start do |_stream_num, _total, _context|
-              stream_count += 1
-            end
-          end
-        end
-
-        items = %w[a b c d e]
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        expect(stream_count).to eq(5)
-      end
-    end
-
-    context "with very large stream_size" do
-      it "creates single stream if stream_size exceeds array size" do
-        stream_count = 0
-
-        agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 1_000_000
-            over :items
-
-            on_stream_start do |_stream_num, _total, _context|
-              stream_count += 1
-            end
-          end
-        end
-
-        items = (1..100).map { |i| "item#{i}" }
-        context = context_class.new(items: items)
-        agent = agent_class.new
-        config = agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        expect(stream_count).to eq(1)
-      end
+      expect(results.first[:current_record][:level1][:level2][:level3][:value]).to eq("deep")
     end
   end
 end

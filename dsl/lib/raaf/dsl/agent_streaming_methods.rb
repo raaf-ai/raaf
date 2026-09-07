@@ -86,7 +86,7 @@ module RAAF
         # @see INTELLIGENT_STREAMING_API.md Complete API documentation
         def intelligent_streaming(stream_size: nil, over: nil, incremental: false, override: false, &block)
           # Check if already configured
-          if @_intelligent_streaming_config && !override
+          if _intelligent_streaming_config && !override
             raise IntelligentStreaming::ConfigurationError,
                   "intelligent_streaming already configured for #{name}. Use override: true to reconfigure."
           end
@@ -141,7 +141,7 @@ module RAAF
         #     puts "MyAgent will trigger streaming in pipelines"
         #   end
         def streaming_trigger?
-          !@_intelligent_streaming_config.nil?
+          !_intelligent_streaming_config.nil?
         end
 
         # Check if streaming is configured for this agent
@@ -153,7 +153,7 @@ module RAAF
         # @example Guard clause usage
         #   return unless MyAgent.streaming_config?
         def streaming_config?
-          !@_intelligent_streaming_config.nil?
+          !_intelligent_streaming_config.nil?
         end
 
         # Get the streaming configuration object
@@ -172,6 +172,16 @@ module RAAF
         #     puts "Has state management: #{config.has_state_management?}"
         #   end
         def streaming_config
+          _intelligent_streaming_config
+        end
+
+        # The streaming configuration declared on this agent class.
+        #
+        # Configuration is per class and deliberately not inherited: a subclass
+        # streams only if it says so itself.
+        #
+        # @return [IntelligentStreaming::Config, nil]
+        def _intelligent_streaming_config
           @_intelligent_streaming_config
         end
 
@@ -194,8 +204,11 @@ module RAAF
     end
 
     # Configuration error for intelligent streaming
+    #
+    # Inherits from ArgumentError: every one of these is raised because the
+    # arguments to the intelligent_streaming DSL did not make sense.
     module IntelligentStreaming
-      class ConfigurationError < StandardError; end
+      class ConfigurationError < ArgumentError; end
     end
   end
 end

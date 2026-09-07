@@ -2,515 +2,222 @@
 
 require "spec_helper"
 require "raaf/dsl/intelligent_streaming/config"
+require "raaf/dsl/intelligent_streaming/scope"
 require "raaf/dsl/intelligent_streaming/executor"
 require "raaf/dsl/core/context_variables"
 
 RSpec.describe "IntelligentStreaming Error Scenarios" do
   let(:context_class) { RAAF::DSL::ContextVariables }
 
-  let(:base_agent_class) do
-    Class.new(RAAF::DSL::Agent) do
-      agent_name "ErrorTestAgent"
-      model "gpt-4o"
+  # Agent that fails for the records the caller nominates.
+  def failing_agent(fail_on: [], message: "Stream processing failed")
+    Class.new do
+      define_singleton_method(:name) { "FailingAgent" }
 
-      def self.name
-        "ErrorTestAgent"
-      end
+      define_method(:run) do |context: {}|
+        record = context[:current_record]
+        raise StandardError, message if fail_on.include?(record[:id])
 
-      def call
-        context[:items] = context[:items].map { |item| item.merge(processed: true) } if context[:items]
-        context[:success] = true
-        context
+        context.merge(processed: true)
       end
     end
   end
 
+  let(:passing_agent) do
+    Class.new do
+      def self.name
+        "PassingAgent"
+      end
+
+      def run(context: {})
+        context.merge(processed: true)
+      end
+    end
+  end
+
+  def executor_for(config, context, agent_class)
+    scope = RAAF::DSL::IntelligentStreaming::Scope.new(
+      trigger_agent: agent_class,
+      scope_agents: [agent_class],
+      stream_size: config.stream_size,
+      array_field: config.array_field
+    )
+
+    RAAF::DSL::IntelligentStreaming::Executor.new(scope: scope, context: context, config: config)
+  end
+
+  def config_for(stream_size: 5, over: :items, incremental: false, &block)
+    config = RAAF::DSL::IntelligentStreaming::Config.new(
+      stream_size: stream_size,
+      over: over,
+      incremental: incremental
+    )
+    config.instance_eval(&block) if block
+    config
+  end
+
+  let(:items) { (1..15).map { |i| { id: i } } }
+
   describe "stream execution failures" do
     context "partial stream failures" do
-      it "preserves partial results on failure" do
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-          end
+      it "keeps the results of the streams that succeeded" do
+        agent_class = failing_agent(fail_on: [7])
+        executor = executor_for(config_for, context_class.new(items: items), agent_class)
 
-          def call
-            # Fail on stream 2 (items 5-9)
-            raise StandardError, "Stream processing failed" if context[:items].any? { |item| item[:id] == 7 }
+        results = executor.execute([agent_class.new])
 
-            super
-          end
-        end
-
-        items = (1..15).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        # Should raise error but preserve partial results
-        expect do
-          executor.execute(context)
-        end.to raise_error(StandardError, "Stream processing failed")
-
-        # First stream (items 1-5) should have been processed before failure
-        # This depends on implementation - adjust based on actual behavior
+        # Streams 1 and 3 completed; stream 2 (items 6-10) failed as a whole.
+        expect(executor.execution_stats[:successful_streams]).to eq(2)
+        expect(executor.execution_stats[:failed_streams]).to eq(1)
+        expect(results.map { |r| r[:current_record][:id] }).to eq([1, 2, 3, 4, 5, 11, 12, 13, 14, 15])
       end
 
-      it "executes on_stream_error hook on failure" do
-        error_info = nil
-
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-
-            on_stream_error do |stream_num, total, error, context|
-              error_info = {
-                stream: stream_num,
-                total: total,
-                error_message: error.message,
-                error_class: error.class.name,
-                context_size: context[:items].size
-              }
-            end
-          end
-
-          def call
-            # Fail on specific stream
-            raise StandardError, "Deliberate failure" if context[:items].first[:id] == 6
-
-            super
-          end
+      it "executes the on_stream_error hook on failure" do
+        errors = []
+        config = config_for do
+          on_stream_error { |num, total, stream_items, error| errors << [num, total, stream_items.size, error.message] }
         end
 
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+        agent_class = failing_agent(fail_on: [7])
+        executor_for(config, context_class.new(items: items), agent_class).execute([agent_class.new])
 
-        expect do
-          executor.execute(context)
-        end.to raise_error(StandardError, "Deliberate failure")
-
-        expect(error_info).not_to be_nil
-        expect(error_info[:stream]).to eq(2)
-        expect(error_info[:total]).to eq(2)
-        expect(error_info[:error_message]).to eq("Deliberate failure")
-        expect(error_info[:error_class]).to eq("StandardError")
-        expect(error_info[:context_size]).to eq(5)
+        expect(errors).to eq([[2, 3, 5, "Stream processing failed"]])
       end
 
-      it "provides clear error messages with stream context" do
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 10
-            over :items
-          end
-
-          def call
-            raise ArgumentError, "Invalid item in stream" if context[:items].any? { |item| item[:id] == 25 }
-
-            super
-          end
+      it "reports the failing stream's own message" do
+        errors = []
+        config = config_for do
+          on_stream_error { |_num, _total, _items, error| errors << error }
         end
 
-        items = (1..30).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
+        agent_class = failing_agent(fail_on: [7], message: "downstream timeout")
+        executor_for(config, context_class.new(items: items), agent_class).execute([agent_class.new])
 
-        error_raised = false
-        begin
-          executor.execute(context)
-        rescue ArgumentError => e
-          error_raised = true
-          expect(e.message).to include("Invalid item in stream")
-          # The error should ideally include stream number context
-        end
-
-        expect(error_raised).to be true
+        expect(errors.first).to be_a(StandardError)
+        expect(errors.first.message).to eq("downstream timeout")
       end
     end
 
     context "multiple stream failures" do
-      it "handles multiple stream failures" do
-        failures = []
+      it "counts every failed stream and keeps going" do
+        agent_class = failing_agent(fail_on: [2, 7, 12])
+        executor = executor_for(config_for, context_class.new(items: items), agent_class)
 
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 3
-            over :items
+        results = executor.execute([agent_class.new])
 
-            on_stream_error do |stream_num, _total, error, _context|
-              failures << { stream: stream_num, error: error.message }
-            end
-          end
+        expect(executor.execution_stats[:failed_streams]).to eq(3)
+        expect(executor.execution_stats[:successful_streams]).to eq(0)
+        expect(results).to eq([])
+      end
+    end
 
-          def call
-            # Fail on streams 2 and 4
-            if context[:items].any? { |item| [4, 10].include?(item[:id]) }
-              raise StandardError, "Stream #{(context[:items].first[:id] / 3) + 1} failed"
-            end
+    context "when configured to stop on error" do
+      it "re-raises instead of continuing" do
+        config = config_for
+        config.blocks[:stop_on_error] = true
 
-            super
-          end
-        end
+        agent_class = failing_agent(fail_on: [7])
+        executor = executor_for(config, context_class.new(items: items), agent_class)
 
-        items = (1..12).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        expect do
-          executor.execute(context)
-        end.to raise_error(StandardError)
-
-        # Should have captured the first failure
-        expect(failures).not_to be_empty
-        expect(failures.first[:stream]).to eq(2)
+        expect { executor.execute([agent_class.new]) }.to raise_error(StandardError, "Stream processing failed")
       end
     end
   end
 
   describe "hook failures" do
-    context "on_stream_start hook failures" do
-      it "logs hook errors but continues execution" do
-        hook_error_logged = false
-
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-
-            on_stream_start do |stream_num, _total, _context|
-              if stream_num == 2
-                hook_error_logged = true
-                raise StandardError, "Hook failed"
-              end
-            end
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        # Hook errors should not stop execution
-        result = nil
-        expect do
-          result = executor.execute(context)
-        end.not_to raise_error
-
-        expect(result[:success]).to be true
-        expect(result[:items].size).to eq(10)
+    it "lets an on_stream_start failure fail its own stream only" do
+      config = config_for do
+        on_stream_start { |num, _total, _items| raise "hook exploded" if num == 1 }
       end
+
+      executor = executor_for(config, context_class.new(items: items), passing_agent)
+      results = executor.execute([passing_agent.new])
+
+      expect(executor.execution_stats[:failed_streams]).to eq(1)
+      expect(results.map { |r| r[:current_record][:id] }).to eq((6..15).to_a)
     end
 
-    context "on_stream_complete hook failures" do
-      it "logs errors but preserves results" do
-        complete_hooks_run = []
-
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-
-            on_stream_complete do |stream_num, _total, _results|
-              complete_hooks_run << stream_num
-              raise StandardError, "Complete hook error" if stream_num == 1
-            end
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        result = executor.execute(context)
-
-        # Execution should complete despite hook error
-        expect(result[:success]).to be true
-        expect(result[:items].all? { |item| item[:processed] }).to be true
-        expect(complete_hooks_run).to include(1, 2)
+    it "surfaces an on_stream_complete failure in non-incremental mode" do
+      config = config_for do
+        on_stream_complete { |_all_results| raise "complete hook exploded" }
       end
+
+      executor = executor_for(config, context_class.new(items: items), passing_agent)
+
+      expect { executor.execute([passing_agent.new]) }.to raise_error("complete hook exploded")
     end
 
-    context "hook error context" do
-      it "provides context in hook error messages" do
-        error_messages = []
-
-        # Capture logging output
-        allow(RAAF::Logger).to receive(:error) do |msg|
-          error_messages << msg
-        end
-
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-
-            on_stream_start do |stream_num, _total, _context|
-              raise ArgumentError, "Invalid stream setup" if stream_num == 2
-            end
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        executor.execute(context)
-
-        # Should have logged error with context
-        expect(error_messages.any? { |msg| msg.include?("on_stream_start") }).to be true if error_messages.any?
+    it "routes an incremental on_stream_complete failure through the error hook" do
+      errors = []
+      config = config_for(incremental: true) do
+        on_stream_complete { |_num, _total, _data, _results| raise "incremental hook exploded" }
+        on_stream_error { |_num, _total, _items, error| errors << error.message }
       end
+
+      executor = executor_for(config, context_class.new(items: items), passing_agent)
+      executor.execute([passing_agent.new])
+
+      expect(errors).to eq(["incremental hook exploded"] * 3)
+      expect(executor.execution_stats[:failed_streams]).to eq(3)
     end
   end
 
   describe "state management failures" do
-    context "skip_if block errors" do
-      it "handles skip_if block errors gracefully" do
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-
-            skip_if do |record, _context|
-              raise StandardError, "Skip check failed" if record[:id] == 3
-
-              false
-            end
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        expect do
-          executor.execute(context)
-        end.to raise_error(StandardError, "Skip check failed")
+    it "fails the stream when skip_if raises" do
+      config = config_for do
+        skip_if { |record, _context| raise "skip_if exploded" if record[:id] == 1 }
       end
+
+      executor = executor_for(config, context_class.new(items: items), passing_agent)
+      results = executor.execute([passing_agent.new])
+
+      expect(executor.execution_stats[:failed_streams]).to eq(1)
+      expect(results.map { |r| r[:current_record][:id] }).to eq((6..15).to_a)
     end
 
-    context "load_existing block errors" do
-      it "handles load_existing block errors" do
-        error_count = 0
-
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-
-            load_existing do |record, _context|
-              if record[:id] == 7
-                error_count += 1
-                raise StandardError, "Cache load failed"
-              end
-              nil # No cached version
-            end
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        # Load errors might be handled gracefully or propagate
-        expect do
-          executor.execute(context)
-        end.to raise_error(StandardError, "Cache load failed")
+    it "fails the stream when load_existing raises for a skipped record" do
+      config = config_for do
+        skip_if { |record, _context| record[:id] == 1 }
+        load_existing { |_record, _context| raise "load_existing exploded" }
       end
+
+      executor = executor_for(config, context_class.new(items: items), passing_agent)
+      executor.execute([passing_agent.new])
+
+      expect(executor.execution_stats[:failed_streams]).to eq(1)
     end
 
-    context "persist block errors" do
-      it "handles persist block errors" do
-        persist_attempts = []
-
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-
-            persist do |stream_results, _context|
-              persist_attempts << stream_results[:items].size
-              raise StandardError, "Persist failed" if persist_attempts.size == 2
-            end
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        # Persist errors might be logged but shouldn't stop execution
-        result = nil
-        expect do
-          result = executor.execute(context)
-        end.not_to raise_error
-
-        expect(result[:success]).to be true
-        expect(persist_attempts).to eq([5, 5])
+    it "fails the stream when the persist block raises" do
+      config = config_for do
+        persist { |_stream_results, _context| raise "persist exploded" }
       end
+
+      executor = executor_for(config, context_class.new(items: items), passing_agent)
+      executor.execute([passing_agent.new])
+
+      expect(executor.execution_stats[:failed_streams]).to eq(3)
+      expect(executor.execution_stats[:successful_streams]).to eq(0)
     end
   end
 
-  describe "retry logic" do
-    context "stream retry configuration" do
-      it "allows retrying failed streams" do
-        retry_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-            max_retries 2
+  describe "recovery" do
+    it "returns whatever completed when only some streams fail" do
+      agent_class = failing_agent(fail_on: [1])
+      executor = executor_for(config_for, context_class.new(items: items), agent_class)
 
-            on_stream_error do |stream_num, total, error, context|
-              # Retry logic would be handled here
-            end
-          end
+      results = executor.execute([agent_class.new])
 
-          def call
-            attempt_count += 1
-            # Fail first attempt, succeed on retry
-            raise StandardError, "Transient error" if attempt_count == 1 && context[:items].first[:id] == 6
-
-            super
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context_class.new(items: items)
-        retry_agent_class.new
-
-        # This test assumes retry logic is implemented
-        # Adjust based on actual implementation
-      end
-
-      it "respects max retry count" do
-        retry_count = {}
-
-        retry_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-            max_retries 3
-
-            on_stream_error do |stream_num, _total, _error, _context|
-              retry_count[stream_num] ||= 0
-              retry_count[stream_num] += 1
-            end
-          end
-
-          def call
-            # Always fail for stream 2
-            raise StandardError, "Persistent error" if context[:items].first[:id] == 6
-
-            super
-          end
-        end
-
-        items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = retry_agent_class.new
-        config = retry_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        expect do
-          executor.execute(context)
-        end.to raise_error(StandardError, "Persistent error")
-
-        # Should have tried max_retries times
-        # Exact behavior depends on retry implementation
-      end
-    end
-  end
-
-  describe "recovery mechanisms" do
-    context "graceful degradation" do
-      it "returns partial results when possible" do
-        partial_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 5
-            over :items
-            allow_partial_results true
-          end
-
-          def call
-            # Process first stream, fail on second
-            raise StandardError, "Processing limit reached" if context[:items].first[:id] > 5
-
-            super
-          end
-        end
-
-        items = (1..15).map { |i| { id: i } }
-        context_class.new(items: items)
-        partial_agent_class.new
-
-        # Behavior depends on allow_partial_results implementation
-        # This is a placeholder for the expected behavior
-      end
+      expect(results).not_to be_empty
+      expect(executor.execution_stats[:successful_streams]).to eq(2)
     end
 
-    context "error aggregation" do
-      it "collects all errors for reporting" do
-        all_errors = []
+    it "records timing even when streams fail" do
+      agent_class = failing_agent(fail_on: [1])
+      executor = executor_for(config_for, context_class.new(items: items), agent_class)
+      executor.execute([agent_class.new])
 
-        error_agent_class = Class.new(base_agent_class) do
-          intelligent_streaming do
-            stream_size 3
-            over :items
-
-            on_stream_error do |stream_num, _total, error, context|
-              all_errors << {
-                stream: stream_num,
-                error: error.message,
-                items: context[:items].map { |i| i[:id] }
-              }
-            end
-          end
-
-          def call
-            # Fail on specific items
-            if context[:items].any? { |item| [4, 7, 10].include?(item[:id]) }
-              item_id = context[:items].find { |item| [4, 7, 10].include?(item[:id]) }[:id]
-              raise StandardError, "Item #{item_id} is invalid"
-            end
-            super
-          end
-        end
-
-        items = (1..12).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = error_agent_class.new
-        config = error_agent_class._intelligent_streaming_config
-        executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
-
-        expect do
-          executor.execute(context)
-        end.to raise_error(StandardError)
-
-        # Should have collected error information
-        expect(all_errors).not_to be_empty
-        expect(all_errors.first[:stream]).to eq(2)
-        expect(all_errors.first[:items]).to include(4)
-      end
+      expect(executor.execution_stats[:start_time]).to be_a(Time)
+      expect(executor.execution_stats[:end_time]).to be_a(Time)
     end
   end
 end

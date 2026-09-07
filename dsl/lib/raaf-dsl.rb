@@ -140,6 +140,9 @@ module RAAF
     # Service base class for non-LLM operations
     autoload :Service, "raaf/dsl/service"
 
+    # Pipeline-level streaming with optional state management
+    autoload :IntelligentStreaming, "raaf/dsl/intelligent_streaming"
+
     # Pipeline DSL for elegant agent chaining
     autoload :Pipeline, "raaf/dsl/pipeline_dsl/pipeline"
     require_relative "raaf/dsl/pipeline_dsl"

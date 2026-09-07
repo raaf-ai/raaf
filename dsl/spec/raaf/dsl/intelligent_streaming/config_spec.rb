@@ -88,7 +88,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
 
     describe "#on_stream_start" do
       it "stores the on_stream_start hook" do
-        start_hook = proc { |num, total, _data| puts "Starting #{num}/#{total}" }
+        start_hook = proc { |_num, _total, _data| nil }
         config.on_stream_start(&start_hook)
 
         expect(config.blocks[:on_stream_start]).to eq(start_hook)
@@ -98,18 +98,18 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
     describe "#on_stream_complete" do
       context "with incremental: false" do
         it "accepts a block with 1 parameter" do
-          complete_hook = proc { |all_results| puts "Done: #{all_results.size}" }
+          complete_hook = proc { |_all_results| nil }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
           expect(config.blocks[:on_stream_complete]).to eq(complete_hook)
         end
 
         it "accepts a block with variable parameters (-1 arity)" do
-          complete_hook = proc { |*_args| puts "Done" }
+          complete_hook = proc { |*_args| nil }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
         end
 
         it "raises error for block with wrong arity" do
-          complete_hook = proc { |_a, _b, _c| puts "Wrong" }
+          complete_hook = proc { |_a, _b, _c| nil }
           expect do
             config.on_stream_complete(&complete_hook)
           end.to raise_error(ArgumentError, /expects 1 parameter/)
@@ -120,18 +120,18 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
         let(:config) { described_class.new(stream_size: 100, incremental: true) }
 
         it "accepts a block with 4 parameters" do
-          complete_hook = proc { |num, total, _data, _results| puts "Stream #{num}/#{total}" }
+          complete_hook = proc { |_num, _total, _data, _results| nil }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
           expect(config.blocks[:on_stream_complete]).to eq(complete_hook)
         end
 
         it "accepts a block with variable parameters (-1 arity)" do
-          complete_hook = proc { |*_args| puts "Done" }
+          complete_hook = proc { |*_args| nil }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
         end
 
         it "raises error for block with wrong arity" do
-          complete_hook = proc { |_a| puts "Wrong" }
+          complete_hook = proc { |_a| nil }
           expect do
             config.on_stream_complete(&complete_hook)
           end.to raise_error(ArgumentError, /expects 4 parameters/)

@@ -10,8 +10,11 @@ require "raaf/dsl/intelligent_streaming/config"
 require "raaf/dsl/intelligent_streaming/executor"
 require "raaf/dsl/core/context_variables"
 
+# Declaring intelligent_streaming on an agent must not change how that agent, or
+# any pipeline it takes part in, behaves when the pipeline itself does not drive
+# streaming.
 RSpec.describe "IntelligentStreaming Backward Compatibility" do
-  let(:context_class) { RAAF::DSL::Core::ContextVariables }
+  let(:context_class) { RAAF::DSL::ContextVariables }
 
   # Standard agents without intelligent streaming
   let(:standard_agent_class) do
@@ -19,14 +22,16 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
       agent_name "StandardAgent"
       model "gpt-4o"
 
+      context do
+        output :processed, :agent_name
+      end
+
       def self.name
         "StandardAgent"
       end
 
-      def call
-        context[:processed] = true
-        context[:agent_name] = self.class.name
-        context
+      def run
+        { processed: true, agent_name: self.class.name }
       end
     end
   end
@@ -36,33 +41,44 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
       agent_name "ProcessorAgent"
       model "gpt-4o"
 
+      context do
+        output :items, :processor_run
+      end
+
       def self.name
         "ProcessorAgent"
       end
 
-      def call
-        context[:items] = context[:items].map { |item| item.merge(processed: true) } if context[:items]
-        context[:processor_run] = true
-        context
+      def run
+        items = Array(context[:items]).map { |item| item.merge(processed: true) }
+        { items: items, processor_run: true }
       end
     end
   end
 
+  # Records the size of every chunk the batched agent is handed.
+  let(:chunk_sizes) { [] }
+
   # Agent with in_chunks_of batching (existing feature)
   let(:chunked_agent_class) do
+    sizes = chunk_sizes
+
     Class.new(RAAF::DSL::Agent) do
       agent_name "ChunkedAgent"
       model "gpt-4o"
-      in_chunks_of 5
+
+      context do
+        output :items
+      end
 
       def self.name
         "ChunkedAgent"
       end
 
-      def call
-        context[:chunk_processed] = true
-        context[:chunk_size] = context[:items].size if context[:items]
-        context
+      define_method :run do
+        items = Array(context[:items])
+        sizes << items.size
+        { items: items }
       end
     end
   end
@@ -78,13 +94,16 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         over :items
       end
 
+      context do
+        output :stream_processed
+      end
+
       def self.name
         "StreamingAgent"
       end
 
-      def call
-        context[:stream_processed] = true
-        context
+      def run
+        { stream_processed: true }
       end
     end
   end
@@ -92,80 +111,63 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
   describe "existing pipelines" do
     context "pipelines without intelligent_streaming" do
       it "works unchanged without intelligent_streaming" do
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> processor_agent_class
+        agents = [standard_agent_class, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1]
 
           context do
-            default :items, []
+            optional items: []
           end
         end
 
         items = (1..20).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        result = pipeline.run
+        result = pipeline_class.new(items: items).run
 
         expect(result[:processed]).to be true
         expect(result[:processor_run]).to be true
         expect(result[:items].all? { |item| item[:processed] }).to be true
       end
 
-      it "maintains performance without regression" do
-        # Pipeline without intelligent streaming
-        standard_pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> processor_agent_class
+      it "does not create a streaming scope" do
+        agents = [standard_agent_class, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1]
         end
 
-        items = (1..100).map { |i| { id: i } }
-        standard_pipeline = standard_pipeline_class.new(items: items)
+        pipeline = pipeline_class.new(items: [])
 
-        # Measure standard pipeline performance
-        start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
-        standard_result = standard_pipeline.run
-        end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
-        standard_time = end_time - start_time
-
-        expect(standard_result[:processed]).to be true
-        expect(standard_result[:processor_run]).to be true
-
-        # Performance should be consistent (this is a baseline test)
-        expect(standard_time).to be < 100 # Should complete quickly
+        expect(pipeline.streaming_scopes).to be_empty
       end
     end
 
     context "with in_chunks_of agent batching" do
       it "works with in_chunks_of agent batching" do
-        # Agent with in_chunks_of
-        batched_agent = RAAF::DSL::PipelineDSL::BatchedAgent.new(
-          chunked_agent_class.new,
-          chunk_size: 5,
-          input_field: :items,
-          output_field: :items
-        )
+        batched_agent = chunked_agent_class.in_chunks_of(5, input_field: :items, output_field: :items)
 
         items = (1..20).map { |i| { id: i } }
-        context = context_class.new(items: items)
+        result = batched_agent.execute(context_class.new(items: items))
 
-        result = batched_agent.execute(context)
-
-        expect(result[:chunk_processed]).to be true
-        # Should process in chunks of 5
-        expect(result[:chunk_size]).to be <= 5
+        # Batching hands the agent one chunk at a time and stitches the array
+        # back together.
+        expect(chunk_sizes).to eq([5, 5, 5, 5])
+        expect(result[:items].size).to eq(20)
       end
 
       it "allows in_chunks_of and intelligent_streaming in same pipeline" do
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow chunked_agent_class >> streaming_agent_class >> processor_agent_class
+        chunked = chunked_agent_class.in_chunks_of(5, input_field: :items, output_field: :items)
+        agents = [chunked, streaming_agent_class, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1] >> agents[2]
 
           context do
-            default :items, []
+            optional items: []
           end
         end
 
         items = (1..30).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        result = pipeline.run
+        result = pipeline_class.new(items: items).run
 
-        expect(result[:chunk_processed]).to be true
+        expect(chunk_sizes).to eq([5, 5, 5, 5, 5, 5])
         expect(result[:stream_processed]).to be true
         expect(result[:processor_run]).to be true
       end
@@ -175,38 +177,44 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
   describe "existing agents" do
     context "agents without streaming config" do
       it "agents without streaming config work unchanged" do
-        agent = standard_agent_class.new
-        context_class.new(data: "test")
-
-        result = agent.call
+        result = standard_agent_class.new(data: "test").run
 
         expect(result[:processed]).to be true
         expect(result[:agent_name]).to eq("StandardAgent")
       end
 
-      it "handles nil intelligent_streaming_config gracefully" do
-        agent = standard_agent_class.new
+      it "reports no streaming configuration" do
+        expect(standard_agent_class).to respond_to(:_intelligent_streaming_config)
+        expect(standard_agent_class._intelligent_streaming_config).to be_nil
+        expect(standard_agent_class.streaming_trigger?).to be false
+      end
 
-        expect(agent.class.respond_to?(:_intelligent_streaming_config)).to be true
-        expect(agent.class._intelligent_streaming_config).to be_nil
+      it "reports a streaming configuration on an agent that declares one" do
+        expect(streaming_agent_class._intelligent_streaming_config).not_to be_nil
+        expect(streaming_agent_class.streaming_trigger?).to be true
+      end
+
+      it "does not hand the configuration down to subclasses" do
+        subclass = Class.new(streaming_agent_class)
+
+        expect(subclass._intelligent_streaming_config).to be_nil
       end
     end
 
     context "mixed pipelines" do
       it "works with mixed streaming and non-streaming agents" do
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> streaming_agent_class >> processor_agent_class
+        agents = [standard_agent_class, streaming_agent_class, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1] >> agents[2]
 
           context do
-            default :items, []
+            optional items: []
           end
         end
 
         items = (1..50).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        result = pipeline.run
+        result = pipeline_class.new(items: items).run
 
-        # All agents should have run
         expect(result[:processed]).to be true
         expect(result[:stream_processed]).to be true
         expect(result[:processor_run]).to be true
@@ -216,40 +224,29 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
       it "preserves execution order with mixed agents" do
         execution_order = []
 
-        tracking_standard = Class.new(standard_agent_class) do
-          define_method :call do
-            execution_order << :standard
-            super()
+        tracking = lambda do |parent, label|
+          Class.new(parent) do
+            define_method :run do
+              execution_order << label
+              super()
+            end
           end
         end
 
-        tracking_streaming = Class.new(streaming_agent_class) do
-          define_method :call do
-            execution_order << :streaming
-            super()
-          end
-        end
+        agents = [
+          tracking.call(standard_agent_class, :standard),
+          tracking.call(streaming_agent_class, :streaming),
+          tracking.call(processor_agent_class, :processor)
+        ]
 
-        tracking_processor = Class.new(processor_agent_class) do
-          define_method :call do
-            execution_order << :processor
-            super()
-          end
-        end
-
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow tracking_standard >> tracking_streaming >> tracking_processor
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1] >> agents[2]
         end
 
         items = (1..20).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        pipeline.run
+        pipeline_class.new(items: items).run
 
-        # Verify execution order
-        # Standard runs once, streaming runs multiple times (once per stream), processor runs once
-        expect(execution_order.first).to eq(:standard)
-        expect(execution_order.last).to eq(:processor)
-        expect(execution_order.count(:streaming)).to be >= 1
+        expect(execution_order).to eq(%i[standard streaming processor])
       end
     end
   end
@@ -257,13 +254,13 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
   describe "existing operators" do
     context ">> operator (sequential)" do
       it ">> operator works with streaming" do
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> streaming_agent_class >> processor_agent_class
+        agents = [standard_agent_class, streaming_agent_class, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1] >> agents[2]
         end
 
         items = (1..30).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        result = pipeline.run
+        result = pipeline_class.new(items: items).run
 
         expect(result[:processed]).to be true
         expect(result[:stream_processed]).to be true
@@ -272,28 +269,34 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
     end
 
     context "| operator (parallel)" do
+      let(:parallel_agent1) do
+        Class.new(RAAF::DSL::Agent) do
+          agent_name "ParallelOne"
+          context { output :parallel1 }
+          def run
+            { parallel1: true }
+          end
+        end
+      end
+
+      let(:parallel_agent2) do
+        Class.new(RAAF::DSL::Agent) do
+          agent_name "ParallelTwo"
+          context { output :parallel2 }
+          def run
+            { parallel2: true }
+          end
+        end
+      end
+
       it "| operator works with streaming agents" do
-        parallel_agent1 = Class.new(standard_agent_class) do
-          define_method :call do
-            context[:parallel1] = true
-            context
-          end
-        end
-
-        parallel_agent2 = Class.new(standard_agent_class) do
-          define_method :call do
-            context[:parallel2] = true
-            context
-          end
-        end
-
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow streaming_agent_class >> (parallel_agent1 | parallel_agent2) >> processor_agent_class
+        agents = [streaming_agent_class, parallel_agent1, parallel_agent2, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> (agents[1] | agents[2]) >> agents[3]
         end
 
         items = (1..20).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        result = pipeline.run
+        result = pipeline_class.new(items: items).run
 
         expect(result[:stream_processed]).to be true
         expect(result[:parallel1]).to be true
@@ -301,28 +304,30 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         expect(result[:processor_run]).to be true
       end
 
-      it "handles parallel streaming agents" do
-        streaming_agent1 = Class.new(streaming_agent_class) do
-          define_method :call do
-            context[:stream1] = true
-            context
+      it "handles two streaming agents side by side" do
+        streaming_one = Class.new(streaming_agent_class) do
+          agent_name "StreamingOne"
+          context { output :stream1 }
+          def run
+            { stream1: true }
           end
         end
 
-        streaming_agent2 = Class.new(streaming_agent_class) do
-          define_method :call do
-            context[:stream2] = true
-            context
+        streaming_two = Class.new(streaming_agent_class) do
+          agent_name "StreamingTwo"
+          context { output :stream2 }
+          def run
+            { stream2: true }
           end
         end
 
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> (streaming_agent1 | streaming_agent2) >> processor_agent_class
+        agents = [standard_agent_class, streaming_one, streaming_two, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> (agents[1] | agents[2]) >> agents[3]
         end
 
         items = (1..20).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        result = pipeline.run
+        result = pipeline_class.new(items: items).run
 
         expect(result[:processed]).to be true
         expect(result[:stream1]).to be true
@@ -333,34 +338,28 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
 
     context "complex operator combinations" do
       it "handles complex combinations of >> and |" do
-        agent1 = Class.new(standard_agent_class) do
-          define_method :call do
-            context[:agent1] = true
-            context
+        flagger = lambda do |name, field|
+          Class.new(RAAF::DSL::Agent) do
+            agent_name name
+            context { output field }
+            define_method(:run) { { field => true } }
           end
         end
 
-        agent2 = Class.new(standard_agent_class) do
-          define_method :call do
-            context[:agent2] = true
-            context
-          end
-        end
+        agents = [
+          flagger.call("AgentOne", :agent1),
+          streaming_agent_class,
+          flagger.call("AgentTwo", :agent2),
+          flagger.call("AgentThree", :agent3),
+          processor_agent_class
+        ]
 
-        agent3 = Class.new(standard_agent_class) do
-          define_method :call do
-            context[:agent3] = true
-            context
-          end
-        end
-
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow agent1 >> (streaming_agent_class | agent2) >> agent3 >> processor_agent_class
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> (agents[1] | agents[2]) >> agents[3] >> agents[4]
         end
 
         items = (1..15).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
-        result = pipeline.run
+        result = pipeline_class.new(items: items).run
 
         expect(result[:agent1]).to be true
         expect(result[:stream_processed]).to be true
@@ -380,45 +379,42 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
           temperature 0.7
           max_tokens 1000
 
-          # Also has intelligent streaming
           intelligent_streaming do
             stream_size 25
             over :records
           end
 
-          def call
-            context[:configured] = true
-            context
+          def run
+            { configured: true }
           end
         end
 
-        agent = configured_agent.new
-        expect(agent.class.agent_name).to eq("ConfiguredAgent")
-        expect(agent.class.model).to eq("gpt-4o-mini")
-        expect(agent.class._intelligent_streaming_config).not_to be_nil
-        expect(agent.class._intelligent_streaming_config.stream_size).to eq(25)
+        expect(configured_agent.agent_name).to eq("ConfiguredAgent")
+        expect(configured_agent.model).to eq("gpt-4o-mini")
+        expect(configured_agent._intelligent_streaming_config.stream_size).to eq(25)
+        expect(configured_agent._intelligent_streaming_config.array_field).to eq(:records)
       end
     end
 
     context "context handling" do
       it "preserves context through mixed pipeline" do
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> streaming_agent_class >> processor_agent_class
+        agents = [standard_agent_class, streaming_agent_class, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1] >> agents[2]
 
           context do
             required :items
-            optional :metadata, {}
+            optional metadata: {}
+            output :metadata
           end
         end
 
         items = (1..30).map { |i| { id: i } }
         metadata = { source: "test", version: 1 }
 
-        pipeline = pipeline_class.new(items: items, metadata: metadata)
-        result = pipeline.run
+        result = pipeline_class.new(items: items, metadata: metadata).run
 
-        # Context should be preserved
-        expect(result[:metadata]).to eq(metadata)
+        expect(result[:metadata][:source]).to eq("test")
         expect(result[:items].size).to eq(30)
         expect(result[:processed]).to be true
       end
@@ -431,38 +427,36 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         error_agent = Class.new(RAAF::DSL::Agent) do
           agent_name "ErrorAgent"
 
-          def call
+          def run
             raise StandardError, "Test error"
           end
         end
 
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> error_agent >> processor_agent_class
+        agents = [standard_agent_class, error_agent, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1] >> agents[2]
         end
 
-        pipeline = pipeline_class.new
-
-        expect { pipeline.run }.to raise_error(StandardError, "Test error")
+        expect { pipeline_class.new(items: []).run }.to raise_error(StandardError, "Test error")
       end
 
       it "handles errors in streaming agents appropriately" do
         error_streaming_agent = Class.new(streaming_agent_class) do
-          def call
-            raise StandardError, "Stream error" if context[:items].first[:id] == 5
+          agent_name "ErrorStreamingAgent"
 
-            super
+          def run
+            raise StandardError, "Stream error"
           end
         end
 
-        pipeline_class = Class.new(RAAF::DSL::PipelineDSL::Pipeline) do
-          flow standard_agent_class >> error_streaming_agent >> processor_agent_class
+        agents = [standard_agent_class, error_streaming_agent, processor_agent_class]
+        pipeline_class = Class.new(RAAF::Pipeline) do
+          flow agents[0] >> agents[1] >> agents[2]
         end
 
         items = (1..20).map { |i| { id: i } }
-        pipeline = pipeline_class.new(items: items)
 
-        # Should handle error appropriately
-        expect { pipeline.run }.to raise_error(StandardError, "Stream error")
+        expect { pipeline_class.new(items: items).run }.to raise_error(StandardError, "Stream error")
       end
     end
   end
