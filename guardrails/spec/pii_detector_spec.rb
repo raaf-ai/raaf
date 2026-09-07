@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "openai_agents/guardrails/pii_detector"
 
 RSpec.describe RAAF::Guardrails::PIIDetector do
   let(:detector) { described_class.new(sensitivity_level: :medium) }

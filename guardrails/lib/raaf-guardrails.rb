@@ -1,17 +1,11 @@
 # frozen_string_literal: true
 
+# raaf-core supplies RAAF::Error and RAAF::Logging, which the guardrail classes mix in.
+require "raaf-core"
+
 require_relative "raaf/guardrails/version"
+require_relative "raaf/guardrails"
 require_relative "raaf/guardrails/validator"
-require_relative "raaf/guardrails/content_filter"
-require_relative "raaf/guardrails/toxicity_detector"
-require_relative "raaf/guardrails/pii_detector"
-require_relative "raaf/guardrails/prompt_injection_detector"
-require_relative "raaf/guardrails/custom_rules"
-require_relative "raaf/guardrails/middleware"
-require_relative "raaf/guardrails/providers/openai_moderator"
-require_relative "raaf/guardrails/providers/azure_moderator"
-require_relative "raaf/guardrails/providers/aws_moderator"
-require_relative "raaf/guardrails/providers/google_moderator"
 require_relative "raaf/guardrails/guideline_guardrail"
 
 module RAAF
