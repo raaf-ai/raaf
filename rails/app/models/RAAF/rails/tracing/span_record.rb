@@ -111,7 +111,73 @@ module RAAF
         # Spans that plausibly put anything on a bill, in either unit. A page
         # that totals only the first of them omits every search a run made while
         # reporting itself as the whole spend.
-        scope :with_billable_usage, -> { with_token_usage.or(with_call_fee) }
+        #
+        # The unbilled kinds are excluded here rather than left to +billable?+ to
+        # reject one row at a time. A job span brackets a run and buys nothing,
+        # but the tracer copies its children's token counts onto it, so every one
+        # of them matches the prefilter and gets loaded only to be discarded — on
+        # a production window that was 815 of 3,401 rows fetched for nothing.
+        #
+        # A null kind is kept, because +billing_mode+ bills it by the token: the
+        # column is nullable, and +where.not+ alone would answer NULL and drop
+        # every such span from a total that is supposed to include it.
+        scope :with_billable_usage, lambda {
+          with_token_usage.or(with_call_fee)
+                          .where("kind IS NULL OR kind NOT IN (?)",
+                                 ::RAAF::Tracing::SpanUsage::UNBILLED_KINDS)
+        }
+
+        # Columns a billing or rollup answer reads, beside the narrowed payload
+        # {for_billing} builds. Everything a caller of that scope touches has to
+        # be named here: a column left out of the projection raises
+        # +MissingAttributeError+ when something reaches for it, rather than
+        # quietly answering nil.
+        BILLING_COLUMNS = %w[span_id trace_id parent_id kind name status
+                             duration_ms start_time input_tokens output_tokens
+                             total_tokens agent_model].freeze
+
+        # Spans loaded with only the attributes a bill is made of.
+        #
+        # +span_attributes+ carries the prompt, the messages and the model's
+        # whole reply — ~21 kB a span on a production database. Totalling a
+        # day's spend needs about a dozen scalars out of that, so this rebuilds
+        # the payload from {SpanUsage::BILLING_KEYS} alone and leaves the
+        # conversation in the database. Over a 24-hour window on production that
+        # is 52 MB of JSON reduced to 302 kB — the difference between a page
+        # that renders and one that walks a Puma worker into its memory limit
+        # and is killed there.
+        #
+        # The rebuild is one pass over the payload rather than a key-by-key
+        # projection because +span_attributes+ is +json+, not +jsonb+: it is
+        # stored as text, so every +->+ reparses the whole document. Fourteen of
+        # them measured 7.6s against 0.6s for the single +json_each+ below.
+        #
+        # Records come back read-only in every practical sense — they are
+        # missing most of their columns — so this is for reading totals, never
+        # for writing.
+        scope :for_billing, lambda {
+          select(*BILLING_COLUMNS, SpanRecord.narrowed_attributes_sql)
+        }
+
+        # +span_attributes+ rebuilt from the billing keys alone, aliased back
+        # over the column it replaces so {SpanUsage} reads it without knowing it
+        # was narrowed.
+        #
+        # A payload that is not a JSON object — nothing writes one, but the
+        # column permits it — becomes an empty one rather than raising out of
+        # +json_each+ halfway through a page.
+        def self.narrowed_attributes_sql
+          @narrowed_attributes_sql ||= sanitize_sql_array(
+            [<<~SQL.squish, ::RAAF::Tracing::SpanUsage::BILLING_KEYS]
+              COALESCE((SELECT json_object_agg(entry.key, entry.value)
+                          FROM json_each(CASE
+                                 WHEN json_typeof(#{quoted_table_name}.span_attributes) = 'object'
+                                 THEN #{quoted_table_name}.span_attributes
+                                 ELSE '{}'::json END) AS entry
+                         WHERE entry.key IN (?)), '{}')::json AS span_attributes
+            SQL
+          )
+        end
 
         scope :root_spans, -> { where(parent_id: nil) }
         scope :child_spans, -> { where.not(parent_id: nil) }
@@ -291,7 +357,7 @@ module RAAF
             query = unscope(:order).where(kind: kinds)
             query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
 
-            spans = query.to_a
+            spans = query.for_billing.to_a
             return [] if spans.empty?
 
             ids = spans.map(&:span_id)
@@ -514,7 +580,7 @@ module RAAF
           # What each agent's per-call children were charged. Direct children
           # only, the same one level {llm_usage_by_parent} looks at.
           def fees_by_parent(parent_ids)
-            unscope(:order).with_call_fee.where(parent_id: parent_ids)
+            unscope(:order).with_call_fee.where(parent_id: parent_ids).for_billing
                            .each_with_object(Hash.new(0.0)) do |span, totals|
               fee = span.call_fee_usd
               totals[span.parent_id] += fee if fee
@@ -522,7 +588,7 @@ module RAAF
           end
 
           def llm_usage_by_parent(parent_ids)
-            unscope(:order).by_kind("llm").where(parent_id: parent_ids)
+            unscope(:order).by_kind("llm").where(parent_id: parent_ids).for_billing
                            .each_with_object({}) do |span, totals|
               running = totals[span.parent_id] ||= { cost: 0.0, tokens: 0 }
               running[:cost] += span.cost_usd.to_f
@@ -547,7 +613,7 @@ module RAAF
             query = unscope(:order).with_billable_usage
             query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
 
-            spans = query.to_a.select(&:billable?)
+            spans = query.for_billing.to_a.select(&:billable?)
             covered = spans.each_with_object({}) do |span, ids|
               ids[span.span_id] = true if AGENT_KINDS.include?(span.kind)
             end

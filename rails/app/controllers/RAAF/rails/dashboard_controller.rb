@@ -328,6 +328,53 @@ module RAAF
         end.freeze
       end
 
+      # How many bars the trend series on this dashboard are cut into.
+      SERIES_BUCKETS = 24
+
+      # The bucket geometry for a window: how wide each bucket is, how many
+      # there are, and when each begins.
+      #
+      # Its own step because three series are cut from it and they are read
+      # side by side. Bars an hour wide beside bars thirty hours wide are two
+      # answers to the same question.
+      def series_plan(time_range)
+        hours = ((time_range.end - time_range.begin) / 1.hour).ceil
+        width_hours = [hours / SERIES_BUCKETS, 1].max
+        count = [(hours.to_f / width_hours).ceil, 1].max
+
+        { width_hours: width_hours, count: count,
+          starts: Array.new(count) { |index| time_range.begin + (index * width_hours).hours } }
+      end
+
+      # The aggregates for each non-empty bucket, keyed by bucket index.
+      #
+      # The bucketing happens in one GROUP BY rather than in a Ruby loop that
+      # queried per bucket. Those loops issued four or five queries each — on
+      # the performance screen around 120 for one page — and at a 30-day range
+      # a single bucket's count took over three seconds, because each one
+      # scanned a thirty-hour slice on its own.
+      #
+      # Buckets are half-open, so a span on a boundary lands in exactly one of
+      # them. The per-bucket loops used an inclusive range at both ends and
+      # counted such a span twice. `least` keeps a row sitting exactly on the
+      # window's upper bound in the last bucket instead of one past the end.
+      #
+      # @return [Hash] bucket index => the aggregate values, in select order
+      def series_rows(model, column, time_range, plan, aggregates)
+        sql = model.sanitize_sql_array(
+          [<<~SQL.squish, time_range.begin, plan[:width_hours] * 3600, time_range.begin, time_range.end]
+            SELECT least(floor(extract(epoch from (#{column} - ?::timestamptz)) / ?)::int, #{plan[:count] - 1})
+                     AS bucket,
+                   #{aggregates}
+            FROM #{model.table_name}
+            WHERE #{column} >= ?::timestamptz AND #{column} <= ?::timestamptz
+            GROUP BY 1
+          SQL
+        )
+
+        model.connection.select_rows(sql).to_h { |row| [row.first.to_i, row.drop(1)] }
+      end
+
       def calculate_overview_stats(time_range)
         traces = RAAF::Rails::Tracing::TraceRecord.within_timeframe(time_range.begin, time_range.end)
         spans = RAAF::Rails::Tracing::SpanRecord.within_timeframe(time_range.begin, time_range.end)
@@ -356,58 +403,47 @@ module RAAF
       end
 
       def calculate_performance_trends(time_range)
-        # Simplified trending - could be enhanced with more sophisticated time series analysis
-        hours = ((time_range.end - time_range.begin) / 1.hour).ceil
-        bucket_size = [hours / 24, 1].max # At least 1 hour buckets, up to 24 buckets
+        plan = series_plan(time_range)
+        rows = series_rows(
+          RAAF::Rails::Tracing::TraceRecord, "started_at", time_range, plan,
+          <<~SQL.squish
+            count(*),
+            avg(extract(epoch from (ended_at - started_at))) FILTER (WHERE ended_at IS NOT NULL),
+            count(*) FILTER (WHERE status = 'failed')
+          SQL
+        )
 
-        buckets = []
-        current_time = time_range.begin
+        plan[:starts].each_with_index.map do |start, index|
+          count, avg_duration, errors = rows[index]
 
-        while current_time < time_range.end
-          bucket_end = [current_time + bucket_size.hours, time_range.end].min
-
-          traces_in_bucket = RAAF::Rails::Tracing::TraceRecord.within_timeframe(current_time, bucket_end)
-
-          buckets << {
-            timestamp: current_time,
-            trace_count: traces_in_bucket.count,
-            avg_duration: traces_in_bucket.where.not(ended_at: nil)
-                                          .average("EXTRACT(EPOCH FROM (ended_at - started_at))")
-                                          &.round(2),
-            error_count: traces_in_bucket.failed.count
-          }
-
-          current_time = bucket_end
+          { timestamp: start,
+            trace_count: count.to_i,
+            avg_duration: avg_duration&.to_f&.round(2),
+            error_count: errors.to_i }
         end
-
-        buckets
       end
 
       def calculate_performance_over_time(time_range)
-        # Similar to performance_trends but focused on span performance
-        hours = ((time_range.end - time_range.begin) / 1.hour).ceil
-        bucket_size = [hours / 24, 1].max
+        plan = series_plan(time_range)
+        rows = series_rows(
+          RAAF::Rails::Tracing::SpanRecord, "start_time", time_range, plan,
+          <<~SQL.squish
+            count(*),
+            avg(duration_ms),
+            percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms),
+            count(*) FILTER (WHERE status = 'error')
+          SQL
+        )
 
-        buckets = []
-        current_time = time_range.begin
+        plan[:starts].each_with_index.map do |start, index|
+          count, avg_duration, p95, errors = rows[index]
 
-        while current_time < time_range.end
-          bucket_end = [current_time + bucket_size.hours, time_range.end].min
-
-          spans_in_bucket = RAAF::Rails::Tracing::SpanRecord.within_timeframe(current_time, bucket_end)
-
-          buckets << {
-            timestamp: current_time,
-            span_count: spans_in_bucket.count,
-            avg_duration: spans_in_bucket.average(:duration_ms)&.round(2),
-            p95_duration: spans_in_bucket.percentile_for(:duration_ms, 0.95)&.round(2),
-            error_count: spans_in_bucket.errors.count
-          }
-
-          current_time = bucket_end
+          { timestamp: start,
+            span_count: count.to_i,
+            avg_duration: avg_duration&.to_f&.round(2),
+            p95_duration: p95&.to_f&.round(2),
+            error_count: errors.to_i }
         end
-
-        buckets
       end
 
       # Token usage per model over a window.
@@ -420,6 +456,7 @@ module RAAF
         spans = RAAF::Rails::Tracing::SpanRecord
                 .within_timeframe(time_range.begin, time_range.end)
                 .with_token_usage
+                .for_billing
 
         model_stats = {}
 
@@ -459,6 +496,7 @@ module RAAF
           usages = RAAF::Rails::Tracing::SpanRecord
                    .within_timeframe(current_time, bucket_end)
                    .with_token_usage
+                   .for_billing
                    .map(&:token_usage)
                    .select { |usage| RAAF::Tracing::SpanUsage.total_tokens(usage) }
 
@@ -510,33 +548,22 @@ module RAAF
       end
 
       def calculate_error_trends(time_range)
-        hours = ((time_range.end - time_range.begin) / 1.hour).ceil
-        bucket_size = [hours / 24, 1].max
+        plan = series_plan(time_range)
+        rows = series_rows(
+          RAAF::Rails::Tracing::SpanRecord, "start_time", time_range, plan,
+          "count(*), count(*) FILTER (WHERE status = 'error')"
+        )
 
-        buckets = []
-        current_time = time_range.begin
+        plan[:starts].each_with_index.map do |start, index|
+          total, errors = rows[index]
+          total = total.to_i
+          errors = errors.to_i
 
-        while current_time < time_range.end
-          bucket_end = [current_time + bucket_size.hours, time_range.end].min
-
-          spans_in_bucket = RAAF::Rails::Tracing::SpanRecord.within_timeframe(current_time, bucket_end)
-          error_spans = spans_in_bucket.errors
-
-          buckets << {
-            timestamp: current_time,
-            total_spans: spans_in_bucket.count,
-            error_spans: error_spans.count,
-            error_rate: if spans_in_bucket.any?
-                          ((error_spans.count.to_f / spans_in_bucket.count) * 100).round(2)
-                        else
-                          0
-                        end
-          }
-
-          current_time = bucket_end
+          { timestamp: start,
+            total_spans: total,
+            error_spans: errors,
+            error_rate: total.positive? ? ((errors.to_f / total) * 100).round(2) : 0 }
         end
-
-        buckets
       end
 
       def serialize_recent_traces(traces)

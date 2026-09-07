@@ -86,6 +86,21 @@ module RAAF
         total: %w[total_tokens]
       }.freeze
 
+      # Every top-level attribute key any answer in this module reads.
+      #
+      # A billing answer needs a handful of scalars out of a payload that also
+      # carries the prompt, the messages and the model's whole reply — on a
+      # production database that is ~21 kB a span, of which this is a few
+      # hundred bytes. A caller that has to total a window can select down to
+      # these keys and leave the rest in the database rather than materialising
+      # megabytes of conversation it will not read.
+      #
+      # +usage+ is here as a whole object because {NESTED_USAGE_KEYS} reads
+      # inside it; it is small.
+      BILLING_KEYS = (INPUT_KEYS + OUTPUT_KEYS + TOTAL_KEYS + MODEL_KEYS +
+                      FEE_CENT_KEYS + PROVIDER_KEYS +
+                      [COMPONENT_TYPE_KEY, COMPONENT_NAME_KEY, "usage"]).uniq.freeze
+
       class << self
 
         # Token usage and model recorded in a span attributes payload.
