@@ -115,7 +115,9 @@ module RAAF
         # @param agent [Object] Agent to test
         # @return [Object] Conversation helper
         #
-        delegate :create_conversation_helper, to: :"RAAF::Testing"
+        def create_conversation_helper(agent)
+          RAAF::Testing.create_conversation_helper(agent)
+        end
 
         ##
         # Stub external services for testing
