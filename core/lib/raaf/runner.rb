@@ -1695,11 +1695,16 @@ module RAAF
           state[:turns] += 1
           log_debug("🔢 TURNS: Incremented turns for tool call continuation", turns: state[:turns], done: process_result[:done])
 
-          # Check if max turns exceeded after incrementing
+          # Check if max turns exceeded after incrementing. The agent still wants
+          # another turn, so the conversation is unfinished -- report that as an
+          # error rather than handing back a truncated result that reads as
+          # complete. ConversationManager, the streaming path and ErrorHandler
+          # all treat the limit the same way.
           if state[:turns] >= state[:max_turns]
-            log_warn("⚠️ Maximum turns (#{state[:max_turns]}) reached - returning partial results")
+            error_msg = "Maximum turns (#{state[:max_turns]}) exceeded"
+            log_warn("⚠️ #{error_msg}")
             state[:max_turns_reached] = true
-            break # Exit the loop but continue processing to return partial results
+            raise MaxTurnsError, error_msg
           end
 
           next
